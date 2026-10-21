@@ -25,14 +25,15 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-  # Builds, signs and notarises the Live review app. The release job puts it in the darwin archives.
-  panel:
-    needs: version
-    runs-on: macos-26
-    permissions:
-      contents: read
+  # With no signing secret at all, the release ships without the Live review app. Some but not all is an error.
+  signing:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
     steps:
       - name: Check the signing secrets
+        id: check
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -40,14 +41,29 @@ jobs:
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
           APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
         run: |
-          missing=0
+          missing=()
           for name in MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD APPLE_NOTARY_KEY_ID APPLE_NOTARY_ISSUER_ID APPLE_NOTARY_KEY; do
-            if [ -z "${!name}" ]; then
-              echo "::error::$name is not set. Add the secret to sign and notarise the Live review app."
-              missing=1
-            fi
+            if [ -z "${!name}" ]; then missing+=("$name"); fi
           done
-          exit "$missing"
+          if [ "${#missing[@]}" -eq 5 ]; then
+            echo "::warning::No signing secret is set, so this release ships without the Live review app."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for name in "${missing[@]}"; do
+            echo "::error::$name is not set. Add the secret to sign and notarise the Live review app."
+          done
+          [ "${#missing[@]}" -eq 0 ] || exit 1
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+  # Builds, signs and notarises the Live review app. The release job puts it in the darwin archives.
+  panel:
+    needs: [version, signing]
+    if: needs.signing.outputs.ready == 'true'
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
       - name: Name the temporary files
         run: |
           echo "KEYCHAIN=$RUNNER_TEMP/panel-signing.keychain-db" >> "$GITHUB_ENV"
@@ -132,7 +148,8 @@ jobs:
           rm -f "$NOTARY_KEY_FILE" "$RUNNER_TEMP/certificate.p12"
 
   release:
-    needs: [version, panel]
+    needs: [version, signing, panel]
+    if: ${{ !cancelled() && needs.signing.result == 'success' && (needs.panel.result == 'success' || needs.panel.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -143,10 +160,12 @@ jobs:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
       - uses: actions/download-artifact@v8
+        if: needs.panel.result == 'success'
         with:
           name: panel
           path: ${{ runner.temp }}/panel-artifact
       - name: Unpack the app
+        if: needs.panel.result == 'success'
         run: |
           mkdir -p cli/panel
           tar -xf "$RUNNER_TEMP/panel-artifact/panel.tar" -C cli/panel
@@ -154,6 +173,10 @@ jobs:
             echo "::error::The panel artifact holds no Live review.app executable."
             exit 1
           fi
+      # GoReleaser fails on a files entry that matches nothing. The updater reads an archive with no app.
+      - name: Leave the app out of the archives
+        if: needs.panel.result != 'success'
+        run: yq -i 'del(.archives[].files[] | select(.src == "panel/Live review.app"))' cli/.goreleaser.yaml
       - name: Vet and test
         working-directory: cli
         run: go vet ./... && go test ./...
@@ -183,6 +206,7 @@ jobs:
   # The tap token writes to ubermuda/homebrew-tap only, so this job needs no write access here.
   homebrew:
     needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
