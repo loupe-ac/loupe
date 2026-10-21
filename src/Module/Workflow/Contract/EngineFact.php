@@ -11,4 +11,5 @@ enum EngineFact: string
     case ParentSlot = 'parent-slot';
     case PullRequest = 'pull-request';
     case PullRequestHead = 'pull-request-head';
+    case PullRequestMergeGate = 'pull-request-merge-gate';
 }

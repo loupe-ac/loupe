@@ -111,6 +111,15 @@ final class VerdictWouldFireTest extends KernelTestCase
         self::assertFalse($this->approvalMoves());
     }
 
+    public function test_the_approval_moves_condition_fails_when_only_a_change_request_fires_a_rule(): void
+    {
+        $this->define(['card.document.changes_requested' => ['tag' => 'design']]);
+        $document = $this->document(DocumentStatus::InReview);
+
+        self::assertSame([$document], $this->forCard([$document]));
+        self::assertFalse($this->approvalMoves());
+    }
+
     public function test_a_rule_that_reads_the_condition_is_left_out_of_the_question(): void
     {
         $this->define(['card.document.approval_moves' => []]);

@@ -39,10 +39,11 @@ final readonly class VerdictWouldFire
      * The same question on facts that a pass already built, so no provider reads the card a second time.
      *
      * @param list<string> $documentIds the documents in review of the card
+     * @param list<string> $verdicts    the document statuses to try
      *
-     * @return list<string> the ids of the documents whose approval or change request would make a rule of the card's slot turn true
+     * @return list<string> the ids of the documents whose verdict would make a rule of the card's slot turn true
      */
-    public function forFacts(Facts $facts, Template $template, array $documentIds): array
+    public function forFacts(Facts $facts, Template $template, array $documentIds, array $verdicts = [DocumentStatuses::APPROVED, DocumentStatuses::CHANGES_REQUESTED]): array
     {
         $rules = array_values(array_filter(
             $template->rulesFor($facts->slot),
@@ -52,8 +53,8 @@ final readonly class VerdictWouldFire
             return [];
         }
 
-        return array_values(array_filter($documentIds, function (string $documentId) use ($facts, $rules): bool {
-            foreach ([DocumentStatuses::APPROVED, DocumentStatuses::CHANGES_REQUESTED] as $status) {
+        return array_values(array_filter($documentIds, function (string $documentId) use ($facts, $rules, $verdicts): bool {
+            foreach ($verdicts as $status) {
                 $copy = self::withStatus($facts, $documentId, $status);
                 if (array_any($rules, fn (Rule $rule): bool => $this->subject->bind($rule, $copy)->truth)) {
                     return true;

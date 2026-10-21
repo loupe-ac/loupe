@@ -17,7 +17,7 @@ use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A document in review that carries a tag of the slot of the card, and a verdict on it would make a rule of that slot fire. */
+/** A document in review that carries a tag of the slot of the card, and its approval would make a rule of that slot fire. */
 final readonly class CardDocumentApprovalMoves implements Condition, ReadsVerdict
 {
     public function __construct(
@@ -50,7 +50,7 @@ final readonly class CardDocumentApprovalMoves implements Condition, ReadsVerdic
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::Slot];
+        return [EngineFact::Slot, ListsDocuments::class];
     }
 
     #[\Override]
@@ -67,17 +67,13 @@ final readonly class CardDocumentApprovalMoves implements Condition, ReadsVerdic
 
         $tags = $template->documentTagsFor($facts->slot);
         $ids = [];
-        foreach ($facts->provided as $provided) {
-            if ($provided instanceof ListsDocuments) {
-                foreach ($provided->documents as $document) {
-                    if (DocumentStatuses::IN_REVIEW === $document->status && self::carriesTag($document, $tags)) {
-                        $ids[] = $document->id;
-                    }
-                }
+        foreach ($facts->get(ListsDocuments::class)->documents as $document) {
+            if (DocumentStatuses::IN_REVIEW === $document->status && self::carriesTag($document, $tags)) {
+                $ids[] = $document->id;
             }
         }
 
-        return [] !== $ids && [] !== $this->verdict->forFacts($facts, $template, $ids);
+        return [] !== $ids && [] !== $this->verdict->forFacts($facts, $template, $ids, [DocumentStatuses::APPROVED]);
     }
 
     #[\Override]

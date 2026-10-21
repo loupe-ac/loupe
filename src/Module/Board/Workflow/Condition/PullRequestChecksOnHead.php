@@ -33,7 +33,7 @@ final readonly class PullRequestChecksOnHead implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest];
+        return [EngineFact::PullRequest, EngineFact::PullRequestMergeGate];
     }
 
     #[\Override]

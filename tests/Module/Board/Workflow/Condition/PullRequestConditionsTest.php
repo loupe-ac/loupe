@@ -201,9 +201,9 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), [], 'pr_base_is_merge_target', [], $one];
-        yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), [], 'pr_checks_on_head', [], $one];
-        yield 'pr.can_merge' => [new PullRequestCanMerge(), [], 'pr_can_merge', [], $one];
-        yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), [], 'pr_base_is_default', [], $one];
+        yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), [], 'pr_checks_on_head', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
+        yield 'pr.can_merge' => [new PullRequestCanMerge(), [], 'pr_can_merge', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
+        yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), [], 'pr_base_is_default', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), [], 'pr_base_is_epic_branch', [], $one];
         yield 'pr.stacked' => [new PullRequestStacked(), [], 'pr_stacked', [], $one];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), [], 'pr_parent_merged', [], $one];

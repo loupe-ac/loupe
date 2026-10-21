@@ -66,7 +66,7 @@ final readonly class Facts
      */
     public function get(string $class): object
     {
-        $facts = $this->provided[$class] ?? throw new \LogicException(\sprintf('No fact provider gives "%s".', $class));
+        $facts = $this->provided[$this->keyFor($class) ?? $class] ?? throw new \LogicException(\sprintf('No fact provider gives "%s".', $class));
         if (!$facts instanceof $class) {
             throw new \LogicException(\sprintf('The facts "%s" are unreadable.', $class));
         }
@@ -77,8 +77,25 @@ final readonly class Facts
     /** Null when the provider gave its facts, or when no provider gives the class. */
     public function unreadable(string $class): ?Unreadable
     {
-        $facts = $this->provided[$class] ?? null;
+        $facts = $this->provided[$this->keyFor($class) ?? $class] ?? null;
 
         return $facts instanceof Unreadable ? $facts : null;
+    }
+
+    /**
+     * The provided facts class that a condition names, either as itself or as a contract interface it implements.
+     * Null when no provider gives it.
+     */
+    public function keyFor(string $class): ?string
+    {
+        if (\array_key_exists($class, $this->provided)) {
+            return $class;
+        }
+        $keys = array_values(array_filter(array_keys($this->provided), static fn (string $key): bool => is_a($key, $class, true)));
+        if (\count($keys) > 1) {
+            throw new \LogicException(\sprintf('More than one fact provider gives "%s".', $class));
+        }
+
+        return $keys[0] ?? null;
     }
 }
