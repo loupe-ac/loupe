@@ -59,7 +59,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_one_merge_from_the_base_is_covered(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe', 71_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe', 71_001);
         $this->answers(
             $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
             $this->compare('ahead', [$this->commit('p1', 'b0'), $this->commit(self::COVERED, 'p1'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
@@ -67,14 +67,14 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
         self::assertSame(ApprovalCoverage::Covered, $this->reader()->read($pullRequest));
         self::assertSame([
-            'https://api.github.com/repos/Ubermuda/Loupe/compare/'.self::COVERED.'...'.self::HEAD,
-            'https://api.github.com/repos/Ubermuda/Loupe/compare/release%2F1.x...'.self::HEAD,
+            'https://api.github.com/repos/Loupe-AC/Loupe/compare/'.self::COVERED.'...'.self::HEAD,
+            'https://api.github.com/repos/Loupe-AC/Loupe/compare/release%2F1.x...'.self::HEAD,
         ], \array_slice($this->urls, 1));
     }
 
     public function test_two_merges_from_the_base_in_one_push_are_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_002);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_002);
         $this->answers(
             $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit('m1', self::COVERED, 'b1'), $this->commit('b2', 'b1'), $this->commit(self::HEAD, 'm1', 'b2')]),
             $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit('m1', self::COVERED, 'b1'), $this->commit(self::HEAD, 'm1', 'b2')]),
@@ -85,7 +85,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_that_resolved_a_conflict_is_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_003);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_003);
         $this->answers(
             $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit('b2', 'b1'), $this->commit(self::HEAD, self::COVERED, 'b2')]),
             $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'b2')]),
@@ -96,7 +96,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_clean_merge_is_covered_when_the_rule_holds_a_conflict_resolution(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_020);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_020);
         $this->answers(...$this->mergeAnswers(
             headChanged: ['a.php'],
             baseChanged: ['b.php'],
@@ -111,7 +111,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_that_changed_a_file_both_sides_changed_is_not_covered_when_the_rule_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_021);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_021);
         $this->answers(...$this->mergeAnswers(
             headChanged: ['a.php', 'c.php'],
             baseChanged: ['b.php', 'c.php'],
@@ -124,7 +124,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_that_rewrote_a_file_only_one_side_changed_is_not_covered_when_the_rule_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_022);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_022);
         $this->answers(...$this->mergeAnswers(
             headChanged: ['a.php'],
             baseChanged: ['b.php'],
@@ -137,7 +137,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_that_edited_the_base_side_files_is_not_covered_when_the_rule_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_023);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_023);
         $this->answers(...$this->mergeAnswers(
             headChanged: ['a.php'],
             baseChanged: ['b.php'],
@@ -150,7 +150,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_the_same_conflicting_merge_is_covered_when_the_rule_lets_an_approval_cover_it(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_024);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_024);
         $this->answers(...\array_slice($this->mergeAnswers(
             headChanged: ['a.php', 'c.php'],
             baseChanged: ['b.php', 'c.php'],
@@ -164,7 +164,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_renamed_file_counts_under_both_names(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_025);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_025);
         $this->answers(...$this->mergeAnswers(
             headChanged: [['a.php', 'old.php']],
             baseChanged: ['old.php'],
@@ -177,7 +177,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_cut_file_list_is_not_covered_when_the_rule_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_026);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_026);
         $many = array_map(static fn (int $i): string => 'f'.$i.'.php', range(1, 300));
         $this->answers(...$this->mergeAnswers(
             headChanged: ['a.php'],
@@ -191,7 +191,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_with_three_parents_is_not_covered_when_the_rule_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_027);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_027);
         $this->answers(
             $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1', 'b2')]),
             $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1', 'b2')]),
@@ -202,7 +202,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_malformed_file_list_is_unknown_when_the_rule_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_028);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_028);
         $this->answers(
             $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
             $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
@@ -215,7 +215,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_an_identical_head_is_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_004);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_004);
         $this->answers($this->compare('identical', []));
 
         self::assertSame(ApprovalCoverage::Covered, $this->reader()->read($pullRequest));
@@ -223,7 +223,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_content_commit_is_not_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_005);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_005);
         $this->answers(
             $this->compare('ahead', [$this->commit(self::HEAD, self::COVERED)]),
             $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED)]),
@@ -234,7 +234,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_then_a_content_commit_is_not_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_006);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_006);
         $this->answers(
             $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit('m1', self::COVERED, 'b1'), $this->commit(self::HEAD, 'm1')]),
             $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit('m1', self::COVERED, 'b1'), $this->commit(self::HEAD, 'm1')]),
@@ -245,7 +245,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_merge_of_a_commit_that_is_not_on_the_base_is_not_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_007);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_007);
         $this->answers(
             $this->compare('ahead', [$this->commit(self::HEAD, self::COVERED, 'f1')]),
             $this->compare('ahead', [$this->commit('f1', 'b0'), $this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'f1')]),
@@ -257,7 +257,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
     public function test_a_force_push_is_not_covered(): void
     {
         foreach (['diverged', 'behind'] as $offset => $status) {
-            $pullRequest = $this->tracked('ubermuda/loupe', 71_010 + $offset);
+            $pullRequest = $this->tracked('loupe-ac/loupe', 71_010 + $offset);
             $this->answers($this->compare($status, [$this->commit(self::HEAD, 'b0')]));
 
             self::assertSame(ApprovalCoverage::NotCovered, $this->reader()->read($pullRequest), $status);
@@ -266,12 +266,12 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_cut_list_is_not_covered(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_012);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_012);
         $this->answers($this->compare('ahead', [$this->commit(self::HEAD, self::COVERED, 'b1')], total: 300));
 
         self::assertSame(ApprovalCoverage::NotCovered, $this->reader()->read($pullRequest));
 
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_013);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_013);
         $this->answers(
             $this->compare('ahead', [$this->commit(self::HEAD, self::COVERED, 'b1')]),
             $this->compare('ahead', [$this->commit(self::HEAD, self::COVERED, 'b1')], total: 300),
@@ -282,7 +282,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_failed_compare_is_unknown_and_logged(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_014);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_014);
         $this->answers(
             $this->compare('ahead', [$this->commit(self::HEAD, self::COVERED, 'b1')]),
             new MockResponse('{"message":"Server Error"}', ['http_code' => 500]),
@@ -295,7 +295,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_malformed_compare_is_unknown(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_015);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_015);
         $this->answers($this->answer(['status' => 'ahead', 'total_commits' => 1, 'commits' => [['sha' => self::HEAD, 'parents' => 'none']]]));
 
         self::assertSame(ApprovalCoverage::Unknown, $this->reader()->read($pullRequest));
@@ -305,7 +305,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
     public function test_a_pull_request_without_an_installation_is_unknown(): void
     {
         $project = $this->project();
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->facts($pullRequest);
         $this->em->persist($pullRequest);
         $this->em->flush();
@@ -317,7 +317,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 
     public function test_a_pull_request_without_the_facts_to_compare_is_unknown(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_016);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_016);
         $pullRequest->baseBranch = null;
 
         self::assertSame(ApprovalCoverage::Unknown, $this->reader()->read($pullRequest));
@@ -327,7 +327,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->facts($pullRequest);

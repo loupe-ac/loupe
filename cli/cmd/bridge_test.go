@@ -104,6 +104,26 @@ func TestAnUnknownPermissionModeIsLoggedAtStart(t *testing.T) {
 	}
 }
 
+// A hook under the old name of the Loupe repository keeps running, and the log
+// names the command that moves it.
+func TestAMovedHookPackageIsLoggedAtStart(t *testing.T) {
+	set, err := rules.Parse([]byte("accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: "+t.TempDir()+"\nwork:\n  plan: {prompt: go}\nhooks:\n  - package: ubermuda/loupe\n    path: hooks/amphetamine\n    ref: v1\n    sha: "+strings.Repeat("1", 40)+"\n"), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+
+	warnMovedHooks(newBridgeLogger(&out), set)
+
+	var line map[string]any
+	if err := json.Unmarshal(out.Bytes(), &line); err != nil {
+		t.Fatalf("log = %q: %v", out.String(), err)
+	}
+	if line["event"] != "hook_package_moved" || line["hook"] != "ubermuda/loupe/hooks/amphetamine" || line["fix"] != "loupe bridge hooks install loupe-ac/loupe/hooks/amphetamine@v1" || line["level"] != "WARN" {
+		t.Fatalf("line = %v", line)
+	}
+}
+
 // With no --rules, the file sits beside config.json.
 func TestBridgeRunReadsRulesFromTheConfigDir(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

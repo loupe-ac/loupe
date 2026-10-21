@@ -63,7 +63,7 @@ Install the CLI, sign in once, and name the project in each repository:
 
 ```bash
 curl -fsSL https://<your Loupe>/install.sh | sh   # hosted: https://app.loupe.ac/install.sh
-# or, with Homebrew: brew install ubermuda/tap/loupe
+# or, with Homebrew: brew install loupe-ac/tap/loupe
 loupe login                  # a browser sign-in, once per machine
 cd ~/code/my-project
 loupe project link           # writes .loupe.yaml, choosing from your projects

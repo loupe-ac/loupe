@@ -139,13 +139,13 @@ final class CardCreateToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('card-create-links'));
 
         $card = ($this->tool)('Linked', 'Body', 'bug', pullRequestUrls: [
-            'https://github.com/ubermuda/loupe/pull/362',
+            'https://github.com/loupe-ac/loupe/pull/362',
             'https://code.example.org/team/app/pulls/12',
         ]);
 
         self::assertCount(2, $card['pullRequests']);
         self::assertSame(Forge::GitHub->value, $card['pullRequests'][0]['forge']);
-        self::assertSame('ubermuda/loupe', $card['pullRequests'][0]['repository']);
+        self::assertSame('loupe-ac/loupe', $card['pullRequests'][0]['repository']);
         self::assertSame(362, $card['pullRequests'][0]['number']);
         self::assertSame(Forge::Other->value, $card['pullRequests'][1]['forge']);
         self::assertNull($card['pullRequests'][1]['repository']);

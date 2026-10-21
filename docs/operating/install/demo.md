@@ -5,7 +5,7 @@ description: "One container holding the app, worker and Postgres. For evaluating
 
 
 ```bash
-docker run --rm -p 127.0.0.1:8080:80 ghcr.io/ubermuda/loupe:demo
+docker run --rm -p 127.0.0.1:8080:80 ghcr.io/loupe-ac/loupe:demo
 ```
 
 Then open <http://localhost:8080> and log in with `admin@example.com` /
@@ -25,7 +25,7 @@ you keep it:
 
 ```bash
 docker run --rm -p 127.0.0.1:8080:80 \
-  -v loupe-demo:/var/lib/postgresql/data ghcr.io/ubermuda/loupe:demo
+  -v loupe-demo:/var/lib/postgresql/data ghcr.io/loupe-ac/loupe:demo
 ```
 
 Serving it on another port needs `DEFAULT_URI` to agree, or the links it
@@ -33,7 +33,7 @@ generates point at the wrong one:
 
 ```bash
 docker run --rm -p 127.0.0.1:9000:80 \
-  -e DEFAULT_URI=http://localhost:9000 ghcr.io/ubermuda/loupe:demo
+  -e DEFAULT_URI=http://localhost:9000 ghcr.io/loupe-ac/loupe:demo
 ```
 
 From a clone, `just demo` builds the image and runs it with all of that already

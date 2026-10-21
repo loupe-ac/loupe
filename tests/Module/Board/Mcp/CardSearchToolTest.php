@@ -240,7 +240,7 @@ final class CardSearchToolTest extends KernelTestCase
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-search-links'));
         foreach ([1, 2, 3] as $number) {
-            ($this->createTool)('Kestrel '.$number, 'Body', 'feature', pullRequestUrls: ['https://github.com/ubermuda/loupe/pull/'.$number]);
+            ($this->createTool)('Kestrel '.$number, 'Body', 'feature', pullRequestUrls: ['https://github.com/loupe-ac/loupe/pull/'.$number]);
         }
         $this->em->clear();
         $queries = self::getContainer()->get('doctrine.debug_data_holder');

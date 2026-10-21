@@ -65,7 +65,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     #[DataProvider('methods')]
     public function test_it_asks_github_to_merge_the_expected_head_with_the_method(string $method): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe.site', 73_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 73_001);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['sha' => 'merge1', 'merged' => true, 'message' => 'Pull Request successfully merged']),
@@ -76,7 +76,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         self::assertCount(2, $this->requests);
         self::assertSame('https://api.github.com/app/installations/73001/access_tokens', $this->requests[0]['url']);
         self::assertSame('PUT', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/pulls/604/merge', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/pulls/604/merge', $this->requests[1]['url']);
         $body = $this->requests[1]['options']['body'] ?? null;
         self::assertIsString($body);
         self::assertSame(['merge_method' => $method, 'sha' => 'head1'], json_decode($body, true, flags: \JSON_THROW_ON_ERROR));
@@ -84,7 +84,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
 
     public function test_an_unknown_method_is_refused_before_any_request(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_002);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_002);
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -109,7 +109,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     #[DataProvider('refusals')]
     public function test_a_refused_merge_is_a_permanent_failure_with_its_cause(int $status, string $cause): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_010 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_010 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"No"}', ['http_code' => $status]),
@@ -133,7 +133,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     #[DataProvider('rateLimits')]
     public function test_a_rate_limit_is_a_transient_failure_that_carries_the_delay_github_asks_for(int $status, array $headers, ?int $retryAfterSeconds): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_020 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_020 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => $status, 'response_headers' => $headers]),
@@ -148,7 +148,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
 
     public function test_a_server_error_is_a_transient_failure_that_names_the_status(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_003);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_003);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"Server Error"}', ['http_code' => 502]),
@@ -162,7 +162,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
 
     public function test_a_missing_app_configuration_is_a_permanent_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_004);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_004);
 
         $failure = $this->failure($pullRequest, appId: null);
 
@@ -173,7 +173,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
 
     public function test_a_transport_error_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_005);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_005);
         $this->responses = [new MockResponse('', ['error' => 'Could not resolve host'])];
 
         $failure = $this->failure($pullRequest);
@@ -185,8 +185,8 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -199,7 +199,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
 
     public function test_a_suspended_installation_is_a_permanent_failure_of_its_own(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 73_006);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_006);
         $installations = self::getContainer()->get(GitHubInstallationRepository::class);
         self::assertInstanceOf(GitHubInstallationRepository::class, $installations);
         $installation = $installations->findOneByInstallationId(73_006);
@@ -217,7 +217,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

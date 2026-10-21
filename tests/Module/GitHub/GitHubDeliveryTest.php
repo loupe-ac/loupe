@@ -21,7 +21,7 @@ final class GitHubDeliveryTest extends TestCase
 {
     private const string SECRET = 'a-shared-secret';
 
-    private const array REPOSITORY = ['id' => 4242, 'full_name' => 'ubermuda/loupe'];
+    private const array REPOSITORY = ['id' => 4242, 'full_name' => 'loupe-ac/loupe'];
 
     public function test_it_reads_a_merge_from_a_closed_pull_request(): void
     {
@@ -33,7 +33,7 @@ final class GitHubDeliveryTest extends TestCase
 
         self::assertCount(1, $deliveries);
         self::assertSame(ForgeEventType::MERGED, $deliveries[0]->type);
-        self::assertSame('ubermuda/loupe', $deliveries[0]->repository);
+        self::assertSame('loupe-ac/loupe', $deliveries[0]->repository);
         self::assertSame(541, $deliveries[0]->number);
         self::assertSame('github', $deliveries[0]->forge);
     }
@@ -130,13 +130,13 @@ final class GitHubDeliveryTest extends TestCase
         self::assertNotNull($repository);
         self::assertSame(4242, $repository->id);
         self::assertSame('4242', $repository->externalId());
-        self::assertSame('ubermuda/loupe', $repository->fullName);
+        self::assertSame('loupe-ac/loupe', $repository->fullName);
     }
 
     public function test_a_repository_without_a_numeric_id_is_no_repository(): void
     {
-        self::assertNull($this->delivery('pull_request', ['repository' => ['id' => '4242', 'full_name' => 'ubermuda/loupe']])->repository());
-        self::assertNull($this->delivery('pull_request', ['repository' => ['full_name' => 'ubermuda/loupe']])->repository());
+        self::assertNull($this->delivery('pull_request', ['repository' => ['id' => '4242', 'full_name' => 'loupe-ac/loupe']])->repository());
+        self::assertNull($this->delivery('pull_request', ['repository' => ['full_name' => 'loupe-ac/loupe']])->repository());
         self::assertNull($this->delivery('pull_request', ['repository' => ['id' => 4242, 'full_name' => '']])->repository());
     }
 
@@ -145,7 +145,7 @@ final class GitHubDeliveryTest extends TestCase
     {
         self::assertSame([], $this->delivery('pull_request', [
             'action' => 'closed',
-            'repository' => ['full_name' => 'ubermuda/loupe'],
+            'repository' => ['full_name' => 'loupe-ac/loupe'],
             'pull_request' => ['number' => 541, 'merged' => true],
         ])->forgeDeliveries());
     }
@@ -154,9 +154,9 @@ final class GitHubDeliveryTest extends TestCase
     {
         $delivery = $this->delivery('installation_repositories', [
             'action' => 'added',
-            'installation' => ['id' => 77, 'account' => ['login' => 'ubermuda']],
+            'installation' => ['id' => 77, 'account' => ['login' => 'loupe-ac']],
             'repository_selection' => 'selected',
-            'repositories_added' => [['id' => 1, 'full_name' => 'ubermuda/a'], ['full_name' => 'broken'], 'junk'],
+            'repositories_added' => [['id' => 1, 'full_name' => 'loupe-ac/a'], ['full_name' => 'broken'], 'junk'],
             'repositories_removed' => 'not-a-list',
         ]);
 
@@ -164,7 +164,7 @@ final class GitHubDeliveryTest extends TestCase
         self::assertSame('added', $delivery->action());
         self::assertSame(77, $delivery->installationId());
         self::assertSame(GitHubRepositorySelection::Selected, $delivery->repositorySelection());
-        self::assertSame(['ubermuda/a'], array_map(static fn ($r): string => $r->fullName, $delivery->repositories('repositories_added')));
+        self::assertSame(['loupe-ac/a'], array_map(static fn ($r): string => $r->fullName, $delivery->repositories('repositories_added')));
         self::assertSame([], $delivery->repositories('repositories_removed'));
     }
 

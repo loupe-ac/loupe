@@ -32,7 +32,7 @@ final class CardUpdateToolTest extends KernelTestCase
     use BoardToolScenario;
     use McpTokenScenario;
 
-    private const string PULL_REQUEST = 'https://github.com/ubermuda/loupe/pull/362';
+    private const string PULL_REQUEST = 'https://github.com/loupe-ac/loupe/pull/362';
 
     private EntityManagerInterface $em;
     private CardUpdateTool $tool;
@@ -94,7 +94,7 @@ final class CardUpdateToolTest extends KernelTestCase
     {
         $created = $this->card('card-update-replace');
 
-        $card = ($this->tool)($created['cardId'], pullRequestUrls: ['https://github.com/ubermuda/loupe/pull/9']);
+        $card = ($this->tool)($created['cardId'], pullRequestUrls: ['https://github.com/loupe-ac/loupe/pull/9']);
 
         self::assertCount(1, $card['pullRequests']);
         self::assertSame(9, $card['pullRequests'][0]['number']);

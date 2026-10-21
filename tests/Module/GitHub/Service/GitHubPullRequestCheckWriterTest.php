@@ -67,7 +67,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
     #[DataProvider('conclusions')]
     public function test_it_creates_a_completed_check_run_as_the_app(PullRequestCheckConclusion $conclusion): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe.site', 72_001 + \count($this->requests));
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 72_001 + \count($this->requests));
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 4242], 201)];
 
         $runId = $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', $conclusion, '2 open notes', 'Fix the footer.', null, []);
@@ -75,7 +75,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         self::assertSame(4242, $runId);
         self::assertCount(2, $this->requests);
         self::assertSame('POST', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/check-runs', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/check-runs', $this->requests[1]['url']);
         self::assertSame([
             'name' => 'Loupe live review',
             'head_sha' => 'abc123',
@@ -87,14 +87,14 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_run_id_updates_the_run_under_the_given_name_and_sends_no_sha(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_010);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_010);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 4242])];
 
         $runId = $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Success, 'No open note', 'Done.', 4242, []);
 
         self::assertSame(4242, $runId);
         self::assertSame('PATCH', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/ubermuda/loupe/check-runs/4242', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/loupe-ac/loupe/check-runs/4242', $this->requests[1]['url']);
         self::assertSame([
             'name' => 'Loupe live review',
             'status' => 'completed',
@@ -105,7 +105,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_long_summary_is_cut_to_stay_under_the_github_limit(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_011);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_011);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 1], 201)];
 
         $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', str_repeat('é', 70_000), null, []);
@@ -128,7 +128,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
     #[DataProvider('annotationPages')]
     public function test_annotations_go_50_to_a_request_and_the_rest_patch_the_run(int $count, ?int $runId, array $perRequest): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_040 + $count + ($runId ?? 0));
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_040 + $count + ($runId ?? 0));
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201)];
         foreach ($perRequest as $_) {
             $this->responses[] = $this->answer(['id' => 4242], 201);
@@ -155,7 +155,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
             self::assertCount($expected, $pageAnnotations);
             if ($page > 0) {
                 self::assertSame('PATCH', $this->requests[$page + 1]['method']);
-                self::assertSame('https://api.github.com/repos/ubermuda/loupe/check-runs/4242', $this->requests[$page + 1]['url']);
+                self::assertSame('https://api.github.com/repos/loupe-ac/loupe/check-runs/4242', $this->requests[$page + 1]['url']);
                 self::assertSame(['output'], array_keys($body));
             }
             $sent = [...$sent, ...$pageAnnotations];
@@ -174,7 +174,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_check_with_no_annotation_sends_no_annotations_key(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_200);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_200);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 1], 201)];
 
         $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Success, 'Clean', 'Done.', null, []);
@@ -186,7 +186,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_long_annotation_title_and_message_are_cut(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_201);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_201);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 1], 201)];
         $annotation = new PullRequestCheckAnnotation('a.html', 1, 1, PullRequestCheckAnnotationLevel::Failure, str_repeat('t', 300), str_repeat('é', 70_000));
 
@@ -211,7 +211,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
     #[DataProvider('refusals')]
     public function test_a_refused_check_is_a_permanent_permission_failure(int $status): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_020 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_020 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"Resource not accessible by integration"}', ['http_code' => $status]),
@@ -225,7 +225,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_rate_limit_is_a_transient_failure_that_carries_the_delay(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_030);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_030);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{}', ['http_code' => 403, 'response_headers' => ['retry-after' => '60']]),
@@ -240,7 +240,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_server_error_is_a_transient_failure_that_names_the_status(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_031);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_031);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), new MockResponse('{}', ['http_code' => 502])];
 
         $failure = $this->failure($pullRequest);
@@ -251,7 +251,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_failure_on_a_later_page_names_the_run_and_the_annotations_it_holds(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_033);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_033);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 4242], 201), new MockResponse('{}', ['http_code' => 502])];
         $annotations = [];
         for ($i = 1; $i <= 120; ++$i) {
@@ -271,7 +271,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_later_page_that_github_accepts_with_a_body_that_does_not_decode_counts_as_sent(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_033);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_033);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['id' => 4242], 201),
@@ -294,7 +294,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_a_failure_on_the_first_request_of_a_new_run_names_no_run(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_034);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_034);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), new MockResponse('{}', ['http_code' => 502])];
 
         $failure = $this->failure($pullRequest);
@@ -305,7 +305,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
 
     public function test_an_answer_with_no_run_id_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_032);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_032);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['name' => 'x'], 201)];
 
         $failure = $this->failure($pullRequest);
@@ -317,8 +317,8 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -343,7 +343,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

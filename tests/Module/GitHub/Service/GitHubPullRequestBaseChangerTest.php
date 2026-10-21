@@ -55,7 +55,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_it_reads_the_pull_request_then_changes_its_base(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe.site', 74_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 74_001);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(base: 'epic/398'),
@@ -65,7 +65,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
         $this->changer()->changeBase($pullRequest, 'main');
 
         self::assertCount(3, $this->requests);
-        self::assertSame(['owner' => 'Ubermuda', 'name' => 'Loupe.site', 'number' => 604], $this->graphql(1)['variables']);
+        self::assertSame(['owner' => 'Loupe-AC', 'name' => 'Loupe.site', 'number' => 604], $this->graphql(1)['variables']);
         self::assertStringContainsString('pullRequest(number:$number){id state baseRefName}', $this->graphql(1)['query']);
         self::assertStringContainsString('updatePullRequest(input:{pullRequestId:$id,baseRefName:$base})', $this->graphql(2)['query']);
         self::assertSame(['id' => 'PR_node', 'base' => 'main'], $this->graphql(2)['variables']);
@@ -73,7 +73,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_pull_request_already_on_the_base_takes_no_mutation(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_002);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_002);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(base: 'main'),
@@ -94,7 +94,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
     #[DataProvider('endedStates')]
     public function test_a_pull_request_that_is_not_open_takes_no_mutation(string $state, int $offset): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_010 + $offset);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_010 + $offset);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(base: 'epic/398', state: $state),
@@ -107,7 +107,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_mutation_that_finds_no_pull_request_is_a_permanent_not_found_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_030);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_030);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(base: 'epic/398'),
@@ -123,7 +123,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_forbidden_mutation_is_a_permanent_permission_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_020);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_020);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(base: 'epic/398'),
@@ -138,7 +138,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_another_graphql_error_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_021);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_021);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => null, 'errors' => [['type' => 'SERVICE_UNAVAILABLE']]]),
@@ -152,7 +152,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_graphql_rate_limit_is_a_transient_failure_with_a_fallback_delay(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_022);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_022);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => null, 'errors' => [['type' => 'RATE_LIMITED', 'message' => 'API rate limit exceeded']]]),
@@ -167,7 +167,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_rate_limit_is_a_transient_failure_that_carries_the_delay_github_asks_for(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_023);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_023);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => 403, 'response_headers' => ['retry-after' => '60']]),
@@ -182,7 +182,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_missing_pull_request_is_a_permanent_not_found_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_024);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_024);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => ['repository' => ['pullRequest' => null]], 'errors' => [['type' => 'NOT_FOUND']]]),
@@ -206,7 +206,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
     #[DataProvider('refusals')]
     public function test_a_refused_request_is_a_permanent_permission_failure(int $status): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_100 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_100 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"No"}', ['http_code' => $status]),
@@ -220,7 +220,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_server_error_is_a_transient_failure_that_names_the_status(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_025);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_025);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"Server Error"}', ['http_code' => 502]),
@@ -234,7 +234,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
 
     public function test_a_missing_app_configuration_is_a_permanent_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 74_026);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 74_026);
 
         $failure = $this->failure($pullRequest, appId: null);
 
@@ -246,8 +246,8 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -261,7 +261,7 @@ final class GitHubPullRequestBaseChangerTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

@@ -66,14 +66,14 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
     public function test_it_posts_the_review_as_the_user_with_the_user_token(PullRequestReviewKind $kind, string $event): void
     {
         $user = $this->connectedUser('review-ok');
-        $this->responses = [new MockResponse('{"html_url":"https://github.com/ubermuda/lou%20pe/pull/604#pullrequestreview-9"}')];
+        $this->responses = [new MockResponse('{"html_url":"https://github.com/loupe-ac/lou%20pe/pull/604#pullrequestreview-9"}')];
 
-        $url = $this->poster()->post($this->pullRequest('ubermuda/lou pe'), $kind, 'Two notes.', (string) $user->id);
+        $url = $this->poster()->post($this->pullRequest('loupe-ac/lou pe'), $kind, 'Two notes.', (string) $user->id);
 
-        self::assertSame('https://github.com/ubermuda/lou%20pe/pull/604#pullrequestreview-9', $url);
+        self::assertSame('https://github.com/loupe-ac/lou%20pe/pull/604#pullrequestreview-9', $url);
         self::assertCount(1, $this->requests);
         self::assertSame('POST', $this->requests[0]['method']);
-        self::assertSame('https://api.github.com/repos/ubermuda/lou%20pe/pulls/604/reviews', $this->requests[0]['url']);
+        self::assertSame('https://api.github.com/repos/loupe-ac/lou%20pe/pulls/604/reviews', $this->requests[0]['url']);
         self::assertContains('Authorization: Bearer the-access-token', $this->requests[0]['options']['headers'] ?? []);
         self::assertSame(['event' => $event, 'body' => 'Two notes.'], $this->sentBody());
     }
@@ -83,7 +83,7 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
         $user = $this->connectedUser('review-empty');
         $this->responses = [new MockResponse('{}')];
 
-        $url = $this->poster()->post($this->pullRequest('ubermuda/loupe'), PullRequestReviewKind::Approve, '', (string) $user->id);
+        $url = $this->poster()->post($this->pullRequest('loupe-ac/loupe'), PullRequestReviewKind::Approve, '', (string) $user->id);
 
         self::assertNull($url);
         self::assertSame(['event' => 'APPROVE'], $this->sentBody());
@@ -94,7 +94,7 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
         $user = $this->connectedUser('review-long');
         $this->responses = [new MockResponse('{}')];
 
-        $this->poster()->post($this->pullRequest('ubermuda/loupe'), PullRequestReviewKind::Comment, str_repeat('é', 70_000), (string) $user->id);
+        $this->poster()->post($this->pullRequest('loupe-ac/loupe'), PullRequestReviewKind::Comment, str_repeat('é', 70_000), (string) $user->id);
 
         self::assertSame(60_000, mb_strlen((string) $this->sentBody()['body']));
     }
@@ -190,7 +190,7 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
         $user = $this->connectedUser('review-blank-'.$kind->value);
 
         try {
-            $this->poster()->post($this->pullRequest('ubermuda/loupe'), $kind, "  \n", (string) $user->id);
+            $this->poster()->post($this->pullRequest('loupe-ac/loupe'), $kind, "  \n", (string) $user->id);
             self::fail('Expected PullRequestReviewFailed.');
         } catch (PullRequestReviewFailed $e) {
             self::assertSame('empty_body', $e->cause);
@@ -235,7 +235,7 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
     private function failure(string $userId): PullRequestReviewFailed
     {
         try {
-            $this->poster()->post($this->pullRequest('ubermuda/loupe'), PullRequestReviewKind::Comment, 'Hello', $userId);
+            $this->poster()->post($this->pullRequest('loupe-ac/loupe'), PullRequestReviewKind::Comment, 'Hello', $userId);
         } catch (PullRequestReviewFailed $e) {
             return $e;
         }

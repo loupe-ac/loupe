@@ -54,7 +54,7 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_it_opens_a_draft_pull_request_when_none_is_open(): void
     {
-        $from = $this->tracked('Ubermuda/Loupe.site', 73_001);
+        $from = $this->tracked('Loupe-AC/Loupe.site', 73_001);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer([]),
@@ -65,9 +65,9 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
         self::assertCount(3, $this->requests);
         self::assertSame('GET', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/pulls?head=Ubermuda:epic/42&base=main&state=open', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/pulls?head=Loupe-AC:epic/42&base=main&state=open', $this->requests[1]['url']);
         self::assertSame('POST', $this->requests[2]['method']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/pulls', $this->requests[2]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/pulls', $this->requests[2]['url']);
         self::assertSame(
             ['title' => 'The epic', 'head' => 'epic/42', 'base' => 'main', 'body' => 'The body', 'draft' => true],
             json_decode($this->body(2), true, flags: \JSON_THROW_ON_ERROR),
@@ -76,7 +76,7 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_it_answers_the_open_pull_request_that_exists(): void
     {
-        $from = $this->tracked('ubermuda/loupe', 73_002);
+        $from = $this->tracked('loupe-ac/loupe', 73_002);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer([['number' => 640]]),
@@ -88,7 +88,7 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_an_answer_with_no_number_is_a_permanent_failure(): void
     {
-        $from = $this->tracked('ubermuda/loupe', 73_003);
+        $from = $this->tracked('loupe-ac/loupe', 73_003);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer([]),
@@ -103,7 +103,7 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_a_refused_request_is_a_permanent_permission_failure(): void
     {
-        $from = $this->tracked('ubermuda/loupe', 73_004);
+        $from = $this->tracked('loupe-ac/loupe', 73_004);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"No"}', ['http_code' => 403]),
@@ -117,7 +117,7 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_a_validation_error_is_a_failure_that_names_the_status(): void
     {
-        $from = $this->tracked('ubermuda/loupe', 73_005);
+        $from = $this->tracked('loupe-ac/loupe', 73_005);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer([]),
@@ -132,7 +132,7 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_a_rate_limit_carries_the_delay_github_asks_for(): void
     {
-        $from = $this->tracked('ubermuda/loupe', 73_006);
+        $from = $this->tracked('loupe-ac/loupe', 73_006);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => 403, 'response_headers' => ['retry-after' => '60']]),
@@ -147,8 +147,8 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $from = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $from = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($from);
         $this->em->flush();
 
@@ -161,15 +161,15 @@ final class GitHubPullRequestOpenerTest extends KernelTestCase
 
     public function test_the_url_names_the_pull_request_on_github(): void
     {
-        $from = new ForgePullRequest($this->project(), 'github', 'Ubermuda/Loupe', 604);
+        $from = new ForgePullRequest($this->project(), 'github', 'Loupe-AC/Loupe', 604);
 
-        self::assertSame('https://github.com/ubermuda/loupe/pull/812', $this->opener()->url($from, 812));
+        self::assertSame('https://github.com/loupe-ac/loupe/pull/812', $this->opener()->url($from, 812));
     }
 
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

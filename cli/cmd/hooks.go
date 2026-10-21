@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -73,7 +74,7 @@ func newHooksInstallCmd(rulesPath *string) *cobra.Command {
 				return err
 			}
 			id := spec.ID()
-			if i := findHook(entries, id); i >= 0 {
+			if i := findHook(entries, id); i >= 0 && !entries[i].Moved() {
 				id = entries[i].ID()
 			}
 
@@ -137,6 +138,9 @@ func newHooksInstallCmd(rulesPath *string) *cobra.Command {
 					}
 				}
 				list[i].Ref, list[i].SHA, list[i].Settings = spec.Ref, sha, kept
+				if old.Moved() {
+					list[i].Package = spec.Package()
+				}
 
 				return list, nil
 			})
@@ -144,6 +148,12 @@ func newHooksInstallCmd(rulesPath *string) *cobra.Command {
 				return fmt.Errorf("rule file %s: %w", path, err)
 			}
 			installed = true
+			if prev != nil && prev.Moved() {
+				if err := moveHookState(root, prev.ID(), id); err != nil {
+					return err
+				}
+				fmt.Fprintf(out, "Moved %s to %s.\n", prev.ID(), id)
+			}
 
 			if prev == nil {
 				fmt.Fprintf(out, "Installed %s at %s (%s).\n", id, spec.Ref, sha[:7])
@@ -421,10 +431,32 @@ func loadHooks(rulesPath string) (path, root string, entries []rules.HookEntry, 
 	return path, root, set.Hooks(), nil
 }
 
-// findHook finds a package by its id. GitHub names ignore case, and so does
-// the check of the rule file.
+// findHook finds a package by its id, old or new. GitHub names ignore case,
+// and so does the check of the rule file.
 func findHook(entries []rules.HookEntry, id string) int {
-	return slices.IndexFunc(entries, func(e rules.HookEntry) bool { return strings.EqualFold(e.ID(), id) })
+	id = rules.CanonicalID(id)
+
+	return slices.IndexFunc(entries, func(e rules.HookEntry) bool { return strings.EqualFold(e.CanonicalID(), id) })
+}
+
+// moveHookState moves the state of a package that the rule file now names by
+// its new id. A state under the new id wins.
+func moveHookState(root, from, to string) error {
+	src, dst := hooks.StateDir(root, from), hooks.StateDir(root, to)
+	if _, err := os.Stat(src); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+		return fmt.Errorf("move the state of %s: %w", to, err)
+	}
+	if err := os.Rename(src, dst); err != nil {
+		return fmt.Errorf("move the state of %s: %w", to, err)
+	}
+
+	return nil
 }
 
 // hookID reads a package name that names no ref.

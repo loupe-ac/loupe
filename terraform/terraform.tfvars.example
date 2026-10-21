@@ -115,7 +115,7 @@ db_server_version = "18" # the cluster's actual PG major version
 # --- Required: credentials ---
 
 do_token             = "dop_v1_..."            # or export DIGITALOCEAN_TOKEN and drop this
-registry_credentials = "ubermuda:ghp_xxxxxxxx" # GHCR "username:PAT" (read:packages); empty for DOCR
+registry_credentials = "you:ghp_xxxxxxxxxxxx" # GHCR "username:PAT" (read:packages); empty for DOCR
 app_secret           = "GENERATED_HEX_32"
 app_encryption_key   = "GENERATED_BASE64_32_BYTE_KEY"
 

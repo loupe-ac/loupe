@@ -164,7 +164,7 @@ list itself, so a comment inside the list is lost:
 
 ```yaml
 hooks:
-  - package: ubermuda/loupe
+  - package: loupe-ac/loupe
     path: hooks/amphetamine
     ref: 4f0c2a1b9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a
     sha: 4f0c2a1b9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a
@@ -210,9 +210,15 @@ The package is in this repository, and the repository has no tags. Install it
 at the commit you trust:
 
 ```bash
-loupe bridge hooks install ubermuda/loupe/hooks/amphetamine@<commit sha>
+loupe bridge hooks install loupe-ac/loupe/hooks/amphetamine@<commit sha>
 loupe bridge reload
 ```
+
+The repository was called `ubermuda/loupe` before, and an older rule file can
+still name the package that way. The bridge runs it, and logs
+`hook_package_moved` with the install command that renames it. That install
+keeps the settings and the state of the package. The `hooks` commands accept
+either name.
 
 | Event | What the hook does |
 |---|---|
@@ -240,7 +246,7 @@ events. The next `busy` replaces it with a session that has no end.
 | `away_minutes` | `30` | The minutes with no keyboard or mouse input after which `idle` ends the session at any hour. `0` turns this off |
 
 ```bash
-loupe bridge hooks set ubermuda/loupe/hooks/amphetamine quiet_hours=22:30-07:00
+loupe bridge hooks set loupe-ac/loupe/hooks/amphetamine quiet_hours=22:30-07:00
 loupe bridge reload
 ```
 
@@ -253,8 +259,8 @@ permission. A bridge with no terminal, such as one under launchd, cannot answer
 that prompt. Run the hook once from a terminal, and allow the prompt:
 
 ```bash
-loupe bridge hooks run ubermuda/loupe/hooks/amphetamine busy
-loupe bridge hooks run ubermuda/loupe/hooks/amphetamine idle
+loupe bridge hooks run loupe-ac/loupe/hooks/amphetamine busy
+loupe bridge hooks run loupe-ac/loupe/hooks/amphetamine idle
 ```
 
 Amphetamine can also show a warning the first time closed-display mode goes on.

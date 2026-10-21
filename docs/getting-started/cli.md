@@ -24,7 +24,7 @@ The hosted instance serves it at `https://app.loupe.ac/install.sh`.
 Or install the CLI with Homebrew:
 
 ```bash
-brew install ubermuda/tap/loupe
+brew install loupe-ac/tap/loupe
 ```
 
 The Connect page of a project shows both lines for your instance.

@@ -37,7 +37,8 @@ func ParseSpec(s string) (Spec, error) {
 	if len(parts) < 2 {
 		return Spec{}, fmt.Errorf("package %q is not owner/repo", name)
 	}
-	spec := Spec{Owner: parts[0], Repo: parts[1], Ref: ref}
+	owner, repo, _ := strings.Cut(rules.CanonicalPackage(parts[0]+"/"+parts[1]), "/")
+	spec := Spec{Owner: owner, Repo: repo, Ref: ref}
 	if len(parts) == 3 {
 		spec.Path = parts[2]
 		if spec.Path == "" {

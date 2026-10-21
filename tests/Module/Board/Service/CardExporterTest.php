@@ -78,7 +78,7 @@ final class CardExporterTest extends KernelTestCase
         );
         $card->completedAt = $completedAt;
         $card->updatedAt = $updatedAt;
-        $card->pullRequests->add(new CardPullRequest($card, 'https://github.com/ubermuda/loupe/pull/42', Forge::GitHub, 'ubermuda/loupe', 42, $firstAddedAt));
+        $card->pullRequests->add(new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/42', Forge::GitHub, 'loupe-ac/loupe', 42, $firstAddedAt));
         $card->pullRequests->add(new CardPullRequest($card, 'https://git.example.test/patch', Forge::Other, addedAt: $secondAddedAt));
         $this->em->persist($card);
         $this->em->flush();
@@ -106,9 +106,9 @@ final class CardExporterTest extends KernelTestCase
             'updatedAt' => $updatedAt->format(\DateTimeInterface::ATOM),
             'pullRequests' => [
                 [
-                    'url' => 'https://github.com/ubermuda/loupe/pull/42',
+                    'url' => 'https://github.com/loupe-ac/loupe/pull/42',
                     'forge' => 'github',
-                    'repository' => 'ubermuda/loupe',
+                    'repository' => 'loupe-ac/loupe',
                     'number' => 42,
                     'addedAt' => $firstAddedAt->format(\DateTimeInterface::ATOM),
                 ],

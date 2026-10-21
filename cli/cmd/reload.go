@@ -261,6 +261,7 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	}
 	r.log.Info("reload_applied", attrs...)
 	warnUnknownModes(r.log, set)
+	warnMovedHooks(r.log, set)
 	warnAgentsOff(r.log, set)
 	warnAccountsOff(r.log, b.accounts)
 	if off := set.AccountsOff(); len(off) > 0 {

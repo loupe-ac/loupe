@@ -289,6 +289,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	cleanLaunchScripts(defaultScriptDir(), time.Now(), r.log)
 	logBridgeStart(r.log, cmd, set, path, bl.path, bridgeID)
 	warnUnknownModes(r.log, set)
+	warnMovedHooks(r.log, set)
 	warnAgentsOff(r.log, set)
 	warnAccountsOff(r.log, accounts)
 
@@ -329,6 +330,16 @@ func poolSizes(set *rules.Set) string {
 func warnUnknownModes(log *slog.Logger, set *rules.Set) {
 	for _, mode := range set.UnknownPermissionModes() {
 		log.Warn("permission_mode_unknown", "mode", mode, "known", rules.PermissionModes)
+	}
+}
+
+// warnMovedHooks names each hook whose repository moved, and the install that
+// moves it to the new name. The hook keeps running under the old one.
+func warnMovedHooks(log *slog.Logger, set *rules.Set) {
+	for _, e := range set.Hooks() {
+		if e.Moved() {
+			log.Warn("hook_package_moved", "hook", e.ID(), "fix", "loupe bridge hooks install "+e.CanonicalID()+"@"+e.Ref)
+		}
 	}
 }
 

@@ -2,11 +2,11 @@
 # Set the same value in three places or they drift: here (build and push),
 # terraform's registry/image_repository/image_tag, and LOUPE_PROD_IMAGE in
 # docker/compose/prod.env.
-prod_image := env("LOUPE_PROD_IMAGE", "ghcr.io/ubermuda/loupe:prod")
+prod_image := env("LOUPE_PROD_IMAGE", "ghcr.io/loupe-ac/loupe:prod")
 
 # The single-container demo image, and the host's own architecture, which is
 # what it must be built for: an emulated Postgres makes for a poor demo.
-demo_image := env("LOUPE_DEMO_IMAGE", "ghcr.io/ubermuda/loupe:demo")
+demo_image := env("LOUPE_DEMO_IMAGE", "ghcr.io/loupe-ac/loupe:demo")
 host_platform := "linux/" + if arch() == "x86_64" { "amd64" } else { "arm64" }
 
 # Recipes forwarding `*args` use "$@" rather than {{args}}, which needs this.
@@ -700,13 +700,15 @@ _cli-verify target:
 build-prod platform="linux/amd64": _build-context-clean
     docker buildx build --platform {{platform}} --load --build-arg APP_VERSION="$(just _app-version)" --build-arg APP_SOURCE_URL="${APP_SOURCE_URL:-https://github.com/loupe-ac/loupe}" -t {{prod_image}} -f docker/prod/Dockerfile .
 
-# Refuse a build context that holds files git does not track: they ship in the
-# image, and .dockerignore cannot read .git/info/exclude.
+# Refuse files git does not track that ship in the image: .dockerignore cannot
+# read .git/info/exclude. Paths under a plain folder of .dockerignore pass.
 _build-context-clean:
     #!/usr/bin/env bash
     set -euo pipefail
+    export DOCKERIGNORED=$(sed -e 's/[[:space:]]*$//' -e 's#/*$##' -e 's#^/##' .dockerignore | grep -vE '^(#|!|$)|[][*?]' || true)
+    shipped() { awk 'BEGIN { n = split(ENVIRON["DOCKERIGNORED"], d, "\n") } { for (i = 1; i <= n; i++) if ($0 == d[i] || index($0, d[i] "/") == 1) next; print }'; }
     status=0
-    untracked=$(git ls-files --others --exclude-standard)
+    untracked=$(git ls-files --others --exclude-standard | shipped)
     if [ -n "$untracked" ]; then
         echo "error: untracked files would ship in the prod image:" >&2
         head -n 10 <<<"$untracked" | sed 's/^/  /' >&2
@@ -714,7 +716,7 @@ _build-context-clean:
     fi
     exclude=$(git rev-parse --git-path info/exclude)
     if [ -f "$exclude" ]; then
-        excluded=$(git ls-files --others --ignored --exclude-from="$exclude")
+        excluded=$(git ls-files --others --ignored --exclude-from="$exclude" | shipped)
         if [ -n "$excluded" ]; then
             echo "error: files ignored only by $exclude would ship in the prod image:" >&2
             head -n 10 <<<"$excluded" | sed 's/^/  /' >&2
