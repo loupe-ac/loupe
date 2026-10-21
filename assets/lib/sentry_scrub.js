@@ -437,6 +437,7 @@ export const KEPT_CSS_WORDS = new Set([
     'wait',
     'wavy',
     'wrap',
+    'zoom-in',
 ]);
 
 const CSS_UNITS =

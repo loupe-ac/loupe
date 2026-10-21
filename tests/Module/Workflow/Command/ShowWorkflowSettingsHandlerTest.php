@@ -179,6 +179,41 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertEquals([new WorkflowManualMoveView('workflow.settings.where.any', 'workflow.settings.where.any', 'workflow.settings.moves.by.anyone')], $template->manualMoves);
     }
 
+    public function test_a_named_fact_shows_its_conditions_with_the_name_of_the_outermost_fact(): void
+    {
+        $project = $this->workflowProject('workflow-settings-named-fact');
+        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+            'key' => 'test',
+            'version' => 1,
+            'defaultType' => 'feature',
+            'types' => [
+                ['key' => 'feature', 'label' => 'board.card.type.feature', 'tone' => 'lime'],
+                ['key' => 'epic', 'label' => 'board.card.type.epic', 'tone' => 'blue', 'capabilities' => ['children', 'lane']],
+            ],
+            'slots' => [],
+            'manualMoves' => [],
+            'backoffMinutes' => [10],
+            'workTimeoutMinutes' => 120,
+            'facts' => [
+                'linked' => ['card.parent.exists' => []],
+                'linked-with-children' => ['all' => [['fact.linked' => []], ['not' => ['card.children.exist' => []]]]],
+            ],
+            'rules' => [
+                ['id' => 'work', 'when' => ['all' => [['pr.open' => []], ['fact.linked-with-children' => []]]], 'then' => ['request' => ['kind' => 'work']]],
+            ],
+        ]));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $template = $this->show($project)->template;
+
+        self::assertInstanceOf(BoundWorkflowView::class, $template);
+        self::assertEquals([
+            new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('pr.open', false, '')]),
+            new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.parent.exists', false, '', 'linked-with-children'), new WorkflowConditionView('card.children.exist', true, '', 'linked-with-children')]),
+        ], $template->rules[0]->whenGroups);
+    }
+
     public function test_a_stored_copy_that_names_a_condition_this_instance_lacks_still_shows(): void
     {
         $project = $this->workflowProject('workflow-settings-missing-condition');

@@ -28,6 +28,7 @@ use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Expression\MissingActionLeaf;
 use App\Module\Workflow\Expression\MissingConditionLeaf;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Expression\Not;
 
 /**
@@ -43,6 +44,8 @@ final readonly class TemplateParser
     private const array TYPE_KEYS = ['key', 'label', 'tone', 'capabilities'];
     private const int TYPE_KEY_MAX_LENGTH = 20;
     private const array TYPE_CAPABILITIES = ['children', 'lane'];
+    private const string FACT_NAME = '/^[a-z][a-z0-9-]*$/D';
+    private const string FACT_PREFIX = 'fact.';
     private const array MARKER_KEYS = ['key', 'kind', 'label', 'remedy', 'slots', 'when', 'fallback', 'link'];
 
     /** The names an action call keeps for the parameter types that have a field of their own. */
@@ -106,7 +109,7 @@ final readonly class TemplateParser
         if (\array_key_exists('proposalSlot', $source) && (!\is_string($source['proposalSlot']) || '' === $source['proposalSlot'])) {
             $errors[] = 'proposalSlot: must be a non-empty string';
         }
-        $rules = $this->rules(self::topLevelList($source, 'rules', $errors), [], null, $errors, lenient: false, app: true);
+        $rules = $this->rules(self::topLevelList($source, 'rules', $errors), [], null, new NamedFacts([]), $errors, lenient: false, app: true);
 
         if ([] !== $errors) {
             throw new InvalidTemplate($errors);
@@ -241,10 +244,14 @@ final readonly class TemplateParser
 
         $slots = $this->slots(self::topLevelList($source, 'slots', $errors), $errors);
         $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $slots);
-        $childChoices = $this->childChoices($source['childChoices'] ?? null, $slotKeys, $types, $errors, $lenient);
+        $facts = new NamedFacts(self::factSources($source['facts'] ?? null, $errors));
+        foreach (array_keys($facts->sources) as $name) {
+            $this->namedFact((string) $name, $slotKeys, $types, $facts, $errors, $lenient);
+        }
+        $childChoices = $this->childChoices($source['childChoices'] ?? null, $slotKeys, $types, $facts, $errors, $lenient);
         $manualMoves = $this->manualMoves(self::topLevelList($source, 'manualMoves', $errors), $slotKeys, $errors);
-        $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $errors, $lenient, app: false);
-        $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $errors, $lenient);
+        $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $facts, $errors, $lenient, app: false);
+        $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
         $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
         if (!$lenient) {
             foreach ($rules as $rule) {
@@ -273,6 +280,33 @@ final readonly class TemplateParser
         }
 
         return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox);
+    }
+
+    /**
+     * @param list<string> $errors
+     *
+     * @return array<string, mixed> the expression of each valid fact by its name
+     */
+    private static function factSources(mixed $given, array &$errors): array
+    {
+        if (null === $given) {
+            return [];
+        }
+        if (!self::isMap($given)) {
+            $errors[] = 'facts: must be a map from a name to an expression';
+
+            return [];
+        }
+        $sources = [];
+        foreach ($given as $name => $node) {
+            if (1 !== preg_match(self::FACT_NAME, (string) $name)) {
+                $errors[] = \sprintf('facts.%s: the name must match [a-z][a-z0-9-]', $name);
+                continue;
+            }
+            $sources[(string) $name] = $node;
+        }
+
+        return $sources;
     }
 
     /**
@@ -364,6 +398,9 @@ final readonly class TemplateParser
      */
     private static function typeReads(Expression $expression): array
     {
+        if ($expression instanceof NamedFact) {
+            return self::typeReads($expression->expression);
+        }
         if ($expression instanceof AnyOf) {
             return array_merge(...array_map(self::typeReads(...), $expression->children));
         }
@@ -493,7 +530,7 @@ final readonly class TemplateParser
      *
      * @return list<Rule>
      */
-    private function rules(array $source, array $slotKeys, ?array $types, array &$errors, bool $lenient, bool $app): array
+    private function rules(array $source, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient, bool $app): array
     {
         $rules = [];
         $seen = [];
@@ -534,14 +571,14 @@ final readonly class TemplateParser
 
             $when = null;
             if (\array_key_exists('when', $entry)) {
-                $when = $this->expression($entry['when'], $where.' when', $slotKeys, $types, $errors, $lenient);
+                $when = $this->expression($entry['when'], $where.' when', $slotKeys, $types, $facts, $errors, $lenient);
             } else {
                 $errors[] = $where.' when: is missing';
             }
 
             $then = null;
             if (\array_key_exists('then', $entry)) {
-                $then = $this->action($entry['then'], $where.' then', $slotKeys, $types, $errors, $lenient);
+                $then = $this->action($entry['then'], $where.' then', $slotKeys, $types, $facts, $errors, $lenient);
             } else {
                 $errors[] = $where.' then: is missing';
             }
@@ -599,7 +636,7 @@ final readonly class TemplateParser
      *
      * @return list<TemplateMarker>
      */
-    private function markers(mixed $given, array $slotKeys, ?array $types, array &$errors, bool $lenient): array
+    private function markers(mixed $given, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): array
     {
         if (!\is_array($given) || !array_is_list($given)) {
             $errors[] = 'markers: must be a list';
@@ -671,7 +708,7 @@ final readonly class TemplateParser
 
             $when = null;
             if (\array_key_exists('when', $entry)) {
-                $when = $this->expression($entry['when'], $where.' when', $slotKeys, $types, $errors, $lenient);
+                $when = $this->expression($entry['when'], $where.' when', $slotKeys, $types, $facts, $errors, $lenient);
             } else {
                 $errors[] = $where.' when: is missing';
             }
@@ -689,7 +726,7 @@ final readonly class TemplateParser
      * @param ?array<string, TemplateCardType> $types
      * @param list<string>                     $errors
      */
-    private function expression(mixed $node, string $where, array $slotKeys, ?array $types, array &$errors, bool $lenient): ?Expression
+    private function expression(mixed $node, string $where, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): ?Expression
     {
         if (!\is_array($node) || 1 !== \count($node) || !\is_string(array_key_first($node))) {
             $errors[] = $where.': a node must have exactly one key';
@@ -700,7 +737,7 @@ final readonly class TemplateParser
         $value = $node[$key];
 
         if ('not' === $key) {
-            $inner = $this->expression($value, $where.'.not', $slotKeys, $types, $errors, $lenient);
+            $inner = $this->expression($value, $where.'.not', $slotKeys, $types, $facts, $errors, $lenient);
 
             return null === $inner ? null : new Not($inner);
         }
@@ -713,7 +750,7 @@ final readonly class TemplateParser
             }
             $children = [];
             foreach ($value as $index => $child) {
-                $children[] = $this->expression($child, \sprintf('%s.%s[%d]', $where, $key, $index), $slotKeys, $types, $errors, $lenient);
+                $children[] = $this->expression($child, \sprintf('%s.%s[%d]', $where, $key, $index), $slotKeys, $types, $facts, $errors, $lenient);
             }
             $children = array_values(array_filter($children));
             if (\count($children) !== \count($value)) {
@@ -727,11 +764,63 @@ final readonly class TemplateParser
             return new AnyOf($children);
         }
 
+        if (str_starts_with($key, self::FACT_PREFIX)) {
+            return $this->factReference(substr($key, \strlen(self::FACT_PREFIX)), $value, $where, $slotKeys, $types, $facts, $errors, $lenient);
+        }
+
         if ($lenient && !$this->conditions->has($key)) {
             return new MissingConditionLeaf($key, $value);
         }
 
         return $this->conditionLeaf($key, $value, $where, $slotKeys, $types, $errors);
+    }
+
+    /**
+     * @param list<string>                     $slotKeys
+     * @param ?array<string, TemplateCardType> $types
+     * @param list<string>                     $errors
+     */
+    private function factReference(string $name, mixed $params, string $where, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): ?NamedFact
+    {
+        if (!\array_key_exists($name, $facts->sources)) {
+            $errors[] = \sprintf('%s: unknown fact "%s"', $where, $name);
+
+            return null;
+        }
+        if ([] !== $params) {
+            $errors[] = \sprintf('%s: the fact "%s" takes no parameters', $where, $name);
+
+            return null;
+        }
+
+        return $this->namedFact($name, $slotKeys, $types, $facts, $errors, $lenient);
+    }
+
+    /**
+     * Resolves a fact once. A fact that holds an error, or sits in a loop, resolves to null, and its error is reported once.
+     *
+     * @param list<string>                     $slotKeys
+     * @param ?array<string, TemplateCardType> $types
+     * @param list<string>                     $errors
+     */
+    private function namedFact(string $name, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): ?NamedFact
+    {
+        if (\array_key_exists($name, $facts->resolved)) {
+            return $facts->resolved[$name];
+        }
+        $position = array_search($name, $facts->stack, true);
+        if (false !== $position) {
+            $path = [...\array_slice($facts->stack, $position), $name];
+            $errors[] = \sprintf('facts.%s: loop %s', $path[0], implode(' -> ', $path));
+
+            return null;
+        }
+
+        $facts->stack[] = $name;
+        $expression = $this->expression($facts->sources[$name], 'facts.'.$name, $slotKeys, $types, $facts, $errors, $lenient);
+        array_pop($facts->stack);
+
+        return $facts->resolved[$name] = null === $expression ? null : new NamedFact($name, $expression);
     }
 
     /**
@@ -803,7 +892,7 @@ final readonly class TemplateParser
      * @param ?array<string, TemplateCardType> $types
      * @param list<string>                     $errors
      */
-    private function action(mixed $node, string $where, array $slotKeys, ?array $types, array &$errors, bool $lenient): ?ActionCall
+    private function action(mixed $node, string $where, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): ?ActionCall
     {
         if (!\is_array($node) || 1 !== \count($node) || !\is_string(array_key_first($node))) {
             $errors[] = $where.': an action must have exactly one key';
@@ -856,11 +945,11 @@ final readonly class TemplateParser
                     if (null !== $parameter->needs && !\array_key_exists($parameter->needs, $value)) {
                         $errors[] = \sprintf('%s: parameter "%s" needs a "%s"', $where, $param, $parameter->needs);
                     } else {
-                        $expressions[$param] = $this->expression($given, $where.'.'.$param, $slotKeys, $types, $errors, $lenient);
+                        $expressions[$param] = $this->expression($given, $where.'.'.$param, $slotKeys, $types, $facts, $errors, $lenient);
                     }
                     continue 2;
                 case ParameterType::Options:
-                    $options = $this->askOptions($given, $where, $slotKeys, $types, $errors, $lenient);
+                    $options = $this->askOptions($given, $where, $slotKeys, $types, $facts, $errors, $lenient);
                     continue 2;
                 case ParameterType::Document:
                     $params += self::document($given, $where, $errors);
@@ -927,7 +1016,7 @@ final readonly class TemplateParser
      *
      * @return list<ActionCall> the actions that parsed, which are fewer than $then when one has an error
      */
-    private function actionList(array $then, string $where, \Closure $allowed, string $context, array $slotKeys, ?array $types, array &$errors, bool $lenient): array
+    private function actionList(array $then, string $where, \Closure $allowed, string $context, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): array
     {
         $actions = [];
         foreach ($then as $position => $node) {
@@ -937,7 +1026,7 @@ final readonly class TemplateParser
                 $errors[] = \sprintf('%s: the action "%s" is not allowed %s', $actionWhere, $name, $context);
                 continue;
             }
-            $action = $this->action($node, $actionWhere, $slotKeys, $types, $errors, $lenient);
+            $action = $this->action($node, $actionWhere, $slotKeys, $types, $facts, $errors, $lenient);
             if (null !== $action) {
                 $actions[] = $action;
             }
@@ -953,7 +1042,7 @@ final readonly class TemplateParser
      *
      * @return array<string, list<ActionCall>> the actions of each choice an agent may state, keyed by the value of the choice
      */
-    private function childChoices(mixed $given, array $slotKeys, ?array $types, array &$errors, bool $lenient): array
+    private function childChoices(mixed $given, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): array
     {
         if (null === $given) {
             return [];
@@ -974,7 +1063,7 @@ final readonly class TemplateParser
                 $errors[] = $where.': must be a non-empty list of actions';
                 continue;
             }
-            $actions = $this->actionList($then, $where, static fn (ActionTraits $traits): bool => $traits->childChoice, 'inside a child choice', $slotKeys, $types, $errors, $lenient);
+            $actions = $this->actionList($then, $where, static fn (ActionTraits $traits): bool => $traits->childChoice, 'inside a child choice', $slotKeys, $types, $facts, $errors, $lenient);
             if (\count($actions) === \count($then)) {
                 $choices[$choice] = $actions;
             }
@@ -990,7 +1079,7 @@ final readonly class TemplateParser
      *
      * @return list<AskOption>
      */
-    private function askOptions(mixed $given, string $where, array $slotKeys, ?array $types, array &$errors, bool $lenient): array
+    private function askOptions(mixed $given, string $where, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): array
     {
         if (!\is_array($given) || [] === $given || !array_is_list($given)) {
             $errors[] = $where.': parameter "options" must be a non-empty list of maps with a "label" and a "then" list';
@@ -1010,7 +1099,7 @@ final readonly class TemplateParser
             foreach ($unknownKeys as $name) {
                 $errors[] = \sprintf('%s: unknown key "%s"', $optionWhere, $name);
             }
-            $actions = $this->actionList($then, $optionWhere.'.then', static fn (ActionTraits $traits): bool => $traits->option, 'inside an ask option', $slotKeys, $types, $errors, $lenient);
+            $actions = $this->actionList($then, $optionWhere.'.then', static fn (ActionTraits $traits): bool => $traits->option, 'inside an ask option', $slotKeys, $types, $facts, $errors, $lenient);
             if ([] !== $unknownKeys || \count($actions) !== \count($then)) {
                 continue;
             }
