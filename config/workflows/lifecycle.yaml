@@ -745,7 +745,7 @@ markers:
       slots: [product-design, tech-design, implementation, in-review]
       when:
           all:
-              - card.quiet_for: {}
+              - card.quiet_for: { children: true }
               - not: { card.held: {} }
               - not:
                     any:
