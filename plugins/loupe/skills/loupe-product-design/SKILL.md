@@ -13,14 +13,14 @@ Move the card only in P0. Never move it when you stop, and never move it after P
 
 P0 opens an interactive run on the card with `card_run_open`. Close the run with `card_run_close` in P10. When you stop at any other point after P0, call `card_run_close` before you stop.
 
-`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Design canvas rules C1 to C9.
+`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Design canvas rules C1 to C9. `../loupe-stage-product-design/references/design-principles.md` holds the design principles D1 to D3.
 
 ## Procedure
 
 1. Load the `loupe-board`, `loupe-documents` and `loupe-recommendations` instructions.
 2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, and the design system entry. C7 uses the Design System artifact that it names. When the file is missing, write plainly, and ask the owner about docs in P6.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
-4. Read `references/session-flow.md`, `references/question-rules.md` and `references/claude-design.md`. Follow them for the whole session.
+4. Read `references/session-flow.md`, `references/question-rules.md`, `references/claude-design.md` and `../loupe-stage-product-design/references/design-principles.md`. Follow them for the whole session.
 5. With a card, call `card_get`. Read the tags of each linked document with `document_get`, before any move. The product document has the product design tag, or a title that starts `Product design`. Read the tag as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
    - An approved product document: stop, and tell the owner.
    - An unapproved product document: it is the existing document that P1 reads.
