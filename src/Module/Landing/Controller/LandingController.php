@@ -10,8 +10,6 @@ use App\Module\Account\Form\WaitlistJoinFormType;
 use App\Module\Account\Form\WaitlistJoinRequest;
 use App\Module\Project\Command\ShowHomeCommand;
 use App\Module\Project\Command\ShowHomeHandler;
-use App\Routing\PinnedUrlGenerator;
-use App\Site\SignedInCookie;
 use App\Site\SiteHost;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,8 +22,6 @@ class LandingController extends AppController
     public function __construct(
         private readonly ShowHomeHandler $showHome,
         private readonly SiteHost $siteHost,
-        private readonly SignedInCookie $signedInCookie,
-        private readonly PinnedUrlGenerator $appUrls,
         private readonly FormFactoryInterface $formFactory,
     ) {
     }
@@ -37,14 +33,6 @@ class LandingController extends AppController
         if (!$user instanceof User) {
             if (!$this->siteHost->servesSiteOn($request->getHost())) {
                 return $this->redirectToRoute('app_login');
-            }
-
-            // The site host reads no session. The cookie says the app knows this browser.
-            if (null !== $this->signedInCookie->signal($request)) {
-                $redirect = $this->redirect($this->appUrls->generate('app_home'));
-                $redirect->setPrivate();
-
-                return $redirect;
             }
 
             return $this->render('@Landing/landing.html.twig', [
