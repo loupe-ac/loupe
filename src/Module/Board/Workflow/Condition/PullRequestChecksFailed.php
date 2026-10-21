@@ -55,6 +55,6 @@ final readonly class PullRequestChecksFailed implements Condition, MarkerEvidenc
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->checksFailedSince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 }

@@ -55,6 +55,6 @@ final readonly class PullRequestWaitsForApproval implements Condition, MarkerEvi
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->waitsForApprovalSince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 }

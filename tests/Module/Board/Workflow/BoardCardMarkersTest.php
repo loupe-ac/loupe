@@ -10,6 +10,8 @@ use App\Module\Board\Workflow\BoardCardMarkers;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerLink;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\StoredMarker;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -30,14 +32,49 @@ final class BoardCardMarkersTest extends KernelTestCase
         self::assertSame([], $this->store()->read($card->id ?? throw new \LogicException('A flushed card has an id.')));
     }
 
-    public function test_the_first_empty_set_is_stored_and_tells_no_board(): void
+    public function test_the_first_empty_sets_are_stored_and_tell_the_board_once_for_the_inbox_set(): void
     {
         $card = $this->storedCard();
+        $id = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        self::assertNull($this->store()->readInbox($id));
 
         $this->write($card, []);
 
         self::assertSame([], $card->markers);
+        self::assertSame([], $card->inboxMarkers);
+        self::assertSame([], $this->store()->readInbox($id));
+        self::assertCount(1, $this->changes);
+
+        $this->changes = [];
+        $this->write($card, []);
         self::assertSame([], $this->changes);
+    }
+
+    public function test_an_inbox_entry_is_stored_with_its_subject_and_read_back(): void
+    {
+        $card = $this->storedCard();
+        $id = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        $board = new StoredMarker('waits-for-approval', MarkerKind::NeedsYou, 'marker.waits_for_approval', null, ['%number%' => 4], new \DateTimeImmutable('2026-10-01 11:00:00'));
+        $entry = new StoredMarker('waits-for-approval', MarkerKind::NeedsYou, 'marker.waits_for_approval', null, ['%number%' => 4], new \DateTimeImmutable('2026-10-01 11:00:00'), null, new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => '0198f6f0-0000-7000-8000-000000000001', 'head' => 'abc123']));
+
+        $this->write($card, [$board], [$entry]);
+
+        self::assertSame(['type' => 'pull-request', 'ids' => ['pullRequest' => '0198f6f0-0000-7000-8000-000000000001', 'head' => 'abc123']], $card->inboxMarkers[0]['subject'] ?? null);
+        self::assertArrayNotHasKey('subject', $card->markers[0] ?? []);
+        self::assertEquals([$entry], $this->store()->readInbox($id));
+        self::assertEquals([$board], $this->store()->read($id));
+    }
+
+    public function test_a_changed_inbox_set_tells_the_board_even_when_the_board_set_is_the_same(): void
+    {
+        $card = $this->storedCard();
+        $board = new StoredMarker('paused', MarkerKind::Stuck, 'marker.paused', null, [], new \DateTimeImmutable('2026-10-01 11:00:00'));
+        $this->write($card, [$board]);
+        $this->changes = [];
+
+        $this->write($card, [$board], [new StoredMarker('paused', MarkerKind::Stuck, 'marker.paused', null, [], new \DateTimeImmutable('2026-10-01 11:00:00'), null, new MarkerSubject(MarkerSubjectType::CardPause, ['pause' => '0198f6f0-0000-7000-8000-000000000002']))]);
+
+        self::assertCount(1, $this->changes);
     }
 
     public function test_a_new_set_is_stored_and_read_back_and_tells_the_board_once(): void
@@ -75,11 +112,11 @@ final class BoardCardMarkersTest extends KernelTestCase
         $this->write($card, [$marker]);
         $this->changes = [];
 
-        $this->write($card, [$marker], new \DateTimeImmutable('2026-10-01 12:30:00'));
+        $this->write($card, [$marker], [], new \DateTimeImmutable('2026-10-01 12:30:00'));
         self::assertSame([], $this->changes);
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:30:00'), $card->markersDueAt);
 
-        $this->write($card, [$marker], null);
+        $this->write($card, [$marker], [], null);
         self::assertSame([], $this->changes);
         self::assertNull($card->markersDueAt);
     }
@@ -103,23 +140,30 @@ final class BoardCardMarkersTest extends KernelTestCase
         $this->bindLifecycle($project);
         $due = $this->card($project, 'next');
         $due->markers = [];
+        $due->inboxMarkers = [];
         $due->markersDueAt = new \DateTimeImmutable('2026-10-01 11:00:00');
+        $later = $this->card($project, 'next');
+        $later->markers = [];
+        $later->inboxMarkers = [];
+        $later->markersDueAt = new \DateTimeImmutable('2026-10-01 13:00:00');
         $this->em()->flush();
 
         $ids = $this->store()->findDueCardIds(new \DateTimeImmutable('2026-10-01 12:00:00'), 500);
 
-        self::assertContains((string) $card->id, $ids, 'a card with no stored markers is due');
+        self::assertContains((string) $card->id, $ids, 'a card with no inbox set is due');
         self::assertContains((string) $due->id, $ids);
+        self::assertNotContains((string) $later->id, $ids, 'a card with both sets and a later due time is not due');
         self::assertSame([], $this->store()->findDueCardIds(new \DateTimeImmutable('2026-10-01 10:00:00'), 0));
         self::assertCount(1, $this->store()->findDueCardIds(new \DateTimeImmutable('2026-10-01 12:00:00'), 1));
     }
 
     /**
      * @param list<StoredMarker> $markers
+     * @param list<StoredMarker> $inbox
      */
-    private function write(Card $card, array $markers, ?\DateTimeImmutable $dueAt = null): void
+    private function write(Card $card, array $markers, array $inbox = [], ?\DateTimeImmutable $dueAt = null): void
     {
-        $this->store()->write($card->project->id ?? throw new \LogicException('A flushed project has an id.'), $card->id ?? throw new \LogicException('A flushed card has an id.'), $markers, $dueAt);
+        $this->store()->write($card->project->id ?? throw new \LogicException('A flushed project has an id.'), $card->id ?? throw new \LogicException('A flushed card has an id.'), $markers, $inbox, $dueAt);
     }
 
     private function storedCard(): Card

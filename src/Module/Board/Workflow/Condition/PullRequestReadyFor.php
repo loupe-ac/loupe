@@ -76,7 +76,7 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->readySince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 
     #[\Override]

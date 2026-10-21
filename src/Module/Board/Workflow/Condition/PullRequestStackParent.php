@@ -86,7 +86,7 @@ final readonly class PullRequestStackParent implements Condition, MarkerEvidence
             return null;
         }
 
-        return PullRequestEvidence::of($pullRequest, $pullRequest->readySince, $parent->known()
+        return PullRequestEvidence::of($pullRequest, $parent->known()
             ? ['%parent_number%' => $parent->card ?? 0, '%pull_request%' => $parent->pullRequest ?? 0]
             : ['%branch%' => $parent->branch]);
     }

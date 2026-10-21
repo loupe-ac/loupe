@@ -68,17 +68,6 @@ final class WorkTakerConditionsTest extends TestCase
         self::assertFalse(new RunWorkNoCapableTaker()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::None)]), []));
     }
 
-    public function test_the_evidence_starts_at_the_longest_wait_without_a_taker(): void
-    {
-        $facts = self::facts([
-            'implement' => self::reading(WorkTakerState::None, '2026-10-16 11:30:00'),
-            'fix' => self::reading(WorkTakerState::None, '2026-10-16 11:00:00'),
-        ]);
-
-        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:00:00'), new RunWorkNoTaker()->evidence($facts, [])?->since);
-        self::assertNull(new RunWorkNoTaker()->evidence(self::facts([]), []));
-    }
-
     public function test_the_conditions_change_when_the_first_online_taker_turns_quiet(): void
     {
         $facts = self::facts([

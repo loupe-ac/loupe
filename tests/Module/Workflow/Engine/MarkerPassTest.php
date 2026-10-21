@@ -8,8 +8,11 @@ use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
+use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
@@ -103,6 +106,7 @@ final class MarkerPassTest extends KernelTestCase
 
         self::assertSame([], $keys);
         self::assertSame([], $this->written);
+        self::assertSame([], $this->writtenInbox, 'an empty inbox set still tells that this version read the card');
         self::assertNull($this->writtenDueAt);
     }
 
@@ -145,20 +149,22 @@ final class MarkerPassTest extends KernelTestCase
         self::assertSame(['%number%' => 2], $this->written('failing')->params);
     }
 
-    public function test_the_start_time_is_the_one_the_evidence_gives(): void
+    public function test_the_label_parameters_come_from_the_evidence_and_the_start_time_stays_the_stored_one(): void
     {
         self::bootKernel();
         $template = $this->markerTemplate([self::marker('paused', 'stuck', ['card.paused' => []])]);
         $pausedAt = new \DateTimeImmutable('2026-10-01 11:00:00');
-        $stored = [new StoredMarker('paused', MarkerKind::Stuck, 'l', null, [], new \DateTimeImmutable('2026-10-01 10:00:00'))];
+        $storedAt = new \DateTimeImmutable('2026-10-01 10:00:00');
+        $stored = [new StoredMarker('paused', MarkerKind::Stuck, 'l', null, [], $storedAt)];
 
         $this->pass($template, FactsMother::facts(provided: [PauseFacts::class => new PauseFacts(new PauseView(Uuid::v7(), Uuid::v7(), Uuid::v7(), 'move-refused', 'rule', PauseKind::Retries, $pausedAt))]), $stored);
 
-        self::assertEquals($pausedAt, $this->written('paused')->since);
+        self::assertEquals($storedAt, $this->written('paused')->since);
         self::assertSame(['%reason%' => 'move-refused'], $this->written('paused')->params);
+        self::assertNull($this->written('paused')->subject, 'the board set names no thing');
     }
 
-    public function test_with_no_evidence_time_the_stored_time_of_the_same_key_is_kept_else_the_pass_time_counts(): void
+    public function test_the_stored_time_of_the_same_key_is_kept_else_the_pass_time_counts(): void
     {
         self::bootKernel();
         $template = $this->markerTemplate([self::marker('bug', 'waiting', ['card.type' => ['type' => 'bug']])]);
@@ -212,6 +218,142 @@ final class MarkerPassTest extends KernelTestCase
 
         self::assertSame([], $keys);
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:20:00'), $this->writtenDueAt);
+    }
+
+    public function test_a_listed_marker_stores_one_inbox_entry_for_each_pull_request_that_makes_it_true_and_one_board_entry(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('open', 'needs-you', ['pr.open' => []]), self::marker('plain', 'waiting', ['pr.open' => []])], ['open']);
+        [$first, $second] = [self::openPullRequest(1, 'aaa'), self::openPullRequest(2, 'bbb')];
+
+        $this->pass($template, FactsMother::facts(pullRequest: $first, pullRequests: [$first, $second]));
+
+        self::assertSame(['open', 'plain'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->written ?? []));
+        self::assertSame(['open', 'open'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []));
+        self::assertSame([['%number%' => 1], ['%number%' => 2]], array_map(static fn (StoredMarker $marker): array => $marker->params, $this->writtenInbox ?? []));
+        self::assertEquals(new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $first->id, 'head' => 'aaa']), $this->writtenInbox[0]->subject ?? null);
+        self::assertEquals(new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $second->id, 'head' => 'bbb']), $this->writtenInbox[1]->subject ?? null);
+    }
+
+    public function test_a_pull_request_that_does_not_make_the_condition_true_has_no_inbox_entry(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('failing', 'stuck', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]])], ['failing']);
+        $passing = self::openPullRequest(1, 'aaa');
+        $failing = self::openPullRequest(2, 'bbb', ChecksState::Failed);
+
+        $this->pass($template, FactsMother::facts(pullRequest: $passing, pullRequests: [$passing, $failing]));
+
+        self::assertSame([['%number%' => 2]], array_map(static fn (StoredMarker $marker): array => $marker->params, $this->writtenInbox ?? []));
+        self::assertSame(['%number%' => 2], $this->written('failing')->params);
+    }
+
+    public function test_an_inbox_entry_keeps_the_start_time_of_the_stored_entry_with_the_same_subject_and_a_new_thing_starts_now(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('open', 'needs-you', ['pr.open' => []])], ['open']);
+        [$first, $second] = [self::openPullRequest(1, 'aaa'), self::openPullRequest(2, 'bbb')];
+        $storedAt = new \DateTimeImmutable('2026-10-01 09:00:00');
+        $storedInbox = [$this->entry('open', $first, 'aaa', $storedAt)];
+
+        $this->pass($template, FactsMother::facts(pullRequest: $first, pullRequests: [$first, $second]), [], $storedInbox);
+
+        self::assertEquals([$storedAt, self::noon()], array_map(static fn (StoredMarker $marker): \DateTimeImmutable => $marker->since, $this->writtenInbox ?? []));
+        self::assertEquals($storedAt, $this->written('open')->since, 'the board entry takes the start time of the first inbox entry');
+    }
+
+    public function test_a_new_head_commit_is_a_new_thing_with_a_new_start_time(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('open', 'needs-you', ['pr.open' => []])], ['open']);
+        $pullRequest = self::openPullRequest(1, 'bbb');
+        $storedInbox = [$this->entry('open', $pullRequest, 'aaa', new \DateTimeImmutable('2026-10-01 09:00:00'))];
+
+        $this->pass($template, FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest]), [], $storedInbox);
+
+        self::assertEquals(self::noon(), $this->writtenInbox[0]->since ?? null);
+    }
+
+    public function test_the_first_entry_of_a_card_that_this_version_has_not_read_takes_the_age_of_the_board_entry(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('open', 'needs-you', ['pr.open' => []])], ['open']);
+        [$first, $second] = [self::openPullRequest(1, 'aaa'), self::openPullRequest(2, 'bbb')];
+        $boardAt = new \DateTimeImmutable('2026-10-01 08:00:00');
+        $board = [new StoredMarker('open', MarkerKind::NeedsYou, 'l', null, [], $boardAt)];
+
+        $this->pass($template, FactsMother::facts(pullRequest: $first, pullRequests: [$first, $second]), $board, null);
+        self::assertEquals([$boardAt, self::noon()], array_map(static fn (StoredMarker $marker): \DateTimeImmutable => $marker->since, $this->writtenInbox ?? []));
+
+        $this->pass($template, FactsMother::facts(pullRequest: $first, pullRequests: [$first, $second]), $board, $this->writtenInbox);
+        self::assertEquals([$boardAt, self::noon()], array_map(static fn (StoredMarker $marker): \DateTimeImmutable => $marker->since, $this->writtenInbox ?? []), 'a card that this version has read does not look at the board entry again');
+    }
+
+    public function test_a_marker_that_is_not_listed_stores_no_inbox_entry(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('open', 'needs-you', ['pr.open' => []])]);
+        $pullRequest = self::openPullRequest(1, 'aaa');
+
+        $this->pass($template, FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest]));
+
+        self::assertSame(['open'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->written ?? []));
+        self::assertSame([], $this->writtenInbox);
+    }
+
+    public function test_a_paused_card_stores_an_inbox_entry_that_names_the_pause(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('paused', 'stuck', ['card.paused' => []])], ['paused']);
+        $pause = new PauseView(Uuid::v7(), Uuid::v7(), Uuid::v7(), 'move-refused', 'rule', PauseKind::Retries, new \DateTimeImmutable('2026-10-01 11:00:00'));
+
+        $this->pass($template, FactsMother::facts(provided: [PauseFacts::class => new PauseFacts($pause)]));
+
+        self::assertEquals(new MarkerSubject(MarkerSubjectType::CardPause, ['pause' => (string) $pause->id]), $this->writtenInbox[0]->subject ?? null);
+        self::assertEquals(self::noon(), $this->writtenInbox[0]->since ?? null);
+    }
+
+    public function test_a_marker_with_no_subject_leaf_gets_the_card_as_its_thing_for_one_spell(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('bug', 'waiting', ['card.type' => ['type' => 'bug']])], ['bug']);
+        $facts = FactsMother::facts(card: FactsMother::card(type: 'bug'));
+
+        $this->pass($template, $facts);
+        $entry = $this->writtenInbox[0] ?? throw new \LogicException('The pass stored no inbox entry.');
+        self::assertSame(MarkerSubjectType::Card, $entry->subject?->type);
+        self::assertEquals(self::noon(), $entry->since);
+        self::assertSame(self::noon()->format(\DATE_ATOM), $entry->subject->ids['spell'] ?? null);
+
+        $later = FactsMother::facts(card: FactsMother::card(type: 'bug'), now: new \DateTimeImmutable('2026-10-01 13:00:00'));
+        $this->pass($template, $later, [], [$entry]);
+        self::assertEquals($entry->subject, $this->writtenInbox[0]->subject ?? null, 'the spell holds while the marker stays true');
+        self::assertEquals(self::noon(), $this->writtenInbox[0]->since ?? null);
+
+        $this->pass($template, $later, [], []);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 13:00:00'), $this->writtenInbox[0]->since ?? null, 'a marker that turned off and on starts a new spell');
+    }
+
+    public function test_a_marker_whose_leaves_name_two_subject_types_gets_the_card_as_its_thing(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('either', 'stuck', ['any' => [['pr.open' => []], ['card.paused' => []]]])], ['either']);
+        $pullRequest = self::openPullRequest(1, 'aaa');
+
+        $this->pass($template, FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: [PauseFacts::class => new PauseFacts(null)]));
+
+        self::assertCount(1, $this->writtenInbox ?? []);
+        self::assertSame(MarkerSubjectType::Card, ($this->writtenInbox[0] ?? throw new \LogicException('The pass stored no inbox entry.'))->subject?->type);
+    }
+
+    private static function openPullRequest(int $number, string $head, ChecksState $checks = ChecksState::None): PullRequestFacts
+    {
+        return FactsMother::pullRequest(checks: $checks, id: Uuid::v7(), headSha: $head, number: $number);
+    }
+
+    private function entry(string $key, PullRequestFacts $pullRequest, string $head, \DateTimeImmutable $since): StoredMarker
+    {
+        return new StoredMarker($key, MarkerKind::NeedsYou, 'marker.'.$key, null, ['%number%' => $pullRequest->number ?? 0], $since, null, new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $pullRequest->id, 'head' => $head]));
     }
 
     private static function noon(): \DateTimeImmutable

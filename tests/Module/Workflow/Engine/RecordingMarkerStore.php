@@ -14,11 +14,18 @@ final class RecordingMarkerStore implements CardMarkerStore
     /** @var list<StoredMarker>|null null until the pass writes */
     public ?array $written = null;
 
+    /** @var list<StoredMarker>|null null until the pass writes */
+    public ?array $writtenInbox = null;
+
     public ?\DateTimeImmutable $dueAt = null;
 
-    /** @param list<StoredMarker> $stored */
+    /**
+     * @param list<StoredMarker>  $stored      the board set
+     * @param ?list<StoredMarker> $storedInbox the inbox set, null for a card that no pass of this version read
+     */
     public function __construct(
         private readonly array $stored = [],
+        private readonly ?array $storedInbox = null,
     ) {
     }
 
@@ -29,9 +36,16 @@ final class RecordingMarkerStore implements CardMarkerStore
     }
 
     #[\Override]
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, ?\DateTimeImmutable $dueAt): void
+    public function readInbox(Uuid $cardId): ?array
+    {
+        return $this->storedInbox;
+    }
+
+    #[\Override]
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): void
     {
         $this->written = $markers;
+        $this->writtenInbox = $inbox;
         $this->dueAt = $dueAt;
     }
 }

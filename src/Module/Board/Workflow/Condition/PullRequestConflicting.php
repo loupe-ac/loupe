@@ -54,6 +54,6 @@ final readonly class PullRequestConflicting implements Condition, MarkerEvidence
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->conflictingSince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 }

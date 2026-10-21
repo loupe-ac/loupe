@@ -58,6 +58,6 @@ final readonly class PullRequestChecksPending implements Condition, MarkerEviden
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->checksPendingSince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 }

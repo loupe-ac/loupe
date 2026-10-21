@@ -201,13 +201,12 @@ final class CardConditionsTest extends TestCase
         yield 'card.parent.document.approved' => [new ParentDocumentApproved(), ['tag' => 'design'], [ParentDocumentsFacts::class]];
     }
 
-    public function test_a_child_mark_gives_the_number_the_title_and_the_start_of_the_child(): void
+    public function test_a_child_mark_gives_the_number_and_the_title_of_the_child(): void
     {
         $evidence = new CardChildMarked()->evidence(self::marked('waiting'), ['kind' => 'waiting']);
 
         self::assertNotNull($evidence);
         self::assertSame(['%number%' => 12, '%title%' => 'Child'], $evidence->params);
-        self::assertEquals(new \DateTimeImmutable('2026-10-18 09:00:00'), $evidence->since);
         self::assertNull(new CardChildMarked()->evidence(self::marked('waiting'), ['kind' => 'stuck']));
     }
 

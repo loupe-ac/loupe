@@ -41,7 +41,7 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
         self::assertNotContains((string) $later->id, $sent);
     }
 
-    public function test_the_task_queues_the_open_cards_of_bound_projects_whose_markers_are_missing_or_due(): void
+    public function test_the_task_queues_the_open_cards_of_bound_projects_whose_inbox_markers_are_missing_or_whose_markers_are_due(): void
     {
         self::bootKernel();
         $bound = $this->workflowProject('due-markers');
@@ -53,10 +53,13 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
         $finished = $this->card($bound, 'done');
         $unbound = $this->card($this->workflowProject('due-markers-unbound'), 'next');
         $due->markers = [];
+        $due->inboxMarkers = [];
         $due->markersDueAt = new \DateTimeImmutable('2026-10-02 11:59:00');
         $later->markers = [];
+        $later->inboxMarkers = [];
         $later->markersDueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
         $settled->markers = [];
+        $settled->inboxMarkers = [];
         $this->em()->flush();
         $this->transport()->reset();
 

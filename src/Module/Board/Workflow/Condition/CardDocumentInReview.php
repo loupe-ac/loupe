@@ -67,7 +67,7 @@ final readonly class CardDocumentInReview implements Condition, MarkerEvidence, 
             }
         }
 
-        return null === $oldest ? null : new Evidence($oldest->versionAt, ['%title%' => $oldest->title ?? '']);
+        return null === $oldest ? null : new Evidence(['%title%' => $oldest->title ?? '']);
     }
 
     #[\Override]

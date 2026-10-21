@@ -56,7 +56,7 @@ final readonly class PullRequestForgeRequestPending implements Condition, Marker
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->forgeRequestedAt($facts->now));
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 
     #[\Override]
