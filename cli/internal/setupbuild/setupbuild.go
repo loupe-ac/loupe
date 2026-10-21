@@ -166,8 +166,13 @@ func Pin(setupDir string) (string, error) {
 		return "", &RefusedError{setupDir, "build.json: " + reasonOf(err)}
 	}
 	dest := filepath.Join(pinRoot(setupDir), rec.SHA256)
-	if info, err := os.Stat(filepath.Join(dest, "loupe")); err == nil && info.Size() == rec.Size {
+	if err := verifyFile(filepath.Join(dest, "loupe"), rec.Size, rec.SHA256); err == nil {
 		return dest, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		_ = os.Chmod(dest, 0o700)
+		if err := os.Remove(filepath.Join(dest, "loupe")); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("remove the changed pin: %w", err)
+		}
 	}
 
 	src, err := os.Open(BinPath(setupDir))
@@ -213,6 +218,44 @@ func Pin(setupDir string) (string, error) {
 	}
 
 	return dest, nil
+}
+
+// CheckPin verifies that exe is a pin of the setup whose bytes still hash to
+// the name of its folder, with the owner and mode rules of Check.
+func CheckPin(setupDir, exe string) error {
+	dir := filepath.Dir(exe)
+	root := pinRoot(setupDir)
+	if filepath.Base(exe) != "loupe" || (filepath.Dir(dir) != root && filepath.Dir(dir) != resolved(root)) {
+		return &RefusedError{setupDir, exe + " is not a pin of the setup"}
+	}
+	if err := verifyFile(exe, -1, filepath.Base(dir)); err != nil {
+		return &RefusedError{setupDir, "the pin " + exe + ": " + reasonOf(err)}
+	}
+
+	return nil
+}
+
+// verifyFile checks the owner, the mode and the SHA-256 of path, and its size
+// unless size is -1.
+func verifyFile(path string, size int64, sum string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := checkOwner(f); err != nil {
+		return err
+	}
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		return err
+	}
+	if (size >= 0 && n != size) || hex.EncodeToString(h.Sum(nil)) != sum {
+		return errors.New("the size or the hash differs from the build")
+	}
+
+	return nil
 }
 
 // PinGrace is how long a pin that no run used stays. A session that an older

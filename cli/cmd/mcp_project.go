@@ -43,7 +43,9 @@ func mcpProjectSource(flag string, notes io.Writer) (project, source func() stri
 	setup := config.Current()
 	link := ""
 	if setup.Source != config.SourceDefault {
-		link, _ = projectfile.LoadLink(setup.Dir, projectfile.LinkKey(dir))
+		if link, err = projectfile.LoadLink(setup.Dir, projectfile.LinkKey(dir)); err != nil {
+			return nil, nil, fmt.Errorf("read the project links of the setup %s: %w", setup.Dir, err)
+		}
 	}
 	if err := src.start(); err != nil {
 		if link == "" {
@@ -81,12 +83,14 @@ func (l *linkedSource) project() string {
 	if err != nil {
 		if err.Error() != l.failed {
 			l.failed = err.Error()
-			fmt.Fprintf(l.notes, "loupe mcp: %v\n", err)
+			fmt.Fprintf(l.notes, "loupe mcp: %v; the project stays %s\n", err, orNone(l.last))
 		}
-		link = l.last
-	} else {
-		l.failed = ""
+		// A link file that fails to read never hands the project to the shared project file.
+		l.used = l.linkWords()
+
+		return l.last
 	}
+	l.failed = ""
 	if link != l.last {
 		fmt.Fprintf(l.notes, "loupe mcp: the link of the setup %s now names project %s (was %s)\n", l.setup.Dir, orNone(link), orNone(l.last))
 		l.last = link

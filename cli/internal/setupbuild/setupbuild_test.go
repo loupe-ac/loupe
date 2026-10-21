@@ -113,6 +113,69 @@ func TestPinKeepsTheCheckedBytesAfterTheBinaryIsReplaced(t *testing.T) {
 	}
 }
 
+// changePin rewrites the pin file with body, as a change after the pin was made.
+func changePin(t *testing.T, file, body string) {
+	t.Helper()
+	if err := os.Chmod(file, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(file, 0o500); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestASameSizeChangeOfAPinIsReplacedBeforeReuse(t *testing.T) {
+	x := builtSetup(t)
+	pin, err := Pin(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(pin, "loupe")
+	changePin(t, file, strings.Replace(script, "checked", "changed", 1))
+
+	again, err := Pin(x)
+	if err != nil || again != pin {
+		t.Fatalf("pin = %q, %v", again, err)
+	}
+	if body, _ := os.ReadFile(file); string(body) != script {
+		t.Fatalf("the changed pin was reused: %q", body)
+	}
+}
+
+func TestCheckPinRefusesAChangedOrMisplacedPin(t *testing.T) {
+	x := builtSetup(t)
+	pin, err := Pin(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(pin, "loupe")
+	if err := CheckPin(x, file); err != nil {
+		t.Fatalf("a good pin was refused: %v", err)
+	}
+
+	other := strings.Replace(script, "checked", "changed", 1)
+	sum := sha256.Sum256([]byte(other))
+	nested := filepath.Join(pinRoot(x), "deep", hex.EncodeToString(sum[:]))
+	if err := os.MkdirAll(nested, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nested, "loupe"), []byte(other), 0o500); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckPin(x, filepath.Join(nested, "loupe")); err == nil {
+		t.Fatal("a pin outside the pin root was trusted")
+	}
+
+	changePin(t, file, other)
+	var refused *RefusedError
+	if err := CheckPin(x, file); !errors.As(err, &refused) {
+		t.Fatalf("a same-size changed pin: err = %v", err)
+	}
+}
+
 func TestASwappedBinaryNeverBecomesAPin(t *testing.T) {
 	x := builtSetup(t)
 	writeBin(t, x, "#!/bin/sh\necho swapped\n")

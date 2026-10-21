@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -267,6 +268,45 @@ func TestUpdateOfASetupOnTheSharedBinaryLeavesTheBinary(t *testing.T) {
 	}
 	if !strings.Contains(out, "updates from the default setup") {
 		t.Fatalf("out = %q", out)
+	}
+}
+
+// The bridge of a setup runs no updater and a Homebrew binary stays with brew,
+// so the update of a setup installs its panel and asks neither.
+func TestUpdateOfASetupWithARunningBridgeOnAHomebrewBinaryInstallsThePanel(t *testing.T) {
+	recordExec(t)
+	shortConfigHome(t)
+	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0", "cli/v1.2.0")
+	self, _ := selfUpdateAgainst(t, gh, "1.0.0")
+	keg, link := homebrewBinary(t)
+	self.executable = func() (string, error) { return link, nil }
+	x, err := os.MkdirTemp("/tmp", "lx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(x) })
+	if _, err := config.Resolve(x); err != nil {
+		t.Fatal(err)
+	}
+	rules, err := defaultRulesPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	serveUpdateTest(t, rules, func(context.Context, func(updateResult)) updateResult {
+		t.Error("the bridge of the setup was asked")
+
+		return updateResult{}
+	})
+
+	out, err := updateCmd(t, self)
+	if err != nil {
+		t.Fatalf("err = %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "updates from the default setup") {
+		t.Fatalf("out = %q", out)
+	}
+	if data, _ := os.ReadFile(keg); string(data) != "old" {
+		t.Fatalf("binary = %q", data)
 	}
 }
 

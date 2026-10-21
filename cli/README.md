@@ -91,7 +91,9 @@ covers the whole Git repository: the key is the absolute path of
 linked folder stops with
 `the setup <folder> links this folder to <project>: pass --force to replace the link, or leave out --project`.
 `loupe mcp`, `loupe status`, `loupe artifact` and `loupe review ios` read the link first and
-fall back to `.loupe.yaml`.
+fall back to `.loupe.yaml` when the setup links no project. A `projects.json` that fails to
+read never falls back: `loupe mcp`, `loupe status` and `loupe artifact` stop at start, and keep
+the last project of the link when it breaks later.
 
 The bridge socket is `bridge-<hash>.sock` in the setup folder. A socket path must be
 shorter than 104 bytes, so the folder path can have about 78 characters. A longer
@@ -133,7 +135,8 @@ the same arguments.
 
 The bridge and its workers do not run `bin/loupe` itself. The first process that starts
 children copies the checked build to `<folder>/tmp/pin/<sha256>/loupe` and puts that
-folder first on their `PATH`. A rebuild changes `bin/loupe` only, so a running bridge
+folder first on their `PATH`. The pin is hashed before reuse and before it runs, so a
+changed pin is copied again, and a run from it hands over to `bin/loupe`. A rebuild changes `bin/loupe` only, so a running bridge
 keeps the build it checked. A bridge start removes the pins of other builds that no run
 used for seven days, so a session of an older bridge keeps its pin. After a rebuild, stop
 the bridge and start it again:
@@ -146,8 +149,8 @@ loupe -c ~/loupe-982 bridge run -d
 A setup never replaces a binary. In a built setup, `loupe -c <folder> update` stops and
 names the checkout, the commit and `just cli-setup <folder>`. In a setup that runs the
 shared binary, it installs only the panel copy of the running version into the setup, and
-prints that the binary updates from the default setup. The bridge of such a setup runs no
-update check.
+prints that the binary updates from the default setup. It asks no running bridge, and it
+runs for a Homebrew binary too. The bridge of such a setup runs no update check.
 
 ## Release
 

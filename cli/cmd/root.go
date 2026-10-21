@@ -44,9 +44,8 @@ func resolveSetup(args []string) error {
 // enforceSetup runs after the setup is known and before Cobra handles any
 // flag. In a built setup, it checks that bin/loupe is the build the recipe
 // checked, and hands the run over to that file when another file runs. A run
-// from a pin skips the hash, because the pin was checked when it was made. The
-// setup-probe command skips the check, because the recipe runs it on a build
-// that is not installed yet.
+// from a pin checks the hash its folder names, and a changed pin hands over too.
+// setup-probe skips the check, as the recipe runs it before the install.
 func enforceSetup(setup config.Setup, target string) error {
 	if setup.Source == config.SourceDefault || target == "setup-probe" || !setupbuild.Built(setup.Dir) {
 		return nil
@@ -55,7 +54,7 @@ func enforceSetup(setup config.Setup, target string) error {
 	if err != nil {
 		return fmt.Errorf("locate the loupe binary: %w", err)
 	}
-	if setupbuild.InPin(setup.Dir, exe) {
+	if setupbuild.InPin(setup.Dir, exe) && setupbuild.CheckPin(setup.Dir, exe) == nil {
 		setupbuild.TouchPin(filepath.Dir(exe))
 
 		return nil

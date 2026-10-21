@@ -210,6 +210,63 @@ func TestMcpProjectInASetupWithALinkIgnoresAMalformedProjectFile(t *testing.T) {
 	}
 }
 
+// A link file that fails to read must never hand the project to .loupe.yaml,
+// which names the project of the default setup.
+func TestMcpProjectInASetupNeverFallsBackOnAMalformedLinkFile(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir, setupDir := secondSetup(t, w.server.URL)
+	links := filepath.Join(setupDir, projectfile.LinksName)
+	if err := os.WriteFile(links, []byte("{\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := mcpProjectSource("", io.Discard); err == nil || !strings.Contains(err.Error(), links) {
+		t.Fatalf("a malformed link file at start: err = %v", err)
+	}
+
+	if err := os.Remove(links); err != nil {
+		t.Fatal(err)
+	}
+	if err := projectfile.WriteLink(setupDir, projectfile.LinkKey(dir), firstProject); err != nil {
+		t.Fatal(err)
+	}
+	var notes strings.Builder
+	project, source, err := mcpProjectSource("", &notes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := project(); got != firstProject {
+		t.Fatalf("with a link: %q", got)
+	}
+	if err := os.WriteFile(links, []byte("{\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := project(); got != firstProject || !strings.Contains(source(), setupDir) {
+		t.Fatalf("after the link file broke: %q from %q", got, source())
+	}
+	if !strings.Contains(notes.String(), links) {
+		t.Errorf("notes = %q", notes.String())
+	}
+}
+
+func TestMcpProjectInASetupSendsNoProjectWhenTheLinkFileBreaksBeforeAnyLink(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	_, setupDir := secondSetup(t, w.server.URL)
+	project, _, err := mcpProjectSource("", io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := project(); got != secondProject {
+		t.Fatalf("with no link: %q", got)
+	}
+	if err := os.WriteFile(filepath.Join(setupDir, projectfile.LinksName), []byte("{\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := project(); got != "" {
+		t.Fatalf("a broken link file fell back to %q", got)
+	}
+}
+
 func TestMcpProjectInTheDefaultSetupStillFailsOnAMalformedProjectFile(t *testing.T) {
 	dir := inRepo(t, newInitWorld(t, devSite()).server.URL)
 	if err := os.WriteFile(filepath.Join(dir, projectfile.Name), []byte("project: [\n"), 0o644); err != nil {

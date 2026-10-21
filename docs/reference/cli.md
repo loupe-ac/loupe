@@ -57,6 +57,10 @@ branch in two worktrees.
 A link covers the whole Git repository. The key is the absolute path of
 `git rev-parse --git-common-dir`, so every subfolder and every worktree of one
 checkout finds the link. A folder outside Git is its own key.
+`loupe mcp`, `loupe status` and `loupe artifact` read the link first, and use
+`.loupe.yaml` only when the setup links no project. A `projects.json` that
+fails to read stops them at start. When it breaks later, they keep the last
+project of the link.
 
 `loupe mcp`, `loupe status` and `loupe artifact` read the link of the setup first.
 They use `.loupe.yaml` when the setup has no link. `loupe init` and
@@ -99,7 +103,8 @@ shared binary.
 
 The bridge and its workers run a pinned copy of the checked build, in
 `tmp/pin/<sha256>/` in the setup folder. A rebuild reaches a running bridge only after you
-stop it and start it again. A bridge start removes the pins of other builds that no run used
+stop it and start it again. A pin is hashed before reuse and before it runs. A changed pin is
+copied again, and a run from a changed pin hands over to `bin/loupe`. A bridge start removes the pins of other builds that no run used
 for seven days.
 
 ### Updates in a setup
@@ -111,8 +116,9 @@ A setup other than the default never replaces a binary.
   of the setup runs no update check and reports a build.
 - In a setup that runs the shared binary, `loupe -c <folder> update` installs only the
   panel copy of the running version into the setup. It prints that the binary
-  updates from the default setup. The bridge runs no update check and reports
-  that updates are off.
+  updates from the default setup. It asks no running bridge, and it runs for a
+  Homebrew binary too. The bridge runs no update check and reports that updates
+  are off.
 
 ## `loupe init`
 

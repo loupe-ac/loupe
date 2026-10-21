@@ -98,13 +98,17 @@ func newUpdateCmdWith(self selfUpdate) *cobra.Command {
 			"file holds autoUpdate: true; see loupe update auto.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			out := cmd.OutOrStdout()
+			if setup := config.Current(); setup.Source != config.SourceDefault {
+				if setupbuild.Built(setup.Dir) {
+					return builtSetupRefusal(setup)
+				}
+				// The bridge of the setup runs no updater, and the binary stays with the default setup.
+				return self.run(cmd.Context(), out)
+			}
 			if installMethod(self.executable) == installHomebrew {
 				return errors.New(homebrewRefusal)
 			}
-			if setup := config.Current(); setup.Source != config.SourceDefault && setupbuild.Built(setup.Dir) {
-				return builtSetupRefusal(setup)
-			}
-			out := cmd.OutOrStdout()
 			bridges, err := runningBridges(rulesPath)
 			if err != nil {
 				return err
