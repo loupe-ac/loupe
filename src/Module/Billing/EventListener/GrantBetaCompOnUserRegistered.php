@@ -7,6 +7,7 @@ namespace App\Module\Billing\EventListener;
 use App\Module\Account\Event\UserRegistered;
 use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Service\BetaCompGranter;
+use App\Module\Billing\Service\BetaWelcomeEmailSender;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
@@ -22,6 +23,7 @@ final readonly class GrantBetaCompOnUserRegistered
     public function __construct(
         private BetaInviteRepository $betaInvites,
         private BetaCompGranter $grantBetaComp,
+        private BetaWelcomeEmailSender $welcomeEmail,
         private LoggerInterface $logger,
     ) {
     }
@@ -33,6 +35,7 @@ final readonly class GrantBetaCompOnUserRegistered
             $invite = $this->betaInvites->findOneRedeemedBy($event->user);
             if (null !== $invite) {
                 ($this->grantBetaComp)($invite);
+                $this->welcomeEmail->sendIfDue($invite);
             }
         } catch (\Throwable $e) {
             $this->logger->warning('billing.beta_comp_failed', [
