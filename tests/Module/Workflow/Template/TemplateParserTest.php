@@ -39,6 +39,7 @@ use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\MissingActionLeaf;
 use App\Module\Workflow\Expression\MissingConditionLeaf;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Expression\Not;
 use App\Module\Workflow\Template\AppRequest;
 use App\Module\Workflow\Template\AskOption;
@@ -1645,5 +1646,172 @@ final class TemplateParserTest extends TestCase
         $leaf = $this->parser->parseStored($source)->markers[0]->when;
 
         self::assertInstanceOf(MissingConditionLeaf::class, $leaf);
+    }
+
+    public function test_a_rule_refers_to_a_named_fact_and_a_fact_to_another_fact(): void
+    {
+        $template = self::valid();
+        $template['facts'] = [
+            'open-pr' => ['pr.open' => []],
+            'ready' => ['all' => [['fact.open-pr' => []], ['not' => ['card.blocker.open' => []]]]],
+        ];
+        $template['rules'][1]['when'] = ['fact.ready' => []];
+
+        $when = $this->parser->parse($template)->rules[1]->when;
+
+        self::assertInstanceOf(NamedFact::class, $when);
+        self::assertSame('ready', $when->name);
+        self::assertInstanceOf(AllOf::class, $when->expression);
+        $inner = $when->expression->children[0];
+        self::assertInstanceOf(NamedFact::class, $inner);
+        self::assertSame('open-pr', $inner->name);
+        self::assertSame(['pr.open', 'card.blocker.open'], array_map(static fn (ConditionLeaf $leaf): string => $leaf->condition::key(), $when->leaves()));
+    }
+
+    public function test_a_named_fact_gives_the_rule_the_same_canonical_text_as_its_expression(): void
+    {
+        $inline = self::valid();
+        $inline['rules'][1]['when'] = ['all' => [['pr.open' => []], ['not' => ['card.blocker.open' => []]]]];
+        $named = self::valid();
+        $named['facts'] = ['ready' => ['all' => [['pr.open' => []], ['not' => ['card.blocker.open' => []]]]]];
+        $named['rules'][1]['when'] = ['fact.ready' => []];
+
+        self::assertSame($this->parser->parse($inline)->rules[1]->when->canonical(), $this->parser->parse($named)->rules[1]->when->canonical());
+    }
+
+    public function test_a_marker_and_an_until_expression_refer_to_a_named_fact(): void
+    {
+        $template = self::valid();
+        $template['facts'] = ['busy' => ['card.run.work_active' => []]];
+        $template['rules'][3]['then'] = ['pause' => ['reason' => 'busy', 'until' => ['not' => ['fact.busy' => []]]]];
+        $template['markers'] = [['key' => 'm', 'kind' => 'chip', 'label' => 'marker.m', 'when' => ['fact.busy' => []]]];
+
+        $parsed = $this->parser->parse($template);
+
+        self::assertInstanceOf(NamedFact::class, $parsed->markers[0]->when);
+        $until = $parsed->rules[3]->then->until;
+        self::assertInstanceOf(Not::class, $until);
+        self::assertInstanceOf(NamedFact::class, $until->inner);
+    }
+
+    public function test_a_named_fact_that_names_a_card_type_still_checks_the_children_rule(): void
+    {
+        $template = self::valid();
+        $template['facts'] = ['bug' => ['card.type' => ['type' => 'bug']]];
+        $template['rules'][0]['when'] = ['all' => [['fact.bug' => []], ['card.children.finished' => []]]];
+
+        try {
+            $this->parser->parse($template);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['rules[0] (start): the type "bug" may not have children, but the rule reads them'], $e->errors);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $facts
+     * @param array<mixed>         $when
+     * @param list<string>         $expected
+     */
+    #[DataProvider('invalidFacts')]
+    public function test_a_fact_with_an_error_is_refused_with_its_path(array $facts, array $when, array $expected): void
+    {
+        $template = self::valid();
+        $template['facts'] = $facts;
+        $template['rules'][1]['when'] = $when;
+
+        foreach ([true, false] as $stored) {
+            try {
+                $stored ? $this->parser->parseStored($template) : $this->parser->parse($template);
+                self::fail('The template should be refused.');
+            } catch (InvalidTemplate $e) {
+                self::assertSame($expected, $e->errors);
+            }
+        }
+    }
+
+    /** @return iterable<string, array{array<mixed>, array<mixed>, list<string>}> */
+    public static function invalidFacts(): iterable
+    {
+        yield 'a loop of two facts' => [
+            ['a' => ['fact.b' => []], 'b' => ['fact.a' => []]],
+            ['pr.open' => []],
+            ['facts.a: loop a -> b -> a'],
+        ];
+        yield 'a fact that refers to itself' => [
+            ['a' => ['all' => [['pr.open' => []], ['fact.a' => []]]]],
+            ['fact.a' => []],
+            ['facts.a: loop a -> a'],
+        ];
+        yield 'a loop below another fact' => [
+            ['top' => ['fact.a' => []], 'a' => ['fact.b' => []], 'b' => ['fact.a' => []]],
+            ['fact.top' => []],
+            ['facts.a: loop a -> b -> a'],
+        ];
+        yield 'an unknown fact in a rule' => [
+            ['a' => ['pr.open' => []]],
+            ['fact.b' => []],
+            ['rules[1] (to-review) when: unknown fact "b"'],
+        ];
+        yield 'an unknown fact in a fact' => [
+            ['a' => ['not' => ['fact.b' => []]]],
+            ['pr.open' => []],
+            ['facts.a.not: unknown fact "b"'],
+        ];
+        yield 'parameters on a reference' => [
+            ['a' => ['pr.open' => []]],
+            ['fact.a' => ['min' => 1]],
+            ['rules[1] (to-review) when: the fact "a" takes no parameters'],
+        ];
+        yield 'a missing parameter inside a fact' => [
+            ['a' => ['pr.approval_covers_head' => []]],
+            ['fact.a' => []],
+            ['facts.a: pr.approval_covers_head: missing parameter "min"'],
+        ];
+        yield 'an unused fact with an error' => [
+            ['unused' => ['pr.approval_covers_head' => []]],
+            ['pr.open' => []],
+            ['facts.unused: pr.approval_covers_head: missing parameter "min"'],
+        ];
+        yield 'a bad name' => [
+            ['Bad_Name' => ['pr.open' => []]],
+            ['pr.open' => []],
+            ['facts.Bad_Name: the name must match [a-z][a-z0-9-]'],
+        ];
+    }
+
+    public function test_facts_must_be_a_map(): void
+    {
+        $template = self::valid();
+        $template['facts'] = [['pr.open' => []]];
+
+        try {
+            $this->parser->parse($template);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['facts: must be a map from a name to an expression'], $e->errors);
+        }
+    }
+
+    public function test_a_stored_copy_keeps_a_condition_of_a_fact_that_no_longer_exists_as_a_missing_condition(): void
+    {
+        $template = self::valid();
+        $template['facts'] = ['gone' => ['all' => [['pr.open' => []], ['card.gone' => []]]]];
+        $template['rules'][1]['when'] = ['fact.gone' => []];
+
+        $when = $this->parser->parseStored($template)->rules[1]->when;
+
+        self::assertInstanceOf(NamedFact::class, $when);
+        self::assertSame(['card.gone'], $when->missingKeys());
+    }
+
+    public function test_the_app_rules_hold_no_named_facts(): void
+    {
+        try {
+            $this->parser->parseAppRules(['rules' => [['id' => 'r', 'when' => ['fact.a' => []], 'then' => ['move' => ['to' => '@terminal']]]]]);
+            self::fail('The rules should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['rules[0] (r) when: unknown fact "a"'], $e->errors);
+        }
     }
 }
