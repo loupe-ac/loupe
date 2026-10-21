@@ -174,7 +174,7 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['no-bridge-online'], $this->passKeys($template, $this->takerFacts(WorkTakerState::None, ['implement'])));
         self::assertSame(MarkerKind::Stuck, $this->written('no-bridge-online')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('no-bridge-online')->link);
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 11:00:00'), $this->written('no-bridge-online')->since);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('no-bridge-online')->since, 'the engine saw the marker first at the time of the pass');
     }
 
     #[DataProvider('shippedKeys')]
@@ -225,7 +225,7 @@ final class ShippedMarkersTest extends KernelTestCase
         $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed, number: 12, checksFailedSince: new \DateTimeImmutable('2026-10-01 10:00:00'));
         self::assertSame(['checks-failed'], $this->keys($this->workFacts('implementation', $pullRequest)));
         self::assertSame(['%number%' => 12], $this->written('checks-failed')->params);
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 10:00:00'), $this->written('checks-failed')->since);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('checks-failed')->since);
         self::assertSame(['work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['fix'])));
         self::assertSame(['run-open'], $this->keys($this->workFacts('implementation', $pullRequest, [], ['repair'])));
         self::assertSame(['checks-failed', 'work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['review'])));
@@ -294,7 +294,7 @@ final class ShippedMarkersTest extends KernelTestCase
     }
 
     #[DataProvider('childKinds')]
-    public function test_an_epic_shows_the_state_kind_of_a_child_with_the_child_and_its_start(string $template, string $kind, string $key): void
+    public function test_an_epic_shows_the_state_kind_of_a_child_with_the_child(string $template, string $kind, string $key): void
     {
         $since = new \DateTimeImmutable('2026-10-01 10:00:00');
         $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', childCount: 2, openChildCount: 2), provided: [
@@ -305,7 +305,6 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame([$key], $this->writtenKeys());
         self::assertSame(['%number%' => 31, '%title%' => 'Build it'], $this->written($key)->params);
-        self::assertEquals($since, $this->written($key)->since);
     }
 
     public function test_an_epic_with_children_in_several_states_shows_the_stuck_one_first(): void
@@ -403,7 +402,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame(['unmanaged'], $this->keys($facts));
         self::assertSame(MarkerKind::Chip, $this->written('unmanaged')->kind);
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 08:00:00'), $this->written('unmanaged')->since);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('unmanaged')->since);
     }
 
     public function test_a_document_in_review_needs_the_person_only_in_the_slot_of_its_tag(): void

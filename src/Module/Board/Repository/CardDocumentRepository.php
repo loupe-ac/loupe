@@ -152,16 +152,17 @@ final class CardDocumentRepository extends ServiceEntityRepository
     }
 
     /**
-     * The id, the status, the title, the time of the newest version and the tag names of each unarchived
+     * The id, the status, the title, the time and the number of the newest version and the tag names of each unarchived
      * document linked to the card, as the database holds them now, in link order.
      *
-     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, tags: list<string>}>
+     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, tags: list<string>}>
      */
     public function findStatusesAndTagsForCard(Card $card): array
     {
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
             'SELECT d.id AS document_id, d.status, d.title, t.name AS tag_name,
-                (SELECT MAX(v.created_at) FROM document_versions v WHERE v.document_id = d.id) AS version_at
+                (SELECT MAX(v.created_at) FROM document_versions v WHERE v.document_id = d.id) AS version_at,
+                (SELECT MAX(v.version_number) FROM document_versions v WHERE v.document_id = d.id) AS version_number
              FROM board_card_documents cd
              JOIN documents d ON d.id = cd.document_id
              LEFT JOIN document_tags dt ON dt.document_id = d.id
@@ -179,6 +180,7 @@ final class CardDocumentRepository extends ServiceEntityRepository
                 'status' => (string) $row['status'],
                 'title' => (string) $row['title'],
                 'versionAt' => null === $row['version_at'] ? null : new \DateTimeImmutable((string) $row['version_at']),
+                'version' => null === $row['version_number'] ? null : (int) $row['version_number'],
                 'tags' => [],
             ];
             if (null !== $row['tag_name']) {

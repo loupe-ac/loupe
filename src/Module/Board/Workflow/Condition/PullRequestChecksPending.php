@@ -10,10 +10,12 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\PullRequestState;
 use Symfony\Component\Translation\TranslatableMessage;
 
-final readonly class PullRequestChecksPending implements Condition, MarkerEvidence
+final readonly class PullRequestChecksPending implements Condition, MarkerEvidence, NamesMarkerSubject
 {
     #[\Override]
     public static function key(): string
@@ -58,6 +60,12 @@ final readonly class PullRequestChecksPending implements Condition, MarkerEviden
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->checksPendingSince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::PullRequest;
     }
 }

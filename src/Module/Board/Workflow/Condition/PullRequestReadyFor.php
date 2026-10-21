@@ -10,6 +10,8 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
@@ -21,7 +23,7 @@ use Symfony\Component\Translation\TranslatableMessage;
  * The pull request is not stacked, and stayed ready to merge with nothing pending for at least the delay, in minutes.
  * With no delay, it reads the stuck delay of the project.
  */
-final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, TimedCondition
+final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, NamesMarkerSubject, TimedCondition
 {
     #[\Override]
     public static function key(): string
@@ -76,7 +78,7 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->readySince);
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 
     #[\Override]
@@ -99,5 +101,11 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     private static function delayEndsAt(Facts $facts, PullRequestFacts $pullRequest, array $params): ?\DateTimeImmutable
     {
         return $pullRequest->readySince?->add(new \DateInterval(\sprintf('PT%dM', StuckDelayFacts::minutesFor($facts, $params))));
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::PullRequest;
     }
 }

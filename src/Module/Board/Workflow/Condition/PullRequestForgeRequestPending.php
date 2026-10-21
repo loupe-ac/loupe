@@ -9,11 +9,13 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\TimedCondition;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /** Loupe asked the forge to merge, sync or change the base of the pull request, and the forge has not answered. */
-final readonly class PullRequestForgeRequestPending implements Condition, MarkerEvidence, TimedCondition
+final readonly class PullRequestForgeRequestPending implements Condition, MarkerEvidence, NamesMarkerSubject, TimedCondition
 {
     #[\Override]
     public static function key(): string
@@ -56,12 +58,18 @@ final readonly class PullRequestForgeRequestPending implements Condition, Marker
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->forgeRequestedAt($facts->now));
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
     }
 
     #[\Override]
     public function changesAt(Facts $facts, array $params): ?\DateTimeImmutable
     {
         return $facts->pullRequest?->firstForgeRequestExpiresAt($facts->now);
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::PullRequest;
     }
 }

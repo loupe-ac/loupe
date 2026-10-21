@@ -11,14 +11,17 @@ use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A linked document with the tag is in review. */
-final readonly class CardDocumentInReview implements Condition, MarkerEvidence, ReadsDocumentTag
+/** A linked document with the tag is in review. A marker that binds a document reads that document alone. */
+final readonly class CardDocumentInReview implements Condition, MarkerEvidence, NamesMarkerSubject, ReadsDocumentTag
 {
     #[\Override]
     public static function key(): string
@@ -67,7 +70,16 @@ final readonly class CardDocumentInReview implements Condition, MarkerEvidence, 
             }
         }
 
-        return null === $oldest ? null : new Evidence($oldest->versionAt, ['%title%' => $oldest->title ?? '']);
+        return null === $oldest ? null : new Evidence(
+            ['%title%' => $oldest->title ?? ''],
+            MarkerSubject::document($oldest),
+        );
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::Document;
     }
 
     #[\Override]
@@ -87,7 +99,7 @@ final readonly class CardDocumentInReview implements Condition, MarkerEvidence, 
 
         return array_values(array_filter(
             $facts->get(DocumentsFacts::class)->documents,
-            static fn (DocumentFacts $document): bool => DocumentStatus::InReview->value === $document->status && \in_array($tag, $document->tags, true),
+            static fn (DocumentFacts $document): bool => DocumentStatus::InReview->value === $document->status && \in_array($tag, $document->tags, true) && $facts->readsDocument($document->id),
         ));
     }
 }

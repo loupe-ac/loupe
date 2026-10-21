@@ -1023,7 +1023,7 @@ class CardRepository extends ServiceEntityRepository
             "SELECT DISTINCT ON (m->>'kind') m->>'kind' AS kind, c.number, c.title, m->>'since' AS since
              FROM board_cards c
              JOIN board_columns k ON k.id = c.column_id
-             CROSS JOIN LATERAL jsonb_array_elements(c.markers) m
+             CROSS JOIN LATERAL jsonb_array_elements(c.workflow_markers) m
              WHERE c.parent_card_id = :epic AND NOT k.terminal AND m->>'kind' IN (:kinds)
              ORDER BY m->>'kind', m->>'since', c.number",
             ['epic' => (string) $epic->id, 'kinds' => array_map(static fn (MarkerKind $kind): string => $kind->value, MarkerKind::states())],
@@ -1777,7 +1777,7 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * The cards of bound projects, in a column that is not terminal, whose markers are not stored yet or whose due time has come.
+     * The cards of bound projects, in a column that is not terminal, whose inbox markers are not stored yet or whose due time has come.
      * A terminal card is left out, so a card that stores an empty set is never queued again.
      *
      * @return list<string> RFC 4122 card ids
@@ -1788,8 +1788,8 @@ class CardRepository extends ServiceEntityRepository
             'SELECT c.id FROM board_cards c
              JOIN board_columns col ON col.id = c.column_id
              JOIN workflow_bindings b ON b.project_id = c.project_id
-             WHERE col.terminal = false AND (c.markers IS NULL OR c.markers_due_at <= :now)
-             ORDER BY c.markers_due_at ASC NULLS FIRST, c.id
+             WHERE col.terminal = false AND (c.inbox_markers IS NULL OR c.workflow_markers_due_at <= :now)
+             ORDER BY c.workflow_markers_due_at ASC NULLS FIRST, c.id
              LIMIT :limit',
             ['now' => $now, 'limit' => $limit],
             ['now' => Types::DATETIME_IMMUTABLE, 'limit' => ParameterType::INTEGER],
@@ -1800,8 +1800,8 @@ class CardRepository extends ServiceEntityRepository
     public function makeMarkersDue(Project $project, \DateTimeImmutable $now): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
-            'UPDATE board_cards SET markers_due_at = :now
-             WHERE project_id = :project AND markers IS NOT NULL
+            'UPDATE board_cards SET workflow_markers_due_at = :now
+             WHERE project_id = :project AND workflow_markers IS NOT NULL
                AND column_id IN (SELECT id FROM board_columns WHERE project_id = :project AND terminal = false)',
             ['now' => $now, 'project' => $project->requireId()->toRfc4122()],
             ['now' => Types::DATETIME_IMMUTABLE],

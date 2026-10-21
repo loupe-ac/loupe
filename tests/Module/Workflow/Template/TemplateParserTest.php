@@ -1585,6 +1585,41 @@ final class TemplateParserTest extends TestCase
         self::assertSame(['stuck', 'needs-you', 'working', 'waiting', 'chip'], array_column(MarkerKind::cases(), 'value'));
     }
 
+    public function test_a_template_lists_the_markers_that_reach_the_inbox_in_the_order_it_gives(): void
+    {
+        $markers = [
+            ['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['pr.open' => []]],
+            ['key' => 'b', 'kind' => 'chip', 'label' => 'marker.b', 'when' => ['all' => []]],
+        ];
+
+        self::assertSame([], $this->parser->parse(self::valid() + ['markers' => $markers])->inbox);
+        self::assertSame(['b', 'a'], $this->parser->parse(self::valid() + ['markers' => $markers, 'inbox' => ['b', 'a']])->inbox);
+        self::assertSame(['b'], $this->parser->parseStored(self::valid() + ['markers' => $markers, 'inbox' => ['b']])->inbox);
+    }
+
+    #[DataProvider('invalidInboxLists')]
+    public function test_an_inbox_list_that_names_no_marker_or_repeats_one_is_refused(mixed $inbox, string $error): void
+    {
+        $markers = [['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['pr.open' => []]]];
+
+        try {
+            $this->parser->parse(self::valid() + ['markers' => $markers, 'inbox' => $inbox]);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains($error, $e->errors);
+        }
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidInboxLists(): iterable
+    {
+        yield 'a map' => [['a' => true], 'inbox: must be a list of marker keys'];
+        yield 'a string' => ['a', 'inbox: must be a list of marker keys'];
+        yield 'an unknown key' => [['nope'], 'inbox: unknown marker "nope"'];
+        yield 'a number' => [[3], 'inbox: unknown marker "int"'];
+        yield 'a repeated key' => [['a', 'a'], 'inbox: duplicate marker "a"'];
+    }
+
     /** @param array<string, mixed> $marker */
     #[DataProvider('invalidMarkers')]
     public function test_a_marker_that_breaks_a_rule_is_refused(array $marker, string $error): void

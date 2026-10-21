@@ -34,40 +34,61 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
     }
 
     #[\Override]
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, ?\DateTimeImmutable $dueAt): void
+    public function readInbox(Uuid $cardId): ?array
+    {
+        $card = $this->cards->find($cardId);
+
+        return null === $card?->inboxMarkers ? null : StoredCardMarkers::entries($card->inboxMarkers);
+    }
+
+    #[\Override]
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): void
     {
         $card = $this->cards->find($cardId);
         if (null === $card) {
             return;
         }
 
-        $entries = array_map(static function (StoredMarker $marker): array {
-            $entry = [
-                'key' => $marker->key,
-                'kind' => $marker->kind->value,
-                'label' => $marker->label,
-                'remedy' => $marker->remedy,
-                'params' => $marker->params,
-                'since' => $marker->since->setTimezone(new \DateTimeZone('UTC'))->format(\DATE_ATOM),
-            ];
-            if (null !== $marker->link) {
-                $entry['link'] = $marker->link->value;
-            }
-
-            return $entry;
-        }, $markers);
+        $entries = array_map(self::entry(...), $markers);
+        $inboxEntries = array_map(self::entry(...), $inbox);
 
         $changed = $entries !== ($card->markers ?? []);
         if ($changed || null === $card->markers) {
             $card->markers = $entries;
         }
+        // A null inbox set means the engine has not read the card yet, so the first set counts as a change even when it is empty.
+        $inboxChanged = $inboxEntries !== $card->inboxMarkers;
+        if ($inboxChanged) {
+            $card->inboxMarkers = $inboxEntries;
+        }
         // Doctrine compares a date by identity, so an equal instant would write the row again.
         if ($dueAt != $card->markersDueAt) {
             $card->markersDueAt = $dueAt;
         }
-        if ($changed) {
+        if ($changed || $inboxChanged) {
             $this->events->dispatch(new CardChanged($projectId, $cardId, CardChanged::UPDATED, false, markersOnly: true));
         }
+    }
+
+    /** @return array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: string, subject?: array{type: string, ids: array<string, string>}} */
+    private static function entry(StoredMarker $marker): array
+    {
+        $entry = [
+            'key' => $marker->key,
+            'kind' => $marker->kind->value,
+            'label' => $marker->label,
+            'remedy' => $marker->remedy,
+            'params' => $marker->params,
+            'since' => $marker->since->setTimezone(new \DateTimeZone('UTC'))->format(\DATE_ATOM),
+        ];
+        if (null !== $marker->link) {
+            $entry['link'] = $marker->link->value;
+        }
+        if (null !== $marker->subject) {
+            $entry['subject'] = $marker->subject->toArray();
+        }
+
+        return $entry;
     }
 
     #[\Override]

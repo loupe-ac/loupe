@@ -17,6 +17,7 @@ final readonly class Facts
      * @param array<class-string, mixed>             $fingerprints the fingerprint of each readable provided facts, keyed by its facts class
      * @param array<class-string, string>            $legacyGroups the old group name of each provided facts class that replaced one
      * @param ?Uuid                                  $projectId    the project of the card, null in a test that names none
+     * @param ?DocumentFacts                         $document     the document a marker acts on, null when no marker bound one
      */
     public function __construct(
         public \DateTimeImmutable $now,
@@ -27,13 +28,14 @@ final readonly class Facts
         public array $fingerprints = [],
         public array $legacyGroups = [],
         public ?Uuid $projectId = null,
+        public ?DocumentFacts $document = null,
     ) {
     }
 
     /** A copy that reads another pull request as the one the card acts on. */
     public function withPullRequest(?PullRequestFacts $pullRequest): self
     {
-        return new self($this->now, $this->slot, $this->parentSlot, $pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups, $this->projectId);
+        return new self($this->now, $this->slot, $this->parentSlot, $pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups, $this->projectId, $this->document);
     }
 
     /**
@@ -46,7 +48,7 @@ final readonly class Facts
     {
         $kept = array_diff_key($this->fingerprints, $provided);
 
-        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, [...$this->provided, ...$provided], [...$kept, ...$fingerprints], $this->legacyGroups, $this->projectId);
+        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, [...$this->provided, ...$provided], [...$kept, ...$fingerprints], $this->legacyGroups, $this->projectId, $this->document);
     }
 
     /** @return list<PullRequestFacts> every pull request linked to the card, empty when the list cannot be read */
@@ -55,6 +57,26 @@ final readonly class Facts
         $list = $this->provided[PullRequestList::class] ?? null;
 
         return $list instanceof PullRequestList ? $list->pullRequests : [];
+    }
+
+    /** @return list<DocumentFacts> every document linked to the card, empty when no provider gives them or they cannot be read */
+    public function documents(): array
+    {
+        $facts = $this->provided[$this->keyFor(ListsDocuments::class) ?? ListsDocuments::class] ?? null;
+
+        return $facts instanceof ListsDocuments ? $facts->documents : [];
+    }
+
+    /** A copy that reads another document as the one a marker acts on, as withPullRequest() does for a pull request. */
+    public function withDocument(?DocumentFacts $document): self
+    {
+        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups, $this->projectId, $document);
+    }
+
+    /** Whether a condition that reads the bound document reads this one: always, when no document is bound. */
+    public function readsDocument(string $documentId): bool
+    {
+        return null === $this->document || $this->document->id === $documentId;
     }
 
     /**

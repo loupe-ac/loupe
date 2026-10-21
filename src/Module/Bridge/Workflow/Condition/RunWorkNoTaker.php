@@ -6,14 +6,12 @@ namespace App\Module\Bridge\Workflow\Condition;
 
 use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Workflow\Contract\Condition;
-use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
-use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\TimedCondition;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /** An open work request of the card has no online bridge that could take it. */
-final readonly class RunWorkNoTaker implements Condition, MarkerEvidence, TimedCondition
+final readonly class RunWorkNoTaker implements Condition, TimedCondition
 {
     #[\Override]
     public static function key(): string
@@ -49,14 +47,6 @@ final readonly class RunWorkNoTaker implements Condition, MarkerEvidence, TimedC
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
         return new TranslatableMessage($negated ? 'workflow.waiting.not.run_work_no_taker' : 'workflow.waiting.run_work_no_taker');
-    }
-
-    #[\Override]
-    public function evidence(Facts $facts, array $params): ?Evidence
-    {
-        $reading = $facts->get(WorkTakerFacts::class)->withoutTaker();
-
-        return null === $reading ? null : new Evidence($reading->noTakerSince);
     }
 
     #[\Override]

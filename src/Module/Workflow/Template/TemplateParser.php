@@ -252,6 +252,7 @@ final readonly class TemplateParser
         $manualMoves = $this->manualMoves(self::topLevelList($source, 'manualMoves', $errors), $slotKeys, $errors);
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $facts, $errors, $lenient, app: false);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
+        $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
         if (!$lenient) {
             foreach ($rules as $rule) {
                 $name = $rule->then->params[self::PROMPT] ?? null;
@@ -278,7 +279,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox);
     }
 
     /**
@@ -598,6 +599,34 @@ final readonly class TemplateParser
         }
 
         return $rules;
+    }
+
+    /**
+     * @param list<TemplateMarker> $markers
+     * @param list<string>         $errors
+     *
+     * @return list<string>
+     */
+    private static function inbox(mixed $given, array $markers, array &$errors): array
+    {
+        if (!\is_array($given) || !array_is_list($given)) {
+            $errors[] = 'inbox: must be a list of marker keys';
+
+            return [];
+        }
+        $keys = array_map(static fn (TemplateMarker $marker): string => $marker->key, $markers);
+        $listed = [];
+        foreach ($given as $key) {
+            if (!\is_string($key) || !\in_array($key, $keys, true)) {
+                $errors[] = \sprintf('inbox: unknown marker "%s"', \is_string($key) ? $key : get_debug_type($key));
+            } elseif (\in_array($key, $listed, true)) {
+                $errors[] = \sprintf('inbox: duplicate marker "%s"', $key);
+            } else {
+                $listed[] = $key;
+            }
+        }
+
+        return $listed;
     }
 
     /**

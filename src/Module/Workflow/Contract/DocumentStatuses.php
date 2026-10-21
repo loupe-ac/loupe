@@ -13,5 +13,5 @@ final class DocumentStatuses
 
     public const string CHANGES_REQUESTED = 'changes-requested';
 
-    public const array ALL = ['in-review', 'approved', 'changes-requested', 'draft'];
+    public const array ALL = [self::IN_REVIEW, 'approved', 'changes-requested', 'draft'];
 }
