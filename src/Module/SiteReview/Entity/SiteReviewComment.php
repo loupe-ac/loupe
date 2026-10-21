@@ -81,9 +81,7 @@ class SiteReviewComment implements ProjectScopedSubject
         #[ORM\Column(length: 64, nullable: true)]
         public readonly ?string $deliveryHash = null,
 
-        // The default stays in the column until the contraction migration drops
-        // it, so a row the previous image writes still reads as a web note.
-        #[ORM\Column(length: 20, enumType: ReviewSurface::class, options: ['default' => 'web'])]
+        #[ORM\Column(length: 20, enumType: ReviewSurface::class)]
         public readonly ReviewSurface $surface = ReviewSurface::Web,
 
         /**

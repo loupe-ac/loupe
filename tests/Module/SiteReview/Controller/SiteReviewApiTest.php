@@ -658,11 +658,7 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    /**
-     * A widget copy that predates anchors[] reads the scalar pair, so the
-     * rehydrate response keeps repeating the first anchor there.
-     */
-    public function test_the_rehydrate_response_carries_anchors_and_the_legacy_scalars(): void
+    public function test_the_rehydrate_response_carries_anchors_and_no_scalar_pair(): void
     {
         $client = static::createClient();
         $client->disableReboot();
@@ -681,12 +677,10 @@ final class SiteReviewApiTest extends WebTestCase
 
         self::assertCount(2, $data['comments'][0]['anchors']);
         self::assertSame('.a', $data['comments'][0]['anchors'][0]['selector']);
-        self::assertSame('.a', $data['comments'][0]['selector']);
-        self::assertSame('A', $data['comments'][0]['text']);
+        self::assertArrayNotHasKey('selector', $data['comments'][0]);
+        self::assertArrayNotHasKey('text', $data['comments'][0]);
 
         self::assertSame([], $data['comments'][1]['anchors']);
-        self::assertSame('', $data['comments'][1]['selector']);
-        self::assertSame('', $data['comments'][1]['text']);
     }
 
     /**
