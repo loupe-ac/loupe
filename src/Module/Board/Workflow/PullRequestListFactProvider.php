@@ -61,7 +61,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
         $pullRequests = $this->linkedPullRequests->forCard($stored);
         $epicRepositories = $this->epicRepositories($stored, $parentEpicBranch);
         $primary = $this->linkedPullRequests->primary($pullRequests);
-        $fixes = $this->workRequests->findDoneFixesOpenedAt([$card->id])[$card->id->toRfc4122()] ?? [];
+        $fixes = $this->workRequests->findFinishedFixesOpenedAt([$card->id])[$card->id->toRfc4122()] ?? [];
         $facts = self::inSubjectOrder($pullRequests, array_map(fn (ForgePullRequest $pullRequest): PullRequestFacts => $this->pullRequestFacts($pullRequest, $parentEpicBranch, $epicRepositories, $fixes), $pullRequests));
 
         return new PullRequestList(

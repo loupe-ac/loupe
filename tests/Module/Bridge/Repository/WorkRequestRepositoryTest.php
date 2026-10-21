@@ -9,14 +9,17 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Bridge\Entity\CardHold;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\AgentCredential;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -460,20 +463,68 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $this->fix($project, $card, '2026-10-19 19:00:00', null);
         $em->flush();
 
-        $found = $this->repository()->findDoneFixesOpenedAt([$cardId])[$cardId->toRfc4122()] ?? [];
+        $found = $this->repository()->findFinishedFixesOpenedAt([$cardId])[$cardId->toRfc4122()] ?? [];
         usort($found, static fn (array $a, array $b): int => $a['repository'] <=> $b['repository']);
 
         self::assertSame(
             [['github', 'acme/gadgets', 7, '2026-10-19 17:00:00'], ['github', 'acme/widgets', 7, '2026-10-19 15:00:00']],
             array_map(static fn (array $fix): array => [$fix['forge'], $fix['repository'], $fix['number'], $fix['openedAt']->format('Y-m-d H:i:s')], $found),
         );
-        self::assertSame([], $this->repository()->findDoneFixesOpenedAt([]));
+        self::assertSame([], $this->repository()->findFinishedFixesOpenedAt([]));
     }
 
-    private function fix(Project $project, Card $card, string $openedAt, ?string $url, WorkRequestState $state = WorkRequestState::Done, string $role = 'fix'): void
+    public function test_a_refused_fix_request_counts_when_a_run_of_it_succeeded(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'resumed-fix@example.com'), 'Resumed Fix');
+        $column = new BoardColumn($project, 'Implementation', 'implementation', 1);
+        $card = new Card($project, $column, 'Card', '', 1);
+        $em->persist($column);
+        $em->persist($card);
+        $em->persist(new CardPullRequest($card, 'https://github.com/Acme/Widgets/pull/7', Forge::GitHub, 'Acme/Widgets', 7));
+        $em->flush();
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        $url = 'https://github.com/Acme/Widgets/pull/7';
+
+        $resumed = $this->fix($project, $card, '2026-10-21 01:01:00', $url, WorkRequestState::Refused);
+        $blocked = $this->fix($project, $card, '2026-10-21 02:00:00', $url, WorkRequestState::Refused);
+        $stopped = $this->fix($project, $card, '2026-10-21 03:00:00', $url, WorkRequestState::Open);
+        $review = $this->fix($project, $card, '2026-10-21 04:00:00', $url, WorkRequestState::Refused, 'code-review');
+        $em->flush();
+        $this->workerRun($project, $card, $resumed, WorkerRunState::Blocked);
+        $this->workerRun($project, $card, $resumed, WorkerRunState::Succeeded);
+        $this->workerRun($project, $card, $blocked, WorkerRunState::Blocked);
+        $this->workerRun($project, $card, $stopped, WorkerRunState::Failed);
+        $this->workerRun($project, $card, $review, WorkerRunState::Succeeded);
+        $em->flush();
+
+        $found = $this->repository()->findFinishedFixesOpenedAt([$cardId])[$cardId->toRfc4122()] ?? [];
+
+        self::assertSame(['2026-10-21 01:01:00'], array_map(static fn (array $fix): string => $fix['openedAt']->format('Y-m-d H:i:s'), $found));
+    }
+
+    private function workerRun(Project $project, Card $card, WorkRequest $request, WorkerRunState $state): void
+    {
+        $this->em()->persist(new WorkerRun(
+            project: AgentCredential::managed($this->em(), $project, $project->id),
+            bridgeId: Uuid::v7(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A flushed card has an id.'),
+            cardNumber: 1,
+            workKind: 'fix',
+            state: $state,
+            receivedAt: new \DateTimeImmutable('2026-10-21 05:00:00'),
+            workRequestId: $request->id,
+        ));
+    }
+
+    private function fix(Project $project, Card $card, string $openedAt, ?string $url, WorkRequestState $state = WorkRequestState::Done, string $role = 'fix'): WorkRequest
     {
         $request = $this->seedWorkRequest($this->em(), $project, $card->id, 'fix', state: $state, createdAt: new \DateTimeImmutable($openedAt), ruleId: 'fix-on-review');
         $request->role = $role;
         $request->context = new WorkRequestContext(pullRequestNumber: 7, pullRequestUrl: $url, reason: 'changes-requested');
+
+        return $request;
     }
 }

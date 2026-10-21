@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
@@ -573,14 +574,16 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * When the newest done fix request opened for each pull request linked to each card. A request matches a pull request
-     * through the URL in its context and the links of the card, so two pull requests with one number in two repositories stay apart.
+     * When the newest finished fix request opened for each pull request linked to each card. A request is finished when it
+     * settled done, or when any worker run of it ended with success, so a resumed run counts after its request settled refused.
+     * A request matches a pull request through the URL in its context and the links of the card, so two pull requests with
+     * one number in two repositories stay apart.
      *
      * @param list<Uuid> $cardIds
      *
      * @return array<string, list<array{forge: string, repository: string, number: int, openedAt: \DateTimeImmutable}>> by RFC 4122 card id
      */
-    public function findDoneFixesOpenedAt(array $cardIds): array
+    public function findFinishedFixesOpenedAt(array $cardIds): array
     {
         if ([] === $cardIds) {
             return [];
@@ -591,13 +594,15 @@ class WorkRequestRepository extends ServiceEntityRepository
             "SELECT w.subject_id AS card_id, l.forge AS forge, LOWER(l.repository) AS repository, l.number AS number, MAX(w.created_at) AS opened
              FROM work_requests w
              JOIN board_card_pull_requests l ON l.card_id = w.subject_id AND l.url = (w.context::jsonb ->> 'pullRequestUrl')
-             WHERE w.subject_type = :subject AND w.subject_id IN (:cards) AND w.state = :done AND w.role = 'fix'
+             WHERE w.subject_type = :subject AND w.subject_id IN (:cards) AND w.role = 'fix'
+               AND (w.state = :done OR EXISTS (SELECT 1 FROM bridge_worker_runs r WHERE r.work_request_id = w.id AND r.state = :succeeded))
                AND l.repository IS NOT NULL AND l.number IS NOT NULL
              GROUP BY w.subject_id, l.forge, LOWER(l.repository), l.number",
             [
                 'subject' => WorkSubject::CARD,
                 'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
                 'done' => WorkRequestState::Done->value,
+                'succeeded' => WorkerRunState::Succeeded->value,
             ],
             ['cards' => ArrayParameterType::STRING],
         )->fetchAllAssociative();

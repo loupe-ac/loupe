@@ -415,7 +415,7 @@ final readonly class CardWaitReconciler
         }
 
         $running = array_flip($this->workerRuns->findCardIdsWithOpenRun($project, $cardIds));
-        $fixes = $this->workRequests->findDoneFixesOpenedAt($cardIds);
+        $fixes = $this->workRequests->findFinishedFixesOpenedAt($cardIds);
         $parents = [];
         foreach ($this->cards->findByIdsInProject($project, $cardIds) as $card) {
             if (null !== $card->parent) {
