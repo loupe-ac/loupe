@@ -24,7 +24,7 @@ RUN npm run build:widget
 # `base` holds what both the build and the runtime need. The two stages share it
 # rather than each installing PHP extensions, so the extensions the image runs
 # are the same binaries the build ran.
-FROM php:8.5-fpm-alpine@sha256:79def1d16ece3ab1a6656c46a23bfd80ad33887fbd33626e7bd743cef54ef9c6 AS base
+FROM php:8.5-fpm-alpine@sha256:c15690bd932bd6d33f43ccae6ddd8d60acb93cee50c16afc6e699265d5d86583 AS base
 
 # Both stages use the same path. `cache:warmup` writes absolute paths into the
 # warmed cache, so a build stage that worked elsewhere would produce a cache
