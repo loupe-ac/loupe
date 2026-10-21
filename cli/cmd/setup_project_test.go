@@ -249,6 +249,24 @@ func TestMcpProjectInASetupNeverFallsBackOnAMalformedLinkFile(t *testing.T) {
 	}
 }
 
+func TestMcpProjectInASetupKeepsTheLinkReadAtStartWhenTheLinkFileBreaksBeforeTheFirstRequest(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir, setupDir := secondSetup(t, w.server.URL)
+	if err := projectfile.WriteLink(setupDir, projectfile.LinkKey(dir), firstProject); err != nil {
+		t.Fatal(err)
+	}
+	project, source, err := mcpProjectSource("", io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(setupDir, projectfile.LinksName), []byte("{\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := project(); got != firstProject || !strings.Contains(source(), setupDir) {
+		t.Fatalf("after the link file broke: %q from %q", got, source())
+	}
+}
+
 func TestMcpProjectInASetupSendsNoProjectWhenTheLinkFileBreaksBeforeAnyLink(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	_, setupDir := secondSetup(t, w.server.URL)

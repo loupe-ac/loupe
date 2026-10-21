@@ -56,7 +56,7 @@ func mcpProjectSource(flag string, notes io.Writer) (project, source func() stri
 	if setup.Source == config.SourceDefault {
 		return src.project, func() string { return projectfile.Name }, nil
 	}
-	linked := &linkedSource{setup: setup, key: projectfile.LinkKey(dir), file: src, notes: notes}
+	linked := &linkedSource{setup: setup, key: projectfile.LinkKey(dir), file: src, notes: notes, last: link}
 
 	return linked.project, linked.source, nil
 }
