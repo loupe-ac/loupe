@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const script = "#!/bin/sh\necho checked\n"
@@ -131,16 +132,45 @@ func TestPinIsReusedAndOtherPinsArePruned(t *testing.T) {
 		t.Fatalf("pin = %q, %v; want the first one, %q", second, err, first)
 	}
 
-	other := filepath.Join(pinRoot(x), "deadbeef")
-	if err := os.MkdirAll(other, 0o700); err != nil {
-		t.Fatal(err)
+	old := filepath.Join(pinRoot(x), "deadbeef")
+	recent := filepath.Join(pinRoot(x), "cafef00d")
+	for _, dir := range []string{old, recent, first} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stale := time.Now().Add(-PinGrace - time.Hour)
+	for _, dir := range []string{old, first} {
+		if err := os.Chtimes(dir, stale, stale); err != nil {
+			t.Fatal(err)
+		}
 	}
 	PrunePins(x, first)
-	if _, err := os.Stat(other); err == nil {
-		t.Fatal("the pin of another build stayed")
+	if _, err := os.Stat(old); err == nil {
+		t.Fatal("a pin that no run used for the grace stayed")
+	}
+	if _, err := os.Stat(recent); err != nil {
+		t.Fatalf("a pin that a live session can still use went: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(first, "loupe")); err != nil {
 		t.Fatalf("the current pin went: %v", err)
+	}
+}
+
+func TestATouchedPinSurvivesThePrune(t *testing.T) {
+	x := builtSetup(t)
+	pin := filepath.Join(pinRoot(x), "deadbeef")
+	if err := os.MkdirAll(pin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	stale := time.Now().Add(-PinGrace - time.Hour)
+	if err := os.Chtimes(pin, stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	TouchPin(pin)
+	PrunePins(x, "")
+	if _, err := os.Stat(pin); err != nil {
+		t.Fatalf("a pin that a run just used went: %v", err)
 	}
 }
 

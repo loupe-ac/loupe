@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // RecordName is the record that the recipe writes beside bin/.
@@ -214,8 +215,18 @@ func Pin(setupDir string) (string, error) {
 	return dest, nil
 }
 
+// PinGrace is how long a pin that no run used stays. A session that an older
+// bridge started keeps its pin on PATH after a restart on a new build.
+const PinGrace = 7 * 24 * time.Hour
+
+// TouchPin records that a run used the pin folder dir, so PrunePins keeps it.
+func TouchPin(dir string) {
+	now := time.Now()
+	_ = os.Chtimes(dir, now, now)
+}
+
 // PrunePins removes the pins of other builds than keep, the folder of the pin
-// the caller runs.
+// the caller runs, when no run used them for PinGrace.
 func PrunePins(setupDir, keep string) {
 	entries, err := os.ReadDir(pinRoot(setupDir))
 	if err != nil {
@@ -224,6 +235,9 @@ func PrunePins(setupDir, keep string) {
 	for _, e := range entries {
 		path := filepath.Join(pinRoot(setupDir), e.Name())
 		if path == keep || strings.HasPrefix(e.Name(), ".stage-") {
+			continue
+		}
+		if info, err := os.Stat(path); err != nil || time.Since(info.ModTime()) < PinGrace {
 			continue
 		}
 		_ = os.Chmod(path, 0o700)

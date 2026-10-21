@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -55,6 +56,8 @@ func enforceSetup(setup config.Setup, target string) error {
 		return fmt.Errorf("locate the loupe binary: %w", err)
 	}
 	if setupbuild.InPin(setup.Dir, exe) {
+		setupbuild.TouchPin(filepath.Dir(exe))
+
 		return nil
 	}
 	if _, err := setupbuild.Check(setup.Dir); err != nil {

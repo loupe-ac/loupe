@@ -99,7 +99,8 @@ shared binary.
 
 The bridge and its workers run a pinned copy of the checked build, in
 `tmp/pin/<sha256>/` in the setup folder. A rebuild reaches a running bridge only after you
-stop it and start it again.
+stop it and start it again. A bridge start removes the pins of other builds that no run used
+for seven days.
 
 ### Updates in a setup
 

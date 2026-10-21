@@ -21,6 +21,7 @@ func makeSetupPin() (string, error) {
 	}
 	if exe, err := os.Executable(); err == nil && setupbuild.InPin(setup.Dir, exe) {
 		setupPin = filepath.Dir(exe)
+		setupbuild.TouchPin(setupPin)
 
 		return setupPin, nil
 	}
@@ -29,6 +30,9 @@ func makeSetupPin() (string, error) {
 		return "", err
 	}
 	setupPin = dir
+	if dir != "" {
+		setupbuild.TouchPin(dir)
+	}
 
 	return dir, nil
 }

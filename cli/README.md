@@ -134,7 +134,9 @@ the same arguments.
 The bridge and its workers do not run `bin/loupe` itself. The first process that starts
 children copies the checked build to `<folder>/tmp/pin/<sha256>/loupe` and puts that
 folder first on their `PATH`. A rebuild changes `bin/loupe` only, so a running bridge
-keeps the build it checked. After a rebuild, stop the bridge and start it again:
+keeps the build it checked. A bridge start removes the pins of other builds that no run
+used for seven days, so a session of an older bridge keeps its pin. After a rebuild, stop
+the bridge and start it again:
 
 ```bash
 loupe -c ~/loupe-982 bridge stop
