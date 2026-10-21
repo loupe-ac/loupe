@@ -1,5 +1,5 @@
 key: lifecycle
-version: 11
+version: 12
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -744,7 +744,7 @@ markers:
       slots: [product-design, tech-design, implementation, in-review]
       when:
           all:
-              - card.quiet_for: {}
+              - card.quiet_for: { children: true }
               - not: { card.held: {} }
               - not:
                     any:
