@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/harness"
 )
 
@@ -168,13 +169,18 @@ func sandboxArgs(spec harness.Spec, resume bool) []string {
 }
 
 // sessionArgs hands the run id to `loupe mcp`, which Codex starts with a fixed
-// environment. A dotted key keeps the env and env_vars the config sets.
+// environment. It also hands over the setup folder when the setup is not the
+// default. A dotted key keeps the env and env_vars the config sets.
 func sessionArgs(spec harness.Spec) []string {
-	if spec.SessionID == "" {
-		return nil
+	var args []string
+	if spec.SessionID != "" {
+		args = append(args, "-c", "mcp_servers.loupe.env.LOUPE_SESSION_ID="+tomlString(spec.SessionID))
+	}
+	if setup := config.Current(); setup.Source != config.SourceDefault {
+		args = append(args, "-c", "mcp_servers.loupe.env."+config.EnvVar+"="+tomlString(setup.Dir))
 	}
 
-	return []string{"-c", "mcp_servers.loupe.env.LOUPE_SESSION_ID=" + tomlString(spec.SessionID)}
+	return args
 }
 
 // gitRoots is the git common directory of dir when it lies outside dir, and

@@ -120,6 +120,15 @@ final class ChromeCssExtractor
         $depth = 0;
         while ($position < $length) {
             $char = $css[$position];
+            if ('\\' === $char) {
+                $position += 2;
+                continue;
+            }
+            if ('/*' === substr($css, $position, 2)) {
+                $end = strpos($css, '*/', $position + 2);
+                $position = false === $end ? $length : $end + 2;
+                continue;
+            }
             if ('"' === $char || "'" === $char) {
                 $position = $this->skipString($css, $position);
                 continue;
@@ -155,7 +164,9 @@ final class ChromeCssExtractor
         $depth = 0;
         for ($position = $open; $position < $length; ++$position) {
             $char = $css[$position];
-            if ('"' === $char || "'" === $char) {
+            if ('\\' === $char) {
+                ++$position;
+            } elseif ('"' === $char || "'" === $char) {
                 $position = $this->skipString($css, $position) - 1;
             } elseif ('/*' === substr($css, $position, 2)) {
                 $end = strpos($css, '*/', $position + 2);

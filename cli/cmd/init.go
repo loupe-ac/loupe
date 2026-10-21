@@ -159,6 +159,9 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
+	if _, err := makeSetupPin(); err != nil {
+		return err
+	}
 	cfg, err := initSignIn(cmd, o)
 	if err != nil {
 		return err
@@ -170,7 +173,11 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err := initLink(cmd, dir, site.ID, o); err != nil {
 		return err
 	}
-	initPlugin(cmd, dir)
+	if inSecondSetup() {
+		skipSharedStep(cmd, "Plugin")
+	} else {
+		initPlugin(cmd, dir)
+	}
 
 	path, err := rulesPathOr(o.rulesPath)
 	if err != nil {
@@ -180,17 +187,33 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
-	if targets := codexTargets(path); len(targets) > 0 {
+	if inSecondSetup() {
+		skipSharedStep(cmd, "Codex")
+	} else if targets := codexTargets(path); len(targets) > 0 {
 		initCodex(cmd, dir, o.link, targets)
 	}
 	if initAutoUpdate(cmd, path) {
 		changed = true
 	}
 	bridgeErr := initBridge(cmd, o.rulesPath, path, changed)
-	initPlaywright(cmd, dir)
+	if inSecondSetup() {
+		skipSharedStep(cmd, "Playwright")
+	} else {
+		initPlaywright(cmd, dir)
+	}
 	initNext(cmd, cfg.BaseURL)
 
 	return bridgeErr
+}
+
+// inSecondSetup reports whether the setup is not the default one. A second
+// setup leaves the files that other tools share alone.
+func inSecondSetup() bool {
+	return config.Current().Source != config.SourceDefault
+}
+
+func skipSharedStep(cmd *cobra.Command, name string) {
+	step(cmd.OutOrStdout(), name, "skipped", "a second setup leaves shared files alone")
 }
 
 // step prints the one line a step owes: its name, whether it ran, and why.
@@ -251,6 +274,10 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 		return api.Site{ID: handle}, false
 	}
 
+	if inSecondSetup() {
+		return initSetupProject(cmd, cfg, dir, o, sites, find)
+	}
+
 	// init keeps a project file without --force, so the file decides the
 	// project, and a flag that names another one stops the command.
 	linked := ""
@@ -291,6 +318,67 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 
 	if len(sites) == 0 {
 		site, err := createProjectFromRemote(ctx, client, dir, cfg.BaseURL)
+		if err != nil {
+			return api.Site{}, err
+		}
+		step(out, "Project", "done", "created "+describe(site))
+
+		return site, nil
+	}
+
+	id, err := chooseProject(out, cmd.InOrStdin(), sites)
+	if err != nil {
+		return api.Site{}, err
+	}
+	site, _ := find(id)
+	step(out, "Project", "done", "using "+describe(site))
+
+	return site, nil
+}
+
+// initSetupProject chooses the project in a setup other than the default. The
+// link of the setup decides, and .loupe.yaml is never read, because the file
+// belongs to the default setup.
+func initSetupProject(cmd *cobra.Command, cfg config.Config, dir string, o initOptions, sites []api.Site, find func(string) (api.Site, bool)) (api.Site, error) {
+	out := cmd.OutOrStdout()
+	setup := config.Current()
+	linked, err := projectfile.LoadLink(setup.Dir, projectfile.LinkKey(dir))
+	if err != nil {
+		return api.Site{}, err
+	}
+	if o.link.force {
+		linked = ""
+	}
+
+	if o.link.projectID != "" {
+		site, ok := find(o.link.projectID)
+		if !ok {
+			return api.Site{}, fmt.Errorf("no project of yours has the id or slug %q", o.link.projectID)
+		}
+		if linked != "" && !strings.EqualFold(linked, site.ID) {
+			linkedSite, _ := find(linked)
+
+			return api.Site{}, fmt.Errorf("the setup %s links this folder to %s: pass --force to replace the link, or leave out --project", setup.Dir, describe(linkedSite))
+		}
+		step(out, "Project", "done", "using "+describe(site))
+
+		return site, nil
+	}
+
+	if linked != "" {
+		site, ok := find(linked)
+		if !ok {
+			return api.Site{}, fmt.Errorf("the setup %s links this folder to %s, which the login of that setup does not cover: sign in with the login that covers it, or pass --force to replace the link", setup.Dir, linked)
+		}
+		step(out, "Project", "skipped", "the setup links this folder to "+describe(site))
+
+		return site, nil
+	}
+
+	if len(sites) == 0 {
+		ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+		defer cancel()
+		site, err := createProjectFromRemote(ctx, apiClient(cfg), dir, cfg.BaseURL)
 		if err != nil {
 			return api.Site{}, err
 		}
@@ -362,6 +450,9 @@ func withoutUserinfo(remote string) string {
 // the declaration.
 func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	out := cmd.OutOrStdout()
+	if inSecondSetup() {
+		return initSetupLink(cmd, dir, projectID)
+	}
 	link := o.link
 	// `claude mcp` is missing on a machine with Codex alone, and initCodex
 	// declares the server there, so the Claude Code declaration stays out.
@@ -386,6 +477,27 @@ func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 		return err
 	}
 	step(out, "Link", "done", projectfile.Name+" names the project")
+
+	return nil
+}
+
+// initSetupLink links the folder in the setup. It writes no shared file.
+func initSetupLink(cmd *cobra.Command, dir, projectID string) error {
+	setup := config.Current()
+	key := projectfile.LinkKey(dir)
+	current, err := projectfile.LoadLink(setup.Dir, key)
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(current, projectID) {
+		step(cmd.OutOrStdout(), "Link", "skipped", "the setup links this folder to the project already")
+
+		return nil
+	}
+	if err := projectfile.WriteLink(setup.Dir, key, projectID); err != nil {
+		return err
+	}
+	step(cmd.OutOrStdout(), "Link", "done", "the setup links this folder to the project")
 
 	return nil
 }
@@ -717,7 +829,13 @@ func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir strin
 
 		return
 	}
-	tmp, err := os.MkdirTemp("", "loupe-skills-")
+	base, err := config.TempDir()
+	if err != nil {
+		fail(err, nil)
+
+		return
+	}
+	tmp, err := os.MkdirTemp(base, "loupe-skills-")
 	if err != nil {
 		fail(err, nil)
 

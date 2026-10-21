@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 )
 
@@ -16,25 +17,117 @@ import (
 // wins and the file is never read. Otherwise the project file in the working
 // directory decides, and a malformed file at start is an error.
 func mcpProject(flag string, notes io.Writer) (func() string, error) {
+	project, _, err := mcpProjectSource(flag, notes)
+
+	return project, err
+}
+
+// mcpProjectSource is mcpProject, and also gives the words that name where the
+// current project came from. In a setup other than the default, the link of
+// the setup decides first, and the project file is the fallback.
+func mcpProjectSource(flag string, notes io.Writer) (project, source func() string, err error) {
 	if flag != "" {
 		if err := projectfile.Valid(flag); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		id := strings.ToLower(flag)
 
-		return func() string { return id }, nil
+		return func() string { return id }, func() string { return "the --project flag" }, nil
 	}
 
 	dir, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	src := &projectSource{dir: dir, notes: notes}
+	setup := config.Current()
+	link := ""
+	if setup.Source != config.SourceDefault {
+		if link, err = projectfile.LoadLink(setup.Dir, projectfile.LinkKey(dir)); err != nil {
+			return nil, nil, fmt.Errorf("read the project links of the setup %s: %w", setup.Dir, err)
+		}
+	}
 	if err := src.start(); err != nil {
-		return nil, fmt.Errorf("%w\n\nWrite the file with `loupe project link`", err)
+		if link == "" {
+			return nil, nil, fmt.Errorf("%w\n\nWrite the file with `loupe project link`", err)
+		}
+		fmt.Fprintf(notes, "loupe mcp: %v; the link of the setup %s decides\n", err, setup.Dir)
+	}
+	if setup.Source == config.SourceDefault {
+		return src.project, func() string { return projectfile.Name }, nil
+	}
+	linked := &linkedSource{setup: setup, key: projectfile.LinkKey(dir), file: src, notes: notes, last: link}
+
+	return linked.project, linked.source, nil
+}
+
+// linkedSource gives the project that the link of a setup names for this
+// repository, else the project file of the folder.
+type linkedSource struct {
+	setup config.Setup
+	key   string
+	file  *projectSource
+	notes io.Writer
+
+	mu     sync.Mutex
+	last   string
+	failed string
+	used   string
+}
+
+func (l *linkedSource) project() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	link, err := projectfile.LoadLink(l.setup.Dir, l.key)
+	if err != nil {
+		if err.Error() != l.failed {
+			l.failed = err.Error()
+			fmt.Fprintf(l.notes, "loupe mcp: %v; the project stays %s\n", err, orNone(l.last))
+		}
+		// A link file that fails to read never hands the project to the shared project file.
+		l.used = l.linkWords()
+
+		return l.last
+	}
+	l.failed = ""
+	if link != l.last {
+		fmt.Fprintf(l.notes, "loupe mcp: the link of the setup %s now names project %s (was %s)\n", l.setup.Dir, orNone(link), orNone(l.last))
+		l.last = link
+	}
+	if link != "" {
+		l.used = l.linkWords()
+
+		return link
+	}
+	l.used = projectfile.Name
+
+	return l.file.project()
+}
+
+func (l *linkedSource) linkWords() string {
+	return "the project link of the setup " + l.setup.Dir
+}
+
+func (l *linkedSource) source() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.used == "" {
+		return projectfile.Name
 	}
 
-	return src.project, nil
+	return l.used
+}
+
+// setupLink gives the project that the setup links to the repository of dir.
+// The default setup has no links, so it gives "".
+func setupLink(dir string) (string, error) {
+	setup := config.Current()
+	if setup.Source == config.SourceDefault {
+		return "", nil
+	}
+
+	return projectfile.LoadLink(setup.Dir, projectfile.LinkKey(dir))
 }
 
 // projectSource follows the project file in dir. It runs os.Stat on each call,
@@ -59,6 +152,8 @@ func (p *projectSource) start() error {
 		return nil
 	}
 	if err != nil {
+		p.seen = nil
+
 		return err
 	}
 	p.last = file.Project
@@ -128,4 +223,13 @@ func orNone(project string) string {
 	}
 
 	return project
+}
+
+// setupFolder is the folder of the current setup, or "" for the default.
+func setupFolder() string {
+	if setup := config.Current(); setup.Source != config.SourceDefault {
+		return setup.Dir
+	}
+
+	return ""
 }

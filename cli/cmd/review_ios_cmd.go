@@ -11,6 +11,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
 )
@@ -83,14 +84,33 @@ func (env reviewIOS) run(cmd *cobra.Command) error {
 	if exe, err = filepath.Abs(exe); err != nil {
 		return err
 	}
-	args := []string{"-n", panel, "--args", "--loupe", exe, "--dir", dir}
-	file, err := projectfile.Load(dir)
-	switch {
-	case errors.Is(err, projectfile.ErrNoFile):
-	case err != nil:
-		return fmt.Errorf("read the project file: %w", err)
-	case file.Project != "":
-		args = append(args, "--project", file.Project)
+	args := []string{"-n"}
+	if setup := config.Current(); setup.Source != config.SourceDefault {
+		pin, err := makeSetupPin()
+		if err != nil {
+			return err
+		}
+		if pin != "" {
+			exe = filepath.Join(pin, "loupe")
+		}
+		args = append(args, "--env", config.EnvVar+"="+setup.Dir)
+	}
+	args = append(args, panel, "--args", "--loupe", exe, "--dir", dir)
+	linked, err := setupLink(dir)
+	if err != nil {
+		return err
+	}
+	if linked != "" {
+		args = append(args, "--project", linked)
+	} else {
+		file, err := projectfile.Load(dir)
+		switch {
+		case errors.Is(err, projectfile.ErrNoFile):
+		case err != nil:
+			return fmt.Errorf("read the project file: %w", err)
+		case file.Project != "":
+			args = append(args, "--project", file.Project)
+		}
 	}
 	if err := env.open(args...); err != nil {
 		return fmt.Errorf("could not open %s: %w", panel, err)
@@ -104,6 +124,9 @@ func (env reviewIOS) run(cmd *cobra.Command) error {
 // it in libexec beside the binary. Any other install keeps it in the config
 // directory.
 func (env reviewIOS) findPanel() (string, error) {
+	if setup := config.Current(); setup.Source != config.SourceDefault {
+		return env.findSetupPanel(setup)
+	}
 	if panel, ok := libexecPanel(env.executable); ok {
 		return panel, nil
 	}
@@ -129,6 +152,39 @@ func (env reviewIOS) findPanel() (string, error) {
 	}
 
 	return "", fmt.Errorf("Live review is not installed; looked in %s and %s. Run loupe update, or reinstall loupe", libexec, installed)
+}
+
+// findSetupPanel finds the panel of a setup other than the default. A built
+// setup keeps its panel in libexec beside bin/, and nothing else counts. A
+// setup that runs the shared binary looks in the versioned panel folder of the
+// setup, then of the default setup.
+func (env reviewIOS) findSetupPanel(setup config.Setup) (string, error) {
+	if setupbuild.Built(setup.Dir) {
+		panel := filepath.Join(setup.Dir, "libexec", update.PanelAppName)
+		if isDir(panel) {
+			return panel, nil
+		}
+
+		return "", fmt.Errorf("the setup %s has no Live review panel at %s; run just cli-setup %s", setup.Dir, panel, setup.Dir)
+	}
+	parsed, ok := update.ParseVersion(env.version)
+	if !ok {
+		return "", fmt.Errorf("this is a development build of loupe, which has no installed Live review panel for the setup %s", setup.Dir)
+	}
+	defaultDir, err := config.DefaultDir()
+	if err != nil {
+		return "", err
+	}
+	var looked []string
+	for _, dir := range []string{setup.Dir, defaultDir} {
+		installed := filepath.Join(update.PanelDir(dir, parsed.String()), update.PanelAppName)
+		if isDir(installed) {
+			return installed, nil
+		}
+		looked = append(looked, installed)
+	}
+
+	return "", fmt.Errorf("Live review is not installed; looked in %s. Run loupe -c %s update", strings.Join(looked, " and "), setup.Dir)
 }
 
 // libexecPanel finds the panel a Homebrew formula installs in libexec, beside

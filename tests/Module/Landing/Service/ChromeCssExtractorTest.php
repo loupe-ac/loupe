@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Landing\Service;
 
 use App\Module\Landing\Service\ChromeCssExtractor;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ChromeCssExtractorTest extends TestCase
@@ -117,6 +118,44 @@ final class ChromeCssExtractorTest extends TestCase
         $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertStringContainsString('@layer properties, theme, base, components, utilities;', $css);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function escapedSelectors(): iterable
+    {
+        yield 'escaped quote' => [".\\[\\&_svg\\:not\\(\\[class\\*\\=\\'size-\\'\\]\\)\\]\\:size-4 { width: 1rem; }", "[&_svg:not([class*='size-'])]:size-4"];
+        yield 'escaped brace' => ['.a\\{b { width: 2px; }', 'a{b'];
+        yield 'escaped bracket' => ['.c\\[d { width: 3px; }', 'c[d'];
+    }
+
+    #[DataProvider('escapedSelectors')]
+    public function test_an_escaped_character_in_a_selector_does_not_hide_the_rules_after_it(string $rule, string $class): void
+    {
+        $stylesheet = "@layer utilities {\n  ".$rule."\n  .w-4 { width: 4px; }\n}\n@layer components {\n  .lp-home-nav { color: red; }\n}\n";
+        $markup = '<header class="lp-home-nav w-4"><i class="'.htmlspecialchars($class).'"></i></header>';
+
+        $css = new ChromeCssExtractor()->extract($stylesheet, $markup);
+
+        self::assertStringContainsString($rule, $css);
+        self::assertStringContainsString('.w-4 { width: 4px; }', $css);
+        self::assertStringContainsString('.lp-home-nav { color: red; }', $css);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function commentsInASelector(): iterable
+    {
+        yield 'quote in a comment' => ["/* it's */"];
+        yield 'brace in a comment' => ['/* { */'];
+    }
+
+    #[DataProvider('commentsInASelector')]
+    public function test_a_comment_in_a_selector_does_not_hide_the_rules_after_it(string $comment): void
+    {
+        $stylesheet = "@layer components {\n  .lp-home-nav ".$comment." { color: red; }\n  .w-4 { width: 4px; }\n}\n";
+
+        $css = new ChromeCssExtractor()->extract($stylesheet, '<header class="lp-home-nav w-4"></header>');
+
+        self::assertStringContainsString("\n.lp-home-nav ".$comment." { color: red; }\n.w-4 { width: 4px; }\n}", $css);
     }
 
     public function test_markup_with_no_known_class_gives_the_base_alone(): void

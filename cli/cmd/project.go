@@ -90,6 +90,10 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 		return err
 	}
 
+	if inSecondSetup() {
+		return runSetupProjectLink(cmd, dir, o)
+	}
+
 	// Whether the file parses is beside the point. Replacing one
 	// somebody wrote is the thing that needs saying yes to.
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !o.force {
@@ -138,6 +142,43 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 	}
 
 	return offerServer(cmd, dir, o.writeMcp, o.skipMcp, o.writeMcpJSON)
+}
+
+// runSetupProjectLink links the folder in the setup. It writes
+// projects.json in the setup folder and no file of the repository.
+func runSetupProjectLink(cmd *cobra.Command, dir string, o projectLinkOptions) error {
+	setup := config.Current()
+	key := projectfile.LinkKey(dir)
+	current, err := projectfile.LoadLink(setup.Dir, key)
+	if err != nil {
+		return err
+	}
+	if current != "" && !o.force {
+		return fmt.Errorf("the setup %s links this folder to project %s already: pass --force to replace the link", setup.Dir, current)
+	}
+
+	projectID := o.projectID
+	if projectID == "" {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		defer cancel()
+		sites, err := apiClient(cfg).Sites(ctx)
+		if err != nil {
+			return err
+		}
+		if projectID, err = chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites); err != nil {
+			return err
+		}
+	}
+	if err := projectfile.WriteLink(setup.Dir, key, projectID); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "The setup %s links this folder to project %s. No file of the repository changed.\n", setup.Dir, projectID)
+
+	return nil
 }
 
 // writeProfile gives the repository its starter profile. The file is a guess
