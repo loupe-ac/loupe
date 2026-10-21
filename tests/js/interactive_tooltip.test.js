@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { Application } from '@hotwired/stimulus';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import InteractiveTooltipController from '../../assets/controllers/interactive_tooltip_controller.js';
 
 let application;
@@ -184,4 +184,64 @@ it('closes when a scroll moves the anchor', () => {
     window.dispatchEvent(new Event('scroll'));
 
     expect(isOpen()).toBe(false);
+});
+
+describe('in the top layer', () => {
+    let calls;
+
+    beforeEach(() => {
+        calls = [];
+        tooltip().setAttribute('popover', 'manual');
+        tooltip().showPopover = () => calls.push('show');
+        tooltip().hidePopover = () => calls.push('hide');
+        const measure = tooltip().getBoundingClientRect;
+        tooltip().getBoundingClientRect = () => {
+            calls.push('measure');
+
+            return measure();
+        };
+    });
+
+    it('shows the popover before it measures the tooltip to place it', () => {
+        anchor().dispatchEvent(new Event('pointerenter'));
+
+        expect(calls.slice(0, 2)).toEqual(['show', 'measure']);
+        expect(isOpen()).toBe(true);
+        expect(tooltip().style.left).toBe('132px');
+    });
+
+    it('hides the popover when the tooltip closes', () => {
+        anchor().dispatchEvent(new Event('pointerenter'));
+        anchor().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+        expect(calls).toContain('hide');
+        expect(isOpen()).toBe(false);
+    });
+
+    it('shows the popover once while it stays open', () => {
+        anchor().dispatchEvent(new Event('pointerenter'));
+        anchor().dispatchEvent(new Event('pointerenter'));
+
+        expect(calls.filter((call) => call === 'show')).toHaveLength(1);
+    });
+
+    it('keeps the fixed tooltip when the browser has no popover support', () => {
+        delete tooltip().showPopover;
+        delete tooltip().hidePopover;
+        anchor().dispatchEvent(new Event('pointerenter'));
+        anchor().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+        expect(calls).not.toContain('show');
+        expect(calls).not.toContain('hide');
+        expect(isOpen()).toBe(false);
+    });
+});
+
+it('does not call the popover methods on a tooltip with no popover attribute', () => {
+    const show = vi.fn();
+    tooltip().showPopover = show;
+    anchor().dispatchEvent(new Event('pointerenter'));
+
+    expect(show).not.toHaveBeenCalled();
+    expect(isOpen()).toBe(true);
 });

@@ -159,6 +159,10 @@ markers:
   tag has an agent review that is not finished. The label of the marker shows
   the round and the `rounds` limit.
 - `card.held`: a person held the agents of the card.
+- `card.run.work_open`: a work request of the card is open, which means no
+  bridge claimed it yet. A claimed request does not count, so the condition
+  turns false when a bridge takes the work. The "Work waits for a bridge to
+  take it" marker reads it.
 - `card.run.work_no_taker`: a work request of the card waits, and no bridge that
   follows the project, reports the kind of work and was seen in the last three
   heartbeat intervals could take it. The marker counts from the later of the

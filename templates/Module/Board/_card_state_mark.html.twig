@@ -4,12 +4,14 @@
 {% set title = (state is null ? 'board.card_state.chip' : state.kind.translationKey)|trans %}
 <twig:Ds:StateMark :kind="state is null ? 'chip' : state.kind.value" :label="title">
     {% if state is null %}
-    <strong class="lp-tooltip__title">{{ title }}</strong>
+    {% set chip = markers.primary %}
+    <span data-marker-key="{{ chip.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ chip.label|trans(chip.params) }}</span>
+    <span class="lp-tooltip__line--quiet">{{ card_state_text(chip.kind.sinceKey, chip.since) }}</span>
     {% else %}
     <span data-marker-key="{{ state.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ state.label|trans(state.params) }}</span>
     <span class="lp-tooltip__line--quiet">{{ card_state_text(state.kind.sinceKey, state.since) }}</span>
     {% endif %}
-    {% for other in markers.others %}
+    {% for other in markers.alsoApplies %}
     <span data-marker-key="{{ other.key }}">{% if other.kind.value != 'chip' %}<strong>{{ other.kind.translationKey|trans }}.</strong> {% endif %}{{ other.label|trans(other.params) }}</span>
     <span class="lp-tooltip__line--quiet">{{ card_state_text(other.kind.sinceKey, other.since) }}</span>
     {% endfor %}

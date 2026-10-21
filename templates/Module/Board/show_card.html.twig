@@ -52,8 +52,7 @@
         <section class="lp-card-panel" id="card-panel-overview" role="tabpanel" aria-labelledby="card-tab-overview" data-panel-tabs-target="panel" data-panel-panel="overview"{% if activeTab != 'overview' %} hidden{% endif %}>
             <div class="lp-card-overview">
                 {% if not markers.isEmpty %}
-                {% set primary = markers.state ?? markers.others|first %}
-                {% set rest = markers.state is null ? markers.others|slice(1) : markers.others %}
+                {% set primary = markers.primary %}
                 {% set stateName = primary.kind.translationKey|trans %}
                 {% set stateFields = [{label: primary.kind.sinceLabelKey|trans, value: card_state_text('board.card_state.since_value', primary.since)}] %}
                 {% if primary.remedy is not null %}
@@ -66,7 +65,7 @@
                     :lead="primary.label|trans(primary.params)"
                     :fields="stateFields"
                     :othersTitle="'board.card_state.others'|trans"
-                    :others="rest|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since)})"
+                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since)})"
                     data-card-state="{{ primary.kind.value }}"
                 />
                 {% endif %}

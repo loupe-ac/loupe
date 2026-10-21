@@ -53,6 +53,21 @@ final readonly class StoredCardMarkers
         return array_values(array_filter($this->markers, static fn (StoredMarker $marker): bool => $marker !== $state));
     }
 
+    /** The marker a reader sees first: the state, or the first chip when the card has only chips. */
+    public function primary(): ?StoredMarker
+    {
+        return $this->state() ?? $this->markers[0] ?? null;
+    }
+
+    /** @return list<StoredMarker> the other markers that ask the user to act, or that are chips; stored order */
+    public function alsoApplies(): array
+    {
+        $primary = $this->primary();
+
+        return array_values(array_filter($this->markers, static fn (StoredMarker $marker): bool => $marker !== $primary
+            && \in_array($marker->kind, [MarkerKind::Stuck, MarkerKind::NeedsYou, MarkerKind::Chip], true)));
+    }
+
     /** A short stable hash of what each marker shows. */
     public function digest(): string
     {

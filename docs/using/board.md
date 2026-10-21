@@ -192,7 +192,7 @@ is in a state. The mark says what the card needs now:
 | **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card or on its children for longer than the stuck delay and no other reason applies. An epic never shows it while a child has an open worker run. The remedy line on the card page says what to do |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
 | **Working** | A worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
-| **Waiting** | Work waits for a free spot on a bridge that could take it, the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
+| **Waiting** | Work waits for a free spot on a bridge that could take it (a request that a bridge already took does not count), the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
 
 When several states apply, the tile shows the first in the order **Stuck**,
 **Needs you**, **Working**, **Waiting**. Inside one state, the marker that comes
@@ -207,7 +207,7 @@ Hover the mark, or focus it, to read the tooltip. The tooltip gives these items:
 
 - The reason the card has the state.
 - The time the reason began.
-- Every other marker of the card, chips included.
+- The other markers that ask you to act: every **Stuck** and **Needs you** marker, and chips. A **Working** or **Waiting** marker shows only when it is the main state.
 - On a board tile, an **Open the Agents page** link when no bridge can take
   the work of the card, or the only bridge that can is paused.
 - On a board tile, an **Open card** link. A list row leaves both links out,
@@ -351,8 +351,8 @@ card id is the UUID, not the number.
 
 At the top of the **Overview** tab, a **Status** box names the state of the card
 and how long it has held, such as **Stuck for 2 h**. It says why the card has
-the state, since when, and what clears it. It lists the other states that apply
-under **Also applies**. A card in no state, and a card in a terminal column, show no
+the state, since when, and what clears it. It lists the other reasons that ask you to act
+under **Also applies**: **Stuck**, **Needs you** and chips. It never lists a **Working** or **Waiting** reason there. A card in no state, and a card in a terminal column, show no
 box. A reason has a start time when Loupe stores one. Otherwise the box leaves
 the time out.
 

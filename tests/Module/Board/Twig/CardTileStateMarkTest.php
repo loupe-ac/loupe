@@ -93,19 +93,40 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertStringContainsString('d="M5 22h14M5 2h14', $waiting->filter('.lp-state-mark__glyph')->outerHtml());
     }
 
-    public function test_the_tooltip_lists_the_other_markers_and_the_chips_after_the_state(): void
+    public function test_the_tooltip_lists_only_the_chips_and_the_lines_that_ask_for_action_after_the_state(): void
     {
         $tile = $this->tile(MarkerMother::markers(
             MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5]),
             MarkerMother::marker('run_open', MarkerKind::Working),
+            MarkerMother::marker('open_question', MarkerKind::NeedsYou, ['%number%' => 3, '%title%' => 'Which option?']),
             MarkerMother::marker('unmanaged', MarkerKind::Chip),
         ));
 
         $tooltip = $tile->filter('.lp-tooltip');
-        self::assertSame(['checks_failed', 'run_open', 'unmanaged'], $tooltip->filter('[data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
-        self::assertStringContainsString('A worker runs on this card.', $tooltip->filter('[data-marker-key="run_open"]')->text());
+        self::assertSame(['checks_failed', 'open_question', 'unmanaged'], $tooltip->filter('[data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
+        self::assertStringContainsString('Question #3 waits for your answer: Which option?', $tooltip->filter('[data-marker-key="open_question"]')->text());
         self::assertStringContainsString('Unmanaged: the workflow does not act on this card.', $tooltip->filter('[data-marker-key="unmanaged"]')->text());
+        self::assertStringNotContainsString('A worker runs on this card.', $tooltip->text());
         self::assertCount(1, $tile->filter('.lp-state-mark'));
+    }
+
+    public function test_a_running_worker_with_waiting_checks_shows_one_line_in_the_tooltip(): void
+    {
+        $tile = $this->tile(MarkerMother::markers(
+            MarkerMother::marker('run_open', MarkerKind::Working),
+            MarkerMother::marker('waiting_on_checks', MarkerKind::Waiting, ['%number%' => 4]),
+        ));
+
+        self::assertSame(['run_open'], $tile->filter('.lp-tooltip [data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
+    }
+
+    public function test_a_card_with_only_a_chip_shows_the_chip_label_once_in_the_tooltip(): void
+    {
+        $tile = $this->tile(MarkerMother::markers(MarkerMother::marker('unmanaged', MarkerKind::Chip)));
+
+        $tooltip = $tile->filter('.lp-tooltip');
+        self::assertSame(['unmanaged'], $tooltip->filter('[data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
+        self::assertSame(1, substr_count($tooltip->text(), 'Unmanaged: the workflow does not act on this card.'));
     }
 
     public function test_the_since_line_shows_the_time_of_the_marker(): void
@@ -162,7 +183,8 @@ final class CardTileStateMarkTest extends KernelTestCase
         $row = $this->renderRow($this->storedCard(), MarkerMother::markers(MarkerMother::marker('unmanaged', MarkerKind::Chip)));
 
         self::assertCount(1, $row->filter('.lp-state-mark--chip'));
-        self::assertSame('Note', trim($row->filter('.lp-tooltip__title')->text()));
+        self::assertSame('Note.', trim($row->filter('.lp-tooltip__title')->text()));
+        self::assertStringContainsString('Unmanaged: the workflow does not act on this card.', $row->filter('.lp-tooltip')->text());
     }
 
     public function test_a_row_without_markers_draws_no_mark(): void
