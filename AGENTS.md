@@ -61,6 +61,14 @@ The project board in the Loupe app holds open work that has an addressee. Add a 
 
 A problem in the code your branch touches is not open work. Fix it in that branch, even when the fix adds new content after an approval. Never add a follow-up card under an epic for it. A failing check is fixed in the branch wherever its cause lies. Any other problem outside your branch gets one Backlog card with no parent.
 
+Work that the owner asks for in a session and that opens a pull request needs a card. A bridge worker already has one. A question, an investigation, or an operation with no pull request, such as a deploy, needs none.
+
+1. Before your first edit, call `card_search`, then `card_create` with no `status`. The card lands in Backlog. Pass `reporter: human` when the owner asked for the work.
+2. Open the draft pull request, and put the card URL in its body.
+3. Call `card_update` with `status: implementation` and the pull request URL in `pullRequestUrls`, in one call.
+
+Do not move the card to Implementation before it carries the pull request. The `implement` rule starts a worker for a card in Implementation with no linked pull request. After step 3, the workflow reviews and merges the pull request.
+
 Invoke the `loupe-board` skill before you write a card. It says how to read a board's columns with `board_columns`. It also carries the card types, the priorities, and the rule that `reporter` records who raised the card rather than who typed it. Never leave such a note in a code comment.
 
 A card whose body opens with `**Parked.**` is paused. Do not start it, and do not move it out of its column, until the owner unparks it. The board has no parked state, so that line is the whole signal. A real parked state is worth having, and the board card 'Give the board a parked state' asks for one.
