@@ -58,6 +58,95 @@ itself. Only a release build has a version.
 `just cli-test` also runs as its own leg of CI, so a broken CLI fails a pull
 request the same way broken PHP does.
 
+## Setups and builds
+
+A setup is the folder that holds one login and the files that depend on it:
+`config.json`, `rules.yaml`, `bridge.log`, `runs`, `worktrees`, `projects.json`
+and `tmp`. The default setup is the `loupe` folder in your OS config directory.
+Use a second setup to sign in to another instance, such as a preview, and to keep
+your real login and bridge as they are.
+
+Every command takes `-c <folder>` or `--config <folder>`. The variable
+`LOUPE_CONFIG` names a folder in the same way, and the flag wins when you set both.
+A relative path and a leading `~` become an absolute path. The CLI writes the
+result into its own `LOUPE_CONFIG`, so the bridge, its workers, `loupe mcp` and
+the Live review panel use the same setup. Without the flag and the variable, the
+default setup runs and nothing changes.
+
+```bash
+loupe -c ~/loupe-preview login
+loupe -c ~/loupe-preview init --project <uuid>
+loupe -c ~/loupe-preview bridge run -d
+```
+
+A setup other than the default writes nothing outside its folder. Its temporary
+files go to `tmp`, mode 0700, and it leaves the keychain alone. `loupe init` skips the
+plugin, the Codex and the Playwright steps with the line
+`skipped, a second setup leaves shared files alone`. It writes no `.loupe.yaml`,
+`.loupe/lifecycle.md` or `.mcp.json`, and it makes no Claude Code declaration.
+
+`loupe init` and `loupe project link` keep the project link in `projects.json`. A link
+covers the whole Git repository: the key is the absolute path of
+`git rev-parse --git-common-dir`, or the folder outside Git. A different `--project` for a
+linked folder stops with
+`the setup <folder> links this folder to <project>: pass --force to replace the link, or leave out --project`.
+`loupe mcp`, `loupe status`, `loupe artifact` and `loupe review ios` read the link first and
+fall back to `.loupe.yaml`.
+
+The bridge socket is `bridge-<hash>.sock` in the setup folder. A socket path must be
+shorter than 104 bytes, so the folder path can have about 78 characters. A longer
+path stops the bridge with `use a shorter setup folder than <folder>`. Use a separate clone of
+the repository for a second bridge. Two bridges on one clone can name the same
+`card-<n>-...` branch, and Git refuses to check out one branch twice.
+
+### Build a setup from a checkout
+
+People who work on Loupe test a branch of the CLI in a setup of its own, so they do
+not replace the installed binary.
+
+```bash
+just cli-setup ~/loupe-982
+loupe -c ~/loupe-982 login
+```
+
+The recipe builds the CLI into `<folder>/tmp/build`. On macOS it also builds the Live
+review panel, and it stops early with a message when `swift` is missing. It then runs
+`LOUPE_CONFIG=<folder> <candidate> setup-probe`, a hidden command that prints the
+resolved folder. The recipe refuses a checkout whose build prints another folder, which
+is a checkout from before this option. Only then does it write `build.json` with the
+checkout, the commit, the dirty flag, and the size and SHA-256 of the build. It
+moves the build to `<folder>/bin/loupe`, the panel to `<folder>/libexec/`, and
+`build.json` into place.
+
+A setup that holds `bin/loupe` or `build.json` is built. Every run in it, `--help`
+and `--version` included, first compares `bin/loupe` with `build.json`. It checks the
+size, the SHA-256, that you own the file, and that no other user can write it. A
+failure stops the command:
+
+```text
+<folder>/bin/loupe is not the build that just cli-setup checked; run just cli-setup <folder>
+```
+
+A setup with `build.json` and no `bin/loupe` stops in the same way, and never falls back
+to the shared binary. When another file runs, the CLI hands the run to `bin/loupe` with
+the same arguments.
+
+The bridge and its workers do not run `bin/loupe` itself. The first process that starts
+children copies the checked build to `<folder>/tmp/pin/<sha256>/loupe` and puts that
+folder first on their `PATH`. A rebuild changes `bin/loupe` only, so a running bridge
+keeps the build it checked. After a rebuild, stop the bridge and start it again:
+
+```bash
+loupe -c ~/loupe-982 bridge stop
+loupe -c ~/loupe-982 bridge run -d
+```
+
+A setup never replaces a binary. In a built setup, `loupe -c <folder> update` stops and
+names the checkout, the commit and `just cli-setup <folder>`. In a setup that runs the
+shared binary, it installs only the panel copy of the running version into the setup, and
+prints that the binary updates from the default setup. The bridge of such a setup runs no
+update check.
+
 ## Release
 
 The CLI has its own version numbers, apart from the server's. A CLI release
@@ -430,12 +519,19 @@ then opens one MCP session with your instance and calls `project_current`. The
 whole check stops after 30 seconds.
 
 ```text
+Setup:       /Users/me/Library/Application Support/loupe (the default)
+Binary:      1.8.0
 Instance:    https://app.loupe.ac
 Project:     Acme site (acme, 01a0c0d9-905c-7922-a586-ccc8ce043704)
 Claude Code: starts `loupe mcp` for every project.
 Account:     claude (claude-code): ready
 loupe status: PASS
 ```
+
+The output starts with two lines, `Setup:` and `Binary:`. `Setup:` gives the folder and what chose it: `-c`, `LOUPE_CONFIG` or
+`the default`. `Binary:` gives the release version. A development build reads
+`a build at <commit>`, and a built setup reads `a build of <checkout> at <commit>`.
+See [Setups and builds](#setups-and-builds).
 
 The `Claude Code:` line is a note, and it never fails the check. An agent other
 than Claude Code, such as Codex, keeps its own configuration.
