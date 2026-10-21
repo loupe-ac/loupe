@@ -123,7 +123,7 @@ deployment is also `ACTIVE` until the new one replaces it.
 
 ```bash
 TOKEN=$(grep -E "^health_probe_token" terraform/terraform.tfvars | sed -E 's/.*= *"([^"]*)".*/\1/')
-curl -sS -H "X-Probe-Token: $TOKEN" https://loupe.ac/healthz
+curl -sS -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz
 ```
 
 It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
@@ -162,7 +162,7 @@ migration is a much smaller risk than one with. Say which you are shipping.
 
 ## Trusted proxies
 
-`loupe.ac` sits behind Cloudflare, which sits in front of App Platform's private
+`app.loupe.ac` and `loupe.ac` sit behind Cloudflare, which sits in front of App Platform's private
 ingress. `TRUSTED_PROXIES` must list Cloudflare's ranges, or Symfony stops the
 address walk at the ingress and every visitor resolves to a Cloudflare address.
 

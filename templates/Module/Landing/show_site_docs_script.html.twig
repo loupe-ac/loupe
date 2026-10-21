@@ -1,0 +1,6 @@
+{% set analytics = analytics_script() %}
+{{ {
+    appOrigin: app_url('app_home')|trim('/', 'right'),
+    umami: analytics ? {src: analytics.src, websiteId: analytics.websiteId} : null,
+    widget: site_review_widget_project ? {project: site_review_widget_project, backend: site_review_widget_backend|trim('/', 'right'), context: site_review_widget_context, public: site_review_widget_public} : null,
+}|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP'))|raw }}

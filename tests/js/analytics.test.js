@@ -40,7 +40,7 @@ it('reads the path of an absolute url', () => {
         beforeSend('pageview', { url: 'https://loupe.ac/waitlist' }),
     ).not.toBeNull();
     expect(
-        beforeSend('pageview', { url: 'https://loupe.ac/account' }),
+        beforeSend('pageview', { url: 'https://app.loupe.ac/account' }),
     ).toBeNull();
 });
 

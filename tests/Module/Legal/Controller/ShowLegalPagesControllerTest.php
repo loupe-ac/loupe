@@ -48,10 +48,10 @@ final class ShowLegalPagesControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/terms');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('div.lp-landing > header.lp-landing-nav');
+        self::assertSelectorExists('div.lp-home > header.lp-home-nav');
         self::assertSelectorCount(1, 'main#main-content');
         self::assertSelectorExists('main#main-content article.lp-legal');
-        self::assertSelectorExists('div.lp-landing > footer.lp-landing-footer');
+        self::assertSelectorExists('div.lp-home > footer.lp-home-footer');
     }
 
     public function test_the_landing_page_keeps_its_own_header_footer_and_dialog(): void
@@ -74,7 +74,7 @@ final class ShowLegalPagesControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/terms');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-landing-footer a[href="/blog"]', 'Blog');
+        self::assertSelectorTextSame('.lp-home-footer a[href="/blog"]', 'Blog');
         self::assertStringNotContainsString('blog.example.com', (string) $client->getResponse()->getContent());
     }
 
@@ -86,7 +86,7 @@ final class ShowLegalPagesControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/terms');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.lp-landing-footer a[href="/terms"]');
+        self::assertSelectorExists('.lp-home-footer a[href="/terms"]');
         self::assertSelectorNotExists('a[href="/blog"]');
     }
 

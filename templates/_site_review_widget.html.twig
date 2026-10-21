@@ -1,6 +1,7 @@
-{% if site_review_widget_project and (site_review_widget_public or is_granted('ROLE_ADMIN')) %}
+{% set widgetAdmin = is_granted('ROLE_ADMIN') %}
+{% if site_review_widget_project and (site_review_widget_public or widgetAdmin or site_admin()) %}
 <script src="{{ site_review_widget_backend|trim('/', 'right') }}/live-review/widget.js"
     data-project="{{ site_review_widget_project }}"
     {%- if site_review_widget_context %} data-context="{{ site_review_widget_context }}"{% endif %}
-    {%- if site_review_widget_preview_token %} data-preview-token="{{ site_review_widget_preview_token }}"{% endif %}></script>
+    {%- if site_review_widget_preview_token and (widgetAdmin or site_review_widget_public) %} data-preview-token="{{ site_review_widget_preview_token }}"{% endif %}></script>
 {% endif %}

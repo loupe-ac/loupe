@@ -5,17 +5,29 @@ Markdown in [`../docs`](../docs). It is a static build with no dependency on the
 application, so it runs on the host rather than in a container.
 
 ```sh
-just docs           # live preview at http://localhost:4321/loupe/
+just docs           # live preview at http://localhost:4321/docs/
 just docs-build     # static build into website/dist, search index included
 just docs-preview   # serve the built output rather than the dev server
 ```
 
-The `/loupe/` prefix is the `base` the site is deployed under, and it applies in
-dev and preview as well as in the build — a link that would 404 on Pages 404s
+The `/docs/` prefix is the `base` the site is deployed under, and it applies in
+dev and preview as well as in the build — a link that would 404 when deployed 404s
 here first.
 
 Each recipe installs `website/node_modules` first, so the first run is slow and
 the rest are not. Nothing here is part of `just ci`.
+
+`npm run check` reads the built `dist/` and fails when a page lacks a chrome
+marker, or has a next page and no `pagination-links` element.
+
+## Site bar and footer
+
+The `Header` and `Footer` overrides leave two marker strings in each page,
+each inside a declarative shadow root. `src/chrome-markers.mjs` defines them.
+A later step replaces each marker with the rendered site bar or footer. The
+`Footer` override renders Starlight's own footer first, then the footer marker.
+`src/styles/theme.css` maps the site fonts and colours onto Starlight, and
+reads the font files from `../assets/fonts`. The theme is light only.
 
 ## Why the content lives outside this directory
 
@@ -81,8 +93,17 @@ so restart `just docs` after you change it.
 
 ## Deployment
 
-`.github/workflows/docs.yml` builds this site and deploys it to GitHub Pages.
-It runs on each push to `main` that changes `docs/`, `website/` or a changelog
-fragment. Before the build, it folds the changelog fragments into the
-published changelog, and commits nothing. The site is served at
-`https://ubermuda.github.io/loupe/`.
+The `docs` stage of `docker/prod/Dockerfile` builds this site into the app
+image. It folds the changelog fragments into the published changelog first, and
+commits nothing. The runtime stage keeps the output in `/var/www/docs-build`.
+
+When a container starts with `SITE_HOST` set, the entrypoint runs
+`bin/console app:site:stamp-docs`. The command copies the build to
+`/var/www/docs`, and puts the site bar and footer of that instance in place of
+the two markers of each page. It stops the start when a marker is left or a
+link names an unknown host. nginx serves `/var/www/docs` under `/docs/` on the
+site host only.
+
+The `docs-build` job of `.github/workflows/ci.yml` builds the site on each pull
+request and runs `npm run check`. A docs change goes live with the next deploy
+of the app.

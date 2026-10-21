@@ -19,6 +19,8 @@ Your Loupe instance serves an install script. Run it:
 curl -fsSL https://<your Loupe instance>/install.sh | sh
 ```
 
+The hosted instance serves it at `https://app.loupe.ac/install.sh`.
+
 Or install the CLI with Homebrew:
 
 ```bash

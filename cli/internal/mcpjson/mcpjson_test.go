@@ -83,7 +83,7 @@ func TestAnotherCommandUnderLoupeReadsAsDifferent(t *testing.T) {
 // A remote entry carries a url and no command, so the caller has no command to
 // show. It is still something the person chose, so it must not read as Absent.
 func TestARemoteEntryUnderLoupeReadsAsDifferent(t *testing.T) {
-	dir := write(t, `{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.ac/mcp"}}}`)
+	dir := write(t, `{"mcpServers":{"loupe":{"type":"http","url":"https://app.loupe.ac/mcp"}}}`)
 	if got := state(t, dir); Different != got {
 		t.Fatalf("Read: got %v, want Different", got)
 	}

@@ -129,12 +129,12 @@ goreleaser release --snapshot --clean         # local dry run, no tag needed
 Signs the bridge in so it can subscribe to your stream.
 
 ```bash
-loupe login                                   # sign in to https://loupe.ac in a browser
+loupe login                                   # sign in to https://app.loupe.ac in a browser
 loupe login --url https://loupe.example.com   # a self-hosted instance
 LOUPE_URL=https://loupe.example.com loupe login   # the same instance, from the environment
 ```
 
-The instance comes from `--url`, else `LOUPE_URL`, else `https://loupe.ac`. If
+The instance comes from `--url`, else `LOUPE_URL`, else `https://app.loupe.ac`. If
 you are working on Loupe itself, set `LOUPE_URL=https://loupe.dev.localhost`
 once rather than passing the flag every time.
 
@@ -430,7 +430,7 @@ then opens one MCP session with your instance and calls `project_current`. The
 whole check stops after 30 seconds.
 
 ```text
-Instance:    https://loupe.ac
+Instance:    https://app.loupe.ac
 Project:     Acme site (acme, 01a0c0d9-905c-7922-a586-ccc8ce043704)
 Claude Code: starts `loupe mcp` for every project.
 Account:     claude (claude-code): ready

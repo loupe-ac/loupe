@@ -1,0 +1,127 @@
+@font-face {
+  font-family: 'Geist';
+  src: url('../../../assets/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../../../assets/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Sans';
+  src: url('../../../assets/fonts/DMSans-latin.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DM Sans';
+  src: url('../../../assets/fonts/DMSans-latin-ext.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('../../../assets/fonts/Manrope-latin.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('../../../assets/fonts/Manrope-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* The site is light only. Unlayered rules beat the Starlight layers, so the
+   dark palette never applies. */
+:root,
+::backdrop,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  color-scheme: light;
+  --sl-nav-height: 4.25rem;
+  --sl-nav-pad-x: 0;
+  --sl-nav-pad-y: 0;
+  --sl-font: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: 'Geist Mono', ui-monospace, monospace;
+  --sl-color-white: #20241f;
+  --sl-color-gray-1: #20241f;
+  --sl-color-gray-2: #4a5049;
+  --sl-color-gray-3: #555b52;
+  --sl-color-gray-4: #656b60;
+  --sl-color-gray-5: #cdd3c6;
+  --sl-color-gray-6: #e1e5da;
+  --sl-color-gray-7: #f0f2eb;
+  --sl-color-black: #f7f8f3;
+  --sl-color-bg: #f7f8f3;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #f7f8f3;
+  --sl-color-hairline: #e1e5da;
+  --sl-color-hairline-light: #edf0e8;
+  --sl-color-hairline-shade: #cdd3c6;
+  --sl-color-accent-low: #edf2ce;
+  --sl-color-accent: #596313;
+  --sl-color-accent-high: #20241f;
+  --sl-color-text-accent: #596313;
+  --sl-color-text: #20241f;
+  --sl-color-bg-inline-code: #f0f2eb;
+}
+
+header.header {
+  padding: 0 !important;
+  border-bottom: 1px solid #e1e5da;
+  background: #fff;
+}
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+h1#_top {
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+.site-footer-wrap {
+  position: relative;
+  z-index: 20;
+}
+starlight-theme-select {
+  display: none;
+}
+
+.docs-search {
+  margin: 0 0 0.75rem;
+}
+.docs-search site-search,
+.docs-search button[data-open-modal] {
+  display: flex !important;
+  width: 100%;
+}
+.docs-search button[data-open-modal] {
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cdd3c6;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #555b52;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.docs-search button[data-open-modal] > span {
+  display: block !important;
+  flex: 1;
+  text-align: left;
+}
+.docs-search button[data-open-modal] kbd {
+  display: flex !important;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: #656b60;
+}

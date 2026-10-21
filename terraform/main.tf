@@ -85,12 +85,23 @@ module "app" {
   # domain and every sub-address. With a DigitalOcean zone, App Platform writes
   # its records and TXT challenge. A domain added in the console is dropped by
   # the next apply.
-  extra_domains = var.artifact_content_host == "" ? [] : [{
-    name     = var.artifact_content_host
-    type     = "ALIAS"
-    wildcard = true
-    zone     = var.artifact_content_zone
-  }]
+  #
+  # The site host is a second domain of the same app, in the same DNS zone as
+  # the custom domain. Without one, or when it is the custom domain itself, no
+  # entry is added.
+  extra_domains = concat(
+    var.artifact_content_host == "" ? [] : [{
+      name     = var.artifact_content_host
+      type     = "ALIAS"
+      wildcard = true
+      zone     = var.artifact_content_zone
+    }],
+    var.site_host == "" || var.site_host == var.custom_domain ? [] : [{
+      name = var.site_host
+      type = "ALIAS"
+      zone = var.domain_zone
+    }],
+  )
 
   # Off for the first apply — the job cannot reach the database until the
   # one-time schema GRANT has run, and a failing PRE_DEPLOY job fails the whole
@@ -151,6 +162,7 @@ module "app" {
     var.site_review_widget_context == "" ? {} : { SITE_REVIEW_WIDGET_CONTEXT = { value = var.site_review_widget_context } },
     var.site_review_widget_preview_token == "" ? {} : { SITE_REVIEW_WIDGET_PREVIEW_TOKEN = { value = var.site_review_widget_preview_token, type = "SECRET" } },
     var.artifact_content_host == "" ? {} : { ARTIFACT_CONTENT_HOST = { value = var.artifact_content_host } },
+    var.site_host == "" ? {} : { SITE_HOST = { value = var.site_host } },
     var.blog_proxy_host == "" ? {} : { BLOG_PROXY_HOST = { value = var.blog_proxy_host } },
     var.analytics_script_url == "" ? {} : { ANALYTICS_SCRIPT_URL = { value = var.analytics_script_url } },
     var.analytics_website_id == "" ? {} : { ANALYTICS_WEBSITE_ID = { value = var.analytics_website_id } },

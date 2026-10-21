@@ -1,7 +1,7 @@
 {# twig-cs-fixer-disable #}
 {# Dev-only specimen for the styleguide, so it is intentionally untranslated. #}
-<div class="lp-landing">
-    {% include '_marketing_header.html.twig' only %}
+<div class="lp-home">
+    {% include '@Landing/landing/_nav.html.twig' only %}
     <p class="lp-styleguide__token-use">The page body.</p>
-    {% include '_marketing_footer.html.twig' only %}
+    {% include '@Landing/landing/_footer.html.twig' only %}
 </div>

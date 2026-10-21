@@ -4,13 +4,14 @@ import starlight from '@astrojs/starlight';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { remarkDocsLinks } from './remark-docs-links.mjs';
+import { OG_IMAGE_URL } from './src/chrome-markers.mjs';
 
 const docsDir = fileURLToPath(new URL('../docs', import.meta.url));
 
-// The site is served from a project page, so every route sits under /loupe.
-// remarkDocsLinks rewrites Markdown links to absolute routes and Astro does not
-// touch those, so it has to prefix the base itself.
-const base = '/loupe';
+// The docs are served under /docs on the site host. remarkDocsLinks rewrites
+// Markdown links to absolute routes and Astro does not touch those, so it has
+// to prefix the base itself.
+const base = '/docs';
 
 // astro.config runs in Node, where .env is not loaded for us. Absent a token the
 // widget is simply not injected — see .env.example.
@@ -31,7 +32,7 @@ const siteReviewWidget = isDevServer && env.PUBLIC_SITE_REVIEW_PROJECT
   : [];
 
 export default defineConfig({
-  site: 'https://ubermuda.github.io',
+  site: 'https://loupe.ac',
   base,
   redirects: {
     '/using/site-review': '/using/live-review',
@@ -52,8 +53,16 @@ export default defineConfig({
           content:
             "addEventListener('DOMContentLoaded',()=>{let e=document.querySelector('#starlight__sidebar [aria-current=\"page\"]');while(e=e?.closest('details'))e.open=!0,e=e.parentElement})",
         },
+        { tag: 'meta', attrs: { property: 'og:image', content: OG_IMAGE_URL } },
+        { tag: 'script', attrs: { src: '/site/docs.js', defer: true } },
         ...siteReviewWidget,
       ],
+      customCss: ['./src/styles/theme.css'],
+      components: {
+        Header: './src/components/SiteHeader.astro',
+        PageFrame: './src/components/SitePageFrame.astro',
+        Sidebar: './src/components/SiteSidebar.astro',
+      },
       description: 'A document- and live-review tool for humans working with AI agents.',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/ubermuda/loupe' },

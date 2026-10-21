@@ -63,6 +63,32 @@ COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
 
 ENV APP_ENV=prod
 
+# The docs fold the unreleased changelog fragments into docs/CHANGELOG.md, which
+# is PHP. --keep leaves the fragments alone, because nothing commits the result.
+# Its own stage keeps PHP out of the Node stage below.
+FROM base AS docs-changelog
+WORKDIR /repo
+COPY bin/changelog.php bin/changelog.php
+COPY changelog.d changelog.d
+COPY docs docs
+RUN php bin/changelog.php --keep
+
+# The docs are Astro with Starlight. The build reads no host name: the entrypoint
+# puts the site bar and footer of the running instance into the built pages, so
+# the same output serves any deployment. `npm run check` fails the image build on
+# a page that lacks a chrome marker or its page navigation. Layout matters: the
+# content is ../docs and the fonts are ../assets/fonts, relative to website/.
+# sharp ships prebuilt binaries as optional packages, so its install script is not
+# needed and --ignore-scripts keeps every dependency script out of the build.
+FROM node:22-alpine AS docs
+WORKDIR /repo/website
+COPY website/package.json website/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY website/ ./
+COPY assets/fonts /repo/assets/fonts
+COPY --from=docs-changelog /repo/docs /repo/docs
+RUN npm run build && npm run check
+
 # Everything below this line runs at build time only. Nothing here reaches the
 # final image except the files the runtime stage copies, so a tool installed
 # here needs no uninstall and a large download needs no prune to stay out.
@@ -75,6 +101,10 @@ FROM base AS build
 RUN printf 'memory_limit=-1\n' > /usr/local/etc/php/conf.d/zz-build.ini
 
 COPY . .
+
+# The docs build copied its inputs into the context. The image serves the built
+# output, so neither the Astro project nor the Markdown stays in the tree.
+RUN rm -rf website docs
 
 COPY --from=widget /build/var/widget.min.js public/live-review/widget.js
 
@@ -150,6 +180,7 @@ COPY docker/prod/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY docker/prod/upload.ini /usr/local/etc/php/conf.d/zz-upload.ini
 COPY docker/prod/php-fpm-memory.conf /usr/local/etc/php-fpm.d/zz-memory.conf
 COPY docker/prod/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/prod/nginx-common.conf /etc/nginx/snippets/common.conf
 COPY docker/prod/supervisord.conf /etc/supervisord.conf
 COPY docker/prod/worker-supervisord.conf /etc/worker-supervisord.conf
 
@@ -157,6 +188,13 @@ COPY docker/prod/worker-supervisord.conf /etc/worker-supervisord.conf
 # A list is the failure this boundary invites: miss `var/cache` or the compiled
 # assets and the image builds, starts, and fails on its first request.
 COPY --from=build /var/www/html /var/www/html
+
+# The built docs stay outside the web root. At start the entrypoint copies them
+# to /var/www/docs with the site bar and footer of the running instance, and
+# only the site server of nginx reads that folder. www-data owns it because
+# the stamp runs as www-data.
+COPY --from=docs /repo/website/dist /var/www/docs-build
+RUN install -d -o www-data -g www-data /var/www/docs
 
 # Provenance for the published package: GitHub links a container to its
 # repository through image.source, and an AGPL image should say so where a tool

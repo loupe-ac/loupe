@@ -13,6 +13,11 @@ security:
         artifact_content_host:
             request_matcher: App\Module\Artifact\Security\ArtifactContentHostRequestMatcher
             security: false
+        # Every request to a site host that differs from the app host. Same
+        # shape as the content domain: no session is read, no cookie is set.
+        site_host:
+            request_matcher: App\Module\Landing\Security\SiteHostRequestMatcher
+            security: false
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
@@ -25,6 +30,11 @@ security:
         # browser's session is never read, so the answer stays publicly cacheable.
         install_script:
             pattern: ^/install\.sh$
+            security: false
+        # The docs script is the same for every visitor, so no session may be
+        # read and no cookie set: a shared cache keeps one copy.
+        site_docs_script:
+            pattern: ^/site/docs\.js$
             security: false
         # The signed content links of a stored prototype. No security listener,
         # so no session is read or started and the response sets no cookie. The

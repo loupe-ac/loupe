@@ -19,7 +19,7 @@ import (
 // another. The hosted instance, because that is where a reader of a release
 // binary has an account. Someone self-hosting, or working on Loupe itself,
 // passes --url once or sets LOUPE_URL.
-const DefaultBaseURL = "https://loupe.ac"
+const DefaultBaseURL = "https://app.loupe.ac"
 
 // resolveBaseURL picks the instance to sign in to: the flag, else LOUPE_URL,
 // else the hosted instance. The trailing slash goes, because every caller joins

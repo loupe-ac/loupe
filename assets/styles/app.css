@@ -5330,42 +5330,6 @@
         @apply flex items-start gap-2.5 rounded-xl px-4 py-3.5 text-sm bg-status-danger-bg border border-status-danger-border text-status-danger-deep;
     }
 
-    /* ── Landing page ───────────────────────────────────────────────────
-       The only marketing surface in the app, and the only place that stacks
-       full-bleed bands. It borrows the app's palette, type ladder and buttons
-       wholesale — the one thing it adds is the band rhythm. */
-    .lp-landing {
-        @apply flex flex-col bg-app text-fg;
-    }
-    /* The nav's section links animate instead of jumping, and the scroll
-       padding keeps the target clear of the sticky nav sitting over it. */
-    html:has(.lp-landing) {
-        @apply scroll-smooth scroll-pt-20;
-    }
-
-    /* Sticky, translucent, and the only blurred surface in the app. */
-    .lp-landing-nav {
-        @apply sticky top-0 z-40 flex items-center gap-2.5 px-7 py-4 border-b border-line bg-app/90 backdrop-blur-md;
-    }
-    .lp-landing-nav__brand {
-        @apply inline-flex items-center mr-auto text-ink no-underline;
-    }
-    .lp-landing-nav__links {
-        @apply flex items-center gap-4 text-sm;
-    }
-    .lp-landing-nav__link {
-        @apply hidden text-fg-mute no-underline transition-colors sm:inline hover:text-ink;
-    }
-    /* The sign-in link survives the mobile cull; the section anchors do not. */
-    .lp-landing-nav__link--wide {
-        @apply inline;
-    }
-
-    /* A centred column, shared with the legal pages and their footer. */
-    .lp-landing-inner {
-        @apply max-w-5xl mx-auto;
-    }
-
     /* ── Home page ──────────────────────────────────────────────────────
        The page of loupe.ac. Full-bleed bands with a centred column, the app's
        palette, and lime as the only accent. */
@@ -5383,13 +5347,13 @@
         @apply sticky top-0 z-40 flex flex-wrap items-center gap-4 px-4 py-3 sm:px-7 bg-chrome;
     }
     .lp-home-brand {
-        @apply inline-flex items-center mr-auto text-chrome-fg no-underline;
-    }
-    .lp-home-brand--small {
-        @apply mr-0;
+        @apply inline-flex items-center text-chrome-fg no-underline;
     }
     .lp-home-nav__links {
-        @apply flex flex-wrap items-center gap-5 text-sm;
+        @apply flex flex-1 flex-wrap items-center gap-5 text-sm;
+    }
+    .lp-home-nav__actions {
+        @apply flex flex-wrap items-center gap-5 ml-auto;
     }
     .lp-home-nav__link {
         @apply text-chrome-mute no-underline transition-colors hover:text-chrome-fg;
@@ -6090,25 +6054,6 @@
     }
     .lp-legal__updated {
         @apply text-sm text-fg-dim;
-    }
-
-    .lp-landing-footer {
-        @apply bg-chrome border-t border-chrome-raised px-7 py-10;
-    }
-    .lp-landing-footer__row {
-        @apply flex flex-wrap items-center gap-5 text-xs text-chrome-dim;
-    }
-    .lp-landing-nav__brand--sm {
-        @apply mr-0 text-chrome-fg;
-    }
-    .lp-landing-footer__copyright {
-        @apply mr-auto;
-    }
-    .lp-landing-footer__nav {
-        @apply flex flex-wrap items-center gap-5;
-    }
-    .lp-landing-footer__link {
-        @apply inline-flex items-center gap-1.5 text-chrome-mute no-underline transition-colors hover:text-chrome-fg;
     }
 
     /* ── Board ──────────────────────────────────────────────────────────
@@ -7709,7 +7654,6 @@
         transition: none;
     }
 
-    html:has(.lp-landing),
     html:has(.lp-home) {
         scroll-behavior: auto;
     }
@@ -7759,7 +7703,6 @@
     .lp-anchor-toolbar__btn,
     .auth-forgot,
     .lp-auth__footer-link,
-    .lp-landing-footer__link,
     .lp-home-footer__link,
     .lp-home-footer__icon {
         @apply inline-flex items-center justify-center min-h-11 min-w-11;
@@ -7795,7 +7738,6 @@
 
     /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
        display would reveal it below sm: and min-width never applies to inline. */
-    .lp-landing-nav__link,
     .lp-home-nav__link {
         @apply px-2 py-3;
     }

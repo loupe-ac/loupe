@@ -34,12 +34,19 @@ final class PublicFeatureNameTest extends TestCase
         self::assertDoesNotMatchRegularExpression('/\bsite[ -]review\b/i', (string) $prose);
     }
 
-    public function test_no_file_calls_the_removed_api_path(): void
+    /** @return iterable<string, array{string}> */
+    public static function removedPaths(): iterable
+    {
+        yield 'api' => ['/api/site-review'];
+        yield 'widget script' => ['/site-review/widget.js'];
+    }
+
+    #[DataProvider('removedPaths')]
+    public function test_no_file_calls_a_removed_path(string $old): void
     {
         $root = dirname(__DIR__, 3);
-        $old = '/api/site-review';
         $hits = [];
-        foreach (['src', 'tests', 'config', 'public', 'e2e/tests'] as $dir) {
+        foreach (['src', 'tests', 'config', 'public', 'templates', 'docker', 'e2e/tests'] as $dir) {
             $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root.'/'.$dir, \FilesystemIterator::SKIP_DOTS));
             foreach ($files as $file) {
                 if ($file->isFile() && __FILE__ !== $file->getPathname() && str_contains((string) file_get_contents($file->getPathname()), $old)) {

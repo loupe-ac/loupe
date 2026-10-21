@@ -1722,7 +1722,7 @@ work:
     prompt: |
       Use the loupe-stage-design-review skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 ```
 
 When a `product-design-revise` or `tech-design-revise` request starts for an

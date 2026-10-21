@@ -327,7 +327,7 @@ suspect the branch.
 | The site-review widget shows a red `!` on the launcher, and "This review widget can't connect" | The embed names a project that does not resolve **at the backend the widget actually talks to**, which is `SITE_REVIEW_WIDGET_BACKEND`, not the host serving the page. A worktree keeps the main checkout's project id, which production knows, so suspect an `.env.local` that carries no `SITE_REVIEW_WIDGET_PROJECT`, a production project that does not list `https://<slug>.loupe.dev.localhost` under its allowed sites, or a widget branch pointed at its own tree with the production project id. See "Which backend the widget talks to". |
 | Widget comments on a card preview save, but the card does not list them | The worktree has no `SITE_REVIEW_WIDGET_CONTEXT` in its `.env.local`, so the comment carries no marker. Re-run `just worktree-up card-<number> card:<cardId>` from the main checkout, with the production card id. See "The card marker". |
 | The widget says "This preview's card is closed or gone, so notes cannot be saved here." | The marker names a card that the widget backend does not hold. Suspect a widget branch whose `SITE_REVIEW_WIDGET_BACKEND` is its own worktree host, with a production card id. Remove `SITE_REVIEW_WIDGET_CONTEXT` from its `.env.local`, or set `card:<id>` with a card id from that worktree's database. See "The card marker". |
-| The widget does not appear **at all**, no launcher and no error badge | The `<script>` failed to load, so nothing ever ran. A refused sign-in still renders the widget; an unreachable script renders nothing. Check the backend host resolves and serves `/live-review/widget.js`: a `SERVFAIL` on `loupe.ac` from the machine's own resolver produces exactly this, while the same request succeeds through `1.1.1.1`. |
+| The widget does not appear **at all**, no launcher and no error badge | The `<script>` failed to load, so nothing ever ran. A refused sign-in still renders the widget; an unreachable script renders nothing. Check the backend host resolves and serves `/live-review/widget.js`: a `SERVFAIL` on `app.loupe.ac` from the machine's own resolver produces exactly this, while the same request succeeds through `1.1.1.1`. |
 | Mail-asserting specs never see their message, or read another run's | Each worktree has its own sidecar, so a run must be pointed at it. Suspect a run launched without `just e2e` (which exports `MAILPIT_URL`) or with `E2E_BASE_URL` set alone, which falls back to the shared instance: the worktree's app then sends where nothing is reading, every registration/login/verification spec times out, and it looks like an auth regression. Set `MAILPIT_URL=https://mailpit-<slug>.<project>.dev.localhost` alongside it. `bin/e2e-target.sh` prints the Mailpit URL it resolved as its fourth line. |
 | A spec fails, then passes on a quiet re-run | Something else was loading the shared php-fpm, such as a sibling agent running `just ci` or `composer install`. Check what is in flight **before** investigating the branch; this produced a false "regression" nearly filed against a clean PR. |
 | `worktree-up` fails with an "Unrecognized option" or missing-class error | The new worktree seeded its `vendor/` from a stale main checkout. Fast-forwarding the main checkout does **not** update its `vendor/`, so every worktree created afterwards inherits the old commit's dependencies. Run `composer install` in the main checkout, then re-run `just worktree-up`. |
@@ -348,7 +348,7 @@ step is the most common way a worktree's widget breaks.
 `widget.js` then does `BACKEND = new URL(script.src).origin`. **The widget posts
 to wherever its script came from, never to the host serving the page.** So a page
 on `https://<slug>.loupe.dev.localhost` whose script comes from
-`https://loupe.ac` sends its comments to production. That is deliberate: it is
+`https://app.loupe.ac` sends its comments to production. That is deliberate: it is
 how the app is dogfooded, with the local UI annotated and the comments landing in
 hosted Loupe where an agent reads them over MCP. It also means the project must
 live on the **backend**, not in the local database.
@@ -359,7 +359,7 @@ A worktree points at production, with the production project, so annotating a
 branch works the way it does everywhere else:
 
 ```
-SITE_REVIEW_WIDGET_BACKEND=https://loupe.ac
+SITE_REVIEW_WIDGET_BACKEND=https://app.loupe.ac
 SITE_REVIEW_WIDGET_PROJECT=<the production project id, same one the main checkout uses>
 ```
 

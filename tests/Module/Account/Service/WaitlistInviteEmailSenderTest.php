@@ -8,11 +8,14 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\WaitlistInviteEmailSender;
+use App\Routing\PinnedUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\RawMessage;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing\RouterInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class WaitlistInviteEmailSenderTest extends TestCase
@@ -30,14 +33,16 @@ final class WaitlistInviteEmailSenderTest extends TestCase
         $translator = $this->createStub(TranslatorInterface::class);
         $translator->method('trans')->willReturnArgument(0);
 
-        $urlGenerator = $this->createStub(UrlGeneratorInterface::class);
-        $urlGenerator->method('generate')->willReturnCallback(
+        $router = $this->createStub(RouterInterface::class);
+        $router->method('getContext')->willReturn(new RequestContext());
+        $router->method('generate')->willReturnCallback(
             function (string $route, array $parameters, int $referenceType): string {
                 self::assertSame(UrlGeneratorInterface::ABSOLUTE_URL, $referenceType);
 
                 return sprintf('https://example.com/%s?%s', $route, http_build_query($parameters));
             },
         );
+        $urlGenerator = new PinnedUrlGenerator($router, 'https://example.com');
 
         $users = $this->createStub(UserRepository::class);
         $users->method('findOneByEmail')->willReturn($existingUser);

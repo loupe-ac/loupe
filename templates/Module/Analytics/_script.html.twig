@@ -1,5 +1,5 @@
 {% set analytics = analytics_script() %}
-{% if analytics and not app.user and is_public_page() %}
+{% if analytics and not app.user and not site_signed_in() and is_public_page() %}
     <script defer src="{{ analytics.src }}"
             data-website-id="{{ analytics.websiteId }}"
             data-do-not-track="true"

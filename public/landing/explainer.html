@@ -803,7 +803,7 @@ const CORNER = {br:'right:36px;bottom:36px', bl:'left:36px;bottom:36px', tr:'rig
 capRows.forEach((r,i)=>{ r.style.cssText += ';'+CORNER[CAPS[i][3]]; });
 
 /* ── terminal: the product design session ── */
-const URL_REVIEW='https://loupe.ac/projects/01a1c3f2-7d44-7a18-9b3e-5f02c6a1d890/documents/01a1c9e0-2b7a-71d3-8c55-0e6f4a9b1c27/review';
+const URL_REVIEW='https://app.loupe.ac/projects/01a1c3f2-7d44-7a18-9b3e-5f02c6a1d890/documents/01a1c9e0-2b7a-71d3-8c55-0e6f4a9b1c27/review';
 const DURL = 'https://claude.ai/artifact/01a1ca37-5e2b-7c41-9d08-3b6e2f4a7c15';
 const tool = (srv,name,args) => srv==='claude' ? `<span class="dot ok">⏺</span> <span class="tool"><b>${name}</b> <em>(${esc(args)})</em></span>` : `<span class="dot ok">⏺</span> <span class="tool"><b>${srv} - ${name}</b> <em>(MCP)(${esc(args)})</em></span>`;
 const res = s => `<div class="res">⎿  ${esc(s)}</div>`;
@@ -860,8 +860,8 @@ function renderBridge(t){
 
 /* ── app screens ── */
 const SCREENS = {
-  board:{nav:'nav-board', crumb:'Driftwood', here:'Board', url:'loupe.ac/projects/01a1c3f2…/<b>board</b>'},
-  review:{nav:'nav-docs', crumb:'Documents', here:'Product design: Show the nightly price on search cards', url:'loupe.ac/projects/01a1c3f2…/documents/01a1c9e0…/<b>review</b>'},
+  board:{nav:'nav-board', crumb:'Driftwood', here:'Board', url:'app.loupe.ac/projects/01a1c3f2…/<b>board</b>'},
+  review:{nav:'nav-docs', crumb:'Documents', here:'Product design: Show the nightly price on search cards', url:'app.loupe.ac/projects/01a1c3f2…/documents/01a1c9e0…/<b>review</b>'},
 };
 const screenAt = t => (t>=25.4 && t<54.8) ? 'review' : 'board';
 let curScreen=null;

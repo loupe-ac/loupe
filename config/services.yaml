@@ -59,7 +59,9 @@ parameters:
     # and the `claude mcp add` command.
     app.mcp.server_name: 'loupe'
     # Documentation site, linked from the landing page.
-    app.docs_url: 'https://ubermuda.github.io/loupe'
+    app.docs_url: 'https://loupe.ac/docs'
+    # Where the container puts the stamped docs. The sitemap lists the pages found there.
+    app.site.docs_dir: '/var/www/docs'
     # Revision of the terms of service, as the date they took effect. Bumping it
     # re-prompts every account for acceptance on their next HTML navigation.
     app.terms.version: '2026-08-20'
@@ -108,9 +110,6 @@ parameters:
     # How long a work request about a subject other than a card waits for a
     # bridge, in minutes, before it expires. The value is an estimate.
     app.bridge.subject_work_timeout_minutes: 120
-    # Host of the hosted service. Only an instance whose app.url has this host
-    # shows the home page to a signed-out visitor. Null means every host does.
-    app.home_page_host: 'loupe.ac'
 
 services:
     # default configuration for services in *this* file
@@ -187,9 +186,6 @@ services:
 # KernelTestCase can fetch them directly without relying on a dependent service
 # (e.g. an MCP tool) keeping them reachable.
 when@test:
-    parameters:
-        app.home_page_host: ~
-
     services:
         # The export storage is private. Tests seed and assert on archives
         # through it rather than poking at var/exports, so that they keep
@@ -355,7 +351,3 @@ when@test:
 
         App\Tests\Module\Workflow\Fact\UnprovidedFactsReady:
             autoconfigure: true
-
-when@dev:
-    parameters:
-        app.home_page_host: ~

@@ -31,7 +31,7 @@ test('the footer links to every policy, and to nothing dead', async ({
     page,
 }) => {
     await page.goto('/privacy');
-    const footer = page.locator('.lp-landing-footer__nav');
+    const footer = page.locator('.lp-home-footer');
 
     for (const { path, heading } of PAGES) {
         await expect(
@@ -51,13 +51,29 @@ test('the footer links to every policy, and to nothing dead', async ({
 test('a policy is reachable from the footer of another', async ({ page }) => {
     await page.goto('/privacy');
     await page
-        .locator('.lp-landing-footer__nav')
+        .locator('.lp-home-footer')
         .getByRole('link', { name: 'AI Policy', exact: true })
         .click();
     await expect(
         page.getByRole('heading', { name: 'AI Policy', level: 1 }),
     ).toBeVisible({ timeout: 15000 });
     await expect(page).toHaveURL('/ai-policy');
+});
+
+/**
+ * `.lp-btn` sets a display, so only the base `[hidden]` rule keeps Go to app out.
+ * The e2e host is not split, so it ignores the signed-in cookie.
+ */
+test('the site bar shows the waitlist action alone to a visitor', async ({
+    page,
+}) => {
+    await page.goto('/privacy');
+    const actions = page.locator('.lp-home-nav__actions');
+
+    await expect(
+        actions.getByRole('link', { name: 'Join the waitlist' }),
+    ).toBeVisible();
+    await expect(actions.getByRole('link', { name: 'Go to app' })).toBeHidden();
 });
 
 test('the policies cross-link to each other in the prose', async ({ page }) => {

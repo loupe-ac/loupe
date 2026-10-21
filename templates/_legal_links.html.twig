@@ -7,6 +7,6 @@
 ] %}
 {% for link in links %}
     {%- if listItem|default(false) %}<li>{% endif -%}
-    <a href="{{ path(link.route) }}" class="{{ class }}">{{ link.label|trans }}</a>
+    <a href="{{ site_url(path(link.route)) }}" class="{{ class }}">{{ link.label|trans }}</a>
     {%- if listItem|default(false) %}</li>{% endif %}
 {% endfor %}

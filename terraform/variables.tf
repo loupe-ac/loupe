@@ -44,7 +44,7 @@ variable "health_check_path" {
 variable "custom_domain" {
   type        = string
   default     = ""
-  description = "Custom domain to serve the app on (e.g. loupe.ac, or app.example.com). Empty serves only on the assigned *.ondigitalocean.app hostname."
+  description = "Custom domain to serve the app on (e.g. app.loupe.ac, or app.example.com). Empty serves only on the assigned *.ondigitalocean.app hostname."
 }
 
 variable "domain_zone" {
@@ -63,6 +63,12 @@ variable "artifact_content_host" {
   type        = string
   default     = ""
   description = "ARTIFACT_CONTENT_HOST: the domain that serves stored prototypes, such as loupeusercontent.com. It must differ from the site of the app, so that a prototype shares no cookie with it. The app serves it with a wildcard domain, so each artifact gets its own sub-address. Empty serves the sealed preview on the app domain, and the health check warns."
+}
+
+variable "site_host" {
+  type        = string
+  default     = ""
+  description = "SITE_HOST: bare host name of the public site, such as loupe.ac. The app answers it with the site pages alone, and every other host with the app. Empty means no public site."
 }
 
 variable "blog_proxy_host" {

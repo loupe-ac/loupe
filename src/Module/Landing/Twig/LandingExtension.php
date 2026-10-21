@@ -55,6 +55,16 @@ final class LandingExtension extends AbstractExtension
             $image = self::DEFAULT_OPEN_GRAPH_IMAGE;
         }
 
+        return $this->imagePath($image);
+    }
+
+    public function defaultOpenGraphImagePath(): string
+    {
+        return $this->imagePath(self::DEFAULT_OPEN_GRAPH_IMAGE);
+    }
+
+    private function imagePath(string $image): string
+    {
         return $this->packages->getUrl('images/og/'.$image.'.png');
     }
 }
