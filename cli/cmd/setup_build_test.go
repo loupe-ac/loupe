@@ -277,8 +277,14 @@ func TestUpdateOfASetupWithARunningBridgeOnAHomebrewBinaryInstallsThePanel(t *te
 	recordExec(t)
 	shortConfigHome(t)
 	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0", "cli/v1.2.0")
+	gh.goos = "darwin"
+	gh.setArchive(panelArchive(t, "new binary"))
 	self, _ := selfUpdateAgainst(t, gh, "1.0.0")
+	self.goos = "darwin"
 	keg, link := homebrewBinary(t)
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(keg), "..", "libexec", update.PanelAppName), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	self.executable = func() (string, error) { return link, nil }
 	x, err := os.MkdirTemp("/tmp", "lx")
 	if err != nil {
@@ -307,6 +313,9 @@ func TestUpdateOfASetupWithARunningBridgeOnAHomebrewBinaryInstallsThePanel(t *te
 	}
 	if data, _ := os.ReadFile(keg); string(data) != "old" {
 		t.Fatalf("binary = %q", data)
+	}
+	if data, err := os.ReadFile(panelPath(x, "1.0.0")); err != nil || string(data) != "panel" {
+		t.Fatalf("the panel of the setup = %q, %v\n%s", data, err, out)
 	}
 }
 
