@@ -421,6 +421,7 @@ final class FactsBuilderTest extends KernelTestCase
             id: $pullRequest->id,
             headSha: 'abc',
             number: $pullRequest->number,
+            baseIsDefault: true,
         ), $this->facts($card)->pullRequest);
 
         $pullRequest->checks = PullRequestChecks::Pending;
@@ -434,6 +435,11 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertSame(ChecksState::Pending, $facts->checks);
         self::assertFalse($facts->conflicting);
         self::assertTrue($facts->behind);
+        self::assertTrue($facts->canMerge);
+        self::assertFalse($facts->checksOnHead);
+        $pullRequest->checksSha = 'abc';
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest?->checksOnHead);
         self::assertFalse($facts->changesRequested);
         self::assertSame(1, $facts->approvalsCoveringHead);
 

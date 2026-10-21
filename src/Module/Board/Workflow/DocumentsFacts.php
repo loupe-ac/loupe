@@ -6,10 +6,11 @@ namespace App\Module\Board\Workflow;
 
 use App\Module\Workflow\Contract\CardDocumentList;
 use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\ListsDocuments;
 use App\Module\Workflow\Contract\SwapsDocumentStatus;
 
 /** The unarchived documents linked to the card. */
-final readonly class DocumentsFacts implements SwapsDocumentStatus, CardDocumentList
+final readonly class DocumentsFacts implements SwapsDocumentStatus, ListsDocuments, CardDocumentList
 {
     /** @param list<DocumentFacts> $documents */
     public function __construct(
