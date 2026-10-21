@@ -54,16 +54,6 @@ type OAuthTokens struct {
 	ExpiresAt    time.Time `json:"expiresAt"`
 }
 
-// Dir is the directory that holds config.json, and rules.yaml beside it.
-func Dir() (string, error) {
-	d, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("locate config dir: %w", err)
-	}
-
-	return filepath.Join(d, "loupe"), nil
-}
-
 // Path is config.json, the file `loupe login` writes.
 func Path() (string, error) {
 	d, err := Dir()
@@ -106,6 +96,24 @@ func CodexThreadsDir() (string, error) {
 	return filepath.Join(d, "codex-threads"), nil
 }
 
+// setupNotLoggedIn is ErrNotLoggedIn with the setup named. errors.Is still
+// matches ErrNotLoggedIn.
+type setupNotLoggedIn struct{ setup Setup }
+
+func (e setupNotLoggedIn) Error() string {
+	return fmt.Sprintf("not logged in to the setup %s (chosen by %s): run `loupe -c %s login`", e.setup.Dir, e.setup.Source, e.setup.Dir)
+}
+
+func (setupNotLoggedIn) Is(target error) bool { return target == ErrNotLoggedIn }
+
+func notLoggedIn() error {
+	if s := Current(); s.Source != SourceDefault {
+		return setupNotLoggedIn{setup: s}
+	}
+
+	return ErrNotLoggedIn
+}
+
 // Load reads stored credentials, returning ErrNotLoggedIn if none are present.
 func Load() (Config, error) {
 	var c Config
@@ -116,16 +124,16 @@ func Load() (Config, error) {
 	c, err = readStoredConfig(d)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return c, ErrNotLoggedIn
+			return c, notLoggedIn()
 		}
 
 		return c, err
 	}
 	if c.BaseURL == "" {
-		return c, ErrNotLoggedIn
+		return c, notLoggedIn()
 	}
 	if c.OAuth == nil || c.OAuth.RefreshToken == "" {
-		return c, ErrNotLoggedIn
+		return c, notLoggedIn()
 	}
 
 	return c, nil
@@ -144,7 +152,9 @@ func Save(c Config) error {
 	}
 
 	stored := c
-	_ = keyring.Delete(keyringService, c.BaseURL)
+	if Current().Source == SourceDefault {
+		_ = keyring.Delete(keyringService, c.BaseURL)
+	}
 
 	return withConfigLock(d, func() error {
 		if stored.BridgeID == "" {
