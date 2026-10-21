@@ -8633,6 +8633,7 @@
             <trans-unit id="workflow.settings.rules.until"><source>workflow.settings.rules.until</source><target>Until:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.refill"><source>workflow.settings.rules.refill</source><target>Starts the limit again while:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.cancel_when"><source>workflow.settings.rules.cancel_when</source><target>Cancels the work while:</target></trans-unit>
+            <trans-unit id="workflow.settings.rules.from_fact"><source>workflow.settings.rules.from_fact</source><target>[fact %fact%]</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_condition"><source>workflow.settings.rules.missing_condition</source><target>Condition no longer exists: %condition%</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_action"><source>workflow.settings.rules.missing_action</source><target>Action not known to this version: %action%</target></trans-unit>
             <trans-unit id="workflow.settings.app_rules.heading"><source>workflow.settings.app_rules.heading</source><target>Rules the app adds</target></trans-unit>

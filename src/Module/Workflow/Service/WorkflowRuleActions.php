@@ -9,6 +9,7 @@ use App\Module\Workflow\Contract\RuleActions;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -48,6 +49,9 @@ final readonly class WorkflowRuleActions implements RuleActions
 
     private static function firesOn(Expression $when, string $conditionKey): bool
     {
+        if ($when instanceof NamedFact) {
+            $when = $when->expression;
+        }
         $leaves = $when instanceof AllOf ? $when->children : [$when];
 
         return array_any($leaves, static fn (Expression $leaf): bool => $leaf instanceof ConditionLeaf && $conditionKey === $leaf->condition::key());

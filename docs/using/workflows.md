@@ -48,6 +48,38 @@ The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.
 
+### Named facts
+
+A template can name a condition that several rules or markers use. The top-level
+`facts:` map holds the named conditions. Each key is a name of lowercase letters,
+digits and hyphens, and it starts with a letter. Each value is a condition
+expression, written as in a rule.
+
+```yaml
+facts:
+    pr-reviewable:
+        all:
+            - pr.open: {}
+            - not: { pr.draft: {} }
+    pr-ready-for-approval:
+        all:
+            - fact.pr-reviewable: {}
+            - pr.checks_passed: {}
+```
+
+A rule, a marker or another fact uses a named fact as `fact.<name>: {}`. A named
+fact takes no parameters. A condition inside a fact takes the parameters that its
+own class requires.
+
+The template is refused when a fact names an unknown fact, when a fact takes
+parameters, or when facts refer to each other in a loop. The message names the
+path, such as `facts.a: loop a -> b -> a`. A fact that no rule uses is still
+checked.
+
+A named fact does not change what a condition means. A rule that uses `fact.x`
+behaves as if it held the condition of `x` in place. The **Workflow** page lists
+the conditions of the fact, each with the name of the fact after it.
+
 ## Markers
 
 A marker tells a reader what a card needs now. The template defines every marker.
