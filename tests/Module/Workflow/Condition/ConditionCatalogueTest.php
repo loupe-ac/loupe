@@ -7,7 +7,10 @@ namespace App\Tests\Module\Workflow\Condition;
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardFollowsFinished;
 use App\Module\Workflow\Condition\Conditions;
+use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Translation\TranslatorBagInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -174,6 +177,19 @@ final class ConditionCatalogueTest extends KernelTestCase
         foreach (self::catalogueKeys($conditions) as $key) {
             if ($conditions->get($key) instanceof MarkerEvidence) {
                 self::assertStringContainsString('`'.$key.'`', $guide, \sprintf('docs/using/workflows.md does not name "%s".', $key));
+            }
+        }
+    }
+
+    public function test_each_marker_condition_that_reads_the_pull_request_names_the_pull_request_as_its_subject(): void
+    {
+        $conditions = static::getContainer()->get(Conditions::class);
+
+        foreach (self::catalogueKeys($conditions) as $key) {
+            $condition = $conditions->get($key);
+            if ($condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $condition->reads([]), true)) {
+                self::assertInstanceOf(NamesMarkerSubject::class, $condition, \sprintf('"%s" gives pull request evidence and names no subject type.', $key));
+                self::assertSame(MarkerSubjectType::PullRequest, $condition->subjectType(), $key);
             }
         }
     }

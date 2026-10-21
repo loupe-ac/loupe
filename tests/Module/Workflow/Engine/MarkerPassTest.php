@@ -7,6 +7,8 @@ namespace App\Tests\Module\Workflow\Engine;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\PauseFacts;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\Workflow\RunNeedsPersonFacts;
 use App\Module\Inbox\Workflow\AgentReviewOpenFacts;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
@@ -314,6 +316,31 @@ final class MarkerPassTest extends KernelTestCase
 
         self::assertEquals(new MarkerSubject(MarkerSubjectType::CardPause, ['pause' => (string) $pause->id]), $this->writtenInbox[0]->subject ?? null);
         self::assertEquals(self::noon(), $this->writtenInbox[0]->since ?? null);
+    }
+
+    public function test_a_listed_marker_with_a_pull_request_leaf_other_than_open_names_each_pull_request(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('failing', 'stuck', ['pr.checks_failed' => []])], ['failing']);
+        [$first, $second] = [self::openPullRequest(1, 'aaa', ChecksState::Failed), self::openPullRequest(2, 'bbb', ChecksState::Failed)];
+
+        $this->pass($template, FactsMother::facts(pullRequest: $first, pullRequests: [$first, $second]));
+
+        self::assertEquals([
+            new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $first->id, 'head' => 'aaa']),
+            new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $second->id, 'head' => 'bbb']),
+        ], array_map(static fn (StoredMarker $marker): ?MarkerSubject => $marker->subject, $this->writtenInbox ?? []));
+    }
+
+    public function test_a_run_that_needs_a_person_stores_an_inbox_entry_that_names_the_run(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('needs-person', 'needs-you', ['card.run.needs_person' => []])], ['needs-person']);
+        $run = new RunNeedsPersonFacts('run-1', WorkerRunState::Blocked, new \DateTimeImmutable('2026-10-01 11:00:00'), null);
+
+        $this->pass($template, FactsMother::facts(provided: [RunNeedsPersonFacts::class => $run]));
+
+        self::assertEquals(new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => 'run-1']), $this->writtenInbox[0]->subject ?? null);
     }
 
     public function test_a_marker_with_no_subject_leaf_gets_the_card_as_its_thing_for_one_spell(): void
