@@ -283,7 +283,7 @@ these cases:
 - The newest worker run of the card is blocked, gave up, or waits for a person.
   The card must stay in the column that started the run.
 - A GitHub pull request that is linked to the card is ready for review.
-- The workflow paused the card. The wait names the reason code of the pause,
+- The workflow paused the card. The wait names the pause,
   and it ends when the pause is released. A new pause starts a new wait.
 
 A worker can ask a blocking question about its own card and then stop. The

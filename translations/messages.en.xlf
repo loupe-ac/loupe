@@ -5387,14 +5387,6 @@
                 <source>inbox.item.kind.workflow</source>
                 <target>Workflow question</target>
             </trans-unit>
-            <trans-unit id="review.inbox_wait.waiting_for_review">
-                <source>review.inbox_wait.waiting_for_review</source>
-                <target>The document "%title%", version %version%, of card %card% waits for your review.</target>
-            </trans-unit>
-            <trans-unit id="review.inbox_wait.waiting_for_review.action">
-                <source>review.inbox_wait.waiting_for_review.action</source>
-                <target>Review the document</target>
-            </trans-unit>
             <trans-unit id="review.inbox_wait.document_deleted">
                 <source>review.inbox_wait.document_deleted</source>
                 <target>A deleted document, version %version%, of card %card% waited for your review.</target>
@@ -5403,185 +5395,61 @@
                 <source>review.inbox_wait.document_deleted.action</source>
                 <target>Dismiss this item</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.waiting_for_review">
-                <source>forge.inbox_wait.waiting_for_review</source>
-                <target>Pull request #%number% of card %card% waits for your review.</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.waiting_for_review.action">
-                <source>forge.inbox_wait.waiting_for_review.action</source>
-                <target>Review pull request #%number%</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.new_commits_after_approval">
-                <source>forge.inbox_wait.new_commits_after_approval</source>
-                <target>Pull request #%number% of card %card% changed after you approved it.</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.new_commits_after_approval.action">
-                <source>forge.inbox_wait.new_commits_after_approval.action</source>
-                <target>Review pull request #%number% again</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.fix_stopped">
-                <source>forge.inbox_wait.fix_stopped</source>
-                <target>The automatic fixes of pull request #%number% of card %card% stopped.</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.fix_stopped.action">
-                <source>forge.inbox_wait.fix_stopped.action</source>
-                <target>Open pull request #%number%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked">
-                <source>bridge.inbox_wait.blocked</source>
-                <target>A worker on card %card% is blocked and needs you.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.action">
-                <source>bridge.inbox_wait.blocked.action</source>
-                <target>Open card %card%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up">
-                <source>bridge.inbox_wait.gave_up</source>
-                <target>A worker on card %card% gave up.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.action">
-                <source>bridge.inbox_wait.gave_up.action</source>
-                <target>Open card %card%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person">
-                <source>bridge.inbox_wait.waits_for_person</source>
-                <target>A worker on card %card% waits for an answer from you.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.action">
-                <source>bridge.inbox_wait.waits_for_person.action</source>
-                <target>Open card %card%</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.rule">
-                <source>board.inbox_wait.rule</source>
-                <target>A workflow rule paused card %card%.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.rule.action">
-                <source>board.inbox_wait.rule.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.retries">
-                <source>board.inbox_wait.retries</source>
-                <target>Card %card% paused because its work failed too many times.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.retries.action">
-                <source>board.inbox_wait.retries.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_limit">
-                <source>board.inbox_wait.work_limit</source>
-                <target>Card %card% paused because its work reached a limit.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_limit.action">
-                <source>board.inbox_wait.work_limit.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_timeout">
-                <source>board.inbox_wait.work_timeout</source>
-                <target>Card %card% paused because no bridge took its work in time.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_timeout.action">
-                <source>board.inbox_wait.work_timeout.action</source>
-                <target>Check that a bridge is online, then open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_stopped">
-                <source>board.inbox_wait.work_stopped</source>
-                <target>Card %card% paused because a worker stopped and the workflow does not retry it.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_stopped.action">
-                <source>board.inbox_wait.work_stopped.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="review.inbox_wait.waiting_for_review.title">
-                <source>review.inbox_wait.waiting_for_review.title</source>
-                <target>Document version %version% waits for your review</target>
-            </trans-unit>
             <trans-unit id="review.inbox_wait.document_deleted.title">
                 <source>review.inbox_wait.document_deleted.title</source>
                 <target>Deleted document version %version%</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.waiting_for_review.title">
-                <source>forge.inbox_wait.waiting_for_review.title</source>
-                <target>Pull request #%number% waits for your review</target>
+            <trans-unit id="inbox.wait.fallback.document">
+                <source>inbox.wait.fallback.document</source>
+                <target>A document of card %card% waits for your review.</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.new_commits_after_approval.title">
-                <source>forge.inbox_wait.new_commits_after_approval.title</source>
-                <target>Pull request #%number% changed after your approval</target>
+            <trans-unit id="inbox.wait.fallback.pull_request">
+                <source>inbox.wait.fallback.pull_request</source>
+                <target>A pull request of card %card% waits for your review.</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.fix_stopped.title">
-                <source>forge.inbox_wait.fix_stopped.title</source>
-                <target>The fixes of pull request #%number% stopped</target>
+            <trans-unit id="inbox.wait.fallback.worker_run">
+                <source>inbox.wait.fallback.worker_run</source>
+                <target>A worker on card %card% needs you.</target>
             </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.title">
-                <source>bridge.inbox_wait.blocked.title</source>
-                <target>%Worker% blocked</target>
+            <trans-unit id="inbox.wait.fallback.card_pause">
+                <source>inbox.wait.fallback.card_pause</source>
+                <target>Card %card% is paused.</target>
             </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.title">
-                <source>bridge.inbox_wait.gave_up.title</source>
-                <target>%Worker% gave up</target>
+            <trans-unit id="inbox.wait.fallback.card">
+                <source>inbox.wait.fallback.card</source>
+                <target>Card %card% needs you.</target>
             </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.title">
-                <source>bridge.inbox_wait.waits_for_person.title</source>
-                <target>%Worker% waits for you</target>
+            <trans-unit id="inbox.wait.action.document">
+                <source>inbox.wait.action.document</source>
+                <target>Review the document</target>
             </trans-unit>
-            <trans-unit id="board.inbox_wait.rule.title">
-                <source>board.inbox_wait.rule.title</source>
-                <target>A workflow rule paused the card</target>
+            <trans-unit id="inbox.wait.action.pull_request">
+                <source>inbox.wait.action.pull_request</source>
+                <target>Review pull request #%number%</target>
             </trans-unit>
-            <trans-unit id="board.inbox_wait.retries.title">
-                <source>board.inbox_wait.retries.title</source>
-                <target>Card paused: its work failed too many times</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_limit.title">
-                <source>board.inbox_wait.work_limit.title</source>
-                <target>Card paused: its work reached a limit</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_timeout.title">
-                <source>board.inbox_wait.work_timeout.title</source>
-                <target>Card paused: no bridge took its work in time</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_stopped.title">
-                <source>board.inbox_wait.work_stopped.title</source>
-                <target>Card paused: a worker stopped</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.headline.title">
-                <source>bridge.inbox_wait.blocked.headline.title</source>
-                <target>%Worker% blocked: %headline%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.headline.title">
-                <source>bridge.inbox_wait.gave_up.headline.title</source>
-                <target>%Worker% gave up: %headline%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.headline.title">
-                <source>bridge.inbox_wait.waits_for_person.headline.title</source>
-                <target>%Worker% waits for you: %headline%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.headline">
-                <source>bridge.inbox_wait.blocked.headline</source>
-                <target>The %worker% on card %card% is blocked: %headline%.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.headline">
-                <source>bridge.inbox_wait.gave_up.headline</source>
-                <target>The %worker% on card %card% gave up: %headline%.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.headline">
-                <source>bridge.inbox_wait.waits_for_person.headline</source>
-                <target>The %worker% on card %card% waits for an answer from you: %headline%.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.short">
-                <source>bridge.inbox_wait.blocked.short</source>
-                <target>The %worker% stopped because it is blocked.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.short">
-                <source>bridge.inbox_wait.gave_up.short</source>
-                <target>The %worker% gave up.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.short">
-                <source>bridge.inbox_wait.waits_for_person.short</source>
-                <target>The %worker% waits for an answer from you.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.folded.action">
-                <source>bridge.inbox_wait.folded.action</source>
+            <trans-unit id="inbox.wait.action.worker_run">
+                <source>inbox.wait.action.worker_run</source>
                 <target>Open card %card%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.action.card_pause">
+                <source>inbox.wait.action.card_pause</source>
+                <target>Open the card and resume it</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.action.card">
+                <source>inbox.wait.action.card</source>
+                <target>Open card %card%</target>
+            </trans-unit>
+            <trans-unit id="marker.run_needs_you.headline">
+                <source>marker.run_needs_you.headline</source>
+                <target>The %worker% on card %card% needs you: %headline%.</target>
+            </trans-unit>
+            <trans-unit id="marker.run_needs_you.headline.title">
+                <source>marker.run_needs_you.headline.title</source>
+                <target>%Worker% needs you: %headline%</target>
+            </trans-unit>
+            <trans-unit id="marker.run_needs_you.short">
+                <source>marker.run_needs_you.short</source>
+                <target>The %worker% needs you.</target>
             </trans-unit>
             <trans-unit id="inbox.wait.ended.resolved">
                 <source>inbox.wait.ended.resolved</source>

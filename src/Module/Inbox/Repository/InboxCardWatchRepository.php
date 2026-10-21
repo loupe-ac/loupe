@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Repository;
 
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
+use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Project\Entity\Project;
@@ -111,11 +111,11 @@ class InboxCardWatchRepository extends ServiceEntityRepository
             ->join('watch.waits', 'wait')
             ->andWhere('watch.project = :project')
             ->andWhere('watch.closedAt IS NULL')
-            ->andWhere('wait.trigger = :trigger')
+            ->andWhere('wait.type = :type')
             ->andWhere('wait.documentId = :document')
             ->andWhere('wait.endedAt IS NULL')
             ->setParameter('project', $document->project)
-            ->setParameter('trigger', InboxCardWaitTrigger::DocumentInReview)
+            ->setParameter('type', InboxCardWaitType::Document)
             ->setParameter('document', $document->id, UuidType::NAME)
             ->orderBy('watch.cardNumber', 'ASC')
             ->getQuery()

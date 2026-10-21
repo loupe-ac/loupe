@@ -74,9 +74,9 @@ final readonly class InboxItemExporter implements UserDataExporterInterface
                 // Ids and reasons: the documents and runs are their own exporters' to state.
                 'waits' => array_values(array_map(
                     static fn (InboxCardWait $wait): array => [
-                        'trigger' => $wait->trigger->value,
+                        'marker' => $wait->markerKey,
                         'type' => $wait->type->value,
-                        'reason' => $wait->reason->value,
+                        'label' => $wait->label,
                         'documentId' => null === $wait->documentId ? null : (string) $wait->documentId,
                         'versionNumber' => $wait->versionNumber,
                         'runId' => null === $wait->runId ? null : (string) $wait->runId,

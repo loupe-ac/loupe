@@ -665,11 +665,12 @@ fact of the project. A notice holds no card and takes no answer.
 
 `inbox_get` also returns `cardId` and `waits`. For a `wait` item, `cardId` names
 the card, and `waits` lists each reason the card waited, current and ended, in
-start order. Each entry holds `trigger`, `type`, `reason`, `documentId`,
+start order. Each entry holds `marker`, `type`, `label`, `documentId`,
 `versionNumber`, `runId`, `pullRequestId`, `headSha`, `pauseId`, `startedAt`, `endedAt`
-and `endReason`. `type` is `document`, `pull-request`, `worker-run` or `card-pause`. `reason` is a
-code, such as `waiting-for-review`, `new-commits-after-approval`, `blocked`, `gave-up`,
-`waits-for-person` or the kind of a pause. It is no sentence. An id, a commit or a date that does not apply is null. `endedAt` and `endReason` are null for a
+and `endReason`. `marker` is the key of the workflow marker that opened the wait, such as
+`waits-for-approval`, `document-in-review`, `run-needs-you` or `paused`. `type` is `document`,
+`pull-request`, `worker-run`, `card-pause` or `card`. `label` is the translation key of the
+marker text. It is no sentence. An id, a commit or a date that does not apply is null. `endedAt` and `endReason` are null for a
 current wait. `endReason` is `resolved`, `card-finished`, `card-deleted`,
 `switched-off` or `dismissed`. For any other kind,
 `cardId` is null and `waits` is empty.

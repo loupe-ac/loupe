@@ -129,7 +129,7 @@ final readonly class CardWaitReconciler
             }
 
             $switches = $this->switches->for($project);
-            $wanted = $enabled ? self::switchedOn($this->wantedWaits($project, $cards), $switches) : [];
+            [$wanted, $off] = $enabled ? self::switchedOn($this->wantedWaits($project, $cards), $switches) : [[], []];
             $countChanged = false;
             $nextNumber = null;
             $rewritten = [];
@@ -147,7 +147,7 @@ final readonly class CardWaitReconciler
                 }
 
                 $ended = [];
-                if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now, $ended)) {
+                if ($this->apply($watch, $want, $this->cause($card, $enabled), $off[$cardId] ?? [], $now, $ended)) {
                     $countChanged = true;
                 }
                 if (null !== $card && $this->rewrite($watch, $card, $ended, $now)) {
@@ -234,15 +234,22 @@ final readonly class CardWaitReconciler
     /**
      * @param array<string, array<string, WantedCardWait>> $wanted card id => wait key => wait
      *
-     * @return array<string, array<string, WantedCardWait>>
+     * @return array{array<string, array<string, WantedCardWait>>, array<string, array<string, true>>} the waits that stay, and the keys of the waits that a switch holds back, by card id
      */
     private static function switchedOn(array $wanted, InboxProjectSettings $switches): array
     {
+        $off = [];
         foreach ($wanted as $cardId => $waits) {
-            $wanted[$cardId] = array_filter($waits, static fn (WantedCardWait $wait): bool => $switches->isOn($wait->trigger));
+            foreach ($waits as $key => $wait) {
+                if (null !== $wait->trigger && !$switches->isOn($wait->trigger)) {
+                    $off[$cardId][$key] = true;
+                    unset($waits[$key]);
+                }
+            }
+            $wanted[$cardId] = $waits;
         }
 
-        return array_filter($wanted);
+        return [array_filter($wanted), $off];
     }
 
     /**
@@ -434,9 +441,7 @@ final readonly class CardWaitReconciler
             $idle = !isset($running[$cardId]);
 
             if ($idle && self::waitsForReview($row, $row->headSha, $row->lastFixOpenedAt($fixes[Uuid::fromString($cardId)->toRfc4122()] ?? [])) && !$this->mergesWithoutApproval($projectId, $row, $parents[(string) $cardId] ?? null)) {
-                $waits[] = [$cardId, PullRequestReview::Approved === $row->review
-                    ? WantedCardWait::forPullRequestChangedAfterApproval($rowId, $row->headSha)
-                    : WantedCardWait::forPullRequestReady($rowId, $row->headSha)];
+                $waits[] = [$cardId, WantedCardWait::forPullRequestReady($rowId, $row->headSha)];
             }
         }
 
@@ -538,9 +543,10 @@ final readonly class CardWaitReconciler
      * item when no wait is left, and returns whether it did.
      *
      * @param array<string, WantedCardWait> $want
-     * @param list<InboxCardWait>           $ended receives the waits this call ended
+     * @param array<string, true>           $switchedOff the keys of the waits that a switch holds back
+     * @param list<InboxCardWait>           $ended       receives the waits this call ended
      */
-    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, InboxProjectSettings $switches, \DateTimeImmutable $now, array &$ended): bool
+    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, array $switchedOff, \DateTimeImmutable $now, array &$ended): bool
     {
         $open = [];
         foreach ($watch->waits as $wait) {
@@ -553,7 +559,7 @@ final readonly class CardWaitReconciler
         foreach ($open as $key => $wait) {
             if (!isset($want[$key])) {
                 $wait->endedAt = $now;
-                $wait->endReason = InboxCardWaitEndReason::Resolved === $cause && !$switches->isOn($wait->trigger) ? InboxCardWaitEndReason::SwitchedOff : $cause;
+                $wait->endReason = InboxCardWaitEndReason::Resolved === $cause && isset($switchedOff[$key]) ? InboxCardWaitEndReason::SwitchedOff : $cause;
                 $obsolete = $obsolete || InboxCardWaitEndReason::Resolved !== $wait->endReason;
                 $ended[] = $wait;
                 unset($open[$key]);
@@ -562,21 +568,11 @@ final readonly class CardWaitReconciler
 
         foreach ($want as $key => $wanted) {
             if (isset($open[$key])) {
+                $open[$key]->label = $wanted->label;
+                $open[$key]->params = $wanted->params;
                 continue;
             }
-            $open[$key] = new InboxCardWait(
-                watch: $watch,
-                trigger: $wanted->trigger,
-                type: $wanted->type,
-                reason: $wanted->reason,
-                documentId: $wanted->document?->id,
-                versionNumber: $wanted->versionNumber,
-                runId: $wanted->runId,
-                pullRequestId: $wanted->pullRequestId,
-                headSha: $wanted->headSha,
-                startedAt: $now,
-                pauseId: $wanted->pauseId,
-            );
+            $open[$key] = InboxCardWait::forSubject($watch, $wanted->markerKey, $wanted->label, $wanted->params, $wanted->subject, $now);
             $watch->waits->add($open[$key]);
             if (null !== $wanted->document) {
                 $this->link($watch->item, $wanted->document, $now);

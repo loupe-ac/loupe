@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\RunOutputText;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -37,7 +36,7 @@ final class CardWaitTextTest extends KernelTestCase
         $project = $this->project($em, $this->owner($em, 'wait-text'), 'wait-text');
         $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#4 Ship it', blocking: true);
         $watch = new InboxCardWatch($item, Uuid::v7(), 4);
-        $this->wait = new InboxCardWait($watch, InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, documentId: Uuid::v7(), versionNumber: 1);
+        $this->wait = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', documentId: Uuid::v7(), versionNumber: 1);
         $watch->waits->add($this->wait);
     }
 
@@ -52,5 +51,45 @@ final class CardWaitTextTest extends KernelTestCase
 
         self::assertSame('A deleted document, version 1, of card 4 waited for your review. Dismiss this item.', $body);
         self::assertStringNotContainsString('""', $body);
+    }
+
+    public function test_the_stored_values_fill_the_label_of_the_marker(): void
+    {
+        $wait = new InboxCardWait($this->wait->watch, 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: Uuid::v7(), headSha: 'abc123', params: ['%number%' => 7]);
+
+        self::assertSame('Pull request #7 waits for your approval. Review pull request #7.', $this->text->body([$wait]));
+        self::assertSame('Pull request #7 waits for your approval.', $this->text->title([$wait], 'Ship it', 200));
+    }
+
+    public function test_a_wait_with_no_label_reads_the_fallback_of_its_type(): void
+    {
+        $wait = new InboxCardWait($this->wait->watch, 'waits-for-approval', InboxCardWaitType::PullRequest, '', pullRequestId: Uuid::v7(), headSha: 'abc123', params: ['%number%' => 7]);
+
+        self::assertSame('A pull request of card 4 waits for your review. Review pull request #7.', $this->text->body([$wait]));
+    }
+
+    public function test_a_run_wait_with_a_headline_reads_the_variant_of_its_label(): void
+    {
+        $params = ['%worker%' => 'implement worker', '%Worker%' => 'Implement worker', '%headline%' => 'Needs the API key'];
+        $wait = new InboxCardWait($this->wait->watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: Uuid::v7(), params: $params);
+
+        self::assertSame('The implement worker on card 4 needs you: Needs the API key. Open card 4.', $this->text->body([$wait]));
+        self::assertSame('Implement worker needs you: Needs the API key', $this->text->title([$wait], 'Ship it', 200));
+    }
+
+    public function test_a_run_wait_without_a_headline_reads_the_label_itself(): void
+    {
+        $wait = new InboxCardWait($this->wait->watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: Uuid::v7());
+
+        self::assertSame('The last worker run needs you. Open card 4.', $this->text->body([$wait]));
+    }
+
+    public function test_the_values_of_a_run_wait_come_from_the_output_of_the_run(): void
+    {
+        self::assertSame(
+            ['%worker%' => 'implement worker', '%Worker%' => 'Implement worker', '%headline%' => 'Needs the API key'],
+            RunOutputText::params('implement', 'STAGE RESULT: blocked: Needs the API key. Second line'),
+        );
+        self::assertSame(['%worker%' => 'worker', '%Worker%' => 'Worker', '%headline%' => ''], RunOutputText::params(null, ''));
     }
 }

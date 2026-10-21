@@ -100,7 +100,7 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Document version 1 waits for your review');
+        self::assertSelectorTextSame('.lp-inbox-ask__title', 'The document "Tech design" waits for your review.');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
         self::assertCount(1, $crawler->filter('[data-inbox-linked-menu] [data-linked-card="'.$this->card->id.'"]'));
     }
@@ -144,8 +144,6 @@ final class WaitItemPageTest extends WebTestCase
     {
         $this->reconcile();
         $item = $this->onlyWatch()->item;
-        self::assertStringNotContainsString('Tech', $item->title);
-
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?q='.rawurlencode('Tech design'));
 
         self::assertResponseIsSuccessful();
@@ -169,14 +167,14 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $current = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
         self::assertCount(1, $current);
-        self::assertStringContainsString('The document "Tech design", version 2, of card 4 waits for your review.', $current->text());
+        self::assertStringContainsString('The document "Tech design" waits for your review.', $current->text());
         $main = $crawler->filter('#inbox-item-1 .inbox-split__main');
         self::assertCount(1, $main);
         self::assertSame('Review', trim($main->text()));
         self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $main->attr('href'));
         $ended = $crawler->filter('#inbox-item-1 [data-inbox-wait="ended"]');
         self::assertCount(1, $ended);
-        self::assertStringContainsString('version 1', $ended->text());
+        self::assertStringContainsString('waits for your review', $ended->text());
         self::assertStringContainsString('Closed', $ended->text());
 
         self::assertCount(0, $crawler->filter('form[name="inbox_done_'.$item->id.'"]'));

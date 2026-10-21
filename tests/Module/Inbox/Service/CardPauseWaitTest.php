@@ -12,8 +12,6 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxProjectSettings;
@@ -59,8 +57,8 @@ final class CardPauseWaitTest extends KernelTestCase
         $pause = $this->pause('owner-review');
 
         $wait = $this->onlyWait($this->onlyWatch());
-        self::assertSame(InboxCardWaitTrigger::CardPaused, $wait->trigger);
-        self::assertSame(InboxCardWaitReason::PauseRule, $wait->reason);
+        self::assertSame('paused', $wait->markerKey);
+        self::assertSame('marker.paused', $wait->label);
         self::assertEquals($pause->id, $wait->pauseId);
         self::assertSame(InboxItemState::Open, $this->onlyWatch()->item->state);
 
@@ -104,7 +102,7 @@ final class CardPauseWaitTest extends KernelTestCase
         self::assertInstanceOf(CardWaitReconciler::class, $reconciler);
         $reconciler->reconcile($this->project, null);
 
-        self::assertSame(InboxCardWaitTrigger::CardPaused, $this->onlyWait($this->onlyWatch())->trigger);
+        self::assertSame('paused', $this->onlyWait($this->onlyWatch())->markerKey);
     }
 
     /** Pauses the card as the engine does, with CardPaused after the commit, then runs the queued reconciles. */

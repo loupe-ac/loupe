@@ -476,6 +476,7 @@ final readonly class ItemActions
             InboxCardWaitType::WorkerRun => InboxActionKind::ResumeRun,
             InboxCardWaitType::CardPause => InboxActionKind::RetryCard,
             InboxCardWaitType::Document, InboxCardWaitType::PullRequest => InboxActionKind::Review,
+            InboxCardWaitType::Card => InboxActionKind::Open,
         };
 
         return \in_array($preferred, $fitting, true) ? $preferred : InboxActionKind::Open;

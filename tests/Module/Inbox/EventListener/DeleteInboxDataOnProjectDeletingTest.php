@@ -10,8 +10,6 @@ use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxBridgeOutage;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -118,7 +116,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         // The watch names its project too, so its foreign key must not block the project delete.
         $waitItem = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
         $watch = new InboxCardWatch($waitItem, $card->id ?? throw new \LogicException('A stored card has an id.'), $card->number);
-        $wait = new InboxCardWait($watch, InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, $document->id, 1);
+        $wait = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', $document->id, 1);
         $watch->waits->add($wait);
         $this->em->persist($waitItem);
         $this->em->persist($watch);
