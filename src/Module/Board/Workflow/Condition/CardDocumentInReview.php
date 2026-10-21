@@ -20,7 +20,7 @@ use App\Module\Workflow\Contract\ParameterValue;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A linked document with the tag is in review. */
+/** A linked document with the tag is in review. A marker that binds a document reads that document alone. */
 final readonly class CardDocumentInReview implements Condition, MarkerEvidence, NamesMarkerSubject, ReadsDocumentTag
 {
     #[\Override]
@@ -72,7 +72,7 @@ final readonly class CardDocumentInReview implements Condition, MarkerEvidence, 
 
         return null === $oldest ? null : new Evidence(
             ['%title%' => $oldest->title ?? ''],
-            new MarkerSubject(MarkerSubjectType::Document, ['document' => $oldest->id, 'version' => (string) ($oldest->version ?? 0)]),
+            MarkerSubject::document($oldest),
         );
     }
 
@@ -99,7 +99,7 @@ final readonly class CardDocumentInReview implements Condition, MarkerEvidence, 
 
         return array_values(array_filter(
             $facts->get(DocumentsFacts::class)->documents,
-            static fn (DocumentFacts $document): bool => DocumentStatus::InReview->value === $document->status && \in_array($tag, $document->tags, true),
+            static fn (DocumentFacts $document): bool => DocumentStatus::InReview->value === $document->status && \in_array($tag, $document->tags, true) && $facts->readsDocument($document->id),
         ));
     }
 }

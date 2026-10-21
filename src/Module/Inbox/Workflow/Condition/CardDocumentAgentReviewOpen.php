@@ -9,7 +9,7 @@ use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** An agent asked the owner to review a document in review of the card, and that review item is open. */
+/** An agent asked the owner to review a document in review of the card, and that review item is open. A marker that binds a document reads that document alone. */
 final readonly class CardDocumentAgentReviewOpen implements Condition
 {
     #[\Override]
@@ -39,7 +39,7 @@ final readonly class CardDocumentAgentReviewOpen implements Condition
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return $facts->get(AgentReviewOpenFacts::class)->open();
+        return array_any($facts->get(AgentReviewOpenFacts::class)->documentIds, $facts->readsDocument(...));
     }
 
     #[\Override]

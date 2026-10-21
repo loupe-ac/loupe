@@ -7,6 +7,7 @@ namespace App\Tests\Module\Workflow\Engine;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\PauseFacts;
+use App\Module\Inbox\Workflow\AgentReviewOpenFacts;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\MarkerKind;
@@ -367,6 +368,17 @@ final class MarkerPassTest extends KernelTestCase
         ], array_map(static fn (StoredMarker $marker): ?MarkerSubject => $marker->subject, $this->writtenInbox ?? []));
         self::assertSame([['%title%' => 'First'], ['%title%' => 'Second']], array_map(static fn (StoredMarker $marker): array => $marker->params, $this->writtenInbox ?? []));
         self::assertSame(['%title%' => 'First'], $this->written('review')->params, 'the board entry keeps the document that waited longest');
+    }
+
+    public function test_a_document_marker_reads_each_bound_document_alone(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('review', 'needs-you', ['all' => [['card.document.in_review' => ['tag' => 'design']], ['not' => ['card.document.agent_review_open' => []]]]])], ['review']);
+        $documents = new DocumentsFacts([new DocumentFacts(['design'], 'in-review', 'one', 'First', null, 1), new DocumentFacts(['design'], 'in-review', 'two', 'Second', null, 1)]);
+
+        $this->pass($template, FactsMother::facts(provided: [DocumentsFacts::class => $documents, AgentReviewOpenFacts::class => new AgentReviewOpenFacts(['one'])]));
+
+        self::assertEquals([new MarkerSubject(MarkerSubjectType::Document, ['document' => 'two', 'version' => '1'])], array_map(static fn (StoredMarker $marker): ?MarkerSubject => $marker->subject, $this->writtenInbox ?? []), 'the document under agent review opens no entry');
     }
 
     public function test_a_listed_fallback_stores_inbox_entries_only_while_the_board_shows_it(): void

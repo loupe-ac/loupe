@@ -28,6 +28,12 @@ final readonly class MarkerSubject
         ]);
     }
 
+    /** The subject of a marker about a document: the document and its newest version. */
+    public static function document(DocumentFacts $document): self
+    {
+        return new self(MarkerSubjectType::Document, ['document' => $document->id, 'version' => (string) ($document->version ?? 0)]);
+    }
+
     public function equals(self $other): bool
     {
         return $this->type === $other->type && $this->ids == $other->ids;

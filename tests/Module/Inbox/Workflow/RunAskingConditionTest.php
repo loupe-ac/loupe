@@ -8,6 +8,7 @@ use App\Module\Inbox\Workflow\AgentReviewOpenFacts;
 use App\Module\Inbox\Workflow\Condition\CardDocumentAgentReviewOpen;
 use App\Module\Inbox\Workflow\Condition\CardRunAsking;
 use App\Module\Inbox\Workflow\RunAskingFacts;
+use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use PHPUnit\Framework\TestCase;
@@ -47,6 +48,8 @@ final class RunAskingConditionTest extends TestCase
 
         self::assertTrue(new CardDocumentAgentReviewOpen()->evaluate($open, []));
         self::assertFalse(new CardDocumentAgentReviewOpen()->evaluate(FactsMother::facts(), []));
+        self::assertTrue(new CardDocumentAgentReviewOpen()->evaluate($open->withDocument(new DocumentFacts([], 'in-review', '0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7')), []), 'the bound document is under review');
+        self::assertFalse(new CardDocumentAgentReviewOpen()->evaluate($open->withDocument(new DocumentFacts([], 'in-review', 'other')), []), 'another document is under review');
     }
 
     public function test_the_waiting_sentences_follow_the_negation(): void

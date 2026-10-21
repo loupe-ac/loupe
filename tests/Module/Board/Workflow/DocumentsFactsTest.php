@@ -41,17 +41,18 @@ final class DocumentsFactsTest extends TestCase
         self::assertEquals($facts, $facts->withDocumentStatus('missing', 'approved'));
     }
 
-    public function test_the_card_documents_bind_one_document_and_the_facts_read_only_that_one(): void
+    public function test_the_facts_list_the_card_documents_and_bind_one_of_them(): void
     {
         $documents = new DocumentsFacts([new DocumentFacts(['a'], 'in-review', 'one'), new DocumentFacts(['a'], 'in-review', 'two')]);
-        $facts = FactsMother::facts(provided: [DocumentsFacts::class => $documents, ParentDocumentsFacts::class => new ParentDocumentsFacts($documents->documents)]);
+        $facts = FactsMother::facts(provided: [DocumentsFacts::class => $documents, ParentDocumentsFacts::class => new ParentDocumentsFacts([new DocumentFacts(['a'], 'approved', 'parent')])]);
 
         $bound = $facts->withDocument($documents->documents[1]);
 
-        self::assertSame(['one', 'two'], array_map(static fn (DocumentFacts $document): string => $document->id, $facts->documents()));
-        self::assertSame(['two'], array_map(static fn (DocumentFacts $document): string => $document->id, $bound->documents()));
-        self::assertCount(2, $bound->get(ParentDocumentsFacts::class)->documents, 'the parent documents are not the card documents');
-        self::assertSame([], FactsMother::facts()->documents());
+        self::assertSame(['one', 'two'], array_map(static fn (DocumentFacts $document): string => $document->id, $facts->documents()), 'the parent documents are not the card documents');
+        self::assertSame($facts->documents(), $bound->documents(), 'a bound document hides no document from a rule');
+        self::assertSame([true, true], [$facts->readsDocument('one'), $facts->readsDocument('two')]);
+        self::assertSame([false, true], [$bound->readsDocument('one'), $bound->readsDocument('two')]);
+        self::assertTrue($bound->withPullRequest(null)->withProvided([])->readsDocument('two') && !$bound->withPullRequest(null)->readsDocument('one'), 'a copy keeps the bound document');
     }
 
     /** @return iterable<string, array{class-string<SwapsDocumentStatus>}> */

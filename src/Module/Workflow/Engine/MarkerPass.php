@@ -76,12 +76,14 @@ final readonly class MarkerPass
                 $dueAt = self::earlier($dueAt, $this->changesAt($marker, $subject));
             }
             $bound = $this->ruleSubject->bindWhen($marker->when, $run->facts);
-            if (!$bound->truth) {
+            $facts = MarkerSubjectType::Document === self::subjectType($marker) ? self::bindDocument($marker, $bound->facts) : null;
+            if (null === $facts && !$bound->truth) {
                 continue;
             }
-            $entry = $this->entry($marker, $bound->facts, $stored[$marker->key] ?? null, $run->now)->withoutSubject();
+            $facts ??= $bound->facts;
+            $entry = $this->entry($marker, $facts, $stored[$marker->key] ?? null, $run->now)->withoutSubject();
             $entries = \in_array($marker->key, $run->template->inbox, true)
-                ? $this->inboxEntries($run, $marker, $bound->facts, $stored[$marker->key] ?? null, $storedInbox)
+                ? $this->inboxEntries($run, $marker, $facts, $stored[$marker->key] ?? null, $storedInbox)
                 : [];
             if ([] !== $entries) {
                 $entry = $entry->withSince($entries[0]->since);
@@ -122,10 +124,7 @@ final readonly class MarkerPass
         $type = self::subjectType($marker);
         $candidates = match ($type) {
             MarkerSubjectType::PullRequest => $this->ruleSubject->subjects($marker->when, $run->facts),
-            MarkerSubjectType::Document => array_map(
-                $bound->withDocument(...),
-                array_values(array_filter($run->facts->documents(), static fn (DocumentFacts $document): bool => DocumentStatuses::IN_REVIEW === $document->status)),
-            ),
+            MarkerSubjectType::Document => array_map($bound->withDocument(...), self::documentsInReview($run->facts)),
             default => [$bound],
         };
         $previous = array_values(array_filter($storedInbox ?? [], static fn (StoredMarker $entry): bool => $entry->key === $marker->key));
@@ -148,6 +147,25 @@ final readonly class MarkerPass
         }
 
         return $entries;
+    }
+
+    /** The facts bound to the first document in review that makes the marker true, as bindWhen() binds a pull request, or null when none does. */
+    private static function bindDocument(TemplateMarker $marker, Facts $facts): ?Facts
+    {
+        foreach (self::documentsInReview($facts) as $document) {
+            $bound = $facts->withDocument($document);
+            if ($marker->when->evaluate($bound)) {
+                return $bound;
+            }
+        }
+
+        return null;
+    }
+
+    /** @return list<DocumentFacts> */
+    private static function documentsInReview(Facts $facts): array
+    {
+        return array_values(array_filter($facts->documents(), static fn (DocumentFacts $document): bool => DocumentStatuses::IN_REVIEW === $document->status));
     }
 
     private static function subjectType(TemplateMarker $marker): ?MarkerSubjectType
