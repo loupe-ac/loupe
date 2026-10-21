@@ -49,11 +49,18 @@ final readonly class WorkflowRuleActions implements RuleActions
 
     private static function firesOn(Expression $when, string $conditionKey): bool
     {
-        if ($when instanceof NamedFact) {
-            $when = $when->expression;
-        }
-        $leaves = $when instanceof AllOf ? $when->children : [$when];
+        $when = self::unnamed($when);
+        $leaves = $when instanceof AllOf ? array_map(self::unnamed(...), $when->children) : [$when];
 
         return array_any($leaves, static fn (Expression $leaf): bool => $leaf instanceof ConditionLeaf && $conditionKey === $leaf->condition::key());
+    }
+
+    private static function unnamed(Expression $expression): Expression
+    {
+        while ($expression instanceof NamedFact) {
+            $expression = $expression->expression;
+        }
+
+        return $expression;
     }
 }
