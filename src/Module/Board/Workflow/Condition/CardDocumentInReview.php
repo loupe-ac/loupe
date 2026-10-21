@@ -11,6 +11,9 @@ use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
@@ -18,7 +21,7 @@ use App\Module\Workflow\Contract\ReadsDocumentTag;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /** A linked document with the tag is in review. */
-final readonly class CardDocumentInReview implements Condition, MarkerEvidence, ReadsDocumentTag
+final readonly class CardDocumentInReview implements Condition, MarkerEvidence, NamesMarkerSubject, ReadsDocumentTag
 {
     #[\Override]
     public static function key(): string
@@ -67,7 +70,16 @@ final readonly class CardDocumentInReview implements Condition, MarkerEvidence, 
             }
         }
 
-        return null === $oldest ? null : new Evidence(['%title%' => $oldest->title ?? '']);
+        return null === $oldest ? null : new Evidence(
+            ['%title%' => $oldest->title ?? ''],
+            new MarkerSubject(MarkerSubjectType::Document, ['document' => $oldest->id, 'version' => (string) ($oldest->version ?? 0)]),
+        );
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::Document;
     }
 
     #[\Override]

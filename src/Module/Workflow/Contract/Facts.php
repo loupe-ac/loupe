@@ -53,6 +53,31 @@ final readonly class Facts
         return $list instanceof PullRequestList ? $list->pullRequests : [];
     }
 
+    /** @return list<DocumentFacts> every document linked to the card, empty when no provider gives them or they cannot be read */
+    public function documents(): array
+    {
+        foreach ($this->provided as $facts) {
+            if ($facts instanceof CardDocumentList) {
+                return $facts->linkedDocuments();
+            }
+        }
+
+        return [];
+    }
+
+    /** A copy whose card documents hold only the document, so a condition on the card documents reads that one. */
+    public function withDocument(DocumentFacts $document): self
+    {
+        $bound = [];
+        foreach ($this->provided as $class => $facts) {
+            if ($facts instanceof CardDocumentList) {
+                $bound[$class] = $facts->withOnly($document->id);
+            }
+        }
+
+        return $this->withProvided($bound);
+    }
+
     /**
      * @template T of object
      *

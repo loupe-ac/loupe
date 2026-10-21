@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Engine;
 
 use App\Module\Board\Workflow\CardActivityFacts;
+use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Workflow\Contract\ChecksState;
+use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\MarkerSubjectType;
@@ -344,6 +346,44 @@ final class MarkerPassTest extends KernelTestCase
 
         self::assertCount(1, $this->writtenInbox ?? []);
         self::assertSame(MarkerSubjectType::Card, ($this->writtenInbox[0] ?? throw new \LogicException('The pass stored no inbox entry.'))->subject?->type);
+    }
+
+    public function test_a_listed_marker_stores_one_inbox_entry_for_each_document_in_review_that_makes_it_true(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('review', 'needs-you', ['card.document.in_review' => ['tag' => 'design']])], ['review']);
+        $documents = new DocumentsFacts([
+            new DocumentFacts(['design'], 'in-review', 'one', 'First', new \DateTimeImmutable('2026-10-01 09:00:00'), 2),
+            new DocumentFacts(['design'], 'in-review', 'two', 'Second', new \DateTimeImmutable('2026-10-01 10:00:00'), 5),
+            new DocumentFacts(['plan'], 'in-review', 'three', 'Other tag', null, 1),
+            new DocumentFacts(['design'], 'approved', 'four', 'Approved', null, 1),
+        ]);
+
+        $this->pass($template, FactsMother::facts(provided: [DocumentsFacts::class => $documents]));
+
+        self::assertEquals([
+            new MarkerSubject(MarkerSubjectType::Document, ['document' => 'one', 'version' => '2']),
+            new MarkerSubject(MarkerSubjectType::Document, ['document' => 'two', 'version' => '5']),
+        ], array_map(static fn (StoredMarker $marker): ?MarkerSubject => $marker->subject, $this->writtenInbox ?? []));
+        self::assertSame([['%title%' => 'First'], ['%title%' => 'Second']], array_map(static fn (StoredMarker $marker): array => $marker->params, $this->writtenInbox ?? []));
+        self::assertSame(['%title%' => 'First'], $this->written('review')->params, 'the board entry keeps the document that waited longest');
+    }
+
+    public function test_a_listed_fallback_stores_inbox_entries_only_while_the_board_shows_it(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([
+            self::marker('busy', 'working', ['card.type' => ['type' => 'bug']]),
+            self::marker('quiet', 'stuck', self::ALWAYS, fallback: true),
+            self::marker('later', 'stuck', self::ALWAYS, fallback: true),
+            self::marker('chip', 'chip', self::ALWAYS),
+        ], ['quiet', 'later', 'chip']);
+
+        $this->pass($template, FactsMother::facts());
+        self::assertSame(['quiet', 'chip'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []), 'only the fallback that the board shows, in template order');
+
+        $this->pass($template, FactsMother::facts(card: FactsMother::card(type: 'bug')));
+        self::assertSame(['chip'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []), 'a state marker hides the fallback on the board and in the inbox');
     }
 
     private static function openPullRequest(int $number, string $head, ChecksState $checks = ChecksState::None): PullRequestFacts

@@ -6,6 +6,8 @@ namespace App\Module\Workflow\Engine;
 
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\DocumentStatuses;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\MarkerKind;
@@ -62,6 +64,8 @@ final readonly class MarkerPass
         $matched = [];
         $inbox = [];
         $fallback = null;
+        $fallbackInbox = [];
+        $fallbackAt = 0;
         $stateMatched = false;
         $dueAt = null;
         foreach ($run->template->markers as $marker) {
@@ -76,22 +80,26 @@ final readonly class MarkerPass
                 continue;
             }
             $entry = $this->entry($marker, $bound->facts, $stored[$marker->key] ?? null, $run->now)->withoutSubject();
-            if (\in_array($marker->key, $run->template->inbox, true)) {
-                $entries = $this->inboxEntries($run, $marker, $bound->facts, $stored[$marker->key] ?? null, $storedInbox);
-                if ([] !== $entries) {
-                    $inbox = [...$inbox, ...$entries];
-                    $entry = $entry->withSince($entries[0]->since);
-                }
+            $entries = \in_array($marker->key, $run->template->inbox, true)
+                ? $this->inboxEntries($run, $marker, $bound->facts, $stored[$marker->key] ?? null, $storedInbox)
+                : [];
+            if ([] !== $entries) {
+                $entry = $entry->withSince($entries[0]->since);
             }
             if ($marker->fallback) {
-                $fallback ??= $entry;
+                if (null === $fallback) {
+                    [$fallback, $fallbackInbox, $fallbackAt] = [$entry, $entries, \count($inbox)];
+                }
                 continue;
             }
             $stateMatched = $stateMatched || MarkerKind::Chip !== $marker->kind;
             $matched[] = $entry;
+            $inbox = [...$inbox, ...$entries];
         }
+        // A fallback that the board hides opens no inbox entry either.
         if (!$stateMatched && null !== $fallback) {
             $matched[] = $fallback;
+            array_splice($inbox, $fallbackAt, 0, $fallbackInbox);
         }
 
         $order = array_flip(array_map(static fn (MarkerKind $kind): string => $kind->value, MarkerKind::cases()));
@@ -112,7 +120,14 @@ final readonly class MarkerPass
     private function inboxEntries(Evaluation $run, TemplateMarker $marker, Facts $bound, ?StoredMarker $board, ?array $storedInbox): array
     {
         $type = self::subjectType($marker);
-        $candidates = MarkerSubjectType::PullRequest === $type ? $this->ruleSubject->subjects($marker->when, $run->facts) : [$bound];
+        $candidates = match ($type) {
+            MarkerSubjectType::PullRequest => $this->ruleSubject->subjects($marker->when, $run->facts),
+            MarkerSubjectType::Document => array_map(
+                $bound->withDocument(...),
+                array_values(array_filter($run->facts->documents(), static fn (DocumentFacts $document): bool => DocumentStatuses::IN_REVIEW === $document->status)),
+            ),
+            default => [$bound],
+        };
         $previous = array_values(array_filter($storedInbox ?? [], static fn (StoredMarker $entry): bool => $entry->key === $marker->key));
         $entries = [];
         foreach ($candidates as $facts) {

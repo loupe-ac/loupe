@@ -64,20 +64,21 @@ final class CardMarkerConditionsTest extends TestCase
             self::document(['tech-design'], 'in-review', 'Later', '2026-10-01 10:00:00'),
             self::document(['tech-design'], 'approved', 'Approved', '2026-10-01 07:00:00'),
             self::document(['product-design'], 'in-review', 'Other tag', '2026-10-01 06:00:00'),
-            self::document(['tech-design'], 'in-review', 'Earlier', '2026-10-01 08:00:00'),
+            $earlier = self::document(['tech-design'], 'in-review', 'Earlier', '2026-10-01 08:00:00', 4),
         );
 
         self::assertEquals(
-            new Evidence(['%title%' => 'Earlier']),
+            new Evidence(['%title%' => 'Earlier'], new MarkerSubject(MarkerSubjectType::Document, ['document' => $earlier->id, 'version' => '4'])),
             new CardDocumentInReview()->evidence($facts, ['tag' => 'tech-design']),
         );
+        self::assertSame(MarkerSubjectType::Document, new CardDocumentInReview()->subjectType());
     }
 
     public function test_a_document_in_review_with_no_version_still_gives_its_title(): void
     {
-        $facts = self::documents(self::document(['tech-design'], 'in-review', 'No version', null));
+        $facts = self::documents($document = self::document(['tech-design'], 'in-review', 'No version', null));
 
-        self::assertEquals(new Evidence(['%title%' => 'No version']), new CardDocumentInReview()->evidence($facts, ['tag' => 'tech-design']));
+        self::assertEquals(new Evidence(['%title%' => 'No version'], new MarkerSubject(MarkerSubjectType::Document, ['document' => $document->id, 'version' => '0'])), new CardDocumentInReview()->evidence($facts, ['tag' => 'tech-design']));
         self::assertNull(new CardDocumentInReview()->evidence(self::documents(), ['tag' => 'tech-design']));
     }
 
@@ -228,9 +229,9 @@ final class CardMarkerConditionsTest extends TestCase
     }
 
     /** @param list<string> $tags */
-    private static function document(array $tags, string $status, string $title = 'Design', ?string $versionAt = '2026-10-01 09:00:00'): DocumentFacts
+    private static function document(array $tags, string $status, string $title = 'Design', ?string $versionAt = '2026-10-01 09:00:00', ?int $version = null): DocumentFacts
     {
-        return new DocumentFacts($tags, $status, Uuid::v7()->toRfc4122(), $title, null === $versionAt ? null : new \DateTimeImmutable($versionAt));
+        return new DocumentFacts($tags, $status, Uuid::v7()->toRfc4122(), $title, null === $versionAt ? null : new \DateTimeImmutable($versionAt), $version);
     }
 
     private static function activity(?string $newestEventAt, int $stuckDelay = 60): Facts

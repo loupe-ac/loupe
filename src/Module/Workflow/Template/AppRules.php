@@ -99,6 +99,7 @@ final class AppRules implements ProposalSlot
             $template->agentReviewFailingSeverities,
             $template->markers,
             $template->approvalCoversConflictResolution,
+            $template->inbox,
         );
     }
 

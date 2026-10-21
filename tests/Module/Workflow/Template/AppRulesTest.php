@@ -9,7 +9,9 @@ use App\Module\Workflow\Template\InvalidTemplate;
 use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\WorkFailurePolicy;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -144,6 +146,29 @@ final class AppRulesTest extends KernelTestCase
         self::assertSame(['merged', 'teardown', 'app-groom', 'app-tidy'], array_map(static fn (Rule $rule): string => $rule->id, $joined->rules));
         self::assertSame($template->slots, $joined->slots);
         self::assertSame($template->key, $joined->key);
+    }
+
+    public function test_the_app_rules_keep_every_other_field_of_the_template(): void
+    {
+        $parsed = $this->parser()->parse($this->service(ShippedTemplates::class)->source('simple'));
+        $template = new Template(...[
+            ...get_object_vars($parsed),
+            'onWorkFailed' => new WorkFailurePolicy(['timeout'], 1, [5]),
+            'childChoices' => ['inherit' => []],
+            'epicBranch' => 'epic/{number}',
+            'agentReviewFailingSeverities' => ['important', 'nit'],
+            'approvalCoversConflictResolution' => false,
+            'inbox' => ['paused'],
+        ]);
+        foreach (new \ReflectionMethod(Template::class, '__construct')->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                self::assertNotSame($parameter->getDefaultValue(), $template->{$parameter->getName()}, \sprintf('Give "%s" a value that is not its default, so the copy is checked.', $parameter->getName()));
+            }
+        }
+
+        $joined = new AppRules($this->parser(), self::FIXTURE)->appendTo($template);
+
+        self::assertEquals([...get_object_vars($template), 'rules' => $joined->rules], get_object_vars($joined));
     }
 
     public function test_a_named_prompt_with_no_file_is_refused(): void
