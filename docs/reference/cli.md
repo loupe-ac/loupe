@@ -1,11 +1,124 @@
 ---
 title: "CLI commands"
-description: "The commands of the loupe binary that set up a repository and run the bridge: init, project link, bridge run and stop, status, credential and agent-account."
+description: "The commands of the loupe binary that set up a repository and run the bridge: setups, init, project link, bridge run and stop, status, credential and agent-account."
 ---
 
 The `loupe` binary runs on your machine. [Installing the CLI](../getting-started/cli.md)
 says how to install it. [`cli/README.md`](../../cli/README.md) holds the full
 detail of every command, and this page lists the ones you use most.
+
+## Setups: `-c` and `LOUPE_CONFIG`
+
+A setup is the folder that holds one login and everything that depends on it.
+By default it is the `loupe` folder in your OS config directory. A second setup
+lets you sign in to another Loupe instance, such as a preview, and keep your
+real login and bridge as they are.
+
+Every command takes the persistent flag `-c <folder>` or `--config <folder>`. The
+variable `LOUPE_CONFIG` names a folder in the same way. The flag wins when you set
+both. A relative path and a leading `~` become an absolute path.
+
+```bash
+loupe -c ~/loupe-preview login
+loupe -c ~/loupe-preview init --project <uuid>
+LOUPE_CONFIG=~/loupe-preview loupe status
+```
+
+The setup folder holds these files and folders:
+
+- `config.json`, the login
+- `rules.yaml`, the rule file
+- `bridge.log`, the log of the bridge
+- `runs` and `worktrees`, the files of the workers
+- `projects.json`, the project links of the setup
+- `tmp`, the temporary files of the setup, with mode 0700
+
+The CLI writes `LOUPE_CONFIG` into its own environment. The bridge, its workers,
+`loupe mcp` and the Live review panel inherit it, so they use the same setup.
+A command with neither the flag nor the variable uses the default setup, and
+nothing changes for it.
+
+A setup other than the default writes nothing outside its folder. It keeps its
+temporary files in `tmp`, and it leaves the keychain alone.
+
+A bridge listens on a Unix socket in the setup folder, at
+`bridge-<hash>.sock`. The path must be shorter than 104 bytes, the limit on
+macOS. The folder path can have about 78 characters. A longer path makes the bridge
+refuse to start with the message `use a shorter setup folder than <folder>`.
+
+A second bridge needs its own clone of the repository. Two bridges that read one
+clone can name the same `card-<n>-...` branch, and Git refuses to check out one
+branch in two worktrees.
+
+### Project links in a setup
+
+`loupe init` and `loupe project link` in a second setup write the link into
+`projects.json` in the setup folder. They never read or write `.loupe.yaml`.
+A link covers the whole Git repository. The key is the absolute path of
+`git rev-parse --git-common-dir`, so every subfolder and every worktree of one
+checkout finds the link. A folder outside Git is its own key.
+`loupe mcp`, `loupe status` and `loupe artifact` read the link first, and use
+`.loupe.yaml` only when the setup links no project. A `projects.json` that
+fails to read stops them at start. When it breaks later, they keep the last
+project of the link.
+
+`loupe mcp`, `loupe status` and `loupe artifact` read the link of the setup first.
+They use `.loupe.yaml` when the setup has no link. `loupe init` and
+`loupe project link` do not use `.loupe.yaml` at all.
+
+In a second setup, `loupe init` skips every step that writes a shared file. It
+prints `skipped, a second setup leaves shared files alone` for the plugin, the
+Codex and the Playwright steps. It writes no `.loupe/lifecycle.md`, no
+`.mcp.json` and no Claude Code declaration. The rule file goes to `rules.yaml` in
+the setup folder, and the bridge that starts is the bridge of the setup.
+
+When the setup links the folder to a project, and you pass another `--project`,
+the command stops:
+
+```text
+the setup <folder> links this folder to <project>: pass --force to replace the link, or leave out --project
+```
+
+`--force` replaces the link. `loupe project link` stops in the same way, with
+`the setup <folder> links this folder to project <id> already: pass --force to replace the link`.
+
+### Built setups
+
+A setup is built when it holds `bin/loupe` or `build.json`. People who work on
+Loupe build one with `just cli-setup <folder>`;
+[`cli/README.md`](../../cli/README.md#setups-and-builds) gives the recipe.
+
+A run in a built setup uses only the build that the recipe checked. Before it
+handles any flag, `--help` and `--version` included, the CLI compares the size and
+the SHA-256 of `bin/loupe` with `build.json`. It also checks that you own the
+file and that no other user can write it. The CLI hands the run to
+`bin/loupe` when another file runs. When a check fails, the command stops:
+
+```text
+<folder>/bin/loupe is not the build that just cli-setup checked; run just cli-setup <folder>
+```
+
+A setup that holds `build.json` and no `bin/loupe` stops too. It never falls back to the
+shared binary.
+
+The bridge and its workers run a pinned copy of the checked build, in
+`tmp/pin/<sha256>/` in the setup folder. A rebuild reaches a running bridge only after you
+stop it and start it again. A pin is hashed before reuse and before it runs. A changed pin is
+copied again, and a run from a changed pin hands over to `bin/loupe`. A bridge start removes the pins of other builds that no run used
+for seven days.
+
+### Updates in a setup
+
+A setup other than the default never replaces a binary.
+
+- In a built setup, `loupe -c <folder> update` stops. The message names the
+  checkout and the commit, and says to run `just cli-setup <folder>`. The bridge
+  of the setup runs no update check and reports a build.
+- In a setup that runs the shared binary, `loupe -c <folder> update` installs only the
+  panel copy of the running version into the setup. It prints that the binary
+  updates from the default setup. It asks no running bridge, and it runs for a
+  Homebrew binary too. The bridge runs no update check and reports that updates
+  are off.
 
 ## `loupe init`
 
@@ -76,6 +189,11 @@ It prints a note, and never fails, when:
 - the rule file has no `appPrompts` and no `work` entry
 - the rule file maps no project to the current directory
 
+It starts with two lines. `Setup:` gives the setup folder and what chose it, which
+is `-c`, `LOUPE_CONFIG` or `the default`. `Binary:` gives the release version,
+or `a build at <commit>` for a development build. In a built setup it reads
+`a build of <checkout> at <commit>`.
+
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.
 
@@ -93,6 +211,11 @@ The command needs macOS and the panel of the running version. It looks for the p
 
 1. The `libexec` folder beside the binary, where Homebrew installs it.
 2. The config folder of the CLI, in `live-review/<version>/`. On macOS this is `~/Library/Application Support/loupe/live-review/<version>/`.
+
+In a setup other than the default, the command passes the setup to the panel. A built setup uses the
+panel in `libexec/` of the setup folder only. A setup that runs the shared binary looks in `live-review/<version>/`
+of the setup, then in the same folder of the default setup. The project comes from the link of the
+setup first, then from `.loupe.yaml`.
 
 On the first run, macOS asks for the Accessibility permission for **Live review**.
 

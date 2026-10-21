@@ -238,6 +238,10 @@ func lockFileAt(path, sock string) (*os.File, error) {
 // config directory is 0700, so only its owner can connect.
 func listenControl(path string) (net.Listener, error) {
 	if len(path) >= maxSocketPath {
+		if setup := config.Current(); setup.Source != config.SourceDefault {
+			return nil, fmt.Errorf("the control socket path %s has %d bytes, and a socket path must be shorter than %d bytes: use a shorter setup folder than %s", path, len(path), maxSocketPath, setup.Dir)
+		}
+
 		return nil, fmt.Errorf("the control socket path %s has %d bytes, and a socket path must be shorter than %d bytes", path, len(path), maxSocketPath)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {

@@ -190,6 +190,11 @@ func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAc
 		if strings.HasPrefix(e, sessionEnv+"=") || strings.HasPrefix(e, socketEnv+"=") {
 			continue
 		}
+		if p, ok := strings.CutPrefix(e, "PATH="); ok && creds == nil && setupPin != "" {
+			env = append(env, "PATH="+pinFirst(p))
+
+			continue
+		}
 		if creds != nil {
 			if n, ok := strings.CutPrefix(e, "GIT_CONFIG_COUNT="); ok {
 				gitConfigs, _ = strconv.Atoi(n)
@@ -225,7 +230,7 @@ func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAc
 		// An askpass program that fails keeps git from asking the machine's
 		// askpass when the bridge helper fails.
 		"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=false", "GCM_INTERACTIVE=never",
-		"PATH="+creds.binDir+string(os.PathListSeparator)+path,
+		"PATH="+pinFirst(creds.binDir+string(os.PathListSeparator)+path),
 	)
 	if agent != nil {
 		email := strconv.FormatInt(agent.ID, 10) + "+" + agent.Login + "@users.noreply.github.com"

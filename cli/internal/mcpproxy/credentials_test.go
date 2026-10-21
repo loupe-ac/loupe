@@ -283,3 +283,24 @@ func TestAFourOhFourOnARequestWithNoSessionKeepsItsBody(t *testing.T) {
 		t.Fatalf("body: got %q, want the server's own answer kept", body)
 	}
 }
+
+func TestARefusalInASecondSetupNamesTheSetupAndTheProjectSource(t *testing.T) {
+	creds := &Credentials{
+		Tokens: api.StaticToken("static"), Project: fixed("01a0c0d9-905c-7922-a586-ccc8ce043704"),
+		Setup: "/my setup", ProjectSource: func() string { return "the project link of the setup /my setup" },
+	}
+	_, err := post(t, creds, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	if err == nil {
+		t.Fatal("RoundTrip against a 403: got no error")
+	}
+	for _, want := range []string{"the login of the setup /my setup does not cover the project 01a0c0d9-905c-7922-a586-ccc8ce043704 that the project link of the setup /my setup names"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("message lacks %q, got %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), ".loupe.yaml") {
+		t.Fatalf("message names the wrong source: %v", err)
+	}
+}
