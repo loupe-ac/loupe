@@ -53,6 +53,7 @@ final readonly class FactsBuilder
             provided: array_map(static fn (array $result): object => $result[0], $provided),
             fingerprints: array_map(static fn (array $result): mixed => $result[1], array_filter($provided, static fn (array $result): bool => !$result[0] instanceof Unreadable)),
             legacyGroups: array_map(static fn (FactProvider&LegacyFingerprintGroup $provider): string => $provider->legacyGroup(), array_filter($this->providers->byClass, static fn (FactProvider $provider): bool => $provider instanceof LegacyFingerprintGroup)),
+            projectId: $snapshot->projectId,
         );
     }
 

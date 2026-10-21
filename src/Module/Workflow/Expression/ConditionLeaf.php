@@ -38,7 +38,7 @@ final readonly class ConditionLeaf extends Expression
             if (!\is_string($key)) {
                 continue;
             }
-            if (!\array_key_exists($key, $facts->provided)) {
+            if (null === $facts->keyFor($key)) {
                 return new Unreadable(UnreadableKind::Failed, $this->condition::source(), new \LogicException(\sprintf('No fact provider gives "%s".', $key)));
             }
             $unreadable = $facts->unreadable($key);
