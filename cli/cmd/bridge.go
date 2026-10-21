@@ -23,6 +23,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/hooks"
 	"github.com/loupe-ac/loupe/cli/internal/outbound"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
 	"github.com/loupe-ac/loupe/cli/internal/transport"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
@@ -143,6 +144,13 @@ func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
 	path, err := rulesPathOr(o.rulesPath)
 	if err != nil {
 		return err
+	}
+	pin, err := makeSetupPin()
+	if err != nil {
+		return err
+	}
+	if pin != "" {
+		setupbuild.PrunePins(config.Current().Dir, pin)
 	}
 	if o.resumeFile == "" {
 		return runBridgeOn(cmd, o, defaults, path, nil, nil, nil)
@@ -492,6 +500,15 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		hb := newHeartbeater(ctx, queue, apiClient(cfg), r.bridgeID, heartbeatBody(set), heartbeatInterval(events), r.log)
 		if dir, err := config.Dir(); err != nil {
 			r.log.Warn("update_skipped", "reason", err.Error())
+		} else if setup := config.Current(); setup.Source != config.SourceDefault {
+			// A setup other than the default never replaces a binary. The
+			// default setup updates the shared one, and a build is rebuilt by
+			// its recipe.
+			state := updateOff
+			if setupbuild.Built(setup.Dir) {
+				state = updateDev
+			}
+			hb.update = func() api.HeartbeatUpdate { return api.HeartbeatUpdate{State: state} }
 		} else {
 			hook := logStaged(r.log, version)
 			if r.update != nil {
@@ -549,7 +566,12 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			env: r.runEnv,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
-					return updateResult{From: version, Outcome: outcomeFailed, Problem: "this bridge runs no update checks"}
+					problem := "this bridge runs no update checks"
+					if setup := config.Current(); setup.Source != config.SourceDefault {
+						problem = "this bridge belongs to the setup " + setup.Dir + ", which runs no update checks"
+					}
+
+					return updateResult{From: version, Outcome: outcomeFailed, Problem: problem}
 				}
 
 				return updates.checkNow(ctx, func(to string) {

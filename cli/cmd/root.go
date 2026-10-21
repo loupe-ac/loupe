@@ -3,8 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
+	"strings"
+	"syscall"
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
 	"github.com/spf13/cobra"
 )
 
@@ -21,11 +25,12 @@ func Execute() error {
 // resolveSetup picks the setup before Cobra handles any flag, help and version
 // included, and writes it into LOUPE_CONFIG so every child process follows it.
 func resolveSetup(args []string) error {
-	setup, err := config.Resolve(earlyConfigFlag(args))
+	flag, target := earlyParse(args)
+	setup, err := config.Resolve(flag)
 	if err != nil {
 		return err
 	}
-	if err := enforceSetup(setup, args); err != nil {
+	if err := enforceSetup(setup, target); err != nil {
 		return err
 	}
 	if setup.Source != config.SourceDefault {
@@ -35,14 +40,68 @@ func resolveSetup(args []string) error {
 	return nil
 }
 
-// enforceSetup runs after the setup is known and before the command runs.
-// A setup may refuse to run here. It accepts every setup for now.
-func enforceSetup(config.Setup, []string) error { return nil }
+// enforceSetup runs after the setup is known and before Cobra handles any
+// flag. In a built setup, it checks that bin/loupe is the build the recipe
+// checked, and hands the run over to that file when another file runs. A run
+// from a pin skips the hash, because the pin was checked when it was made. The
+// setup-probe command skips the check, because the recipe runs it on a build
+// that is not installed yet.
+func enforceSetup(setup config.Setup, target string) error {
+	if setup.Source == config.SourceDefault || target == "setup-probe" || !setupbuild.Built(setup.Dir) {
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate the loupe binary: %w", err)
+	}
+	if setupbuild.InPin(setup.Dir, exe) {
+		return nil
+	}
+	if _, err := setupbuild.Check(setup.Dir); err != nil {
+		return err
+	}
+	bin := setupbuild.BinPath(setup.Dir)
+	if sameFileAt(exe, bin) {
+		return nil
+	}
 
-// earlyConfigFlag reads the value of -c/--config from args with the rules
-// Cobra uses, on a throwaway command tree so the real one is not touched. A
-// parse error is ignored: Cobra parses the same arguments again and reports it.
+	return execBinary(bin, append([]string{bin}, os.Args[1:]...), withEnv(os.Environ(), config.EnvVar, setup.Dir))
+}
+
+func sameFileAt(a, b string) bool {
+	ai, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	bi, err := os.Stat(b)
+
+	return err == nil && os.SameFile(ai, bi)
+}
+
+// withEnv sets name in env.
+func withEnv(env []string, name, value string) []string {
+	out := slices.DeleteFunc(slices.Clone(env), func(e string) bool { return strings.HasPrefix(e, name+"=") })
+
+	return append(out, name+"="+value)
+}
+
+// execBinary replaces the process. Tests replace it.
+var execBinary = func(path string, argv, env []string) error {
+	return syscall.Exec(path, argv, env)
+}
+
+// earlyConfigFlag reads the value of -c/--config from args.
 func earlyConfigFlag(args []string) string {
+	flag, _ := earlyParse(args)
+
+	return flag
+}
+
+// earlyParse reads the value of -c/--config from args with the rules Cobra
+// uses, and names the command the arguments select. It parses on a throwaway
+// command tree so the real one is not touched. A parse error is ignored: Cobra
+// parses the same arguments again and reports it.
+func earlyParse(args []string) (flag, command string) {
 	probe := newRootCmd()
 	probe.InitDefaultHelpCmd()
 	target, rest, err := probe.Find(args)
@@ -54,12 +113,11 @@ func earlyConfigFlag(args []string) string {
 	target.FParseErrWhitelist.UnknownFlags = true
 	_ = target.ParseFlags(rest)
 
-	f := target.Flags().Lookup(configFlag)
-	if f == nil {
-		return ""
+	if f := target.Flags().Lookup(configFlag); f != nil {
+		flag = f.Value.String()
 	}
 
-	return f.Value.String()
+	return flag, target.Name()
 }
 
 const configFlag = "config"

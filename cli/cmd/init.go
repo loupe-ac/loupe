@@ -159,6 +159,9 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
+	if _, err := makeSetupPin(); err != nil {
+		return err
+	}
 	cfg, err := initSignIn(cmd, o)
 	if err != nil {
 		return err

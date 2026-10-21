@@ -46,10 +46,16 @@ func withSetupEnv(env []string) []string {
 	if setup.Source == config.SourceDefault {
 		return env
 	}
+	env = withEnv(env, config.EnvVar, setup.Dir)
+	if setupPin == "" {
+		return env
+	}
+	path := os.Getenv("PATH")
+	if i := slices.IndexFunc(env, func(e string) bool { return strings.HasPrefix(e, "PATH=") }); i >= 0 {
+		path = strings.TrimPrefix(env[i], "PATH=")
+	}
 
-	return append(slices.DeleteFunc(slices.Clone(env), func(e string) bool {
-		return strings.HasPrefix(e, config.EnvVar+"=")
-	}), config.EnvVar+"="+setup.Dir)
+	return withEnv(env, "PATH", pinFirst(path))
 }
 
 // writeLaunchScript writes the script of one session into root and returns its

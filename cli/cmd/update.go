@@ -20,6 +20,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
 )
@@ -52,6 +53,16 @@ func readServerRange(ctx context.Context) (string, error) {
 	}
 
 	return events.CliRange, nil
+}
+
+// builtSetupRefusal says that a built setup updates by its recipe.
+func builtSetupRefusal(setup config.Setup) error {
+	what := "a build"
+	if rec, err := setupbuild.LoadRecord(setup.Dir); err == nil && rec.Checkout != "" {
+		what = "a build of " + rec.Checkout + " at " + rec.Commit + dirtyMark(rec.Dirty)
+	}
+
+	return fmt.Errorf("the setup %s runs %s, so it has no release to install: rebuild it with just cli-setup %s", setup.Dir, what, setup.Dir)
 }
 
 // runningBridge is a bridge that holds its lock, named for the output.
@@ -89,6 +100,9 @@ func newUpdateCmdWith(self selfUpdate) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if installMethod(self.executable) == installHomebrew {
 				return errors.New(homebrewRefusal)
+			}
+			if setup := config.Current(); setup.Source != config.SourceDefault && setupbuild.Built(setup.Dir) {
+				return builtSetupRefusal(setup)
 			}
 			out := cmd.OutOrStdout()
 			bridges, err := runningBridges(rulesPath)
@@ -409,6 +423,9 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if s.hc != nil {
 		u.hc = s.hc
 	}
+	if setup := config.Current(); setup.Source != config.SourceDefault {
+		return s.runPanelOnly(ctx, out, u, setup)
+	}
 
 	running, semver := update.ParseVersion(s.version)
 	cliRange, rangeErr := s.serverRange(ctx)
@@ -487,6 +504,27 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if err := pruneVersions(dir, to, s.version); err != nil {
 		fmt.Fprintf(out, "warning: could not remove old versions: %v\n", err)
 	}
+
+	return nil
+}
+
+// runPanelOnly updates a setup that runs the shared binary. It installs the
+// Live review panel of the running version into the setup and leaves the
+// binary to the default setup.
+func (s selfUpdate) runPanelOnly(ctx context.Context, out io.Writer, u *updater, setup config.Setup) error {
+	fmt.Fprintf(out, "the setup %s runs the shared binary, which updates from the default setup\n", setup.Dir)
+	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
+	if err != nil {
+		return err
+	}
+	note, err := u.ensurePanel(ctx, releases)
+	if err != nil {
+		return err
+	}
+	if note == "" {
+		note = "the Live review panel of this setup is current at " + orDev(s.version)
+	}
+	fmt.Fprintln(out, note)
 
 	return nil
 }

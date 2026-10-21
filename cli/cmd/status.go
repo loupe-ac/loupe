@@ -20,6 +20,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/mcpproxy"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -64,6 +65,7 @@ func newStatusCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			setup := config.Current()
 			fmt.Fprintf(out, "Setup:       %s (%s)\n", setup.Dir, setup.Source)
+			fmt.Fprintf(out, "Binary:      %s\n", binaryDescription(setup))
 			current, err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
 			noteClaudeCode(out)
 			err = errors.Join(err, checkStatusAccounts(cmd.Context(), out, rulesPath))
@@ -272,4 +274,27 @@ func noteClaudeCode(out io.Writer) {
 	default:
 		fmt.Fprintf(out, "Claude Code: does not declare %q. Run `loupe project link --mcp` to declare it. Other agents keep their own configuration.\n", mcpjson.ServerKey)
 	}
+}
+
+// binaryDescription names the build that runs: a release version, or a build
+// of a checkout at a commit.
+func binaryDescription(setup config.Setup) string {
+	if version != "" {
+		return version
+	}
+	if setup.Source != config.SourceDefault {
+		if rec, err := setupbuild.LoadRecord(setup.Dir); err == nil && rec.Checkout != "" {
+			return "a build of " + rec.Checkout + " at " + rec.Commit + dirtyMark(rec.Dirty)
+		}
+	}
+
+	return "a build at " + commit + dirtyMark(dirty == "true")
+}
+
+func dirtyMark(dirty bool) string {
+	if dirty {
+		return " (dirty)"
+	}
+
+	return ""
 }

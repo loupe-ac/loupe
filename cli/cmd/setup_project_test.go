@@ -9,6 +9,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // secondSetup puts a checkout whose .loupe.yaml names a project that the
@@ -194,6 +195,7 @@ func TestReviewIOSPassesTheSetupLinkBeforeTheProjectFile(t *testing.T) {
 	if _, err := config.Resolve(setupDir); err != nil {
 		t.Fatal(err)
 	}
+	h.installPanel(t, filepath.Join(update.PanelDir(setupDir, "1.2.3"), update.PanelAppName))
 	if err := projectfile.WriteLink(setupDir, projectfile.LinkKey(h.cwd), firstProject); err != nil {
 		t.Fatal(err)
 	}
