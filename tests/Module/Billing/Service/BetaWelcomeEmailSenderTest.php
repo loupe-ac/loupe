@@ -6,13 +6,10 @@ namespace App\Tests\Module\Billing\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
-use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Service\BetaWelcomeEmailSender;
-use App\Site\SiteLinks;
-use App\Tests\Support\FeatureFlags;
+use App\Tests\Support\BetaWelcomeEmails;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\RecordingMailer;
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -20,13 +17,10 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\RawMessage;
-use Symfony\Component\Routing\RouterInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class BetaWelcomeEmailSenderTest extends KernelTestCase
 {
-    private const string DISCORD = 'https://discord.gg/example';
-
     public function test_a_due_invite_of_a_verified_user_queues_one_email_and_clears_the_date(): void
     {
         $invite = $this->redeemedInvite(verified: true);
@@ -40,7 +34,7 @@ final class BetaWelcomeEmailSenderTest extends KernelTestCase
         self::assertSame('welcome-tester@example.com', $email->getTo()[0]->getAddress());
         self::assertSame('billing.email.beta_welcome.subject', $email->getSubject());
         self::assertSame('@Billing/email/beta_welcome.html.twig', $email->getHtmlTemplate());
-        self::assertSame(self::DISCORD, $email->getContext()['discordUrl']);
+        self::assertSame(BetaWelcomeEmails::DISCORD, $email->getContext()['discordUrl']);
         self::assertMatchesRegularExpression('#^https?://[^/]+/#', $email->getContext()['appUrl']);
         self::assertNull($this->reload($invite)->welcomeEmailDueAt);
     }
@@ -172,22 +166,11 @@ final class BetaWelcomeEmailSenderTest extends KernelTestCase
         return $em->find(BetaInvite::class, $invite->id) ?? throw new \LogicException('persisted above');
     }
 
-    private function sender(MailerInterface $mailer, string $discord = self::DISCORD, ?RecordingLogger $logger = null): BetaWelcomeEmailSender
+    private function sender(MailerInterface $mailer, string $discord = BetaWelcomeEmails::DISCORD, ?RecordingLogger $logger = null): BetaWelcomeEmailSender
     {
-        $logger ??= new RecordingLogger();
         $translator = $this->createStub(TranslatorInterface::class);
         $translator->method('trans')->willReturnArgument(0);
 
-        return new BetaWelcomeEmailSender(
-            mailer: $mailer,
-            translator: $translator,
-            betaInvites: self::getContainer()->get(BetaInviteRepository::class),
-            connection: self::getContainer()->get(Connection::class),
-            siteLinks: new SiteLinks(FeatureFlags::service([SiteLinks::DISCORD_FLAG => $discord]), $logger, ''),
-            router: self::getContainer()->get(RouterInterface::class),
-            logger: $logger,
-            mailerFromAddress: 'noreply@example.com',
-            mailerFromName: 'Loupe',
-        );
+        return BetaWelcomeEmails::sender(self::getContainer(), $mailer, $translator, $discord, $logger ?? new RecordingLogger());
     }
 }
