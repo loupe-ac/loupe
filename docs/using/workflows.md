@@ -100,7 +100,7 @@ The shipped markers are:
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
-| `open-question` | Needs you | An inbox question names the card |
+| `open-question` | Needs you | A blocking inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
 | `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 6 |
 | `run-open` | Working | A worker runs on the card |
