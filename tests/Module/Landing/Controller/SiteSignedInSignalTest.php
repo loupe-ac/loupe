@@ -94,16 +94,31 @@ final class SiteSignedInSignalTest extends WebTestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('signedInValues')]
-    public function test_the_home_page_sends_a_signed_in_browser_to_the_app_and_stays_private(string $value): void
+    public function test_the_home_page_shows_go_to_app_to_a_signed_in_browser_and_stays_private(string $value): void
     {
         $client = $this->client($value);
 
         $this->get($client, '/');
 
-        self::assertResponseRedirects('http://localhost/');
-        $cacheControl = (string) $client->getResponse()->headers->get('Cache-Control');
-        self::assertStringContainsString('private', $cacheControl);
-        self::assertStringNotContainsString('public', $cacheControl);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home');
+        self::assertSelectorExists('a[data-site-chrome="go-to-app"]:not([hidden])');
+        self::assertSelectorNotExists('[data-site-chrome="signed-out"]:not([hidden])');
+        self::assertSelectorCount(2, '[data-site-chrome="signed-out"][hidden]');
+        $response = $client->getResponse();
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-cache'));
+        self::assertFalse($response->headers->hasCacheControlDirective('public'));
+    }
+
+    public function test_the_home_page_hides_go_to_app_from_a_visitor(): void
+    {
+        $client = $this->client(null);
+
+        $this->get($client, '/');
+
+        self::assertSelectorExists('a[data-site-chrome="go-to-app"][hidden]');
+        self::assertSelectorCount(2, '[data-site-chrome="signed-out"]:not([hidden])');
     }
 
     public function test_the_home_page_shows_a_visitor_with_no_cookie(): void
