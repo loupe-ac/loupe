@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,6 +183,40 @@ func TestMcpProjectReadsTheSetupLinkFirstThenTheProjectFile(t *testing.T) {
 	}
 	if !strings.Contains(notes.String(), "now names project "+firstProject) {
 		t.Errorf("notes = %q", notes.String())
+	}
+}
+
+func TestMcpProjectInASetupWithALinkIgnoresAMalformedProjectFile(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir, setupDir := secondSetup(t, w.server.URL)
+	if err := os.WriteFile(filepath.Join(dir, projectfile.Name), []byte("project: [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var notes strings.Builder
+
+	if _, _, err := mcpProjectSource("", &notes); err == nil {
+		t.Fatal("a malformed project file with no link did not fail")
+	}
+
+	if err := projectfile.WriteLink(setupDir, projectfile.LinkKey(dir), firstProject); err != nil {
+		t.Fatal(err)
+	}
+	project, source, err := mcpProjectSource("", &notes)
+	if err != nil {
+		t.Fatalf("a valid link failed on the malformed project file: %v", err)
+	}
+	if got := project(); got != firstProject || !strings.Contains(source(), setupDir) {
+		t.Fatalf("with a link: %q from %q", got, source())
+	}
+}
+
+func TestMcpProjectInTheDefaultSetupStillFailsOnAMalformedProjectFile(t *testing.T) {
+	dir := inRepo(t, newInitWorld(t, devSite()).server.URL)
+	if err := os.WriteFile(filepath.Join(dir, projectfile.Name), []byte("project: [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := mcpProjectSource("", io.Discard); err == nil {
+		t.Fatal("a malformed project file in the default setup did not fail")
 	}
 }
 

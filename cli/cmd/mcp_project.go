@@ -40,10 +40,17 @@ func mcpProjectSource(flag string, notes io.Writer) (project, source func() stri
 		return nil, nil, err
 	}
 	src := &projectSource{dir: dir, notes: notes}
-	if err := src.start(); err != nil {
-		return nil, nil, fmt.Errorf("%w\n\nWrite the file with `loupe project link`", err)
-	}
 	setup := config.Current()
+	link := ""
+	if setup.Source != config.SourceDefault {
+		link, _ = projectfile.LoadLink(setup.Dir, projectfile.LinkKey(dir))
+	}
+	if err := src.start(); err != nil {
+		if link == "" {
+			return nil, nil, fmt.Errorf("%w\n\nWrite the file with `loupe project link`", err)
+		}
+		fmt.Fprintf(notes, "loupe mcp: %v; the link of the setup %s decides\n", err, setup.Dir)
+	}
 	if setup.Source == config.SourceDefault {
 		return src.project, func() string { return projectfile.Name }, nil
 	}
@@ -141,6 +148,8 @@ func (p *projectSource) start() error {
 		return nil
 	}
 	if err != nil {
+		p.seen = nil
+
 		return err
 	}
 	p.last = file.Project
