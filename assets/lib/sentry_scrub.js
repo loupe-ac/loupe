@@ -13,6 +13,8 @@ const URL_DATA_KEYS = new Set([
     'http.request.header.referer',
     'lcp.url',
     'browser.web_vital.lcp.url',
+    'lcp.id',
+    'browser.web_vital.lcp.id',
 ]);
 const SELECTOR_DATA_KEYS = new Set([
     'lcp.element',
@@ -197,4 +199,648 @@ export function scrubTransaction(event, route) {
     }
 
     return event;
+}
+
+const REPLAY_ITEM_TYPES = new Set(['replay_event', 'replay_recording']);
+
+// rrweb copies every attribute. Only the ones that shape the layout leave the
+// page, so an attribute that a later feature adds stays out of Sentry.
+export const KEPT_ATTRIBUTES = new Set([
+    'class',
+    'type',
+    'role',
+    'style',
+    'rel',
+    'width',
+    'height',
+    'disabled',
+    'hidden',
+    'checked',
+    'selected',
+    'open',
+    'tabindex',
+    'colspan',
+    'rowspan',
+    'dir',
+    'lang',
+    'aria-hidden',
+    'aria-expanded',
+    'aria-selected',
+    'aria-current',
+    'aria-checked',
+    'aria-pressed',
+    'aria-disabled',
+    'rr_width',
+    'rr_height',
+    '_cssText',
+]);
+
+// The only properties that inline CSS keeps.
+export const KEPT_CSS_PROPERTIES = new Set([
+    'position',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'inset',
+    'display',
+    'width',
+    'height',
+    'min-width',
+    'min-height',
+    'max-width',
+    'max-height',
+    'margin',
+    'padding',
+    'transform',
+    'transition',
+    'opacity',
+    'visibility',
+    'overflow',
+    'background',
+    'font-family',
+    'box-shadow',
+    'border-radius',
+]);
+
+// CSS keywords, and the font and animation names of Loupe's own
+// stylesheets. A test keeps the list complete against assets/styles and
+// the compiled Tailwind stylesheet.
+export const KEPT_CSS_WORDS = new Set([
+    '-apple-system',
+    '-webkit-backdrop-filter',
+    '-webkit-box',
+    'absolute',
+    'all',
+    'antialiased',
+    'anywhere',
+    'aria-label',
+    'at',
+    'auto',
+    'auto-fill',
+    'backdrop-filter',
+    'background-color',
+    'balance',
+    'baseline',
+    'blinkmacsystemfont',
+    'block',
+    'bold',
+    'bolder',
+    'border-box',
+    'border-color',
+    'both',
+    'bottom',
+    'box-shadow',
+    'break-all',
+    'break-word',
+    'button',
+    'center',
+    'circle',
+    'close-quote',
+    'collapse',
+    'color',
+    'column',
+    'consolas',
+    'contain',
+    'content-visibility',
+    'contents',
+    'currentcolor',
+    'dashed',
+    'data-diff-label',
+    'data-label',
+    'data-untitled',
+    'decimal',
+    'default',
+    'disc',
+    'display',
+    'dotted',
+    'ease',
+    'ease-out',
+    'ellipse',
+    'ellipsis',
+    'false',
+    'fill',
+    'filter',
+    'fit-content',
+    'fixed',
+    'flex',
+    'flex-end',
+    'flex-start',
+    'font-size',
+    'grab',
+    'grabbing',
+    'grayscale',
+    'grid',
+    'grid-template-rows',
+    'height',
+    'help',
+    'hidden',
+    'in',
+    'infinite',
+    'infinity',
+    'inherit',
+    'initial',
+    'inline',
+    'inline-block',
+    'inline-flex',
+    'inline-grid',
+    'inline-size',
+    'inset',
+    'inside',
+    'isolate',
+    'italic',
+    'layout',
+    'lds-dual-ring',
+    'left',
+    'line-through',
+    'linear',
+    'list-item',
+    'lower-alpha',
+    'lower-roman',
+    'lowercase',
+    'lp-appear',
+    'lp-arrived',
+    'lp-board-card-changed',
+    'lp-dialog-backdrop-in',
+    'max-content',
+    'max-width',
+    'menlo',
+    'middle',
+    'monaco',
+    'monospace',
+    'no-repeat',
+    'none',
+    'normal',
+    'not-allowed',
+    'nowrap',
+    'number',
+    'oklab',
+    'opacity',
+    'open-quote',
+    'ordinal',
+    'outline-color',
+    'overlay',
+    'paint',
+    'pointer',
+    'pointer-events',
+    'pre',
+    'pre-line',
+    'pre-wrap',
+    'pretty',
+    'progress',
+    'relative',
+    'repeat-x',
+    'revert',
+    'right',
+    'rotate',
+    'row',
+    'sans-serif',
+    'scale',
+    'sfmono-regular',
+    'smooth',
+    'solid',
+    'space-between',
+    'span',
+    'spin',
+    'srgb',
+    'start',
+    'static',
+    'status',
+    'sticky',
+    'stretch',
+    'stroke',
+    'swap',
+    'system-ui',
+    'table',
+    'table-cell',
+    'tabular-nums',
+    'text',
+    'text-bottom',
+    'text-decoration-color',
+    'thin',
+    'title',
+    'to',
+    'top',
+    'transform',
+    'translate',
+    'transparent',
+    'ui-monospace',
+    'ui-sans-serif',
+    'underline',
+    'unset',
+    'upper-alpha',
+    'upper-roman',
+    'uppercase',
+    'vertical',
+    'visibility',
+    'visible',
+    'wait',
+    'wavy',
+    'wrap',
+]);
+
+const CSS_UNITS =
+    'px|rem|em|ex|ch|lh|rlh|%|vh|vw|vmin|vmax|dvh|dvw|svh|svw|lvh|lvw|cqw|cqh|cqi|cqb|cqmin|cqmax|cm|mm|q|in|pt|pc|deg|grad|rad|turn|s|ms|hz|khz|dpi|dpcm|dppx|x|fr';
+const CSS_NUMBER = new RegExp(
+    `^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?(?:${CSS_UNITS})?$`,
+    'i',
+);
+const CSS_HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
+const CSS_UNICODE_RANGE = /^u\+[0-9a-f?]{1,6}(?:-[0-9a-f]{1,6})?$/i;
+const CSS_VARIABLE = /^--[\w-]+$/;
+const CSS_FUNCTION = /^[a-z_-][\w-]*\($/i;
+const CSS_PROPERTY_NAME = /^(?:--[^\s:;{}()]+|-?[a-z_][\w-]*)$/i;
+const CSS_IMPORTANT = /\s*!\s*important\s*$/i;
+
+function isKeptCssToken(token) {
+    return (
+        CSS_NUMBER.test(token) ||
+        CSS_HEX_COLOR.test(token) ||
+        CSS_UNICODE_RANGE.test(token) ||
+        CSS_VARIABLE.test(token) ||
+        CSS_FUNCTION.test(token) ||
+        token === '+' ||
+        token === '-' ||
+        KEPT_CSS_WORDS.has(token.toLowerCase())
+    );
+}
+
+// The value has its strings emptied and its urls cut by now.
+function isKeptCssValue(value) {
+    const words = value
+        .replace(/url\("(?:[^"\\]|\\.)*"\)/g, ' ')
+        .replace(/""/g, ' ')
+        .match(/[^\s,()/*]+\(?/g);
+
+    return (words ?? []).every(isKeptCssToken);
+}
+
+function scrubCssDeclaration(name, value, builtStylesheet) {
+    if (!CSS_PROPERTY_NAME.test(name)) {
+        return null;
+    }
+    const custom = name.startsWith('--');
+    if (
+        !builtStylesheet &&
+        (custom || !KEPT_CSS_PROPERTIES.has(name.toLowerCase()))
+    ) {
+        return null;
+    }
+    const body = value.replace(CSS_IMPORTANT, '').replace(/\s+/g, ' ').trim();
+    if (body === '') {
+        return null;
+    }
+    if (!isKeptCssValue(body)) {
+        return custom ? 'initial' : null;
+    }
+
+    return CSS_IMPORTANT.test(value) ? `${body} !important` : body;
+}
+
+function scrubCssStatement(text, builtStylesheet) {
+    if (text.startsWith('@')) {
+        return builtStylesheet ? `${text.replace(/\s+/g, ' ')};` : null;
+    }
+    const colon = text.indexOf(':');
+    if (colon === -1) {
+        return null;
+    }
+    const name = text.slice(0, colon).trim();
+    const value = scrubCssDeclaration(
+        name,
+        text.slice(colon + 1),
+        builtStylesheet,
+    );
+
+    return value === null ? null : `${name}: ${value};`;
+}
+
+function endOfCssString(css, start) {
+    let index = start + 1;
+    while (index < css.length) {
+        if (css[index] === '\\') {
+            index += 2;
+        } else if (css[index] === css[start]) {
+            return index + 1;
+        } else {
+            index += 1;
+        }
+    }
+
+    return css.length;
+}
+
+function cssUrl(css, start) {
+    let index = start + 4;
+    while (/\s/.test(css[index] ?? '')) {
+        index += 1;
+    }
+    let target;
+    if (css[index] === '"' || css[index] === "'") {
+        const end = endOfCssString(css, index);
+        target = css.slice(index + 1, end - 1);
+        index = end;
+    } else {
+        const end = css.indexOf(')', index);
+        target = css.slice(index, end === -1 ? css.length : end);
+        index = end === -1 ? css.length : end;
+    }
+    const close = css.indexOf(')', index);
+    let kept = '';
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target.trim())) {
+        kept = origin(target.trim());
+    } else if (target.trim() !== '' && !/^data:/i.test(target.trim())) {
+        kept = '[path]';
+    }
+
+    return {
+        text: `url("${kept}")`,
+        next: close === -1 ? css.length : close + 1,
+    };
+}
+
+// Cleans CSS text. A comment goes, a string is emptied and a url keeps its
+// origin. A declaration stays when each word of its value is a known CSS word.
+// Inline CSS keeps only the properties of KEPT_CSS_PROPERTIES, because a
+// number or a colour can hold an id. A built stylesheet holds no user data,
+// so it keeps its custom properties and numbers.
+export function scrubCss(css, { builtStylesheet = false } = {}) {
+    const parts = [];
+    let buffer = '';
+    let skipped = 0;
+    const endStatement = () => {
+        const text = buffer.trim();
+        buffer = '';
+        const statement =
+            skipped === 0 && text !== ''
+                ? scrubCssStatement(text, builtStylesheet)
+                : null;
+        if (statement !== null) {
+            parts.push(statement);
+        }
+    };
+
+    let index = 0;
+    while (index < css.length) {
+        const char = css[index];
+        if (char === '/' && css[index + 1] === '*') {
+            const end = css.indexOf('*/', index + 2);
+            buffer += ' ';
+            index = end === -1 ? css.length : end + 2;
+        } else if (char === '"' || char === "'") {
+            buffer += '""';
+            index = endOfCssString(css, index);
+        } else if (
+            css.slice(index, index + 4).toLowerCase() === 'url(' &&
+            !/[\w-]$/.test(buffer)
+        ) {
+            const { text, next } = cssUrl(css, index);
+            buffer += text;
+            index = next;
+        } else if (char === '\\') {
+            buffer += css.slice(index, index + 2);
+            index += 2;
+        } else if (char === ';') {
+            endStatement();
+            index += 1;
+        } else if (char === '{') {
+            const prelude = buffer.trim().replace(/\s+/g, ' ');
+            buffer = '';
+            if (skipped > 0 || prelude.startsWith('--')) {
+                skipped += 1;
+            } else {
+                parts.push(prelude === '' ? '{' : `${prelude} {`);
+            }
+            index += 1;
+        } else if (char === '}') {
+            endStatement();
+            if (skipped > 0) {
+                skipped -= 1;
+            } else {
+                parts.push('}');
+            }
+            index += 1;
+        } else {
+            buffer += char;
+            index += 1;
+        }
+    }
+    endStatement();
+
+    return parts.join(' ');
+}
+
+function scrubStyleObject(style) {
+    const kept = {};
+    for (const [property, value] of Object.entries(style)) {
+        if (typeof value === 'string') {
+            const scrubbed = scrubCssValue(property, value);
+            if (scrubbed !== null) {
+                kept[property] = scrubbed;
+            }
+        } else if (Array.isArray(value) && typeof value[0] === 'string') {
+            const scrubbed = scrubCssValue(property, value[0]);
+            if (scrubbed !== null) {
+                kept[property] = [scrubbed, value[1]];
+            }
+        } else if (value === false) {
+            kept[property] = value;
+        }
+    }
+
+    return kept;
+}
+
+function scrubCssValue(property, value) {
+    if (/[;{}]/.test(value)) {
+        return null;
+    }
+    const css = scrubCss(`${property}: ${value}`);
+
+    return css === '' ? null : css.slice(css.indexOf(':') + 2, -1);
+}
+
+function scrubAttributes(attributes, tagName) {
+    const kept = {};
+    for (const [name, value] of Object.entries(attributes)) {
+        if (!KEPT_ATTRIBUTES.has(name)) {
+            continue;
+        }
+        if (name === 'style' && value !== null && typeof value === 'object') {
+            kept[name] = scrubStyleObject(value);
+        } else if (typeof value === 'object' && value !== null) {
+            continue;
+        } else if (typeof value !== 'string') {
+            kept[name] = value;
+        } else if (name === 'style') {
+            kept[name] = scrubCss(value);
+        } else if (name === '_cssText') {
+            kept[name] = scrubCss(value, {
+                builtStylesheet: tagName === 'link',
+            });
+        } else {
+            kept[name] = redact(value);
+        }
+    }
+
+    return kept;
+}
+
+const CSS_RECORD_KEYS = new Set(['rule', 'replace', 'replaceSync']);
+const MASKED_TEXT = /^[*\s]*$/;
+const DROPPED = Symbol('dropped');
+
+function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function scrubRecordValue(value, key = '', parent = {}) {
+    if (typeof value === 'string') {
+        if (
+            CSS_RECORD_KEYS.has(key) ||
+            (key === 'textContent' && parent.isStyle)
+        ) {
+            return scrubCss(value);
+        }
+        return redact(value);
+    }
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => scrubRecordValue(item, key, parent))
+            .filter((item) => item !== DROPPED);
+    }
+    if (!isPlainObject(value)) {
+        return value;
+    }
+    const scrubbed = {};
+    for (const [name, item] of Object.entries(value)) {
+        if (name === 'attributes' && isPlainObject(item)) {
+            scrubbed[name] = scrubAttributes(item, value.tagName);
+        } else if (name === 'texts' && Array.isArray(item)) {
+            scrubbed[name] = item.map((text) => ({
+                ...text,
+                value:
+                    typeof text.value === 'string' &&
+                    !MASKED_TEXT.test(text.value)
+                        ? scrubCss(text.value)
+                        : redact(String(text.value ?? '')),
+            }));
+        } else {
+            scrubbed[name] = scrubRecordValue(item, name, value);
+        }
+    }
+
+    return scrubbed;
+}
+
+function scrubRecord(record) {
+    const data = record?.data;
+    if (record?.type === 5 && data?.tag === 'breadcrumb') {
+        if (keepBreadcrumb(data.payload ?? {}) === null) {
+            return DROPPED;
+        }
+    }
+    if (record?.type === 3 && data?.source === 13 && data.set) {
+        const value = scrubCssValue(
+            String(data.set.property),
+            String(data.set.value),
+        );
+        if (value === null) {
+            return DROPPED;
+        }
+        const { set, ...rest } = data;
+        const scrubbed = scrubRecordValue({ ...record, data: rest });
+        scrubbed.data.set = { ...set, value };
+
+        return scrubbed;
+    }
+
+    return scrubRecordValue(record);
+}
+
+function scrubRecording(header, payload) {
+    if (typeof payload !== 'string') {
+        throw new Error('A compressed replay recording cannot be scrubbed');
+    }
+    const newline = payload.indexOf('\n');
+    const segment = JSON.parse(payload.slice(0, newline));
+    const records = JSON.parse(payload.slice(newline + 1));
+    const scrubbed = [
+        JSON.stringify({ segment_id: Number(segment.segment_id) }),
+        JSON.stringify(
+            records.map(scrubRecord).filter((record) => record !== DROPPED),
+        ),
+    ].join('\n');
+
+    return [
+        { ...header, length: new TextEncoder().encode(scrubbed).length },
+        scrubbed,
+    ];
+}
+
+function redactStrings(value) {
+    if (typeof value === 'string') {
+        return redact(value);
+    }
+    if (Array.isArray(value)) {
+        return value.map(redactStrings);
+    }
+    if (isPlainObject(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [
+                key,
+                redactStrings(item),
+            ]),
+        );
+    }
+
+    return value;
+}
+
+// The replay envelope holds the replay event and the recording of the page.
+// Both carry URLs and page content that beforeSend never sees.
+export function scrubReplayEnvelope(envelope) {
+    const [headers, items] = envelope;
+
+    return [
+        headers,
+        items.map((item) => {
+            const [header, payload] = item;
+            if (header.type === 'replay_event') {
+                return [header, redactStrings(scrubEvent(payload))];
+            }
+            if (header.type === 'replay_recording') {
+                return scrubRecording(header, payload);
+            }
+
+            return item;
+        }),
+    ];
+}
+
+// The replay calls transport.send directly, so no client hook sees it. A
+// replay item that cannot be scrubbed is dropped and never sent as it is.
+export function scrubbingTransport(transport) {
+    return {
+        send(envelope) {
+            const [headers, items] = envelope;
+            if (!items.some(([header]) => REPLAY_ITEM_TYPES.has(header.type))) {
+                return transport.send(envelope);
+            }
+            let scrubbed;
+            try {
+                scrubbed = scrubReplayEnvelope(envelope);
+            } catch {
+                const rest = items.filter(
+                    ([header]) => !REPLAY_ITEM_TYPES.has(header.type),
+                );
+                scrubbed = rest.length === 0 ? null : [headers, rest];
+            }
+
+            return scrubbed === null
+                ? Promise.resolve({})
+                : transport.send(scrubbed);
+        },
+        flush: (timeout) => transport.flush(timeout),
+    };
 }
