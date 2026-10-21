@@ -93,7 +93,7 @@ func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.
 	}
 	fmt.Fprintf(out, "Instance:    %s\n", cfg.BaseURL)
 
-	project, err := mcpProject(projectID, notes)
+	project, source, err := mcpProjectSource(projectID, notes)
 	if err != nil {
 		return api.Site{}, err
 	}
@@ -102,8 +102,10 @@ func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.
 	defer cancel()
 
 	hc := &http.Client{Transport: withUserAgent(&mcpproxy.Credentials{
-		Tokens:  tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}),
-		Project: project,
+		Tokens:        tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}),
+		Project:       project,
+		Setup:         setupFolder(),
+		ProjectSource: source,
 	})}
 	client := mcp.NewClient(&mcp.Implementation{Name: "loupe-status", Version: versionString()}, nil)
 	session, err := client.Connect(ctx, loupeTransport(cfg.BaseURL+mcpPath, hc), nil)

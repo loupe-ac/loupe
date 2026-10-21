@@ -84,13 +84,21 @@ func (env reviewIOS) run(cmd *cobra.Command) error {
 		return err
 	}
 	args := []string{"-n", panel, "--args", "--loupe", exe, "--dir", dir}
-	file, err := projectfile.Load(dir)
-	switch {
-	case errors.Is(err, projectfile.ErrNoFile):
-	case err != nil:
-		return fmt.Errorf("read the project file: %w", err)
-	case file.Project != "":
-		args = append(args, "--project", file.Project)
+	linked, err := setupLink(dir)
+	if err != nil {
+		return err
+	}
+	if linked != "" {
+		args = append(args, "--project", linked)
+	} else {
+		file, err := projectfile.Load(dir)
+		switch {
+		case errors.Is(err, projectfile.ErrNoFile):
+		case err != nil:
+			return fmt.Errorf("read the project file: %w", err)
+		case file.Project != "":
+			args = append(args, "--project", file.Project)
+		}
 	}
 	if err := env.open(args...); err != nil {
 		return fmt.Errorf("could not open %s: %w", panel, err)
