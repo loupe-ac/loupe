@@ -154,6 +154,19 @@ markers:
   card.
 - `card.run.stopped`: the latest run of the card ended with a warning, and the
   card did not move after it ended.
+- `card.run.needs_person`: the newest run of the card blocked, gave up or waits
+  for a person, and the card did not move after the run ended.
+- `card.run.asking`: the newest run of the card waits on a question of its own,
+  or that question closed less than 10 minutes ago.
+- `card.document.agent_review_open`: an agent asked you to review a document in
+  review of the card, and that review item is open.
+- `card.document.approval_moves`: a document in review of the card carries a tag
+  that a rule of the card's slot reads, and an approval or a change request on
+  it would make a rule of that slot fire.
+- `pr.checks_on_head`: the checks ran on the head commit of the pull request.
+- `pr.can_merge`: the forge reads the pull request as mergeable, behind or
+  blocked.
+- `pr.base_is_default`: the pull request targets the default branch.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows

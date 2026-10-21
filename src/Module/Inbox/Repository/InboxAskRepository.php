@@ -127,6 +127,30 @@ class InboxAskRepository extends ServiceEntityRepository
         return array_values(array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids));
     }
 
+    /**
+     * The ask that the newest run of the card waits on, with the close time of the ask and the end time of the run.
+     *
+     * @return array{closed_at: ?string, ended_at: ?string}|null null when the newest run waits on no stored ask
+     */
+    public function findAskOfNewestRunOfCard(Uuid $projectId, Uuid $cardId): ?array
+    {
+        /** @var array{closed_at: ?string, ended_at: ?string}|false $row */
+        $row = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT a.closed_at, r.ended_at
+             FROM (
+                 SELECT r.waits_on_ask_id, r.ended_at
+                 FROM bridge_worker_runs r
+                 WHERE r.project_id = :project AND r.subject_type = 'card' AND r.subject_id = :card
+                 ORDER BY r.received_at DESC, r.id DESC
+                 LIMIT 1
+             ) r
+             JOIN inbox_asks a ON a.id = r.waits_on_ask_id",
+            ['project' => $projectId->toRfc4122(), 'card' => $cardId->toRfc4122()],
+        )->fetchAssociative();
+
+        return false === $row ? null : $row;
+    }
+
     /** The ask with its item memberships, or null when the project holds no such ask. */
     public function findOneByIdAndProject(Uuid $id, Project $project): ?InboxAsk
     {

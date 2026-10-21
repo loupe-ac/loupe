@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Contract;
 
+use Symfony\Component\Uid\Uuid;
+
 /** What the engine knows about one card at one moment. Conditions read it and nothing else. */
 final readonly class Facts
 {
@@ -14,6 +16,7 @@ final readonly class Facts
      * @param array<class-string, object|Unreadable> $provided     what each fact provider gave, keyed by its facts class
      * @param array<class-string, mixed>             $fingerprints the fingerprint of each readable provided facts, keyed by its facts class
      * @param array<class-string, string>            $legacyGroups the old group name of each provided facts class that replaced one
+     * @param ?Uuid                                  $projectId    the project of the card, null in a test that names none
      */
     public function __construct(
         public \DateTimeImmutable $now,
@@ -23,13 +26,14 @@ final readonly class Facts
         public array $provided = [],
         public array $fingerprints = [],
         public array $legacyGroups = [],
+        public ?Uuid $projectId = null,
     ) {
     }
 
     /** A copy that reads another pull request as the one the card acts on. */
     public function withPullRequest(?PullRequestFacts $pullRequest): self
     {
-        return new self($this->now, $this->slot, $this->parentSlot, $pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups);
+        return new self($this->now, $this->slot, $this->parentSlot, $pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups, $this->projectId);
     }
 
     /**
@@ -42,7 +46,7 @@ final readonly class Facts
     {
         $kept = array_diff_key($this->fingerprints, $provided);
 
-        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, [...$this->provided, ...$provided], [...$kept, ...$fingerprints], $this->legacyGroups);
+        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, [...$this->provided, ...$provided], [...$kept, ...$fingerprints], $this->legacyGroups, $this->projectId);
     }
 
     /** @return list<PullRequestFacts> every pull request linked to the card, empty when the list cannot be read */

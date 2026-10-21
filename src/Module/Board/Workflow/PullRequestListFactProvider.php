@@ -163,6 +163,9 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             conflictingSince: $pullRequest->conflictingSince,
             waitsForApprovalSince: $pullRequest->waitsForApprovalSince,
             forgeRequests: $open ? self::forgeRequests($pullRequest) : [],
+            checksOnHead: null !== $pullRequest->headSha && $pullRequest->checksSha === $pullRequest->headSha,
+            canMerge: \in_array($pullRequest->mergeability, [PullRequestMergeability::Mergeable, PullRequestMergeability::Behind, PullRequestMergeability::Blocked], true),
+            baseIsDefault: null !== $base && $base === $pullRequest->defaultBranch,
         );
     }
 

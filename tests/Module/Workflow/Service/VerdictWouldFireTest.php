@@ -12,8 +12,10 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Condition\CardDocumentApprovalMoves;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\VerdictWouldFire;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateSource;
@@ -91,6 +93,37 @@ final class VerdictWouldFireTest extends KernelTestCase
         $provider->failure = new \RuntimeException('The source is down.');
 
         self::assertSame([], $this->forCard([$document]));
+    }
+
+    public function test_the_approval_moves_condition_holds_while_a_verdict_on_a_tagged_document_fires_a_rule(): void
+    {
+        $this->define(['card.document.approved' => ['tag' => 'design']]);
+        $this->document(DocumentStatus::InReview);
+
+        self::assertTrue($this->approvalMoves());
+    }
+
+    public function test_the_approval_moves_condition_fails_for_a_document_not_in_review(): void
+    {
+        $this->define(['card.document.approved' => ['tag' => 'design']]);
+        $this->document(DocumentStatus::Approved);
+
+        self::assertFalse($this->approvalMoves());
+    }
+
+    public function test_a_rule_that_reads_the_condition_is_left_out_of_the_question(): void
+    {
+        $this->define(['card.document.approval_moves' => []]);
+        $this->document(DocumentStatus::InReview);
+
+        self::assertFalse($this->approvalMoves());
+    }
+
+    private function approvalMoves(): bool
+    {
+        $facts = $this->service(FactsBuilder::class)->build($this->card->snapshot(), new \DateTimeImmutable());
+
+        return new CardDocumentApprovalMoves($this->service(VerdictWouldFire::class), $this->service(TemplateSource::class))->evaluate($facts, []);
     }
 
     /** @param array<string, mixed> $when */

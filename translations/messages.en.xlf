@@ -8495,6 +8495,12 @@
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_merge_target"><source>workflow.waiting.not.pr_base_is_merge_target</source><target>Waiting: the pull request targets the default branch or the epic branch.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_checks_on_head"><source>workflow.waiting.pr_checks_on_head</source><target>Waiting: the checks have not run on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_checks_on_head"><source>workflow.waiting.not.pr_checks_on_head</source><target>Waiting: the checks ran on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_can_merge"><source>workflow.waiting.pr_can_merge</source><target>Waiting: the forge does not read the pull request as mergeable.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_can_merge"><source>workflow.waiting.not.pr_can_merge</source><target>Waiting: the forge reads the pull request as mergeable.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_base_is_default"><source>workflow.waiting.pr_base_is_default</source><target>Waiting: the pull request does not target the default branch.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_base_is_default"><source>workflow.waiting.not.pr_base_is_default</source><target>Waiting: the pull request targets the default branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_epic_branch"><source>workflow.waiting.pr_base_is_epic_branch</source><target>Waiting: the pull request does not target the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_epic_branch"><source>workflow.waiting.not.pr_base_is_epic_branch</source><target>Waiting: the pull request targets the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_stacked"><source>workflow.waiting.pr_stacked</source><target>Waiting: the pull request is not stacked on another pull request.</target></trans-unit>
@@ -8533,6 +8539,14 @@
             <trans-unit id="workflow.waiting.not.card_rule_held_by_blocker"><source>workflow.waiting.not.card_rule_held_by_blocker</source><target>Waiting: a move rule of the card waits for an open blocker alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_stopped"><source>workflow.waiting.card_run_stopped</source><target>Waiting: the latest run of the card did not stop with a warning.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_stopped"><source>workflow.waiting.not.card_run_stopped</source><target>Waiting: the latest run of the card stopped with a warning, and the card did not move since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_needs_person"><source>workflow.waiting.card_run_needs_person</source><target>Waiting: the newest run of the card did not stop for a person, or the card moved since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_needs_person"><source>workflow.waiting.not.card_run_needs_person</source><target>Waiting: the newest run of the card stopped for a person, and the card did not move since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_asking"><source>workflow.waiting.card_run_asking</source><target>Waiting: the newest run of the card does not wait on its own question.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_asking"><source>workflow.waiting.not.card_run_asking</source><target>Waiting: the newest run of the card waits on its own question, or that question closed lately.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_agent_review_open"><source>workflow.waiting.card_document_agent_review_open</source><target>Waiting: no agent review of a document of the card is open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_agent_review_open"><source>workflow.waiting.not.card_document_agent_review_open</source><target>Waiting: an agent review of a document of the card is open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_approval_moves"><source>workflow.waiting.card_document_approval_moves</source><target>Waiting: no verdict on a document in review would make a rule fire.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_approval_moves"><source>workflow.waiting.not.card_document_approval_moves</source><target>Waiting: a verdict on a document in review would make a rule fire.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_session_open"><source>workflow.waiting.card_run_session_open</source><target>Waiting: no interactive session is open on the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_session_open"><source>workflow.waiting.not.card_run_session_open</source><target>Waiting: an interactive session is open on the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_held"><source>workflow.waiting.card_held</source><target>Waiting: the agents of the card are not held.</target></trans-unit>
@@ -8581,6 +8595,7 @@
             <trans-unit id="workflow.source.agent_review"><source>workflow.source.agent_review</source><target>Agent review</target></trans-unit>
             <trans-unit id="workflow.source.readiness"><source>workflow.source.readiness</source><target>Readiness</target></trans-unit>
             <trans-unit id="workflow.source.inbox"><source>workflow.source.inbox</source><target>Inbox</target></trans-unit>
+            <trans-unit id="workflow.source.workflow"><source>workflow.source.workflow</source><target>Workflow</target></trans-unit>
             <trans-unit id="workflow.slot.next"><source>workflow.slot.next</source><target>Next</target></trans-unit>
             <trans-unit id="workflow.slot.product_design"><source>workflow.slot.product_design</source><target>Product design</target></trans-unit>
             <trans-unit id="workflow.slot.tech_design"><source>workflow.slot.tech_design</source><target>Tech design</target></trans-unit>
