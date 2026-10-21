@@ -23,7 +23,7 @@ shows the snippet with the project ID filled in:
 <script src="https://your-instance/live-review/widget.js" data-project="PROJECT-ID"></script>
 ```
 
-On the hosted instance, the script address is `https://app.loupe.ac/site-review/widget.js`.
+On the hosted instance, the script address is `https://app.loupe.ac/live-review/widget.js`.
 
 The ID is the project's UUID, the same one that is in the project's URLs. The
 widget reads its backend from its own `script.src`, so the host that serves the

@@ -91,7 +91,7 @@ describe('site docs script', () => {
             context: '',
             public: false,
         };
-        const src = 'https://app.test/site-review/widget.js';
+        const src = 'https://app.test/live-review/widget.js';
 
         expect(
             run('loupe_signed_in=admin', { widget }).added.map(

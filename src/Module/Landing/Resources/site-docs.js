@@ -51,7 +51,7 @@
         load(config.umami.src, { 'data-website-id': config.umami.websiteId, 'data-do-not-track': 'true' });
     }
     if (config.widget && (config.widget.public || signal === 'admin')) {
-        load(config.widget.backend + '/site-review/widget.js', {
+        load(config.widget.backend + '/live-review/widget.js', {
             'data-project': config.widget.project,
             'data-context': config.widget.context,
         });

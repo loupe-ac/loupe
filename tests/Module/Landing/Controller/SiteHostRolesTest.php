@@ -78,7 +78,7 @@ final class SiteHostRolesTest extends WebTestCase
         yield 'mcp' => ['/mcp'];
         yield 'api' => ['/api/projects'];
         yield 'install script' => ['/install.sh'];
-        yield 'widget script' => ['/site-review/widget.js'];
+        yield 'widget script' => ['/live-review/widget.js'];
         yield 'unknown path' => ['/no-such-page'];
     }
 

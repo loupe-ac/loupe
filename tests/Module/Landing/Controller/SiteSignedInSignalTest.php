@@ -173,7 +173,7 @@ final class SiteSignedInSignalTest extends WebTestCase
         $this->withWidget();
         $client->getKernel()->shutdown();
         $this->get($client, '/privacy');
-        self::assertSelectorExists('script[src="https://app.example/site-review/widget.js"]');
+        self::assertSelectorExists('script[src="https://app.example/live-review/widget.js"]');
         self::assertStringNotContainsString('secret-preview-token', (string) $client->getResponse()->getContent());
         self::assertSelectorNotExists('script[data-preview-token]');
 
