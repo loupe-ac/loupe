@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,19 @@ func defaultScriptDir() string {
 	tmp, _ := config.TempDir()
 
 	return filepath.Join(tmp, "loupe-sessions")
+}
+
+// withSetupEnv adds LOUPE_CONFIG to env when the setup is not the default, so
+// a launch script exports it.
+func withSetupEnv(env []string) []string {
+	setup := config.Current()
+	if setup.Source == config.SourceDefault {
+		return env
+	}
+
+	return append(slices.DeleteFunc(slices.Clone(env), func(e string) bool {
+		return strings.HasPrefix(e, config.EnvVar+"=")
+	}), config.EnvVar+"="+setup.Dir)
 }
 
 // writeLaunchScript writes the script of one session into root and returns its
@@ -228,7 +242,7 @@ func (r *router) runLaunch(l launch) {
 		}
 	}
 	if err == nil {
-		path, err = writeLaunchScript(l.dir, p.spec.sessionID, adapter.Interactive(program, p.spec.harnessSpec(env)))
+		path, err = writeLaunchScript(l.dir, p.spec.sessionID, adapter.Interactive(program, p.spec.harnessSpec(withSetupEnv(env))))
 	}
 	if rec, ok := adapter.(harn.LaunchRecorder); ok && err == nil {
 		// A failed record only costs the usage of the session, so the launch goes on.
