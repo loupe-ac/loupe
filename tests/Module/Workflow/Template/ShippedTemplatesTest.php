@@ -196,6 +196,37 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertContainsEquals($this->call('move', ['to' => 'in-review']), $this->actions($facts));
     }
 
+    public function test_a_card_with_a_draft_beside_a_ready_pull_request_does_not_move_to_in_review_in_implementation(): void
+    {
+        $ready = FactsMother::pullRequest(checks: ChecksState::Passed);
+        $draft = FactsMother::pullRequest(draft: true);
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation'), pullRequest: $ready, pullRequests: [$ready, $draft]);
+
+        self::assertNotContainsEquals($this->call('move', ['to' => 'in-review']), $this->actions($facts));
+    }
+
+    public function test_a_card_in_in_review_with_a_draft_beside_a_ready_pull_request_goes_back_to_implementation(): void
+    {
+        $ready = FactsMother::pullRequest(checks: ChecksState::Passed);
+        $draft = FactsMother::pullRequest(draft: true);
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $draft, pullRequests: [$ready, $draft]);
+
+        self::assertContainsEquals($this->call('move', ['to' => 'implementation']), $this->actions($facts));
+    }
+
+    public function test_a_card_whose_remaining_pull_request_is_a_reviewed_draft_gets_it_marked_ready_in_implementation_and_moves_after(): void
+    {
+        $draft = FactsMother::pullRequest(draft: true, checks: ChecksState::Passed);
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation'), pullRequest: $draft, pullRequests: [$draft]);
+
+        self::assertContains('review-ready', $this->firingRuleIds($facts));
+        self::assertNotContainsEquals($this->call('move', ['to' => 'in-review']), $this->actions($facts));
+
+        $ready = FactsMother::pullRequest(checks: ChecksState::Passed);
+        $after = FactsMother::facts(card: FactsMother::card(slot: 'implementation'), pullRequest: $ready, pullRequests: [$ready]);
+        self::assertContainsEquals($this->call('move', ['to' => 'in-review']), $this->actions($after));
+    }
+
     /** @return iterable<string, array{string}> */
     public static function reviewSlots(): iterable
     {

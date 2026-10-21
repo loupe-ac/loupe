@@ -1,5 +1,5 @@
 key: lifecycle
-version: 12
+version: 13
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -267,6 +267,7 @@ rules:
           all:
               - not: { card.type: { type: epic } }
               - pr.open: {}
+              - not: { card.pr.draft_open: {} }
               - not: { pr.draft: {} }
               - pr.checks_passed: {}
               - not: { pr.conflicting: {} }

@@ -8563,6 +8563,8 @@
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_non_blocking"><source>workflow.waiting.not.card_inbox_open_question_non_blocking</source><target>Waiting: an open non-blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_draft_open"><source>workflow.waiting.pr_draft_open</source><target>Waiting: no open pull request of the card is a draft.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_draft_open"><source>workflow.waiting.not.pr_draft_open</source><target>Waiting: an open pull request of the card is a draft.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_all_finished_one_merged"><source>workflow.waiting.pr_all_finished_one_merged</source><target>Waiting: a pull request is still open, or none is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_all_finished_one_merged"><source>workflow.waiting.not.pr_all_finished_one_merged</source><target>Waiting: no pull request is open, and one is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_done_at_head"><source>workflow.waiting.run_done_at_head</source><target>Waiting: no matching work request ended done at the current head of the pull request.</target></trans-unit>
