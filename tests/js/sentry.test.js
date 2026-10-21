@@ -17,6 +17,11 @@ function fakeSentry() {
             name: 'Breadcrumbs',
             options,
         })),
+        replayIntegration: vi.fn((options) => ({ name: 'Replay', options })),
+        makeFetchTransport: vi.fn(() => ({
+            send: vi.fn(() => Promise.resolve({ statusCode: 200 })),
+            flush: vi.fn(() => Promise.resolve(true)),
+        })),
         withStaticSpan: vi.fn((callback) => callback),
         startNewTrace: vi.fn((callback) => callback()),
         startInactiveSpan: vi.fn(() => ({ end: vi.fn(), setStatus: vi.fn() })),
@@ -146,6 +151,115 @@ describe('initSentry', () => {
             'BrowserTracing',
             'Breadcrumbs',
         ]);
+    });
+
+    describe('replay', () => {
+        const REPLAY_OPTIONS = {
+            maskAllText: true,
+            maskAllInputs: true,
+            blockAllMedia: true,
+            useCompression: false,
+        };
+
+        it('adds nothing when both rates are 0', () => {
+            renderMeta({
+                ...PAGE,
+                'sentry-browser-replays-session-sample-rate': '0',
+                'sentry-browser-replays-on-error-sample-rate': '0',
+            });
+            const sentry = fakeSentry();
+            initSentry(sentry);
+
+            const options = sentry.init.mock.calls[0][0];
+            expect(sentry.replayIntegration).not.toHaveBeenCalled();
+            expect(options).not.toHaveProperty('replaysSessionSampleRate');
+            expect(options).not.toHaveProperty('replaysOnErrorSampleRate');
+            expect(options.integrations.map(({ name }) => name)).toEqual([
+                'BrowserTracing',
+                'Breadcrumbs',
+            ]);
+        });
+
+        it('adds nothing when the page has no rate', () => {
+            renderMeta(PAGE);
+            const sentry = fakeSentry();
+            initSentry(sentry);
+
+            expect(sentry.replayIntegration).not.toHaveBeenCalled();
+        });
+
+        it('adds the masked integration when the session rate is above 0', () => {
+            renderMeta({
+                ...PAGE,
+                'sentry-browser-replays-session-sample-rate': '0.1',
+                'sentry-browser-replays-on-error-sample-rate': '0',
+            });
+            const sentry = fakeSentry();
+            initSentry(sentry);
+
+            const options = sentry.init.mock.calls[0][0];
+            expect(sentry.replayIntegration).toHaveBeenCalledWith(
+                REPLAY_OPTIONS,
+            );
+            expect(options.integrations.map(({ name }) => name)).toEqual([
+                'BrowserTracing',
+                'Breadcrumbs',
+                'Replay',
+            ]);
+            expect(options.replaysSessionSampleRate).toBe(0.1);
+            expect(options.replaysOnErrorSampleRate).toBe(0);
+        });
+
+        it('adds the integration when only the error rate is above 0', () => {
+            renderMeta({
+                ...PAGE,
+                'sentry-browser-replays-session-sample-rate': '0',
+                'sentry-browser-replays-on-error-sample-rate': '1',
+            });
+            const sentry = fakeSentry();
+            initSentry(sentry);
+
+            const options = sentry.init.mock.calls[0][0];
+            expect(sentry.replayIntegration).toHaveBeenCalledWith(
+                REPLAY_OPTIONS,
+            );
+            expect(options.replaysSessionSampleRate).toBe(0);
+            expect(options.replaysOnErrorSampleRate).toBe(1);
+        });
+
+        it('adds nothing when the replay code did not load', () => {
+            renderMeta({
+                ...PAGE,
+                'sentry-browser-replays-session-sample-rate': '1',
+                'sentry-browser-replays-on-error-sample-rate': '1',
+            });
+            const sentry = fakeSentry();
+            delete sentry.replayIntegration;
+            initSentry(sentry);
+
+            const options = sentry.init.mock.calls[0][0];
+            expect(options.integrations).toHaveLength(2);
+            expect(options).not.toHaveProperty('replaysSessionSampleRate');
+        });
+
+        it('wraps the transport in the scrubbing transport, also with replay off', async () => {
+            renderMeta(PAGE);
+            const sentry = fakeSentry();
+            initSentry(sentry);
+
+            const transportOptions = { url: 'https://o1.ingest.sentry.io/x' };
+            const transport =
+                sentry.init.mock.calls[0][0].transport(transportOptions);
+
+            expect(sentry.makeFetchTransport).toHaveBeenCalledWith(
+                transportOptions,
+            );
+            const inner = sentry.makeFetchTransport.mock.results[0].value;
+            await transport.send([{}, [[{ type: 'event' }, { message: 'x' }]]]);
+            expect(inner.send).toHaveBeenCalledOnce();
+            await transport.flush(10);
+            expect(inner.flush).toHaveBeenCalledWith(10);
+        });
     });
 
     it('leaves the release unset when the page has none', () => {
