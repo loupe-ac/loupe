@@ -12,6 +12,8 @@ final class SiteChrome
 
     public const string FOOTER_MARKER = '<!--LOUPE_SITE_FOOTER-->';
 
+    public const string MENU_MARKER = '<!--LOUPE_SITE_MENU-->';
+
     /** The docs build writes this address, and the stamp replaces it with the hashed image of the running instance. */
     public const string OG_IMAGE_PLACEHOLDER = 'https://loupe.ac/assets/images/og/hero.png';
 }

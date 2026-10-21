@@ -19,13 +19,16 @@ use Twig\Environment;
 
 /**
  * Copies the built docs to the folder that nginx serves, and puts the site bar
- * and footer of the running instance in place of the two markers of each page.
+ * and footer of the running instance, and the links of the phone menu, in place
+ * of the three markers of each page.
  */
 final readonly class StampDocsHandler
 {
     private const string NAV_TEMPLATE = '@Landing/landing/_nav.html.twig';
 
     private const string FOOTER_TEMPLATE = '@Landing/landing/_footer.html.twig';
+
+    private const string MENU_TEMPLATE = '@Landing/landing/_docs_menu_links.html.twig';
 
     public function __construct(
         private Environment $twig,
@@ -56,11 +59,13 @@ final readonly class StampDocsHandler
         }
 
         $hosts = $this->configuredHosts();
-        $nav = $this->twig->render(self::NAV_TEMPLATE);
+        $nav = $this->twig->render(self::NAV_TEMPLATE, ['docs' => true]);
         $footer = $this->twig->render(self::FOOTER_TEMPLATE);
+        $menu = $this->twig->render(self::MENU_TEMPLATE);
         $problems = [
             ...ChromeLinkAudit::problems($nav, $hosts, !$this->siteHost->isSplit()),
             ...ChromeLinkAudit::problems($footer, $hosts, !$this->siteHost->isSplit()),
+            ...ChromeLinkAudit::problems($menu, $hosts, !$this->siteHost->isSplit()),
         ];
         if ([] !== $problems) {
             return new StampDocsResult(0, $problems);
@@ -69,6 +74,7 @@ final readonly class StampDocsHandler
         $replacements = [
             SiteChrome::NAV_MARKER => '<style>'.$this->cssExtractor->extract($stylesheet, $nav).'</style>'.$nav,
             SiteChrome::FOOTER_MARKER => '<style>'.$this->cssExtractor->extract($stylesheet, $footer).'</style>'.$footer,
+            SiteChrome::MENU_MARKER => '<style>'.$this->cssExtractor->extract($stylesheet, $menu).'</style>'.$menu,
             SiteChrome::OG_IMAGE_PLACEHOLDER => $this->publicPages->absoluteUrl($this->openGraphImagePath()),
         ];
 
@@ -81,7 +87,7 @@ final readonly class StampDocsHandler
             $html = (string) file_get_contents($path);
             if (str_contains($html, 'data-pagefind-body')) {
                 ++$pages;
-                foreach ([SiteChrome::NAV_MARKER, SiteChrome::FOOTER_MARKER] as $marker) {
+                foreach ([SiteChrome::NAV_MARKER, SiteChrome::FOOTER_MARKER, SiteChrome::MENU_MARKER] as $marker) {
                     if (!str_contains($html, $marker)) {
                         $problems[] = sprintf('%s: the page has no %s', $name, $marker);
                     }
