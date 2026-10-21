@@ -16,6 +16,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[ORM\Entity(repositoryClass: BetaInviteRepository::class)]
 #[ORM\Table(name: 'beta_invites')]
+#[ORM\Index(name: 'idx_beta_invites_welcome_due', columns: ['welcome_email_due_at'], options: ['where' => '(welcome_email_due_at IS NOT NULL)'])]
 class BetaInvite
 {
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -33,6 +34,13 @@ class BetaInvite
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $revokedAt = null;
+
+    /**
+     * Set only by redeem(), so an invite redeemed before the welcome email
+     * existed never becomes due. Cleared when the email is queued.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $welcomeEmailDueAt = null;
 
     private function __construct(
         /** Kept raw so the admin list can copy the link again. */
@@ -95,6 +103,7 @@ class BetaInvite
 
         $this->redeemedBy = $user;
         $this->redeemedAt = new \DateTimeImmutable();
+        $this->welcomeEmailDueAt = $this->redeemedAt;
     }
 
     /** @throws \LogicException when the invite is already redeemed */
