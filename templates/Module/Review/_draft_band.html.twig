@@ -37,7 +37,8 @@
         <twig:Ds:Button size="sm" type="button" data-action="click->modal#open">{{ 'review.draft_band.publish_now'|trans }}</twig:Ds:Button>
         <twig:Ds:Dialog aria-labelledby="draft-publish-title" data-action="cancel->modal#close">
             <h2 class="lp-dialog-title" id="draft-publish-title">{{ 'review.publish.confirm.title'|trans }}</h2>
-            <p class="lp-dialog-desc">{{ ('review.publish.confirm.' ~ formName ~ '_lead')|trans(rounds) }} {{ ('review.publish.confirm.' ~ formName ~ '_body')|trans }}</p>
+            <p class="lp-dialog-desc">{{ ('review.publish.confirm.' ~ formName ~ '_lead')|trans(rounds) }}</p>
+            <p class="lp-draft-band__confirm-body">{{ ('review.publish.confirm.' ~ formName ~ '_body')|trans }}</p>
             <twig:Ds:FormActions>
                 <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'review.publish.confirm.cancel'|trans }}</twig:Ds:Button>
                 <twig:Ds:ActionForm :action="publishUrl" token="document-publish" data-document-publish>

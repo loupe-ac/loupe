@@ -1947,7 +1947,8 @@
 .lp-review .lp-draft-review-warning__line {
     @apply m-0 text-sm text-fg-dim;
 }
-.lp-review .lp-draft-review-stop__body {
+.lp-review .lp-draft-review-stop__body,
+.lp-review .lp-draft-band__confirm-body {
     @apply m-0 mb-4 text-sm text-fg-mute;
 }
 .lp-review .lp-finish-review .lp-review-verdict-actions {
