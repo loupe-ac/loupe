@@ -278,7 +278,9 @@ later. The signature covers the whole URL, host included, so a link works
 against that worktree only, and the host resolves on your own machine. The route
 is `#[When('dev')]`, so it does not exist in production.
 
-Open the link yourself before you write it down.
+Open the link yourself before you write it down. Seed and prove every link
+before the push, not after it: a branch that cannot show its marker is not
+pushed as ready.
 
 ### Prove each preview link shows its state
 
