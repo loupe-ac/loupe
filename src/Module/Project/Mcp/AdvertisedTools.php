@@ -109,7 +109,6 @@ final class AdvertisedTools
         'inbox_decline',
         'inbox_done',
         'inbox_action_run',
-        'inbox_settings_update',
     ];
 
     /** @var list<array{name: string, descriptionKey: string}>|null */
