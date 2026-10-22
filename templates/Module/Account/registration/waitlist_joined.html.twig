@@ -19,6 +19,12 @@
             {{ 'account.waitlist.joined.body'|trans }}
         </div>
     </div>
+{% include '_discord_card.html.twig' with {
+    heading: 'account.waitlist.joined.community.heading'|trans,
+    body: 'account.waitlist.joined.community.body'|trans,
+    button: 'account.waitlist.joined.community.button'|trans,
+    headingId: 'waitlist-community',
+} only %}
     <a href="{{ path('app_login') }}" class="auth-link text-sm font-medium mt-1">{{ 'account.waitlist.joined.back'|trans }}</a>
 </div>
 </turbo-frame>
