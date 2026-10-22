@@ -43,6 +43,7 @@ final readonly class BetaCompGranter
         } catch (DomainErrors $e) {
             $this->logger->info('billing.beta_comp_skipped', $context + ['errors' => $e->errors]);
         } catch (\Throwable $e) {
+            // Auditor::record() swallows every sink failure, so a throw means the comp did not commit.
             $granted = false;
             $this->logger->warning('billing.beta_comp_failed', $context + ['error' => $e->getMessage()]);
             $this->dropWelcomeEmail($invite, $context);
