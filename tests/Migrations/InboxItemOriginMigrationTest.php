@@ -12,13 +12,13 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\NotNullConstraintViolationException;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
-use DoctrineMigrations\Version20261022094231;
+use DoctrineMigrations\Version20261022141100;
 use PHPUnit\Framework\Attributes\TestWith;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
-require_once __DIR__.'/../../migrations/Version20261022094231.php';
+require_once __DIR__.'/../../migrations/Version20261022141100.php';
 
 /** Runs down() and up() inside the test's own transaction, which Postgres rolls back with the DDL. */
 final class InboxItemOriginMigrationTest extends KernelTestCase
@@ -110,7 +110,7 @@ final class InboxItemOriginMigrationTest extends KernelTestCase
 
     private function migrate(bool $down = false): void
     {
-        $migration = new Version20261022094231($this->connection, new NullLogger());
+        $migration = new Version20261022141100($this->connection, new NullLogger());
         if ($down) {
             $migration->down(new Schema());
         } else {
