@@ -50,9 +50,9 @@ final readonly class ClaimBetaInviteHandler
         });
 
         // After the commit, so a failed grant leaves the invite used and the
-        // account on its trial, the same as at sign-up.
-        if (null !== $invite) {
-            ($this->grantBetaComp)($invite);
+        // account on its trial, the same as at sign-up. It sends no welcome email then,
+        // because the email promises free access.
+        if (null !== $invite && ($this->grantBetaComp)($invite)) {
             $this->welcomeEmail->sendIfDue($invite);
         }
     }

@@ -58,15 +58,17 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         self::assertSame('billing.beta_comp_failed', $logger->records[0]['message']);
     }
 
-    public function test_the_welcome_email_is_offered_for_the_redeemed_invite_after_the_grant(): void
+    public function test_a_failed_grant_sends_no_welcome_email(): void
     {
         $user = new User(fullName: 'Tester', email: 'tester@example.com');
         [$invite] = BetaInvite::issue(null);
         $invite->redeem($user);
         $sender = $this->createMock(BetaWelcomeEmailSender::class);
-        $sender->expects(self::once())->method('sendIfDue')->with($invite);
+        $sender->expects(self::never())->method('sendIfDue');
 
         $this->listener($this->repositoryReturning($invite), new RecordingLogger(), $sender)(new UserRegistered($user));
+
+        self::assertNull($invite->welcomeEmailDueAt, 'the sweep must not send it later either');
     }
 
     public function test_a_user_without_an_invite_gets_no_welcome_email(): void
@@ -108,7 +110,7 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
 
         return new GrantBetaCompOnUserRegistered(
             $invites,
-            new BetaCompGranter($grantComp, SilentAuditor::create(), $logger),
+            new BetaCompGranter($grantComp, $em, SilentAuditor::create(), $logger),
             $sender ?? $this->createStub(BetaWelcomeEmailSender::class),
             $logger,
         );

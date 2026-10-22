@@ -34,8 +34,9 @@ final readonly class GrantBetaCompOnUserRegistered
         try {
             $invite = $this->betaInvites->findOneRedeemedBy($event->user);
             if (null !== $invite) {
-                ($this->grantBetaComp)($invite);
-                $this->welcomeEmail->sendIfDue($invite);
+                if (($this->grantBetaComp)($invite)) {
+                    $this->welcomeEmail->sendIfDue($invite);
+                }
             }
         } catch (\Throwable $e) {
             $this->logger->warning('billing.beta_comp_failed', [
