@@ -47,6 +47,8 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         self::assertStringNotContainsString('lp-draft-band--paused', (string) $band->attr('class'));
         self::assertStringContainsString('An agent reviews this draft, round 1 of 6.', $band->text());
         self::assertStringContainsString('Loupe sends it to your review when the agent review ends.', $band->text());
+        self::assertCount(1, $band->filter('svg[data-draft-band-icon="agent"]'));
+        self::assertCount(0, $band->filter('svg[data-draft-band-icon="paused"]'));
         self::assertSame('Draft', trim($band->filter('.lp-badge--draft')->text()));
         self::assertCount(1, $band->filter('[data-controller="modal"] dialog[data-modal-target="dialog"]'));
         self::assertCount(1, $band->filter('button[data-action="click->modal#open"]'));
@@ -70,6 +72,8 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         $band = $crawler->filter('#draft-band');
         self::assertStringContainsString('lp-draft-band--paused', (string) $band->attr('class'));
         self::assertStringContainsString('The agent review of this draft is paused.', $band->text());
+        self::assertCount(1, $band->filter('svg[data-draft-band-icon="paused"]'));
+        self::assertCount(0, $band->filter('svg[data-draft-band-icon="agent"]'));
         self::assertStringContainsString('The repair worker could not fix the failure.', $band->text());
         self::assertStringContainsString('Loupe does not publish the draft until the review goes on.', $band->text());
         self::assertSame(
@@ -88,6 +92,7 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         $band = $crawler->filter('#draft-band');
         self::assertCount(1, $band);
         self::assertStringContainsString('This document is not in review yet. Publish sends it to review.', $band->text());
+        self::assertCount(0, $band->filter('svg[data-draft-band-icon]'));
         self::assertCount(0, $band->filter('dialog'));
         self::assertCount(0, $band->filter('[data-controller="modal"]'));
         self::assertCount(1, $band->filter('form[data-document-publish][action$="/publish"] button[type="submit"]'));

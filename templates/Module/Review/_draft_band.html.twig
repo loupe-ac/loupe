@@ -6,6 +6,11 @@
 {% set publishAllowed = showPublish and is_granted(constant('App\\Module\\Review\\Security\\DocumentVoter::MANAGE'), document) %}
 {% set publishUrl = path('app_document_publish', {projectId: document.project.id, documentId: document.id}) %}
 <section id="draft-band" class="lp-draft-band{{ paused ? ' lp-draft-band--paused' : '' }}" data-draft-band="{{ formName }}" aria-label="{{ 'review.draft_band.label'|trans }}">
+    {% if paused %}
+    <twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md lp-draft-band__icon" data-draft-band-icon="paused" />
+    {% elseif formName == 'agent' %}
+    <twig:ux:icon name="lucide:bot" class="lp-icon lp-icon--md lp-draft-band__icon" data-draft-band-icon="agent" />
+    {% endif %}
     <div class="lp-draft-band__body">
         <p class="lp-draft-band__title">
             <twig:Ds:Badge status="draft">{{ document.status.translationKey()|trans }}</twig:Ds:Badge>

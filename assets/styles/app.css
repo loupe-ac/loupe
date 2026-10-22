@@ -1148,6 +1148,12 @@
 .lp-review .lp-draft-band--paused {
     @apply border-status-pending-border bg-status-pending-bg;
 }
+.lp-review .lp-draft-band__icon {
+    @apply mt-0.5 shrink-0 text-accent-ink;
+}
+.lp-review .lp-draft-band--paused .lp-draft-band__icon {
+    @apply text-status-pending;
+}
 .lp-review .lp-draft-band__body {
     @apply flex min-w-0 flex-1 flex-col gap-1;
 }
