@@ -276,10 +276,25 @@ final class FactFingerprintTest extends TestCase
         return hash('sha256', json_encode($groups, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE));
     }
 
-    /** @return array{string, list<string>} */
+    /**
+     * The document groups changed on purpose when the entry check facts joined them, so a stored hash of these two groups
+     * compares as changed once. The other groups keep the old value.
+     *
+     * @return list<mixed>
+     */
     private static function oldDocument(DocumentFacts $document): array
     {
-        return [$document->status, self::oldSorted($document->tags)];
+        return [
+            $document->status,
+            self::oldSorted($document->tags),
+            $document->version,
+            $document->cleanCheckVersion,
+            $document->newestReviewId,
+            $document->enteredReviewAt?->format(\DATE_ATOM),
+            $document->entryUnansweredDecisions,
+            $document->entryOpenThreads,
+            $document->rejectedBefore,
+        ];
     }
 
     /** @return list<mixed> */

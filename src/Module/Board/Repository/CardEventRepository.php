@@ -244,6 +244,19 @@ class CardEventRepository extends ServiceEntityRepository
         return $newest;
     }
 
+    /** The time of the newest `created` or `moved` row of the card, which is its arrival in its current column. Null when it has none. */
+    public function findNewestArrivalAt(Uuid $cardId): ?\DateTimeImmutable
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $newest = $connection->fetchOne(
+            'SELECT MAX(occurred_at) FROM board_card_events WHERE card_id = :card AND kind IN (:created, :moved)',
+            ['card' => $cardId->toRfc4122(), 'created' => CardEventKind::Created->value, 'moved' => CardEventKind::Moved->value],
+        );
+        $at = Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($newest, $connection->getDatabasePlatform());
+
+        return $at instanceof \DateTimeImmutable ? $at : null;
+    }
+
     /** The type the card was created with, or null when its `created` row records none. */
     public function createdType(Card $card): ?string
     {

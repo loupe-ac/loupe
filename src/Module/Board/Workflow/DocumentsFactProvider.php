@@ -49,7 +49,20 @@ final readonly class DocumentsFactProvider extends BoardFactProvider
     public static function documentFacts(CardDocumentRepository $cardDocuments, Card $card): array
     {
         return array_map(
-            static fn (array $document): DocumentFacts => new DocumentFacts($document['tags'], $document['status'], $document['id'], $document['title'], $document['versionAt'], $document['version']),
+            static fn (array $document): DocumentFacts => new DocumentFacts(
+                $document['tags'],
+                $document['status'],
+                $document['id'],
+                $document['title'],
+                $document['versionAt'],
+                $document['version'],
+                null !== $document['enteredReviewAt'] && 0 === $document['entryUnansweredDecisions'] && 0 === $document['entryOpenThreads'] ? $document['version'] : null,
+                $document['newestReviewId'],
+                $document['enteredReviewAt'],
+                $document['entryUnansweredDecisions'],
+                $document['entryOpenThreads'],
+                $document['rejectedBefore'],
+            ),
             $cardDocuments->findStatusesAndTagsForCard($card),
         );
     }
