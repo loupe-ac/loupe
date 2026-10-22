@@ -1040,8 +1040,8 @@ same way `card_list` does, with 50 events by default and 100 at most. Each event
 carries `kind`, `occurredAt` and `actor`.
 
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
-`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden` or
-`override-ended`. `actor` carries `kind` and `name`. Its `kind` is `human`,
+`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
+`override-ended`, `document-verdict` or `verdict-failed`. `actor` carries `kind` and `name`. Its `kind` is `human`,
 `agent`, `reviewer` or `system`. `name` is the current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
@@ -1066,6 +1066,13 @@ A `review-overridden` or `override-ended` event sets `pullRequest` and
 `override`. `override` holds the `headSha` of the head that the event names,
 and on a `review-overridden` event the `approver` login. `approver` is null on an
 `override-ended` event.
+
+A `document-verdict` event is a verdict on a design document of the card. A
+`verdict-failed` event means that a workflow rule tried to approve a document and
+the app refused. Both set `document`, with `documentId`, `title` and `rule`. A
+`document-verdict` event also sets `verdict` and, for a withdrawal, `withdrawn`.
+A `verdict-failed` event sets `refusal`, a short code such as `verdict_stale`.
+The `rule` is null when a person wrote the verdict.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.
