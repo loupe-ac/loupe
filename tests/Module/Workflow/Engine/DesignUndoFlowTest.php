@@ -19,6 +19,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -101,6 +102,32 @@ final class DesignUndoFlowTest extends KernelTestCase
         self::assertSame('product-design', $this->fresh($card)->column->slug, 'The undone design waits for a person.');
         self::assertCount(1, $this->service(BridgeCommandRepository::class)->findAll());
         self::assertCount(1, $this->events($card, CardEventKind::Stopped));
+    }
+
+    public function test_the_move_back_closes_an_interactive_session_that_stop_work_left_alone(): void
+    {
+        $card = $this->card('implementation');
+        $product = $this->approved($card, 'product-design');
+        $this->approved($card, 'tech-design');
+        $this->evaluate($card);
+        $session = $this->service(InteractiveRuns::class)->open($card->project, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, Uuid::v4(), 'implement');
+        $worker = $this->worker($card, 'implement');
+        self::assertSame(WorkerRunState::Running, $session->state);
+
+        $this->undo($product);
+        $this->evaluate($card, '+1 minute');
+
+        self::assertSame('product-design', $this->fresh($card)->column->slug);
+        $commands = $this->service(BridgeCommandRepository::class)->findAll();
+        self::assertCount(1, $commands, 'Stop-work asks the bridge to stop the background run only.');
+        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun->id);
+        $stopped = $this->events($card, CardEventKind::Stopped);
+        self::assertSame([(string) $worker->id], array_map(static fn (CardEvent $event): mixed => $event->detail['runId'], $stopped));
+        $this->em()->clear();
+        $closed = $this->em()->find(WorkerRun::class, $session->id);
+        self::assertSame(WorkerRunState::Closed, $closed?->state, 'The move closes the row of the session.');
+        self::assertNotNull($closed->endedAt);
+        self::assertSame(WorkerRunState::Running, $this->em()->find(WorkerRun::class, $worker->id)?->state, 'The background run waits for the bridge to stop it.');
     }
 
     public function test_an_undone_design_waits_in_review_even_when_its_agent_review_passed(): void
