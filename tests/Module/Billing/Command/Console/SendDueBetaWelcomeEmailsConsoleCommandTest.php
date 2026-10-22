@@ -6,6 +6,7 @@ namespace App\Tests\Module\Billing\Command\Console;
 
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
+use App\Tests\Support\BetaWelcomeEmails;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -25,6 +26,7 @@ final class SendDueBetaWelcomeEmailsConsoleCommandTest extends KernelTestCase
         [$invite] = BetaInvite::issue(null);
         $invite->redeem($user);
         $em->persist($user);
+        BetaWelcomeEmails::persistComp($em, $user);
         $em->persist($invite);
         $em->flush();
 

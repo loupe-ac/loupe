@@ -6,8 +6,10 @@ namespace App\Tests\Module\Billing\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
+use App\Module\Billing\Entity\BillingProfile;
 use App\Module\Billing\Service\BetaWelcomeEmailSender;
 use App\Tests\Support\BetaWelcomeEmails;
+use App\Tests\Support\BillingGrants;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\RecordingMailer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -142,7 +144,38 @@ final class BetaWelcomeEmailSenderTest extends KernelTestCase
         self::assertNull($this->reload($invite)->welcomeEmailDueAt);
     }
 
-    private function redeemedInvite(bool $verified): BetaInvite
+    public function test_a_redeemer_without_a_comp_gets_nothing_and_the_invite_stays_due(): void
+    {
+        $invite = $this->redeemedInvite(verified: true, comped: false);
+        $mailer = new RecordingMailer();
+        $logger = new RecordingLogger();
+
+        $this->sender($mailer, logger: $logger)->sendIfDue($invite);
+
+        self::assertSame([], $mailer->sent);
+        self::assertNotNull($this->reload($invite)->welcomeEmailDueAt);
+        self::assertSame(
+            [[LogLevel::INFO, 'billing.beta_welcome_email_withheld']],
+            array_map(static fn (array $record): array => [$record['level'], $record['message']], $logger->records),
+        );
+    }
+
+    public function test_a_redeemer_whose_comp_ended_gets_nothing(): void
+    {
+        $invite = $this->redeemedInvite(verified: true, comped: false);
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $profile = new BillingProfile($invite->redeemedBy ?? throw new \LogicException('redeemed above'));
+        $em->persist($profile);
+        $em->persist(BillingGrants::comp($profile, new \DateTimeImmutable('-1 hour')));
+        $em->flush();
+        $mailer = new RecordingMailer();
+
+        $this->sender($mailer)->sendIfDue($invite);
+
+        self::assertSame([], $mailer->sent);
+    }
+
+    private function redeemedInvite(bool $verified, bool $comped = true): BetaInvite
     {
         self::bootKernel();
         $em = self::getContainer()->get(EntityManagerInterface::class);
@@ -153,6 +186,9 @@ final class BetaWelcomeEmailSenderTest extends KernelTestCase
         [$invite] = BetaInvite::issue(null);
         $invite->redeem($user);
         $em->persist($user);
+        if ($comped) {
+            BetaWelcomeEmails::persistComp($em, $user);
+        }
         $em->persist($invite);
         $em->flush();
 

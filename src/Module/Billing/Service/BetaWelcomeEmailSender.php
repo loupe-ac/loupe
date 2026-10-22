@@ -6,6 +6,7 @@ namespace App\Module\Billing\Service;
 
 use App\Module\Billing\Entity\BetaInvite;
 use App\Module\Billing\Repository\BetaInviteRepository;
+use App\Module\Billing\Repository\SubscriptionRepository;
 use App\Site\SiteLinks;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
@@ -21,6 +22,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * invite is the guard: clearing it and queueing the email commit together, so a
  * failed queue write leaves the invite due for the next trigger or the sweep.
  * That holds while the `jobs` transport shares the ORM's database connection.
+ * The email promises free access, so it waits while the redeemer holds no comp.
  */
 class BetaWelcomeEmailSender
 {
@@ -28,6 +30,7 @@ class BetaWelcomeEmailSender
         private readonly MailerInterface $mailer,
         private readonly TranslatorInterface $translator,
         private readonly BetaInviteRepository $betaInvites,
+        private readonly SubscriptionRepository $subscriptions,
         private readonly Connection $connection,
         private readonly SiteLinks $siteLinks,
         private readonly UrlGeneratorInterface $router,
@@ -52,6 +55,15 @@ class BetaWelcomeEmailSender
         }
 
         try {
+            if (!$this->subscriptions->holdsCurrentComp($redeemer, new \DateTimeImmutable())) {
+                $this->logger->info('billing.beta_welcome_email_withheld', [
+                    'betaInviteId' => (string) $invite->id,
+                    'userId' => (string) $redeemer->id,
+                ]);
+
+                return;
+            }
+
             $discordUrl = $this->siteLinks->discordUrl();
             $email = new TemplatedEmail()
                 ->from(new Address($this->mailerFromAddress, $this->mailerFromName))

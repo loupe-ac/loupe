@@ -6,6 +6,8 @@ namespace App\Module\Billing\Repository;
 
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
+use App\Module\Billing\Entity\Subscription;
+use App\Module\Billing\Entity\SubscriptionKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -59,17 +61,29 @@ class BetaInviteRepository extends ServiceEntityRepository
 
     /**
      * The sweep's batch: invites that still wait and whose redeemer has a
-     * verified address, oldest redemption first.
+     * verified address and a current comp, oldest redemption first. An invite
+     * the sender would withhold must not take a place in the batch.
      *
      * @return list<BetaInvite>
      */
     public function findWelcomeDue(int $limit): array
     {
+        $comp = $this->getEntityManager()->createQueryBuilder()
+            ->select('1')
+            ->from(Subscription::class, 's')
+            ->join('s.billingProfile', 'p')
+            ->where('p.user = r')
+            ->andWhere('s.kind = :comp')
+            ->andWhere('s.startsAt <= :now AND (s.endsAt IS NULL OR s.endsAt > :now)');
+
         return $this->createQueryBuilder('i')
             ->innerJoin('i.redeemedBy', 'r')
             ->addSelect('r')
             ->where('i.welcomeEmailDueAt IS NOT NULL')
             ->andWhere('r.emailVerifiedAt IS NOT NULL')
+            ->andWhere('EXISTS ('.$comp->getDQL().')')
+            ->setParameter('comp', SubscriptionKind::Comp)
+            ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('i.redeemedAt', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()

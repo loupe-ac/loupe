@@ -110,7 +110,7 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
 
         return new GrantBetaCompOnUserRegistered(
             $invites,
-            new BetaCompGranter($grantComp, $em, SilentAuditor::create(), $logger),
+            new BetaCompGranter($grantComp, $this->createStub(BetaInviteRepository::class), SilentAuditor::create(), $logger),
             $sender ?? $this->createStub(BetaWelcomeEmailSender::class),
             $logger,
         );

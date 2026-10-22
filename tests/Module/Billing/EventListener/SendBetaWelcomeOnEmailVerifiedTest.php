@@ -8,6 +8,7 @@ use App\Module\Account\Command\VerifyEmailCommand;
 use App\Module\Account\Command\VerifyEmailHandler;
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
+use App\Tests\Support\BetaWelcomeEmails;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -26,6 +27,7 @@ final class SendBetaWelcomeOnEmailVerifiedTest extends KernelTestCase
         $first->redeem($user);
         $second->redeem($user);
         $em->persist($user);
+        BetaWelcomeEmails::persistComp($em, $user);
         $em->persist($first);
         $em->persist($second);
         $em->flush();

@@ -7,6 +7,7 @@ namespace App\Tests\Module\Billing\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
 use App\Module\Billing\Repository\BetaInviteRepository;
+use App\Tests\Support\BetaWelcomeEmails;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -34,22 +35,28 @@ final class BetaInviteRepositoryTest extends KernelTestCase
         self::assertSame($first->id?->toRfc4122(), $found?->id?->toRfc4122());
     }
 
-    public function test_find_welcome_due_returns_due_invites_of_verified_redeemers_oldest_first_up_to_the_limit(): void
+    public function test_find_welcome_due_returns_due_invites_of_verified_comped_redeemers_oldest_first_up_to_the_limit(): void
     {
         self::bootKernel();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         $verified = new User(fullName: 'Verified', email: 'due-verified@example.com', password: 'x');
         $verified->emailVerifiedAt = new \DateTimeImmutable();
         $unverified = new User(fullName: 'Unverified', email: 'due-unverified@example.com', password: 'x');
+        $uncomped = new User(fullName: 'Uncomped', email: 'due-uncomped@example.com', password: 'x');
+        $uncomped->emailVerifiedAt = new \DateTimeImmutable();
         $em->persist($verified);
         $em->persist($unverified);
+        $em->persist($uncomped);
+        BetaWelcomeEmails::persistComp($em, $verified);
+        BetaWelcomeEmails::persistComp($em, $unverified);
 
         $newer = $this->redeemed($verified, new \DateTimeImmutable('-1 day'));
         $older = $this->redeemed($verified, new \DateTimeImmutable('-3 days'));
         $notVerified = $this->redeemed($unverified, new \DateTimeImmutable('-5 days'));
         $cleared = $this->redeemed($verified, new \DateTimeImmutable('-4 days'));
         $cleared->welcomeEmailDueAt = null;
-        foreach ([$newer, $older, $notVerified, $cleared] as $invite) {
+        $noComp = $this->redeemed($uncomped, new \DateTimeImmutable('-6 days'));
+        foreach ([$newer, $older, $notVerified, $cleared, $noComp] as $invite) {
             $em->persist($invite);
         }
         $em->flush();

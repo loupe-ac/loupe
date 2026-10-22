@@ -126,6 +126,7 @@ final class SendDueBetaWelcomeEmailsHandlerTest extends KernelTestCase
         [$invite] = BetaInvite::issue(null);
         $invite->redeem($user);
         $em->persist($user);
+        BetaWelcomeEmails::persistComp($em, $user);
         $em->persist($invite);
         $em->flush();
 

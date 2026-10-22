@@ -8,7 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Billing\Command\Admin\GrantCompCommand;
 use App\Module\Billing\Command\Admin\GrantCompHandler;
 use App\Module\Billing\Entity\BetaInvite;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Module\Billing\Repository\BetaInviteRepository;
 use Psr\Log\LoggerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -24,7 +24,7 @@ final readonly class BetaCompGranter
 {
     public function __construct(
         private GrantCompHandler $grantComp,
-        private EntityManagerInterface $em,
+        private BetaInviteRepository $betaInvites,
         private Auditor $auditor,
         private LoggerInterface $logger,
     ) {
@@ -61,7 +61,8 @@ final readonly class BetaCompGranter
 
     /**
      * The email promises free access, so the sweep and the verification trigger
-     * must not send it for an account that did not get the comp.
+     * must not send it for an account that did not get the comp. A failed flush
+     * closes the EntityManager, so the clear goes through the connection.
      *
      * @param array<string, string> $context
      */
@@ -70,7 +71,7 @@ final readonly class BetaCompGranter
         $invite->welcomeEmailDueAt = null;
 
         try {
-            $this->em->flush();
+            $this->betaInvites->claimWelcomeEmail($invite);
         } catch (\Throwable $e) {
             $this->logger->warning('billing.beta_welcome_drop_failed', $context + ['error' => $e->getMessage()]);
         }
