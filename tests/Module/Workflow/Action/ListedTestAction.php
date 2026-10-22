@@ -9,6 +9,7 @@ use App\Module\Workflow\Contract\ActionContext;
 use App\Module\Workflow\Contract\ActionDescription;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionTraits;
+use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 
@@ -17,6 +18,9 @@ final class ListedTestAction implements Action
 {
     /** @var list<string> */
     public static array $log = [];
+
+    /** @var list<Facts> the facts that each run read */
+    public static array $facts = [];
 
     #[\Override]
     public static function key(): string
@@ -39,7 +43,7 @@ final class ListedTestAction implements Action
     #[\Override]
     public static function traits(): ActionTraits
     {
-        return new ActionTraits(listable: true);
+        return new ActionTraits(refreshesFacts: true, listable: true);
     }
 
     #[\Override]
@@ -58,6 +62,7 @@ final class ListedTestAction implements Action
     public function run(ActionContext $context): ActionOutcome
     {
         self::$log[] = $context->string('label');
+        self::$facts[] = $context->facts;
 
         return 'refuse' === $context->string('label') ? ActionOutcome::refused('listed-refusal') : ActionOutcome::done();
     }

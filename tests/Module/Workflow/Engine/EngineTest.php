@@ -187,6 +187,7 @@ final class EngineTest extends KernelTestCase
     protected function setUp(): void
     {
         ListedTestAction::$log = [];
+        ListedTestAction::$facts = [];
         $this->logger = new RecordingLogger();
         $this->asks = new FakeRuleAsks();
     }
@@ -521,6 +522,16 @@ final class EngineTest extends KernelTestCase
 
         self::assertSame(['first', 'second'], ListedTestAction::$log);
         self::assertTrue($this->ruleState($card, 'both')->truth);
+    }
+
+    public function test_an_action_that_changes_the_facts_gives_the_next_action_of_the_list_the_facts_as_they_are_then(): void
+    {
+        $card = $this->boundCard([self::listRule('both', [self::listed('first'), self::listed('second')])]);
+
+        $this->evaluate($card);
+
+        self::assertCount(2, ListedTestAction::$facts);
+        self::assertNotSame(ListedTestAction::$facts[0], ListedTestAction::$facts[1]);
     }
 
     public function test_a_list_stops_at_the_first_refusal_and_runs_again_from_the_start_when_due(): void
@@ -4669,7 +4680,7 @@ final class EngineTest extends KernelTestCase
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $actions, $this->service(TemplatePrompts::class)), $this->appRules ?? $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $this->parsingActions(), $this->service(TemplatePrompts::class)), $this->appRules ?? $this->service(AppRules::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),
@@ -4700,6 +4711,14 @@ final class EngineTest extends KernelTestCase
             $engineEvents,
             $this->logger,
         );
+    }
+
+    /** The actions of the container and the listed test action, so a stored rule can name any of them. */
+    private function parsingActions(): Actions
+    {
+        $actions = $this->service(Actions::class);
+
+        return new Actions([...array_map($actions->get(...), $actions->keys()), new ListedTestAction()]);
     }
 
     /** @param array<string, mixed> $onWorkFailed */

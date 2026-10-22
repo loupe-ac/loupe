@@ -800,12 +800,18 @@ final readonly class Engine
         // The last try after a repair keeps them too, so its refusal pauses the card.
         $retrying = !$newSubject && (null !== $state->workRequestId || $state->repaired) && $state->attempts > 0;
         // The list stops at the first refusal and after a move, which queues the next evaluation.
+        // An action that changes the facts gives the next action of the list the facts as they are then.
+        $facts = $bound->facts;
         $refreshesFacts = false;
         foreach ($rule->then as $call) {
-            $outcome = $this->actions->get($call->key)->run($this->contexts->for($rule->forCall($call), $run->card, $bound->facts, $state->fires));
+            $outcome = $this->actions->get($call->key)->run($this->contexts->for($rule->forCall($call), $run->card, $facts, $state->fires));
             $refreshesFacts = $refreshesFacts || $call->traits->refreshesFacts;
             if (ActionOutcomeKind::Done !== $outcome->kind || $call->traits->endsPass) {
                 break;
+            }
+            if ($call->traits->refreshesFacts) {
+                $run->facts = $this->facts($run->card, $run->now, $run->facts);
+                $facts = $this->ruleSubject->bind($rule, $run->facts)->facts;
             }
         }
         // The live request still serves the old subject, so the change waits until it settles.
