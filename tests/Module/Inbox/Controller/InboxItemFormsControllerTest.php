@@ -20,6 +20,8 @@ use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Form\AnswerInboxItemRequest;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Command\CreateDocumentCommand;
+use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Command\UndoVerdictCommand;
@@ -190,6 +192,34 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-inbox-review-draft]', 'Keep this draft feedback.');
         self::assertSelectorTextContains('[data-inbox-response]', 'Clarify the second version.');
         self::assertSelectorNotExists('form[name="'.$name.'"]');
+    }
+
+    public function test_an_inline_approval_is_refused_while_a_decision_has_no_answer(): void
+    {
+        $create = static::getContainer()->get(CreateDocumentHandler::class);
+        self::assertInstanceOf(CreateDocumentHandler::class, $create);
+        $document = $create(new CreateDocumentCommand($this->project, 'Decision design', "<!-- decision: target -->\n\n- ( ) Staging\n- ( ) Production\n\n<!-- /decision -->"));
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $review = new InboxReview($item, $document);
+        foreach ([$item, $review] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+        $name = 'inbox_document_review_'.$item->id;
+        $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+        $this->client->submit($page->filter('form[name="'.$name.'"]')->form([
+            $name.'[verdict]' => 'approved',
+            $name.'[note]' => 'Keep this note.',
+        ]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-1', '1 decision has no answer. Answer it, or request changes.');
+        self::assertSelectorTextContains('textarea[name="'.$name.'[note]"]', 'Keep this note.');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        self::assertNull($em->find(InboxReview::class, $review->id)?->documentReview);
+        self::assertSame(InboxItemState::Open, $em->find(InboxItem::class, $item->id)?->state);
     }
 
     public function test_inbox_ownership_does_not_bypass_document_review_permission(): void

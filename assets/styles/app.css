@@ -1980,6 +1980,20 @@
     :is(.lp-comment-action, .lp-review-verdict-choice, .lp-history__action) {
     @apply cursor-pointer;
 }
+.lp-review .lp-review-verdict-choice--disabled {
+    @apply cursor-not-allowed opacity-60;
+}
+.lp-review
+    .lp-review-verdict-choice--disabled
+    .lp-review-verdict-choice__label {
+    @apply text-fg-dim;
+}
+.lp-review .lp-review-verdict-choice__reason {
+    @apply block text-status-pending-deep;
+}
+.lp-review .lp-review-verdict-choice__reason a {
+    @apply cursor-pointer text-status-pending-deep underline;
+}
 /* A highlight is no element, so the controller marks the pane while the
    pointer is over a passage that opens a thread. */
 .lp-review .lp-comment-anchor-hovered {

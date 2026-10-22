@@ -1642,6 +1642,18 @@
                 <source>review.document.finish.submit</source>
                 <target>Submit review</target>
             </trans-unit>
+            <trans-unit id="review.document.flash.decisions_unanswered">
+                <source>review.document.flash.decisions_unanswered</source>
+                <target>{0}Every decision has an answer.|{1}%count% decision has no answer. Answer it, or request changes.|]1,Inf[%count% decisions have no answer. Answer them, or request changes.</target>
+            </trans-unit>
+            <trans-unit id="review.finish.approve_blocked">
+                <source>review.finish.approve_blocked</source>
+                <target>{0}Every decision has an answer.|{1}%count% decision has no answer.|]1,Inf[%count% decisions have no answer.</target>
+            </trans-unit>
+            <trans-unit id="review.finish.approve_blocked_link">
+                <source>review.finish.approve_blocked_link</source>
+                <target>Go to the first one</target>
+            </trans-unit>
             <trans-unit id="review.form.submit_review_form.verdict.label">
                 <source>review.form.submit_review_form.verdict.label</source>
                 <target>Verdict</target>

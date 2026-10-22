@@ -21,6 +21,8 @@ use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
+use App\Module\Review\Command\SaveDecisionAnswerCommand;
+use App\Module\Review\Command\SaveDecisionAnswerHandler;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Command\SubmitReviewCommand;
@@ -93,6 +95,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
     public function test_an_approval_with_no_pick_creates_no_card_and_still_ends_the_run(): void
     {
+        $this->answerWithNote();
         $this->approve();
 
         self::assertSame([], $this->createdCards());
@@ -101,6 +104,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
     public function test_an_approval_leaves_the_discovery_card_in_place_and_queues_its_evaluation(): void
     {
+        $this->answerWithNote();
         $column = $this->run->card->column;
         $this->transport()->reset();
 
@@ -141,6 +145,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
     public function test_a_revision_that_submits_after_the_approval_is_refused(): void
     {
+        $this->answerWithNote();
         $requested = $this->submitVerdict('changes-requested', 'Not yet.');
         $this->approve(previous: $requested);
 
@@ -197,6 +202,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
     public function test_a_pick_of_another_decision_is_ignored(): void
     {
+        $this->answerWithNote();
         $this->em()->persist(new DecisionSelection($this->report, 'other', 0, 'Add tests', 1));
         $this->em()->flush();
 
@@ -249,6 +255,14 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         $this->approve($other);
 
         self::assertSame(DiscoveryRunState::Reported, $this->run->state);
+    }
+
+    /** A note answers a decision, so an approval that picks nothing still has an answer. */
+    private function answerWithNote(): void
+    {
+        $save = self::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $save(new SaveDecisionAnswerCommand($this->report, 'proposals', 1, [], 'None of these yet.', false, $this->project->owner));
     }
 
     private function transport(): InMemoryTransport

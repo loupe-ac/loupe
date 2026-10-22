@@ -10,7 +10,10 @@ use App\Module\Review\Command\CreateDocumentCommand;
 use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Command\SaveDecisionAnswerCommand;
 use App\Module\Review\Command\SaveDecisionAnswerHandler;
+use App\Module\Review\Entity\Comment;
+use App\Module\Review\Entity\CommentStatus;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\ValueObject\Anchor;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -70,6 +73,56 @@ final class ShowDecisionSummaryControllerTest extends WebTestCase
         );
     }
 
+    public function test_the_summary_tells_the_finish_dialog_what_blocks_an_approval(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+        $save = static::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $save(new SaveDecisionAnswerCommand($document, 'target', 1, [1], null, false, $owner));
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $this->summaryPath($document).'?versionNumber=1');
+        $first = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream')->first();
+
+        self::assertSame('1', $first->attr('data-decision-unanswered'));
+        self::assertSame('1 decision has no answer.', $first->attr('data-decision-unanswered-hint'));
+        self::assertSame('decision_block_region', $first->attr('data-decision-first-unanswered'));
+        self::assertSame('0', $first->attr('data-decision-pending-threads'));
+    }
+
+    public function test_the_summary_counts_pending_threads_and_leaves_addressed_ones_out(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+        $this->thread($document, $owner, CommentStatus::Pending);
+        $this->thread($document, $owner, CommentStatus::Addressed);
+        $this->thread($document, $owner, CommentStatus::Resolved);
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $this->summaryPath($document).'?versionNumber=1');
+        $first = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream')->first();
+
+        self::assertSame('1', $first->attr('data-decision-pending-threads'));
+    }
+
+    public function test_a_summary_with_every_decision_answered_names_no_block(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+        $save = static::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $save(new SaveDecisionAnswerCommand($document, 'target', 1, [1], null, false, $owner));
+        $save(new SaveDecisionAnswerCommand($document, 'region', 1, [], 'Either works.', false, $owner));
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $this->summaryPath($document).'?versionNumber=1');
+        $first = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream')->first();
+
+        self::assertSame('0', $first->attr('data-decision-unanswered'));
+        self::assertSame('', $first->attr('data-decision-first-unanswered'));
+    }
+
     public function test_an_unknown_version_falls_back_to_the_latest_and_keeps_the_page_it_names(): void
     {
         $client = static::createClient();
@@ -126,6 +179,14 @@ final class ShowDecisionSummaryControllerTest extends WebTestCase
         self::assertInstanceOf(CreateDocumentHandler::class, $create);
 
         return [$owner, $create(new CreateDocumentCommand($project, 'Deploy plan', self::MARKDOWN))];
+    }
+
+    private function thread(Document $document, User $author, CommentStatus $status): void
+    {
+        $comment = new Comment($document->currentVersion(), $author, 'Change this passage.', Anchor::unanchored());
+        $comment->status = $status;
+        $this->em()->persist($comment);
+        $this->em()->flush();
     }
 
     private function user(string $prefix): User

@@ -95,6 +95,25 @@ Select it to see the reviewer, version, time and note, with **Change verdict** a
 The account export and `document_get_review` result include the note.
 Open threads do not prevent approval.
 
+When you open **Finish review**, Loupe selects a verdict for you.
+It selects **Approve** when every decision has an answer and no thread is pending.
+An addressed thread does not count as pending.
+A note on a decision is not a comment.
+In all other cases, it selects **Request changes**.
+A choice that you made in the dialog and did not send stays selected.
+
+You cannot approve a version while a decision has no answer.
+In this case, **Approve** is dimmed and you cannot select it.
+The dialog shows how many decisions have no answer.
+Select **Go to the first one** to close the dialog and show that decision.
+A decision has an answer when it has a picked option or a note.
+You can still request changes.
+
+If someone clears an answer after you open the dialog, Loupe refuses the approval.
+The dialog stays open with the error and keeps your note.
+The document stays in review.
+A document review in the inbox follows the same rule.
+
 A verdict applies to the version shown when the reviewer opens the page.
 If another verdict or revision arrives first, Loupe rejects the submission and keeps the note visible.
 Reload the page before submitting a fresh verdict.

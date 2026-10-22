@@ -45,6 +45,9 @@ final class ShowDecisionSummaryController extends AppController
             'rows' => $summary->rows,
             'answeredCount' => $summary->answeredCount,
             'answers' => $summary->answers,
+            'unansweredCount' => $summary->unansweredCount,
+            'firstUnansweredElementId' => $summary->firstUnansweredElementId,
+            'pendingThreadCount' => $summary->pendingThreadCount,
         ]), Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }
