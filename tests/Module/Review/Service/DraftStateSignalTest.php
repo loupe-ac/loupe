@@ -6,10 +6,14 @@ namespace App\Tests\Module\Review\Service;
 
 use App\Exception\DomainErrors;
 use App\Mercure\ProjectTopicBuilder;
+use App\Module\Board\Command\DeleteCardCommand;
+use App\Module\Board\Command\DeleteCardHandler;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Command\ReleaseCardPauseCommand;
 use App\Module\Board\Command\ReleaseCardPauseHandler;
+use App\Module\Board\Command\UpdateCardCommand;
+use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\CardPauseRepository;
@@ -21,6 +25,7 @@ use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\AgentReview\DocumentReviewScenario;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -115,6 +120,39 @@ final class DraftStateSignalTest extends KernelTestCase
         self::assertCount(1, $this->drain($document));
     }
 
+    public function test_a_card_delete_signals_the_draft_of_the_card(): void
+    {
+        $card = $this->card();
+        $document = $this->designDraft($card);
+        $this->drain($document);
+
+        $this->service(DeleteCardHandler::class)(new DeleteCardCommand($this->reloaded($card), Actor::Human));
+
+        self::assertCount(1, $this->drain($document));
+    }
+
+    public function test_an_unlink_from_the_card_signals_the_draft(): void
+    {
+        $card = $this->card();
+        $document = $this->designDraft($card);
+        $this->drain($document);
+
+        $this->service(UpdateCardHandler::class)(new UpdateCardCommand($this->reloaded($card), Actor::Agent, documentIds: []));
+
+        self::assertCount(1, $this->drain($document));
+    }
+
+    public function test_an_unlink_signals_no_draft_without_a_design_tag(): void
+    {
+        $card = $this->card();
+        $plain = $this->linkedDocument($card);
+        $this->drain($plain);
+
+        $this->service(UpdateCardHandler::class)(new UpdateCardCommand($this->reloaded($card), Actor::Agent, documentIds: []));
+
+        self::assertSame([], $this->drain($plain));
+    }
+
     public function test_a_card_change_signals_no_document_that_is_not_a_draft_of_a_design_tag(): void
     {
         $card = $this->card();
@@ -193,6 +231,15 @@ final class DraftStateSignalTest extends KernelTestCase
         $this->em->flush();
 
         return $document;
+    }
+
+    /** A card read from the database, so its document links are all loaded, as in a request. */
+    private function reloaded(Card $card): Card
+    {
+        $id = $card->id ?? throw new \LogicException('The card is flushed.');
+        $this->em->clear();
+
+        return $this->em->find(Card::class, $id) ?? throw new \LogicException('The card is stored.');
     }
 
     private function pause(Card $card): void
