@@ -101,6 +101,19 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
         ),
     ).toBe(true);
 
+    // Another ask opened by its row shows its own actions, never the locked box of the closed ask.
+    await watcher
+        .locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`)
+        .click();
+    await expect(
+        watcher.locator(`[data-inbox-ask-id="${second.askId}"]`),
+    ).toBeVisible();
+    await expect(watcher.locator('[data-inbox-locked]')).toHaveCount(0);
+    await expect(note).toHaveCount(0);
+    await expect(
+        watcher.locator('.lp-decision__note-field').first(),
+    ).toHaveValue('');
+
     await actor.context().close();
     await watcher.context().close();
 });
