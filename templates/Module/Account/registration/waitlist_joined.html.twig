@@ -9,18 +9,7 @@
 </turbo-frame>
 {% else %}
 <turbo-frame id="waitlist-notify">
-<div class="flex flex-col items-center gap-3 py-4 text-center"{% if joinForm %} data-controller="analytics-join" data-analytics-join-form-value="{{ joinForm }}"{% endif %}>
-    <div class="auth-icon-badge">
-        <twig:ux:icon name="lucide:mail" class="lp-icon lp-icon--lg" aria-hidden="true" />
-    </div>
-    <div>
-        <div class="text-xl font-semibold tracking-tight text-fg">{{ 'account.waitlist.joined.title'|trans }}</div>
-        <div class="text-fg-mute text-sm mt-1.5 leading-normal">
-            {{ 'account.waitlist.joined.body'|trans }}
-        </div>
-    </div>
-    <a href="{{ path('app_login') }}" class="auth-link text-sm font-medium mt-1">{{ 'account.waitlist.joined.back'|trans }}</a>
-</div>
+    {% include 'waitlist/_notify_joined.html.twig' with {joinForm: joinForm} only %}
 </turbo-frame>
 {% endif %}
 {% endblock %}
