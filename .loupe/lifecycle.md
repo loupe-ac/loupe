@@ -18,7 +18,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 1. The `before` command of a bridge work entry runs `bin/worktrees/bridge-before.sh`, and the worker starts in `.worktrees/card-<number>`. Its `refresh` command runs `bin/worktrees/bridge-refresh.sh {cardNumber} {cardId}`. The script takes the bare card number and adds the `card-` prefix itself. A stage starts it with `loupe env refresh`. That worker folder is a full app of its own. A stage never creates or removes it. The `teardown` work entry removes it when the card reaches `done`.
 2. Folder check: the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` must differ. They are equal in the main checkout, where a worker must never work.
-3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree.
+3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree. A hook refuses it, except the read-only calls.
 
 ## Decision records
 
@@ -57,8 +57,8 @@ The Loupe stage skills read this file. It holds the values that belong to this r
    Name the branch `card-<number>-<short-slug>`.
 3. Keep the body and the `## Preview` section to the rules of `working-with-prs` "Keep the body brief" and "Make the branch testable, not just reviewable".
 4. A branch that changes a page follows the `Preview` section. Seed and prove every link before the push, not after it.
-5. Never run `gh pr ready`. The workflow marks the pull request ready when the agent review passed and the checks are green.
-6. Only the merge stage merges it, as the `Merge` section says. Never use `--admin` or `--no-verify`.
+5. Never run `gh pr ready`, and a hook refuses it. The workflow marks the pull request ready when the agent review passed and the checks are green.
+6. Only the merge stage merges it, as the `Merge` section says. Never use `--admin` or `--no-verify`. A hook refuses `--admin`.
 
 ## Preview
 
