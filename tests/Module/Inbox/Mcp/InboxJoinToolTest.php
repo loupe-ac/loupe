@@ -84,7 +84,7 @@ final class InboxJoinToolTest extends KernelTestCase
         $result = ($this->tool)((string) $watch->item->id, (string) Uuid::v4());
 
         self::assertFalse($result['closed']);
-        self::assertSame('wait', $result['items'][0]['kind']);
+        self::assertSame('review', $result['items'][0]['kind']);
         self::assertSame('loupe', $result['items'][0]['origin']);
 
         $this->storeInbox($this->em, $card);

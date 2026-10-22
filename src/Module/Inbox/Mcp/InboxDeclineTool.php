@@ -21,7 +21,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type InboxItemListSummary from InboxItemPayload
  */
-#[McpTool(name: self::NAME, description: 'Decline an open inbox question or to-do for the owner, only after the owner told you in chat to decline it. On a wait item, this dismisses the wait. Pass note, a reason the item keeps. The item shows that it was declined through an agent. A bridge worker session is refused, because a worker has no owner beside it. A review is refused, because a review verdict stays on the inbox page. A workflow question cannot be declined: answer it with inbox_answer, which is final and runs its action at once. The response is the item\'s summary.')]
+#[McpTool(name: self::NAME, description: 'Decline an open inbox question or to-do for the owner, only after the owner told you in chat to decline it. On an automatic item, of kind wait or review, this dismisses the wait. Pass note, a reason the item keeps. The item shows that it was declined through an agent. A bridge worker session is refused, because a worker has no owner beside it. An agent\'s review ask is refused, because a review verdict stays on the inbox page. A workflow question cannot be declined: answer it with inbox_answer, which is final and runs its action at once. The response is the item\'s summary.')]
 final readonly class InboxDeclineTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_decline';
@@ -49,7 +49,7 @@ final readonly class InboxDeclineTool implements FlagGatedToolInterface
     }
 
     /**
-     * @param string  $itemId the id of the question, to-do or wait item
+     * @param string  $itemId the id of the question, to-do or automatic item
      * @param ?string $note   why the owner declined, which the item keeps
      *
      * @return InboxItemListSummary
@@ -64,7 +64,7 @@ final readonly class InboxDeclineTool implements FlagGatedToolInterface
         try {
             $item = $this->subjects->requireItem($itemId, McpBoundProjectVoter::INBOX_ITEM_WRITE);
             $this->workers->requireNotWorker($item->project);
-            if (InboxItemKind::Review === $item->kind) {
+            if (InboxItemKind::Review === $item->kind && !$item->isAutomatic()) {
                 throw $this->errorMessages->forAgent(new DomainErrors(['itemId' => InboxToolErrorMessages::REVIEW_ON_PAGE]));
             }
 

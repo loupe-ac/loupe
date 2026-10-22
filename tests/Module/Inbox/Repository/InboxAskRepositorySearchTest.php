@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Repository;
 
 use App\Doctrine\SearchLanguage;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -64,7 +65,7 @@ final class InboxAskRepositorySearchTest extends KernelTestCase
 
     public function test_the_best_item_of_an_ask_decides_its_place(): void
     {
-        $weak = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Question, title: 'Retries', blocking: true, body: 'The checkout path retries', options: ['a']);
+        $weak = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Question, title: 'Retries', blocking: true, origin: InboxAskOrigin::Agent, body: 'The checkout path retries', options: ['a']);
         $strong = $this->question($this->em, $this->project, 2, title: 'Checkout');
         $this->em->persist($weak);
         $this->em->flush();

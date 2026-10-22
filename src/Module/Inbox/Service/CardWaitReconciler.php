@@ -56,12 +56,12 @@ final readonly class CardWaitReconciler
     /** @param list<string>|null $cardIds null for every card that has an open watch or a stored inbox entry */
     public function reconcile(Project $project, ?array $cardIds): void
     {
-        $countChanged = $this->em->wrapInTransaction(function () use ($project, $cardIds): bool {
+        [$countChanged, $pageChanged] = $this->em->wrapInTransaction(function () use ($project, $cardIds): array {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             $ids = $this->cardIds($project, $cardIds);
             if ([] === $ids) {
-                return false;
+                return [false, false];
             }
 
             $now = self::now();
@@ -126,11 +126,13 @@ final readonly class CardWaitReconciler
                 $this->searchIndexer->index($item);
             }
 
-            return $countChanged;
+            return [$countChanged, [] !== $rewritten];
         });
 
         if ($countChanged) {
             $this->inboxChanged->changed($project);
+        } elseif ($pageChanged) {
+            $this->inboxChanged->pageChanged($project);
         }
     }
 
@@ -254,6 +256,7 @@ final readonly class CardWaitReconciler
             kind: InboxItemKind::Wait,
             title: $title,
             blocking: true,
+            origin: InboxAskOrigin::Loupe,
             createdAt: $now,
             searchLanguage: $project->searchLanguage,
         );
@@ -346,8 +349,8 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * Writes the title and the body from the card and the open waits, or from the waits this reconcile ended
-     * when the item closed, and returns whether either changed.
+     * Writes the kind, the title and the body from the card and the open waits, or from the waits this reconcile ended
+     * when the item closed, and returns whether any changed. A closed item keeps its kind.
      *
      * @param list<InboxCardWait> $ended
      */
@@ -361,9 +364,11 @@ final readonly class CardWaitReconciler
         $body = $this->waitText->body($open);
 
         $item = $watch->item;
-        if ($item->title === $title && $item->body === $body) {
+        $kind = null !== $watch->closedAt ? $item->kind : $this->waitText->kind($open);
+        if ($item->title === $title && $item->body === $body && $item->kind === $kind) {
             return false;
         }
+        $item->kind = $kind;
         $item->title = $title;
         $item->body = $body;
         $item->updatedAt = $now;

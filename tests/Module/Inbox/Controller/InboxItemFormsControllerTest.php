@@ -61,7 +61,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $this->seedColumns($this->project);
         $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Review card', 'Body', number: 1);
         $target = new CardPullRequest($card, 'https://github.com/example/project/pull/12');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the pull request', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the pull request', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $target);
         foreach ([$card, $target, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -104,7 +104,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $document = new Document($this->owner, $this->project, 'Review design');
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -133,7 +133,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $document = new Document($this->owner, $this->project, 'Inline design');
         $document->addVersion('# First', '<h1>First</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -197,7 +197,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $otherOwner = $this->signedUpUser($this->em, 'document-owner');
         $document = new Document($otherOwner, $this->project, 'Restricted design');
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -235,7 +235,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
     public function test_the_page_form_answers_a_workflow_question_once(): void
     {
-        $item = new InboxItem(project: $this->project, number: 6, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, options: ['Link', 'Design', 'Detach']);
+        $item = new InboxItem(project: $this->project, number: 6, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design', 'Detach']);
         $this->em->persist($item);
         $ask = new InboxAsk(project: $this->project, sessionId: null, bridgeId: null, origin: InboxAskOrigin::Loupe);
         $ask->items->add(new InboxAskItem($ask, $item));

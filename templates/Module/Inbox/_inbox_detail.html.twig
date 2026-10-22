@@ -25,7 +25,7 @@
                 <span class="lp-inbox-ask__kind">
                     {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'lp-icon lp-icon--md'} only %}
                     {# A wait names the card that waits on the owner, as the document review byline does. #}
-                    {% set isWait = row.kind.value == 'wait' %}
+                    {% set isWait = row.leading.isAutomatic() %}
                     {% set waitCard = isWait ? row.firstCard : row.blockingCard %}
                     {% if isWait and waitCard %}
                         {% include '@Inbox/_ask_wait_card.html.twig' with {card: waitCard, kindLabel: true} only %}

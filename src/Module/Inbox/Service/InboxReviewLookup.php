@@ -29,7 +29,7 @@ final class InboxReviewLookup implements ResetInterface
     /** @param list<InboxItem> $items */
     public function preload(array $items): void
     {
-        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind));
+        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind && !$item->isAutomatic()));
         foreach ($this->inboxReviews->findForItems($reviewItems) as $review) {
             $this->byItem[(string) $review->item->id] = $review;
         }

@@ -12,6 +12,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -1046,11 +1047,11 @@ final class ShowInboxControllerTest extends WebTestCase
         $project = $this->inboxProject($this->em, $owner);
         $document = new Document($owner, $project, 'Tech design: Inbox asks');
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $documentItem = new InboxItem($project, 1, InboxItemKind::Review, 'Please read the design', false);
+        $documentItem = new InboxItem($project, 1, InboxItemKind::Review, 'Please read the design', false, InboxAskOrigin::Agent);
         $this->seedColumns($project);
         $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Ship the filter', body: 'Body', number: 1);
         $pullRequestLink = new CardPullRequest($card, 'https://github.com/example/app/pull/812', Forge::GitHub, 'example/app', 812);
-        $pullRequestItem = new InboxItem($project, 2, InboxItemKind::Review, 'Please check the filter change', false);
+        $pullRequestItem = new InboxItem($project, 2, InboxItemKind::Review, 'Please check the filter change', false, InboxAskOrigin::Agent);
         $pullRequest = new ForgePullRequest($project, 'github', 'example/app', 812);
         $pullRequest->title = 'Fix the board filter';
         foreach ([$document, $documentItem, $card, $pullRequestLink, $pullRequestItem, $pullRequest] as $entity) {
@@ -1082,7 +1083,7 @@ final class ShowInboxControllerTest extends WebTestCase
         for ($number = 1; $number <= 4; ++$number) {
             $document = new Document($owner, $project, 'Design '.$number);
             $document->addVersion('# Design', '<h1>Design</h1>');
-            $item = new InboxItem($project, $number, InboxItemKind::Review, 'Review design '.$number, false);
+            $item = new InboxItem($project, $number, InboxItemKind::Review, 'Review design '.$number, false, origin: InboxAskOrigin::Agent);
             $this->em->persist($document);
             $this->em->persist($item);
             $this->em->persist(new InboxReview($item, $document));

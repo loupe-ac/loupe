@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Scheduler;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -92,7 +93,7 @@ final class SweepCardWaitsTaskTest extends KernelTestCase
 
     private function watch(Project $project, int $number): InboxCardWatch
     {
-        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Wait, title: '#'.$number.' Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Wait, title: '#'.$number.' Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em->persist($item);
         $watch = new InboxCardWatch($item, Uuid::v7(), $number);
         $this->em->persist($watch);

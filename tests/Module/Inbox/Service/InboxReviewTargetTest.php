@@ -7,6 +7,7 @@ namespace App\Tests\Module\Inbox\Service;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
@@ -78,7 +79,7 @@ final class InboxReviewTargetTest extends KernelTestCase
 
     private function review(Project $project, Document|CardPullRequest $target): InboxReview
     {
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Please review', false);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Please review', false, InboxAskOrigin::Agent);
         $review = new InboxReview($item, $target);
         foreach ([$target, $item, $review] as $entity) {
             $this->em->persist($entity);

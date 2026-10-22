@@ -320,10 +320,14 @@ publish or review yourself opens it at once. See
 Other linked documents, such as a plan, open no wait. A change to the tags of
 a document makes Loupe check each card that links it again.
 
-The item has the kind **Waiting**, and it is always blocking. When the main wait
-is a document review or a pull request review, its title names the target, such
-as `Review "Tech design", version 2` or `Review pull request #812: Fix the board
-filter`.
+The item is always blocking. It is a **Review**, with the eye icon, while a
+document or a pull request of the card waits for your review, and its title
+names the target, such as `Review "Tech design", version 2` or `Review pull
+request #812: Fix the board filter`. Another open wait, such as a stopped
+worker, does not change the kind. The item becomes **Waiting** when its last
+review wait ends and another wait stays open. A closed item keeps the kind it
+had. The **Review** filter finds these items, and **Dismiss** works on them as
+on a waiting item.
 
 A card has at most one open automatic item. Its title is the card number, the
 reason of the main wait, and the card title, such as "#686 Review worker
