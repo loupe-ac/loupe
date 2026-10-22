@@ -658,9 +658,9 @@ A document wait ends when its document leaves review. A verdict does this, and s
 an archive. A new version of the document also ends the wait, and a new wait
 for the new version replaces it. The item then stays open. An open review
 request from an agent for the same document holds back the wait, because it
-asks for the same verdict. A document wait also ends when an approval would no longer make a rule fire.
-This happens when the card leaves the column that waits for the document, or
-when the document loses its tag.
+asks for the same verdict. A document wait also ends when the card leaves the
+column that waits for the document, or when the document loses the tag of that
+column.
 
 A run wait ends when a newer run of the card starts. It also ends when the card
 moves on after the run, or when a question of the run stands for it.
