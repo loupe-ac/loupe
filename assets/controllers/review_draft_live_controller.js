@@ -21,7 +21,7 @@ const CONNECTED_ATTRIBUTE = 'data-review-draft-live-connected';
  * stream. A fetch that no longer finds a draft loads the page again with a
  * morph. An open dialog holds the update until it closes, but the Finish
  * review dialog takes the warning at once, because the stream replaces none
- * of its fields.
+ * of its fields. A published draft clears that warning at once too.
  */
 export default class extends Controller {
     static values = { url: String, stopped: String };
@@ -100,6 +100,7 @@ export default class extends Controller {
             return;
         }
         if (fetched.status === 204) {
+            this.withdrawWarning();
             await this.reload(attempt);
 
             return;
@@ -211,6 +212,14 @@ export default class extends Controller {
                 '#draft-band dialog[open], #review-stop-confirm dialog[open]',
             ) !== null
         );
+    }
+
+    /** A published draft has no agent review to warn about, so an open Finish review dialog drops the warning before the page loads again. */
+    withdrawWarning() {
+        this.element.querySelector('#draft-review-warning')?.replaceChildren();
+        this.element
+            .querySelector('form[data-controller~="review-stop-confirm"]')
+            ?.setAttribute('data-review-stop-confirm-active-value', 'false');
     }
 
     /** Whether the second confirmation asks comes with the warning, as an attribute of its stream. */

@@ -253,6 +253,40 @@ describe('a dialog', () => {
     });
 });
 
+describe('a published draft', () => {
+    it('clears the warning and the second confirmation of an open Finish review dialog at once', async () => {
+        answer(204);
+        answer(204);
+        responses.push({
+            ok: true,
+            status: 200,
+            text: async () => '<html><body>In review</body></html>',
+        });
+        await mount();
+        const dialog = open('finish');
+        document.querySelector('input[value="approved"]').checked = true;
+        document.querySelector('textarea').value = 'My note';
+        signal();
+        await settle();
+        expect(
+            document.querySelector('#draft-review-warning').textContent.trim(),
+        ).toBe('');
+        expect(
+            document
+                .querySelector('form')
+                .getAttribute('data-review-stop-confirm-active-value'),
+        ).toBe('false');
+        expect(document.querySelector('input[value="approved"]').checked).toBe(
+            true,
+        );
+        expect(document.querySelector('textarea').value).toBe('My note');
+        expect(turbo.morphBodyElements).not.toHaveBeenCalled();
+        close(dialog);
+        await settle();
+        expect(turbo.morphBodyElements).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('a failed fetch', () => {
     it('retries with a growing wait, then says that live updates stopped', async () => {
         await mount();
