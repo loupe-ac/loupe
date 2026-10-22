@@ -167,3 +167,7 @@ run a configuration production never uses, and a regression where the gate fires
 when it should not would pass unnoticed. The tests that *are* about the gate,
 `RequireTermsAcceptanceListenerTest` and `AcceptTermsControllerTest`, build their
 users without the stamp.
+
+## Database isolation between tests
+
+`dama/doctrine-test-bundle` wraps each test in a database transaction and rolls it back, so no custom schema-reset code is needed. Schema creation runs once in `tests/bootstrap.php`, which drops, creates and migrates. Never write a `resetSchema()` method that drops and recreates the schema per test.
