@@ -87,8 +87,8 @@ h1 {
 /* The quiet twin of .btn: white fill, hairline border, the same pill. Sits
    beside .btn, so it carries its own left gap. */
 .btn-outline {
-    background-color: #ffffff;
-    border: 1px solid #cdd3c6; /* --line-strong */
+    background-color: #ffffff; /* --surface-1 */
+    border: 1px solid #cdd3c6; /* --border-strong */
     margin-left: 10px;
 }
 
