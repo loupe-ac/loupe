@@ -16,7 +16,6 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
-use App\Module\Inbox\Entity\InboxProjectSettings;
 use App\Module\Inbox\EventListener\DeleteInboxDataOnProjectDeleting;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectDeleting;
@@ -25,6 +24,7 @@ use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
@@ -55,6 +55,8 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         [$doomed, $doomedRows] = $this->seedInbox($owner, 'doomed');
         [$spared, $sparedRows] = $this->seedInbox($owner, 'spared');
         $this->em->flush();
+        $doomedRows['inbox_project_settings'] = $this->insertSettings($doomed);
+        $sparedRows['inbox_project_settings'] = $this->insertSettings($spared);
         $doomedIds = $this->ids($doomedRows);
         $sparedIds = $this->ids($sparedRows);
 
@@ -78,8 +80,10 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
     {
         $owner = $this->owner($this->em, 'inbox-project-delete');
         [$doomed, $doomedRows] = $this->seedInbox($owner, 'doomed');
-        [, $sparedRows] = $this->seedInbox($owner, 'spared');
+        [$spared, $sparedRows] = $this->seedInbox($owner, 'spared');
         $this->em->flush();
+        $doomedRows['inbox_project_settings'] = $this->insertSettings($doomed);
+        $sparedRows['inbox_project_settings'] = $this->insertSettings($spared);
         $doomedId = (string) $doomed->id;
         $doomedIds = $this->ids($doomedRows);
         $sparedIds = $this->ids($sparedRows);
@@ -120,8 +124,6 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $watch->waits->add($wait);
         $this->em->persist($waitItem);
         $this->em->persist($watch);
-        $settings = new InboxProjectSettings($project);
-        $this->em->persist($settings);
         $action = new InboxAction($item, InboxActionKind::Dismiss, $owner);
         $this->em->persist($action);
         $notice = new InboxItem(project: $project, number: 3, kind: InboxItemKind::Notice, title: 'No bridge can take work', blocking: false);
@@ -137,10 +139,23 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_item_documents' => $itemDocument,
             'inbox_card_watches' => $watch,
             'inbox_card_waits' => $wait,
-            'inbox_project_settings' => $settings,
             'inbox_actions' => $action,
             'inbox_bridge_outages' => $outage,
         ]];
+    }
+
+    /**
+     * The table has no entity any more, so a plain insert stands in for a row saved before the switches went.
+     */
+    private function insertSettings(Project $project): object
+    {
+        $id = Uuid::v7()->toRfc4122();
+        $this->connection->executeStatement(
+            'INSERT INTO inbox_project_settings (id, project_id) VALUES (:id, :project)',
+            ['id' => $id, 'project' => (string) $project->id],
+        );
+
+        return (object) ['id' => $id];
     }
 
     /**

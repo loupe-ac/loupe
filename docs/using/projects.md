@@ -30,8 +30,8 @@ It changes the allowed origins of the sign-in widget with `project_origins_set`.
 See [Changing the project settings](mcp.md#changing-the-project-settings).
 An invalid submission keeps the entered text so you can correct it.
 
-While the inbox is on, Project settings also has an Inbox section.
-The project owner chooses there which card waits open an item in the inbox.
+Project settings has no Inbox section.
+The `inbox:` list of the workflow template decides which card waits open an item in the inbox.
 See [Choosing which waits open an item](inbox.md#choosing-which-waits-open-an-item).
 
 The first-project setup form also accepts a description.

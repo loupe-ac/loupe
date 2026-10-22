@@ -1,6 +1,6 @@
 ---
 name: loupe-inbox
-description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw inbox_answer, inbox_decline, inbox_done, inbox_action_run or inbox_settings_update, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
+description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw inbox_answer, inbox_decline, inbox_done or inbox_action_run, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
 ---
 
 # Asking the owner through the Loupe inbox
@@ -77,6 +77,3 @@ Use `inbox_answer`, `inbox_decline`, `inbox_done` and `inbox_action_run` only wh
 
 The item shows that an agent typed the response. The answer to a workflow question is final and runs its action at once.
 
-## Change the inbox switches
-
-Call `inbox_settings_update` only when the owner or your task asks for it. It changes which waits open an item for the owner, as the inbox settings page does. A switch you leave out keeps its value.

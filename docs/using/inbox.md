@@ -645,24 +645,8 @@ The `inbox:` list of the workflow template decides which waits open an item. A
 marker that the list names opens a wait. A marker that it does not name opens
 none. See [Markers that open inbox items](workflows.md#markers-that-open-inbox-items).
 
-The inbox settings page and the `inbox_settings_update` [MCP tool](mcp.md#changing-the-project-settings)
-still exist, and a later change removes them. Their switches have no effect on
-which waits open. Saving the page does not open or end a wait.
-
-The page shows seven switches, one for each old cause of a wait:
-
-- **Document in review**
-- **Run blocked**
-- **Run gave up**
-- **Run waiting for a person**
-- **Pull request ready for review**
-- **Pull request fix loop stopped**
-- **Workflow paused the card**
-
-The page is at **Project settings > Inbox**. The **Settings** link in the top
-bar of the inbox page also opens it. Only the project owner can open the page.
-An agent connected to the project can call `inbox_settings_update`. A switch that
-the call omits keeps its value.
+The inbox has no settings page and no wait switches. The `inbox:` list is the
+only place that decides which waits open an item.
 
 ### When an automatic item closes
 
