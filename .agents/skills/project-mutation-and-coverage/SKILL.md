@@ -1,6 +1,6 @@
 ---
 name: project-mutation-and-coverage
-description: "Use when running mutation testing or code coverage, reading a score or a weekly report, or writing a test that asserts on elapsed wall-clock time."
+description: "Use when running mutation testing or code coverage, choosing between their just recipes, reading a score or a weekly report, or writing a test that asserts on elapsed wall-clock time."
 ---
 
 # Mutation testing and coverage
