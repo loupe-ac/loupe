@@ -7276,6 +7276,16 @@
             <trans-unit id="board.card.history.cause.run_no_kind"><source>board.card.history.cause.run_no_kind</source><target>Via a run.</target></trans-unit>
             <trans-unit id="board.card.history.cause.workflow_rule"><source>board.card.history.cause.workflow_rule</source><target>Via the %rule% workflow rule.</target></trans-unit>
             <trans-unit id="board.card.history.cause.pause_released"><source>board.card.history.cause.pause_released</source><target>Because %reason%. Via the %rule% workflow rule.</target></trans-unit>
+            <trans-unit id="board.card.history.document_approved_by_rule"><source>board.card.history.document_approved_by_rule</source><target>The %rule% workflow rule approved %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.changes_requested_by_rule"><source>board.card.history.changes_requested_by_rule</source><target>The %rule% workflow rule requested changes on %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.approval_withdrawn"><source>board.card.history.approval_withdrawn</source><target>%actor% withdrew the approval of %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.change_request_withdrawn"><source>board.card.history.change_request_withdrawn</source><target>%actor% withdrew the change request on %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed"><source>board.card.history.verdict_failed</source><target>The %rule% workflow rule did not approve %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.decisions_unanswered"><source>board.card.history.verdict_failed_cause.decisions_unanswered</source><target>A decision in the document has no answer.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.other"><source>board.card.history.verdict_failed_cause.other</source><target>The app refused the approval.</target></trans-unit>
             <trans-unit id="board.card.history.cause.column_deleted"><source>board.card.history.cause.column_deleted</source><target>After the %column% column was deleted.</target></trans-unit>
             <trans-unit id="board.card.overview.description"><source>board.card.overview.description</source><target>Description</target></trans-unit>
             <trans-unit id="board.card.overview.status"><source>board.card.overview.status</source><target>Status</target></trans-unit>

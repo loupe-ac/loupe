@@ -396,6 +396,60 @@ final class CardHistoryEntryTest extends TestCase
         self::assertNull($entry->cause);
     }
 
+    public function test_an_approval_by_a_rule_names_the_rule_and_the_document(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::DocumentVerdict, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Tech design', 'verdict' => 'approved']));
+
+        self::assertSame('lucide:circle-check', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.document_approved_by_rule', ['%rule%' => 'tech-design-auto-approve', '%document%' => 'Tech design']), $entry->sentence);
+        self::assertEquals(new TranslatableMessage('board.card.history.cause.auto_approval'), $entry->cause);
+    }
+
+    public function test_a_change_request_by_a_rule_names_the_rule_and_the_document(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::DocumentVerdict, Actor::System, null, ['rule' => 'product-design-changes', 'document' => 'Product design', 'verdict' => 'changes-requested']));
+
+        self::assertSame('lucide:circle-alert', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.changes_requested_by_rule', ['%rule%' => 'product-design-changes', '%document%' => 'Product design']), $entry->sentence);
+        self::assertNull($entry->cause);
+    }
+
+    #[DataProvider('withdrawals')]
+    public function test_a_withdrawal_names_the_person_and_what_they_took_back(string $withdrawn, string $key): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::DocumentVerdict, Actor::Human, $this->user, ['rule' => null, 'document' => 'Tech design', 'verdict' => 'withdrawn', 'withdrawn' => $withdrawn]));
+
+        self::assertSame('lucide:undo-2', $entry->icon);
+        self::assertEquals(new TranslatableMessage($key, ['%actor%' => 'Riley Chen', '%document%' => 'Tech design']), $entry->sentence);
+        self::assertNull($entry->cause);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function withdrawals(): iterable
+    {
+        yield 'an approval' => ['approved', 'board.card.history.approval_withdrawn'];
+        yield 'a change request' => ['changes-requested', 'board.card.history.change_request_withdrawn'];
+    }
+
+    #[DataProvider('refusals')]
+    public function test_a_refused_approval_names_the_refusal(string $refusal, string $causeKey): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::VerdictFailed, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Tech design', 'refusal' => $refusal]));
+
+        self::assertSame('lucide:circle-x', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.verdict_failed', ['%rule%' => 'tech-design-auto-approve', '%document%' => 'Tech design']), $entry->sentence);
+        self::assertEquals(new TranslatableMessage($causeKey), $entry->cause);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function refusals(): iterable
+    {
+        yield 'a newer version' => ['verdict_stale', 'board.card.history.verdict_failed_cause.verdict_stale'];
+        yield 'a verdict that landed since' => ['verdict_changed', 'board.card.history.verdict_failed_cause.verdict_changed'];
+        yield 'a decision with no answer' => ['decisions_unanswered', 'board.card.history.verdict_failed_cause.decisions_unanswered'];
+        yield 'a refusal this version does not know' => ['gremlins', 'board.card.history.verdict_failed_cause.other'];
+    }
+
     /** @param array<string, mixed> $detail */
     #[DataProvider('malformedDetails')]
     public function test_a_row_with_unreadable_detail_falls_back_to_a_plain_sentence(CardEventKind $kind, array $detail): void
@@ -419,6 +473,11 @@ final class CardHistoryEntryTest extends TestCase
         yield 'a ready pull request with a text number' => [CardEventKind::ReadyToMerge, ['pullRequest' => 'twelve']];
         yield 'a pause with no kind' => [CardEventKind::Paused, ['ruleId' => 'fix-on-review']];
         yield 'a verdict with an unknown kind' => [CardEventKind::Verdict, ['kind' => 'gremlins']];
+        yield 'a document verdict with no document' => [CardEventKind::DocumentVerdict, ['rule' => 'r', 'verdict' => 'approved']];
+        yield 'a document verdict by a person' => [CardEventKind::DocumentVerdict, ['rule' => null, 'document' => 'D', 'verdict' => 'approved']];
+        yield 'a document verdict of an unknown kind' => [CardEventKind::DocumentVerdict, ['rule' => 'r', 'document' => 'D', 'verdict' => 'gremlins']];
+        yield 'a withdrawal of an unknown verdict' => [CardEventKind::DocumentVerdict, ['rule' => null, 'document' => 'D', 'verdict' => 'withdrawn', 'withdrawn' => 'gremlins']];
+        yield 'a failed verdict with no document' => [CardEventKind::VerdictFailed, ['rule' => 'r', 'refusal' => 'verdict_stale']];
         yield 'a release with an unknown kind' => [CardEventKind::PauseReleased, ['kind' => 'gremlins', 'ruleId' => 'fix-on-review']];
     }
 

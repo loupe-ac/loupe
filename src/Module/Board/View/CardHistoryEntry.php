@@ -29,6 +29,12 @@ final readonly class CardHistoryEntry
         'agent-review' => 'board.card.history.reason.agent_review',
     ];
 
+    private const array REFUSALS = [
+        'verdict_stale' => 'board.card.history.verdict_failed_cause.verdict_stale',
+        'verdict_changed' => 'board.card.history.verdict_failed_cause.verdict_changed',
+        'decisions_unanswered' => 'board.card.history.verdict_failed_cause.decisions_unanswered',
+    ];
+
     private const array RELEASE_REASONS = [
         'facts-changed' => 'board.card.history.release_reason.facts_changed',
         'subject-changed' => 'board.card.history.release_reason.subject_changed',
@@ -79,6 +85,8 @@ final readonly class CardHistoryEntry
             CardEventKind::ReviewOverrideEnded => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['headSha'] ?? null)
                 ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => $detail['pullRequest'], '%sha%' => mb_substr($detail['headSha'], 0, 7)]))
                 : null,
+            CardEventKind::DocumentVerdict => self::documentVerdict($event, $actor, $detail),
+            CardEventKind::VerdictFailed => self::verdictFailed($event, $actor, $detail),
             CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
                 ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
                 : null,
@@ -203,6 +211,64 @@ final readonly class CardHistoryEntry
                 CardVerdictKind::Comment => 'board.card.history.verdict_kind.comment',
             }),
         ]));
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function documentVerdict(CardEvent $event, string|TranslatableMessage $actor, array $detail): ?self
+    {
+        $document = $detail['document'] ?? null;
+        $rule = $detail['rule'] ?? null;
+        if (!\is_string($document) || '' === $document) {
+            return null;
+        }
+        if ('withdrawn' === ($detail['verdict'] ?? null)) {
+            $key = match ($detail['withdrawn'] ?? null) {
+                'approved' => 'board.card.history.approval_withdrawn',
+                'changes-requested' => 'board.card.history.change_request_withdrawn',
+                default => null,
+            };
+
+            return null === $key ? null : new self('lucide:undo-2', $event->occurredAt, $actor, new TranslatableMessage($key, ['%actor%' => $actor, '%document%' => $document]));
+        }
+        if (!\is_string($rule) || '' === $rule) {
+            return null;
+        }
+
+        return match ($detail['verdict'] ?? null) {
+            'approved' => new self(
+                'lucide:circle-check',
+                $event->occurredAt,
+                $actor,
+                new TranslatableMessage('board.card.history.document_approved_by_rule', ['%rule%' => $rule, '%document%' => $document]),
+                new TranslatableMessage('board.card.history.cause.auto_approval'),
+            ),
+            'changes-requested' => new self(
+                'lucide:circle-alert',
+                $event->occurredAt,
+                $actor,
+                new TranslatableMessage('board.card.history.changes_requested_by_rule', ['%rule%' => $rule, '%document%' => $document]),
+            ),
+            default => null,
+        };
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function verdictFailed(CardEvent $event, string|TranslatableMessage $actor, array $detail): ?self
+    {
+        $document = $detail['document'] ?? null;
+        $rule = $detail['rule'] ?? null;
+        if (!\is_string($document) || '' === $document || !\is_string($rule) || '' === $rule) {
+            return null;
+        }
+        $refusal = \is_string($detail['refusal'] ?? null) ? $detail['refusal'] : '';
+
+        return new self(
+            'lucide:circle-x',
+            $event->occurredAt,
+            $actor,
+            new TranslatableMessage('board.card.history.verdict_failed', ['%rule%' => $rule, '%document%' => $document]),
+            new TranslatableMessage(self::REFUSALS[$refusal] ?? 'board.card.history.verdict_failed_cause.other'),
+        );
     }
 
     /** @param array<string, mixed> $detail */

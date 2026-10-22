@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\EventListener;
 
 use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Board\Command\CreateCardCommand;
 use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Entity\BoardColumn;
@@ -63,6 +64,27 @@ final class WriteOutboxEventOnReviewSubmittedTest extends KernelTestCase
             'verdict' => 'changes-requested',
             'cardIds' => [(string) $card->id],
             'actor' => 'human',
+        ], $this->onlyPayload());
+    }
+
+    public function test_a_verdict_of_a_rule_names_the_system_as_the_actor(): void
+    {
+        $document = $this->document(['design']);
+        $card = $this->card('tech-design', $document);
+        $users = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+
+        $handler(new SubmitReviewCommand($users->workflow(), $document, Verdict::Approved->value, 1, null, null, 'tech-design-auto-approve'));
+
+        self::assertSame([
+            'type' => 'document.review_submitted',
+            'subject' => ['type' => 'document', 'id' => (string) $document->id],
+            'projectId' => (string) $this->project->id,
+            'verdict' => 'approved',
+            'cardIds' => [(string) $card->id],
+            'actor' => 'system',
         ], $this->onlyPayload());
     }
 
