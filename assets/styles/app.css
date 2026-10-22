@@ -7344,6 +7344,9 @@
     .lp-inbox-ask__title {
         @apply m-0 font-display text-xl font-extrabold tracking-tight text-ink;
     }
+    .lp-inbox-ask__target {
+        @apply m-0 text-sm text-fg-dim;
+    }
     /* The anchor around an agent avatar with a bridge dot. Hover or focus shows
        the tooltip. */
     .lp-presence {

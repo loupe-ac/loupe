@@ -988,7 +988,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $prompt = $this->read('components/ListRow/README.md');
         $card = $this->read('components/ListRow/preview.html');
 
-        self::assertStringContainsString('export function ListRow({ title, icon, meta, current, href, className: extra, ...rest })', $jsx);
+        self::assertStringContainsString('export function ListRow({ title, subtitle, icon, meta, current, href, className: extra, ...rest })', $jsx);
         self::assertStringContainsString("aria-current={current ? 'true' : undefined}", $jsx);
         self::assertStringContainsString('<span className="lp-list-row__title">{title}</span>', $jsx);
         self::assertStringContainsString('@startingPoint section="Layout"', $types);

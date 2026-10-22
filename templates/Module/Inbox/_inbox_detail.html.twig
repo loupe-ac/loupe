@@ -11,6 +11,8 @@
         <header class="lp-inbox-ask__summary">
             {# An ask stores no title. Its first item names it, as the request list does. #}
             <h2 class="lp-inbox-ask__title">{{ row.title }}</h2>
+            {% set reviewTarget = inbox_review_target(items) %}
+            {% if reviewTarget %}<p class="lp-inbox-ask__target" data-inbox-review-target>{{ reviewTarget }}</p>{% endif %}
             <div class="lp-inbox-ask__byline">
                 {# Who and when, then what it is, in the order of the document review byline. #}
                 <span class="lp-inbox-ask__head">
