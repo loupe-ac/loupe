@@ -110,7 +110,13 @@ line first. A child with no entry line matches by judgement, from its title and
 body against the entry. When a match is unsure, the worker asks the owner with
 one `inbox_ask`, writes nothing, and stops with
 `STAGE RESULT: blocked: breakdown match needs the owner`. The bridge resumes it
-when the ask closes. So the breakdown never creates a duplicate.
+when the ask closes. So the breakdown never creates a duplicate. Before it
+writes anything, the breakdown checks each entry for work that ships after the
+epic. It stops with `STAGE RESULT: blocked: breakdown entries contradict the
+epic` when such an entry has no `Follow-up.` marker, or when a child entry waits
+for a follow-up. A card with no parent and a `follow-up-of` link is a follow-up
+for the implementation worker. It builds its own approved design, or matches a
+`Follow-up.` entry of a linked design and asks the owner when the match is unsure.
 `plugins/loupe/skills/loupe-stage-implementation/references/breakdown.md` holds
 the full format.
 
