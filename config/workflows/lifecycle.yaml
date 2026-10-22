@@ -1,5 +1,5 @@
 key: lifecycle
-version: 16
+version: 17
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -55,6 +55,29 @@ facts:
             - not: { pr.approval_covers_head: { min: 1 } }
             - not: { card.run.worker_active: {} }
 rules:
+    # These two come first and have no slot. A person who withdraws an approval undoes the stage it opened.
+    # A card in a terminal column keeps its place, and a card already in the slot of the design has nothing to undo.
+    - id: product-design-undo
+      when:
+          all:
+              - card.document.approval_withdrawn: { tag: product-design }
+              - not: { card.in_slot: { slot: '@terminal' } }
+              - not: { card.in_slot: { slot: product-design } }
+      then:
+          - stop-work: {}
+          - request-changes: { tags: [tech-design], note: workflow.note.product_design_undone }
+          - move: { to: product-design }
+
+    - id: tech-design-undo
+      when:
+          all:
+              - card.document.approval_withdrawn: { tag: tech-design }
+              - not: { card.in_slot: { slot: '@terminal' } }
+              - not: { card.in_slot: { slot: tech-design } }
+      then:
+          - stop-work: {}
+          - move: { to: tech-design }
+
     - id: product-design-session
       slot: product-design
       when: { not: { card.document.linked: { tag: product-design } } }

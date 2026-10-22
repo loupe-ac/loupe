@@ -59,7 +59,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(16, $template->version);
+        self::assertSame(17, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -76,7 +76,13 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertEquals(new WorkflowRuleView('product-design-approved', 'workflow.slot.product_design', [new WorkflowRuleActionView('workflow.settings.action.move', 'workflow.slot.tech_design', null)], [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.approved', false, 'tag: product-design'), new WorkflowConditionView('card.document.changes_requested', true, 'tag: product-design')])], [], [], []), $rules['product-design-approved']);
         self::assertEquals(new WorkflowRuleView('implement', 'workflow.slot.implementation', [new WorkflowRuleActionView('workflow.settings.action.request', null, 'implement')], [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.type', true, 'types: ["epic"]')]), new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('card.pr.linked', true, '')])], [], [], []), $rules['implement']);
         self::assertEquals(new WorkflowRuleView('rebase-stacked', 'workflow.slot.in_review', [new WorkflowRuleActionView('workflow.settings.action.forge_write', null, 'change-base')], [new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('pr.open', false, ''), new WorkflowConditionView('pr.stacked', false, ''), new WorkflowConditionView('pr.parent_merged', false, '')])], [], [], []), $rules['rebase-stacked']);
-        self::assertSame('product-design-session', $template->rules[0]->id);
+        self::assertSame(['product-design-undo', 'tech-design-undo', 'product-design-session'], array_map(static fn (WorkflowRuleView $rule): string => $rule->id, \array_slice($template->rules, 0, 3)));
+        self::assertEquals([
+            new WorkflowRuleActionView('workflow.settings.action.stop_work', null, null),
+            new WorkflowRuleActionView('workflow.settings.action.request_changes', null, null),
+            new WorkflowRuleActionView('workflow.settings.action.move', 'workflow.slot.product_design', null),
+        ], $rules['product-design-undo']->actions);
+        self::assertSame('workflow.settings.where.any', $rules['product-design-undo']->appliesToKey);
         self::assertEquals([
             new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.linked', true, 'tag: product-design')]),
         ], $rules['product-design-session']->whenGroups);

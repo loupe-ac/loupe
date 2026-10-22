@@ -120,7 +120,8 @@ final readonly class CardWorkflowPanelBuilder
 
     private function progress(CardSnapshot $card, Template $template, Facts $facts): CardWorkflowProgress
     {
-        $rules = $template->rulesFor($facts->slot);
+        // A rule with several actions undoes a stage when a person withdraws an approval, so it is no next step of the card.
+        $rules = array_filter($template->rulesFor($facts->slot), static fn (Rule $rule): bool => 1 === \count($rule->then));
         $falseRules = array_values(array_filter(
             $rules,
             fn (Rule $rule): bool => null !== $rule->when->unreadable($facts) || null !== $rule->lead->until?->unreadable($facts) || !$this->ruleSubject->bind($rule, $facts)->truth,

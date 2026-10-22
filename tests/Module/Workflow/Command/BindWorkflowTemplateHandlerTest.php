@@ -42,7 +42,7 @@ final class BindWorkflowTemplateHandlerTest extends KernelTestCase
         $stored = $this->bindings()->findOneByProjectId($this->project->id ?? throw new \LogicException());
         self::assertNotNull($stored);
         self::assertSame('lifecycle', $stored->templateKey);
-        self::assertSame(16, $stored->templateVersion);
+        self::assertSame(17, $stored->templateVersion);
         self::assertEquals($this->shipped()->source('lifecycle'), $stored->definition);
 
         $links = [];
@@ -55,7 +55,7 @@ final class BindWorkflowTemplateHandlerTest extends KernelTestCase
         self::assertSame($expected, $links);
 
         self::assertSame(
-            ['bindingId' => (string) $binding->id, 'projectId' => (string) $this->project->id, 'templateKey' => 'lifecycle', 'templateVersion' => 16],
+            ['bindingId' => (string) $binding->id, 'projectId' => (string) $this->project->id, 'templateKey' => 'lifecycle', 'templateVersion' => 17],
             $this->audit->record('workflow.template_bound')->context,
         );
     }
