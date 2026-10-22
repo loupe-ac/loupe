@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { Application } from '@hotwired/stimulus';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import FormDraftController from '../../assets/controllers/form_draft_controller.js';
 import ReviewFinishVerdictController from '../../assets/controllers/review_finish_verdict_controller.js';
 import {
     rememberFormDraft,
@@ -62,6 +63,11 @@ const markup = ({ blocked = false, checked = '' } = {}) => `
 </dialog>
 </div>`;
 
+const choose = (radio) => {
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+};
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function mount(options) {
@@ -94,6 +100,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    document.dispatchEvent(
+        new CustomEvent('form-draft:cleared', {
+            detail: { key: KEY, identity: 'none' },
+        }),
+    );
     application.stop();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
@@ -164,6 +175,7 @@ it('enables Approve again when a later open reads no unanswered decision', async
 
 it('keeps a saved Request changes pick when nothing blocks Approve', async () => {
     await mount();
+    choose(changes());
     rememberFormDraft(KEY, { options: ['changes-requested'] });
     await open({ unanswered: 0, pending: 0 });
     expect(changes().checked).toBe(true);
@@ -172,6 +184,7 @@ it('keeps a saved Request changes pick when nothing blocks Approve', async () =>
 
 it('keeps a saved Approve pick when nothing blocks it, even with a thread pending', async () => {
     await mount();
+    choose(approve());
     rememberFormDraft(KEY, { options: ['approved'] });
     await open({ unanswered: 0, pending: 3 });
     expect(approve().checked).toBe(true);
@@ -179,6 +192,7 @@ it('keeps a saved Approve pick when nothing blocks it, even with a thread pendin
 
 it('drops a saved Approve pick while Approve is disabled', async () => {
     await mount();
+    choose(approve());
     rememberFormDraft(KEY, { options: ['approved'] });
     await open({ unanswered: 2, first: 'decision_block_a' });
     expect(approve().checked).toBe(false);
@@ -293,4 +307,93 @@ it('lets the link navigate when the block is not on this page', async () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(smoothScrollTo).not.toHaveBeenCalled();
+});
+
+describe('with the form draft controller on the same form', () => {
+    const draftMarkup = `
+<form data-controller="form-draft review-finish-verdict"
+      data-form-draft-owner-value="user-1"
+      data-form-draft-key-value="${KEY}"
+      data-action="review:finish@window->review-finish-verdict#refresh input->form-draft#remember change->form-draft#remember"
+      data-review-finish-verdict-summary-url-value="/summary?versionNumber=1"
+      data-review-finish-verdict-document-url-value="${DOCUMENT_URL}">
+  <input type="radio" name="verdict" value="approved" id="v_approved"
+         data-form-draft-target="option"
+         data-review-finish-verdict-target="approve">
+  <input type="radio" name="verdict" value="changes-requested"
+         data-form-draft-target="option"
+         data-review-finish-verdict-target="changes">
+  <span data-review-finish-verdict-target="hint">Ready.</span>
+  <span data-review-finish-verdict-target="reason" hidden>
+    <span data-review-finish-verdict-target="reasonText"></span>
+    <a href="${DOCUMENT_URL}#" data-review-finish-verdict-target="link">Go</a>
+  </span>
+  <textarea id="note" data-form-draft-target="text"></textarea>
+</form>`;
+
+    beforeEach(async () => {
+        application.register('form-draft', FormDraftController);
+        document.body.innerHTML = draftMarkup;
+        await settle();
+    });
+
+    const type = (value) => {
+        const note = document.getElementById('note');
+        note.value = value;
+        note.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const pick = (input) => {
+        input.checked = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    it('does not read a preselected Approve as a pick after a note is typed', async () => {
+        await open({ unanswered: 0, pending: 0 });
+        expect(approve().checked).toBe(true);
+        type('a note');
+
+        await open({ unanswered: 0, pending: 1 });
+        expect(changes().checked).toBe(true);
+        expect(approve().checked).toBe(false);
+    });
+
+    it('does not read a preselected Request changes as a pick after a note is typed', async () => {
+        await open({ unanswered: 1, first: 'decision_block_a' });
+        expect(changes().checked).toBe(true);
+        type('a note');
+
+        await open({ unanswered: 0, pending: 0 });
+        expect(approve().checked).toBe(true);
+        expect(changes().checked).toBe(false);
+    });
+
+    it('brings back a verdict the reviewer picked and did not submit', async () => {
+        await open({ unanswered: 0, pending: 1 });
+        expect(changes().checked).toBe(true);
+        pick(approve());
+        type('a note');
+
+        await open({ unanswered: 0, pending: 1 });
+        expect(approve().checked).toBe(true);
+    });
+
+    it('forgets a pick once the draft is cleared', async () => {
+        await open({ unanswered: 0, pending: 0 });
+        pick(approve());
+        document.dispatchEvent(
+            new CustomEvent('form-draft:cleared', {
+                detail: {
+                    key: KEY,
+                    identity:
+                        document.querySelector('form').dataset
+                            .formDraftIdentity,
+                },
+            }),
+        );
+        type('a note');
+
+        await open({ unanswered: 0, pending: 1 });
+        expect(changes().checked).toBe(true);
+    });
 });

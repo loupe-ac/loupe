@@ -7,6 +7,12 @@ const APPROVED = 'approved';
 const CHANGES_REQUESTED = 'changes-requested';
 const DISABLED_CLASS = 'lp-review-verdict-choice--disabled';
 
+// The verdict the reviewer picked and has not submitted, by draft key. The
+// form draft also records a radio that this controller checked in code, so
+// the draft alone cannot say which verdict is a pick. It outlives the form
+// element, like the draft does.
+const picks = new Map();
+
 /**
  * Sits on the Finish review form. Each time the dialog opens it reads the
  * decision summary, blocks Approve while a decision has no answer, and
@@ -28,6 +34,17 @@ export default class extends Controller {
 
     connect() {
         this.reads = 0;
+        this.remember = (event) => {
+            const radio = event.target;
+            if (radio === this.approveTarget || radio === this.changesTarget) {
+                picks.set(this.#key(), radio.value);
+            }
+        };
+        this.forget = (event) => {
+            if (event.detail.key === this.#key()) picks.delete(this.#key());
+        };
+        this.element.addEventListener('change', this.remember);
+        document.addEventListener('form-draft:cleared', this.forget);
         if (!this.hasApproveTarget || !this.approveTarget.disabled) return;
 
         // The server rendered Approve blocked. A restored pick can still hold
@@ -36,6 +53,11 @@ export default class extends Controller {
         if (this.hasChangesTarget && !this.#picked()) {
             this.changesTarget.checked = true;
         }
+    }
+
+    disconnect() {
+        this.element.removeEventListener('change', this.remember);
+        document.removeEventListener('form-draft:cleared', this.forget);
     }
 
     async refresh() {
@@ -61,6 +83,10 @@ export default class extends Controller {
             )
             ?.close();
         smoothScrollTo(target, { align: 'start' });
+    }
+
+    #key() {
+        return this.element.dataset.formDraftKeyValue;
     }
 
     #picked() {
@@ -125,8 +151,8 @@ export default class extends Controller {
             this.linkTarget.href = `${this.documentUrlValue}#${first}`;
         }
 
-        const saved = formDraft(this.element.dataset.formDraftKeyValue)
-            ?.options?.[0];
+        const draftPick = formDraft(this.#key())?.options?.[0];
+        const saved = draftPick === picks.get(this.#key()) ? draftPick : null;
         const wanted = blocked || pending > 0 ? CHANGES_REQUESTED : APPROVED;
         const keepSaved =
             saved === CHANGES_REQUESTED || (saved === APPROVED && !blocked);
