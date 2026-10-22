@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\DiffDocumentVersionsCommand;
 use App\Module\Review\Command\DiffDocumentVersionsHandler;
@@ -44,6 +45,7 @@ final class DiffDocumentVersionsController extends AppController
     public function __construct(
         private readonly DiffDocumentVersionsHandler $diffDocumentVersions,
         private readonly DraftReviewLoops $draftReviewLoops,
+        private readonly ProjectTopicBuilder $topics,
     ) {
     }
 
@@ -109,6 +111,10 @@ final class DiffDocumentVersionsController extends AppController
 
         return $this->render('@Review/diff_document_versions.html.twig', [
             'document' => $document,
+            'documentTopic' => $this->topics->forDocument(
+                $project->id ?? throw new \LogicException('Project has no id.'),
+                $document->id ?? throw new \LogicException('Document has no id.'),
+            ),
             'version' => $view->version,
             'versions' => $view->versions,
             'diffMode' => true,

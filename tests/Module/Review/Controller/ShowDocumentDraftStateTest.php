@@ -90,6 +90,17 @@ final class ShowDocumentDraftStateTest extends WebTestCase
         self::assertSame('plain', $streams[0]['content']->filter('#draft-band')->attr('data-draft-band'));
     }
 
+    public function test_a_page_with_no_publish_gets_a_band_with_no_publish(): void
+    {
+        $document = $this->designDraft();
+
+        $this->fetch($document, $this->project->owner, '?publish=0');
+
+        $band = $this->streams()[0]['content']->filter('#draft-band');
+        self::assertSame('agent', $band->attr('data-draft-band'));
+        self::assertCount(0, $band->filter('[data-document-publish]'));
+    }
+
     public function test_a_document_that_is_no_longer_a_draft_answers_no_content(): void
     {
         $this->fetch($this->linkedDocument($this->card(), DocumentStatus::InReview), $this->project->owner);
@@ -146,10 +157,10 @@ final class ShowDocumentDraftStateTest extends WebTestCase
         $this->client->loginUser($user);
     }
 
-    private function fetch(Document $document, User $user): void
+    private function fetch(Document $document, User $user, string $query = ''): void
     {
         $this->login($user);
-        $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/documents/'.$document->id.'/review/draft-state');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/documents/'.$document->id.'/review/draft-state'.$query);
     }
 
     /** @return list<array{action: string, target: string, active: ?string, content: Crawler}> */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Review\Command\ShowDocumentCommand;
 use App\Module\Review\Command\ShowDocumentHandler;
@@ -34,6 +35,7 @@ final class ShowDocumentHistoryController extends AppController
         private readonly ShowDocumentHistoryHandler $showDocumentHistory,
         private readonly ShowDocumentHandler $showDocument,
         private readonly DraftReviewLoops $draftReviewLoops,
+        private readonly ProjectTopicBuilder $topics,
     ) {
     }
 
@@ -47,6 +49,10 @@ final class ShowDocumentHistoryController extends AppController
 
         return $this->render('@Review/show_document_history.html.twig', [
             'document' => $view->document,
+            'documentTopic' => $this->topics->forDocument(
+                $document->project->id ?? throw new \LogicException('Project has no id.'),
+                $document->id ?? throw new \LogicException('Document has no id.'),
+            ),
             'versions' => $view->versions,
             'version' => $current->version,
             'signals' => $current->signals,

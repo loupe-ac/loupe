@@ -183,6 +183,52 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-finish-review [data-review-draft-live-status]'));
     }
 
+    public function test_the_history_page_follows_the_band_and_the_warning_live(): void
+    {
+        $document = $this->designDraft();
+
+        $crawler = $this->visit($document, '/review/history');
+
+        $page = $crawler->filter('.lp-review');
+        self::assertStringContainsString('review-draft-live', (string) $page->attr('data-controller'));
+        self::assertStringEndsWith('/documents/'.$document->id.'/review/draft-state', (string) $page->attr('data-review-draft-live-url-value'));
+        self::assertCount(1, $crawler->filter('#draft-band'));
+        self::assertCount(1, $crawler->filter('#draft-review-warning'));
+        self::assertSubscribesToTheDocumentTopic($crawler, $document);
+    }
+
+    public function test_an_old_version_follows_the_band_live_and_keeps_publish_out_of_it(): void
+    {
+        $document = $this->linkedDocument($this->card(), versions: 2);
+        $tag = new Tag($this->project, 'tech-design');
+        $this->em->persist($tag);
+        $document->tags->add($tag);
+        $this->em->flush();
+
+        $crawler = $this->visit($document, '/review/versions/1');
+
+        $page = $crawler->filter('.lp-review');
+        self::assertStringContainsString('review-draft-live', (string) $page->attr('data-controller'));
+        self::assertStringEndsWith('/documents/'.$document->id.'/review/draft-state?publish=0', (string) $page->attr('data-review-draft-live-url-value'));
+        self::assertCount(0, $crawler->filter('#draft-band [data-document-publish]'));
+    }
+
+    public function test_a_diff_that_offers_finish_review_follows_its_warning_live(): void
+    {
+        $document = $this->linkedDocument($this->card(), versions: 2);
+        $tag = new Tag($this->project, 'tech-design');
+        $this->em->persist($tag);
+        $document->tags->add($tag);
+        $this->em->flush();
+
+        $crawler = $this->visit($document, '/review/diff/1/2');
+
+        $page = $crawler->filter('.lp-review');
+        self::assertStringContainsString('review-draft-live', (string) $page->attr('data-controller'));
+        self::assertCount(1, $crawler->filter('#draft-review-warning'));
+        self::assertSubscribesToTheDocumentTopic($crawler, $document);
+    }
+
     public function test_a_document_in_review_does_not_listen_for_draft_changes(): void
     {
         $crawler = $this->visit($this->plainDraft(DocumentStatus::InReview));
@@ -223,16 +269,22 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         $handler(new PauseCardCommand($card, $reason, 'tech-design-review', PauseKind::Retries));
     }
 
-    private function visit(Document $document): Crawler
+    private function visit(Document $document, string $path = '/review'): Crawler
     {
         $owner = $this->project->owner;
         $owner->emailVerifiedAt = new \DateTimeImmutable();
         AcceptedTerms::stamp($owner, static::getContainer());
         $this->em->flush();
         $this->client->loginUser($owner);
-        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/documents/'.$document->id.'/review');
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/documents/'.$document->id.$path);
         self::assertResponseIsSuccessful();
 
         return $crawler;
+    }
+
+    private static function assertSubscribesToTheDocumentTopic(Crawler $crawler, Document $document): void
+    {
+        $topics = $crawler->filter('[data-mercure-topic]')->each(static fn (Crawler $input): string => (string) $input->attr('value'));
+        self::assertNotEmpty(array_filter($topics, static fn (string $topic): bool => str_contains($topic, (string) $document->id)));
     }
 }
