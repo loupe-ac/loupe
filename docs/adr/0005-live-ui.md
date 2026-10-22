@@ -34,6 +34,7 @@ The rule in detail:
 - Each topic is private and goes through a `MercureTopicAuthorizerInterface`. The `project-authz` skill carries the rules.
 - A page catches up after a reconnect. It fetches what it missed, as the board does.
 - A live change must not disturb the work of the person on the page. When the person drags, types in a form or has a dialog open, the update waits until that ends. It does not drop.
+- One exception: a live update that replaces no input of an open dialog does not wait. The warning in the Finish review dialog of a draft document updates this way, and it keeps the verdict and the note.
 - A failed fetch retries with a growing wait. After the last retry, the page says that live updates stopped. It does not show old state as current.
 
 "When the instance can" means a configured hub with the flag on. It does not mean "when it is cheap to build". The cost of a live update is a cost of the feature.

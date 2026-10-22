@@ -67,8 +67,24 @@ final readonly class Template
     /** @return list<string> the document tag of each rule whose request has the design review role, each once */
     public function designReviewTags(): array
     {
+        return self::designReviewTagsOf($this->rules);
+    }
+
+    /** @return list<string> the document tag of each design review request rule that can act in the slot, each once */
+    public function designReviewTagsIn(?string $slot): array
+    {
+        return self::designReviewTagsOf($this->rulesFor($slot));
+    }
+
+    /**
+     * @param list<Rule> $rules
+     *
+     * @return list<string>
+     */
+    private static function designReviewTagsOf(array $rules): array
+    {
         $tags = [];
-        foreach ($this->rules as $rule) {
+        foreach ($rules as $rule) {
             $tag = $rule->then->params[ParameterNames::DOCUMENT_TAG] ?? null;
             if (self::REQUEST_ACTION === $rule->then->key && self::DESIGN_REVIEW_ROLE === ($rule->then->params['role'] ?? null) && \is_string($tag)) {
                 $tags[] = $tag;

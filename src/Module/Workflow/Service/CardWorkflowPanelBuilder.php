@@ -11,6 +11,7 @@ use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\PauseReasonText;
 use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
@@ -45,6 +46,7 @@ final readonly class CardWorkflowPanelBuilder
         private LoggerInterface $logger,
         private RuleSubject $ruleSubject,
         private Actions $actions,
+        private PauseReasonText $pauseReasonText,
     ) {
     }
 
@@ -93,7 +95,7 @@ final readonly class CardWorkflowPanelBuilder
             (string) $pause->id,
             $pause->reason,
             $this->translator->trans('workflow.panel.pause_kind.'.str_replace('-', '_', $pause->kind->value)),
-            $this->codeText(['workflow.pause.', 'workflow.refusal.'], $pause->reason),
+            $this->pauseReasonText->forPause($pause->reason),
             $release,
             $pause->createdAt,
             $managed && \in_array($pause->kind, ReleaseWorkflowPauseCommand::RELEASABLE_KINDS, true),
@@ -171,7 +173,7 @@ final readonly class CardWorkflowPanelBuilder
         $latest = null;
         foreach ($this->workflowRuleStates->findForCard($card->id) as $state) {
             if (null !== $state->lastRefusal && null !== $state->lastRefusalAt && (null === $latest || $state->lastRefusalAt > $latest->at)) {
-                $latest = new CardWorkflowRefusal($state->lastRefusal, $this->codeText(['workflow.refusal.'], $state->lastRefusal), $state->lastRefusalAt, $state->attempts);
+                $latest = new CardWorkflowRefusal($state->lastRefusal, $this->pauseReasonText->forRefusal($state->lastRefusal), $state->lastRefusalAt, $state->attempts);
             }
         }
 
@@ -186,24 +188,6 @@ final readonly class CardWorkflowPanelBuilder
             FactsBuilder::TERMINAL_SLOT => $this->translator->trans('workflow.panel.slot.terminal'),
             default => $this->translator->trans($template->slot($slot)->label ?? $slot),
         };
-    }
-
-    /**
-     * A retries pause keeps the code of its last refusal. An untranslated code shows as it is,
-     * because a forge write may refuse with a cause from the forge.
-     *
-     * @param list<string> $prefixes
-     */
-    private function codeText(array $prefixes, string $code): string
-    {
-        foreach ($prefixes as $prefix) {
-            $text = $this->translator->trans($prefix.$code);
-            if ($text !== $prefix.$code) {
-                return $text;
-            }
-        }
-
-        return $code;
     }
 
     private static function rule(Template $template, string $ruleId): ?Rule

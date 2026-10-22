@@ -14,12 +14,13 @@ use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
-/** Dev-only: pauses a card as the engine does after the last refused retry of the tech-design-write rule. */
+/** Dev-only: pauses a card as the engine does after the last refused retry of a rule, by default tech-design-write. */
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
     '/dev/seed/workflow-pause/{projectId}/{cardId}',
@@ -40,6 +41,7 @@ final class SeedWorkflowPauseController extends AppController
     }
 
     public function __invoke(
+        Request $request,
         string $cardId,
         #[MapEntity(id: 'projectId')] Project $project,
     ): JsonResponse {
@@ -49,7 +51,7 @@ final class SeedWorkflowPauseController extends AppController
 
         $card = $this->cards->findInProject($project->id ?? throw new \LogicException('A stored project has an id.'), Uuid::fromString($cardId))
             ?? throw $this->createNotFoundException();
-        $pause = ($this->seedPause)(new SeedWorkflowPauseCommand($card));
+        $pause = ($this->seedPause)(new SeedWorkflowPauseCommand($card, $request->request->getString('rule', 'tech-design-write')));
 
         return $this->json(['pauseId' => (string) $pause->id], JsonResponse::HTTP_CREATED);
     }

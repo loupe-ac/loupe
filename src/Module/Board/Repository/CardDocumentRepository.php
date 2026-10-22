@@ -108,6 +108,34 @@ final class CardDocumentRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<string> $tagNames
+     *
+     * @return list<string> the ids of the drafts linked to the card that carry one of the tags
+     */
+    public function findDraftDocumentIdsWithTagsForCard(Uuid $cardId, array $tagNames): array
+    {
+        if ([] === $tagNames) {
+            return [];
+        }
+
+        /** @var list<array{documentId: Uuid|string}> $rows */
+        $rows = $this->createQueryBuilder('link')
+            ->select('DISTINCT document.id AS documentId')
+            ->join('link.document', 'document')
+            ->join('document.tags', 'tag')
+            ->where('link.card = :card')
+            ->andWhere('document.status = :status')
+            ->andWhere('tag.name IN (:tags)')
+            ->setParameter('card', $cardId, UuidType::NAME)
+            ->setParameter('status', DocumentStatus::Draft)
+            ->setParameter('tags', $tagNames)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): string => (string) $row['documentId'], $rows);
+    }
+
+    /**
      * The links of the cards to a document in review and not archived, with the
      * number of its current version. The card column and the document tags come
      * loaded, so a caller can apply the stage rule with no query per row.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\DiffDocumentVersionsCommand;
 use App\Module\Review\Command\DiffDocumentVersionsHandler;
@@ -20,6 +21,7 @@ use App\Module\Review\Form\SuggestRewordingRequest;
 use App\Module\Review\Form\UndoVerdictFormType;
 use App\Module\Review\Form\UndoVerdictRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DraftReviewLoops;
 use App\Module\Review\ValueObject\DiffView;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,6 +44,8 @@ final class DiffDocumentVersionsController extends AppController
 {
     public function __construct(
         private readonly DiffDocumentVersionsHandler $diffDocumentVersions,
+        private readonly DraftReviewLoops $draftReviewLoops,
+        private readonly ProjectTopicBuilder $topics,
     ) {
     }
 
@@ -107,6 +111,10 @@ final class DiffDocumentVersionsController extends AppController
 
         return $this->render('@Review/diff_document_versions.html.twig', [
             'document' => $document,
+            'documentTopic' => $this->topics->forDocument(
+                $project->id ?? throw new \LogicException('Project has no id.'),
+                $document->id ?? throw new \LogicException('Document has no id.'),
+            ),
             'version' => $view->version,
             'versions' => $view->versions,
             'diffMode' => true,
@@ -125,6 +133,7 @@ final class DiffDocumentVersionsController extends AppController
             // when that side is the current version, and so does the verdict.
             'readOnly' => true,
             'verdictAvailable' => $view->isCurrent,
+            'draftReviewLoop' => $this->draftReviewLoops->of($document),
             'diffCommenting' => $view->commentingEnabled,
             'decisions' => $view->decisions,
             // The page a Decisions row leads to: the newer side, read as a document.
