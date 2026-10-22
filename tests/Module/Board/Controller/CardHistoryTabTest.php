@@ -79,7 +79,7 @@ final class CardHistoryTabTest extends WebTestCase
         self::assertStringContainsString('The document has a newer version than the one the rule checked.', $rows->eq(0)->text());
         self::assertStringContainsString('Riley Chen withdrew the approval of Tech design.', $rows->eq(1)->text());
         self::assertStringContainsString('The tech-design-auto-approve workflow rule approved Tech design.', $rows->eq(2)->text());
-        self::assertStringContainsString('The document had no unanswered decision and no open thread, and its agent review had passed.', $rows->eq(2)->text());
+        self::assertStringContainsString('No unanswered decision, no open thread, and the agent review passed.', $rows->eq(2)->text());
     }
 
     public function test_a_card_with_no_rows_says_so(): void
