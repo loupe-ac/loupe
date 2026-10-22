@@ -22,6 +22,7 @@ use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Workflow\Fact\FactsMother;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -66,6 +67,46 @@ final class StopWorkTest extends KernelTestCase
         self::assertIsInt($rows[0]->detail['durationSeconds']);
         self::assertNotContains((string) $interactive->id, array_column(array_map(static fn (CardEvent $row): array => $row->detail, $rows), 'runId'));
         self::assertNotContains((string) $ended->id, array_column(array_map(static fn (CardEvent $row): array => $row->detail, $rows), 'runId'));
+    }
+
+    public function test_it_takes_the_bridge_locks_in_bridge_order_before_it_locks_a_work_request(): void
+    {
+        [$card] = $this->card('stop-work-order');
+        $project = $card->project;
+        $second = $this->seedBridge($this->em(), $project->owner, Uuid::fromString('ffffffff-ffff-4fff-bfff-ffffffffffff'));
+        $second->capabilities = [Bridge::CAPABILITY_COMMANDS];
+        $low = $this->seedBridge($this->em(), $project->owner, Uuid::fromString('00000000-0000-4000-8000-000000000001'));
+        $low->capabilities = [Bridge::CAPABILITY_COMMANDS];
+        $this->em()->flush();
+        $this->seedWorkRequest($this->em(), $project, $card->id, 'fix');
+        $this->seedRun($this->em(), $project, receivedAt: new \DateTimeImmutable('-2 hours'), workKind: 'implement', bridgeId: $low->id, cardId: $card->id, state: WorkerRunState::Running);
+        $this->seedRun($this->em(), $project, receivedAt: new \DateTimeImmutable('-1 hour'), workKind: 'implement', bridgeId: $second->id, cardId: $card->id, state: WorkerRunState::Running);
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $this->stop($card);
+
+        $locks = [];
+        $withdraw = null;
+        $position = 0;
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $sql = (string) $query['sql'];
+                if (str_contains($sql, 'pg_advisory_xact_lock')) {
+                    $locks[] = ['position' => $position, 'bridge' => (string) ($query['params'][0] ?? '')];
+                }
+                if (null === $withdraw && str_contains($sql, 'work_requests') && (str_contains($sql, 'FOR UPDATE') || str_starts_with($sql, 'UPDATE'))) {
+                    $withdraw = $position;
+                }
+                ++$position;
+            }
+        }
+        self::assertCount(2, $locks);
+        self::assertNotNull($withdraw, 'The action never locked or wrote the work request.');
+        self::assertStringEndsWith((string) $low->id, $locks[0]['bridge']);
+        self::assertStringEndsWith((string) $second->id, $locks[1]['bridge']);
+        self::assertLessThan($withdraw, $locks[1]['position'], 'A work request must be locked after the bridge locks, the order of a claim.');
     }
 
     public function test_it_changes_nothing_for_a_run_that_has_a_stop_pending_and_for_a_card_with_no_work(): void

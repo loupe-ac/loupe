@@ -10,6 +10,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -26,10 +27,12 @@ use Psr\Clock\ClockInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Cancels the open work requests of the card and asks the bridge to stop each open background run of it, then writes one
- * `stopped` history row for each run it asked to stop. An interactive session stays: the move that follows closes its row.
- * A request that a person started stays too, because no rule owns it. A run that is stopping already, or has a stop pending,
- * is skipped, so a retry of the rule writes no second row.
+ * Asks the bridge to stop each open background run of the card, then cancels the open work requests of the card. It writes
+ * one `stopped` history row for each run it asked to stop. The runs go in bridge order, and the bridge locks come before
+ * the lock of any work request, the order of a claim, so a pass and a claim cannot wait for each other.
+ * An interactive session stays: the move that follows closes its row. A request that a person started stays too,
+ * because no rule owns it. A run that is stopping already, or has a stop pending, is skipped, so a retry of the rule
+ * writes no second row.
  */
 final readonly class StopWork implements Action
 {
@@ -90,18 +93,14 @@ final readonly class StopWork implements Action
         $card = $this->cards->find($context->card->id) ?? throw new \LogicException('A stored card has an id.');
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
 
-        foreach ($this->ledger->live($cardId) as $request) {
-            if (!PersonWork::owns($request->ruleId)) {
-                $this->ledger->withdraw($request->id, WithdrawKind::Cancelled);
-            }
-        }
-
         $reason = $this->translator->trans('workflow.stop_work.reason', ['%rule%' => $context->ruleId]);
         $now = $this->clock->now();
-        foreach ($this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS) as $run) {
-            if (WorkerRunKind::Interactive === $run->kind) {
-                continue;
-            }
+        $runs = array_filter(
+            $this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS),
+            static fn (WorkerRun $run): bool => WorkerRunKind::Interactive !== $run->kind,
+        );
+        usort($runs, static fn (WorkerRun $a, WorkerRun $b): int => strcmp((string) $a->bridgeId, (string) $b->bridgeId));
+        foreach ($runs as $run) {
             try {
                 ($this->requestCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::StopRun, null, $reason));
             } catch (DomainErrors) {
@@ -113,6 +112,12 @@ final readonly class StopWork implements Action
                 'rule' => $context->ruleId,
                 'durationSeconds' => null === $run->startedAt ? null : max(0, $now->getTimestamp() - $run->startedAt->getTimestamp()),
             ], $now);
+        }
+
+        foreach ($this->ledger->live($cardId) as $request) {
+            if (!PersonWork::owns($request->ruleId)) {
+                $this->ledger->withdraw($request->id, WithdrawKind::Cancelled);
+            }
         }
 
         return ActionOutcome::done();
