@@ -1,6 +1,10 @@
 <twig:Ds:Dialog class="lp-home-waitlist-dialog" aria-labelledby="waitlist-modal-title" data-action="cancel->modal#close">
     <twig:Ds:Button variant="icon" type="button" class="lp-home-waitlist-dialog__close" data-action="click->modal#close" aria-label="{{ 'landing.waitlist_dialog.close'|trans }}"><twig:UX:Icon name="lucide:x" aria-hidden="true" /></twig:Ds:Button>
     <turbo-frame id="waitlist-modal" data-controller="frame-missing-visit" data-action="turbo:frame-missing->frame-missing-visit#visit">
-        {% include 'waitlist/_modal_form.html.twig' with {modalForm: modalForm} only %}
+        {% if modalJoined|default(false) %}
+            {% include 'waitlist/_modal_joined.html.twig' with {joinForm: null} only %}
+        {% else %}
+            {% include 'waitlist/_modal_form.html.twig' with {modalForm: modalForm} only %}
+        {% endif %}
     </turbo-frame>
 </twig:Ds:Dialog>

@@ -36,6 +36,6 @@
             </ul>
             <twig:Ds:Button href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="requirements-missing" class="lp-home-card__action">{{ 'landing.requirements.better.action'|trans }}</twig:Ds:Button>
         </div>
-        {% include '@Landing/landing/_ask.html.twig' with {notifyForm: notifyForm} only %}
+        {% include '@Landing/landing/_ask.html.twig' with {notifyForm: notifyForm, notifyJoined: notifyJoined|default(false)} only %}
     </div>
 </section>
