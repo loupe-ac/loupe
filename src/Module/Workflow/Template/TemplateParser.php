@@ -1159,7 +1159,18 @@ final readonly class TemplateParser
         $several = \count($node) > 1;
         $calls = $this->actionList($node, $where, static fn (ActionTraits $traits): bool => !$several || $traits->listable, 'in a rule with several actions', $slotKeys, $types, $facts, $errors, $lenient);
 
-        return \count($calls) === \count($node) ? $calls : null;
+        if (\count($calls) !== \count($node)) {
+            return null;
+        }
+        foreach ($calls as $position => $call) {
+            if ($call->traits->endsPass && isset($calls[$position + 1])) {
+                $errors[] = \sprintf('%s[%d]: the action "%s" ends the pass, so the action "%s" after it would never run', $where, $position, $call->key, $calls[$position + 1]->key);
+
+                return null;
+            }
+        }
+
+        return $calls;
     }
 
     /**

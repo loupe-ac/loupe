@@ -1384,6 +1384,10 @@ final class TemplateParserTest extends TestCase
             [['move' => ['to' => 'review']], ['pause' => ['reason' => 'busy', 'until' => ['pr.open' => []]]]],
             'rules[1] (to-review) then[1]: the action "pause" is not allowed in a rule with several actions',
         ];
+        yield 'an action after a move' => [
+            [['move' => ['to' => 'review']], ['stop-work' => []]],
+            'rules[1] (to-review) then[0]: the action "move" ends the pass, so the action "stop-work" after it would never run',
+        ];
         yield 'an empty list' => [[], 'rules[1] (to-review) then: a list of actions must not be empty'];
         yield 'an error in the second action' => [
             [['move' => ['to' => 'review']], ['move' => ['to' => 'nowhere']]],
