@@ -888,6 +888,11 @@ refuses the approval. It also refuses when you cleared the answer of a decision 
 The action then writes a `verdict-failed` row in the history of the card and ends. It does not retry.
 The document stays in review until you act on it.
 
+The approval note on the document says that the document had no unanswered decision and no open thread, and that its agent
+review had passed. This holds for the two rules above. The action `approve-document` itself checks only the clean entry
+check. A rule that you add to the template copy can approve with other conditions, and the note then says more than the
+rule checked.
+
 To approve the tech design of a feature this way, add `feature` to the `types` list of `tech-design-auto-approve` in the
 template copy of the project. To turn the feature off, remove the two rules.
 A template with no design review rule never approves a design this way, because `design_review.passed` stays false.

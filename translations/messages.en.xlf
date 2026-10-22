@@ -1680,7 +1680,7 @@
             </trans-unit>
             <trans-unit id="review.document.verdict.workflow_approved_note">
                 <source>review.document.verdict.workflow_approved_note</source>
-                <target>Approved when it entered review: no unanswered decision, no open thread, and the agent review passed.</target>
+                <target>A workflow rule approved this document. It had no unanswered decision and no open thread when it entered review, and its agent review had passed.</target>
             </trans-unit>
             <trans-unit id="review.document.verdict.undo">
                 <source>review.document.verdict.undo</source>
@@ -3357,7 +3357,7 @@
             </trans-unit>
             <trans-unit id="account.system_status.workflow_account.present">
                 <source>account.system_status.workflow_account.present</source>
-                <target>The workflow account exists. Every verdict that a workflow rule writes is authored by it.</target>
+                <target>The workflow account exists. It writes every verdict that a workflow rule gives.</target>
             </trans-unit>
             <trans-unit id="account.system_status.workflow_account.missing">
                 <source>account.system_status.workflow_account.missing</source>
@@ -7287,7 +7287,7 @@
             <trans-unit id="board.card.history.approval_withdrawn"><source>board.card.history.approval_withdrawn</source><target>%actor% withdrew the approval of %document%.</target></trans-unit>
             <trans-unit id="board.card.history.change_request_withdrawn"><source>board.card.history.change_request_withdrawn</source><target>%actor% withdrew the change request on %document%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed"><source>board.card.history.verdict_failed</source><target>The %rule% workflow rule did not approve %document%.</target></trans-unit>
-            <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>The document had no unanswered decision and no open thread, and its agent review had passed.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.decisions_unanswered"><source>board.card.history.verdict_failed_cause.decisions_unanswered</source><target>A decision in the document has no answer.</target></trans-unit>
