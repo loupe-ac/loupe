@@ -20,9 +20,4 @@ final readonly class DocumentFacts
         public ?int $version = null,
     ) {
     }
-
-    public function withStatus(string $status): self
-    {
-        return new self($this->tags, $status, $this->id, $this->title, $this->versionAt, $this->version);
-    }
 }

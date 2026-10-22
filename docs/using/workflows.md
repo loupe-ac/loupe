@@ -192,9 +192,6 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   or that question closed less than 10 minutes ago.
 - `card.document.agent_review_open`: an agent asked you to review a document in
   review of the card, and that review item is open.
-- `card.document.approval_moves`: a document in review of the card carries a tag
-  that a rule of the card's slot reads, and an approval or a change request on
-  it would make a rule of that slot fire.
 - `pr.checks_on_head`: the checks ran on the head commit of the pull request.
 - `pr.can_merge`: the forge reads the pull request as mergeable, behind or
   blocked.

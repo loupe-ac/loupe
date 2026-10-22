@@ -37,6 +37,7 @@ use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\StackParent;
+use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
@@ -408,14 +409,38 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('unmanaged')->since);
     }
 
-    public function test_the_document_marker_needs_the_person_when_an_approval_moves_the_card_and_no_agent_review_is_open(): void
+    public function test_the_document_marker_needs_the_person_while_a_document_of_the_slot_is_in_review_and_no_agent_review_is_open(): void
     {
         $marker = array_find($this->template('lifecycle')->markers, static fn ($marker): bool => 'document-in-review' === $marker->key) ?? throw new \LogicException('Lifecycle ships the marker.');
 
         self::assertSame(MarkerKind::NeedsYou, $marker->kind);
         self::assertSame(['product-design', 'tech-design'], $marker->slots);
-        self::assertSame(['card.document.approval_moves', 'card.document.agent_review_open'], array_map(static fn ($leaf): string => $leaf->condition::key(), $marker->when->leaves()));
+        self::assertSame(['card.in_slot', 'card.document.in_review', 'card.in_slot', 'card.document.in_review', 'card.document.agent_review_open'], array_map(static fn ($leaf): string => $leaf->condition::key(), $marker->when->leaves()));
         self::assertContains('document-in-review', $this->template('lifecycle')->inbox);
+    }
+
+    #[DataProvider('designsInReview')]
+    public function test_a_design_in_review_shows_the_marker_in_its_slot_also_while_an_open_blocker_holds_the_card(string $slot, string $tag, bool $shows): void
+    {
+        $review = [new DocumentFacts([$tag], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+        $facts = FactsMother::facts(card: FactsMother::card(slot: $slot, hasOpenBlocker: true, documents: $review));
+
+        $keys = $this->keys($facts);
+
+        self::assertSame($shows, \in_array('document-in-review', $keys, true), implode(',', $keys));
+        if ($shows) {
+            self::assertSame(MarkerKind::NeedsYou, $this->written('document-in-review')->kind);
+            self::assertSame(['document-in-review'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []), 'the marker opens an inbox wait');
+        }
+    }
+
+    /** @return iterable<string, array{string, string, bool}> */
+    public static function designsInReview(): iterable
+    {
+        yield 'a tech design in Tech design' => ['tech-design', 'tech-design', true];
+        yield 'a product design in Product design' => ['product-design', 'product-design', true];
+        yield 'a product design in Tech design' => ['tech-design', 'product-design', false];
+        yield 'a tech design in Product design' => ['product-design', 'tech-design', false];
     }
 
     public function test_a_document_in_review_shows_no_marker_outside_the_slots_of_the_document_marker(): void

@@ -278,8 +278,9 @@ list. See [Markers that open inbox items](workflows.md#markers-that-open-inbox-i
 The Lifecycle template lists four markers. The Simple template lists three, and
 not `document-in-review`. A card waits in these cases:
 
-- A linked document of the card is in review, and an approval would make a rule
-  of the slot of the card fire. No agent review item of the document may be
+- A linked document of the card is in review, and it has the tag that the slot of
+  the card waits for. An approval does not need to move the card yet, so an open
+  blocker does not hide the wait. No agent review item of the document may be
   open. With the Lifecycle template, that is a product design, a document with
   the tag `product-design`, in the Product design column, or a tech design, a
   document with the tag `tech-design`, in the Tech design column. This is the
