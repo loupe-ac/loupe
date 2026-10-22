@@ -65,7 +65,7 @@ final class CreateCardHandlerSourceTest extends KernelTestCase
             }
         }
         self::assertCount(1, $locks, 'The handler locks the project row once.');
-        self::assertStringEndsWith(ProjectRepository::CARD_LOCK, $locks[0]);
+        self::assertStringEndsWith(ProjectRepository::WRITE_LOCK, $locks[0]);
         self::assertStringNotContainsString('FOR UPDATE', $locks[0]);
     }
 

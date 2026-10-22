@@ -89,7 +89,7 @@ final readonly class CreateCardHandler
         // and the same card number. The lock leaves key shares alone, so a card
         // created inside a verdict transaction does not wait for an engine pass.
         $card = $this->em->wrapInTransaction(function () use ($command, $title, $documents, $artifacts, $relatedCards, $parent): Card|string|DomainErrors {
-            $this->projects->lockForCardWrite($command->project);
+            $this->projects->lockForWrite($command->project);
 
             // Read under the lock: a column deleted or given another terminal
             // flag since the request loaded it decides whether the card may go

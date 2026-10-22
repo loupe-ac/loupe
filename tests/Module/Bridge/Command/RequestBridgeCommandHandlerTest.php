@@ -27,7 +27,9 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordingAuditor;
+use App\Module\Project\Repository\ProjectRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
@@ -137,6 +139,30 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         self::assertNull($payload['workRequestId']);
         self::assertNull($payload['ruleId']);
         self::assertSame('stop-run', $payload['kind']);
+    }
+
+    public function test_a_resume_locks_the_project_after_the_bridge_and_never_with_for_update(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('command-lock-mode', state: WorkerRunState::Unfinished, cardColumn: 'implementation');
+        $holder = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+        $holder->reset();
+
+        $this->request($run, BridgeCommandKind::ResumeRun, $owner);
+
+        $locks = [];
+        foreach ($holder->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $sql = (string) $query['sql'];
+                if (str_contains($sql, 'pg_advisory_xact_lock') || (str_contains($sql, 'FROM projects') && 1 === preg_match('/\bFOR (UPDATE|NO KEY UPDATE)\b/', $sql))) {
+                    $locks[] = $sql;
+                }
+            }
+        }
+        self::assertCount(2, $locks, 'The bridge lock, then one project lock.');
+        self::assertStringContainsString('pg_advisory_xact_lock', $locks[0]);
+        self::assertStringEndsWith(ProjectRepository::WRITE_LOCK, $locks[1]);
     }
 
     public function test_the_payload_names_what_the_run_started_on(): void

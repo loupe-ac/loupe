@@ -19,11 +19,14 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * would wait for it. These tests run the lock modes on a parent and child table
  * pair with two real sessions. The pair stands in for projects and outbox rows,
  * because a test transaction keeps the real rows out of sight of a second session.
+ * The same holds for a bridge command: a pass that stops work takes the bridge lock
+ * with a key share held, so a request that holds the bridge lock must not wait for a key share.
  */
 final class VerdictLockOrderTest extends KernelTestCase
 {
     private const string PARENT = 'verdict_lock_probe_parent';
     private const string CHILD = 'verdict_lock_probe_child';
+    private const string BRIDGE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('verdict-lock-probe-bridge'))";
 
     private Connection $first;
 
@@ -122,14 +125,42 @@ final class VerdictLockOrderTest extends KernelTestCase
         $this->second->executeQuery($this->lockSql(DocumentRepository::VERDICT_LOCK));
 
         $this->second->executeStatement("SET LOCAL lock_timeout = '300ms'");
-        $this->second->executeQuery($this->lockSql(ProjectRepository::CARD_LOCK));
+        $this->second->executeQuery($this->lockSql(ProjectRepository::WRITE_LOCK));
         self::assertTrue($this->second->isTransactionActive());
     }
 
-    private function assertLockWaits(Connection $connection, string $mode, string $message): void
+    public function test_a_project_lock_after_the_bridge_lock_cycles_with_a_pass_that_waits_for_the_bridge_lock(): void
+    {
+        $this->bothPassesWriteTheirOutboxRow();
+        $this->second->executeQuery(self::BRIDGE_LOCK);
+
+        $this->first->executeStatement("SET LOCAL lock_timeout = '300ms'");
+        $this->assertLockWaits($this->first, null, 'A pass that stops work waits for the bridge lock of a resume.');
+    }
+
+    public function test_a_for_update_lock_after_the_bridge_lock_waits_for_the_key_share_of_a_pass(): void
+    {
+        $this->bothPassesWriteTheirOutboxRow();
+        $this->second->executeQuery(self::BRIDGE_LOCK);
+
+        $this->second->executeStatement("SET LOCAL lock_timeout = '300ms'");
+        $this->assertLockWaits($this->second, 'FOR UPDATE', 'The resume waits for the key share of the pass, which waits for the bridge lock of the resume.');
+    }
+
+    public function test_the_write_lock_after_the_bridge_lock_does_not_wait_for_the_key_share_of_a_pass(): void
+    {
+        $this->bothPassesWriteTheirOutboxRow();
+        $this->second->executeQuery(self::BRIDGE_LOCK);
+
+        $this->second->executeStatement("SET LOCAL lock_timeout = '300ms'");
+        $this->second->executeQuery($this->lockSql(ProjectRepository::WRITE_LOCK));
+        self::assertTrue($this->second->isTransactionActive());
+    }
+
+    private function assertLockWaits(Connection $connection, ?string $mode, string $message): void
     {
         try {
-            $connection->executeQuery($this->lockSql($mode));
+            $connection->executeQuery(null === $mode ? self::BRIDGE_LOCK : $this->lockSql($mode));
             self::fail($message);
         } catch (\Doctrine\DBAL\Exception $e) {
             self::assertStringContainsString('lock timeout', $e->getMessage(), $message);
