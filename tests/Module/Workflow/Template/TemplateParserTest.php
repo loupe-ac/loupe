@@ -13,11 +13,13 @@ use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardPaused;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
+use App\Module\Board\Workflow\ApproveDocument;
 use App\Module\Board\Workflow\Detach;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\LinkDocument;
 use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
+use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Inbox\Workflow\Condition\CardHasOpenQuestion;
@@ -69,7 +71,7 @@ final class TemplateParserTest extends TestCase
     {
         $this->actions = new Actions(array_map(
             static fn (string $class): Action => new \ReflectionClass($class)->newInstanceWithoutConstructor(),
-            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, MissingAction::class],
+            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class, MissingAction::class],
         ));
         $this->parser = new TemplateParser(new Conditions([
             new CardChildrenFinished(),
@@ -579,6 +581,21 @@ final class TemplateParserTest extends TestCase
 
         self::assertSame(['tags' => ['tech-design', 'deploy-notes']], $then?->lists);
         self::assertSame([], $then->params);
+    }
+
+    public function test_the_verdict_actions_keep_their_tag_tags_and_note(): void
+    {
+        $template = self::valid();
+        $template['rules'][] = ['id' => 'approve', 'when' => ['pr.open' => []], 'then' => ['approve-document' => ['tag' => 'tech-design']]];
+        $template['rules'][] = ['id' => 'changes', 'when' => ['pr.open' => []], 'then' => ['request-changes' => ['tags' => ['tech-design'], 'note' => 'workflow.note.rework']]];
+        $rules = $this->parser->parse($template)->rules;
+
+        $approve = array_find($rules, static fn ($rule): bool => 'approve' === $rule->id)?->then;
+        $changes = array_find($rules, static fn ($rule): bool => 'changes' === $rule->id)?->then;
+
+        self::assertSame(['tag' => 'tech-design'], $approve?->params);
+        self::assertSame(['note' => 'workflow.note.rework'], $changes?->params);
+        self::assertSame(['tags' => ['tech-design']], $changes->lists);
     }
 
     public function test_a_request_with_no_checks_has_an_empty_list(): void
