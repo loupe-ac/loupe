@@ -48,10 +48,12 @@
             </div>
             {% if review is not null %}
             <div class="lp-verdict-chip__body">
-                <p class="lp-verdict-chip__meta">
+                <p class="lp-verdict-chip__meta{{ review.workflowRule ? ' lp-verdict-chip__rule' : '' }}">
                     <span class="lp-verdict-chip__reviewer">{{ review.reviewer.fullName }}</span>
+                    {% if review.workflowRule %}<twig:Ds:Tag tone="neutral">{{ review.workflowRule }}</twig:Ds:Tag>{% endif %}
                 </p>
-                {% if review.note %}<blockquote class="lp-verdict-chip__note">{{ review.note }}</blockquote>{% endif %}
+                {% if review.workflowRule and review.verdict.value == 'approved' %}<blockquote class="lp-verdict-chip__note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</blockquote>
+                {% elseif review.note %}<blockquote class="lp-verdict-chip__note">{{ review.note }}</blockquote>{% endif %}
             </div>
             {% endif %}
             <div class="lp-verdict-chip__actions">

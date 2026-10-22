@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Controller;
 
 use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
@@ -129,6 +130,33 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorExists('#inbox-item-1 a[href="/projects/'.$this->project->id.'/documents/'.$document->id.'/review"]');
         // A completed review takes no further response.
         self::assertSelectorNotExists('#inbox-item-1 form');
+    }
+
+    public function test_a_document_review_completed_by_a_rule_names_the_workflow_and_the_rule(): void
+    {
+        $document = new Document($this->owner, $this->project, 'Review design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $review = new InboxReview($item, $document);
+        foreach ([$document, $item, $review] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+        $submit = static::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $submit);
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $submit(new SubmitReviewCommand($users->workflow(), $document, 'approved', 1, workflowRule: 'tech-design-auto-approve'));
+
+        $page = $this->client->request(Request::METHOD_GET, $this->completedUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Approved');
+        $result = $page->filter('[data-inbox-response]');
+        self::assertStringContainsString('Workflow', $result->text());
+        self::assertStringContainsString('tech-design-auto-approve', $result->filter('.lp-tag')->text());
+        self::assertStringContainsString('Approved when it entered review: no unanswered decision, no open thread, and the agent review passed.', $result->text());
     }
 
     public function test_an_inline_document_review_rejects_a_stale_version_then_records_the_current_one(): void

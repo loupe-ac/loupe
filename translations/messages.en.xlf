@@ -1678,6 +1678,10 @@
                 <source>review.document.verdict.request_changes</source>
                 <target>Request changes</target>
             </trans-unit>
+            <trans-unit id="review.document.verdict.workflow_approved_note">
+                <source>review.document.verdict.workflow_approved_note</source>
+                <target>Approved when it entered review: no unanswered decision, no open thread, and the agent review passed.</target>
+            </trans-unit>
             <trans-unit id="review.document.verdict.undo">
                 <source>review.document.verdict.undo</source>
                 <target>Undo</target>

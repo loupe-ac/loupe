@@ -30,8 +30,10 @@
         {% if review and review.verdict %}
             <p class="lp-inbox-item__note">{{ review.targetLabel }}</p>
             <p data-inbox-review-verdict>{{ ('inbox.review.verdict.' ~ review.verdict.value)|trans }}</p>
-            {% if review.note %}<p class="lp-inbox-item__answer-text">{{ review.note }}</p>{% endif %}
-            <p class="lp-inbox-item__note">{{ review.reviewer.fullName }} · {{ review.submittedAt|date('j M Y, H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
+            {% set workflowRule = review.documentReview.workflowRule ?? null %}
+            {% if workflowRule and review.verdict.value == 'approved' %}<p class="lp-inbox-item__answer-text">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
+            {% elseif review.note %}<p class="lp-inbox-item__answer-text">{{ review.note }}</p>{% endif %}
+            <p class="lp-inbox-item__note">{{ review.reviewer.fullName }}{% if workflowRule %} <twig:Ds:Tag tone="neutral">{{ workflowRule }}</twig:Ds:Tag>{% endif %} · {{ review.submittedAt|date('j M Y, H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
             {% set withdrawal = inbox_review_withdrawal(review) %}
             {% if withdrawal %}
                 <p class="lp-inbox-item__note" data-inbox-review-withdrawal>{{ 'inbox.review.withdrawn'|trans({'%name%': withdrawal.reviewer.fullName, '%time%': withdrawal.submittedAt|date('j M Y, H:i')}) }}</p>

@@ -4734,6 +4734,10 @@
     .lp-verdict-chip__reviewer {
         @apply font-semibold text-ink;
     }
+    /* The name of the workflow reviewer, then the id of the rule that wrote the verdict. */
+    .lp-verdict-chip__rule {
+        @apply flex flex-wrap items-center gap-1.5;
+    }
     .lp-verdict-chip__action-icon {
         @apply size-3.5 shrink-0;
     }

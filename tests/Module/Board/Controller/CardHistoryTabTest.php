@@ -55,6 +55,33 @@ final class CardHistoryTabTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-card-history-empty]'));
     }
 
+    public function test_the_rows_of_a_rule_verdict_and_a_withdrawal_read_as_sentences(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'history-verdicts@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Approved by a rule');
+        $events = $this->events();
+        $events->record($card, CardEventKind::DocumentVerdict, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Tech design', 'verdict' => 'approved'], new \DateTimeImmutable('-3 hours'));
+        $events->record($card, CardEventKind::DocumentVerdict, Actor::Human, $owner, ['rule' => null, 'document' => 'Tech design', 'verdict' => 'withdrawn', 'withdrawn' => 'approved'], new \DateTimeImmutable('-2 hours'));
+        $events->record($card, CardEventKind::VerdictFailed, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Tech design', 'refusal' => 'verdict_stale'], new \DateTimeImmutable('-1 hour'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->cardUrl($card));
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('#card-panel-history [data-card-history-entry]');
+        self::assertCount(3, $rows);
+        self::assertStringContainsString('The tech-design-auto-approve workflow rule did not approve Tech design.', $rows->eq(0)->text());
+        self::assertStringContainsString('The document has a newer version than the one the rule checked.', $rows->eq(0)->text());
+        self::assertStringContainsString('Riley Chen withdrew the approval of Tech design.', $rows->eq(1)->text());
+        self::assertStringContainsString('The tech-design-auto-approve workflow rule approved Tech design.', $rows->eq(2)->text());
+        self::assertStringContainsString('No unanswered decision, no open thread, and the agent review passed.', $rows->eq(2)->text());
+    }
+
     public function test_a_card_with_no_rows_says_so(): void
     {
         $client = static::createClient();

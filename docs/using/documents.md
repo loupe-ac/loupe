@@ -92,6 +92,9 @@ A request for changes needs a review note only when the version has no open comm
 An open comment is a thread that is pending or addressed. An approval can include a note.
 After a verdict, the top bar shows the verdict as a button.
 Select it to see the reviewer, version, time and note, with **Change verdict** and **Undo**.
+A workflow rule can write a verdict. The reviewer then reads **Workflow**, with the id of the rule beside it.
+An approval by a rule carries the note "Approved when it entered review: no unanswered decision, no open thread, and the agent review passed."
+Only the owner of the document can open it, change the verdict or select **Undo**.
 The account export and `document_get_review` result include the note.
 Open threads do not prevent approval.
 
@@ -250,7 +253,7 @@ Three views help across versions:
 
 Select **Version history** in the **⋯** menu to see every version in one table, newest first.
 Each row shows the version, its revision note, its reviews, and **Read** and **Diff** links.
-Each review shows the reviewer, verdict, note and time.
+Each review shows the reviewer, verdict, note and time. A verdict that a workflow rule wrote shows **Workflow** and the id of the rule.
 Withdrawals remain beside the original verdict. Versions without reviews say so.
 History keeps the document header, with Document, Diff and History tabs to move back.
 Use **Revise** or **Finish review** there to act on the current version.
