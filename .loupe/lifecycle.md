@@ -62,7 +62,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 ## Preview
 
-1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`.
+1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it.
 2. Section: `## Preview`, at the top of the pull request body.
 3. Line: one line per state, with a label, the signed link, and the marker in backticks. A child of an epic also writes a `State:` text, as `working-with-prs` "A child of an epic targets the epic branch" says. The merge stage seeds the epic preview from that text alone. A line with no `State:` text is unproven. The signed link goes into the body only through the temporary body file of `preview.md`.
 4. Seed: seed each state into the database of the worker folder, as `working-with-prs` "Make the branch testable, not just reviewable" says. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
