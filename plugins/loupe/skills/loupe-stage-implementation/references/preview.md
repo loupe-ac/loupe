@@ -45,9 +45,10 @@ The profile `Section` and `Line` items say where the proven lines go and what a 
 A required state that you cannot seed, mint or prove, and an empty list of required states, block the stage. The visual check skips in that case, and this check never does.
 
 1. Write the proven lines for the states that passed. For each other state, write one line that names the state and says `Not proven: <reason>`.
-2. Record the block on the card, as "Record a block" of `commands.md` says.
-3. Push the branch and open the draft pull request, as `commands.md` says, so the owner can read the code. Write a note in the body, under the Preview section, that the preview is not proven and why.
-4. Stop with `STAGE RESULT: blocked: preview not seeded`. The stage posts no refusal comment for this form.
+2. Push the branch, and open the draft pull request when none exists, as `commands.md` says, so the owner can read the code. Write a note in the body, under the Preview section, that the preview is not proven and why.
+3. Link the pull request to the card with `card_update` when the card does not link it yet, as implementation contract rule 5 says. An unlinked pull request gets no agent review of the card, so no review catches the missing preview.
+4. Record the block on the card, as "Record a block" of `commands.md` says. Its paragraph names the pull request URL.
+5. Stop with `STAGE RESULT: blocked: preview not seeded`. The stage posts no refusal comment for this form.
 
 A resumed run seeds and proves again, replaces the Preview section of the body, and then goes on.
 
