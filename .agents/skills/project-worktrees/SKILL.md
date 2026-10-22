@@ -1,6 +1,6 @@
 ---
 name: project-worktrees
-description: Use when creating, entering, debugging or removing a git worktree under `.worktrees/`, when a worktree URL returns 404 or 502, or when writing tooling that resolves a worktree's hostname, database or container name.
+description: Use when creating, entering, debugging or removing a git worktree under `.worktrees/`, when a worktree URL returns 404 or 502, when writing tooling that resolves a worktree's hostname, database or container name, or when starting, stopping or debugging the shared Docker stack or a process inside a container.
 ---
 
 # Git Worktrees
@@ -20,6 +20,17 @@ sidecar and in the shared php-fpm. Only the document root differs. A worktree is
 served through its own `public/index.php`, so Symfony boots with the worktree as
 its project directory and reads that worktree's `.env` chain, over HTTP and on
 the CLI alike.
+
+## The shared Docker stack
+
+The project runs on Docker Compose, with commands in a `justfile` (requires [just](https://github.com/casey/just)).
+
+1. `COMPOSE_PROJECT_NAME` is set in `.env` and is required. Compose refuses to start without it. It names the containers, the traefik routes and the database volume. Change it before the first `docker compose up` when you bootstrap a new project from the skeleton. Two projects that share a name share containers and the database volume.
+2. Start the stack with `docker compose up -d` (nginx, php-fpm, postgres). Install PHP dependencies with `composer install`. Run migrations with `bin/console doctrine:migrations:migrate`.
+3. The main app runs at `https://loupe.dev.localhost`, and PHP-FPM is on port 9000.
+4. The `worker` compose service consumes the `scheduler_default`, `card_eval`, `jobs` and `card_sweep` transports. Use `docker compose logs worker` to observe it, or `just worker` for a foreground consumer.
+5. Traefik TCP routing exposes Postgres at `db.loupe.dev.localhost:5432`. `.env` ships `127.0.0.1:5432` as a placeholder, so set `DATABASE_URL="postgresql://app:!ChangeMe!@db.loupe.dev.localhost:5432/app?serverVersion=16&charset=utf8"` in `.env.local` on your host machine. Inside the php-fpm container (`just shell`), `compose.yaml` sets `DATABASE_URL` to `database:5432`, so nothing is needed.
+6. The dev database runs without durability. The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt it. `docs/contributing/development.md` says how to rebuild it.
 
 ## Quick reference
 
@@ -152,6 +163,8 @@ worktrees is per test database, through the `TEST_TOKEN` that
 `worktree-bootstrap.sh` writes into each `.env.test.local`, never per container.
 `tests/bootstrap.php` adds `__p<n>` for ParaTest worker `n`, so one worktree
 holds `app_test_<slug>__p1` to `__p4` beside `app_test_<slug>`.
+
+**A process started inside a container can only be observed and stopped from inside it.** The container has its own PID namespace. A host-side `pkill -f <script>`, and the harness's own `TaskStop`, kill only the wrapper. They report success while the real process keeps running, invisible to the host process table. Stop it with `docker compose exec php-fpm pkill -f <script>`, and confirm with `docker exec <project>-php-fpm-1 ps aux`. A host-side check shows a quiet container that is in fact fully loaded.
 
 Two consequences. `docker compose exec php-fpm pkill -f phpunit` kills every
 worktree's run. A pattern that names the worktree matches nothing, because
