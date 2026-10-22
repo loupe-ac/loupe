@@ -222,6 +222,21 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertSelectorExists('turbo-frame#waitlist-modal [data-discord-card]');
     }
 
+    public function test_a_submit_of_a_registered_address_shows_the_discord_card(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+        $this->setDiscordLink($client, 'https://discord.gg/example');
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist(new User(fullName: 'Registered Discord', email: 'registered-discord@example.com', password: 'x'));
+        $em->flush();
+
+        $this->post($client, ['email' => 'registered-discord@example.com'], '/waitlist/notify');
+        $client->followRedirect();
+
+        $this->assertSelectorExists('turbo-frame#waitlist-notify [data-discord-card]');
+    }
+
     /** @return iterable<string, array{string, string, string}> */
     public static function confirmations(): iterable
     {
