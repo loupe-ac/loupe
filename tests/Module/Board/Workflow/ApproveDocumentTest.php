@@ -22,6 +22,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\DocumentFacts;
@@ -172,7 +173,7 @@ final class ApproveDocumentTest extends KernelTestCase
 
     private function onlyReview(Document $document): Review
     {
-        $reviews = $this->em()->getRepository(Review::class)->findAll();
+        $reviews = $this->service(ReviewRepository::class)->findAll();
         self::assertCount(1, $reviews);
 
         return $reviews[0];

@@ -12,6 +12,7 @@ use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Security\DocumentVoter;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
@@ -106,7 +107,7 @@ final class WorkflowVerdictDisplayTest extends WebTestCase
         $document = $em->find(Document::class, $documentId) ?? throw new \LogicException('The document exists.');
         self::assertSame(DocumentStatus::InReview, $document->status);
         self::assertSame(2, $this->reviewCount($documentId));
-        $withdrawal = $em->getRepository(Review::class)->findOneBy(['sequence' => 2]);
+        $withdrawal = $this->service(ReviewRepository::class)->findOneBy(['sequence' => 2]);
         self::assertSame('Chip Owner', $withdrawal?->reviewer->fullName);
         self::assertNull($withdrawal->workflowRule);
     }

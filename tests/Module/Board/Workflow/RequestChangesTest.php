@@ -16,8 +16,8 @@ use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
-use App\Module\Review\Entity\Review;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Tests\Module\Workflow\Action\ActionScenario;
@@ -47,7 +47,7 @@ final class RequestChangesTest extends KernelTestCase
         self::assertEquals(ActionOutcome::done(), $outcome);
         $this->em()->flush();
         $this->em()->clear();
-        $reviews = $this->em()->getRepository(Review::class)->findBy(['workflowRule' => 'test-rule']);
+        $reviews = $this->service(ReviewRepository::class)->findBy(['workflowRule' => 'test-rule']);
         self::assertCount(2, $reviews);
         foreach ($reviews as $review) {
             self::assertSame('changes-requested', $review->verdict->value);

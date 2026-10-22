@@ -94,7 +94,8 @@ final class WriteCardEventOnDocumentVerdictTest extends KernelTestCase
 
         $rows = $this->rows($card, CardEventKind::DocumentVerdict);
         self::assertCount(2, $rows);
-        $withdrawal = array_first(array_filter($rows, static fn (CardEvent $row): bool => 'withdrawn' === $row->detail['verdict']));
+        $withdrawal = array_find($rows, static fn (CardEvent $row): bool => 'withdrawn' === $row->detail['verdict']);
+        self::assertInstanceOf(CardEvent::class, $withdrawal);
         self::assertSame(Actor::Human, $withdrawal->actorKind);
         self::assertSame((string) $this->owner->id, (string) $withdrawal->actorUser?->id);
         self::assertEquals(['rule' => null, 'document' => 'Tech design', 'documentId' => (string) $document->id, 'verdict' => 'withdrawn', 'withdrawn' => 'approved'], $withdrawal->detail);

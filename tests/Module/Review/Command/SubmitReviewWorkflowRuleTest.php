@@ -16,7 +16,6 @@ use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
-use App\Module\Review\Entity\Verdict;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -93,6 +92,7 @@ final class SubmitReviewWorkflowRuleTest extends KernelTestCase
     {
         $handler = self::getContainer()->get(SubmitReviewHandler::class);
         self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+
         return $handler(new SubmitReviewCommand(
             reviewer: $reviewer,
             document: $document,

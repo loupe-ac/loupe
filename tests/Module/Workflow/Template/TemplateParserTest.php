@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Template;
 
 use App\Module\AgentReview\Workflow\Condition\DesignReviewFinished;
+use App\Module\Board\Workflow\ApproveDocument;
 use App\Module\Board\Workflow\Condition\CardChildrenFinished;
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardDocumentApproved;
@@ -13,7 +14,6 @@ use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardPaused;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
-use App\Module\Board\Workflow\ApproveDocument;
 use App\Module\Board\Workflow\Detach;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\LinkDocument;
