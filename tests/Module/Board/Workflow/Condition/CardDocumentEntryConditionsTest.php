@@ -134,7 +134,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
 
     private static function facts(DocumentFacts ...$documents): Facts
     {
-        return self::factsArrivingAt(new \DateTimeImmutable(self::ARRIVED), $documents);
+        return self::factsArrivingAt(new \DateTimeImmutable(self::ARRIVED), array_values($documents));
     }
 
     /** @param list<DocumentFacts> $documents */

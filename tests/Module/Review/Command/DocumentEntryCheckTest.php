@@ -177,7 +177,7 @@ final class DocumentEntryCheckTest extends KernelTestCase
         self::assertSame($unanswered, $version['entry_unanswered_decisions']);
         self::assertSame($threads, $version['entry_open_threads']);
         if (null !== $notBefore) {
-            self::assertGreaterThanOrEqual($notBefore->getTimestamp(), (new \DateTimeImmutable((string) $version['entered_review_at']))->getTimestamp());
+            self::assertGreaterThanOrEqual($notBefore->getTimestamp(), new \DateTimeImmutable((string) $version['entered_review_at'])->getTimestamp());
         }
     }
 

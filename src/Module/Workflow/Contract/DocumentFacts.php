@@ -8,14 +8,14 @@ final readonly class DocumentFacts
 {
     /**
      * @param list<string>        $tags
-     * @param ?\DateTimeImmutable $versionAt         the time of the newest version, null with no version
-     * @param ?int                $version           the number of the newest version, null with no version
-     * @param ?int                $cleanCheckVersion the number of the version that the clean entry check covers, null with no clean check
-     * @param ?string             $newestReviewId    the id of the newest review of the newest version, null with no review
-     * @param ?\DateTimeImmutable $enteredReviewAt   when the document entered review with its newest version, null when that version has no entry check
+     * @param ?\DateTimeImmutable $versionAt                the time of the newest version, null with no version
+     * @param ?int                $version                  the number of the newest version, null with no version
+     * @param ?int                $cleanCheckVersion        the number of the version that the clean entry check covers, null with no clean check
+     * @param ?string             $newestReviewId           the id of the newest review of the newest version, null with no review
+     * @param ?\DateTimeImmutable $enteredReviewAt          when the document entered review with its newest version, null when that version has no entry check
      * @param ?int                $entryUnansweredDecisions the decisions with no answer in the entry check, null with no entry check
-     * @param ?int                $entryOpenThreads  the threads that were not resolved in the entry check, null with no entry check
-     * @param bool                $rejectedBefore    whether any version of the document ever got a change request or a withdrawal
+     * @param ?int                $entryOpenThreads         the threads that were not resolved in the entry check, null with no entry check
+     * @param bool                $rejectedBefore           whether any version of the document ever got a change request or a withdrawal
      */
     public function __construct(
         public array $tags,
