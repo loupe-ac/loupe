@@ -4,7 +4,7 @@
 {% set card = row.firstCard %}
 <twig:Ds:ListRow
     :title="row.shortTitle"
-    :subtitle="inbox_review_target(row.items|first)"
+    :subtitle="inbox_review_target(row.items)"
     :current="inbox.selected and inbox.selected.key == row.key"
     href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(row.pickedIn(inbox.view).toQuery)) }}"
     data-turbo-frame="inbox-view"

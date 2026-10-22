@@ -168,15 +168,23 @@ final class InboxExtension extends AbstractExtension
         return $this->inboxReviews->forItem($item);
     }
 
-    /** The line that names the document or pull request of a review ask, or null for any other item. */
-    public function reviewTargetLine(InboxItem $item): ?string
+    /**
+     * The line that names the document or pull request of each review item of an ask, wherever it sits in the ask.
+     * Null when the ask holds no review item.
+     *
+     * @param iterable<InboxItem> $items
+     */
+    public function reviewTargetLine(iterable $items): ?string
     {
-        if (InboxItemKind::Review !== $item->kind) {
-            return null;
+        $labels = [];
+        foreach ($items as $item) {
+            $review = InboxItemKind::Review === $item->kind ? $this->inboxReviews->forItem($item) : null;
+            if (null !== $review) {
+                $labels[] = $this->reviewTarget->label($review);
+            }
         }
-        $review = $this->inboxReviews->forItem($item);
 
-        return null === $review ? null : $this->reviewTarget->label($review);
+        return [] === $labels ? null : implode(' · ', array_unique($labels));
     }
 
     /** The card and the waits behind a wait item. */
