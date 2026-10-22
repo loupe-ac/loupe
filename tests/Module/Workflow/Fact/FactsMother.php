@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFactProvider;
+use App\Module\AgentReview\Workflow\DocumentReviewConclusionFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Entity\BoardAutomationSettings;
@@ -110,7 +111,7 @@ final class FactsMother
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
-            ...self::byClass(new DocumentReviewFacts([])),
+            ...self::byClass(new DocumentReviewFacts([]), new DocumentReviewConclusionFacts([])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
             ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
@@ -123,6 +124,7 @@ final class FactsMother
             WorkAtHeadFacts::class => [[], []],
             PauseFacts::class => null,
             CardActivityFacts::class => null,
+            DocumentReviewConclusionFacts::class => [],
             ColumnArrivalFacts::class => null,
             ChildActivityFacts::class => [null, false],
             StuckDelayFacts::class => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,

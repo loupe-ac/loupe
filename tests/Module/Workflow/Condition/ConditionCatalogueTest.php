@@ -80,6 +80,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'design_review.due' => 'workflow.source.agent_review',
         'design_review.finished' => 'workflow.source.agent_review',
         'design_review.fix_due' => 'workflow.source.agent_review',
+        'design_review.passed' => 'workflow.source.agent_review',
         'design_review.running' => 'workflow.source.agent_review',
         'pr.approval_covers_head' => 'workflow.source.forge',
         'pr.base_is_default' => 'workflow.source.forge',
