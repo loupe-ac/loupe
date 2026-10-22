@@ -13,6 +13,7 @@ use App\Module\Billing\Service\BetaWelcomeEmailSender;
 use App\Tests\Support\BetaWelcomeEmails;
 use App\Tests\Support\RecordingMailer;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
@@ -69,7 +70,7 @@ final class SendDueBetaWelcomeEmailsHandlerTest extends KernelTestCase
 
         // The guard invite proves the pass ran, so the empty result for the other is real.
         self::assertCount(1, $mailer->sent);
-        self::assertSame('sweep-guard@example.com', $mailer->sent[0]->getTo()[0]->getAddress());
+        self::assertSame('sweep-guard@example.com', $this->recipient($mailer));
         self::assertNotNull($this->reload($invite)->welcomeEmailDueAt);
         self::assertNull($this->reload($guard)->welcomeEmailDueAt);
     }
@@ -87,8 +88,16 @@ final class SendDueBetaWelcomeEmailsHandlerTest extends KernelTestCase
         $this->handler($mailer)(new SendDueBetaWelcomeEmailsCommand());
 
         self::assertCount(1, $mailer->sent);
-        self::assertSame('sweep-guard2@example.com', $mailer->sent[0]->getTo()[0]->getAddress());
+        self::assertSame('sweep-guard2@example.com', $this->recipient($mailer));
         self::assertNull($this->reload($guard)->welcomeEmailDueAt);
+    }
+
+    private function recipient(RecordingMailer $mailer): string
+    {
+        $email = $mailer->sent[0] ?? null;
+        self::assertInstanceOf(TemplatedEmail::class, $email);
+
+        return $email->getTo()[0]->getAddress();
     }
 
     private function handler(MailerInterface $mailer): SendDueBetaWelcomeEmailsHandler

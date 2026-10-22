@@ -15,8 +15,8 @@ use Symfony\Component\Uid\Uuid;
  * grants a comp. The user who redeemed it is the beta mark.
  */
 #[ORM\Entity(repositoryClass: BetaInviteRepository::class)]
-#[ORM\Table(name: 'beta_invites')]
 #[ORM\Index(name: 'idx_beta_invites_welcome_due', columns: ['welcome_email_due_at'], options: ['where' => '(welcome_email_due_at IS NOT NULL)'])]
+#[ORM\Table(name: 'beta_invites')]
 class BetaInvite
 {
     #[ORM\Column(type: UuidType::NAME, unique: true)]

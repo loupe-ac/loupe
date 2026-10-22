@@ -18,6 +18,7 @@ use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
 use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Repository\BillingProfileRepository;
+use App\Site\SiteLinks;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\BillingGrants;
 use App\Tests\Support\BillingScenario;
@@ -330,6 +331,49 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
         self::assertNotNull($this->currentComp($client, $tester));
     }
 
+    public function test_the_success_page_uses_the_sign_in_frame_with_a_start_card_and_a_discord_card(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $tester = new BillingScenario($client->getContainer())->verifiedUser('beta-cards');
+        $this->setDiscordLink($client, 'https://discord.gg/example');
+        [, $token] = $this->seedInvite($client);
+
+        $client->loginUser($tester);
+        $this->claim($client, $token);
+        $client->followRedirect();
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-auth__card');
+        self::assertSelectorNotExists('.lp-sidebar');
+        self::assertSelectorTextContains('h1', 'Welcome to the beta');
+        self::assertSelectorTextContains('[data-beta-start-card]', 'Start using Loupe');
+        self::assertSelectorTextContains('[data-beta-start-card] a', 'Continue to the app');
+        self::assertSame('/', $client->getCrawler()->filter('[data-beta-start-card] a')->attr('href'));
+        self::assertSelectorTextContains('[data-beta-community-card]', 'Join the beta testers');
+        $link = $client->getCrawler()->filter('[data-beta-community-card] a');
+        self::assertSame('https://discord.gg/example', $link->attr('href'));
+        self::assertSame('_blank', $link->attr('target'));
+        self::assertSame('noopener noreferrer', $link->attr('rel'));
+    }
+
+    public function test_the_success_page_has_no_discord_card_when_the_link_is_unset(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $tester = new BillingScenario($client->getContainer())->verifiedUser('beta-no-discord');
+        $this->setDiscordLink($client, '');
+        [, $token] = $this->seedInvite($client);
+
+        $client->loginUser($tester);
+        $this->claim($client, $token);
+        $client->followRedirect();
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-beta-start-card]');
+        self::assertSelectorNotExists('[data-beta-community-card]');
+    }
+
     public function test_a_verified_user_who_claims_the_link_gets_one_welcome_email(): void
     {
         $client = static::createClient();
@@ -634,6 +678,18 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
         $em->flush();
 
         $em->persist(new FeatureFlag(name: RegistrationGate::CAP_FLAG, type: FeatureFlagType::Int, value: $container->get(UserRepository::class)->countActive()));
+        $em->flush();
+    }
+
+    private function setDiscordLink(KernelBrowser $client, string $url): void
+    {
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $flag = $em->getRepository(FeatureFlag::class)->findOneBy(['name' => SiteLinks::DISCORD_FLAG]);
+        if (null === $flag) {
+            $flag = new FeatureFlag(name: SiteLinks::DISCORD_FLAG, type: FeatureFlagType::String, value: $url);
+            $em->persist($flag);
+        }
+        $flag->value = $url;
         $em->flush();
     }
 

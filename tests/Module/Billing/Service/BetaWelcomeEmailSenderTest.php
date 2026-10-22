@@ -47,6 +47,7 @@ final class BetaWelcomeEmailSenderTest extends KernelTestCase
         $this->sender($mailer, discord: '')->sendIfDue($invite);
 
         self::assertCount(1, $mailer->sent);
+        self::assertInstanceOf(TemplatedEmail::class, $mailer->sent[0]);
         self::assertNull($mailer->sent[0]->getContext()['discordUrl']);
     }
 
