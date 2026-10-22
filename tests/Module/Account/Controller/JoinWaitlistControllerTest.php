@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Module\Account\Service\RegistrationGate;
+use App\Tests\Support\DiscordLinkFlag;
 use App\Tests\Support\InstalledInstance;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -19,6 +20,8 @@ use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
 
 final class JoinWaitlistControllerTest extends WebTestCase
 {
+    use DiscordLinkFlag;
+
     public function test_gate_open_redirects_to_register(): void
     {
         $client = static::createClient();
@@ -165,6 +168,73 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/waitlist?joined=1');
 
         $this->assertSelectorExists('turbo-frame#waitlist-notify');
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function confirmationFrames(): iterable
+    {
+        yield 'the plain page' => ['/waitlist?joined=1', 'waitlist-notify'];
+        yield 'the Notify me form' => ['/waitlist/notify?joined=1', 'waitlist-notify'];
+        yield 'the dialog' => ['/waitlist/modal?joined=1', 'waitlist-modal'];
+    }
+
+    #[DataProvider('confirmationFrames')]
+    public function test_the_confirmation_shows_the_discord_card(string $path, string $frame): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+        $this->setDiscordLink($client, 'https://discord.gg/example');
+
+        $client->request(Request::METHOD_GET, $path);
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('turbo-frame#'.$frame.' [data-discord-card]', 'Talk to us while you wait');
+        $link = $client->getCrawler()->filter('turbo-frame#'.$frame.' [data-discord-card] a');
+        $this->assertSame('https://discord.gg/example', $link->attr('href'));
+        $this->assertSame('_blank', $link->attr('target'));
+        $this->assertSame('noopener noreferrer', $link->attr('rel'));
+    }
+
+    #[DataProvider('confirmationFrames')]
+    public function test_the_confirmation_has_no_discord_card_without_a_link(string $path, string $frame): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+        $this->setDiscordLink($client, '');
+
+        $client->request(Request::METHOD_GET, $path);
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorExists('turbo-frame#'.$frame);
+        $this->assertSelectorNotExists('[data-discord-card]');
+    }
+
+    public function test_a_repeat_submit_of_a_listed_address_shows_the_discord_card_again(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+        $this->setDiscordLink($client, 'https://discord.gg/example');
+
+        $this->post($client, ['email' => 'repeat-discord@example.com'], '/waitlist/modal', 'waitlist_modal_form');
+        $this->post($client, ['email' => 'repeat-discord@example.com'], '/waitlist/modal', 'waitlist_modal_form');
+        $client->followRedirect();
+
+        $this->assertSelectorExists('turbo-frame#waitlist-modal [data-discord-card]');
+    }
+
+    public function test_a_submit_of_a_registered_address_shows_the_discord_card(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+        $this->setDiscordLink($client, 'https://discord.gg/example');
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist(new User(fullName: 'Registered Discord', email: 'registered-discord@example.com', password: 'x'));
+        $em->flush();
+
+        $this->post($client, ['email' => 'registered-discord@example.com'], '/waitlist/notify');
+        $client->followRedirect();
+
+        $this->assertSelectorExists('turbo-frame#waitlist-notify [data-discord-card]');
     }
 
     /** @return iterable<string, array{string, string, string}> */
