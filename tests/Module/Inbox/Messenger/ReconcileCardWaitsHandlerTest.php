@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Messenger;
 
-use App\Module\Board\Entity\CardDocument;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Messenger\ReconcileCardWaits;
 use App\Module\Inbox\Messenger\ReconcileCardWaitsHandler;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -40,9 +41,8 @@ final class ReconcileCardWaitsHandlerTest extends KernelTestCase
         $card = $this->card($this->em, $project);
         $document = $this->document($this->em, $project);
         $document->addVersion('# One', '<h1>One</h1>');
-        $card->documents->add(new CardDocument($card, $document));
-        $this->stageDocument($this->em, $document, $card);
         $this->em->flush();
+        $this->storeInbox($this->em, $card, $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $document->id, 'version' => '1'])));
 
         ($this->handler)(new ReconcileCardWaits((string) $project->id, [(string) $card->id]));
 
@@ -55,9 +55,8 @@ final class ReconcileCardWaitsHandlerTest extends KernelTestCase
         $card = $this->card($this->em, $project);
         $document = $this->document($this->em, $project);
         $document->addVersion('# One', '<h1>One</h1>');
-        $card->documents->add(new CardDocument($card, $document));
-        $this->stageDocument($this->em, $document, $card);
         $this->em->flush();
+        $this->storeInbox($this->em, $card, $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $document->id, 'version' => '1'])));
         $pending = new Document($project->owner, $project, 'Not flushed yet');
         $this->em->persist($pending);
         $transport = self::getContainer()->get('messenger.transport.jobs');

@@ -8,8 +8,6 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -107,12 +105,12 @@ final class InboxExporterTest extends KernelTestCase
         $this->em->flush();
         $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true);
         $watch = new InboxCardWatch($item, $card->id ?? throw new \LogicException('A stored card has an id.'), 7);
-        $ended = new InboxCardWait($watch, InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, $document->id, 1, startedAt: new \DateTimeImmutable('2026-09-01 09:00:00'));
+        $ended = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', $document->id, 1, startedAt: new \DateTimeImmutable('2026-09-01 09:00:00'));
         $ended->endedAt = new \DateTimeImmutable('2026-09-02 09:00:00');
         $ended->endReason = InboxCardWaitEndReason::Resolved;
-        $open = new InboxCardWait($watch, InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, $document->id, 2, startedAt: new \DateTimeImmutable('2026-09-02 09:00:00'));
+        $open = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', $document->id, 2, startedAt: new \DateTimeImmutable('2026-09-02 09:00:00'));
         $pullRequestId = Uuid::v7();
-        $pullRequest = new InboxCardWait($watch, InboxCardWaitTrigger::PullRequestReady, InboxCardWaitType::PullRequest, InboxCardWaitReason::WaitingForReview, pullRequestId: $pullRequestId, headSha: 'abc123', startedAt: new \DateTimeImmutable('2026-09-03 09:00:00'));
+        $pullRequest = new InboxCardWait($watch, 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: $pullRequestId, headSha: 'abc123', startedAt: new \DateTimeImmutable('2026-09-03 09:00:00'));
         $watch->waits->add($ended);
         $watch->waits->add($open);
         $watch->waits->add($pullRequest);
@@ -126,9 +124,9 @@ final class InboxExporterTest extends KernelTestCase
         self::assertCount(1, $rows);
         self::assertSame([
             [
-                'trigger' => 'document-in-review',
+                'marker' => 'document-in-review',
                 'type' => 'document',
-                'reason' => 'waiting-for-review',
+                'label' => 'marker.document_in_review',
                 'documentId' => (string) $document->id,
                 'versionNumber' => 1,
                 'runId' => null,
@@ -139,9 +137,9 @@ final class InboxExporterTest extends KernelTestCase
                 'endReason' => 'resolved',
             ],
             [
-                'trigger' => 'document-in-review',
+                'marker' => 'document-in-review',
                 'type' => 'document',
-                'reason' => 'waiting-for-review',
+                'label' => 'marker.document_in_review',
                 'documentId' => (string) $document->id,
                 'versionNumber' => 2,
                 'runId' => null,
@@ -152,9 +150,9 @@ final class InboxExporterTest extends KernelTestCase
                 'endReason' => null,
             ],
             [
-                'trigger' => 'pull-request-ready',
+                'marker' => 'waits-for-approval',
                 'type' => 'pull-request',
-                'reason' => 'waiting-for-review',
+                'label' => 'marker.waits_for_approval',
                 'documentId' => null,
                 'versionNumber' => null,
                 'runId' => null,

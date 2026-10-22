@@ -19,10 +19,12 @@ use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
+use App\Module\Workflow\Template\MarkerSubjectClassifier;
 use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
@@ -64,6 +66,33 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         foreach ($this->shipped()->keys() as $key) {
             self::assertSame($key, $this->template($key)->key);
+        }
+    }
+
+    public function test_each_template_lists_its_inbox_markers_and_each_one_names_one_thing(): void
+    {
+        $expected = [
+            'lifecycle' => [
+                'waits-for-approval' => MarkerSubjectType::PullRequest,
+                'document-in-review' => MarkerSubjectType::Document,
+                'run-needs-you' => MarkerSubjectType::WorkerRun,
+                'paused' => MarkerSubjectType::CardPause,
+            ],
+            'simple' => [
+                'waits-for-approval' => MarkerSubjectType::PullRequest,
+                'run-needs-you' => MarkerSubjectType::WorkerRun,
+                'paused' => MarkerSubjectType::CardPause,
+            ],
+        ];
+
+        foreach ($expected as $key => $subjects) {
+            $template = $this->template($key);
+            self::assertSame(array_keys($subjects), $template->inbox, $key);
+            foreach ($template->markers as $marker) {
+                if (isset($subjects[$marker->key])) {
+                    self::assertSame($subjects[$marker->key], MarkerSubjectClassifier::of($marker->when), $key.' '.$marker->key);
+                }
+            }
         }
     }
 

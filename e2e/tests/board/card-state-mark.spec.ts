@@ -117,8 +117,10 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
     await mark.getByRole('img', { name: 'Stuck' }).hover();
     const tooltip = mark.getByRole('tooltip');
     await expect(tooltip).toBeVisible();
-    await expect(tooltip).toContainText(
-        'The last worker run did not finish its work.',
+    // A run that gave up waits for a person, so it draws the needs-you marker.
+    await expect(tooltip).toContainText('The last worker run needs you.');
+    await expect(card.locator('[data-marker-key="run-needs-you"]')).toHaveCount(
+        1,
     );
     // The pointer moves from the mark into the tooltip, which stays open.
     await tooltip.getByRole('link', { name: 'Open card' }).hover();
@@ -140,6 +142,12 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
         output: 'The tests failed',
     });
     await expect(card.locator('.lp-state-mark--stuck')).toHaveCount(1);
+    await expect(card.locator('[data-marker-key="run-stopped"]')).toHaveCount(
+        1,
+    );
+    await expect(card.locator('[data-marker-key="run-needs-you"]')).toHaveCount(
+        0,
+    );
 
     // A queued retry is the newest run of the card, so the stuck mark goes before it ends.
     const retry = crypto.randomUUID();

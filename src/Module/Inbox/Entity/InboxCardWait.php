@@ -4,11 +4,20 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Entity;
 
+use App\Module\Workflow\Contract\MarkerSubject;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-/** One reason a card waits for a person. A document wait names one version, a run wait names one run, and a pull request wait names one head commit. */
+/**
+ * One marker entry a card waits on. The marker key, the label and its values come from the stored marker.
+ * A document wait names one version, a run wait names one run, a pull request wait names one head commit,
+ * and a card wait names one spell of the marker on the card.
+ *
+ * The table still has the columns `trigger` and `reason`, which the previous version of the code reads.
+ * A database trigger fills them, so this class maps neither.
+ */
 #[ORM\Entity]
 #[ORM\Table(name: 'inbox_card_waits')]
 class InboxCardWait
@@ -30,14 +39,15 @@ class InboxCardWait
         #[ORM\ManyToOne(targetEntity: InboxCardWatch::class, inversedBy: 'waits')]
         public readonly InboxCardWatch $watch,
 
-        #[ORM\Column(length: 30, enumType: InboxCardWaitTrigger::class)]
-        public readonly InboxCardWaitTrigger $trigger,
+        #[ORM\Column(name: 'marker_key', length: 100, options: ['default' => ''])]
+        public readonly string $markerKey,
 
         #[ORM\Column(length: 20, enumType: InboxCardWaitType::class)]
         public readonly InboxCardWaitType $type,
 
-        #[ORM\Column(length: 200, enumType: InboxCardWaitReason::class)]
-        public InboxCardWaitReason $reason,
+        /** A translation key. The reconcile refreshes it with the params. */
+        #[ORM\Column(length: 200, options: ['default' => ''])]
+        public string $label,
 
         #[ORM\Column(type: UuidType::NAME, nullable: true)]
         public readonly ?Uuid $documentId = null,
@@ -59,54 +69,97 @@ class InboxCardWait
 
         #[ORM\Column(type: UuidType::NAME, nullable: true)]
         public readonly ?Uuid $pauseId = null,
+
+        /** The start of the spell of a card wait. */
+        #[ORM\Column(name: 'spell_started_at', nullable: true)]
+        public readonly ?\DateTimeImmutable $spellStartedAt = null,
+
+        /** @var array<string, string|int> */
+        #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+        public array $params = [],
     ) {
-        self::computeKey($trigger, $documentId, $versionNumber, $runId, $pullRequestId, $headSha, $pauseId);
+        self::computeKey($markerKey, $type, $this->subjectIds());
+    }
+
+    /**
+     * The wait of a marker entry, from the subject the entry names.
+     *
+     * @param array<string, string|int> $params
+     */
+    public static function forSubject(InboxCardWatch $watch, string $markerKey, string $label, array $params, MarkerSubject $subject, \DateTimeImmutable $startedAt): self
+    {
+        $ids = $subject->ids;
+        if (InboxCardWaitType::Card === InboxCardWaitType::forSubject($subject->type) && ($ids['card'] ?? null) !== $watch->cardId->toRfc4122()) {
+            throw new \InvalidArgumentException('A card wait names the card of its watch.');
+        }
+
+        return new self(
+            watch: $watch,
+            markerKey: $markerKey,
+            type: InboxCardWaitType::forSubject($subject->type),
+            label: $label,
+            documentId: isset($ids['document']) ? Uuid::fromString($ids['document']) : null,
+            versionNumber: isset($ids['version']) ? (int) $ids['version'] : null,
+            runId: isset($ids['run']) ? Uuid::fromString($ids['run']) : null,
+            pullRequestId: isset($ids['pullRequest']) ? Uuid::fromString($ids['pullRequest']) : null,
+            headSha: $ids['head'] ?? null,
+            startedAt: $startedAt,
+            pauseId: isset($ids['pause']) ? Uuid::fromString($ids['pause']) : null,
+            spellStartedAt: isset($ids['spell']) ? new \DateTimeImmutable($ids['spell'])->setTimezone(new \DateTimeZone(date_default_timezone_get())) : null,
+            params: $params,
+        );
     }
 
     /** Two waits with the same key are the same wait. */
     public function key(): string
     {
-        return self::computeKey($this->trigger, $this->documentId, $this->versionNumber, $this->runId, $this->pullRequestId, $this->headSha, $this->pauseId);
+        return self::computeKey($this->markerKey, $this->type, $this->subjectIds());
     }
 
-    public static function computeKey(InboxCardWaitTrigger $trigger, ?Uuid $documentId = null, ?int $versionNumber = null, ?Uuid $runId = null, ?Uuid $pullRequestId = null, ?string $headSha = null, ?Uuid $pauseId = null): string
+    /**
+     * The ids that this wait names, as a marker subject names them.
+     *
+     * @return array<string, string>
+     */
+    public function subjectIds(): array
     {
-        if ($trigger->isPause()) {
-            if (null === $pauseId || null !== $documentId || null !== $versionNumber || null !== $runId || null !== $pullRequestId || null !== $headSha) {
-                throw new \InvalidArgumentException('A pause wait names a pause, and nothing else.');
+        return array_filter([
+            'document' => $this->documentId?->toRfc4122(),
+            'version' => null === $this->versionNumber ? null : (string) $this->versionNumber,
+            'run' => $this->runId?->toRfc4122(),
+            'pullRequest' => $this->pullRequestId?->toRfc4122(),
+            'head' => $this->headSha,
+            'pause' => $this->pauseId?->toRfc4122(),
+            'card' => InboxCardWaitType::Card === $this->type ? $this->watch->cardId->toRfc4122() : null,
+            'spell' => $this->spellStartedAt?->setTimezone(new \DateTimeZone('UTC'))->format(\DATE_ATOM),
+        ], static fn (?string $id): bool => null !== $id);
+    }
+
+    /**
+     * The key of a wait: the marker key and the ids of its thing. A wait of an older row and an entry of the new
+     * engine for the same thing make the same key, so a dismissal holds.
+     *
+     * @param array<string, string> $ids
+     */
+    public static function computeKey(string $markerKey, InboxCardWaitType $type, array $ids): string
+    {
+        $names = $type->idNames();
+        $given = array_keys($ids);
+        sort($given);
+        $expected = $names;
+        sort($expected);
+        if ($given !== $expected) {
+            throw new \InvalidArgumentException(\sprintf('A %s wait names %s, and nothing else.', $type->value, implode(' and ', $names)));
+        }
+
+        $parts = [$markerKey];
+        foreach ($names as $name) {
+            if ('' === $ids[$name]) {
+                throw new \InvalidArgumentException(\sprintf('The id "%s" of a %s wait is empty.', $name, $type->value));
             }
-
-            return \sprintf('%s:%s', $trigger->value, $pauseId->toRfc4122());
+            $parts[] = $ids[$name];
         }
 
-        if (null !== $pauseId) {
-            throw new \InvalidArgumentException('Only a pause wait names a pause.');
-        }
-
-        if ($trigger->isPullRequest()) {
-            if (null === $pullRequestId || null === $headSha || '' === $headSha || null !== $documentId || null !== $versionNumber || null !== $runId) {
-                throw new \InvalidArgumentException('A pull request wait names a pull request and a head commit, and no document or run.');
-            }
-
-            return \sprintf('%s:%s:%s', $trigger->value, $pullRequestId->toRfc4122(), $headSha);
-        }
-
-        if (null !== $pullRequestId || null !== $headSha) {
-            throw new \InvalidArgumentException('Only a pull request wait names a pull request.');
-        }
-
-        if ($trigger->isDocument()) {
-            if (null === $documentId || null === $versionNumber || null !== $runId) {
-                throw new \InvalidArgumentException('A document wait names a document and a version, and no run.');
-            }
-
-            return \sprintf('%s:%s:%d', $trigger->value, $documentId->toRfc4122(), $versionNumber);
-        }
-
-        if (null === $runId || null !== $documentId || null !== $versionNumber) {
-            throw new \InvalidArgumentException('A run wait names a run, and no document.');
-        }
-
-        return \sprintf('%s:%s', $trigger->value, $runId->toRfc4122());
+        return implode(':', $parts);
     }
 }

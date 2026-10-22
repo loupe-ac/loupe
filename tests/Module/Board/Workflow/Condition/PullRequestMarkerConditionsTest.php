@@ -11,7 +11,6 @@ use App\Module\Board\Workflow\Condition\PullRequestForgeRequestPending;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
 use App\Module\Board\Workflow\Condition\PullRequestStackParent;
-use App\Module\Board\Workflow\Condition\PullRequestWaitsForApproval;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Evidence;
@@ -46,9 +45,6 @@ final class PullRequestMarkerConditionsTest extends TestCase
         yield 'checks pending' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(checks: ChecksState::Pending), true];
         yield 'checks pending, passed' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(checks: ChecksState::Passed), false];
         yield 'checks pending, closed' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(state: PullRequestState::Closed, checks: ChecksState::Pending), false];
-
-        yield 'waits for approval' => [new PullRequestWaitsForApproval(), [], FactsMother::pullRequest(waitsForApproval: true), true];
-        yield 'approved' => [new PullRequestWaitsForApproval(), [], FactsMother::pullRequest(waitsForApproval: false), false];
 
         yield 'forge request pending' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:55', '12:05')]), true];
         yield 'forge request expired' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:50', '12:00')]), false];
@@ -96,7 +92,6 @@ final class PullRequestMarkerConditionsTest extends TestCase
         yield 'pr.checks_failed' => [new PullRequestChecksFailed(), []];
         yield 'pr.checks_pending' => [new PullRequestChecksPending(), []];
         yield 'pr.conflicting' => [new PullRequestConflicting(), []];
-        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), []];
         yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), []];
         yield 'pr.stack_parent' => [new PullRequestStackParent(), []];
         yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 5]];
@@ -117,7 +112,6 @@ final class PullRequestMarkerConditionsTest extends TestCase
         yield 'checks failed' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
         yield 'checks pending' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
         yield 'conflicting' => [new PullRequestConflicting(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
-        yield 'waits for approval' => [new PullRequestWaitsForApproval(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
         yield 'no number' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(), new Evidence()];
         yield 'forge request pending' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(number: 7, forgeRequests: [self::request('11:55', '12:05')]), new Evidence($number)];
 

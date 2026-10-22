@@ -27,6 +27,18 @@ final class RunOutputText
         return mb_strlen($first) > $maxLength ? rtrim(mb_substr($first, 0, $maxLength - 1)).'…' : $first;
     }
 
+    /**
+     * The label values of a run wait: the kind of worker and the headline of its output. The reconcile stores them on the wait.
+     *
+     * @return array{'%worker%': string, '%Worker%': string, '%headline%': string}
+     */
+    public static function params(?string $workKind, string $output): array
+    {
+        $worker = null === $workKind || '' === $workKind ? 'worker' : str_replace('-', ' ', $workKind).' worker';
+
+        return ['%worker%' => $worker, '%Worker%' => ucfirst($worker), '%headline%' => self::headline($output)];
+    }
+
     /** A worker writes Markdown, and a title and a body sentence show plain text, so the marks go and their text stays. */
     private static function plain(string $text): string
     {

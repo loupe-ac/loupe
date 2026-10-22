@@ -252,7 +252,7 @@ final readonly class TemplateParser
         $manualMoves = $this->manualMoves(self::topLevelList($source, 'manualMoves', $errors), $slotKeys, $errors);
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $facts, $errors, $lenient, app: false);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
-        $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
+        $inbox = self::inbox($source['inbox'] ?? [], $markers, $lenient, $errors);
         if (!$lenient) {
             foreach ($rules as $rule) {
                 $name = $rule->then->params[self::PROMPT] ?? null;
@@ -602,25 +602,34 @@ final readonly class TemplateParser
     }
 
     /**
+     * A marker with no single thing, the card subject, cannot be listed yet. A stored copy skips such an entry and still loads.
+     *
      * @param list<TemplateMarker> $markers
      * @param list<string>         $errors
      *
      * @return list<string>
      */
-    private static function inbox(mixed $given, array $markers, array &$errors): array
+    private static function inbox(mixed $given, array $markers, bool $lenient, array &$errors): array
     {
         if (!\is_array($given) || !array_is_list($given)) {
             $errors[] = 'inbox: must be a list of marker keys';
 
             return [];
         }
-        $keys = array_map(static fn (TemplateMarker $marker): string => $marker->key, $markers);
+        $byKey = [];
+        foreach ($markers as $marker) {
+            $byKey[$marker->key] = $marker;
+        }
         $listed = [];
         foreach ($given as $key) {
-            if (!\is_string($key) || !\in_array($key, $keys, true)) {
+            if (!\is_string($key) || !isset($byKey[$key])) {
                 $errors[] = \sprintf('inbox: unknown marker "%s"', \is_string($key) ? $key : get_debug_type($key));
             } elseif (\in_array($key, $listed, true)) {
                 $errors[] = \sprintf('inbox: duplicate marker "%s"', $key);
+            } elseif (null === MarkerSubjectClassifier::of($byKey[$key]->when)) {
+                if (!$lenient) {
+                    $errors[] = \sprintf('inbox: marker "%s" names no single pull request, document, run or pause, and such a marker reaches the inbox from the next release', $key);
+                }
             } else {
                 $listed[] = $key;
             }

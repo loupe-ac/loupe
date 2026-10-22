@@ -42,6 +42,12 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
     }
 
     #[\Override]
+    public function findCardIdsWithInboxEntry(Uuid $projectId): array
+    {
+        return $this->cards->findIdsWithInboxEntry($projectId);
+    }
+
+    #[\Override]
     public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): void
     {
         $card = $this->cards->find($cardId);

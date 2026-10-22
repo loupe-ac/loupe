@@ -15,6 +15,11 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
 use App\Module\Review\Repository\TagRepository;
+use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
@@ -73,6 +78,31 @@ trait InboxFixtures
         $em->persist($card);
 
         return $card;
+    }
+
+    /**
+     * An entry of the inbox set, as the marker pass of the engine stores it.
+     *
+     * @param array<string, string|int> $params
+     */
+    private function inboxEntry(string $key, MarkerSubject $subject, array $params = [], ?\DateTimeImmutable $since = null): StoredMarker
+    {
+        return new StoredMarker($key, MarkerKind::NeedsYou, 'marker.'.str_replace('-', '_', $key), null, $params, $since ?? new \DateTimeImmutable('2026-10-20 09:00:00'), null, $subject);
+    }
+
+    private function documentEntry(Document $document, int $version): StoredMarker
+    {
+        return $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $document->id, 'version' => (string) $version]));
+    }
+
+    /** Stores the inbox set of the card, so the reconcile reads it. A card with no entries stores an empty set. */
+    private function storeInbox(EntityManagerInterface $em, Card $card, StoredMarker ...$entries): void
+    {
+        $em->flush();
+        $store = self::getContainer()->get(CardMarkerStore::class);
+        self::assertInstanceOf(CardMarkerStore::class, $store);
+        $store->write($card->project->requireId(), $card->id ?? throw new \LogicException('A flushed card has an id.'), [], array_values($entries), null);
+        $em->flush();
     }
 
     private function document(EntityManagerInterface $em, Project $project): Document

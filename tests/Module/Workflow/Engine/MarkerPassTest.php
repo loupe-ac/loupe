@@ -343,6 +343,24 @@ final class MarkerPassTest extends KernelTestCase
         self::assertEquals(new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => 'run-1']), $this->writtenInbox[0]->subject ?? null);
     }
 
+    public function test_a_listed_marker_that_reads_a_named_fact_names_the_pull_requests_of_its_leaves(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate(
+            [self::marker('failing', 'stuck', ['fact.pr-failing' => []])],
+            ['failing'],
+            ['pr-failing' => ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]]],
+        );
+        [$first, $second] = [self::openPullRequest(1, 'aaa', ChecksState::Failed), self::openPullRequest(2, 'bbb', ChecksState::Failed)];
+
+        $this->pass($template, FactsMother::facts(pullRequest: $first, pullRequests: [$first, $second]));
+
+        self::assertEquals([
+            new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $first->id, 'head' => 'aaa']),
+            new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => (string) $second->id, 'head' => 'bbb']),
+        ], array_map(static fn (StoredMarker $marker): ?MarkerSubject => $marker->subject, $this->writtenInbox ?? []));
+    }
+
     public function test_a_marker_with_no_subject_leaf_gets_the_card_as_its_thing_for_one_spell(): void
     {
         self::bootKernel();

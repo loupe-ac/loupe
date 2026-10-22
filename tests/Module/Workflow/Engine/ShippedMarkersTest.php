@@ -40,6 +40,7 @@ use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
@@ -56,7 +57,7 @@ final class ShippedMarkersTest extends KernelTestCase
     use MarkerScenario;
 
     private const array LIFECYCLE_KEYS = [
-        'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
+        'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
         'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
@@ -127,6 +128,7 @@ final class ShippedMarkersTest extends KernelTestCase
     private static function givesPullRequestEvidence(Expression $expression): bool
     {
         return match (true) {
+            $expression instanceof NamedFact => self::givesPullRequestEvidence($expression->expression),
             $expression instanceof ConditionLeaf => $expression->condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $expression->reads(), true),
             $expression instanceof AllOf, $expression instanceof AnyOf => array_any($expression->children, self::givesPullRequestEvidence(...)),
             default => false,
@@ -405,15 +407,21 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('unmanaged')->since);
     }
 
-    public function test_a_document_in_review_needs_the_person_only_in_the_slot_of_its_tag(): void
+    public function test_the_document_marker_needs_the_person_when_an_approval_moves_the_card_and_no_agent_review_is_open(): void
     {
-        $review = static fn (string $tag): array => [new DocumentFacts([$tag], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+        $marker = array_find($this->template('lifecycle')->markers, static fn ($marker): bool => 'document-in-review' === $marker->key) ?? throw new \LogicException('Lifecycle ships the marker.');
 
-        self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('tech-design')))));
-        self::assertSame(['%title%' => 'The design'], $this->written('document-in-review')->params);
-        self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'product-design', documents: $review('product-design')))));
-        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('product-design')))));
-        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: $review('tech-design')))));
+        self::assertSame(MarkerKind::NeedsYou, $marker->kind);
+        self::assertSame(['product-design', 'tech-design'], $marker->slots);
+        self::assertSame(['card.document.approval_moves', 'card.document.agent_review_open'], array_map(static fn ($leaf): string => $leaf->condition::key(), $marker->when->leaves()));
+        self::assertContains('document-in-review', $this->template('lifecycle')->inbox);
+    }
+
+    public function test_a_document_in_review_shows_no_marker_outside_the_slots_of_the_document_marker(): void
+    {
+        $review = [new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: $review))));
     }
 
     public function test_a_draft_design_in_its_agent_review_shows_the_round_in_its_slot_only(): void
@@ -434,7 +442,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     public function test_a_pull_request_that_waits_for_approval_and_an_open_question_need_the_person(): void
     {
-        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, waitsForApprovalSince: new \DateTimeImmutable('2026-10-01 10:30:00'));
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, checksOnHead: true, canMerge: true, baseIsDefault: true);
         $question = new OpenQuestionFacts([new OpenQuestion(6, 'Which way?', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: true)]);
 
         $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: [OpenQuestionFacts::class => $question]));

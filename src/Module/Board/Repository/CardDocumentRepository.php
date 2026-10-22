@@ -139,18 +139,6 @@ final class CardDocumentRepository extends ServiceEntityRepository
         return array_map(static fn (array $row): array => ['link' => $row[0], 'versionNumber' => (int) $row['versionNumber'], 'versionAt' => null === $row['versionAt'] ? null : new \DateTimeImmutable($row['versionAt'])], $rows);
     }
 
-    /** @return list<string> the ids of the cards linked to a document in review and not archived */
-    public function findCardIdsWithDocumentInReview(Project $project): array
-    {
-        /** @var list<array{cardId: Uuid|string}> $rows */
-        $rows = $this->inReview($project)
-            ->select('DISTINCT card.id AS cardId')
-            ->getQuery()
-            ->getArrayResult();
-
-        return array_map(static fn (array $row): string => (string) $row['cardId'], $rows);
-    }
-
     /**
      * The id, the status, the title, the time and the number of the newest version and the tag names of each unarchived
      * document linked to the card, as the database holds them now, in link order.

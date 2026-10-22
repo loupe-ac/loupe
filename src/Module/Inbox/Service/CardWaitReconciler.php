@@ -5,93 +5,55 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardDocument;
-use App\Module\Board\Entity\Forge;
-use App\Module\Board\Repository\CardDocumentRepository;
-use App\Module\Board\Repository\CardPauseRepository;
-use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
-use App\Module\Bridge\Repository\WorkRequestRepository;
-use App\Module\Bridge\ValueObject\WorkerRunState;
-use App\Module\Forge\Entity\ForgePullRequest;
-use App\Module\Forge\Entity\PullRequestChecks;
-use App\Module\Forge\Entity\PullRequestMergeability;
-use App\Module\Forge\Entity\PullRequestReview;
-use App\Module\Forge\Entity\PullRequestState;
-use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\Entity\InboxProjectSettings;
 use App\Module\Inbox\InboxEventType;
-use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
-use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
-use App\Module\Review\Entity\Tag;
-use App\Module\Workflow\Contract\CardDirectory;
-use App\Module\Workflow\Contract\EpicBranches;
-use App\Module\Workflow\Contract\PauseKind;
-use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
-use App\Module\Workflow\Service\FactsBuilder;
-use App\Module\Workflow\Service\VerdictWouldFire;
-use App\Module\Workflow\Template\Template;
-use App\Module\Workflow\Template\TemplateMissing;
-use App\Module\Workflow\Template\TemplateSource;
+use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Computes the waits each card has now, compares them with the open wait item
- * of the card, and writes the difference. Running it twice changes nothing, so
- * any trigger may ask for it again.
+ * Reads the inbox set that the workflow engine stored on each card, compares it with the open wait item
+ * of the card, and writes the difference. Running it twice changes nothing, so any trigger may ask for it again.
  */
 final readonly class CardWaitReconciler
 {
-    /** The time after an answer that the bridge has to resume the worker, before the stop opens its own item. */
-    private const string RESUME_GRACE = '+10 minutes';
-
     public function __construct(
         private EntityManagerInterface $em,
         private CardRepository $cards,
-        private CardDocumentRepository $cardDocuments,
         private InboxCardWatchRepository $inboxCardWatches,
-        private InboxReviewRepository $inboxReviews,
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
         private InboxSearchIndexer $searchIndexer,
         private InboxChangedPublisher $inboxChanged,
         private InboxAvailability $inbox,
-        private InboxWaitSwitches $switches,
         private WorkerRunRepository $workerRuns,
-        private WorkRequestRepository $workRequests,
-        private CardPullRequestRepository $cardPullRequests,
-        private ForgePullRequestRepository $forgePullRequests,
-        private CardPauseRepository $cardPauses,
-        private TemplateSource $templates,
-        private WorkflowSlotLinkRepository $workflowSlotLinks,
+        private DocumentRepository $documents,
         private CardWaitText $waitText,
-        private CardDirectory $cardDirectory,
-        private VerdictWouldFire $verdictWouldFire,
-        private EpicBranches $epicBranches,
-        private InboxAskRepository $inboxAsks,
+        private CardMarkerStore $markers,
     ) {
     }
 
-    /** @param list<string>|null $cardIds null for every card that has an open watch, a document in review, a newest run that waits, an open GitHub pull request or an active pause */
+    /** @param list<string>|null $cardIds null for every card that has an open watch or a stored inbox entry */
     public function reconcile(Project $project, ?array $cardIds): void
     {
         $countChanged = $this->em->wrapInTransaction(function () use ($project, $cardIds): bool {
@@ -128,13 +90,17 @@ final readonly class CardWaitReconciler
                 $this->em->flush();
             }
 
-            $switches = $this->switches->for($project);
-            $wanted = $enabled ? self::switchedOn($this->wantedWaits($project, $cards), $switches) : [];
+            [$wanted, $unread] = $enabled ? $this->wantedWaits($project, $cards) : [[], []];
             $countChanged = false;
             $nextNumber = null;
             $rewritten = [];
             foreach (array_keys($ids) as $cardId) {
                 $card = $cards[$cardId] ?? null;
+                $cause = $this->cause($card, $enabled);
+                // No pass of the engine has read the card yet, so its open waits stay as they are.
+                if (isset($unread[$cardId]) && InboxCardWaitEndReason::Resolved === $cause) {
+                    continue;
+                }
                 $want = $wanted[$cardId] ?? [];
                 $watch = $watches[$cardId] ?? null;
                 if (null === $watch) {
@@ -147,7 +113,7 @@ final readonly class CardWaitReconciler
                 }
 
                 $ended = [];
-                if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now, $ended)) {
+                if ($this->apply($watch, $want, $cause, $now, $ended)) {
                     $countChanged = true;
                 }
                 if (null !== $card && $this->rewrite($watch, $card, $ended, $now)) {
@@ -177,13 +143,7 @@ final readonly class CardWaitReconciler
     {
         $cardIds ??= [
             ...$this->inboxCardWatches->findOpenCardIds($project),
-            ...$this->cardDocuments->findCardIdsWithDocumentInReview($project),
-            ...array_map(
-                static fn (array $row): string => $row['card_id'],
-                array_filter($this->workerRuns->findLatestRunRows($project, null), static fn (array $row): bool => null !== self::runTrigger($row['state'])),
-            ),
-            ...$this->cardPullRequests->findCardIdsWithOpenGitHubPullRequest($project),
-            ...$this->cardPauses->findActiveCardIdsForProject($project),
+            ...$this->markers->findCardIdsWithInboxEntry($project->requireId()),
         ];
 
         $ids = [];
@@ -198,21 +158,35 @@ final readonly class CardWaitReconciler
     /**
      * @param array<string, Card> $cards
      *
-     * @return array<string, array<string, WantedCardWait>> card id => wait key => wait
+     * @return array{array<string, array<string, WantedCardWait>>, array<string, true>} the waits by card id and wait key, and the ids of the open cards that no pass of the engine has read
      */
     private function wantedWaits(Project $project, array $cards): array
     {
-        $open = array_filter($cards, static fn (Card $card): bool => !$card->column->terminal);
-        $cardIds = array_values(array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A stored card has an id.'), $open));
-        $runRows = $this->workerRuns->findLatestRunRows($project, $cardIds);
-        $asking = $this->askingCards($runRows);
-        $candidates = [...$this->documentWaits($project, $cardIds), ...$this->runWaits($runRows, $asking), ...$this->pullRequestWaits($project, $cardIds), ...$this->pauseWaits($cardIds, $asking)];
+        $candidates = [];
+        $unread = [];
+        foreach ($cards as $cardId => $card) {
+            if ($card->column->terminal) {
+                continue;
+            }
+            $entries = $this->markers->readInbox($card->id ?? throw new \LogicException('A stored card has an id.'));
+            if (null === $entries) {
+                $unread[$cardId] = true;
+                continue;
+            }
+            foreach ($entries as $entry) {
+                // The database refuses a card wait in this release, so an entry of the card opens nothing.
+                if (null !== $entry->subject && MarkerSubjectType::Card !== $entry->subject->type) {
+                    $candidates[] = [$cardId, WantedCardWait::fromMarker($entry)];
+                }
+            }
+        }
         if ([] === $candidates) {
-            return [];
+            return [[], $unread];
         }
 
+        $candidates = $this->withRunText($candidates);
         $dismissed = [];
-        foreach ($this->inboxCardWatches->findDismissedForCards($project, $cardIds) as $watch) {
+        foreach ($this->inboxCardWatches->findDismissedForCards($project, array_values(array_map(Uuid::fromString(...), array_unique(array_column($candidates, 0))))) as $watch) {
             foreach ($watch->waits as $wait) {
                 if (InboxCardWaitEndReason::Dismissed === $wait->endReason) {
                     $dismissed[(string) $watch->cardId][$wait->key()] = true;
@@ -228,272 +202,35 @@ final readonly class CardWaitReconciler
             }
         }
 
-        return $wanted;
+        return [$wanted, $unread];
     }
 
     /**
-     * @param array<string, array<string, WantedCardWait>> $wanted card id => wait key => wait
+     * A wait of a run shows the kind of worker and the headline of its output, so the stored label can carry them.
      *
-     * @return array<string, array<string, WantedCardWait>>
-     */
-    private static function switchedOn(array $wanted, InboxProjectSettings $switches): array
-    {
-        foreach ($wanted as $cardId => $waits) {
-            $wanted[$cardId] = array_filter($waits, static fn (WantedCardWait $wait): bool => $switches->isOn($wait->trigger));
-        }
-
-        return array_filter($wanted);
-    }
-
-    /**
-     * A document in review waits on a linked card when a verdict on it would
-     * make a rule of the card's workflow slot fire. An open review of an agent
-     * on the document holds its wait back.
-     *
-     * @param list<Uuid> $cardIds
+     * @param list<array{string, WantedCardWait}> $candidates
      *
      * @return list<array{string, WantedCardWait}>
      */
-    private function documentWaits(Project $project, array $cardIds): array
+    private function withRunText(array $candidates): array
     {
-        $rows = $this->cardDocuments->findInReviewForCards($project, $cardIds);
-        if ([] === $rows) {
-            return [];
-        }
-        try {
-            $template = $this->templates->forProject($project->id ?? throw new \LogicException('Project has no id.'));
-        } catch (TemplateMissing) {
-            return [];
-        }
-
-        $slots = [];
-        foreach ($this->workflowSlotLinks->findColumnsBySlot($project) as $slot => $column) {
-            if (null !== $column) {
-                $slots[(string) $column->id] = $slot;
+        $runIds = [];
+        foreach ($candidates as [, $wait]) {
+            if (MarkerSubjectType::WorkerRun === $wait->subject->type) {
+                $runIds[] = $wait->subject->ids['run'];
             }
         }
-        $rows = array_values(array_filter($rows, static function (array $row) use ($template, $slots): bool {
-            $column = $row['link']->card->column;
-            if ($column->terminal) {
-                return false;
-            }
-            $slot = $column->backlog ? FactsBuilder::BACKLOG_SLOT : $slots[(string) $column->id] ?? null;
-            $tags = array_map(static fn (Tag $tag): string => $tag->name, $row['link']->document->tags->toArray());
-
-            return [] !== array_intersect($template->documentTagsFor($slot), $tags);
-        }));
-        $rows = $this->verdictRows($template, $rows);
-        if ([] === $rows) {
-            return [];
+        $runs = [];
+        foreach ($this->workerRuns->findByIds(array_values(array_unique($runIds))) as $run) {
+            $runs[($run->id ?? throw new \LogicException('A stored run has an id.'))->toRfc4122()] = $run;
         }
 
-        $documents = [];
-        foreach ($rows as $row) {
-            $documents[(string) $row['link']->document->id] = $row['link']->document;
-        }
-        $underAgentReview = array_flip($this->inboxReviews->findDocumentIdsUnderAgentReview(array_values($documents)));
+        return array_map(static function (array $candidate) use ($runs): array {
+            [$cardId, $wait] = $candidate;
+            $run = MarkerSubjectType::WorkerRun === $wait->subject->type ? $runs[$wait->subject->ids['run']] ?? null : null;
 
-        $waits = [];
-        foreach ($rows as $row) {
-            $document = $row['link']->document;
-            if (!isset($underAgentReview[(string) $document->id])) {
-                $waits[] = [(string) $row['link']->card->id, WantedCardWait::forDocument($document, $row['versionNumber'])];
-            }
-        }
-
-        return $waits;
-    }
-
-    /**
-     * @param list<array{link: CardDocument, versionNumber: int, versionAt: ?\DateTimeImmutable}> $rows
-     *
-     * @return list<array{link: CardDocument, versionNumber: int, versionAt: ?\DateTimeImmutable}> the rows whose document a verdict would make a rule fire on
-     */
-    private function verdictRows(Template $template, array $rows): array
-    {
-        $byCard = [];
-        foreach ($rows as $row) {
-            $byCard[(string) $row['link']->card->id][] = $row;
-        }
-
-        $kept = [];
-        foreach ($byCard as $cardId => $cardRows) {
-            $snapshot = $this->cardDirectory->find(Uuid::fromString($cardId));
-            if (null === $snapshot) {
-                continue;
-            }
-            $ids = array_flip($this->verdictWouldFire->forCard($snapshot, $template, array_map(static fn (array $row): string => (string) $row['link']->document->id, $cardRows)));
-            foreach ($cardRows as $row) {
-                if (isset($ids[(string) $row['link']->document->id])) {
-                    $kept[] = $row;
-                }
-            }
-        }
-
-        return $kept;
-    }
-
-    /**
-     * The cards whose newest run waits on its own question: the ask is open, or it closed lately and the bridge resumes the worker.
-     * The question is then the item the owner acts on, so the stop of the run opens no second one.
-     *
-     * @param list<array{id: string, card_id: string, state: string, output: string, waits_on_ask_id: ?string, ended_at: ?string}> $runRows
-     *
-     * @return array<string, true> RFC 4122 card id => true
-     */
-    private function askingCards(array $runRows): array
-    {
-        $askIds = array_values(array_filter(array_column($runRows, 'waits_on_ask_id')));
-        if ([] === $askIds) {
-            return [];
-        }
-
-        $closedAt = $this->inboxAsks->findClosedAtByIds($askIds);
-        $now = self::now();
-        $asking = [];
-        foreach ($runRows as $row) {
-            $askId = null === $row['waits_on_ask_id'] ? null : Uuid::fromString($row['waits_on_ask_id'])->toRfc4122();
-            if (null === $askId || !\array_key_exists($askId, $closedAt)) {
-                continue;
-            }
-            $closed = $closedAt[$askId];
-            // The resume queues at the close, or at the end of a run that still ran then, whichever came last.
-            $since = null === $closed || null === $row['ended_at'] ? $closed : max($closed, new \DateTimeImmutable($row['ended_at']));
-            if (null === $since || $since->modify(self::RESUME_GRACE) > $now) {
-                $asking[Uuid::fromString($row['card_id'])->toRfc4122()] = true;
-            }
-        }
-
-        return $asking;
-    }
-
-    /**
-     * The newest run of a card opens a wait when it needs a person, unless its question stands for the stop.
-     *
-     * @param list<array{id: string, card_id: string, state: string, output: string, waits_on_ask_id: ?string, ended_at: ?string}> $runRows
-     * @param array<string, true>                                                                                                  $asking
-     *
-     * @return list<array{string, WantedCardWait}>
-     */
-    private function runWaits(array $runRows, array $asking): array
-    {
-        $waits = [];
-        foreach ($runRows as $row) {
-            $cardId = Uuid::fromString($row['card_id'])->toRfc4122();
-            $trigger = self::runTrigger($row['state']);
-            if (null === $trigger || isset($asking[$cardId])) {
-                continue;
-            }
-            $waits[] = [$cardId, WantedCardWait::forRun($trigger, Uuid::fromString($row['id']))];
-        }
-
-        return $waits;
-    }
-
-    /**
-     * An open run on the card holds back a ready wait, because the run can still push.
-     * A child pull request into the epic branch of its parent merges with no approval, so it gets no ready wait.
-     *
-     * @param list<Uuid> $cardIds
-     *
-     * @return list<array{string, WantedCardWait}>
-     */
-    private function pullRequestWaits(Project $project, array $cardIds): array
-    {
-        $links = $this->cardPullRequests->findGitHubReferencesForCards($cardIds);
-        if ([] === $links) {
-            return [];
-        }
-
-        $projectId = $project->id ?? throw new \LogicException('Project has no id.');
-        $rows = [];
-        foreach ($this->forgePullRequests->findByKeys($projectId, array_map(static fn (array $link): array => ['forge' => Forge::GitHub->value, 'repository' => $link['repository'], 'number' => $link['number']], $links)) as $row) {
-            $rows[$row->repository.'#'.$row->number] = $row;
-        }
-        if ([] === $rows) {
-            return [];
-        }
-
-        $running = array_flip($this->workerRuns->findCardIdsWithOpenRun($project, $cardIds));
-        $fixes = $this->workRequests->findFinishedFixesOpenedAt($cardIds);
-        $parents = [];
-        foreach ($this->cards->findByIdsInProject($project, $cardIds) as $card) {
-            if (null !== $card->parent) {
-                $parents[(string) $card->id] = $card->parent->number;
-            }
-        }
-
-        $waits = [];
-        foreach ($links as $link) {
-            $row = $rows[mb_strtolower($link['repository']).'#'.$link['number']] ?? null;
-            if (null === $row || null === $row->refreshedAt || PullRequestState::Open !== $row->state || null === $row->headSha) {
-                continue;
-            }
-            $cardId = $link['cardId'];
-            $rowId = $row->id ?? throw new \LogicException('A stored pull request has an id.');
-            $idle = !isset($running[$cardId]);
-
-            if ($idle && self::waitsForReview($row, $row->headSha, $row->lastFixOpenedAt($fixes[Uuid::fromString($cardId)->toRfc4122()] ?? [])) && !$this->mergesWithoutApproval($projectId, $row, $parents[(string) $cardId] ?? null)) {
-                $waits[] = [$cardId, PullRequestReview::Approved === $row->review
-                    ? WantedCardWait::forPullRequestChangedAfterApproval($rowId, $row->headSha)
-                    : WantedCardWait::forPullRequestReady($rowId, $row->headSha)];
-            }
-        }
-
-        return $waits;
-    }
-
-    /**
-     * @param list<Uuid>          $cardIds
-     * @param array<string, true> $asking  cards whose stopped worker waits on its own question, which holds back the pause of that stop
-     *
-     * @return list<array{string, WantedCardWait}>
-     */
-    private function pauseWaits(array $cardIds, array $asking): array
-    {
-        $waits = [];
-        foreach ($this->cardPauses->findActiveForCardIds($cardIds) as $cardId => $pause) {
-            if (PauseKind::WorkStopped === $pause->kind && isset($asking[Uuid::fromString($cardId)->toRfc4122()])) {
-                continue;
-            }
-            $waits[] = [$cardId, WantedCardWait::forPause($pause)];
-        }
-
-        return $waits;
-    }
-
-    private function mergesWithoutApproval(Uuid $projectId, ForgePullRequest $row, ?int $parentNumber): bool
-    {
-        return null !== $parentNumber && null !== $row->baseBranch && $row->baseBranch === $this->epicBranches->of($projectId, $parentNumber);
-    }
-
-    /**
-     * A changes-requested review waits again once a fix run answered it, because GitHub keeps it until someone reviews anew.
-     * An approval waits again once the head has commits it does not cover.
-     */
-    private static function waitsForReview(ForgePullRequest $row, string $headSha, ?\DateTimeImmutable $lastFixOpenedAt): bool
-    {
-        $review = match ($row->review) {
-            PullRequestReview::Required, PullRequestReview::None => true,
-            PullRequestReview::ChangesRequested => null !== $row->changesRequestedAt && !$row->changesRequestOpen($lastFixOpenedAt),
-            PullRequestReview::Approved => null !== $row->coveredSha && $row->coveredSha !== $headSha,
-        };
-
-        return $review
-            && !$row->draft
-            && PullRequestChecks::Passed === $row->checks
-            && $row->checksSha === $headSha
-            && \in_array($row->mergeability, [PullRequestMergeability::Mergeable, PullRequestMergeability::Behind, PullRequestMergeability::Blocked], true);
-    }
-
-    private static function runTrigger(string $state): ?InboxCardWaitTrigger
-    {
-        return match (WorkerRunState::tryFrom($state)) {
-            WorkerRunState::Blocked => InboxCardWaitTrigger::RunBlocked,
-            WorkerRunState::GaveUp => InboxCardWaitTrigger::RunGaveUp,
-            WorkerRunState::WaitingForPerson => InboxCardWaitTrigger::RunWaitingForPerson,
-            default => null,
-        };
+            return [$cardId, $run instanceof WorkerRun ? $wait->withParams([...$wait->params, ...RunOutputText::params($run->workKind, $run->output)]) : $wait];
+        }, $candidates);
     }
 
     /** Why a wait of this card that is no longer wanted ends. */
@@ -540,7 +277,7 @@ final readonly class CardWaitReconciler
      * @param array<string, WantedCardWait> $want
      * @param list<InboxCardWait>           $ended receives the waits this call ended
      */
-    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, InboxProjectSettings $switches, \DateTimeImmutable $now, array &$ended): bool
+    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, \DateTimeImmutable $now, array &$ended): bool
     {
         $open = [];
         foreach ($watch->waits as $wait) {
@@ -553,8 +290,7 @@ final readonly class CardWaitReconciler
         foreach ($open as $key => $wait) {
             if (!isset($want[$key])) {
                 $wait->endedAt = $now;
-                $wait->endReason = InboxCardWaitEndReason::Resolved === $cause && !$switches->isOn($wait->trigger) ? InboxCardWaitEndReason::SwitchedOff : $cause;
-                $obsolete = $obsolete || InboxCardWaitEndReason::Resolved !== $wait->endReason;
+                $wait->endReason = $cause;
                 $ended[] = $wait;
                 unset($open[$key]);
             }
@@ -562,24 +298,17 @@ final readonly class CardWaitReconciler
 
         foreach ($want as $key => $wanted) {
             if (isset($open[$key])) {
+                $open[$key]->label = $wanted->label;
+                $open[$key]->params = $wanted->params;
                 continue;
             }
-            $open[$key] = new InboxCardWait(
-                watch: $watch,
-                trigger: $wanted->trigger,
-                type: $wanted->type,
-                reason: $wanted->reason,
-                documentId: $wanted->document?->id,
-                versionNumber: $wanted->versionNumber,
-                runId: $wanted->runId,
-                pullRequestId: $wanted->pullRequestId,
-                headSha: $wanted->headSha,
-                startedAt: $now,
-                pauseId: $wanted->pauseId,
-            );
+            $open[$key] = InboxCardWait::forSubject($watch, $wanted->markerKey, $wanted->label, $wanted->params, $wanted->subject, $wanted->since);
             $watch->waits->add($open[$key]);
-            if (null !== $wanted->document) {
-                $this->link($watch->item, $wanted->document, $now);
+            if (MarkerSubjectType::Document === $wanted->subject->type) {
+                $document = $this->documents->find($wanted->subject->ids['document']);
+                if (null !== $document) {
+                    $this->link($watch->item, $document, $now);
+                }
             }
         }
 

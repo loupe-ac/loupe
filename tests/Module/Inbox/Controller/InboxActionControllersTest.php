@@ -22,8 +22,6 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -1122,7 +1120,7 @@ final class InboxActionControllersTest extends WebTestCase
         $this->em()->persist($run);
         $this->em()->flush();
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id), $linkCard);
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id), $linkCard);
     }
 
     private function pauseItem(PauseKind $kind): InboxItem
@@ -1130,7 +1128,7 @@ final class InboxActionControllersTest extends WebTestCase
         $pause = $this->service(PauseCardHandler::class)(new PauseCardCommand($this->card, 'on-hold', 'review-rule', $kind))
             ?? throw new \LogicException('The card had no pause.');
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::CardPaused, InboxCardWaitType::CardPause, InboxCardWaitReason::forPause($kind), pauseId: $pause->id));
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: $pause->id));
     }
 
     /** @param \Closure(InboxCardWatch): InboxCardWait $wait */

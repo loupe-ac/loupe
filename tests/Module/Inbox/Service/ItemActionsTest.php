@@ -25,8 +25,6 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -43,6 +41,7 @@ use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CardPauses;
+use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\StageWorks;
 use App\Module\Workflow\Service\TemplateStageWorks;
@@ -167,9 +166,18 @@ final class ItemActionsTest extends KernelTestCase
     public function test_a_wait_for_a_pause_that_is_no_longer_active_offers_no_retry(): void
     {
         $this->pauseWait(PauseKind::Retries);
-        $stale = new InboxCardWait($this->watchOf(), InboxCardWaitTrigger::CardPaused, InboxCardWaitType::CardPause, InboxCardWaitReason::PauseRetries, pauseId: Uuid::v4());
+        $stale = new InboxCardWait($this->watchOf(), 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: Uuid::v4());
 
         self::assertSame([[InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]], $this->summary($this->waitItem([$stale])));
+    }
+
+    public function test_a_card_wait_offers_open_and_dismiss_only(): void
+    {
+        $watch = $this->watchOf();
+        $spell = new \DateTimeImmutable('2026-10-13 09:00:00', new \DateTimeZone('UTC'));
+        $watch->waits->add(InboxCardWait::forSubject($watch, 'nothing-happened', 'marker.nothing_happened', [], MarkerSubject::card($watch->cardId, $spell), $spell));
+
+        self::assertSame([[InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]], $this->summary($watch->item));
     }
 
     public function test_a_document_wait_offers_review_as_the_default(): void
@@ -551,7 +559,7 @@ final class ItemActionsTest extends KernelTestCase
 
     private function runWait(WorkerRun $run, \DateTimeImmutable $startedAt = new \DateTimeImmutable('2026-10-13 10:00:00')): InboxCardWait
     {
-        return new InboxCardWait($this->watchOf(), InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id, startedAt: $startedAt);
+        return new InboxCardWait($this->watchOf(), 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id, startedAt: $startedAt);
     }
 
     private function documentWait(\DateTimeImmutable $startedAt = new \DateTimeImmutable('2026-10-13 10:00:00')): InboxCardWait
@@ -559,12 +567,12 @@ final class ItemActionsTest extends KernelTestCase
         $document = $this->document($this->em, $this->project);
         $this->em->flush();
 
-        return new InboxCardWait($this->watchOf(), InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, documentId: $document->id, versionNumber: 1, startedAt: $startedAt);
+        return new InboxCardWait($this->watchOf(), 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', documentId: $document->id, versionNumber: 1, startedAt: $startedAt);
     }
 
     private function pullRequestWait(): InboxCardWait
     {
-        return new InboxCardWait($this->watchOf(), InboxCardWaitTrigger::PullRequestReady, InboxCardWaitType::PullRequest, InboxCardWaitReason::WaitingForReview, pullRequestId: Uuid::v4(), headSha: 'abc123');
+        return new InboxCardWait($this->watchOf(), 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: Uuid::v4(), headSha: 'abc123');
     }
 
     private function pauseWait(PauseKind $kind, \DateTimeImmutable $startedAt = new \DateTimeImmutable('2026-10-13 10:00:00')): InboxCardWait
@@ -575,7 +583,7 @@ final class ItemActionsTest extends KernelTestCase
         $pause = $handler(new PauseCardCommand($card, 'on-hold', 'review-rule', $kind));
         self::assertNotNull($pause);
 
-        return new InboxCardWait($this->watchOf(), InboxCardWaitTrigger::CardPaused, InboxCardWaitType::CardPause, InboxCardWaitReason::forPause($kind), startedAt: $startedAt, pauseId: $pause->id);
+        return new InboxCardWait($this->watchOf(), 'paused', InboxCardWaitType::CardPause, 'marker.paused', startedAt: $startedAt, pauseId: $pause->id);
     }
 
     /**

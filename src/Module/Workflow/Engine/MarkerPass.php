@@ -13,10 +13,10 @@ use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\MarkerSubjectType;
-use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\SlotKeys;
 use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Contract\TimedCondition;
+use App\Module\Workflow\Template\MarkerSubjectClassifier;
 use App\Module\Workflow\Template\TemplateMarker;
 
 /**
@@ -76,7 +76,7 @@ final readonly class MarkerPass
                 $dueAt = self::earlier($dueAt, $this->changesAt($marker, $subject));
             }
             $bound = $this->ruleSubject->bindWhen($marker->when, $run->facts);
-            $facts = MarkerSubjectType::Document === self::subjectType($marker) ? self::bindDocument($marker, $bound->facts) : null;
+            $facts = MarkerSubjectType::Document === MarkerSubjectClassifier::of($marker->when) ? self::bindDocument($marker, $bound->facts) : null;
             if (null === $facts && !$bound->truth) {
                 continue;
             }
@@ -121,7 +121,7 @@ final readonly class MarkerPass
      */
     private function inboxEntries(Evaluation $run, TemplateMarker $marker, Facts $bound, ?StoredMarker $board, ?array $storedInbox): array
     {
-        $type = self::subjectType($marker);
+        $type = MarkerSubjectClassifier::of($marker->when);
         $candidates = match ($type) {
             MarkerSubjectType::PullRequest => $this->ruleSubject->subjects($marker->when, $run->facts),
             MarkerSubjectType::Document => array_map($bound->withDocument(...), self::documentsInReview($run->facts)),
@@ -166,18 +166,6 @@ final readonly class MarkerPass
     private static function documentsInReview(Facts $facts): array
     {
         return array_values(array_filter($facts->documents(), static fn (DocumentFacts $document): bool => DocumentStatuses::IN_REVIEW === $document->status));
-    }
-
-    private static function subjectType(TemplateMarker $marker): ?MarkerSubjectType
-    {
-        $types = [];
-        foreach ($marker->when->leaves() as $leaf) {
-            if ($leaf->condition instanceof NamesMarkerSubject) {
-                $types[$leaf->condition->subjectType()->value] = $leaf->condition->subjectType();
-            }
-        }
-
-        return 1 === \count($types) ? array_first($types) : null;
     }
 
     private static function applies(TemplateMarker $marker, ?string $slot): bool

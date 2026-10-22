@@ -49,8 +49,6 @@ use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -1018,7 +1016,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->persist($newer);
         $this->em()->flush();
         $watch = $this->waitOf($item)->watch;
-        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $newer->id, startedAt: new \DateTimeImmutable('+1 minute')));
+        $watch->waits->add(new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $newer->id, startedAt: new \DateTimeImmutable('+1 minute')));
         $this->em()->flush();
 
         try {
@@ -1463,7 +1461,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->persist($run);
         $this->em()->flush();
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id), $card);
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id), $card);
     }
 
     private function pauseItem(PauseKind $kind): InboxItem
@@ -1471,7 +1469,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $pause = $this->service(PauseCardHandler::class)(new PauseCardCommand($this->card, 'on-hold', 'review-rule', $kind))
             ?? throw new \LogicException('The card had no pause.');
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::CardPaused, InboxCardWaitType::CardPause, InboxCardWaitReason::forPause($kind), pauseId: $pause->id));
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: $pause->id));
     }
 
     /** @param \Closure(InboxCardWatch): InboxCardWait $wait */

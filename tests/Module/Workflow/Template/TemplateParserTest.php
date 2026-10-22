@@ -10,6 +10,7 @@ use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardDocumentApproved;
 use App\Module\Board\Workflow\Condition\CardHasOpenBlocker;
 use App\Module\Board\Workflow\Condition\CardHasType;
+use App\Module\Board\Workflow\Condition\CardPaused;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Detach;
@@ -78,6 +79,7 @@ final class TemplateParserTest extends TestCase
             new CardHasOpenQuestion(),
             new CardHasType(),
             new CardInSlot(),
+            new CardPaused(),
             new DesignReviewFinished(),
             new PullRequestApprovalCoversHead(),
             new PullRequestOpen(),
@@ -1589,12 +1591,71 @@ final class TemplateParserTest extends TestCase
     {
         $markers = [
             ['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['pr.open' => []]],
-            ['key' => 'b', 'kind' => 'chip', 'label' => 'marker.b', 'when' => ['all' => []]],
+            ['key' => 'b', 'kind' => 'chip', 'label' => 'marker.b', 'when' => ['card.paused' => []]],
         ];
 
         self::assertSame([], $this->parser->parse(self::valid() + ['markers' => $markers])->inbox);
         self::assertSame(['b', 'a'], $this->parser->parse(self::valid() + ['markers' => $markers, 'inbox' => ['b', 'a']])->inbox);
         self::assertSame(['b'], $this->parser->parseStored(self::valid() + ['markers' => $markers, 'inbox' => ['b']])->inbox);
+    }
+
+    /** @param array<string, mixed> $when */
+    #[DataProvider('cardSubjectConditions')]
+    public function test_a_listed_marker_with_the_card_subject_is_refused_and_a_stored_copy_skips_it(array $when): void
+    {
+        $markers = [
+            ['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['pr.open' => []]],
+            ['key' => 'b', 'kind' => 'stuck', 'label' => 'marker.b', 'when' => $when],
+        ];
+        $source = self::valid() + ['markers' => $markers, 'inbox' => ['b', 'a']];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['inbox: marker "b" names no single pull request, document, run or pause, and such a marker reaches the inbox from the next release'], $e->errors);
+        }
+
+        $stored = $this->parser->parseStored($source);
+        self::assertSame(['a'], $stored->inbox);
+        self::assertSame(['a', 'b'], array_map(static fn ($marker) => $marker->key, $stored->markers));
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function cardSubjectConditions(): iterable
+    {
+        yield 'no leaf names a thing' => [['card.type' => ['type' => 'bug']]];
+        yield 'no leaf at all' => [['all' => []]];
+        yield 'two subject types' => [['any' => [['pr.open' => []], ['card.paused' => []]]]];
+    }
+
+    public function test_a_listed_marker_whose_named_fact_names_a_pull_request_is_accepted(): void
+    {
+        $source = self::valid() + [
+            'facts' => ['open-and-bug' => ['all' => [['pr.open' => []], ['card.type' => ['type' => 'bug']]]]],
+            'markers' => [['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['fact.open-and-bug' => []]]],
+            'inbox' => ['a'],
+        ];
+
+        self::assertSame(['a'], $this->parser->parse($source)->inbox);
+    }
+
+    public function test_a_listed_marker_whose_named_fact_names_no_thing_is_refused(): void
+    {
+        $source = self::valid() + [
+            'facts' => ['bug' => ['card.type' => ['type' => 'bug']]],
+            'markers' => [['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['fact.bug' => []]]],
+            'inbox' => ['a'],
+        ];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertCount(1, $e->errors);
+            self::assertStringContainsString('reaches the inbox from the next release', $e->errors[0]);
+        }
+        self::assertSame([], $this->parser->parseStored($source)->inbox);
     }
 
     #[DataProvider('invalidInboxLists')]

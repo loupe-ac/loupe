@@ -43,7 +43,6 @@ final readonly class PullRequestFacts
         public ?\DateTimeImmutable $checksFailedSince = null,
         public ?\DateTimeImmutable $checksPendingSince = null,
         public ?\DateTimeImmutable $conflictingSince = null,
-        public ?\DateTimeImmutable $waitsForApprovalSince = null,
         public array $forgeRequests = [],
         public bool $checksOnHead = false,
         public bool $canMerge = false,

@@ -124,7 +124,8 @@ The shipped markers are:
 | Key | Kind | Shows when |
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
-| `run-stopped` | Stuck | The last worker run gave up, was blocked, failed or had no result, and no work is under way |
+| `run-stopped` | Stuck | The last worker run failed or had no result, and no work is under way |
+| `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
 | `checks-failed` | Stuck | A pull request has failed checks and no fix is under way |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
@@ -173,8 +174,7 @@ The **Workflow** page lists the markers in template order. Each row shows the
 label, the kind, the slots and the condition. The page is read-only.
 
 
-A marker reads the same conditions as a rule.
-markers:
+A marker reads the same conditions as a rule. These conditions suit markers:
 
 - `card.paused`: the card has an active pause.
 - `card.document.in_review` with a `tag`: a linked document with that tag is in
@@ -229,8 +229,6 @@ markers:
   its four fix rules, so no second fix starts while a session of the card waits
   for an answer.
 - `pr.checks_pending`: the pull request is open, and its checks run.
-- `pr.waits_for_approval`: the pull request is open, not a draft, green and
-  into the default branch, and no current approval covers its head.
 - `pr.forge_request_pending`: Loupe asked the forge to merge, sync or change
   the base of the pull request, and the forge did not answer yet. A request
   expires after 10 minutes with no answer.
@@ -247,6 +245,29 @@ The `delay` of `card.quiet_for` and of `pr.ready_for` is optional. With no
 Markers also read conditions that rules already use: `pr.open`,
 `pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
 `card.run.worker_active`.
+
+### Markers that open inbox items
+
+The top-level `inbox:` list names the markers that open an item in the inbox.
+Each entry is a marker key. The Lifecycle template lists `waits-for-approval`,
+`document-in-review`, `run-needs-you` and `paused`. The Simple template lists
+`waits-for-approval`, `run-needs-you` and `paused`.
+
+```yaml
+inbox: [waits-for-approval, document-in-review, run-needs-you, paused]
+```
+
+A listed marker opens one wait for each thing that makes it true. The thing is a
+pull request, a document version, a run or a pause. Two pull requests that wait
+for approval give two waits in one inbox item. The card has one item. A dismiss
+hides one wait, and the wait comes back only for a new thing.
+
+A marker that the list does not name opens no item. The
+[inbox page](inbox.md#automatic-items) describes the items.
+
+The template is refused when `inbox:` names an unknown marker or names a marker
+twice. A marker with no pull request, document, run or pause, called a
+card-level marker, cannot be listed yet, so the parser refuses it.
 
 ## Slots and columns
 

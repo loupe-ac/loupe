@@ -20,8 +20,6 @@ use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -116,9 +114,7 @@ final class InboxActionRunToolTest extends KernelTestCase
         $pause = $this->pause();
         $item = $this->waitItem(new InboxCardWait(
             $this->watch(),
-            InboxCardWaitTrigger::CardPaused,
-            InboxCardWaitType::CardPause,
-            InboxCardWaitReason::forPause(PauseKind::Retries),
+            'paused', InboxCardWaitType::CardPause, 'marker.paused',
             pauseId: $pause,
         ));
         $this->readyTool();
@@ -515,7 +511,7 @@ final class InboxActionRunToolTest extends KernelTestCase
         $this->em->persist($run);
         $this->em->flush();
 
-        return $this->waitItem(new InboxCardWait($this->watch(), InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id));
+        return $this->waitItem(new InboxCardWait($this->watch(), 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id));
     }
 
     private ?InboxCardWatch $watch = null;

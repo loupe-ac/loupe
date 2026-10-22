@@ -120,9 +120,6 @@ class ForgePullRequest
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $conflictingSince = null;
 
-    #[ORM\Column(nullable: true)]
-    public ?\DateTimeImmutable $waitsForApprovalSince = null;
-
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $approvalSha = null;
 
@@ -320,17 +317,9 @@ class ForgePullRequest
     public function settleStartTimes(\DateTimeImmutable $now): void
     {
         $open = PullRequestState::Open === $this->state;
-        $waitsForApproval = $open
-            && !$this->draft
-            && PullRequestChecks::Passed === $this->checks
-            && null !== $this->defaultBranch
-            && $this->baseBranch === $this->defaultBranch
-            && (PullRequestReview::Approved !== $this->review || null === $this->approvalId || $this->approvalIsStale());
-
         $this->checksFailedSince = self::edge($open && PullRequestChecks::Failed === $this->checks, $this->checksFailedSince, $now);
         $this->checksPendingSince = self::edge($open && PullRequestChecks::Pending === $this->checks, $this->checksPendingSince, $now);
         $this->conflictingSince = self::edge($open && PullRequestMergeability::Conflicting === $this->mergeability, $this->conflictingSince, $now);
-        $this->waitsForApprovalSince = self::edge($waitsForApproval, $this->waitsForApprovalSince, $now);
     }
 
     private static function edge(bool $holds, ?\DateTimeImmutable $since, \DateTimeImmutable $now): ?\DateTimeImmutable

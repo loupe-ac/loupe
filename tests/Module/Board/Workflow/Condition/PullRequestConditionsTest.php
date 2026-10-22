@@ -26,7 +26,6 @@ use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
 use App\Module\Board\Workflow\Condition\PullRequestsAllFinishedOneMerged;
 use App\Module\Board\Workflow\Condition\PullRequestStacked;
 use App\Module\Board\Workflow\Condition\PullRequestStackParent;
-use App\Module\Board\Workflow\Condition\PullRequestWaitsForApproval;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
@@ -162,7 +161,6 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.stacked' => [new PullRequestStacked(), []];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), []];
         yield 'pr.checks_pending' => [new PullRequestChecksPending(), []];
-        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), []];
         yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), []];
         yield 'pr.stack_parent' => [new PullRequestStackParent(), []];
         yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 1]];
@@ -208,7 +206,6 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.stacked' => [new PullRequestStacked(), [], 'pr_stacked', [], $one];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), [], 'pr_parent_merged', [], $one];
         yield 'pr.checks_pending' => [new PullRequestChecksPending(), [], 'pr_checks_pending', [], $one];
-        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), [], 'pr_waits_for_approval', [], $one];
         yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), [], 'pr_forge_request_pending', [], $one];
         yield 'pr.stack_parent' => [new PullRequestStackParent(), [], 'pr_stack_parent', [], $one];
         yield 'pr.stack_parent, known' => [new PullRequestStackParent(), ['parent' => 'known'], 'pr_stack_parent_known', [], $one];
