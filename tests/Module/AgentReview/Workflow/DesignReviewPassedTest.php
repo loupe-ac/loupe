@@ -43,6 +43,16 @@ final class DesignReviewPassedTest extends TestCase
         yield 'no document' => [self::facts([]), false];
     }
 
+    public function test_a_success_that_read_an_older_version_does_not_count(): void
+    {
+        $success = AgentReviewConclusion::Success;
+        $revised = new DocumentFacts(['tech-design'], 'in-review', 'one', version: 2);
+
+        self::assertFalse(new DesignReviewPassed()->evaluate(self::factsReadingVersions(['one' => $success], ['one' => 1], $revised), self::PARAMS));
+        self::assertTrue(new DesignReviewPassed()->evaluate(self::factsReadingVersions(['one' => $success], ['one' => 2], $revised), self::PARAMS));
+        self::assertFalse(new DesignReviewPassed()->evaluate(self::factsReadingVersions(['one' => $success], ['one' => 2], new DocumentFacts(['tech-design'], 'in-review', 'one')), self::PARAMS));
+    }
+
     public function test_a_bound_document_hides_the_others(): void
     {
         $facts = self::facts(['one' => AgentReviewConclusion::Success, 'two' => AgentReviewConclusion::Failure], self::document('one'), self::document('two'));
@@ -69,15 +79,24 @@ final class DesignReviewPassedTest extends TestCase
     /** @param list<string> $tags */
     private static function document(string $id, array $tags = ['tech-design'], string $status = 'in-review'): DocumentFacts
     {
-        return new DocumentFacts($tags, $status, $id);
+        return new DocumentFacts($tags, $status, $id, version: 1);
     }
 
-    /** @param array<string, AgentReviewConclusion> $conclusions */
+    /** @param array<string, AgentReviewConclusion> $conclusions every review read version 1 */
     private static function facts(array $conclusions, DocumentFacts ...$documents): Facts
+    {
+        return self::factsReadingVersions($conclusions, array_fill_keys(array_keys($conclusions), 1), ...$documents);
+    }
+
+    /**
+     * @param array<string, AgentReviewConclusion> $conclusions
+     * @param array<string, int>                   $versions
+     */
+    private static function factsReadingVersions(array $conclusions, array $versions, DocumentFacts ...$documents): Facts
     {
         return FactsMother::facts(
             card: FactsMother::card(documents: array_values($documents)),
-            provided: [DocumentReviewConclusionFacts::class => new DocumentReviewConclusionFacts($conclusions)],
+            provided: [DocumentReviewConclusionFacts::class => new DocumentReviewConclusionFacts($conclusions, $versions)],
         );
     }
 }

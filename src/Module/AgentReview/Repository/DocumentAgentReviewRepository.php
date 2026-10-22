@@ -26,11 +26,11 @@ class DocumentAgentReviewRepository extends ServiceEntityRepository
         return $this->findOneBy(['document' => $document, 'card' => $card], ['createdAt' => 'DESC', 'id' => 'DESC']);
     }
 
-    /** @return array<string, AgentReviewConclusion> the conclusion of the newest review of each document for the card, keyed by document id */
+    /** @return array<string, array{AgentReviewConclusion, int}> the conclusion and the version number of the newest review of each document for the card, keyed by document id */
     public function findNewestConclusionByDocumentForCard(Uuid $cardId): array
     {
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT DISTINCT ON (document_id) document_id, conclusion FROM document_agent_reviews WHERE card_id = :card ORDER BY document_id, created_at DESC, id DESC',
+            'SELECT DISTINCT ON (document_id) document_id, conclusion, version_number FROM document_agent_reviews WHERE card_id = :card ORDER BY document_id, created_at DESC, id DESC',
             ['card' => $cardId->toRfc4122()],
         );
 
@@ -38,7 +38,7 @@ class DocumentAgentReviewRepository extends ServiceEntityRepository
         foreach ($rows as $row) {
             $conclusion = AgentReviewConclusion::tryFrom((string) $row['conclusion']);
             if (null !== $conclusion) {
-                $conclusions[(string) $row['document_id']] = $conclusion;
+                $conclusions[(string) $row['document_id']] = [$conclusion, (int) $row['version_number']];
             }
         }
 

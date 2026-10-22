@@ -189,6 +189,25 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         self::assertSame([], $this->reviews($document));
     }
 
+    public function test_a_revision_of_an_approved_design_gets_no_approval_from_a_review_of_the_old_version(): void
+    {
+        $card = $this->card('bug');
+        $document = $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
+        $this->evaluate($card);
+        self::assertSame(DocumentStatus::Approved, $this->reload($document)->status);
+        $card->column = $this->column($card->project, 'tech-design');
+        $this->em()->flush();
+        $this->arrive($card, CardEventKind::Moved, '-1 second');
+        $this->service(ReviseDocumentHandler::class)(new ReviseDocumentCommand($document, "# Design\n\nRevised, nothing to decide.", 'Revised.'));
+        self::assertSame(DocumentStatus::InReview, $document->status, 'The revision puts the approved document back in review.');
+
+        $this->evaluate($card, '+1 day');
+
+        self::assertSame(DocumentStatus::InReview, $this->reload($document)->status);
+        self::assertCount(1, $this->reviews($document), 'Only the first approval exists.');
+        self::assertFalse($this->ruleTruth($card, 'tech-design-auto-approve'));
+    }
+
     /** @param list<array{CardEventKind, string}> $arrivals */
     #[DataProvider('lateArrivals')]
     public function test_a_card_that_arrived_in_the_column_after_the_entry_gets_no_approval(array $arrivals): void

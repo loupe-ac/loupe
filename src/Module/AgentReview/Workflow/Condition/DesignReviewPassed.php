@@ -18,8 +18,8 @@ use App\Module\Workflow\Contract\ReadsDocumentTag;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /**
- * The newest agent review of each document with the tag in review is a success. A document with no agent review fails it,
- * and so does a card with no document in review. A marker that binds a document reads that document alone.
+ * The newest agent review of each document with the tag in review is a success, and it read the newest version of the document.
+ * A document with no agent review fails it, so does a review of an older version, and so does a card with no document in review. A marker that binds a document reads that document alone.
  */
 final readonly class DesignReviewPassed implements Condition, ReadsDocumentTag
 {
@@ -55,9 +55,14 @@ final readonly class DesignReviewPassed implements Condition, ReadsDocumentTag
             $facts->documents(),
             static fn (DocumentFacts $document): bool => DocumentStatus::InReview->value === $document->status && \in_array($tag, $document->tags, true) && $facts->readsDocument($document->id),
         );
-        $newest = $facts->get(DocumentReviewConclusionFacts::class)->newestByDocument;
+        $conclusions = $facts->get(DocumentReviewConclusionFacts::class);
 
-        return [] !== $documents && array_all($documents, static fn (DocumentFacts $document): bool => AgentReviewConclusion::Success === ($newest[$document->id] ?? null));
+        return [] !== $documents && array_all(
+            $documents,
+            static fn (DocumentFacts $document): bool => AgentReviewConclusion::Success === ($conclusions->newestByDocument[$document->id] ?? null)
+                && null !== $document->version
+                && $document->version === ($conclusions->versionByDocument[$document->id] ?? null),
+        );
     }
 
     #[\Override]

@@ -867,7 +867,7 @@ Five conditions read these facts. Each takes a `tag`:
 | `card.document.entry_threads_open` | a document with the tag in review had a thread that was not resolved when it entered review, or has no entry check |
 | `card.document.rejected_before` | a document with the tag ever got a change request or a withdrawal, on any version |
 | `card.document.entered_review_in_column` | each document with the tag in review entered review at or after the card arrived in its current column. The arrival is the time of the newest created or moved row of the card. A document with no entry check fails it, and so does a card with no such row |
-| `design_review.passed` | the newest agent review of each document with the tag in review passed. A document with no agent review fails it |
+| `design_review.passed` | the newest agent review of each document with the tag in review passed, and it read the newest version of the document. A document with no agent review fails it, and so does a review of an older version |
 
 The last condition is in the **Agent review** group. The others are in the **Board** group.
 An answer or a comment that comes after the entry changes none of these facts.
@@ -890,6 +890,7 @@ because the change that caused the refusal starts the next pass.
 To approve the tech design of a feature this way, add `feature` to the `types` list of `tech-design-auto-approve` in the
 template copy of the project. To turn the feature off, remove the two rules.
 A template with no design review rule never approves a design this way, because `design_review.passed` stays false.
+The rule reads the card type live. When you change a card to an allowed type while a clean design is in review, the rule approves the design at the next pass.
 
 ### Undoing a design
 

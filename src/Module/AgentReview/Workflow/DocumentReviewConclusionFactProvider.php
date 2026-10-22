@@ -32,7 +32,12 @@ final readonly class DocumentReviewConclusionFactProvider implements FactProvide
     #[\Override]
     public function build(CardSnapshot $card): object
     {
-        return new DocumentReviewConclusionFacts($this->documentAgentReviews->findNewestConclusionByDocumentForCard($card->id));
+        $newest = $this->documentAgentReviews->findNewestConclusionByDocumentForCard($card->id);
+
+        return new DocumentReviewConclusionFacts(
+            array_map(static fn (array $review): AgentReviewConclusion => $review[0], $newest),
+            array_map(static fn (array $review): int => $review[1], $newest),
+        );
     }
 
     #[\Override]
@@ -40,7 +45,7 @@ final readonly class DocumentReviewConclusionFactProvider implements FactProvide
     {
         $facts instanceof DocumentReviewConclusionFacts || throw new \LogicException('The provider fingerprints its own facts.');
 
-        $conclusions = array_map(static fn (string $documentId, AgentReviewConclusion $conclusion): array => [$documentId, $conclusion->value], array_keys($facts->newestByDocument), $facts->newestByDocument);
+        $conclusions = array_map(static fn (string $documentId, AgentReviewConclusion $conclusion): array => [$documentId, $conclusion->value, $facts->versionByDocument[$documentId] ?? null], array_keys($facts->newestByDocument), $facts->newestByDocument);
 
         return FingerprintValue::sorted($conclusions);
     }

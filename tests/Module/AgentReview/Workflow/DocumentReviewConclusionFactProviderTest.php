@@ -59,6 +59,19 @@ final class DocumentReviewConclusionFactProviderTest extends KernelTestCase
             (string) $passedThenFailed->id => AgentReviewConclusion::Failure,
         ], $facts->newestByDocument);
         self::assertArrayNotHasKey((string) $unreviewed->id, $facts->newestByDocument);
+        self::assertArrayNotHasKey((string) $unreviewed->id, $facts->versionByDocument);
+    }
+
+    public function test_each_document_gives_the_version_that_its_newest_review_read(): void
+    {
+        $project = $this->workflowProject('conclusion-facts-version');
+        $card = $this->card($project);
+        $document = $this->linkedDocument($card, DocumentStatus::InReview);
+        $this->reviewAt($card, $document, AgentReviewConclusion::Success, '2026-10-22 09:00:00');
+        $this->em->persist(new DocumentAgentReview($card->project, $card, $document, 2, 'Summary.', AgentReviewConclusion::Failure, [], createdAt: new \DateTimeImmutable('2026-10-22 10:00:00')));
+        $this->em->flush();
+
+        self::assertSame([(string) $document->id => 2], $this->build($card)->versionByDocument);
     }
 
     public function test_a_review_for_another_card_does_not_count(): void
