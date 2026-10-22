@@ -31,7 +31,7 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
 | `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
 
-Four sections are optional. A missing optional section blocks nothing.
+Five sections are optional. A missing optional section blocks nothing.
 
 1. `Forge` names the forge with one value, such as `github`. Without it, the
    worker reads the forge from the pull request link of the card, then from
@@ -45,7 +45,11 @@ Four sections are optional. A missing optional section blocks nothing.
    that trigger the check, the app URL, how to sign in, the browser and the
    widths. Discovery also reads the browser tool from it, and checks for
    Playwright when the section names none.
-4. `Epics` holds the epic branch pattern, how a child of an epic merges, and
+4. `Preview` tells a worker how to prove a preview link for each state of a
+   changed page: the paths that trigger the check, the body section and line
+   form, and how to seed, mint and prove a link. Without the section, no
+   stage checks previews.
+5. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
    branches.
 4. `Decision records` names where the project keeps its decision records and

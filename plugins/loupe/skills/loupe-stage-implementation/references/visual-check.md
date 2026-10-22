@@ -32,7 +32,7 @@ The plan holds one table. List only the prototype pages that the card changes.
 Work in a new temporary folder outside every checkout. Never write a file of this method into the worker folder. Never commit, upload or link a screenshot.
 
 1. Write each prototype file of the artifact to the temporary folder with `artifact_read`. Keep the file names, so the relative links of the page still work.
-2. Get a sign-in link with the command of the profile `Sign-in` item. The link is a credential. Pass it in single quotes as one argument, because it holds `&`. Never write it to a file, a log, the plan or the pull request.
+2. Get a sign-in link with the command of the profile `Sign-in` item. The link is a credential. Pass it in single quotes as one argument, because it holds `&`. Never write it to a file, a log, the plan or the pull request. A preview link follows `preview.md` instead.
 3. Write the script below to the temporary folder, and run it with Node. Pass the Playwright path that the profile names.
 4. Run it once for each row of the page map, at the width of its viewport. Give each row its own out dir, such as `<temporary folder>/<row number>-<viewport>`, so a later run never overwrites an earlier pair.
 
