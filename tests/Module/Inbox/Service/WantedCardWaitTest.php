@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Account\Entity\User;
-use App\Module\Board\Entity\BoardColumn;
-use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardPause;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -19,10 +15,8 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\MarkerSubjectType;
-use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\StoredMarker;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -52,6 +46,20 @@ final class WantedCardWaitTest extends TestCase
         self::assertSame(\sprintf('waits-for-approval:%s:abc123', $pullRequestId->toRfc4122()), $wait->key());
     }
 
+    public function test_new_values_replace_the_values_of_a_wait(): void
+    {
+        $since = new \DateTimeImmutable('2026-10-20 09:00:00');
+        $marker = new StoredMarker('run-needs-you', MarkerKind::Stuck, 'marker.run_needs_you', null, ['%a%' => 1], $since, subject: new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => Uuid::v7()->toRfc4122()]));
+        $wait = WantedCardWait::fromMarker($marker);
+
+        $changed = $wait->withParams(['%headline%' => 'No network']);
+
+        self::assertSame(['%headline%' => 'No network'], $changed->params);
+        self::assertSame($wait->key(), $changed->key());
+        self::assertSame($since, $changed->since);
+        self::assertSame('marker.run_needs_you', $changed->label);
+    }
+
     public function test_an_entry_without_a_subject_gives_no_wait(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -68,43 +76,6 @@ final class WantedCardWaitTest extends TestCase
 
         self::assertSame(InboxCardWaitType::Card, $wait->type());
         self::assertSame(\sprintf('nothing-happened:%s:2026-10-20T09:00:00+00:00', $cardId->toRfc4122()), $wait->key());
-    }
-
-    public function test_a_ready_pull_request_of_the_previous_sources_waits_for_approval(): void
-    {
-        $pullRequestId = Uuid::v7();
-
-        $wait = WantedCardWait::forPullRequestReady($pullRequestId, 'abc123');
-
-        self::assertSame('waits-for-approval', $wait->markerKey);
-        self::assertSame(InboxCardWaitTrigger::PullRequestReady, $wait->trigger);
-        self::assertSame(\sprintf('waits-for-approval:%s:abc123', $pullRequestId->toRfc4122()), $wait->key());
-    }
-
-    #[TestWith([InboxCardWaitTrigger::PullRequestReady])]
-    #[TestWith([InboxCardWaitTrigger::PullRequestFixStopped])]
-    #[TestWith([InboxCardWaitTrigger::DocumentInReview])]
-    #[TestWith([InboxCardWaitTrigger::CardPaused])]
-    public function test_a_run_wait_refuses_a_trigger_that_is_not_a_run_trigger(InboxCardWaitTrigger $trigger): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        WantedCardWait::forRun($trigger, Uuid::v7());
-    }
-
-    public function test_a_pause_waits_with_its_reason_and_is_keyed_by_the_pause(): void
-    {
-        $project = new Project(new User(fullName: 'Riley', email: 'riley@example.com', password: 'hashed'), 'Widgets');
-        $card = new Card($project, new BoardColumn(project: $project, label: 'Next', slug: 'next', position: 1), 'Card', '', 1);
-        $pause = new CardPause($card, $project, 'owner-review', 'review-rule', PauseKind::Rule, new \DateTimeImmutable());
-        $pauseId = Uuid::v7();
-        new \ReflectionProperty(CardPause::class, 'id')->setValue($pause, $pauseId);
-
-        $wait = WantedCardWait::forPause($pause);
-
-        self::assertSame('paused', $wait->markerKey);
-        self::assertSame(['%reason%' => 'owner-review'], $wait->params);
-        self::assertSame(InboxCardWaitType::CardPause, $wait->type());
-        self::assertSame('paused:'.$pauseId->toRfc4122(), $wait->key());
     }
 
     /**

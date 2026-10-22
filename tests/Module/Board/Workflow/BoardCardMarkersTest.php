@@ -157,6 +157,26 @@ final class BoardCardMarkersTest extends KernelTestCase
         self::assertCount(1, $this->store()->findDueCardIds(new \DateTimeImmutable('2026-10-01 12:00:00'), 1));
     }
 
+    public function test_it_lists_the_open_cards_of_the_project_whose_inbox_set_holds_an_entry(): void
+    {
+        $withEntry = $this->storedCard();
+        $project = $withEntry->project;
+        $entry = new StoredMarker('paused', MarkerKind::Stuck, 'marker.paused', null, [], new \DateTimeImmutable('2026-10-01 11:00:00'), null, new MarkerSubject(MarkerSubjectType::CardPause, ['pause' => '0198f6f0-0000-7000-8000-000000000002']));
+        $this->write($withEntry, [], [$entry]);
+        $empty = $this->card($project, 'next');
+        $this->write($empty, []);
+        $unread = $this->card($project, 'next');
+        $finished = $this->card($project, 'done');
+        $this->write($finished, [], [$entry]);
+        $elsewhere = $this->card($this->workflowProject('other-markers'), 'next');
+        $this->write($elsewhere, [], [$entry]);
+
+        $ids = $this->store()->findCardIdsWithInboxEntry($project->id ?? throw new \LogicException('A flushed project has an id.'));
+
+        self::assertSame([(string) $withEntry->id], $ids);
+        self::assertNull($unread->inboxMarkers);
+    }
+
     /**
      * @param list<StoredMarker> $markers
      * @param list<StoredMarker> $inbox

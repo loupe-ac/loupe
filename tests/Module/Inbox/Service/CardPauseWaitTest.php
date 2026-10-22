@@ -4,33 +4,26 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
-use App\Module\Board\Command\PauseCardCommand;
-use App\Module\Board\Command\PauseCardHandler;
-use App\Module\Board\Command\ReleaseCardPauseCommand;
-use App\Module\Board\Command\ReleaseCardPauseHandler;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardPause;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\Entity\InboxProjectSettings;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Messenger\ReconcileCardWaits;
 use App\Module\Inbox\Messenger\ReconcileCardWaitsHandler;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
-use App\Module\Workflow\Contract\PauseKind;
-use App\Module\Workflow\Event\CardPaused;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-/** A workflow pause opens a wait, and its release ends it, through the real events and the queued reconcile. */
+/** A pause entry in the inbox set opens a wait, and its removal ends it, through the stored set and the queued reconcile. */
 final class CardPauseWaitTest extends KernelTestCase
 {
     use InboxFixtures;
@@ -52,50 +45,47 @@ final class CardPauseWaitTest extends KernelTestCase
         $this->transport()->reset();
     }
 
-    public function test_a_paused_card_waits_and_the_release_ends_the_wait(): void
+    public function test_a_change_of_the_stored_set_queues_the_reconcile_that_opens_and_ends_the_wait(): void
     {
-        $pause = $this->pause('owner-review');
+        $pauseId = Uuid::v7();
+        $this->store($pauseId);
+        $this->drain();
 
         $wait = $this->onlyWait($this->onlyWatch());
         self::assertSame('paused', $wait->markerKey);
         self::assertSame('marker.paused', $wait->label);
-        self::assertEquals($pause->id, $wait->pauseId);
+        self::assertEquals($pauseId, $wait->pauseId);
         self::assertSame(InboxItemState::Open, $this->onlyWatch()->item->state);
 
-        $this->release($pause);
+        $this->store(null);
+        $this->drain();
 
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
         self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
     }
 
-    public function test_a_new_pause_after_a_release_opens_a_new_wait(): void
+    public function test_a_new_pause_after_the_end_of_the_first_opens_a_new_wait(): void
     {
-        $this->release($this->pause('owner-review'));
+        $this->store(Uuid::v7());
+        $this->drain();
+        $this->store(null);
+        $this->drain();
 
-        $second = $this->pause('owner-review');
+        $second = Uuid::v7();
+        $this->store($second);
+        $this->drain();
 
         $watches = $this->watches();
         self::assertCount(2, $watches);
         self::assertSame(InboxItemState::Open, $watches[1]->item->state);
-        self::assertEquals($second->id, $this->onlyWait($watches[1])->pauseId);
+        self::assertEquals($second, $this->onlyWait($watches[1])->pauseId);
     }
 
-    public function test_the_switch_off_opens_no_wait(): void
+    public function test_the_project_sweep_finds_a_card_that_only_has_a_stored_entry(): void
     {
-        $settings = new InboxProjectSettings($this->project);
-        $settings->cardPaused = false;
-        $this->em->persist($settings);
-        $this->em->flush();
-
-        $this->pause('owner-review');
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_the_project_sweep_finds_a_card_that_only_has_a_pause(): void
-    {
-        $this->pauseHandler()(new PauseCardCommand($this->card, 'owner-review', 'review-rule', PauseKind::Rule));
+        $this->store(Uuid::v7());
+        $this->transport()->reset();
         self::assertSame([], $this->watches());
 
         $reconciler = self::getContainer()->get(CardWaitReconciler::class);
@@ -105,36 +95,12 @@ final class CardPauseWaitTest extends KernelTestCase
         self::assertSame('paused', $this->onlyWait($this->onlyWatch())->markerKey);
     }
 
-    /** Pauses the card as the engine does, with CardPaused after the commit, then runs the queued reconciles. */
-    private function pause(string $reason): CardPause
+    /** Stores the inbox set as the engine does, with one pause entry or none. */
+    private function store(?Uuid $pauseId): void
     {
         $card = $this->em->find(Card::class, $this->cardId()) ?? throw new \LogicException('The card is stored.');
-        $pause = $this->pauseHandler()(new PauseCardCommand($card, $reason, 'review-rule', PauseKind::Rule));
-        self::assertNotNull($pause);
-        $this->transport()->reset();
-        $events = self::getContainer()->get(EventDispatcherInterface::class);
-        self::assertInstanceOf(EventDispatcherInterface::class, $events);
-        $events->dispatch(new CardPaused($this->projectId(), $this->cardId(), $pause->reason, $pause->kind));
-        $this->drain();
-
-        return $pause;
-    }
-
-    private function release(CardPause $pause): void
-    {
-        $handler = self::getContainer()->get(ReleaseCardPauseHandler::class);
-        self::assertInstanceOf(ReleaseCardPauseHandler::class, $handler);
-        $managed = $this->em->find(CardPause::class, $pause->id) ?? throw new \LogicException('The pause is stored.');
-        self::assertTrue($handler(new ReleaseCardPauseCommand($managed, 'until-met')));
-        $this->drain();
-    }
-
-    private function pauseHandler(): PauseCardHandler
-    {
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-
-        return $handler;
+        $entries = null === $pauseId ? [] : [$this->inboxEntry('paused', new MarkerSubject(MarkerSubjectType::CardPause, ['pause' => $pauseId->toRfc4122()]))];
+        $this->storeInbox($this->em, $card, ...$entries);
     }
 
     /** Runs each queued reconcile, and fails when none was queued. */
@@ -188,11 +154,6 @@ final class CardPauseWaitTest extends KernelTestCase
         self::assertInstanceOf(InboxCardWait::class, $wait);
 
         return $wait;
-    }
-
-    private function projectId(): Uuid
-    {
-        return $this->project->id ?? throw new \LogicException('Project has no id.');
     }
 
     private function cardId(): Uuid

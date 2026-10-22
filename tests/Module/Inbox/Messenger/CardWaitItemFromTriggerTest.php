@@ -72,6 +72,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $project = $this->project($em, $this->owner($em, 'wait-run-flow'), 'wait-run-flow');
         $card = $this->card($em, $project, 7);
+        $card->column = $this->stageColumn($em, $project, 'implementation');
         $em->flush();
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
         $cardId = $card->id ?? throw new \LogicException('Card has no id.');
@@ -104,6 +105,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $project = $this->project($em, $this->owner($em, 'wait-run-title'), 'wait-run-title');
         $card = $this->card($em, $project, 7);
+        $card->column = $this->stageColumn($em, $project, 'implementation');
         $em->flush();
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
         $cardId = $card->id ?? throw new \LogicException('Card has no id.');
@@ -150,19 +152,28 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
 
     private function drainAsync(): void
     {
-        $transport = self::getContainer()->get('messenger.transport.jobs');
-        self::assertInstanceOf(InMemoryTransport::class, $transport);
         $bus = self::getContainer()->get(MessageBusInterface::class);
         self::assertInstanceOf(MessageBusInterface::class, $bus);
-
-        $handled = 0;
-        while ([] !== $envelopes = [...$transport->get()]) {
-            foreach ($envelopes as $envelope) {
-                $bus->dispatch($envelope->with(new ReceivedStamp('jobs')));
-                $transport->ack($envelope);
-                ++$handled;
-            }
+        $transports = [];
+        foreach (['card_eval', 'jobs'] as $name) {
+            $transport = self::getContainer()->get('messenger.transport.'.$name);
+            self::assertInstanceOf(InMemoryTransport::class, $transport);
+            $transports[$name] = $transport;
         }
+
+        // The engine writes the markers, and a marker change queues the reconcile, so the queues feed each other.
+        $handled = 0;
+        do {
+            $round = 0;
+            foreach ($transports as $name => $transport) {
+                foreach ([...$transport->get()] as $envelope) {
+                    $bus->dispatch($envelope->with(new ReceivedStamp($name)));
+                    $transport->ack($envelope);
+                    ++$round;
+                }
+            }
+            $handled += $round;
+        } while ($round > 0);
         self::assertGreaterThan(0, $handled);
     }
 }

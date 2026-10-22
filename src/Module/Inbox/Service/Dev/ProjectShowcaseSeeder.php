@@ -46,7 +46,6 @@ use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
-use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
@@ -59,6 +58,7 @@ use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\PauseKind;
 use Doctrine\ORM\EntityManagerInterface;
@@ -90,7 +90,7 @@ final readonly class ProjectShowcaseSeeder
         private ForgePullRequestRepository $forgePullRequests,
         private InboxSearchIndexer $inboxSearch,
         private DocumentSearchIndexer $documentSearch,
-        private CardWaitReconciler $cardWaits,
+        private CardEvaluations $evaluations,
         private InboxCardWatchRepository $inboxCardWatches,
         private InboxAvailability $inbox,
         private DocumentTagApplier $tagApplier,
@@ -105,8 +105,8 @@ final readonly class ProjectShowcaseSeeder
     public const string OUTDATED_APPROVAL_TITLE = 'Retry a declined payment';
 
     /**
-     * A second run writes nothing but asks Loupe for the wait items again, so
-     * a run after inbox.enabled goes on opens them.
+     * A second run writes nothing but asks the engine to evaluate the cards again, so
+     * a run after inbox.enabled goes on opens the wait items. The worker opens them, not this call.
      */
     public function __invoke(Project $project, User $owner, User $reviewer): ShowcaseSeeding
     {
@@ -139,7 +139,7 @@ final readonly class ProjectShowcaseSeeder
             return new ShowcaseSeeding($written, false, $enabled, 0, $outdatedCard);
         }
         $cardId = $waitingCard->id ?? throw new \LogicException('A stored card has an id.');
-        $this->cardWaits->reconcile($project, null);
+        $this->evaluations->forCards(array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A stored card has an id.'), $this->cards->findBy(['project' => $project])));
 
         return new ShowcaseSeeding(
             $written,

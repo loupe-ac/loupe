@@ -20,6 +20,8 @@ use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\InboxScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +42,7 @@ final class WaitItemPageTest extends WebTestCase
     private Project $project;
     private Card $card;
     private Document $document;
+    private ?WorkerRun $run = null;
 
     protected function setUp(): void
     {
@@ -54,7 +57,7 @@ final class WaitItemPageTest extends WebTestCase
         $this->document = new Document($owner, $this->project, 'Tech design');
         $this->document->addVersion('# One', '<h1>One</h1>');
         $this->card->documents->add(new CardDocument($this->card, $this->document));
-        $this->stageDocument($em, $this->document, $this->card);
+        $this->card->column = $this->stageColumn($em, $this->project, 'tech-design');
         $em->persist($this->card);
         $em->persist($this->document);
         $em->flush();
@@ -323,11 +326,21 @@ final class WaitItemPageTest extends WebTestCase
         $run->resultFields = $resultFields;
         $this->em->persist($run);
         $this->em->flush();
+        $this->run = $run;
         $this->reconcile();
     }
 
+    /** Stores the inbox set the engine would store for the document and the blocked run, then reconciles. */
     private function reconcile(): void
     {
+        $entries = [];
+        if (DocumentStatus::InReview === $this->document->status) {
+            $entries[] = $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $this->document->id, 'version' => (string) $this->document->currentVersion()->versionNumber]));
+        }
+        if (null !== $this->run) {
+            $entries[] = $this->inboxEntry('run-needs-you', new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => (string) $this->run->id]));
+        }
+        $this->storeInbox($this->em, $this->card, ...$entries);
         $reconciler = static::getContainer()->get(CardWaitReconciler::class);
         self::assertInstanceOf(CardWaitReconciler::class, $reconciler);
         $reconciler->reconcile($this->project, [(string) $this->card->id]);

@@ -4,63 +4,39 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
-use App\Module\Board\Command\PauseCardCommand;
-use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardDocument;
-use App\Module\Board\Entity\CardPullRequest;
-use App\Module\Board\Entity\Forge;
-use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
-use App\Module\Bridge\Entity\WorkRequest;
-use App\Module\Bridge\ValueObject\BridgeCommandCause;
-use App\Module\Bridge\ValueObject\BridgeCommandKind;
-use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
-use App\Module\Bridge\ValueObject\WorkRequestContext;
-use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
-use App\Module\Forge\Entity\PullRequestChecks;
-use App\Module\Forge\Entity\PullRequestMergeability;
-use App\Module\Forge\Entity\PullRequestReview;
-use App\Module\Forge\Entity\PullRequestState;
-use App\Module\GitHub\Service\GitHubPullRequestStateMapper;
 use App\Module\Inbox\Entity\InboxAsk;
-use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
+use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\Entity\InboxProjectSettings;
-use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
-use App\Module\Review\Command\PublishDocumentCommand;
-use App\Module\Review\Command\PublishDocumentHandler;
-use App\Module\Review\Command\SetDocumentTagsCommand;
-use App\Module\Review\Command\SetDocumentTagsHandler;
 use App\Module\Review\Entity\Document;
-use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Workflow\Contract\Actor;
-use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
+/** The reconcile reads the inbox set that the engine stored on each card and writes the waits of the card item. */
 final class CardWaitReconcilerTest extends KernelTestCase
 {
     use InboxFixtures;
@@ -89,9 +65,10 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
     }
 
-    public function test_a_linked_document_in_review_opens_one_wait_item_held_by_a_loupe_ask(): void
+    public function test_a_stored_entry_opens_one_wait_item_held_by_a_loupe_ask(): void
     {
-        $document = $this->linkedDocument('Tech design');
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A));
 
         $this->reconcile();
 
@@ -100,11 +77,8 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxItemKind::Wait, $item->kind);
         self::assertTrue($item->blocking);
         self::assertSame(InboxItemState::Open, $item->state);
-        self::assertSame('The document "Tech design" waits for your review.', $item->title);
-        self::assertSame('The document "Tech design" waits for your review. Review the document.', $item->body);
         self::assertSame($this->project->searchLanguage, $item->searchLanguage);
         self::assertSame([$this->card], array_map(static fn (InboxItemCard $link): Card => $link->card, array_values($item->cards->toArray())));
-        self::assertSame([$document], array_map(static fn (InboxItemDocument $link): Document => $link->document, array_values($item->documents->toArray())));
         self::assertEquals($this->card->id, $watch->cardId);
         self::assertSame(12, $watch->cardNumber);
         self::assertNull($watch->closedAt);
@@ -112,238 +86,132 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $ask = $this->onlyAskHolding($item);
         self::assertSame(InboxAskOrigin::Loupe, $ask->origin);
         self::assertNull($ask->sessionId);
-        self::assertNull($ask->bridgeId);
-        self::assertNull($ask->context);
         self::assertNull($ask->closedAt);
 
         $wait = $this->onlyWait($watch);
-        self::assertEquals($document->id, $wait->documentId);
-        self::assertSame(1, $wait->versionNumber);
+        self::assertSame('waits-for-approval', $wait->markerKey);
+        self::assertSame('marker.waits_for_approval', $wait->label);
+        self::assertSame(InboxCardWaitType::PullRequest, $wait->type);
+        self::assertEquals($pullRequest->id, $wait->pullRequestId);
+        self::assertSame(self::HEAD_A, $wait->headSha);
         self::assertNull($wait->endedAt);
-        self::assertSame(1, $this->searchHits('document'));
     }
 
-    public function test_a_wait_item_is_found_by_the_title_of_its_card(): void
+    public function test_the_wait_starts_at_the_time_of_its_entry(): void
     {
-        $this->card->title = 'Launcher overlaps the footer';
-        $this->linkedDocument('Tech design');
+        $since = new \DateTimeImmutable('2026-10-18 07:30:00');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A, $since));
 
         $this->reconcile();
 
-        self::assertStringNotContainsString('Launcher', $this->onlyWatch()->item->title);
-        self::assertSame(1, $this->searchHits('launcher'));
+        self::assertEquals($since, $this->onlyWait($this->onlyWatch())->startedAt);
     }
 
-    public function test_a_card_rename_reindexes_its_wait_item(): void
+    public function test_two_pull_requests_open_two_waits_on_the_same_item(): void
     {
-        $this->card->title = 'Launcher overlaps the footer';
-        $this->linkedDocument('Tech design');
-        $this->reconcile();
-        self::assertSame(1, $this->searchHits('launcher'));
-
-        $update = self::getContainer()->get(UpdateCardHandler::class);
-        self::assertInstanceOf(UpdateCardHandler::class, $update);
-        $update(new UpdateCardCommand($this->card, Actor::Human, title: 'Sidebar hides the avatar'));
-
-        self::assertSame(0, $this->searchHits('launcher'));
-        self::assertSame(1, $this->searchHits('sidebar'));
-    }
-
-    public function test_a_card_in_next_with_no_parent_opens_no_wait_for_a_tech_design_in_review(): void
-    {
-        $this->linkedDocument('Tech design');
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_child_in_next_opens_a_wait_for_its_tech_design_in_review(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
-        $this->card->parent = $this->epicInImplementation();
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertEquals($document->id, $this->onlyWait($this->onlyWatch())->documentId);
-    }
-
-    public function test_a_child_in_next_with_an_approved_and_a_new_tech_design_waits_on_the_new_one(): void
-    {
-        $approved = $this->linkedDocument('Old tech design');
-        $approved->status = DocumentStatus::Approved;
-        $new = $this->linkedDocument('New tech design');
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
-        $this->card->parent = $this->epicInImplementation();
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertEquals($new->id, $this->onlyWait($this->onlyWatch())->documentId);
-    }
-
-    private function epicInImplementation(): Card
-    {
-        $epic = $this->card($this->em, $this->project, 99);
-        $epic->type = 'epic';
-        $epic->column = $this->stageColumn($this->em, $this->project, 'implementation');
-        $approved = $this->untaggedLinkedDocumentOf($epic, 'Epic design');
-        $approved->status = DocumentStatus::Approved;
-        $this->stageDocument($this->em, $approved, $epic);
-        $epic->column = $this->stageColumn($this->em, $this->project, 'implementation');
-        $this->em->flush();
-
-        return $epic;
-    }
-
-    private function untaggedLinkedDocumentOf(Card $card, string $title): Document
-    {
-        $document = new Document($this->project->owner, $this->project, $title);
-        $document->addVersion('# One', '<h1>One</h1>');
-        $this->em->persist($document);
-        $card->documents->add(new CardDocument($card, $document));
-
-        return $document;
-    }
-
-    public function test_a_linked_draft_opens_no_wait_until_it_is_published(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-        $document->status = DocumentStatus::Draft;
-        $this->em->flush();
-
-        $this->reconcile();
-        $this->reconciler->reconcile($this->project, null);
-
-        self::assertSame([], $this->watches());
-
-        $publish = self::getContainer()->get(PublishDocumentHandler::class);
-        self::assertInstanceOf(PublishDocumentHandler::class, $publish);
-        self::assertTrue($publish(new PublishDocumentCommand($document)));
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertEquals($document->id, $this->onlyWait($watch)->documentId);
-    }
-
-    public function test_a_second_document_adds_a_wait_to_the_same_item(): void
-    {
-        $this->linkedDocument('Tech design');
-        $this->reconcile();
-        $this->linkedDocument('Product design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A), $this->pullRequestEntry($this->pullRequest(6), self::HEAD_B));
 
         $this->reconcile();
 
         $watch = $this->onlyWatch();
+        self::assertCount(2, $watch->waits);
         self::assertCount(2, $this->openWaits($watch));
-        self::assertSame("The document \"Tech design\" waits for your review. Review the document.\nThe document \"Product design\" waits for your review. Review the document.", $watch->item->body);
-        self::assertCount(2, $watch->item->documents);
-        self::assertSame(1, $this->searchHits('document'));
     }
 
-    public function test_a_new_version_replaces_the_wait_and_keeps_the_item_open(): void
+    public function test_an_entry_that_disappears_ends_its_wait_and_closes_the_item(): void
     {
-        $document = $this->linkedDocument('Tech design');
+        $first = $this->pullRequest(5);
+        $second = $this->pullRequest(6);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($first, self::HEAD_A), $this->pullRequestEntry($second, self::HEAD_B));
         $this->reconcile();
-        $document->addVersion('# Two', '<h1>Two</h1>');
-        $this->em->flush();
 
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($second, self::HEAD_B));
         $this->reconcile();
 
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertSame('The document "Tech design" waits for your review. Review the document.', $watch->item->body);
-        [$old, $new] = $this->sortedWaits($watch);
-        self::assertSame(1, $old->versionNumber);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $old->endReason);
-        self::assertNotNull($old->endedAt);
-        self::assertSame(2, $new->versionNumber);
-        self::assertNull($new->endedAt);
-        self::assertCount(1, $watch->item->documents);
-    }
+        $open = $this->openWaits($watch);
+        self::assertCount(1, $open);
+        self::assertEquals($second->id, $open[0]->pullRequestId);
 
-    public function test_an_approval_closes_the_item_done_and_its_ask(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-        $this->reconcile();
-        $document->status = DocumentStatus::Approved;
-        $this->em->flush();
-
+        $this->storeInbox($this->em, $this->card);
         $this->reconcile();
 
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertNotNull($watch->item->closedAt);
         self::assertNotNull($watch->closedAt);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
+        self::assertSame([], $this->openWaits($watch));
+        foreach ($watch->waits as $wait) {
+            self::assertSame(InboxCardWaitEndReason::Resolved, $wait->endReason);
+        }
         self::assertNotNull($this->onlyAskHolding($watch->item)->closedAt);
     }
 
-    public function test_an_archive_closes_the_item_done(): void
+    public function test_a_new_head_commit_is_a_new_wait_on_the_same_item(): void
     {
-        $document = $this->linkedDocument('Tech design');
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A));
         $this->reconcile();
-        $document->archivedAt = new \DateTimeImmutable();
-        $this->em->flush();
 
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_B));
         $this->reconcile();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
+        self::assertSame(InboxItemState::Open, $watch->item->state);
+        self::assertCount(2, $watch->waits);
+        $open = $this->openWaits($watch);
+        self::assertCount(1, $open);
+        self::assertSame(self::HEAD_B, $open[0]->headSha);
     }
 
-    public function test_a_deleted_document_closes_the_item_and_rewrites_its_saved_text(): void
+    public function test_a_card_nobody_read_keeps_its_open_waits_and_opens_none(): void
     {
-        $document = $this->linkedDocument('Tech design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
-        $this->em->remove($document);
+        $unread = $this->card($this->em, $this->project, 13);
         $this->em->flush();
-        $this->em->clear();
-        $project = $this->em->find(Project::class, $this->project->id);
-        self::assertInstanceOf(Project::class, $project);
+        $this->card->inboxMarkers = null;
+        $this->em->flush();
+        self::assertNull($unread->inboxMarkers);
 
-        $this->reconciler->reconcile($project, [(string) $this->card->id]);
+        $this->reconciler->reconcile($this->project, [(string) $this->card->id, (string) $unread->id]);
 
-        $this->em->clear();
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame('Deleted document version 1', $watch->item->title);
-        self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
-        self::assertStringNotContainsString('Tech design', $watch->item->body);
+        self::assertSame(InboxItemState::Open, $watch->item->state);
+        self::assertCount(1, $this->openWaits($watch));
+        self::assertSame([], $this->watches($unread->id));
     }
 
-    public function test_a_closed_item_saves_only_the_waits_of_the_reconcile_that_closed_it(): void
+    public function test_a_card_nobody_read_still_closes_in_a_terminal_column(): void
     {
-        $approved = $this->linkedDocument('Product design');
-        $deleted = $this->linkedDocument('Tech design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
-        $approved->status = DocumentStatus::Approved;
+        $this->card->inboxMarkers = null;
+        $this->card->column = $this->column($this->project, 'done');
         $this->em->flush();
+
         $this->reconcile();
-        $this->em->remove($deleted);
-        $this->em->flush();
-        $this->em->clear();
-        $project = $this->em->find(Project::class, $this->project->id);
-        self::assertInstanceOf(Project::class, $project);
 
-        $this->reconciler->reconcile($project, [(string) $this->card->id]);
-
-        $this->em->clear();
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame('Deleted document version 1', $watch->item->title);
-        self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
+        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
+        self::assertSame(InboxCardWaitEndReason::CardFinished, $this->onlyWait($watch)->endReason);
+    }
+
+    public function test_an_empty_set_closes_the_open_waits(): void
+    {
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
+        $this->reconcile();
+        $this->card->inboxMarkers = [];
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame(InboxItemState::Done, $this->onlyWatch()->item->state);
     }
 
     public function test_a_card_in_a_terminal_column_closes_the_item_obsolete(): void
     {
-        $this->linkedDocument('Tech design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
         $this->card->column = $this->column($this->project, 'done');
         $this->em->flush();
@@ -359,7 +227,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
     public function test_a_deleted_card_closes_the_item_obsolete_and_the_watch_survives(): void
     {
-        $this->linkedDocument('Tech design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
         $cardId = $this->card->id;
         self::assertNotNull($cardId);
@@ -378,32 +246,23 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxCardWaitEndReason::CardDeleted, $this->onlyWait($watch)->endReason);
     }
 
-    public function test_an_open_agent_review_of_the_document_suppresses_the_wait(): void
+    public function test_switching_the_inbox_off_closes_the_item_obsolete(): void
     {
-        $document = $this->linkedDocument('Tech design');
-        $this->agentReviewOf($document);
-
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_an_agent_review_that_arrives_later_closes_the_item_done(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-        $this->reconcile();
-        $this->agentReviewOf($document);
+        $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, false);
 
         $this->reconcile();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
+        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
+        self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($watch)->endReason);
     }
 
-    public function test_a_dismissed_version_stays_dismissed_and_a_new_version_opens_a_new_item(): void
+    public function test_a_dismissed_key_never_reopens_and_a_new_head_opens_a_new_item(): void
     {
-        $document = $this->linkedDocument('Tech design');
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A));
         $this->reconcile();
         $dismissed = $this->onlyWatch();
         $now = new \DateTimeImmutable();
@@ -418,46 +277,19 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertNotNull($dismissed->closedAt);
         self::assertSame(InboxCardWaitEndReason::Dismissed, $this->onlyWait($dismissed)->endReason);
 
-        $document->addVersion('# Two', '<h1>Two</h1>');
-        $this->em->flush();
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_B));
         $this->reconcile();
 
         $watches = $this->watches();
         self::assertCount(2, $watches);
         self::assertSame($dismissed, $watches[0]);
         self::assertSame(InboxItemState::Open, $watches[1]->item->state);
-        self::assertSame(2, $this->onlyWait($watches[1])->versionNumber);
-    }
-
-    public function test_a_dismissal_leaves_a_wait_that_had_already_ended_free_to_open_again(): void
-    {
-        $approved = $this->linkedDocument('Tech design');
-        $this->linkedDocument('Product design');
-        $this->reconcile();
-        $approved->status = DocumentStatus::Approved;
-        $this->em->flush();
-        $this->reconcile();
-        $dismissed = $this->onlyWatch();
-        $now = new \DateTimeImmutable();
-        $dismissed->item->state = InboxItemState::Declined;
-        $dismissed->item->closedAt = $now;
-        $dismissed->dismissedAt = $now;
-        $this->em->flush();
-        $this->reconcile();
-
-        $approved->status = DocumentStatus::InReview;
-        $this->em->flush();
-        $this->reconcile();
-
-        $watches = $this->watches();
-        self::assertCount(2, $watches);
-        self::assertSame($dismissed, $watches[0]);
-        self::assertSame('The document "Tech design" waits for your review. Review the document.', $watches[1]->item->body);
+        self::assertSame(self::HEAD_B, $this->onlyWait($watches[1])->headSha);
     }
 
     public function test_an_item_closed_by_another_path_frees_the_card_for_a_new_item(): void
     {
-        $this->linkedDocument('Tech design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
         $closed = $this->onlyWatch();
         $closed->item->state = InboxItemState::Obsolete;
@@ -472,13 +304,105 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertNull($closed->dismissedAt);
         self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($closed)->endReason);
         self::assertSame(InboxItemState::Open, $watches[1]->item->state);
-        self::assertNull($watches[1]->closedAt);
+    }
+
+    public function test_a_row_of_the_previous_release_stays_open_when_an_entry_covers_the_same_thing(): void
+    {
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A, new \DateTimeImmutable('2026-10-18 07:30:00')));
+        $this->reconcile();
+        $row = $this->onlyWait($this->onlyWatch());
+        $row->label = '';
+        $row->params = [];
+        $started = $row->startedAt;
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A, new \DateTimeImmutable('2026-10-20 09:00:00'), ['%number%' => 5]));
+
+        $this->reconcile();
+
+        $watch = $this->onlyWatch();
+        $wait = $this->onlyWait($watch);
+        self::assertSame($row, $wait);
+        self::assertNull($wait->endedAt);
+        self::assertSame(InboxItemState::Open, $watch->item->state);
+        self::assertEquals($started, $wait->startedAt);
+        self::assertSame('marker.waits_for_approval', $wait->label);
+        self::assertSame(['%number%' => 5], $wait->params);
+    }
+
+    public function test_a_run_entry_stores_the_headline_of_the_run(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network.');
+        $this->storeInbox($this->em, $this->card, $this->inboxEntry('run-needs-you', new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => $run->id?->toRfc4122() ?? ''])));
+
+        $this->reconcile();
+
+        $watch = $this->onlyWatch();
+        $wait = $this->onlyWait($watch);
+        self::assertSame(InboxCardWaitType::WorkerRun, $wait->type);
+        self::assertSame('cannot reach github.com: DNS lookup failed', $wait->params['%headline%'] ?? null);
+        self::assertSame('implement worker', $wait->params['%worker%'] ?? null);
+        self::assertSame('Implement worker needs you: cannot reach github.com: DNS lookup failed', $watch->item->title);
+        self::assertSame('The implement worker on card 12 needs you: cannot reach github.com: DNS lookup failed. Open card 12.', $watch->item->body);
+    }
+
+    public function test_a_document_entry_links_the_document_and_names_its_version(): void
+    {
+        $document = $this->document($this->em, $this->project);
+        $document->title = 'Tech design';
+        $document->addVersion('# One', '<h1>One</h1>');
+        $this->em->flush();
+        $this->storeInbox($this->em, $this->card, $this->documentEntry($document, 1));
+
+        $this->reconcile();
+
+        $watch = $this->onlyWatch();
+        $wait = $this->onlyWait($watch);
+        self::assertSame(InboxCardWaitType::Document, $wait->type);
+        self::assertSame(1, $wait->versionNumber);
+        self::assertSame([$document], array_map(static fn (InboxItemDocument $link): Document => $link->document, array_values($watch->item->documents->toArray())));
+        self::assertSame('The document "Tech design" waits for your review.', $watch->item->title);
+    }
+
+    public function test_a_document_and_a_pull_request_share_one_item_and_the_end_of_one_keeps_it_open(): void
+    {
+        $document = $this->document($this->em, $this->project);
+        $document->addVersion('# One', '<h1>One</h1>');
+        $this->em->flush();
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->documentEntry($document, 1), $this->pullRequestEntry($pullRequest, self::HEAD_A));
+        $this->reconcile();
+        $watch = $this->onlyWatch();
+        self::assertCount(2, $this->openWaits($watch));
+
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A));
+        $this->reconcile();
+
+        $watch = $this->onlyWatch();
+        self::assertSame(InboxItemState::Open, $watch->item->state);
+        self::assertCount(1, $this->openWaits($watch));
+    }
+
+    public function test_an_entry_of_the_card_opens_nothing_and_does_not_stop_the_other_entries(): void
+    {
+        $spell = new \DateTimeImmutable('2026-10-20 09:00:00');
+        $cardEntry = $this->inboxEntry('nothing-happened', MarkerSubject::card($this->card->id ?? throw new \LogicException('Flushed.'), $spell), since: $spell);
+        $this->storeInbox($this->em, $this->card, $cardEntry);
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+
+        $this->storeInbox($this->em, $this->card, $cardEntry, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
+        $this->reconcile();
+
+        $watch = $this->onlyWatch();
+        self::assertCount(1, $watch->waits);
+        self::assertSame(InboxCardWaitType::PullRequest, $this->onlyWait($watch)->type);
     }
 
     public function test_a_second_reconcile_changes_nothing(): void
     {
-        $this->linkedDocument('Tech design');
-        $this->linkedDocument('Product design');
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A), $this->pullRequestEntry($this->pullRequest(6), self::HEAD_B));
         $this->reconcile();
         $watch = $this->onlyWatch();
         $updatedAt = $watch->item->updatedAt;
@@ -499,940 +423,59 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_asks WHERE project_id = :id', ['id' => (string) $this->project->id]));
     }
 
-    public function test_switching_the_inbox_off_closes_the_item_obsolete(): void
+    public function test_an_open_wait_takes_the_label_and_values_of_its_entry_on_each_pass(): void
     {
-        $this->linkedDocument('Tech design');
-        $this->reconcile();
-        $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, false);
-
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A, params: ['%number%' => 5]));
         $this->reconcile();
 
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($watch)->endReason);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($pullRequest, self::HEAD_A, params: ['%number%' => 7]));
+        $this->reconcile();
+
+        self::assertSame(['%number%' => 7], $this->onlyWait($this->onlyWatch())->params);
     }
 
-    public function test_a_document_switched_off_opens_no_item(): void
+    public function test_without_a_card_list_it_finds_a_card_with_a_stored_entry_and_a_card_with_an_open_watch(): void
     {
-        $this->settings()->documentInReview = false;
+        $second = $this->card($this->em, $this->project, 13);
         $this->em->flush();
-        $this->linkedDocument('Tech design');
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_switching_documents_off_closes_the_item_obsolete_and_on_again_opens_a_new_one(): void
-    {
-        $this->linkedDocument('Tech design');
-        $this->reconcile();
-        $settings = $this->settings();
-        $settings->documentInReview = false;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $closed = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $closed->item->state);
-        self::assertNotNull($closed->closedAt);
-        self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($closed)->endReason);
-
-        $settings->documentInReview = true;
-        $this->em->flush();
-        $this->reconcile();
-
-        $watches = $this->watches();
-        self::assertCount(2, $watches);
-        self::assertSame($closed, $watches[0]);
-        self::assertSame(InboxItemState::Open, $watches[1]->item->state);
-        self::assertSame('The document "Tech design" waits for your review. Review the document.', $watches[1]->item->body);
-    }
-
-    public function test_without_a_card_list_it_finds_the_cards_with_a_document_in_review_or_an_open_watch(): void
-    {
-        $this->linkedDocument('Tech design');
-        $other = $this->card($this->em, $this->project, 13);
-        $approved = $this->document($this->em, $this->project);
-        $approved->addVersion('# One', '<h1>One</h1>');
-        $approved->status = DocumentStatus::Approved;
-        $other->documents->add(new CardDocument($other, $approved));
-        $this->em->flush();
-
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconciler->reconcile($this->project, null);
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertSame([], $this->watches($other->id));
-
-        $this->onlyWait($watch);
-        foreach ($this->card->documents as $link) {
-            $link->document->status = DocumentStatus::Approved;
-        }
-        $this->em->flush();
-        $this->reconciler->reconcile($this->project, null);
-
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-    }
-
-    public function test_a_plan_in_review_opens_no_wait(): void
-    {
-        $plan = $this->untaggedLinkedDocument('Plan');
-        $this->tagDocument($this->em, $plan, ['plan']);
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'tech-design');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_an_untagged_document_in_review_opens_no_wait(): void
-    {
-        $this->untaggedLinkedDocument('Notes');
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'tech-design');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_document_on_a_project_with_no_template_opens_no_wait(): void
-    {
-        $document = $this->untaggedLinkedDocument('Tech design');
-        $this->tagDocument($this->em, $document, ['tech-design']);
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_tech_design_on_a_card_in_the_tech_design_column_opens_a_wait(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-
-        $this->reconcile();
-
-        self::assertEquals($document->id, $this->onlyWait($this->onlyWatch())->documentId);
-    }
-
-    public function test_a_tech_design_on_a_card_in_another_open_column_opens_no_wait(): void
-    {
-        $this->linkedDocument('Tech design');
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'implementation');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_product_design_on_a_card_in_the_product_design_column_opens_a_wait(): void
-    {
-        $document = $this->untaggedLinkedDocument('Product design');
-        $this->stageDocument($this->em, $document, $this->card, 'product-design');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertEquals($document->id, $this->onlyWait($watch)->documentId);
-        self::assertSame('The document "Product design" waits for your review. Review the document.', $watch->item->body);
-    }
-
-    public function test_a_move_out_of_the_stage_column_ends_the_document_wait_done(): void
-    {
-        $this->linkedDocument('Tech design');
-        $this->reconcile();
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'implementation');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
-    }
-
-    public function test_stage_tags_set_later_open_the_wait(): void
-    {
-        $document = $this->untaggedLinkedDocument('Tech design');
-        $this->card->column = $this->stageColumn($this->em, $this->project, 'tech-design');
-        $this->em->flush();
-        $this->reconcile();
-        self::assertSame([], $this->watches());
-
-        $setTags = self::getContainer()->get(SetDocumentTagsHandler::class);
-        self::assertInstanceOf(SetDocumentTagsHandler::class, $setTags);
-        $setTags(new SetDocumentTagsCommand($document, ['tech-design']));
-        $this->em->clear();
-        $project = $this->em->find(Project::class, $this->project->id);
-        self::assertInstanceOf(Project::class, $project);
-
-        $this->reconciler->reconcile($project, [(string) $this->card->id]);
-
-        self::assertEquals($document->id, $this->onlyWait($this->onlyWatch())->documentId);
-    }
-
-    /** @return iterable<string, array{WorkerRunState, InboxCardWaitTrigger, string}> */
-    public static function waitingRuns(): iterable
-    {
-        yield 'blocked' => [WorkerRunState::Blocked, InboxCardWaitTrigger::RunBlocked, 'The implement worker on card 12 needs you: Needs the API key. Open card 12.'];
-        yield 'gave up' => [WorkerRunState::GaveUp, InboxCardWaitTrigger::RunGaveUp, 'The implement worker on card 12 needs you: Needs the API key. Open card 12.'];
-        yield 'waiting for a person' => [WorkerRunState::WaitingForPerson, InboxCardWaitTrigger::RunWaitingForPerson, 'The implement worker on card 12 needs you: Needs the API key. Open card 12.'];
-    }
-
-    #[DataProvider('waitingRuns')]
-    public function test_a_newest_run_that_waits_opens_a_wait_item(WorkerRunState $state, InboxCardWaitTrigger $trigger, string $label): void
-    {
-        $run = $this->workerRun($state, "Needs the API key\nSecond line");
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertSame($label, $watch->item->body);
-        self::assertCount(0, $watch->item->documents);
-        $wait = $this->onlyWait($watch);
-        self::assertSame('run-needs-you', $wait->markerKey);
-        self::assertEquals($run->id, $wait->runId);
-        self::assertNull($wait->documentId);
-        self::assertNull($wait->versionNumber);
-    }
-
-    public function test_a_newer_open_run_ends_the_wait_and_closes_the_item_done(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck', receivedAt: new \DateTimeImmutable('-1 minute'));
-        $this->reconcile();
-        $this->workerRun(WorkerRunState::Queued, '');
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertNotNull($watch->closedAt);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
-    }
-
-    /** A run records no column, so a move to another open column keeps its wait. */
-    public function test_a_move_to_another_open_column_keeps_the_run_wait(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck');
-        $this->reconcile();
-        $this->card->column = $this->column($this->project, 'next');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertNull($this->onlyWait($watch)->endReason);
-    }
-
-    public function test_a_run_that_does_not_wait_gives_no_wait(): void
-    {
-        $this->workerRun(WorkerRunState::Failed, 'Crashed');
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_dismissed_run_wait_stays_dismissed_and_a_new_waiting_run_opens_a_new_item(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck', receivedAt: new \DateTimeImmutable('-1 minute'));
-        $this->reconcile();
-        $dismissed = $this->onlyWatch();
-        $now = new \DateTimeImmutable();
-        $dismissed->item->state = InboxItemState::Declined;
-        $dismissed->item->closedAt = $now;
-        $dismissed->dismissedAt = $now;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([$dismissed], $this->watches());
-        self::assertSame(InboxCardWaitEndReason::Dismissed, $this->onlyWait($dismissed)->endReason);
-
-        $newer = $this->workerRun(WorkerRunState::Blocked, 'Stuck again');
-        $this->reconcile();
-
-        $watches = $this->watches();
-        self::assertCount(2, $watches);
-        self::assertSame(InboxItemState::Open, $watches[1]->item->state);
-        self::assertEquals($newer->id, $this->onlyWait($watches[1])->runId);
-        self::assertSame('The implement worker on card 12 needs you: Stuck again. Open card 12.', $watches[1]->item->body);
-    }
-
-    public function test_a_document_wait_and_a_run_wait_share_one_item_and_the_end_of_one_keeps_it_open(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck', new \DateTimeImmutable('-1 minute'));
-        $this->reconcile();
-        $watch = $this->onlyWatch();
-        self::assertCount(2, $this->openWaits($watch));
-        self::assertCount(1, $watch->item->documents);
-
-        $this->workerRun(WorkerRunState::Running, '');
-        $this->reconcile();
-
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        $open = $this->openWaits($watch);
-        self::assertCount(1, $open);
-        self::assertEquals($document->id, $open[0]->documentId);
-        self::assertSame('The document "Tech design" waits for your review. Review the document.', $watch->item->body);
-        $ended = array_values(array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null !== $wait->endedAt));
-        self::assertCount(1, $ended);
-        self::assertSame('run-needs-you', $ended[0]->markerKey);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $ended[0]->endReason);
-    }
-
-    public function test_a_run_blocked_switch_off_opens_no_item_and_a_document_wait_of_another_card_still_opens(): void
-    {
-        $this->settings()->runBlocked = false;
-        $this->em->flush();
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck');
-        $other = $this->card($this->em, $this->project, 13);
-        $document = $this->document($this->em, $this->project);
-        $document->addVersion('# One', '<h1>One</h1>');
-        $other->documents->add(new CardDocument($other, $document));
-        $this->stageDocument($this->em, $document, $other);
-        $this->em->flush();
-
-        $this->reconciler->reconcile($this->project, [(string) $this->card->id, (string) $other->id]);
-
-        self::assertSame([], $this->watches());
-        $watch = $this->onlyWatch($other->id);
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertEquals($document->id, $this->onlyWait($watch)->documentId);
-    }
-
-    public function test_a_run_blocked_switch_off_ends_the_run_wait_and_keeps_the_document_wait_open(): void
-    {
-        $document = $this->linkedDocument('Tech design');
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck');
-        $this->reconcile();
-        $watch = $this->onlyWatch();
-        self::assertCount(2, $this->openWaits($watch));
-        $this->settings()->runBlocked = false;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        $open = $this->openWaits($watch);
-        self::assertCount(1, $open);
-        self::assertEquals($document->id, $open[0]->documentId);
-        self::assertSame('The document "Tech design" waits for your review. Review the document.', $watch->item->body);
-        [$runWait] = array_values(array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null !== $wait->endedAt));
-        self::assertSame('run-needs-you', $runWait->markerKey);
-        self::assertSame(InboxCardWaitEndReason::SwitchedOff, $runWait->endReason);
-
-        $document->status = DocumentStatus::Approved;
-        $this->em->flush();
-        $this->reconcile();
-
-        // The last wait ended by its own cause in this pass, so the item closes done.
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        [$documentWait] = array_values(array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => 'document-in-review' === $wait->markerKey));
-        self::assertSame(InboxCardWaitEndReason::Resolved, $documentWait->endReason);
-    }
-
-    public function test_a_card_with_a_run_wait_in_a_terminal_column_closes_the_item_obsolete(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck');
-        $this->reconcile();
-        $this->card->column = $this->column($this->project, 'done');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::CardFinished, $this->onlyWait($watch)->endReason);
-    }
-
-    public function test_without_a_card_list_it_finds_a_card_with_only_a_run_wait(): void
-    {
-        $this->workerRun(WorkerRunState::WaitingForPerson, 'Cap reached');
-
-        $this->reconciler->reconcile($this->project, null);
-
-        self::assertSame(InboxItemState::Open, $this->onlyWatch()->item->state);
-    }
-
-    public function test_a_blocked_run_and_its_stop_pause_give_one_reason_in_the_title_and_the_body(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network.');
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $handler(new PauseCardCommand($this->card, 'work-stopped', 'review', PauseKind::WorkStopped));
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertCount(2, $this->openWaits($watch));
-        self::assertSame('Implement worker needs you: cannot reach github.com: DNS lookup failed', $watch->item->title);
-        self::assertSame(
-            'The implement worker on card 12 needs you: cannot reach github.com: DNS lookup failed. Open card 12.',
-            $watch->item->body,
-        );
-    }
-
-    public function test_a_second_reconcile_of_a_run_wait_changes_nothing(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'Stuck');
-        $this->reconcile();
-        $watch = $this->onlyWatch();
-        $updatedAt = $watch->item->updatedAt;
-        $this->em->clear();
-        $project = $this->em->find(Project::class, $this->project->id);
-        self::assertInstanceOf(Project::class, $project);
-
-        $this->reconciler->reconcile($project, null);
-
-        $this->em->clear();
-        $again = $this->onlyWatch();
-        self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
-        self::assertCount(1, $again->waits);
-        self::assertSame('The implement worker on card 12 needs you: Stuck. Open card 12.', $again->item->body);
-        self::assertEquals($updatedAt, $again->item->updatedAt);
-    }
-
-    public function test_a_sweep_rewrites_the_old_title_and_body_of_an_existing_item(): void
-    {
-        $this->workerRun(WorkerRunState::Blocked, 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network.');
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $handler(new PauseCardCommand($this->card, 'work-stopped', 'review', PauseKind::WorkStopped));
-        $this->reconcile();
-        $watch = $this->onlyWatch();
-        $watch->item->title = '#12 Ship it';
-        $watch->item->body = "worker-run blocked\ncard-pause work-stopped";
-        $this->em->flush();
-        $this->em->clear();
-        $project = $this->em->find(Project::class, $this->project->id);
-        self::assertInstanceOf(Project::class, $project);
-
-        $this->reconciler->reconcile($project, null);
-
-        $this->em->clear();
-        $again = $this->onlyWatch();
-        self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
-        self::assertSame('Implement worker needs you: cannot reach github.com: DNS lookup failed', $again->item->title);
-        self::assertSame(
-            'The implement worker on card 12 needs you: cannot reach github.com: DNS lookup failed. Open card 12.',
-            $again->item->body,
-        );
-    }
-
-    public function test_a_ready_pull_request_opens_a_wait(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertSame('Pull request #5 waits for your approval. Review pull request #5.', $watch->item->body);
-        $wait = $this->onlyWait($watch);
-        self::assertSame('waits-for-approval', $wait->markerKey);
-        self::assertEquals($pullRequest->id, $wait->pullRequestId);
-        self::assertSame(self::HEAD_A, $wait->headSha);
-    }
-
-    public function test_a_child_pull_request_into_its_epic_branch_opens_no_wait(): void
-    {
-        $this->makeChildOfEpic(7);
-        $this->pullRequest(5)->baseBranch = 'epic/7';
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_child_pull_request_into_main_opens_a_wait(): void
-    {
-        $this->makeChildOfEpic(7);
-        $this->pullRequest(5)->baseBranch = 'main';
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame('waits-for-approval', $this->onlyWait($this->onlyWatch())->markerKey);
-    }
-
-    public function test_a_pull_request_of_a_card_with_no_parent_into_an_epic_branch_opens_a_wait(): void
-    {
-        $this->pullRequest(5)->baseBranch = 'epic/7';
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame('waits-for-approval', $this->onlyWait($this->onlyWatch())->markerKey);
-    }
-
-    public function test_an_open_review_wait_of_a_child_closes_when_its_pull_request_targets_the_epic_branch(): void
-    {
-        $this->makeChildOfEpic(7);
-        $pullRequest = $this->pullRequest(5);
-        $pullRequest->baseBranch = 'main';
-        $this->em->flush();
-        $this->reconcile();
-        self::assertSame(InboxItemState::Open, $this->onlyWatch()->item->state);
-
-        $pullRequest->baseBranch = 'epic/7';
-        $this->em->flush();
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
-    }
-
-    public function test_a_paused_child_with_a_pull_request_into_its_epic_branch_keeps_its_pause_wait(): void
-    {
-        $this->makeChildOfEpic(7);
-        $this->pullRequest(5)->baseBranch = 'epic/7';
-        $this->em->flush();
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $handler(new PauseCardCommand($this->card, 'work-stopped', 'review', PauseKind::WorkStopped));
-
-        $this->reconcile();
-
-        self::assertSame('paused', $this->onlyWait($this->onlyWatch())->markerKey);
-    }
-
-    /** @return iterable<string, array{\Closure(ForgePullRequest): void}> */
-    public static function readyPullRequests(): iterable
-    {
-        yield 'no review asked' => [static function (ForgePullRequest $row): void { $row->review = PullRequestReview::None; }];
-        yield 'blocked mergeability' => [static function (ForgePullRequest $row): void { $row->mergeability = PullRequestMergeability::Blocked; }];
-        yield 'behind' => [static function (ForgePullRequest $row): void { $row->mergeability = PullRequestMergeability::Behind; }];
-    }
-
-    /** @param \Closure(ForgePullRequest): void $change */
-    #[DataProvider('readyPullRequests')]
-    public function test_a_pull_request_that_waits_for_review_opens_a_ready_wait(\Closure $change): void
-    {
-        $change($this->pullRequest(5));
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame('waits-for-approval', $this->onlyWait($this->onlyWatch())->markerKey);
-    }
-
-    /** @return iterable<string, array{\Closure(ForgePullRequest): void}> */
-    public static function pullRequestsNotReady(): iterable
-    {
-        yield 'pending checks' => [static function (ForgePullRequest $row): void { $row->checks = PullRequestChecks::Pending; }];
-        yield 'failed checks' => [static function (ForgePullRequest $row): void { $row->checks = PullRequestChecks::Failed; }];
-        yield 'checks of an older commit' => [static function (ForgePullRequest $row): void { $row->checksSha = self::HEAD_B; }];
-        yield 'unknown mergeability' => [static function (ForgePullRequest $row): void { $row->mergeability = PullRequestMergeability::Unknown; }];
-        yield 'conflicting' => [static function (ForgePullRequest $row): void { $row->mergeability = PullRequestMergeability::Conflicting; }];
-        yield 'approved' => [static function (ForgePullRequest $row): void { $row->review = PullRequestReview::Approved; }];
-        yield 'approved on the head' => [static function (ForgePullRequest $row): void {
-            $row->review = PullRequestReview::Approved;
-            $row->coveredSha = self::HEAD_A;
-        }];
-        yield 'approved on an older commit with failed checks' => [static function (ForgePullRequest $row): void {
-            $row->review = PullRequestReview::Approved;
-            $row->coveredSha = self::HEAD_B;
-            $row->checks = PullRequestChecks::Failed;
-        }];
-        yield 'approved on an older commit as a draft' => [static function (ForgePullRequest $row): void {
-            $row->review = PullRequestReview::Approved;
-            $row->coveredSha = self::HEAD_B;
-            $row->draft = true;
-        }];
-        yield 'changes requested that no fix run answered' => [static function (ForgePullRequest $row): void {
-            $row->review = PullRequestReview::ChangesRequested;
-            $row->changesRequestedAt = new \DateTimeImmutable('-1 hour');
-        }];
-        yield 'changes requested at an unknown time' => [static function (ForgePullRequest $row): void { $row->review = PullRequestReview::ChangesRequested; }];
-        yield 'draft' => [static function (ForgePullRequest $row): void { $row->draft = true; }];
-        yield 'never read' => [static function (ForgePullRequest $row): void { $row->refreshedAt = null; }];
-        yield 'merged' => [static function (ForgePullRequest $row): void { $row->state = PullRequestState::Merged; }];
-        yield 'no head commit' => [static function (ForgePullRequest $row): void {
-            $row->headSha = null;
-            $row->checksSha = null;
-        }];
-    }
-
-    /** @param \Closure(ForgePullRequest): void $change */
-    #[DataProvider('pullRequestsNotReady')]
-    public function test_a_pull_request_that_is_not_ready_gives_no_wait(\Closure $change): void
-    {
-        $change($this->pullRequest(5));
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    /** @return iterable<string, array{?string, list<array<string, mixed>>, bool}> */
-    public static function mappedReviews(): iterable
-    {
-        $first = ['state' => 'CHANGES_REQUESTED', 'submittedAt' => '2026-10-19T14:55:00Z', 'commit' => ['oid' => self::HEAD_A]];
-        $second = ['state' => 'CHANGES_REQUESTED', 'submittedAt' => '2026-10-19T15:10:00Z', 'commit' => ['oid' => self::HEAD_B]];
-
-        yield 'an approval without a decision' => [null, [['state' => 'APPROVED', 'commit' => ['oid' => self::HEAD_A]]], false];
-        yield 'no reviews without a decision' => [null, [], true];
-        yield 'two change requests that no fix run answered' => ['CHANGES_REQUESTED', [$first, $second], false];
-        yield 'a change request on an older commit that no fix run answered' => ['CHANGES_REQUESTED', [$second], false];
-    }
-
-    /** @param list<array<string, mixed>> $reviews */
-    #[DataProvider('mappedReviews')]
-    public function test_the_mapped_reviews_decide_the_ready_wait(?string $decision, array $reviews, bool $waits): void
-    {
-        $snapshot = new GitHubPullRequestStateMapper()->map([
-            'state' => 'OPEN',
-            'isDraft' => false,
-            'headRefOid' => self::HEAD_A,
-            'baseRefName' => 'main',
-            'mergeable' => 'MERGEABLE',
-            'mergeStateStatus' => 'CLEAN',
-            'reviewDecision' => $decision,
-            'latestOpinionatedReviews' => ['nodes' => $reviews],
-            'commits' => ['nodes' => [['commit' => ['oid' => self::HEAD_A, 'statusCheckRollup' => null]]]],
-        ], null, null);
-        $this->pullRequest(5)->apply($snapshot);
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
-        self::assertSame(PullRequestMergeability::Mergeable, $snapshot->mergeability);
-        if ($waits) {
-            self::assertSame('waits-for-approval', $this->onlyWait($this->onlyWatch())->markerKey);
-        } else {
-            self::assertSame([], $this->watches());
-        }
-    }
-
-    public function test_an_approval_ends_the_ready_wait_and_closes_the_item_done(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-        $this->reconcile();
-        $pullRequest->review = PullRequestReview::Approved;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
-    }
-
-    public function test_new_commits_after_the_approval_open_a_wait_that_a_new_approval_closes(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-        $pullRequest->review = PullRequestReview::Approved;
-        $pullRequest->coveredSha = self::HEAD_B;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Open, $watch->item->state);
-        self::assertSame('Pull request #5 waits for your approval. Review pull request #5.', $watch->item->body);
-        $wait = $this->onlyWait($watch);
-        self::assertSame('waits-for-approval', $wait->markerKey);
-        self::assertSame(self::HEAD_A, $wait->headSha);
-
-        $pullRequest->coveredSha = self::HEAD_A;
-        $this->em->flush();
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
-    }
-
-    public function test_an_open_run_on_the_card_holds_the_ready_wait_back(): void
-    {
-        $this->pullRequest(5);
-        $this->workerRun(WorkerRunState::Running, '');
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_pull_request_linked_to_two_cards_gives_a_wait_on_each(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-        $other = $this->card($this->em, $this->project, 13);
-        $this->em->persist(new CardPullRequest($other, 'https://github.com/acme/widgets/pull/5', Forge::GitHub, 'acme/widgets', 5));
-        $this->em->flush();
-
-        $this->reconciler->reconcile($this->project, [(string) $this->card->id, (string) $other->id]);
-
-        self::assertEquals($pullRequest->id, $this->onlyWait($this->onlyWatch())->pullRequestId);
-        self::assertEquals($pullRequest->id, $this->onlyWait($this->onlyWatch($other->id))->pullRequestId);
-    }
-
-    public function test_a_dismissed_pull_request_wait_holds_for_one_commit(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-        $this->reconcile();
-        $dismissed = $this->onlyWatch();
-        $now = new \DateTimeImmutable();
-        $dismissed->item->state = InboxItemState::Declined;
-        $dismissed->item->closedAt = $now;
-        $dismissed->dismissedAt = $now;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([$dismissed], $this->watches());
-        self::assertSame(InboxCardWaitEndReason::Dismissed, $this->onlyWait($dismissed)->endReason);
-
-        $pullRequest->headSha = self::HEAD_B;
-        $pullRequest->checksSha = self::HEAD_B;
-        $this->em->flush();
-        $this->reconcile();
-
-        $watches = $this->watches();
-        self::assertCount(2, $watches);
-        self::assertSame(InboxItemState::Open, $watches[1]->item->state);
-        self::assertSame(self::HEAD_B, $this->onlyWait($watches[1])->headSha);
-    }
-
-    public function test_changes_requested_end_the_wait_and_a_fix_run_that_answers_them_opens_one_again(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-        $this->reconcile();
-        $pullRequest->review = PullRequestReview::ChangesRequested;
-        $pullRequest->changesRequestedAt = new \DateTimeImmutable('-1 hour');
-        $this->em->flush();
-
-        $this->reconcile();
-
         $first = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $first->item->state);
-
-        $pullRequest->headSha = self::HEAD_B;
-        $pullRequest->checksSha = self::HEAD_B;
-        $this->em->flush();
-        $this->reconcile();
-        self::assertSame([$first], $this->watches(), 'A new commit with passing checks does not answer the review.');
-
-        $this->doneFix(5, '-30 minutes', 'https://github.com/Acme/Widgets/pull/5');
-        $this->reconcile();
-
-        $watches = $this->watches();
-        self::assertCount(2, $watches);
-        $wait = $this->onlyWait($watches[1]);
-        self::assertSame('waits-for-approval', $wait->markerKey);
-        self::assertSame(self::HEAD_B, $wait->headSha);
-    }
-
-    public function test_a_fix_run_of_another_repository_with_the_same_number_does_not_answer_the_review(): void
-    {
-        $pullRequest = $this->pullRequest(5);
-        $pullRequest->review = PullRequestReview::ChangesRequested;
-        $pullRequest->changesRequestedAt = new \DateTimeImmutable('-1 hour');
-        $this->doneFix(5, '-30 minutes', 'https://github.com/Other/Widgets/pull/5');
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    private function doneFix(int $number, string $openedAt, string $url): void
-    {
-        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, 'fix', null, 'fix-on-review', new \DateTimeImmutable($openedAt));
-        $request->role = 'fix';
-        $request->state = WorkRequestState::Done;
-        $request->settledAt = new \DateTimeImmutable();
-        $request->context = new WorkRequestContext(pullRequestNumber: $number, pullRequestUrl: $url, reason: 'changes-requested');
-        $this->em->persist($request);
-        $this->em->flush();
-    }
-
-    public function test_without_a_card_list_it_finds_a_card_that_only_links_a_ready_pull_request(): void
-    {
-        $this->pullRequest(5);
+        self::assertSame(InboxItemState::Open, $first->item->state);
+        $this->storeInbox($this->em, $this->card);
+        $this->storeInbox($this->em, $second, $this->pullRequestEntry($this->pullRequest(6), self::HEAD_B));
 
         $this->reconciler->reconcile($this->project, null);
 
-        self::assertSame(InboxItemState::Open, $this->onlyWatch()->item->state);
+        self::assertSame(InboxItemState::Done, $this->onlyWatch()->item->state);
+        self::assertSame(InboxItemState::Open, $this->onlyWatch($second->id)->item->state);
     }
 
-    public function test_switching_pull_request_ready_off_ends_the_wait(): void
+    public function test_a_wait_item_is_found_by_the_title_of_its_card(): void
     {
-        $this->pullRequest(5);
-        $this->reconcile();
-        $this->settings()->pullRequestReady = false;
-        $this->em->flush();
-
-        $this->reconcile();
-
-        $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
-        self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($watch)->endReason);
-    }
-
-    public function test_a_stopped_run_whose_open_question_stands_for_the_stop_opens_no_wait(): void
-    {
-        $this->stoppedRunAsking($this->waitedOnAsk(null));
+        $this->card->title = 'Launcher overlaps the footer';
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
 
         $this->reconcile();
 
-        self::assertSame([], $this->watches());
+        self::assertStringNotContainsString('Launcher', $this->onlyWatch()->item->title);
+        self::assertSame(1, $this->searchHits('launcher'));
     }
 
-    public function test_the_stop_waits_again_when_the_run_no_longer_names_its_question(): void
+    public function test_a_card_rename_reindexes_its_wait_item(): void
     {
-        $run = $this->stoppedRunAsking($this->waitedOnAsk(null));
-        $run->waitsOnAskId = null;
-        $this->em->flush();
-
+        $this->card->title = 'Launcher overlaps the footer';
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
+        self::assertSame(1, $this->searchHits('launcher'));
 
-        self::assertCount(2, $this->openWaits($this->onlyWatch()));
-    }
+        $update = self::getContainer()->get(UpdateCardHandler::class);
+        self::assertInstanceOf(UpdateCardHandler::class, $update);
+        $update(new UpdateCardCommand($this->card, Actor::Human, title: 'Sidebar hides the avatar'));
 
-    public function test_a_question_that_closed_lately_still_stands_for_the_stop_while_the_bridge_resumes(): void
-    {
-        $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-9 minutes')));
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_the_stop_waits_when_no_resume_came_ten_minutes_after_the_answer(): void
-    {
-        $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-11 minutes')));
-
-        $this->reconcile();
-
-        self::assertCount(2, $this->openWaits($this->onlyWatch()));
-    }
-
-    /** @return iterable<string, array{BridgeCommandState, string, bool}> */
-    public static function resumeCommandPhases(): iterable
-    {
-        yield 'a pending resume inside the ten minutes' => [BridgeCommandState::Pending, '-5 minutes', false];
-        yield 'a done resume before the new run reports' => [BridgeCommandState::Done, '-5 minutes', false];
-        yield 'a pending resume after the ten minutes' => [BridgeCommandState::Pending, '-11 minutes', true];
-        yield 'a done resume after the ten minutes with no new run' => [BridgeCommandState::Done, '-11 minutes', true];
-    }
-
-    #[DataProvider('resumeCommandPhases')]
-    public function test_the_resume_command_does_not_move_the_ten_minutes(BridgeCommandState $state, string $answeredAt, bool $waits): void
-    {
-        $closedAt = new \DateTimeImmutable($answeredAt);
-        $run = $this->stoppedRunAsking($this->waitedOnAsk($closedAt));
-        $command = new BridgeCommand($this->project->owner, $run->bridgeId ?? throw new \LogicException('Has a bridge.'), $this->project, $run, BridgeCommandKind::ResumeRun, null, $closedAt, $closedAt->modify('+15 minutes'), cause: BridgeCommandCause::AskClosed);
-        if (BridgeCommandState::Pending !== $state) {
-            $command->settle($state, null, $closedAt->modify('+1 minute'));
-        }
-        $this->em->persist($command);
-        $this->em->flush();
-
-        $this->reconcile();
-
-        if ($waits) {
-            self::assertCount(2, $this->openWaits($this->onlyWatch()));
-        } else {
-            self::assertSame([], $this->watches());
-        }
-    }
-
-    public function test_the_ten_minutes_count_from_the_end_of_a_run_that_ended_after_the_answer(): void
-    {
-        $run = $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-30 minutes')));
-        $run->endedAt = new \DateTimeImmutable('-1 minute');
-        $this->em->flush();
-
-        $this->reconcile();
-
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_pause_of_another_kind_still_waits_while_the_question_stands_for_the_stop(): void
-    {
-        $this->stoppedRunAsking($this->waitedOnAsk(null), PauseKind::Rule);
-
-        $this->reconcile();
-
-        $wait = $this->onlyWait($this->onlyWatch());
-        self::assertSame('paused', $wait->markerKey);
-    }
-
-    public function test_a_run_end_reported_before_the_pause_opens_no_wait_at_either_report(): void
-    {
-        $run = $this->workerRun(WorkerRunState::Running, '');
-        $run->waitsOnAskId = $this->waitedOnAsk(null)->id;
-        $this->em->flush();
-
-        $this->endRun($run);
-        $this->reconcile();
-        self::assertSame([], $this->watches());
-
-        $this->pauseCard();
-        $this->reconcile();
-        self::assertSame([], $this->watches());
-    }
-
-    public function test_a_pause_reported_before_the_run_end_opens_no_wait_at_either_report(): void
-    {
-        $run = $this->workerRun(WorkerRunState::Running, '');
-        $run->waitsOnAskId = $this->waitedOnAsk(null)->id;
-        $this->em->flush();
-
-        $this->pauseCard();
-        $this->reconcile();
-        self::assertSame([], $this->watches());
-
-        $this->endRun($run);
-        $this->reconcile();
-        self::assertSame([], $this->watches());
-    }
-
-    private function endRun(WorkerRun $run): void
-    {
-        $run->moveTo(WorkerRunState::Blocked);
-        $run->endedAt = new \DateTimeImmutable();
-        $this->em->flush();
-    }
-
-    private function pauseCard(PauseKind $pause = PauseKind::WorkStopped): void
-    {
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $handler(new PauseCardCommand($this->card, 'stopped', 'review', $pause));
-    }
-
-    /** A blocked run that records the ask, and the work-stopped pause the engine opens for it. */
-    private function stoppedRunAsking(InboxAsk $ask, PauseKind $pause = PauseKind::WorkStopped): WorkerRun
-    {
-        $run = $this->workerRun(WorkerRunState::Blocked, 'Asked the owner');
-        $run->waitsOnAskId = $ask->id;
-        $this->em->flush();
-        $this->pauseCard($pause);
-
-        return $run;
-    }
-
-    private function waitedOnAsk(?\DateTimeImmutable $closedAt): InboxAsk
-    {
-        $ask = new InboxAsk($this->project, Uuid::v7(), Uuid::v7());
-        $ask->closedAt = $closedAt;
-        $this->em->persist($ask);
-        $this->em->flush();
-
-        return $ask;
+        self::assertSame(0, $this->searchHits('launcher'));
+        self::assertSame(1, $this->searchHits('sidebar'));
     }
 
     private function reconcile(): void
@@ -1440,61 +483,22 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project, [(string) $this->card->id]);
     }
 
-    private function settings(): InboxProjectSettings
+    private function pullRequest(int $number): ForgePullRequest
     {
-        $settings = new InboxProjectSettings($this->project);
-        $this->em->persist($settings);
+        $pullRequest = new ForgePullRequest($this->project, 'github', 'acme/widgets', $number);
+        $this->em->persist($pullRequest);
         $this->em->flush();
 
-        return $settings;
+        return $pullRequest;
     }
 
-    private function makeChildOfEpic(int $epicNumber): void
+    /** @param array<string, string|int> $params */
+    private function pullRequestEntry(ForgePullRequest $pullRequest, string $head, ?\DateTimeImmutable $since = null, array $params = []): \App\Module\Workflow\Contract\StoredMarker
     {
-        $epic = $this->card($this->em, $this->project, $epicNumber);
-        $this->card->parent = $epic;
-        $this->em->flush();
+        return $this->inboxEntry('waits-for-approval', new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => $pullRequest->id?->toRfc4122() ?? '', 'head' => $head]), $params, $since);
     }
 
-    /** A pull request on $this->card with checks passed on the head commit, a review asked for, and mergeable. */
-    private function pullRequest(int $number, PullRequestChecks $checks = PullRequestChecks::Passed): ForgePullRequest
-    {
-        $this->em->persist(new CardPullRequest($this->card, 'https://github.com/Acme/Widgets/pull/'.$number, Forge::GitHub, 'Acme/Widgets', $number));
-        $row = new ForgePullRequest($this->project, 'github', 'acme/widgets', $number);
-        $row->headSha = self::HEAD_A;
-        $row->checks = $checks;
-        $row->checksSha = self::HEAD_A;
-        $row->mergeability = PullRequestMergeability::Mergeable;
-        $row->review = PullRequestReview::Required;
-        $row->refreshedAt = new \DateTimeImmutable('-1 minute');
-        $this->em->persist($row);
-        $this->em->flush();
-
-        return $row;
-    }
-
-    /** A tech design of the card, which sits in the Tech design column. */
-    private function linkedDocument(string $title): Document
-    {
-        $document = $this->untaggedLinkedDocument($title);
-        $this->stageDocument($this->em, $document, $this->card);
-        $this->em->flush();
-
-        return $document;
-    }
-
-    private function untaggedLinkedDocument(string $title): Document
-    {
-        $document = new Document($this->project->owner, $this->project, $title);
-        $document->addVersion('# One', '<h1>One</h1>');
-        $this->em->persist($document);
-        $this->card->documents->add(new CardDocument($this->card, $document));
-        $this->em->flush();
-
-        return $document;
-    }
-
-    private function workerRun(WorkerRunState $state, string $output, \DateTimeImmutable $receivedAt = new \DateTimeImmutable()): WorkerRun
+    private function workerRun(WorkerRunState $state, string $output): WorkerRun
     {
         $run = new WorkerRun(
             project: $this->project,
@@ -1505,22 +509,11 @@ final class CardWaitReconcilerTest extends KernelTestCase
             workKind: 'implement',
             state: $state,
             output: $output,
-            receivedAt: $receivedAt,
         );
         $this->em->persist($run);
         $this->em->flush();
 
         return $run;
-    }
-
-    private function agentReviewOf(Document $document): void
-    {
-        $item = new InboxItem(project: $this->project, number: 900, kind: InboxItemKind::Review, title: 'Review the design', blocking: true);
-        $this->em->persist($item);
-        $this->em->persist(new InboxReview($item, $document));
-        $ask = $this->ask($this->em, $this->project);
-        $ask->items->add(new InboxAskItem($ask, $item));
-        $this->em->flush();
     }
 
     /** @return list<InboxCardWatch> in item number order */
@@ -1555,15 +548,6 @@ final class CardWaitReconcilerTest extends KernelTestCase
     private function openWaits(InboxCardWatch $watch): array
     {
         return array_values(array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt));
-    }
-
-    /** @return list<InboxCardWait> ended first */
-    private function sortedWaits(InboxCardWatch $watch): array
-    {
-        $waits = array_values($watch->waits->toArray());
-        usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => ($a->versionNumber ?? 0) <=> ($b->versionNumber ?? 0));
-
-        return $waits;
     }
 
     private function onlyAskHolding(InboxItem $item): InboxAsk

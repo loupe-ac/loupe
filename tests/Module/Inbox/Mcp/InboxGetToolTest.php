@@ -215,6 +215,7 @@ final class InboxGetToolTest extends KernelTestCase
         $this->reconcileWaits($project, $card);
         $document->addVersion('# Two', '<h1>Two</h1>');
         $this->em->flush();
+        $this->storeInbox($this->em, $card, $this->documentEntry($document, 2));
         $watch = $this->reconcileWaits($project, $card);
         $this->em->clear();
         $this->actAsMcpTokenBoundTo($project);

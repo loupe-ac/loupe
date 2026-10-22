@@ -1796,6 +1796,22 @@ class CardRepository extends ServiceEntityRepository
         ));
     }
 
+    /**
+     * The cards of the project, outside a terminal column, whose inbox set holds at least one entry.
+     *
+     * @return list<string> RFC 4122 card ids
+     */
+    public function findIdsWithInboxEntry(Uuid $projectId): array
+    {
+        return array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            "SELECT c.id FROM board_cards c
+             JOIN board_columns col ON col.id = c.column_id
+             WHERE c.project_id = :project AND col.terminal = false
+               AND c.inbox_markers IS NOT NULL AND c.inbox_markers <> '[]'::jsonb",
+            ['project' => $projectId->toRfc4122()],
+        ));
+    }
+
     /** Makes the markers of every open card of the project due now, so the next minute task stores them again. */
     public function makeMarkersDue(Project $project, \DateTimeImmutable $now): void
     {

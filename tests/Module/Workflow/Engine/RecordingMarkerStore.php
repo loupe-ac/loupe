@@ -42,6 +42,12 @@ final class RecordingMarkerStore implements CardMarkerStore
     }
 
     #[\Override]
+    public function findCardIdsWithInboxEntry(Uuid $projectId): array
+    {
+        return [];
+    }
+
+    #[\Override]
     public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): void
     {
         $this->written = $markers;
