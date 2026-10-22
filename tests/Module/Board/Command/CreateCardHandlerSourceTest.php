@@ -14,7 +14,9 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Module\Project\Repository\ProjectRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -44,6 +46,27 @@ final class CreateCardHandlerSourceTest extends KernelTestCase
         $this->em->persist($this->project);
         $this->seedColumns($this->project);
         $this->em->flush();
+    }
+
+    public function test_a_card_locks_the_project_without_blocking_the_key_shares_of_other_writers(): void
+    {
+        $holder = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+        $holder->reset();
+
+        ($this->handler)(new CreateCardCommand($this->project, 'Ship it', '', 'feature', reporter: Actor::Human));
+
+        $locks = [];
+        foreach ($holder->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                if (str_contains((string) $query['sql'], 'FROM projects') && str_contains((string) $query['sql'], ' FOR ')) {
+                    $locks[] = (string) $query['sql'];
+                }
+            }
+        }
+        self::assertCount(1, $locks, 'The handler locks the project row once.');
+        self::assertStringEndsWith(ProjectRepository::CARD_LOCK, $locks[0]);
+        self::assertStringNotContainsString('FOR UPDATE', $locks[0]);
     }
 
     /** @return iterable<string, array{Actor, CardSourceKind}> */

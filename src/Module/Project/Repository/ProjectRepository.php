@@ -19,6 +19,13 @@ use Symfony\Component\Uid\Uuid;
  */
 class ProjectRepository extends ServiceEntityRepository
 {
+    /**
+     * Blocks another card writer and a FOR UPDATE lock, and waits for no key share. A card
+     * created inside a verdict transaction must not upgrade the verdict's FOR NO KEY UPDATE
+     * lock, because a FOR UPDATE lock waits for the outbox rows of an engine pass.
+     */
+    public const string CARD_LOCK = 'FOR NO KEY UPDATE';
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Project::class);
@@ -38,6 +45,16 @@ class ProjectRepository extends ServiceEntityRepository
         );
         $project->agentFirstSeenAt = $now;
         $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($project), 'agentFirstSeenAt', $now);
+    }
+
+    /** Serialises card numbers and ranks of the project until the transaction ends. */
+    public function lockForCardWrite(Project $project): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'SELECT 1 FROM projects WHERE id = :id '.self::CARD_LOCK,
+            ['id' => $project->id],
+            ['id' => UuidType::NAME],
+        );
     }
 
     /** Waits for a writer that holds the row, and blocks one, until the transaction ends. */

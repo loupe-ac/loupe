@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Repository;
 
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Review\Repository\DocumentRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -104,6 +105,35 @@ final class VerdictLockOrderTest extends KernelTestCase
         $this->second->beginTransaction();
         $this->second->executeQuery($this->lockSql(DocumentRepository::VERDICT_LOCK));
         self::assertTrue($this->second->isTransactionActive());
+    }
+
+    public function test_a_for_update_lock_upgrade_inside_a_verdict_waits_for_the_key_share_of_a_pass(): void
+    {
+        $this->bothPassesWriteTheirOutboxRow();
+        $this->second->executeQuery($this->lockSql(DocumentRepository::VERDICT_LOCK));
+
+        $this->second->executeStatement("SET LOCAL lock_timeout = '300ms'");
+        $this->assertLockWaits($this->second, 'FOR UPDATE', 'The upgrade waits for the key share of the pass, which waits for the verdict lock.');
+    }
+
+    public function test_the_card_lock_inside_a_verdict_does_not_wait_for_the_key_share_of_a_pass(): void
+    {
+        $this->bothPassesWriteTheirOutboxRow();
+        $this->second->executeQuery($this->lockSql(DocumentRepository::VERDICT_LOCK));
+
+        $this->second->executeStatement("SET LOCAL lock_timeout = '300ms'");
+        $this->second->executeQuery($this->lockSql(ProjectRepository::CARD_LOCK));
+        self::assertTrue($this->second->isTransactionActive());
+    }
+
+    private function assertLockWaits(Connection $connection, string $mode, string $message): void
+    {
+        try {
+            $connection->executeQuery($this->lockSql($mode));
+            self::fail($message);
+        } catch (\Doctrine\DBAL\Exception $e) {
+            self::assertStringContainsString('lock timeout', $e->getMessage(), $message);
+        }
     }
 
     private function bothPassesWriteTheirOutboxRow(): void
