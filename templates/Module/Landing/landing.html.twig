@@ -4,16 +4,17 @@
 
 {% block description %}{{ 'landing.meta.description'|trans }}{% endblock %}
 
-{% set marketingAttributes = {'data-controller': 'modal analytics'} %}
+{% set waitlistJoined = waitlistJoined|default(null) %}
+{% set marketingAttributes = {'data-controller': 'modal analytics'}|merge('modal' == waitlistJoined ? {'data-modal-reopen-value': 'true'} : {}) %}
 
 {% block marketing_main %}
         {% include '@Landing/landing/_hero.html.twig' only %}
         {% include '@Landing/landing/_workflow.html.twig' only %}
         {% include '@Landing/landing/_features.html.twig' only %}
         {% include '@Landing/landing/_works_with.html.twig' only %}
-        {% include '@Landing/landing/_requirements.html.twig' with {notifyForm: notifyForm} only %}
+        {% include '@Landing/landing/_requirements.html.twig' with {notifyForm: notifyForm, notifyJoined: 'notify' == waitlistJoined} only %}
         {% include '@Landing/landing/_open_source.html.twig' only %}
         {% include '@Landing/landing/_closing.html.twig' only %}
 {% endblock %}
 
-{% block marketing_after %}{% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm} only %}{% endblock %}
+{% block marketing_after %}{% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm, modalJoined: 'modal' == waitlistJoined} only %}{% endblock %}
