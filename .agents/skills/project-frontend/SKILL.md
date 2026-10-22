@@ -1,6 +1,6 @@
 ---
 name: project-frontend
-description: "Use when working on `assets/styles/app.css`, Stimulus controllers, Turbo patterns, modal components or frontend visual behaviour."
+description: "Use when working on `assets/styles/app.css`, Stimulus controllers, Turbo patterns, modals or frontend visual behaviour, or when a Tailwind class or the Tailwind watcher misbehaves."
 ---
 
 # Frontend: CSS, Stimulus, Turbo, and animations
@@ -14,6 +14,10 @@ Search `app.css` for an existing class before you add one. Put new component cla
 Keep design tokens (colors, gradients, backgrounds) as custom properties in `assets/styles/tokens.css` and reference them inside class definitions. Do not hardcode them in templates.
 
 ## Tailwind v4 quirks and constraints
+
+The dev container rebuilds Tailwind CSS on its own, so never run `bin/console tailwind:build` by hand after you edit a template or `app.css`. The watcher picks a change up within a second or two. When a class does not appear in the compiled CSS, wait and re-check rather than reaching for a manual build. Run `bin/console tailwind:build` in CI scripts and plan verify steps only. The same applies to `cache:clear`, which dev does not need.
+
+The `tailwind` compose service is the watcher. Observe it with `docker compose logs tailwind`, or run it in the foreground with `just tailwind`. Never run both, because two watchers write the same file and race. The `tailwind` service watches the main checkout only, because empty mounts hide `.worktrees/` and `.claude/worktrees/` from it. The `tailwind-worktrees` service rebuilds the worktree sheets.
 
 Define a modifier class (a size or icon variant of a button) after the base class it modifies. Inside `@layer components` the later definition wins at equal specificity, so a modifier defined first is silently overridden.
 

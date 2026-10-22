@@ -1,6 +1,6 @@
 ---
 name: project-deploy
-description: "Use when deploying to production, running terraform apply, verifying the live version, or diagnosing a deploy that changed nothing."
+description: "Use when deploying to production, running terraform apply, verifying the live version, diagnosing a no-op deploy, or changing the prod containers, worker command or `docker/compose/prod.yaml`."
 ---
 
 # Deploying
@@ -40,6 +40,14 @@ Record each item of the change that the deploy must handle:
 - A new external service and its `DiagnosticInterface` check.
 - The order of the steps, for example `terraform apply` before or after the image push.
 - The checks to do after the deploy.
+
+## The production container layout
+
+Production runs one container per process type, web and messenger worker, from the same image. `docker/prod/supervisord.conf` is only the web container's image-default CMD, so never add a background process there as a `[program:]` block. The worker's command belongs to whatever orchestrates the containers: `worker_command` in `terraform/main.tf` for App Platform, or the `worker` service in `docker/compose/prod.yaml` for a single host. Both run `supervisord -c /etc/worker-supervisord.conf`.
+
+That is the one exception to the rule above. The worker container runs two consumers, `messenger:consume scheduler_default card_eval jobs` and `messenger:consume card_sweep`, each with `--time-limit=3600 --memory-limit=128M`. The second keeps the low-priority workflow sweep from starving behind event-driven jobs. The schedule transport comes first in the first consumer, because a deep jobs backlog must not delay ticks.
+
+`docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact, so it must keep working alongside `terraform/`. It is driven by `docker/compose/prod.env`, which is gitignored, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
 
 ## Check the release diff
 

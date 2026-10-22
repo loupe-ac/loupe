@@ -1,6 +1,6 @@
 ---
 name: project-e2e
-description: "Use when writing, fixing or debugging Playwright e2e tests under `e2e/`."
+description: "Use when writing, fixing, debugging or running Playwright e2e tests under `e2e/`, starting or stopping the e2e target, or reading the e2e CI checks."
 ---
 
 # E2E Tests
@@ -10,6 +10,7 @@ description: "Use when writing, fixing or debugging Playwright e2e tests under `
 - **The eight `e2e-*` CI checks gate the suite: `e2e-chromium`, `e2e-chromium-2` to `e2e-chromium-6`, `e2e-rest` and `e2e-global-flags`. Never run the whole suite on this machine.** Push and read the checks. Locally the suite is slower, destructive, and prone to failures that belong to the environment rather than the diff (see `working-with-prs`). One spec stays allowed while you debug it: `just e2e tests/<area>/<spec>.spec.ts`. The `.agents/hooks/no-full-e2e.sh` hook refuses a full run and lets a named spec through.
 - **CI splits the suite across eight runners, and `E2E_SHARD` picks the part.** `chromium` runs that project alone, and six legs split it per test with `--shard=k/6`. `rest` runs admin and the destructive chain, with chromium and global-flags dropped from it. `global-flags` runs that project alone. Unset runs everything. Playwright's own `--shard` cannot split the whole suite, because it filters top-level projects only and `install-reset` is the one top-level project here.
 - **Each chromium test is its own unit.** The project is `fullyParallel`, so two tests of one file can run in two workers at once. A test cannot read state that another test of the file made. A file whose tests depend on their order opts out with `test.describe.configure({ mode: 'default' })`.
+- **`just e2e-up` creates the disposable target the suite runs against:** an `app_e2e` database and an nginx sidecar at `e2e.<project>.dev.localhost` serving this checkout. `just e2e` defaults there and refuses to start when it is not up. Tear it down with `just e2e-down`. Never point the suite at the dev host. The suite is destructive by design: the `install-reset` project truncates every table, and `trial-end-lifecycle` flips global feature flags and disables every expired-trial account. One run against `loupe.dev.localhost` wipes your development database.
 - Never fix a failing test by manipulating the database (resetting passwords, deleting rows). A test that needs a specific DB state must create that state. A fix that needs a one-time DB operation breaks again on the next fresh environment.
 
 ## Turbo Drive navigation
@@ -57,6 +58,8 @@ CI refuses the hub, so a page that opens it retries and slows the app. A spec im
 ## Parallelism and PHP sessions
 
 Each spec file that needs a login gets its own dedicated user through `createTest`; share one and a password or `displayName` change in one file invalidates another file's session. Mailpit is never cleared, so a stale email from an earlier run sends the test to another worktree's host and produces a wrong-host 404 that reads as an app bug. `test.use({ storageState: {} })` silently stops the user being registered at all.
+
+`playwright.config.ts` runs each `chromium` test as its own unit on 4 workers. A spec file whose tests share one fixed account opts out with `test.describe.configure({ mode: 'default' })`. A spec that changes a global flag, or shares a fixed account with another file, runs in a `workers: 1` project, and the config comments say which. Put a new spec of that kind in one of those projects, not in `chromium`. Two branches gated at the same time against one machine are still unproven, because every worktree shares the one `php-fpm` container.
 
 Read `references/parallelism-and-sessions.md` before you write an authenticated spec, edit `e2e/tests/fixtures.ts`, or assert on mail.
 

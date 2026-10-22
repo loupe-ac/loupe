@@ -1,6 +1,6 @@
 ---
 name: project-translations
-description: "Use when adding or changing UI strings or translation keys, removing form fields, or adding a new locale."
+description: "Use when adding or changing UI strings or translation keys, removing form fields, adding a locale, or handling a finding of the gamache translation check."
 ---
 
 # Translations
@@ -58,3 +58,11 @@ Use Symfony interval syntax, not ICU.
 
 - Always include the `{0}` case. Omitting it throws `RuntimeException` at render time if the count can be zero.
 - Use `%count%`, with the percent signs, as the substitution key. A bare `count` is silently ignored.
+
+## The gamache translation check
+
+`just gamache` includes a translation check. It scans PHP files under `src/` and Twig files under `templates/` for string literals that look like untranslated user-facing text, scored by word count, mixed case and punctuation.
+
+1. It never fails CI, because its exit code is always 0. Its findings are advisory.
+2. To suppress a false positive, add `// @translation-check-ignore` on the same line in PHP, or `{# translation-check-ignore #}` on the same line in Twig.
+3. To configure it, edit the `TranslationCheck` constructor call in `gamache.php` at the project root. That call documents its own options inline: ignored call sites (`ignoredCallSites`), exception classes, ignored source namespaces, safe attribute namespaces and safe Twig functions.
