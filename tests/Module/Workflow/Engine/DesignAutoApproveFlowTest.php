@@ -33,6 +33,7 @@ use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /** The auto-approve rules of the shipped Lifecycle template, with the real engine, the real providers and the real handlers. */
@@ -66,6 +67,30 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         self::assertSame('tech-design-auto-approve', $verdicts[0]->detail['rule']);
         self::assertSame([], $this->service(CardEventRepository::class)->findBy(['card' => $card->id, 'kind' => CardEventKind::VerdictFailed]));
         self::assertSame($inboxItems, $this->rowCount('inbox_items'), 'No document-in-review item opens, because the approval runs before the marker pass.');
+    }
+
+    public function test_the_pass_that_approves_and_moves_never_upgrades_to_a_for_update_lock_on_the_project(): void
+    {
+        $card = $this->card('bug');
+        $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
+        $holder = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+        $holder->reset();
+
+        $this->evaluate($card);
+
+        $locks = [];
+        foreach ($holder->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $sql = (string) $query['sql'];
+                if (str_contains($sql, 'FROM projects') && 1 === preg_match('/\bFOR (UPDATE|NO KEY UPDATE)\b/', $sql)) {
+                    $locks[] = $sql;
+                }
+            }
+        }
+        self::assertSame('in-progress', $this->fresh($card)->column->slug, 'The approval and the move ran in the pass.');
+        self::assertNotEmpty($locks);
+        self::assertSame([], array_values(array_filter($locks, static fn (string $sql): bool => 1 === preg_match('/\bFOR UPDATE\b/', $sql))), implode("\n", $locks));
     }
 
     public function test_a_product_design_approves_itself_whatever_the_card_type(): void

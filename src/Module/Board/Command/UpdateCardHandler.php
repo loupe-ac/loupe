@@ -29,11 +29,11 @@ use App\Module\Board\Service\PullRequestTracking;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Bridge\Service\CardPause;
 use App\Module\Bridge\Service\InteractiveRuns;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\CardMoveGuard;
 use App\Module\Workflow\Contract\CardTypeCatalog;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -51,6 +51,7 @@ final readonly class UpdateCardHandler
 
     public function __construct(
         private CardRepository $cards,
+        private ProjectRepository $projects,
         private BoardColumnRepository $boardColumns,
         private CardMover $mover,
         private PullRequestUrlResolver $pullRequests,
@@ -111,8 +112,8 @@ final readonly class UpdateCardHandler
         // Flushing the fields first would commit half an update whose move
         // then failed.
         $outcome = $this->em->wrapInTransaction(function () use ($command, $card, $title, $documents, $artifacts, $relatedCards, $newParent): UpdateCardOutcome|string|DomainErrors|EpicChildrenOpen|CardManaged {
-            $this->em->lock($card->project, LockMode::PESSIMISTIC_WRITE);
-            // lock() takes the project row and leaves the loaded card as the
+            $this->projects->lockForWrite($card->project);
+            // The lock takes the project row, waits for no key share, and leaves the loaded card as the
             // request read it, which may be before the caller ahead of us in
             // the queue committed. Both the decision below and the move it
             // makes read the column, so both need the column as it is now.
