@@ -94,10 +94,10 @@ After a verdict, the top bar shows the verdict as a button.
 Select it to see the reviewer, version, time and note, with **Change verdict** and **Undo**.
 **Undo** on an approval of a design can move the card back to the stage of that design. See [Undoing a design](workflows.md#undoing-a-design).
 A workflow rule can write a verdict. The reviewer then reads **Workflow**, with the id of the rule beside it.
-An approval by a rule carries the note "Approved when it entered review: no unanswered decision, no open thread, and the agent review passed."
-When a document enters review, Loupe records how many decisions had no answer and how many threads were not resolved.
+An approval by a rule carries the note "Approved when it was published: no unanswered decision, no open thread, and the agent review passed."
+When a document is published, which moves it out of Draft, Loupe records how many decisions had no answer and how many threads were not resolved.
 A workflow rule reads that record. The rule approves a design only when both counts are 0, the agent review passed, and nobody rejected the document before.
-A later answer or comment does not change the record. A revision of a document that is already in review writes no record, so a rule does not approve that version.
+A later answer or comment does not change the record. A document created in review, or put back in review by a revision, writes no record, so a rule does not approve it.
 See [Automatic approval of a design](workflows.md#automatic-approval-of-a-design).
 Only the owner of the document can open it, change the verdict or select **Undo**.
 The account export and `document_get_review` result include the note.

@@ -156,7 +156,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $result = $page->filter('[data-inbox-response]');
         self::assertStringContainsString('Workflow', $result->text());
         self::assertStringContainsString('tech-design-auto-approve', $result->filter('.lp-tag')->text());
-        self::assertStringContainsString('Approved when it entered review: no unanswered decision, no open thread, and the agent review passed.', $result->text());
+        self::assertStringContainsString('Approved when it was published: no unanswered decision, no open thread, and the agent review passed.', $result->text());
     }
 
     public function test_an_inline_document_review_rejects_a_stale_version_then_records_the_current_one(): void

@@ -7,7 +7,7 @@ namespace App\Module\Board\Workflow\Condition;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
 
-/** A document with the tag in review had a decision with no answer when it entered review, or has no entry check. */
+/** A document with the tag in review had a decision with no answer when it was published, or has no entry check. */
 final readonly class CardDocumentEntryDecisionsOpen extends EntryCheckCondition
 {
     #[\Override]

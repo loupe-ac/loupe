@@ -19,7 +19,7 @@ final class Version20261022170531 extends AbstractMigration
     #[\Override]
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE document_versions ADD entered_review_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
+        $this->addSql('ALTER TABLE document_versions ADD published_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
         $this->addSql('ALTER TABLE document_versions ADD entry_unanswered_decisions INT DEFAULT NULL');
         $this->addSql('ALTER TABLE document_versions ADD entry_open_threads INT DEFAULT NULL');
     }
@@ -27,7 +27,7 @@ final class Version20261022170531 extends AbstractMigration
     #[\Override]
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE document_versions DROP entered_review_at');
+        $this->addSql('ALTER TABLE document_versions DROP published_at');
         $this->addSql('ALTER TABLE document_versions DROP entry_unanswered_decisions');
         $this->addSql('ALTER TABLE document_versions DROP entry_open_threads');
     }

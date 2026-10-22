@@ -40,17 +40,17 @@ class DocumentVersion
     public Collection $highlights;
 
     /**
-     * When the document entered review with this version as its newest. Null when the
-     * version never began a review, such as a revision of a document already in review.
+     * When the document was published, moved out of Draft, with this version as its newest. Null when the
+     * version was never published, such as a document created in review or a later revision.
      */
     #[ORM\Column(nullable: true)]
-    public ?\DateTimeImmutable $enteredReviewAt = null;
+    public ?\DateTimeImmutable $publishedAt = null;
 
-    /** The decisions of this version that had no answer when the document entered review. Set with enteredReviewAt. */
+    /** The decisions of this version that had no answer when the document was published. Set with publishedAt. */
     #[ORM\Column(nullable: true)]
     public ?int $entryUnansweredDecisions = null;
 
-    /** The threads of this version that were not resolved when the document entered review. Set with enteredReviewAt. */
+    /** The threads of this version that were not resolved when the document was published. Set with publishedAt. */
     #[ORM\Column(nullable: true)]
     public ?int $entryOpenThreads = null;
 

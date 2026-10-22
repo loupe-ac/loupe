@@ -9,7 +9,7 @@ use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Review\Repository\CommentRepository;
 
 /**
- * Records what stood open on a version at the moment its document entered review: the decisions with no answer and the
+ * Records what stood open on a version at the moment its document was published, moved out of Draft: the decisions with no answer and the
  * threads that were not resolved. The caller owns the transaction and the flush.
  */
 final readonly class DocumentEntryCheck
@@ -24,6 +24,6 @@ final readonly class DocumentEntryCheck
     {
         $version->entryUnansweredDecisions = ($this->decisionSummary)($document, $version)->unansweredCount();
         $version->entryOpenThreads = $this->comments->countOpenThreadsByVersion($version);
-        $version->enteredReviewAt = new \DateTimeImmutable();
+        $version->publishedAt = new \DateTimeImmutable();
     }
 }

@@ -233,6 +233,42 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         self::assertFalse($this->ruleTruth($card, 'tech-design-auto-approve'));
     }
 
+    public function test_a_design_created_in_review_is_never_published_and_gets_no_approval(): void
+    {
+        $card = $this->card('bug');
+        $document = $this->service(CreateDocumentHandler::class)(new CreateDocumentCommand($card->project, 'Design', self::CLEAN, tagNames: ['tech-design']));
+        $this->em()->persist(new CardDocument($card, $document));
+        $this->em()->persist(new DocumentAgentReview($card->project, $card, $document, 1, 'Summary.', AgentReviewConclusion::Success, []));
+        $this->em()->flush();
+        self::assertSame(DocumentStatus::InReview, $document->status);
+
+        $this->evaluate($card);
+
+        self::assertSame(DocumentStatus::InReview, $this->reload($document)->status);
+        self::assertSame([], $this->reviews($document));
+        self::assertFalse($this->ruleTruth($card, 'tech-design-auto-approve'));
+    }
+
+    public function test_a_revision_that_puts_an_approved_design_back_in_review_is_no_publish_even_with_a_passed_review_of_it(): void
+    {
+        $card = $this->card('bug');
+        $document = $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
+        $this->evaluate($card);
+        self::assertSame(DocumentStatus::Approved, $this->reload($document)->status);
+        $card->column = $this->column($card->project, 'tech-design');
+        $this->em()->flush();
+        $this->arrive($card, CardEventKind::Moved, '-1 second');
+        $this->service(ReviseDocumentHandler::class)(new ReviseDocumentCommand($document, "# Design\n\nRevised, nothing to decide.", 'Revised.'));
+        $this->em()->persist(new DocumentAgentReview($card->project, $card, $document, 2, 'Summary.', AgentReviewConclusion::Success, []));
+        $this->em()->flush();
+
+        $this->evaluate($card, '+1 day');
+
+        self::assertSame(DocumentStatus::InReview, $this->reload($document)->status);
+        self::assertCount(1, $this->reviews($document), 'Only the approval of the published version exists.');
+        self::assertFalse($this->ruleTruth($card, 'tech-design-auto-approve'));
+    }
+
     /** @param list<array{CardEventKind, string}> $arrivals */
     #[DataProvider('lateArrivals')]
     public function test_a_card_that_arrived_in_the_column_after_the_entry_gets_no_approval(array $arrivals): void
@@ -264,7 +300,7 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         $card = $this->card('bug');
         $document = $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
         $this->publishNow($document);
-        $this->em()->getConnection()->executeStatement('UPDATE document_versions SET entered_review_at = NULL, entry_unanswered_decisions = NULL, entry_open_threads = NULL WHERE document_id = ?', [(string) $document->id]);
+        $this->em()->getConnection()->executeStatement('UPDATE document_versions SET published_at = NULL, entry_unanswered_decisions = NULL, entry_open_threads = NULL WHERE document_id = ?', [(string) $document->id]);
 
         $this->evaluate($card);
         $this->evaluate($card, '+10 minutes');

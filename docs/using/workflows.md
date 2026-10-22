@@ -852,28 +852,27 @@ own draft.
 ### Automatic approval of a design
 
 A design can approve itself in the pass that publishes it. The rule reads the entry check of the document.
-The entry check records what stood open on the newest version when the document entered review.
+The entry check records what stood open on the newest version when the document was published.
 
-A document enters review in three cases. A publish moves it out of Draft. A revision moves it out of Approved or
-Changes requested. Or someone creates it in review. In each case the app counts the decisions with no answer and the
-threads that are not resolved. A pending thread and an addressed thread both count. The app writes both counts and the
+A publish moves a document out of Draft, and only a publish writes an entry check. The app counts the decisions with no
+answer and the threads that are not resolved. A pending thread and an addressed thread both count. The app writes both counts and the
 time on the newest version.
 
-A revision of a document that is already in review writes no check, so the new version has no clean entry.
-An undo of a verdict is not an entry. A document that was in review before this feature has no check, so no rule approves it.
+A document created in review writes no check. A revision writes none either, also when it moves the document out of
+Approved or Changes requested, so the new version has no clean entry. An undo of a verdict is not a publish. A document that was in review before this feature has no check, so no rule approves it.
 
 Five conditions read these facts. Each takes a `tag`:
 
 | Condition | True when |
 |---|---|
-| `card.document.entry_decisions_open` | a document with the tag in review had a decision with no answer when it entered review, or has no entry check |
-| `card.document.entry_threads_open` | a document with the tag in review had a thread that was not resolved when it entered review, or has no entry check |
+| `card.document.entry_decisions_open` | a document with the tag in review had a decision with no answer when it was published, or has no entry check |
+| `card.document.entry_threads_open` | a document with the tag in review had a thread that was not resolved when it was published, or has no entry check |
 | `card.document.rejected_before` | a document with the tag ever got a change request or a withdrawal, on any version |
-| `card.document.entered_review_in_column` | each document with the tag in review entered review at or after the card arrived in its current column. The arrival is the time of the newest created or moved row of the card. A document with no entry check fails it, and so does a card with no such row |
+| `card.document.published_in_column` | each document with the tag in review was published at or after the card arrived in its current column. The arrival is the time of the newest created or moved row of the card. A document with no entry check fails it, and so does a card with no such row |
 | `design_review.passed` | the newest agent review of each document with the tag in review passed, and it read the newest version of the document. A document with no agent review fails it, and so does a review of an older version |
 
 The last condition is in the **Agent review** group. The others are in the **Board** group.
-An answer or a comment that comes after the entry changes none of these facts.
+An answer or a comment that comes after the publish changes none of these facts.
 
 Lifecycle uses them in two rules. Each rule sits right after the `<slot>-review-publish` rule of its slot, so it fires in
 the same pass as the publish. The `<slot>-approved` rule then moves the card. The marker pass runs last,
@@ -881,13 +880,13 @@ so no `document-in-review` item opens in your inbox.
 
 | Rule | Does |
 |---|---|
-| `product-design-auto-approve` | Runs `approve-document` for the tag `product-design` when a document with the tag is in review, entered review after the card arrived in its column, had no open decision and no open thread, never got a change request or a withdrawal, and has a passed agent review. It has no condition on the card type |
+| `product-design-auto-approve` | Runs `approve-document` for the tag `product-design` when a document with the tag is in review, was published after the card arrived in its column, had no open decision and no open thread, never got a change request or a withdrawal, and has a passed agent review. It has no condition on the card type |
 | `tech-design-auto-approve` | The same for the tag `tech-design`. It also needs `card.type` with the types `bug`, `tooling` and `docs`. A feature or an epic waits for you |
 
 The action `approve-document` takes a `tag`. It approves each document of the card that has the tag, is in review and has a
 clean entry check on its newest version. The Workflow account writes the approval. The approval names the version of the check
 and the newest review that the rule read. When a revision or a verdict landed after the rule read the facts, the app
-refuses the approval. It also refuses when you cleared the answer of a decision after the document entered review.
+refuses the approval. It also refuses when you cleared the answer of a decision after the document was published.
 The action then writes a `verdict-failed` row in the history of the card and ends. It does not retry.
 The document stays in review until you act on it.
 

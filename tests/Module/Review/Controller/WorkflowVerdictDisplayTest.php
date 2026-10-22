@@ -22,7 +22,7 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
 final class WorkflowVerdictDisplayTest extends WebTestCase
 {
-    private const string SENTENCE = 'Approved when it entered review: no unanswered decision, no open thread, and the agent review passed.';
+    private const string SENTENCE = 'Approved when it was published: no unanswered decision, no open thread, and the agent review passed.';
 
     public function test_the_verdict_chip_names_the_workflow_the_rule_and_the_fixed_sentence(): void
     {

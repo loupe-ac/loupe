@@ -12,7 +12,6 @@ use App\Module\Review\Entity\Series;
 use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Repository\CommentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
-use App\Module\Review\Service\DocumentEntryCheck;
 use App\Module\Review\Service\DocumentReferenceValidator;
 use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentSeriesApplier;
@@ -46,7 +45,6 @@ final readonly class ReviseDocumentHandler
         private Auditor $auditor,
         private DocumentWorkLinksInterface $workLinks,
         private EventDispatcherInterface $events,
-        private DocumentEntryCheck $entryCheck,
     ) {
     }
 
@@ -163,7 +161,6 @@ final readonly class ReviseDocumentHandler
             $summary = $this->reanchoringService->reanchor($openComments, $newVersion);
 
             // A draft stays out of review until someone publishes it.
-            $entersReview = DocumentStatus::Draft !== $document->status && DocumentStatus::InReview !== $document->status;
             if (DocumentStatus::Draft !== $document->status) {
                 $document->status = DocumentStatus::InReview;
             }
@@ -173,13 +170,6 @@ final readonly class ReviseDocumentHandler
                 $this->em->flush();
             } catch (UniqueConstraintViolationException $e) {
                 throw $this->conflicts->forViolation($e) ?? $e;
-            }
-
-            // After the flush, so the count reads the threads that the revision carried over. A revision of a document that is
-            // already in review is no entry, and its version stays with no check.
-            if ($entersReview) {
-                $this->entryCheck->record($document, $newVersion);
-                $this->em->flush();
             }
 
             // Inside the transaction: a revision that rolls back must not leave

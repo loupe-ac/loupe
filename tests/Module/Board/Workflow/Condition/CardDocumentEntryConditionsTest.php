@@ -6,9 +6,9 @@ namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\ColumnArrivalFacts;
 use App\Module\Board\Workflow\Condition\CardDocumentApprovalWithdrawn;
-use App\Module\Board\Workflow\Condition\CardDocumentEnteredReviewInColumn;
 use App\Module\Board\Workflow\Condition\CardDocumentEntryDecisionsOpen;
 use App\Module\Board\Workflow\Condition\CardDocumentEntryThreadsOpen;
+use App\Module\Board\Workflow\Condition\CardDocumentPublishedInColumn;
 use App\Module\Board\Workflow\Condition\CardDocumentRejectedBefore;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Workflow\Contract\Condition;
@@ -35,7 +35,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
         $decisions = new CardDocumentEntryDecisionsOpen();
         $threads = new CardDocumentEntryThreadsOpen();
         $rejected = new CardDocumentRejectedBefore();
-        $entered = new CardDocumentEnteredReviewInColumn();
+        $entered = new CardDocumentPublishedInColumn();
         $withdrawn = new CardDocumentApprovalWithdrawn();
 
         yield 'decisions, one unanswered at entry' => [$decisions, self::facts(self::document(decisions: 1)), true];
@@ -111,23 +111,23 @@ final class CardDocumentEntryConditionsTest extends TestCase
         yield 'card.document.entry_decisions_open' => [new CardDocumentEntryDecisionsOpen(), 'workflow.waiting.card_document_entry_decisions_open'];
         yield 'card.document.entry_threads_open' => [new CardDocumentEntryThreadsOpen(), 'workflow.waiting.card_document_entry_threads_open'];
         yield 'card.document.rejected_before' => [new CardDocumentRejectedBefore(), 'workflow.waiting.card_document_rejected_before'];
-        yield 'card.document.entered_review_in_column' => [new CardDocumentEnteredReviewInColumn(), 'workflow.waiting.card_document_entered_review_in_column'];
+        yield 'card.document.published_in_column' => [new CardDocumentPublishedInColumn(), 'workflow.waiting.card_document_published_in_column'];
         yield 'card.document.approval_withdrawn' => [new CardDocumentApprovalWithdrawn(), 'workflow.waiting.card_document_approval_withdrawn'];
     }
 
     public function test_each_condition_names_its_key_the_tag_it_reads_and_the_facts_it_reads(): void
     {
         $keys = [];
-        foreach ([new CardDocumentEntryDecisionsOpen(), new CardDocumentEntryThreadsOpen(), new CardDocumentRejectedBefore(), new CardDocumentEnteredReviewInColumn()] as $condition) {
+        foreach ([new CardDocumentEntryDecisionsOpen(), new CardDocumentEntryThreadsOpen(), new CardDocumentRejectedBefore(), new CardDocumentPublishedInColumn()] as $condition) {
             $keys[] = $condition::key();
             self::assertSame('design', $condition->documentTag(['tag' => 'design']));
             self::assertSame('workflow.source.board', $condition::source());
             self::assertSame('tag', $condition::parameters()[0]->name);
         }
-        self::assertSame(['card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'card.document.entered_review_in_column'], $keys);
+        self::assertSame(['card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'card.document.published_in_column'], $keys);
         self::assertSame([DocumentsFacts::class], new CardDocumentEntryDecisionsOpen()->reads(['tag' => 'design']));
         self::assertSame([DocumentsFacts::class], new CardDocumentRejectedBefore()->reads(['tag' => 'design']));
-        self::assertSame([DocumentsFacts::class, ColumnArrivalFacts::class], new CardDocumentEnteredReviewInColumn()->reads(['tag' => 'design']));
+        self::assertSame([DocumentsFacts::class, ColumnArrivalFacts::class], new CardDocumentPublishedInColumn()->reads(['tag' => 'design']));
     }
 
     /** @param list<string> $tags */
@@ -147,7 +147,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
             status: $status,
             id: $id,
             version: 1,
-            enteredReviewAt: $check ? new \DateTimeImmutable($enteredAt) : null,
+            publishedAt: $check ? new \DateTimeImmutable($enteredAt) : null,
             entryUnansweredDecisions: $check ? $decisions : null,
             entryOpenThreads: $check ? $threads : null,
             rejectedBefore: $rejected,

@@ -367,7 +367,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame('approve-document', $rule->lead->key);
         self::assertSame(['tag' => $tag], $rule->lead->params);
         $keys = array_map(static fn ($leaf): string => $leaf->condition::key(), $rule->when->leaves());
-        self::assertSame(['card.document.in_review', 'card.document.entered_review_in_column', 'card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'design_review.passed'], array_values(array_diff($keys, ['card.type'])));
+        self::assertSame(['card.document.in_review', 'card.document.published_in_column', 'card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'design_review.passed'], array_values(array_diff($keys, ['card.type'])));
         self::assertSame('tech-design' === $slot, \in_array('card.type', $keys, true), 'Only the tech design rule limits the card types.');
     }
 

@@ -29,7 +29,7 @@ use App\Module\Review\Entity\DocumentStatus;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-/** The entry check that a document version records when its document enters review. */
+/** The entry check that a document version records when its document is published, which moves it out of Draft. */
 final class DocumentEntryCheckTest extends KernelTestCase
 {
     private const string MARKDOWN = "# Design\n\nThe quoted passage.\n\n<!-- decision: target -->\n\n- ( ) Staging\n- ( ) Production\n\n<!-- /decision -->\n\n<!-- decision: region -->\n\n- ( ) Europe\n- ( ) America\n\n<!-- /decision -->";
@@ -71,18 +71,18 @@ final class DocumentEntryCheckTest extends KernelTestCase
         $this->assertCheck($document, 1, unanswered: 0, threads: 2);
     }
 
-    public function test_a_document_created_in_review_records_a_check_and_a_created_draft_records_none(): void
+    public function test_a_document_created_in_review_or_as_a_draft_records_none(): void
     {
-        $inReview = $this->document(draft: false);
+        $inReview = $this->document(draft: false, markdown: "# Design\n\nNo decision here.");
         $draft = $this->document(draft: true);
 
-        $this->assertCheck($inReview, 1, unanswered: 2, threads: 0);
+        $this->assertNoCheck($inReview, 1);
         $this->assertNoCheck($draft, 1);
     }
 
-    public function test_a_revision_of_a_document_that_is_already_in_review_records_none(): void
+    public function test_a_revision_of_a_published_document_records_none(): void
     {
-        $document = $this->document(draft: false);
+        $document = $this->published();
 
         $this->revise($document);
 
@@ -102,9 +102,9 @@ final class DocumentEntryCheckTest extends KernelTestCase
         $this->assertCheck($document, 2, unanswered: 2, threads: 0);
     }
 
-    public function test_a_revision_of_a_changes_requested_document_is_an_entry_and_counts_the_threads_it_carries(): void
+    public function test_a_revision_of_a_changes_requested_document_is_no_publish_and_records_none(): void
     {
-        $document = $this->document(draft: false);
+        $document = $this->published();
         $this->comment($document);
         $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'changes-requested', 1, 'Rework it.'));
         self::assertSame(DocumentStatus::ChangesRequested, $document->status);
@@ -113,33 +113,35 @@ final class DocumentEntryCheckTest extends KernelTestCase
 
         self::assertSame(DocumentStatus::InReview, $document->status);
         $this->assertCheck($document, 1, unanswered: 2, threads: 0);
-        $this->assertCheck($document, 2, unanswered: 2, threads: 1);
+        $this->assertNoCheck($document, 2);
     }
 
-    public function test_a_revision_of_an_approved_document_is_an_entry(): void
+    public function test_a_revision_of_an_approved_document_is_no_publish_and_records_none(): void
     {
-        $document = $this->document(draft: false, markdown: "# Design\n\nNo decision here.");
+        $document = $this->published("# Design\n\nNo decision here.");
         $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'approved', 1, 'Fine.'));
         self::assertSame(DocumentStatus::Approved, $document->status);
 
         $this->revise($document, "# Design\n\nStill no decision here.");
 
-        $this->assertCheck($document, 2, unanswered: 0, threads: 0);
+        self::assertSame(DocumentStatus::InReview, $document->status);
+        $this->assertCheck($document, 1, unanswered: 0, threads: 0);
+        $this->assertNoCheck($document, 2);
     }
 
-    public function test_an_undo_is_not_an_entry(): void
+    public function test_an_undo_is_not_a_publish(): void
     {
-        $document = $this->document(draft: false, markdown: "# Design\n\nNo decision here.");
+        $document = $this->published("# Design\n\nNo decision here.");
         $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'approved', 1, 'Fine.'));
         $review = $this->em()->getConnection()->fetchOne('SELECT id FROM reviews');
         self::assertIsString($review);
-        $before = $this->version($document, 1)['entered_review_at'];
+        $before = $this->version($document, 1)['published_at'];
         self::assertNotNull($before);
 
         $this->service(UndoVerdictHandler::class)(new UndoVerdictCommand($document, $document->owner, $review));
 
         self::assertSame(DocumentStatus::InReview, $document->status);
-        self::assertSame($before, $this->version($document, 1)['entered_review_at']);
+        self::assertSame($before, $this->version($document, 1)['published_at']);
         $this->assertCheck($document, 1, unanswered: 0, threads: 0);
     }
 
@@ -153,6 +155,14 @@ final class DocumentEntryCheckTest extends KernelTestCase
         $this->em()->flush();
 
         return $this->service(CreateDocumentHandler::class)(new CreateDocumentCommand($project, 'Design', $markdown, draft: $draft));
+    }
+
+    private function published(string $markdown = self::MARKDOWN): Document
+    {
+        $document = $this->document(draft: true, markdown: $markdown);
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+
+        return $document;
     }
 
     private function revise(Document $document, string $markdown = self::MARKDOWN): void
@@ -173,18 +183,18 @@ final class DocumentEntryCheckTest extends KernelTestCase
     private function assertCheck(Document $document, int $number, int $unanswered, int $threads, ?\DateTimeImmutable $notBefore = null): void
     {
         $version = $this->version($document, $number);
-        self::assertNotNull($version['entered_review_at']);
+        self::assertNotNull($version['published_at']);
         self::assertSame($unanswered, $version['entry_unanswered_decisions']);
         self::assertSame($threads, $version['entry_open_threads']);
         if (null !== $notBefore) {
-            self::assertGreaterThanOrEqual($notBefore->getTimestamp(), new \DateTimeImmutable((string) $version['entered_review_at'])->getTimestamp());
+            self::assertGreaterThanOrEqual($notBefore->getTimestamp(), new \DateTimeImmutable((string) $version['published_at'])->getTimestamp());
         }
     }
 
     private function assertNoCheck(Document $document, int $number): void
     {
         $version = $this->version($document, $number);
-        self::assertNull($version['entered_review_at']);
+        self::assertNull($version['published_at']);
         self::assertNull($version['entry_unanswered_decisions']);
         self::assertNull($version['entry_open_threads']);
     }
@@ -193,7 +203,7 @@ final class DocumentEntryCheckTest extends KernelTestCase
     private function version(Document $document, int $number): array
     {
         $row = $this->em()->getConnection()->fetchAssociative(
-            'SELECT entered_review_at, entry_unanswered_decisions, entry_open_threads FROM document_versions WHERE document_id = ? AND version_number = ?',
+            'SELECT published_at, entry_unanswered_decisions, entry_open_threads FROM document_versions WHERE document_id = ? AND version_number = ?',
             [(string) $document->id, $number],
         );
         self::assertIsArray($row);

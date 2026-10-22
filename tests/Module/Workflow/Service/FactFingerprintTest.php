@@ -290,7 +290,7 @@ final class FactFingerprintTest extends TestCase
             $document->version,
             $document->cleanCheckVersion,
             $document->newestReviewId,
-            $document->enteredReviewAt?->format(\DATE_ATOM),
+            $document->publishedAt?->format(\DATE_ATOM),
             $document->entryUnansweredDecisions,
             $document->entryOpenThreads,
             $document->rejectedBefore,

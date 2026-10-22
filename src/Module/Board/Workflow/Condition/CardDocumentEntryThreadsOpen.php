@@ -7,7 +7,7 @@ namespace App\Module\Board\Workflow\Condition;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
 
-/** A document with the tag in review had a thread that was not resolved when it entered review, or has no entry check. */
+/** A document with the tag in review had a thread that was not resolved when it was published, or has no entry check. */
 final readonly class CardDocumentEntryThreadsOpen extends EntryCheckCondition
 {
     #[\Override]

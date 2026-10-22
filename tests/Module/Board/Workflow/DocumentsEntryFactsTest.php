@@ -42,7 +42,7 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         $document = $this->draft($card, "# Design\n\nNothing to decide.");
 
         $facts = $this->facts($card, $document);
-        self::assertNull($facts->enteredReviewAt);
+        self::assertNull($facts->publishedAt);
         self::assertNull($facts->cleanCheckVersion);
 
         $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
@@ -52,7 +52,7 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         self::assertSame(1, $facts->cleanCheckVersion);
         self::assertSame(0, $facts->entryUnansweredDecisions);
         self::assertSame(0, $facts->entryOpenThreads);
-        self::assertNotNull($facts->enteredReviewAt);
+        self::assertNotNull($facts->publishedAt);
         self::assertTrue($facts->hasEntryCheck());
         self::assertNull($facts->newestReviewId);
         self::assertFalse($facts->rejectedBefore);
@@ -82,7 +82,7 @@ final class DocumentsEntryFactsTest extends KernelTestCase
 
         self::assertSame(2, $facts->version);
         self::assertNull($facts->cleanCheckVersion);
-        self::assertNull($facts->enteredReviewAt);
+        self::assertNull($facts->publishedAt);
         self::assertNull($facts->entryUnansweredDecisions);
         self::assertFalse($facts->hasEntryCheck());
     }
@@ -155,7 +155,7 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         self::assertFalse($this->facts($card, $document)->newestReviewWithdrewApproval);
     }
 
-    public function test_a_change_request_on_an_older_version_still_counts(): void
+    public function test_a_change_request_on_an_older_version_still_counts_and_the_revision_has_no_clean_check(): void
     {
         $card = $this->newCard();
         $document = $this->draft($card, "# Design\n\nNothing to decide.");
@@ -166,7 +166,7 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         $facts = $this->facts($card, $document);
 
         self::assertTrue($facts->rejectedBefore);
-        self::assertSame(2, $facts->cleanCheckVersion, 'The revision of a changes-requested document is an entry.');
+        self::assertNull($facts->cleanCheckVersion, 'A revision of a changes-requested document is no publish.');
     }
 
     public function test_the_fingerprint_changes_with_each_part_of_the_entry_facts(): void

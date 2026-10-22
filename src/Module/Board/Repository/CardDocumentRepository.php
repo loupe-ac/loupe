@@ -175,7 +175,7 @@ final class CardDocumentRepository extends ServiceEntityRepository
      * newest version, the id of its newest review, whether any version ever got a change request or a withdrawal, and whether the
      * newest review of the newest version withdraws an approval.
      *
-     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, enteredReviewAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, tags: list<string>}>
+     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, publishedAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, tags: list<string>}>
      */
     public function findStatusesAndTagsForCard(Card $card): array
     {
@@ -184,7 +184,7 @@ final class CardDocumentRepository extends ServiceEntityRepository
             'SELECT d.id AS document_id, d.status, d.title, t.name AS tag_name,
                 (SELECT MAX(v.created_at) FROM document_versions v WHERE v.document_id = d.id) AS version_at,
                 (SELECT MAX(v.version_number) FROM document_versions v WHERE v.document_id = d.id) AS version_number,
-                newest.entered_review_at, newest.entry_unanswered_decisions, newest.entry_open_threads,
+                newest.published_at, newest.entry_unanswered_decisions, newest.entry_open_threads,
                 (SELECT r.id FROM reviews r WHERE r.version_id = newest.id ORDER BY r.sequence DESC LIMIT 1) AS newest_review_id,
                 (SELECT r.verdict = \'withdrawn\' AND COALESCE((SELECT p.verdict FROM reviews p WHERE p.version_id = r.version_id AND p.sequence = r.sequence - 1), \'\') = \'approved\'
                     FROM reviews r WHERE r.version_id = newest.id ORDER BY r.sequence DESC LIMIT 1) AS newest_review_withdrew_approval,
@@ -195,7 +195,7 @@ final class CardDocumentRepository extends ServiceEntityRepository
              FROM board_card_documents cd
              JOIN documents d ON d.id = cd.document_id
              LEFT JOIN LATERAL (
-                 SELECT v.id, v.entered_review_at, v.entry_unanswered_decisions, v.entry_open_threads
+                 SELECT v.id, v.published_at, v.entry_unanswered_decisions, v.entry_open_threads
                  FROM document_versions v WHERE v.document_id = d.id ORDER BY v.version_number DESC LIMIT 1
              ) newest ON TRUE
              LEFT JOIN document_tags dt ON dt.document_id = d.id
@@ -210,14 +210,14 @@ final class CardDocumentRepository extends ServiceEntityRepository
         $documents = [];
         foreach ($rows as $row) {
             $documentId = (string) $row['document_id'];
-            $entered = $type->convertToPHPValue($row['entered_review_at'], $platform);
+            $published = $type->convertToPHPValue($row['published_at'], $platform);
             $documents[$documentId] ??= [
                 'id' => $documentId,
                 'status' => (string) $row['status'],
                 'title' => (string) $row['title'],
                 'versionAt' => null === $row['version_at'] ? null : new \DateTimeImmutable((string) $row['version_at']),
                 'version' => null === $row['version_number'] ? null : (int) $row['version_number'],
-                'enteredReviewAt' => $entered instanceof \DateTimeImmutable ? $entered : null,
+                'publishedAt' => $published instanceof \DateTimeImmutable ? $published : null,
                 'entryUnansweredDecisions' => null === $row['entry_unanswered_decisions'] ? null : (int) $row['entry_unanswered_decisions'],
                 'entryOpenThreads' => null === $row['entry_open_threads'] ? null : (int) $row['entry_open_threads'],
                 'newestReviewId' => null === $row['newest_review_id'] ? null : (string) $row['newest_review_id'],
