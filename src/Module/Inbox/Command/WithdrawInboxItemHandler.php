@@ -43,7 +43,7 @@ final readonly class WithdrawInboxItemHandler
     public function __invoke(WithdrawInboxItemCommand $command): InboxItem
     {
         // Loupe opened the item and closes it when the card stops waiting.
-        if (InboxItemKind::Wait === $command->item->kind) {
+        if ($command->item->isAutomatic()) {
             throw new DomainErrors(['itemId' => self::WAIT_NOT_WITHDRAWABLE]);
         }
         if (InboxItemKind::Notice === $command->item->kind) {

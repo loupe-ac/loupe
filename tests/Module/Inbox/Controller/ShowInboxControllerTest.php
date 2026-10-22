@@ -9,7 +9,10 @@ use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -1038,6 +1041,65 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSelectorNotExists('[data-inbox-search-empty]');
     }
 
+    public function test_a_review_ask_names_its_document_and_its_pull_request_in_the_row_and_the_panel(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-review-target');
+        $project = $this->inboxProject($this->em, $owner);
+        $document = new Document($owner, $project, 'Tech design: Inbox asks');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $documentItem = new InboxItem($project, 1, InboxItemKind::Review, 'Please read the design', false, InboxAskOrigin::Agent);
+        $this->seedColumns($project);
+        $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Ship the filter', body: 'Body', number: 1);
+        $pullRequestLink = new CardPullRequest($card, 'https://github.com/example/app/pull/812', Forge::GitHub, 'example/app', 812);
+        $pullRequestItem = new InboxItem($project, 2, InboxItemKind::Review, 'Please check the filter change', false, InboxAskOrigin::Agent);
+        $pullRequest = new ForgePullRequest($project, 'github', 'example/app', 812);
+        $pullRequest->title = 'Fix the board filter';
+        foreach ([$document, $documentItem, $card, $pullRequestLink, $pullRequestItem, $pullRequest] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->persist(new InboxReview($documentItem, $document));
+        $this->em->persist(new InboxReview($pullRequestItem, $pullRequestLink));
+        $this->em->flush();
+        $this->askHolding($this->em, $project, [$documentItem]);
+        $this->askHolding($this->em, $project, [$pullRequestItem]);
+        $this->setInboxFlag(true);
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('a.lp-list-row .lp-list-row__subtitle')->each(static fn ($node): string => $node->text());
+        sort($rows);
+        self::assertSame(['Document "Tech design: Inbox asks"', 'Pull request #812: Fix the board filter'], $rows);
+        self::assertContains($crawler->filter('[data-inbox-review-target]')->text(), $rows);
+    }
+
+    public function test_an_ask_names_the_target_of_a_review_item_that_follows_a_question(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-review-target-second');
+        $project = $this->inboxProject($this->em, $owner);
+        $document = new Document($owner, $project, 'Tech design: Inbox asks');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $question = new InboxItem($project, 1, InboxItemKind::Question, 'Which filter do you want?', false, InboxAskOrigin::Agent);
+        $reviewItem = new InboxItem($project, 2, InboxItemKind::Review, 'Please read the design', false, InboxAskOrigin::Agent);
+        foreach ([$document, $question, $reviewItem] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->persist(new InboxReview($reviewItem, $document));
+        $this->em->flush();
+        $this->askHolding($this->em, $project, [$question, $reviewItem]);
+        $this->setInboxFlag(true);
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Document "Tech design: Inbox asks"', $crawler->filter('a.lp-list-row .lp-list-row__subtitle')->text());
+        self::assertSame('Document "Tech design: Inbox asks"', $crawler->filter('[data-inbox-review-target]')->text());
+    }
+
     public function test_the_page_reads_every_review_in_one_query(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-review-queries');
@@ -1046,7 +1108,7 @@ final class ShowInboxControllerTest extends WebTestCase
         for ($number = 1; $number <= 4; ++$number) {
             $document = new Document($owner, $project, 'Design '.$number);
             $document->addVersion('# Design', '<h1>Design</h1>');
-            $item = new InboxItem($project, $number, InboxItemKind::Review, 'Review design '.$number, false);
+            $item = new InboxItem($project, $number, InboxItemKind::Review, 'Review design '.$number, false, origin: InboxAskOrigin::Agent);
             $this->em->persist($document);
             $this->em->persist($item);
             $this->em->persist(new InboxReview($item, $document));

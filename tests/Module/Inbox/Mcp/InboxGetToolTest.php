@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Mcp;
 
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Mcp\InboxAskTool;
@@ -205,7 +206,7 @@ final class InboxGetToolTest extends KernelTestCase
         ], $read['actions']);
     }
 
-    public function test_a_wait_item_reads_back_with_its_card_its_waits_and_the_loupe_ask(): void
+    public function test_an_automatic_review_item_reads_back_with_its_card_its_waits_and_the_loupe_ask(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-get-wait');
@@ -222,7 +223,8 @@ final class InboxGetToolTest extends KernelTestCase
 
         $item = ($this->tool)((string) $watch->item->id);
 
-        self::assertSame('wait', $item['kind']);
+        self::assertSame('review', $item['kind']);
+        self::assertNull($item['review']);
         self::assertSame('loupe', $item['origin']);
         self::assertSame((string) $card->id, $item['cardId']);
         self::assertCount(2, $item['waits']);
@@ -297,7 +299,7 @@ final class InboxGetToolTest extends KernelTestCase
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-get-notice');
-        $notice = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A bridge rule races the app sync', blocking: false, body: 'Remove it.');
+        $notice = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A bridge rule races the app sync', blocking: false, origin: InboxAskOrigin::Loupe, body: 'Remove it.');
         $this->em->persist($notice);
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($project);

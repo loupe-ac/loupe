@@ -57,7 +57,7 @@ final readonly class CardWaitTrigger
      */
     public function forReviewItems(array $items): void
     {
-        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind));
+        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind && !$item->isAutomatic()));
         $documents = [];
         foreach ($this->inboxReviews->findForItems($reviewItems) as $review) {
             if (null !== $review->document) {
