@@ -1278,34 +1278,77 @@ test('the menu of the last row opens upward', async ({ page }) => {
         .toBeLessThanOrEqual(buttonBox.y);
 });
 
-test('an open row menu follows its button when the panel height animates', async ({
-    page,
-}) => {
+// Samples the gap between the open menu and its button on each frame of the
+// panel's height change, after the widget has placed the menu for that frame.
+const menuGapsWhilePanelGrows = (page: Page) =>
+    page.locator('#lp-panel').evaluate(
+        (panel: HTMLElement) =>
+            new Promise<number[]>((resolve) => {
+                const root = panel.getRootNode() as ShadowRoot;
+                const menu = root.getElementById('lp-menu')!;
+                const button = root.querySelector(
+                    '#lp-list .lp-item [aria-expanded="true"]',
+                )!;
+                const gaps: number[] = [];
+                const watcher = new ResizeObserver(() => {
+                    gaps.push(
+                        button.getBoundingClientRect().top -
+                            menu.getBoundingClientRect().bottom,
+                    );
+                });
+                watcher.observe(panel);
+                const target = panel.offsetHeight + 40;
+                panel.style.height = `${target}px`;
+                // One frame past the target height, so its last sample lands.
+                const settle = (reached: boolean) => {
+                    if (reached && gaps.length) {
+                        watcher.disconnect();
+                        resolve(gaps);
+                        return;
+                    }
+                    const done = panel.offsetHeight === target;
+                    requestAnimationFrame(() => settle(done));
+                };
+                settle(false);
+            }),
+    );
+
+const openFirstRowMenu = async (page: Page) => {
     await openHarness(page);
     await page.getByRole('button', { name: 'Review' }).click();
     await addGeneralNote(page, 'First note', '1');
-
-    const button = page
+    await page
         .locator('#lp-list .lp-item')
         .first()
-        .getByRole('button', { name: 'Note actions' });
+        .getByRole('button', { name: 'Note actions' })
+        .click();
     const menu = page.locator('#lp-menu');
-    await button.click();
     await expect(menu).toBeVisible();
-    const before = (await button.boundingBox())!.y;
-    await page.locator('#lp-panel').evaluate((panel: HTMLElement) => {
-        panel.style.height = `${panel.offsetHeight + 40}px`;
-    });
-    await expect
-        .poll(async () => Math.round((await button.boundingBox())!.y))
-        .toBe(Math.round(before - 40));
-    // An upward menu sits 4px above its button once it settles.
-    await expect
-        .poll(async () => {
-            const menuBox = (await menu.boundingBox())!;
-            return Math.round(before - 40 - (menuBox.y + menuBox.height));
-        })
-        .toBe(4);
+    // The entry animation shifts the menu by a few pixels until it ends.
+    await menu.evaluate((node) =>
+        Promise.all(
+            node.getAnimations().map((animation) => animation.finished),
+        ),
+    );
+};
+
+test('an open row menu follows its button on each frame of the panel height animation', async ({
+    page,
+}) => {
+    await openFirstRowMenu(page);
+    const gaps = await menuGapsWhilePanelGrows(page);
+    // More than one frame proves the height animated.
+    expect(gaps.length).toBeGreaterThan(1);
+    for (const gap of gaps) expect(Math.round(gap)).toBe(4);
+});
+
+test('an open row menu follows its button when reduced motion skips the panel animation', async ({
+    page,
+}) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openFirstRowMenu(page);
+    const gaps = await menuGapsWhilePanelGrows(page);
+    for (const gap of gaps) expect(Math.round(gap)).toBe(4);
 });
 
 test('the header menu holds Move launcher, Sign out and Delete all, with no footer button', async ({
