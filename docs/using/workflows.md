@@ -44,6 +44,17 @@ board. Both shipped templates declare the same seven types, and only Epic has
 children and a lane. Feature is the default type. The **Workflow** page lists
 the types.
 
+The condition `card.type` takes a `types` list of card type keys. It is true
+when the card has any type in the list.
+
+```yaml
+when: { card.type: { types: [epic] } }
+```
+
+The older `type` parameter, which took one key, no longer exists. A template
+rule that still uses `type` fails to load, and the error names the `types`
+list.
+
 The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.

@@ -115,7 +115,7 @@ final class TemplateParserTest extends TestCase
                     'id' => 'start',
                     'slot' => 'build',
                     'when' => ['all' => [
-                        ['card.type' => ['type' => 'feature']],
+                        ['card.type' => ['types' => ['feature']]],
                         ['not' => ['card.blocker.open' => []]],
                     ]],
                     'then' => ['request' => ['kind' => 'implement', 'capability' => 'interactive', 'limit' => 3]],
@@ -233,8 +233,8 @@ final class TemplateParserTest extends TestCase
     public function test_a_type_with_children_may_have_a_rule_that_reads_them(): void
     {
         $template = self::valid();
-        $template['rules'][0]['when'] = ['all' => [['card.type' => ['type' => 'epic']], ['card.children.finished' => []]]];
-        $template['rules'][4]['when'] = ['card.type' => ['type' => 'epic']];
+        $template['rules'][0]['when'] = ['all' => [['card.type' => ['types' => ['epic']]], ['card.children.finished' => []]]];
+        $template['rules'][4]['when'] = ['card.type' => ['types' => ['epic']]];
         $template['rules'][4]['then'] = ['evaluate' => ['cards' => 'children']];
 
         self::assertCount(5, $this->parser->parse($template)->rules);
@@ -244,10 +244,10 @@ final class TemplateParserTest extends TestCase
     {
         $template = self::valid();
         $template['rules'][0]['when'] = ['all' => [
-            ['not' => ['card.type' => ['type' => 'bug']]],
-            ['any' => [['card.type' => ['type' => 'bug']], ['card.children.finished' => []]]],
+            ['not' => ['card.type' => ['types' => ['bug']]]],
+            ['any' => [['card.type' => ['types' => ['bug']]], ['card.children.finished' => []]]],
         ]];
-        $template['rules'][4]['when'] = ['all' => [['not' => ['card.type' => ['type' => 'bug']]]]];
+        $template['rules'][4]['when'] = ['all' => [['not' => ['card.type' => ['types' => ['bug']]]]]];
         $template['rules'][4]['then'] = ['evaluate' => ['cards' => 'children']];
 
         self::assertCount(5, $this->parser->parse($template)->rules);
@@ -257,9 +257,9 @@ final class TemplateParserTest extends TestCase
     {
         $template = self::valid();
         $template['rules'][0]['when'] = ['all' => [
-            ['card.type' => ['type' => 'epic']],
+            ['card.type' => ['types' => ['epic']]],
             ['card.children.finished' => []],
-            ...array_fill(0, 30, ['any' => [['pr.open' => []], ['card.type' => ['type' => 'epic']]]]),
+            ...array_fill(0, 30, ['any' => [['pr.open' => []], ['card.type' => ['types' => ['epic']]]]]),
         ]];
 
         self::assertCount(5, $this->parser->parse($template)->rules);
@@ -268,8 +268,8 @@ final class TemplateParserTest extends TestCase
     public function test_a_pause_until_that_reads_children_only_for_epics_allows_a_rule_that_also_matches_bugs(): void
     {
         $template = self::valid();
-        $template['rules'][3]['when'] = ['any' => [['card.type' => ['type' => 'bug']], ['card.type' => ['type' => 'epic']]]];
-        $template['rules'][3]['then']['pause']['until'] = ['all' => [['card.type' => ['type' => 'epic']], ['card.children.finished' => []]]];
+        $template['rules'][3]['when'] = ['any' => [['card.type' => ['types' => ['bug']]], ['card.type' => ['types' => ['epic']]]]];
+        $template['rules'][3]['then']['pause']['until'] = ['all' => [['card.type' => ['types' => ['epic']]], ['card.children.finished' => []]]];
 
         self::assertCount(5, $this->parser->parse($template)->rules);
     }
@@ -278,8 +278,8 @@ final class TemplateParserTest extends TestCase
     {
         $template = self::valid();
         $template['rules'][0]['when'] = ['all' => [
-            ['card.type' => ['type' => 'bug']],
-            ['any' => [['pr.open' => []], ['all' => [['card.type' => ['type' => 'epic']], ['card.children.finished' => []]]]]],
+            ['card.type' => ['types' => ['bug']]],
+            ['any' => [['pr.open' => []], ['all' => [['card.type' => ['types' => ['epic']]], ['card.children.finished' => []]]]]],
         ]];
 
         self::assertCount(5, $this->parser->parse($template)->rules);
@@ -827,22 +827,22 @@ final class TemplateParserTest extends TestCase
             return $t;
         }, 'types[1] (a-type-key-of-21-char): "key" must have at most 20 characters'];
         yield 'card type condition naming an undeclared type' => [static function (array $t): array {
-            $t['rules'][0]['when']['all'][0] = ['card.type' => ['type' => 'chore']];
+            $t['rules'][0]['when']['all'][0] = ['card.type' => ['types' => ['chore']]];
 
             return $t;
         }, 'rules[0] (start) when.all[0]: card.type: unknown type "chore"'];
         yield 'pause until naming an undeclared type' => [static function (array $t): array {
-            $t['rules'][3]['then']['pause']['until'] = ['card.type' => ['type' => 'chore']];
+            $t['rules'][3]['then']['pause']['until'] = ['card.type' => ['types' => ['chore']]];
 
             return $t;
         }, 'rules[3] (wait) then.pause.until: card.type: unknown type "chore"'];
         yield 'request refill naming an undeclared type' => [static function (array $t): array {
-            $t['rules'][0]['then']['request']['refill'] = ['card.type' => ['type' => 'chore']];
+            $t['rules'][0]['then']['request']['refill'] = ['card.type' => ['types' => ['chore']]];
 
             return $t;
         }, 'rules[0] (start) then.request.refill: card.type: unknown type "chore"'];
         yield 'request cancel when naming an undeclared type' => [static function (array $t): array {
-            $t['rules'][0]['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'chore']];
+            $t['rules'][0]['then']['request']['cancelWhen'] = ['card.type' => ['types' => ['chore']]];
 
             return $t;
         }, 'rules[0] (start) then.request.cancelWhen: card.type: unknown type "chore"'];
@@ -856,58 +856,83 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[5] (publish) then.publish-documents: missing parameter "tags"'];
+        yield 'card type condition with the old single type key' => [static function (array $t): array {
+            $t['rules'][0]['when']['all'][0] = ['card.type' => ['type' => 'epic']];
+
+            return $t;
+        }, 'rules[0] (start) when.all[0]: card.type: parameter "type" is gone, use the "types" list'];
+        yield 'card type condition with a list entry that is an undeclared type' => [static function (array $t): array {
+            $t['rules'][0]['when']['all'][0] = ['card.type' => ['types' => ['bug', 'chore']]];
+
+            return $t;
+        }, 'rules[0] (start) when.all[0]: card.type: unknown type "chore"'];
+        yield 'card type condition with an empty list' => [static function (array $t): array {
+            $t['rules'][0]['when']['all'][0] = ['card.type' => ['types' => []]];
+
+            return $t;
+        }, 'rules[0] (start) when.all[0]: card.type: parameter "types" must be a non-empty list of non-empty strings'];
+        yield 'card type condition with a string where the list goes' => [static function (array $t): array {
+            $t['rules'][0]['when']['all'][0] = ['card.type' => ['types' => 'epic']];
+
+            return $t;
+        }, 'rules[0] (start) when.all[0]: card.type: parameter "types" must be a non-empty list of non-empty strings'];
+        yield 'rule reading the children of one type in a list without children' => [static function (array $t): array {
+            $t['rules'][0]['when'] = ['all' => [['card.type' => ['types' => ['epic', 'bug']]], ['card.children.finished' => []]]];
+
+            return $t;
+        }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'rule reading the children of a type without children' => [static function (array $t): array {
-            $t['rules'][0]['when'] = ['all' => [['card.type' => ['type' => 'bug']], ['card.children.finished' => []]]];
+            $t['rules'][0]['when'] = ['all' => [['card.type' => ['types' => ['bug']]], ['card.children.finished' => []]]];
 
             return $t;
         }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'nested all reading the children of a type without children' => [static function (array $t): array {
-            $t['rules'][1]['when']['any'][] = ['all' => [['card.children.finished' => []], ['card.type' => ['type' => 'feature']]]];
+            $t['rules'][1]['when']['any'][] = ['all' => [['card.children.finished' => []], ['card.type' => ['types' => ['feature']]]]];
 
             return $t;
         }, 'rules[1] (to-review): the type "feature" may not have children, but the rule reads them'];
         yield 'all inside all reading the children of a type without children' => [static function (array $t): array {
-            $t['rules'][0]['when'] = ['all' => [['card.type' => ['type' => 'bug']], ['all' => [['card.children.finished' => []]]]]];
+            $t['rules'][0]['when'] = ['all' => [['card.type' => ['types' => ['bug']]], ['all' => [['card.children.finished' => []]]]]];
 
             return $t;
         }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'any branch reading the children of the type around it' => [static function (array $t): array {
-            $t['rules'][0]['when'] = ['all' => [['card.type' => ['type' => 'bug']], ['any' => [['card.children.finished' => []], ['pr.open' => []]]]]];
+            $t['rules'][0]['when'] = ['all' => [['card.type' => ['types' => ['bug']]], ['any' => [['card.children.finished' => []], ['pr.open' => []]]]]];
 
             return $t;
         }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'any branch naming a type that the list around it reads the children of' => [static function (array $t): array {
-            $t['rules'][0]['when'] = ['all' => [['card.children.finished' => []], ['any' => [['card.type' => ['type' => 'bug']], ['pr.open' => []]]]]];
+            $t['rules'][0]['when'] = ['all' => [['card.children.finished' => []], ['any' => [['card.type' => ['types' => ['bug']]], ['pr.open' => []]]]]];
 
             return $t;
         }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'two sibling any lists, one naming the type and one reading the children' => [static function (array $t): array {
             $t['rules'][0]['when'] = ['all' => [
-                ['any' => [['card.type' => ['type' => 'bug']], ['pr.open' => []]]],
+                ['any' => [['card.type' => ['types' => ['bug']]], ['pr.open' => []]]],
                 ['any' => [['card.children.finished' => []], ['pr.open' => []]]],
             ]];
 
             return $t;
         }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'negated child read beside a type without children' => [static function (array $t): array {
-            $t['rules'][0]['when'] = ['all' => [['card.type' => ['type' => 'bug']], ['not' => ['card.children.finished' => []]]]];
+            $t['rules'][0]['when'] = ['all' => [['card.type' => ['types' => ['bug']]], ['not' => ['card.children.finished' => []]]]];
 
             return $t;
         }, 'rules[0] (start): the type "bug" may not have children, but the rule reads them'];
         yield 'pause until reading the children of a type without children' => [static function (array $t): array {
-            $t['rules'][3]['when'] = ['card.type' => ['type' => 'bug']];
+            $t['rules'][3]['when'] = ['card.type' => ['types' => ['bug']]];
             $t['rules'][3]['then']['pause']['until'] = ['card.children.finished' => []];
 
             return $t;
         }, 'rules[3] (wait): the type "bug" may not have children, but the rule reads them'];
         yield 'when reading the children of a type without children beside an until for another type' => [static function (array $t): array {
-            $t['rules'][3]['when'] = ['all' => [['card.type' => ['type' => 'bug']], ['card.children.finished' => []]]];
-            $t['rules'][3]['then']['pause']['until'] = ['card.type' => ['type' => 'epic']];
+            $t['rules'][3]['when'] = ['all' => [['card.type' => ['types' => ['bug']]], ['card.children.finished' => []]]];
+            $t['rules'][3]['then']['pause']['until'] = ['card.type' => ['types' => ['epic']]];
 
             return $t;
         }, 'rules[3] (wait): the type "bug" may not have children, but the rule reads them'];
         yield 'evaluate of the children of a type without children' => [static function (array $t): array {
-            $t['rules'][4]['when'] = ['card.type' => ['type' => 'bug']];
+            $t['rules'][4]['when'] = ['card.type' => ['types' => ['bug']]];
             $t['rules'][4]['then'] = ['evaluate' => ['cards' => 'children']];
 
             return $t;
@@ -1624,7 +1649,7 @@ final class TemplateParserTest extends TestCase
     /** @return iterable<string, array{array<string, mixed>}> */
     public static function cardSubjectConditions(): iterable
     {
-        yield 'no leaf names a thing' => [['card.type' => ['type' => 'bug']]];
+        yield 'no leaf names a thing' => [['card.type' => ['types' => ['bug']]]];
         yield 'no leaf at all' => [['all' => []]];
         yield 'two subject types' => [['any' => [['pr.open' => []], ['card.paused' => []]]]];
     }
@@ -1632,7 +1657,7 @@ final class TemplateParserTest extends TestCase
     public function test_a_listed_marker_whose_named_fact_names_a_pull_request_is_accepted(): void
     {
         $source = self::valid() + [
-            'facts' => ['open-and-bug' => ['all' => [['pr.open' => []], ['card.type' => ['type' => 'bug']]]]],
+            'facts' => ['open-and-bug' => ['all' => [['pr.open' => []], ['card.type' => ['types' => ['bug']]]]]],
             'markers' => [['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['fact.open-and-bug' => []]]],
             'inbox' => ['a'],
         ];
@@ -1643,7 +1668,7 @@ final class TemplateParserTest extends TestCase
     public function test_a_listed_marker_whose_named_fact_names_no_thing_is_refused(): void
     {
         $source = self::valid() + [
-            'facts' => ['bug' => ['card.type' => ['type' => 'bug']]],
+            'facts' => ['bug' => ['card.type' => ['types' => ['bug']]]],
             'markers' => [['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['fact.bug' => []]]],
             'inbox' => ['a'],
         ];
@@ -1793,7 +1818,7 @@ final class TemplateParserTest extends TestCase
     public function test_a_named_fact_that_names_a_card_type_still_checks_the_children_rule(): void
     {
         $template = self::valid();
-        $template['facts'] = ['bug' => ['card.type' => ['type' => 'bug']]];
+        $template['facts'] = ['bug' => ['card.type' => ['types' => ['bug']]]];
         $template['rules'][0]['when'] = ['all' => [['fact.bug' => []], ['card.children.finished' => []]]];
 
         try {

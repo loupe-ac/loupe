@@ -7,9 +7,11 @@ namespace App\Module\Workflow\Contract;
 interface ReadsCardType
 {
     /**
-     * The card type the condition reads.
+     * The card types the condition reads. The condition holds for a card of any of them.
      *
      * @param array<string, mixed> $params
+     *
+     * @return list<string>
      */
-    public function cardType(array $params): string;
+    public function cardType(array $params): array;
 }

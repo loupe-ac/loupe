@@ -13,6 +13,7 @@ final readonly class Parameter
      * @param ?string       $pattern     the regular expression a string parameter matches, or null for any
      * @param ?string       $patternHint what the error says about the pattern
      * @param ?string       $needs       the name of the parameter that this one cannot be given without
+     * @param ?string       $formerName  the name this parameter replaced, which a template can no longer use
      */
     public function __construct(
         public string $name,
@@ -24,6 +25,7 @@ final readonly class Parameter
         public ?string $pattern = null,
         public ?string $patternHint = null,
         public ?string $needs = null,
+        public ?string $formerName = null,
     ) {
     }
 }

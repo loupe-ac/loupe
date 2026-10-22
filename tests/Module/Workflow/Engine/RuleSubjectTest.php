@@ -67,7 +67,7 @@ final class RuleSubjectTest extends TestCase
         $primary = FactsMother::pullRequest(id: Uuid::v7());
         $facts = FactsMother::facts(card: FactsMother::card(type: 'epic'), pullRequest: $primary, pullRequests: [$first, $primary]);
 
-        $bound = new RuleSubject()->bind(self::rule(new ConditionLeaf(new CardHasType(), ['type' => 'epic'])), $facts);
+        $bound = new RuleSubject()->bind(self::rule(new ConditionLeaf(new CardHasType(), ['types' => ['epic']])), $facts);
 
         self::assertTrue($bound->truth);
         self::assertFalse($bound->binds);

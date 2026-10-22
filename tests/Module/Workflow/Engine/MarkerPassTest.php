@@ -66,7 +66,7 @@ final class MarkerPassTest extends KernelTestCase
     {
         self::bootKernel();
         $template = $this->markerTemplate([
-            self::marker('busy', 'working', ['card.type' => ['type' => 'bug']]),
+            self::marker('busy', 'working', ['card.type' => ['types' => ['bug']]]),
             self::marker('quiet', 'stuck', self::ALWAYS, fallback: true),
             self::marker('chip', 'chip', self::ALWAYS),
         ]);
@@ -172,7 +172,7 @@ final class MarkerPassTest extends KernelTestCase
     public function test_the_stored_time_of_the_same_key_is_kept_else_the_pass_time_counts(): void
     {
         self::bootKernel();
-        $template = $this->markerTemplate([self::marker('bug', 'waiting', ['card.type' => ['type' => 'bug']])]);
+        $template = $this->markerTemplate([self::marker('bug', 'waiting', ['card.type' => ['types' => ['bug']]])]);
         $facts = FactsMother::facts(card: FactsMother::card(type: 'bug'));
         $storedAt = new \DateTimeImmutable('2026-10-01 10:00:00');
 
@@ -364,7 +364,7 @@ final class MarkerPassTest extends KernelTestCase
     public function test_a_marker_with_no_subject_leaf_gets_the_card_as_its_thing_for_one_spell(): void
     {
         self::bootKernel();
-        $template = $this->markerTemplate([self::marker('bug', 'waiting', ['card.type' => ['type' => 'bug']])], ['bug']);
+        $template = $this->markerTemplate([self::marker('bug', 'waiting', ['card.type' => ['types' => ['bug']]])], ['bug']);
         $facts = FactsMother::facts(card: FactsMother::card(type: 'bug'));
 
         $this->pass($template, $facts);
@@ -430,7 +430,7 @@ final class MarkerPassTest extends KernelTestCase
     {
         self::bootKernel();
         $template = $this->markerTemplate([
-            self::marker('busy', 'working', ['card.type' => ['type' => 'bug']]),
+            self::marker('busy', 'working', ['card.type' => ['types' => ['bug']]]),
             self::marker('quiet', 'stuck', self::ALWAYS, fallback: true),
             self::marker('later', 'stuck', self::ALWAYS, fallback: true),
             self::marker('chip', 'chip', self::ALWAYS),

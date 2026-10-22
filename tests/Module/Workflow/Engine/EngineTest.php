@@ -152,7 +152,7 @@ final class EngineTest extends KernelTestCase
 
     private const array ALWAYS = ['all' => []];
 
-    private const array NOT_EPIC = ['not' => ['card.type' => ['type' => 'epic']]];
+    private const array NOT_EPIC = ['not' => ['card.type' => ['types' => ['epic']]]];
 
     private const array PROVIDED_READY = [ProvidedFactsReady::KEY => []];
 
@@ -237,7 +237,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([
             self::requestRule('review', self::ALWAYS, kind: 'fix'),
-            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['types' => ['bug']]], kind: 'fix'),
         ]);
         $this->evaluate($card);
         $review = $this->liveRequestOfKind($card, 'fix');
@@ -257,7 +257,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_rule_whose_own_request_settles_right_after_the_answer_fires_no_second_request(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]])]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $own = $this->liveRequests($card)[0];
@@ -293,7 +293,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_retry_that_joins_another_rules_live_request_counts_its_refusal_once(): void
     {
         $card = $this->boundCard([
-            self::requestRule('review', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('review', ['card.type' => ['types' => ['bug']]], kind: 'fix'),
             self::requestRule('checks', self::ALWAYS, kind: 'fix'),
         ], onWorkFailed: self::RETRY_ONCE);
         $this->evaluate($card);
@@ -318,7 +318,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_rule_that_finds_its_own_request_live_fires_no_second_request_when_it_ends(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]])]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->setType($card, 'feature');
@@ -730,7 +730,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_work_limit_pause_ends_when_a_resumed_run_reports(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->setType($card, 'feature');
@@ -822,7 +822,7 @@ final class EngineTest extends KernelTestCase
             'id' => 'hold',
             'slot' => 'one',
             'when' => self::ALWAYS,
-            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'bug']]]],
+            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['bug']]]]],
         ]]);
         $this->evaluate($card);
         $pause = $this->activePause($card);
@@ -1025,7 +1025,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_the_failure_of_a_resumed_worker_does_not_count_after_the_rule_turned_false_and_true_again(): void
     {
-        $card = $this->twoRuleCard(ruleBWhen: ['card.type' => ['type' => 'bug']]);
+        $card = $this->twoRuleCard(ruleBWhen: ['card.type' => ['types' => ['bug']]]);
         $this->setType($card, 'bug');
         $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
         $this->evaluate($card, '2026-10-02 12:21:00');
@@ -1171,8 +1171,8 @@ final class EngineTest extends KernelTestCase
             [
                 'id' => 'hold',
                 'slot' => 'one',
-                'when' => ['card.type' => ['type' => 'bug']],
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'security']]]],
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['security']]]]],
             ],
             self::requestRule('work', self::ALWAYS),
         ], onWorkFailed: ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10, 60]]);
@@ -1494,7 +1494,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_live_request_is_cancelled_when_its_cancel_when_holds(): void
     {
         $rule = self::requestRule('work', self::ALWAYS);
-        $rule['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'epic']];
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['types' => ['epic']]];
         $card = $this->boundCard([$rule]);
         $this->evaluate($card);
         $request = $this->liveRequestOfKind($card, 'work');
@@ -1508,7 +1508,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_live_request_stays_when_its_rule_turns_false_and_its_cancel_when_does_not_hold(): void
     {
         $rule = self::requestRule('work', self::NOT_EPIC);
-        $rule['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'bug']];
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['types' => ['bug']]];
         $card = $this->boundCard([$rule]);
         $this->evaluate($card);
         $request = $this->liveRequestOfKind($card, 'work');
@@ -1700,7 +1700,7 @@ final class EngineTest extends KernelTestCase
             'id' => 'hold',
             'slot' => 'one',
             'when' => self::ALWAYS,
-            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'bug']]]],
+            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['bug']]]]],
         ]]);
 
         $this->evaluate($card);
@@ -1720,7 +1720,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_the_request_limit_pauses_and_the_work_limit_pause_stays_until_the_card_leaves_the_slot(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->setType($card, 'feature');
@@ -1871,7 +1871,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_work_limit_pause_that_a_person_releases_lets_the_rule_request_work_again(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->finish($this->liveRequests($card)[0]);
@@ -1924,12 +1924,12 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_rule_that_was_true_before_the_pause_still_releases_it(): void
     {
         $card = $this->boundCard([
-            ['id' => 'unhold', 'when' => ['card.type' => ['type' => 'bug']], 'then' => ['release' => ['reason' => 'on-hold']]],
+            ['id' => 'unhold', 'when' => ['card.type' => ['types' => ['bug']]], 'then' => ['release' => ['reason' => 'on-hold']]],
             [
                 'id' => 'hold',
                 'slot' => 'one',
-                'when' => ['card.type' => ['type' => 'bug']],
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'epic']]]],
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
             ],
         ]);
         $this->setType($card, 'bug');
@@ -1945,15 +1945,15 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_second_release_rule_does_not_fire_after_the_first_lifts_the_pause(): void
     {
-        $unhold = static fn (string $id): array => ['id' => $id, 'when' => ['card.type' => ['type' => 'bug']], 'then' => ['release' => ['reason' => 'on-hold']]];
+        $unhold = static fn (string $id): array => ['id' => $id, 'when' => ['card.type' => ['types' => ['bug']]], 'then' => ['release' => ['reason' => 'on-hold']]];
         $card = $this->boundCard([
             $unhold('unhold-a'),
             $unhold('unhold-b'),
             [
                 'id' => 'hold',
                 'slot' => 'one',
-                'when' => ['card.type' => ['type' => 'bug']],
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'epic']]]],
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
             ],
         ]);
         $this->setType($card, 'bug');
@@ -1969,8 +1969,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_pause_ends_the_evaluation_before_the_release_check_and_any_move(): void
     {
         $card = $this->boundCard([
-            self::requestRule('work', ['card.type' => ['type' => 'bug']]),
-            self::moveRule('advance', 'two', ['card.type' => ['type' => 'feature']]),
+            self::requestRule('work', ['card.type' => ['types' => ['bug']]]),
+            self::moveRule('advance', 'two', ['card.type' => ['types' => ['feature']]]),
         ]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
@@ -1987,7 +1987,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_request_that_is_already_live_does_not_count_toward_the_limit(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 2)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 2)]);
         foreach (['bug', 'feature', 'bug', 'feature', 'bug'] as $type) {
             $this->setType($card, $type);
             $this->evaluate($card);
@@ -2228,7 +2228,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_work_limit_pause_released_from_a_hold_stays_on_the_same_pull_request(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->finish($this->liveRequests($card)[0]);
@@ -2369,10 +2369,10 @@ final class EngineTest extends KernelTestCase
                 'id' => 'hold',
                 'slot' => 'one',
                 'when' => self::ALWAYS,
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'epic']]]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
             ],
             self::requestRule('work', self::ALWAYS),
-            ['id' => 'unhold', 'when' => ['card.type' => ['type' => 'bug']], 'then' => ['release' => ['reason' => 'on-hold']]],
+            ['id' => 'unhold', 'when' => ['card.type' => ['types' => ['bug']]], 'then' => ['release' => ['reason' => 'on-hold']]],
         ];
     }
 
@@ -2537,7 +2537,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([
             self::requestRule('work', self::ALWAYS),
-            self::requestRule('fix', ['card.type' => ['type' => 'bug']]),
+            self::requestRule('fix', ['card.type' => ['types' => ['bug']]]),
             self::moveRule('stuck', 'three', self::NOT_EPIC),
         ]);
         $this->hold($card);
@@ -2781,7 +2781,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_card_whose_board_automation_is_off_fires_nothing_and_turning_it_on_again_is_quiet(): void
     {
-        $card = $this->boundCard([self::requestRule('work', self::ALWAYS), self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS), self::requestRule('fix', ['card.type' => ['types' => ['bug']]])]);
         $this->saveAutomation($card, false);
 
         $this->evaluate($card);
@@ -4450,7 +4450,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([
             self::requestRule('review', self::ALWAYS, kind: 'fix'),
-            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['types' => ['bug']]], kind: 'fix'),
         ]);
         $this->evaluate($card);
         $review = $this->liveRequestOfKind($card, 'fix');

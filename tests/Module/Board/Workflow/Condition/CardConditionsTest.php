@@ -49,8 +49,10 @@ final class CardConditionsTest extends TestCase
     /** @return iterable<string, array{Condition, array<string, mixed>, Facts, bool}> */
     public static function cases(): iterable
     {
-        yield 'type, same type' => [new CardHasType(), ['type' => 'epic'], self::card(type: 'epic'), true];
-        yield 'type, other type' => [new CardHasType(), ['type' => 'epic'], self::card(type: 'feature'), false];
+        yield 'type, same type' => [new CardHasType(), ['types' => ['epic']], self::card(type: 'epic'), true];
+        yield 'type, other type' => [new CardHasType(), ['types' => ['epic']], self::card(type: 'feature'), false];
+        yield 'type, one of two' => [new CardHasType(), ['types' => ['bug', 'epic']], self::card(type: 'epic'), true];
+        yield 'type, none of two' => [new CardHasType(), ['types' => ['bug', 'epic']], self::card(type: 'feature'), false];
 
         yield 'open blocker' => [new CardHasOpenBlocker(), [], self::card(hasOpenBlocker: true), true];
         yield 'no open blocker' => [new CardHasOpenBlocker(), [], self::card(hasOpenBlocker: false), false];
@@ -131,7 +133,8 @@ final class CardConditionsTest extends TestCase
     /** @return iterable<string, array{Condition, array<string, mixed>, string, array<string, string>}> */
     public static function waiting(): iterable
     {
-        yield 'card.type' => [new CardHasType(), ['type' => 'epic'], 'workflow.waiting.card_type', ['%type%' => 'epic']];
+        yield 'card.type' => [new CardHasType(), ['types' => ['epic']], 'workflow.waiting.card_type', ['%type%' => 'epic']];
+        yield 'card.type, two types' => [new CardHasType(), ['types' => ['bug', 'epic']], 'workflow.waiting.card_type', ['%type%' => 'bug or epic']];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], 'workflow.waiting.card_has_open_blocker', []];
         yield 'card.parent.epic_branch.synced' => [new CardParentEpicBranchSynced(), [], 'workflow.waiting.card_parent_epic_branch_synced', []];
         yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], 'workflow.waiting.card_has_closed_blocker', []];
@@ -168,7 +171,7 @@ final class CardConditionsTest extends TestCase
 
     public function test_the_type_condition_names_the_type_it_reads(): void
     {
-        self::assertSame('epic', new CardHasType()->cardType(['type' => 'epic']));
+        self::assertSame(['epic', 'bug'], new CardHasType()->cardType(['types' => ['epic', 'bug']]));
     }
 
     /**
@@ -184,7 +187,7 @@ final class CardConditionsTest extends TestCase
     /** @return iterable<string, array{Condition, array<string, mixed>, list<EngineFact|class-string>}> */
     public static function reads(): iterable
     {
-        yield 'card.type' => [new CardHasType(), ['type' => 'epic'], [CardTypeFacts::class]];
+        yield 'card.type' => [new CardHasType(), ['types' => ['epic']], [CardTypeFacts::class]];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], [BlockerFacts::class]];
         yield 'card.parent.epic_branch.synced' => [new CardParentEpicBranchSynced(), [], [EpicBranchSyncFacts::class]];
         yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], [BlockerFacts::class]];

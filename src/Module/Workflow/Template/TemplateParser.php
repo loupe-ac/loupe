@@ -420,9 +420,12 @@ final readonly class TemplateParser
 
             return $ways;
         }
-        $type = $expression instanceof ConditionLeaf && $expression->condition instanceof ReadsCardType ? $expression->condition->cardType($expression->params) : null;
+        $readsChildren = array_any($expression->reads(), static fn (EngineFact|string $read): bool => \is_string($read) && is_a($read, ChildFacts::class, true));
+        if (!$expression instanceof ConditionLeaf || !$expression->condition instanceof ReadsCardType) {
+            return self::typeRead(null, $readsChildren);
+        }
 
-        return self::typeRead($type, array_any($expression->reads(), static fn (EngineFact|string $read): bool => \is_string($read) && is_a($read, ChildFacts::class, true)));
+        return array_merge(...array_map(static fn (string $type): array => self::typeRead($type, $readsChildren), $expression->condition->cardType($expression->params)));
     }
 
     /** @return array<string, array{?string, bool}> */
@@ -858,7 +861,7 @@ final readonly class TemplateParser
         foreach ($condition::parameters() as $parameter) {
             $declared[] = $parameter->name;
             if (!\array_key_exists($parameter->name, $value)) {
-                if ($parameter->required) {
+                if ($parameter->required && (null === $parameter->formerName || !\array_key_exists($parameter->formerName, $value))) {
                     $errors[] = \sprintf('%s: missing parameter "%s"', $where, $parameter->name);
                 }
                 continue;
@@ -877,6 +880,9 @@ final readonly class TemplateParser
                     !self::isColumn($param, $slotKeys, false) => \sprintf('unknown slot "%s"', $param),
                     default => null,
                 },
+                ParameterType::List => \is_array($param) && [] !== $param && array_is_list($param) && array_all($param, static fn (mixed $entry): bool => \is_string($entry) && '' !== $entry)
+                    ? null
+                    : \sprintf('parameter "%s" must be a non-empty list of non-empty strings', $parameter->name),
                 default => throw new \LogicException(\sprintf('The condition "%s" declares the parameter "%s" with a type that only an action takes.', $key, $parameter->name)),
             };
             if (null !== $error) {
@@ -886,11 +892,18 @@ final readonly class TemplateParser
         }
         foreach (array_keys($value) as $name) {
             if (!\in_array($name, $declared, true)) {
-                $errors[] = \sprintf('%s: unknown parameter "%s"', $where, $name);
+                $current = array_find($condition::parameters(), static fn (Parameter $parameter): bool => $parameter->formerName === $name);
+                $errors[] = null === $current
+                    ? \sprintf('%s: unknown parameter "%s"', $where, $name)
+                    : \sprintf('%s: parameter "%s" is gone, use the "%s" list', $where, $name, $current->name);
             }
         }
-        if (\count($errors) === $errorCount && null !== $types && $condition instanceof ReadsCardType && !isset($types[$condition->cardType($params)])) {
-            $errors[] = \sprintf('%s: unknown type "%s"', $where, $condition->cardType($params));
+        if (\count($errors) === $errorCount && null !== $types && $condition instanceof ReadsCardType) {
+            foreach ($condition->cardType($params) as $type) {
+                if (!isset($types[$type])) {
+                    $errors[] = \sprintf('%s: unknown type "%s"', $where, $type);
+                }
+            }
         }
 
         return \count($errors) === $errorCount ? new ConditionLeaf($condition, $params) : null;

@@ -30,7 +30,7 @@ final readonly class CardHasType implements Condition, ReadsCardType
     #[\Override]
     public static function parameters(): array
     {
-        return [new Parameter('type', ParameterType::String)];
+        return [new Parameter('types', ParameterType::List, formerName: 'type')];
     }
 
     #[\Override]
@@ -42,18 +42,18 @@ final readonly class CardHasType implements Condition, ReadsCardType
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return ParameterValue::string($params, 'type') === $facts->get(CardTypeFacts::class)->type;
+        return \in_array($facts->get(CardTypeFacts::class)->type, ParameterValue::strings($params, 'types'), true);
     }
 
     #[\Override]
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
-        return new TranslatableMessage($negated ? 'workflow.waiting.not.card_type' : 'workflow.waiting.card_type', ['%type%' => ParameterValue::string($params, 'type')]);
+        return new TranslatableMessage($negated ? 'workflow.waiting.not.card_type' : 'workflow.waiting.card_type', ['%type%' => implode(' or ', ParameterValue::strings($params, 'types'))]);
     }
 
     #[\Override]
-    public function cardType(array $params): string
+    public function cardType(array $params): array
     {
-        return ParameterValue::string($params, 'type');
+        return ParameterValue::strings($params, 'types');
     }
 }

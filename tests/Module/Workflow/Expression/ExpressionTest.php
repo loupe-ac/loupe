@@ -35,7 +35,7 @@ final class ExpressionTest extends TestCase
 {
     public function test_a_leaf_evaluates_its_condition_with_its_parameters(): void
     {
-        $epic = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $epic = new ConditionLeaf(new CardHasType(), ['types' => ['epic']]);
 
         self::assertTrue($epic->evaluate(FactsMother::facts(card: FactsMother::card(type: 'epic'))));
         self::assertFalse($epic->evaluate(FactsMother::facts()));
@@ -181,7 +181,7 @@ final class ExpressionTest extends TestCase
 
     public function test_a_leaf_reads_what_its_condition_reads(): void
     {
-        self::assertSame([CardTypeFacts::class], new ConditionLeaf(new CardHasType(), ['type' => 'epic'])->reads());
+        self::assertSame([CardTypeFacts::class], new ConditionLeaf(new CardHasType(), ['types' => ['epic']])->reads());
     }
 
     public function test_a_composite_reads_the_keys_of_its_children_once_in_first_seen_order(): void
@@ -289,7 +289,7 @@ final class ExpressionTest extends TestCase
     {
         $child = new ConditionLeaf(new CardParentExists(), []);
         $blocker = new ConditionLeaf(new CardHasOpenBlocker(), []);
-        $epic = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $epic = new ConditionLeaf(new CardHasType(), ['types' => ['epic']]);
         $all = new AllOf([$child, $blocker, $epic]);
 
         self::assertSame(3, $all->countAgainst(FactsMother::facts(), true));
@@ -331,7 +331,7 @@ final class ExpressionTest extends TestCase
     {
         $child = new ConditionLeaf(new CardParentExists(), []);
         $blocker = new ConditionLeaf(new CardHasOpenBlocker(), []);
-        $epic = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $epic = new ConditionLeaf(new CardHasType(), ['types' => ['epic']]);
         $expression = new AllOf([$epic, new AnyOf([new AllOf([$child, $blocker]), new Not($blocker)]), new Not($blocker)]);
         $facts = FactsMother::facts(card: FactsMother::card(hasOpenBlocker: true));
 
@@ -363,7 +363,7 @@ final class ExpressionTest extends TestCase
 
     public function test_the_required_leaves_are_the_leaves_that_must_be_true(): void
     {
-        $first = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $first = new ConditionLeaf(new CardHasType(), ['types' => ['epic']]);
         $second = new ConditionLeaf(new CardParentExists(), []);
         $third = new ConditionLeaf(new CardHasOpenBlocker(), []);
 
@@ -399,7 +399,7 @@ final class ExpressionTest extends TestCase
     public function test_a_named_fact_answers_as_its_expression_does(): void
     {
         $open = new ConditionLeaf(new CardHasOpenBlocker(), []);
-        $epic = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $epic = new ConditionLeaf(new CardHasType(), ['types' => ['epic']]);
         $inner = new AllOf([$epic, new Not($open)]);
         $named = new NamedFact('epic-unblocked', $inner);
         $facts = FactsMother::facts(card: FactsMother::card(type: 'epic'));
