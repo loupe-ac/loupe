@@ -63,6 +63,7 @@ final class ShowAboutControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('#about-community', 'Community');
         self::assertSelectorExists('.lp-about-item a[href="https://discord.gg/loupe"][target="_blank"][rel="noopener noreferrer"]');
+        self::assertCount(1, $client->getCrawler()->filter('section[aria-labelledby="about-community"] svg'), 'The card shows one Discord glyph, and its button holds text only.');
     }
 
     public function test_the_community_card_is_hidden_while_the_discord_flag_is_empty(): void

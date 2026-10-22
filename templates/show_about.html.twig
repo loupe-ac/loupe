@@ -50,10 +50,7 @@
             <div class="lp-about-card__main">
                 <h2 class="lp-about-card__title" id="about-community">{{ 'about.community.heading'|trans }}</h2>
                 <p class="lp-about-card__text">{{ 'about.community.body'|trans }}</p>
-                <twig:Ds:Button href="{{ site_discord_url() }}" class="lp-about-card__action" target="_blank" rel="noopener noreferrer">
-                    <twig:ux:icon name="simple-icons:discord" class="lp-icon lp-icon--sm" />
-                    <span>{{ 'about.community.button'|trans }}</span>
-                </twig:Ds:Button>
+                <twig:Ds:Button href="{{ site_discord_url() }}" class="lp-about-card__action" target="_blank" rel="noopener noreferrer">{{ 'about.community.button'|trans }}</twig:Ds:Button>
             </div>
         </twig:Ds:Panel>
         {% endif %}
