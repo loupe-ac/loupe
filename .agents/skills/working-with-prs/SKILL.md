@@ -1,6 +1,6 @@
 ---
 name: working-with-prs
-description: "Use when opening, gating, reviewing or merging a pull request, writing its body, making a branch testable, or handling agent review findings."
+description: "Use when opening, gating, reviewing or merging a pull request, writing its body, making a branch testable, handling agent review findings, or sequencing several branches at once."
 ---
 
 # Working with pull requests

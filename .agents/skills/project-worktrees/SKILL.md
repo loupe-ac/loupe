@@ -1,6 +1,6 @@
 ---
 name: project-worktrees
-description: "Use when creating, debugging or removing a git worktree under `.worktrees/`, when a worktree URL returns 404 or 502, or when writing worktree tooling."
+description: "Use when creating, entering, debugging or removing a git worktree under `.worktrees/`, when a worktree URL returns 404 or 502, or when writing worktree tooling."
 ---
 
 # Git Worktrees

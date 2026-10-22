@@ -1,6 +1,6 @@
 ---
 name: loupe-analysis
-description: "Use when a work request asks for an analysis of a Loupe project, such as a cost report, or when a prompt names loupe-analysis or gives an analysis id."
+description: "Use when a work request asks for an analysis of a Loupe project, such as a cost report or an experiment comparison, or when a prompt names loupe-analysis or gives an analysis id."
 ---
 
 # Running a Loupe analysis

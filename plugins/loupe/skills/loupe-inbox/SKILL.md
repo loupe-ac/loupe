@@ -1,6 +1,6 @@
 ---
 name: loupe-inbox
-description: "Use when an agent needs a decision, answer or review from the project owner through the loupe MCP, hands a question or to-do to a person, or needs its session id."
+description: "Use when an agent needs a decision, answer or review from the project owner through the loupe MCP, hands a question or to-do to a person, resumes after an ask closed, or needs its session id."
 ---
 
 # Asking the owner through the Loupe inbox

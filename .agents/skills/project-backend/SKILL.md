@@ -1,6 +1,6 @@
 ---
 name: project-backend
-description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands or flash messages."
+description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands, flash messages or any other PHP implementation work."
 ---
 
 # Backend: forms, DTOs, Doctrine, controllers, flash messages
