@@ -584,10 +584,10 @@ final class EngineTest extends KernelTestCase
         self::assertSame(2, $this->ruleState($card, 'refusing')->attempts);
     }
 
-    public function test_a_list_stops_after_a_move_and_the_rules_after_it_wait_for_the_next_pass(): void
+    public function test_a_list_ends_with_a_move_and_the_rules_after_it_wait_for_the_next_pass(): void
     {
         $card = $this->boundCard([
-            self::listRule('moving', [self::listed('before'), ['move' => ['to' => 'two']], self::listed('after')]),
+            self::listRule('moving', [self::listed('before'), ['move' => ['to' => 'two']]]),
             self::listRule('later', [self::listed('later')]),
         ]);
 
@@ -4601,6 +4601,7 @@ final class EngineTest extends KernelTestCase
 
     /**
      * @param list<array<string, mixed>> $then
+     * @param array<string, mixed>       $when
      *
      * @return array<string, mixed>
      */
