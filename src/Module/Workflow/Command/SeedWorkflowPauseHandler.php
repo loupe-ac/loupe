@@ -8,7 +8,7 @@ use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
 
-/** Pauses a card as the engine does after the last refused retry of the tech-design-write rule. Only the dev seed calls it. */
+/** Pauses a card as the engine does after the last refused retry of a rule, by default tech-design-write. Only the dev seed calls it. */
 final readonly class SeedWorkflowPauseHandler
 {
     public function __construct(
@@ -18,7 +18,7 @@ final readonly class SeedWorkflowPauseHandler
 
     public function __invoke(SeedWorkflowPauseCommand $command): PauseView
     {
-        return $this->cardPauses->pause($command->card, 'move-refused', 'tech-design-write', PauseKind::Retries)
+        return $this->cardPauses->pause($command->card, 'move-refused', $command->ruleId, PauseKind::Retries)
             ?? throw new \LogicException('The card was already paused.');
     }
 }

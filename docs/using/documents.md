@@ -21,8 +21,28 @@ Select **Create document**.
 Loupe opens the first version with Draft status.
 A draft stays out of review and the inbox.
 You can edit a draft with **Revise**, and it stays a draft.
-Select **Publish** to send the draft to review.
+A band under the title says what happens to the draft.
+It has three forms:
+
+1. **An agent reviews this draft, round x of y.** A design review loop of a linked card waits to publish the draft. Loupe sends the draft to your review when the agent review ends.
+2. **The agent review of this draft is paused.** The band gives the reason and links to the card. Loupe does not publish the draft until the review goes on.
+3. **This document is not in review yet.** No agent review waits to publish the draft. This is also the form of a draft whose workflow has no round limit.
+
+The y in "round x of y" is the round limit of the project workflow.
+
+On the first form, select **Publish now** to publish at once. Loupe asks "Publish now?" first, because the publish stops the agent review. The paused form asks the same question.
+On the third form, select **Publish** to send the draft to review. It asks nothing.
+
 You can also review a draft with **Finish review**.
+On the first two forms, **Finish review** shows a warning above the verdict. Your verdict stops the agent review. Approve also moves the card to the next stage.
+When you submit, Loupe asks a second time: "Stop the agent review?". Select **Stop the review and approve** or **Stop the review and request changes** to go on. Select **Go back** to return to the dialog. Your verdict and note stay.
+
+The band and the warning follow the draft live. They change when a new round starts, when the review pauses or goes on, when you publish in another tab, and when Loupe publishes the draft.
+The warning in an open **Finish review** dialog changes at once and keeps your verdict and note.
+A dialog for **Publish now** holds the update until you close it.
+When the draft is no longer a draft, the page loads again and shows the In review state.
+When an update fails after several tries, the page says "Live updates stopped. Reload the page to see the current state." under the band and above the warning.
+An instance with no live updates shows the state as of the page load.
 
 New document, Revise, and Finish review keep unsent drafts during in-app navigation in the same tab.
 Closing a dialog keeps its draft. Select **Discard draft** to remove it.
@@ -551,6 +571,7 @@ The summary has three states:
 3. **Agent review skipped.** You published the draft while the loop still ran. This includes a publish before the fix round wrote the question of a passed review into the draft.
 
 A document with no agent review shows no summary. A draft shows none either, also after its loop ends. The summary appears when the draft is published.
+While the loop runs, the draft band shows the round and the pause instead. A **Publish now** that stops the loop gives the skipped state.
 
 The line next to the state counts the rounds, the findings that the fix round fixed, the findings it did not change, and the findings still open.
 A skipped summary says after which round you published.

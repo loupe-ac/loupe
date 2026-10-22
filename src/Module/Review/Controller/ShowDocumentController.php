@@ -26,6 +26,7 @@ use App\Module\Review\Form\SuggestRewordingRequest;
 use App\Module\Review\Form\UndoVerdictFormType;
 use App\Module\Review\Form\UndoVerdictRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DraftReviewLoops;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,6 +55,7 @@ final class ShowDocumentController extends AppController
     public function __construct(
         private readonly ShowDocumentHandler $showDocument,
         private readonly ProjectTopicBuilder $topics,
+        private readonly DraftReviewLoops $draftReviewLoops,
     ) {
     }
 
@@ -137,6 +139,7 @@ final class ShowDocumentController extends AppController
             'diffDocumentUrl' => null,
             'readOnly' => $view->readOnly,
             'verdictAvailable' => !$view->readOnly,
+            'draftReviewLoop' => $this->draftReviewLoops->of($document),
             'comments' => $view->comments,
             'headings' => $view->headings,
             'signals' => $view->signals,
