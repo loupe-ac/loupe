@@ -355,6 +355,22 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
     }
 
+    #[DataProvider('designSlots')]
+    public function test_the_auto_approve_rule_follows_the_publish_rule_and_precedes_the_rules_that_move_the_card(string $slot, string $tag): void
+    {
+        $ids = array_map(static fn ($rule): string => $rule->id, $this->lifecycle()->rulesFor($slot));
+        $position = array_search($slot.'-auto-approve', $ids, true);
+
+        self::assertSame(array_search($slot.'-review-publish', $ids, true) + 1, $position);
+        self::assertLessThan(array_search($slot.'-approved', $ids, true), $position);
+        $rule = $this->ruleOf($slot, $slot.'-auto-approve');
+        self::assertSame('approve-document', $rule->then->key);
+        self::assertSame(['tag' => $tag], $rule->then->params);
+        $keys = array_map(static fn ($leaf): string => $leaf->condition::key(), $rule->when->leaves());
+        self::assertSame(['card.document.in_review', 'card.document.entered_review_in_column', 'card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'design_review.passed'], array_values(array_diff($keys, ['card.type'])));
+        self::assertSame('tech-design' === $slot, \in_array('card.type', $keys, true), 'Only the tech design rule limits the card types.');
+    }
+
     /**
      * @param list<string> $activeWorkKinds
      * @param list<string> $activeWorkerKinds

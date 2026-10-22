@@ -1,5 +1,5 @@
 key: lifecycle
-version: 15
+version: 16
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -123,6 +123,18 @@ rules:
               - not: { card.run.worker_active: {} }
       then: { publish-documents: { tags: [product-design] } }
 
+    - id: product-design-auto-approve
+      slot: product-design
+      when:
+          all:
+              - card.document.in_review: { tag: product-design }
+              - card.document.entered_review_in_column: { tag: product-design }
+              - not: { card.document.entry_decisions_open: { tag: product-design } }
+              - not: { card.document.entry_threads_open: { tag: product-design } }
+              - not: { card.document.rejected_before: { tag: product-design } }
+              - design_review.passed: { tag: product-design }
+      then: { approve-document: { tag: product-design } }
+
     - id: product-design-approved
       slot: product-design
       when:
@@ -200,6 +212,19 @@ rules:
               - not: { card.run.work_active: {} }
               - not: { card.run.worker_active: {} }
       then: { publish-documents: { tags: [tech-design, deploy-notes] } }
+
+    - id: tech-design-auto-approve
+      slot: tech-design
+      when:
+          all:
+              - card.type: { types: [bug, tooling, docs] }
+              - card.document.in_review: { tag: tech-design }
+              - card.document.entered_review_in_column: { tag: tech-design }
+              - not: { card.document.entry_decisions_open: { tag: tech-design } }
+              - not: { card.document.entry_threads_open: { tag: tech-design } }
+              - not: { card.document.rejected_before: { tag: tech-design } }
+              - design_review.passed: { tag: tech-design }
+      then: { approve-document: { tag: tech-design } }
 
     - id: tech-design-recheck
       slot: tech-design
