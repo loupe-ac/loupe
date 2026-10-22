@@ -27,8 +27,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Approves each document of the card that carries the tag, is in review and has a clean entry check on its newest version.
  * The approval names the version of the check and the newest review that the facts hold. A revision or a verdict in between
- * makes the handler refuse it. The action then writes a `verdict-failed` row and ends done, because the change that caused
- * the refusal starts a new pass.
+ * makes the handler refuse it, and so does an answer that a person cleared after the entry check. The action then writes
+ * a `verdict-failed` row and ends done. It does not retry: the document stays in review for a person.
  */
 final readonly class ApproveDocument implements Action
 {

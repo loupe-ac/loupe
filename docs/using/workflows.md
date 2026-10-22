@@ -884,8 +884,9 @@ so no `document-in-review` item opens in your inbox.
 The action `approve-document` takes a `tag`. It approves each document of the card that has the tag, is in review and has a
 clean entry check on its newest version. The Workflow account writes the approval. The approval names the version of the check
 and the newest review that the rule read. When a revision or a verdict landed after the rule read the facts, the app
-refuses the approval. The action then writes a `verdict-failed` row in the history of the card and ends. It does not retry,
-because the change that caused the refusal starts the next pass.
+refuses the approval. It also refuses when you cleared the answer of a decision after the document entered review.
+The action then writes a `verdict-failed` row in the history of the card and ends. It does not retry.
+The document stays in review until you act on it.
 
 To approve the tech design of a feature this way, add `feature` to the `types` list of `tech-design-auto-approve` in the
 template copy of the project. To turn the feature off, remove the two rules.
