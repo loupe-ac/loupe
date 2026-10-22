@@ -10,16 +10,16 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 
 | Skill | Use when working on… |
 |---|---|
-| `project-backend` | PHP code under `src/`: forms, DTOs, entities, controllers, flash messages |
+| `project-backend` | PHP code under `src/`: forms, DTOs, entities, controllers, flash messages, the gamache layers and their configuration, email, CSRF |
 | `project-command-handler` | Command and handler pairs, any controller action with business logic, `DomainErrors` |
 | `project-authz` | Voters, `#[IsGranted]`, Mercure topic authorization, any access control |
-| `project-testing` | PHPUnit tests: unit, integration, WebTestCase, mock setup |
-| `project-e2e` | Writing or fixing Playwright tests under `e2e/` |
-| `project-frontend` | CSS in `assets/`, Stimulus controllers, Turbo patterns, icons, any frontend visual behaviour |
+| `project-testing` | PHPUnit tests: unit, integration, WebTestCase, mock setup, database isolation between tests |
+| `project-e2e` | Writing or fixing Playwright tests under `e2e/`, running the suite, the e2e CI checks and the disposable e2e target |
+| `project-frontend` | CSS in `assets/`, the Tailwind watcher, Stimulus controllers, Turbo patterns, icons, any frontend visual behaviour |
 | `project-templates` | `.html.twig` files or Twig component PHP classes |
-| `project-worktrees` | Git worktrees: provisioning, URLs, per-worktree databases, worktree tooling |
-| `project-deploy` | Deploying to production, `terraform apply`, verifying the live version |
-| `project-translations` | UI strings, translation keys, or adding a new locale |
+| `project-worktrees` | Git worktrees: provisioning, URLs, per-worktree databases, worktree tooling. Also the shared Docker stack, the dev app URL, Compose services, processes inside a container |
+| `project-deploy` | Deploying to production, `terraform apply`, verifying the live version, the production container layout |
+| `project-translations` | UI strings, translation keys, adding a new locale, the gamache translation check and its configuration |
 | `loupe-design-rebuild` | Rebuilding the Design System artifact from the export: `app:design-system:export`, the pending-rebuild to-do |
 | `project-site-review` | The site-review widget (`public/live-review/widget.js`), `src/Module/SiteReview/`, its API routes, dev harness or e2e specs |
 | `loupe-documents` | Writing or revising any document submitted to the Loupe app through the `loupe` MCP |
@@ -229,55 +229,10 @@ This sits in tension with the instruction not to capitulate under pressure, and 
 - Code comments must be self-contained. Never reference an internal or ephemeral development artifact a future reader cannot open: a numbered task (`Task 16`), a handoff or design document (`handoff screen 8`), a spec section (`§3.5`), a dev phase (`Part 1`), or a dated decision (`owner decision 2026-07-13`). State the underlying fact directly. `SelfContainedCommentsCheck` enforces this under `just gamache`.
 - Give a Doctrine migration a real current-datetime timestamp in its `VersionYYYYMMDDHHMMSS` class name. Never use a round placeholder such as `…000000`. Two parallel branches that both use a round number collide on the version prefix. The class names still differ, so it is harmless, but it is confusing and it breaks `migrate-diff` ordering assumptions.
 - To consume an unmerged `ubermuda/*` bundle branch, pin `"dev-<branch>#<full-40-char-sha> as dev-main"`. The `as dev-main` alias is load-bearing, because sibling ubermuda packages require `dev-main@dev`. After the bundle PR merges, repoint to plain `"dev-main#<merge-sha>"` and drop the alias in the same wave. Re-copy any assets the bundle ships, such as `feature_flag_form_controller.js`, at every pin change.
+- A process started inside a container can only be stopped from inside it. A host-side `pkill` or the harness stop button kills only the wrapper, so use `docker compose exec php-fpm pkill -f <script>`. `project-worktrees` says more.
+- Never run `bin/console tailwind:build` or `cache:clear` by hand in dev. The `tailwind` watcher rebuilds the CSS on its own. `project-frontend` says more.
+- Never point the e2e suite at the dev host. It is destructive and wipes the dev database. `just e2e-up` makes the disposable target. `project-e2e` says more.
 - PHP gotchas, including the Serena rename workaround, FormType rename side-effects and the constructor change checklist, live in `project-backend`.
-
-## Development environment
-
-This project runs on Docker Compose, with commands in a `justfile` (requires [just](https://github.com/casey/just)).
-
-`COMPOSE_PROJECT_NAME` is set in `.env` and is required, because compose refuses to start without it. It names the containers, the traefik routes and the database volume. Change it before the first `docker compose up` when you bootstrap a new project from this skeleton. Two projects that share a name silently share containers and the database volume.
-
-```bash
-docker compose up -d          # Start containers (nginx, php-fpm, postgres)
-composer install              # Install PHP dependencies
-bin/console doctrine:migrations:migrate  # Run pending migrations
-just tailwind                 # Foreground Tailwind watcher (the `tailwind` compose service already does this)
-bin/console tailwind:build    # One-shot Tailwind build (use this in CI scripts and plan verify steps only)
-```
-
-The dev container rebuilds Tailwind CSS on its own, so never run `bin/console tailwind:build` by hand after you edit a template or `app.css`. The watcher picks a change up within a second or two. When a class does not appear in the compiled CSS, wait and re-check rather than reaching for a manual build. Run `bin/console tailwind:build` explicitly in CI scripts and plan verify steps only. The same applies to `cache:clear`, which dev does not need.
-
-The app runs at `https://loupe.dev.localhost`, and PHP-FPM is on port 9000. The `worker` compose service consumes the `scheduler_default`, `card_eval`, `jobs` and `card_sweep` transports. Use `docker compose logs worker` to observe it, or `just worker` for a foreground consumer. The `tailwind` compose service watches and rebuilds the stylesheet the same way, with `docker compose logs tailwind` and `just tailwind`. Never run both, because two watchers write the same file and race. The `tailwind` service watches the main checkout only, because empty mounts hide `.worktrees/` and `.claude/worktrees/` from it. The `tailwind-worktrees` service rebuilds the worktree sheets.
-
-**A process started inside a container can only be observed and stopped from inside it.** The container has its own PID namespace, so a host-side `pkill -f <script>`, and the harness's own `TaskStop`, kill only the wrapper. They report success while the real process keeps running, invisible to the host process table. Stop it with `docker compose exec php-fpm pkill -f <script>`, and confirm with `docker exec <project>-php-fpm-1 ps aux`. A host-side check shows a quiet container that is in fact fully loaded.
-
-**Production runs per-process containers.** Each process type, web and messenger worker, is its own container from the same image. `docker/prod/supervisord.conf` is only the web container's image-default CMD, so never add a background process there as a `[program:]` block. The worker's command belongs to whatever orchestrates the containers: `worker_command` in `terraform/main.tf` for App Platform, or the `worker` service in `docker/compose/prod.yaml` for a single host. Both run `supervisord -c /etc/worker-supervisord.conf`, which is the one exception to this rule: the worker container runs two consumers, `messenger:consume scheduler_default card_eval jobs` and `messenger:consume card_sweep`, each with `--time-limit=3600 --memory-limit=128M`. The second keeps the low-priority workflow sweep from starving behind event-driven jobs. The schedule transport comes first in the first consumer, because a deep jobs backlog must not delay ticks.
-
-`docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact rather than a scratch file, so it must keep working alongside `terraform/`. It is driven by `docker/compose/prod.env`, which is gitignored, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
-
-**Database connectivity.** Traefik TCP routing exposes the Postgres container at `db.loupe.dev.localhost:5432`. The `.env` file ships `127.0.0.1:5432` as a placeholder, so override it in `.env.local` on your host machine:
-
-```
-DATABASE_URL="postgresql://app:!ChangeMe!@db.loupe.dev.localhost:5432/app?serverVersion=16&charset=utf8"
-```
-
-From inside the php-fpm container (`just shell`), use the `database` Docker service hostname directly. `compose.yaml` sets `DATABASE_URL` to `database:5432` for the container, so this is automatic.
-
-**The dev database runs without durability.** The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt the dev database, and `docs/contributing/development.md` says how to rebuild it.
-
-**Database test isolation.** `dama/doctrine-test-bundle` wraps each test in a database transaction and rolls it back, so no custom schema-reset code is needed. Schema creation runs once in `tests/bootstrap.php`, which drops, creates and migrates. Never write a `resetSchema()` method that drops and recreates the schema per test.
-
-**php-cs-fixer works from worktrees.** `.php-cs-fixer.dist.php` uses explicit excludes rather than `ignoreVCSIgnored(true)`, and throws when the finder matches zero files. Both matter. The old VCS-ignore heuristic matched 0 files under the gitignored `.claude/worktrees/`, so `just cs` fixed nothing and `just ci`'s cs-check leg passed vacuously. A committed brace jam once sailed through a green gate that way. Worktree roots stay excluded deliberately, because the main run would otherwise scan every worktree's copy of the tree.
-
-## End-to-end tests
-
-The eight `e2e-*` CI checks are the gate: `e2e-chromium`, `e2e-chromium-2` to `e2e-chromium-6`, `e2e-rest` and `e2e-global-flags`. Each one is a job on its own runner. The ruleset requires a leg only after the owner adds it, and until then the `lint` job fails on `main`. Push, read the checks, and fix every failure they report, including pre-existing ones. Read the red check for the failing test. Never run the full suite on this machine. A local run is slower, destructive and less truthful, and every worktree shares one `php-fpm` container. Run one named spec when you are debugging it, with `just e2e tests/<area>/<spec>.spec.ts`. A `PreToolUse` hook, `.agents/hooks/no-full-e2e.sh`, refuses a full run and lets a named spec through.
-
-`just e2e-up` creates the disposable target the suite runs against: an `app_e2e` database and an nginx sidecar at `e2e.<project>.dev.localhost` serving this checkout. `just e2e` defaults there and refuses to start when it is not up. Tear it down with `just e2e-down`. Never point the suite at the dev host. The suite is destructive by design: the `install-reset` project truncates every table, and `trial-end-lifecycle` flips global feature flags and disables every expired-trial account. One run against `loupe.dev.localhost` wipes your development database.
-
-`playwright.config.ts` runs each `chromium` test as its own unit on 4 workers. A spec file whose tests share one fixed account opts out with `test.describe.configure({ mode: 'default' })`. A spec that changes a global flag, or shares a fixed account with another file, runs in a `workers: 1` project, and the config comments say which. Put a new spec of that kind in one of those projects, not in `chromium`. Two branches gated at the same time against one machine are still unproven, because every worktree shares the one `php-fpm` container.
-
-The `project-e2e` skill carries the rest, including its `references/parallelism-and-sessions.md` for fixtures, Mailpit and session invalidation. `working-with-prs` carries how to aim a local run at a sibling worktree, which needs both `E2E_BASE_URL` and `MAILPIT_URL`, and the cache warm-up that a worktree run needs first.
 
 ## Common commands
 
@@ -315,14 +270,6 @@ To run a single JavaScript test: `just js-test tests/js/<name>.test.js`
 
 To run a single e2e spec: `just e2e tests/<area>/<spec>.spec.ts`
 
-## CSRF
-
-`csrf_protection_controller.js` must stay eagerly loaded (see `project-frontend`). For server-side CSRF on hand-rolled forms, read "Stateless CSRF tokens for hand-rolled forms" in `project-backend`.
-
-## Email
-
-The messenger worker delivers email asynchronously. `MailerInterface::send()` enqueues a `SendEmailMessage` on the `jobs` transport, and `messenger:consume jobs` performs the delivery: the dev `worker` compose service, or a dedicated worker in production. A failed delivery retries 3 times, then lands in the `failed` transport. `project-backend` documents the sender parameters and the per-email-type sender services.
-
 ## Architecture
 
 The app is a Symfony application. Source code is organised into domain modules under `src/Module/`, and each module follows the same layout: `Controller/`, `Entity/`, `Form/`, `Repository/`, with templates mirrored under `templates/Module/`.
@@ -339,47 +286,3 @@ Every feature lives under `src/Module/`. Admin-facing controllers for a feature 
 - Any controller action that does more than render or redirect is backed by a command and handler pair, `Command/FooCommand.php` and `Command/FooHandler.php`, with no Messenger. `DomainErrors` carries field-level domain failures from the handler back to the form.
 - Repositories are always constructor-injected. Never call `$em->getRepository()`.
 - Properties are public by default in all PHP classes. Do not write a getter that merely exposes a property.
-
-## Translation enforcement
-
-`just gamache` includes a translation check. It scans PHP files under `src/` and Twig files under `templates/` for string literals that look like untranslated user-facing text, scored by word count, mixed case and punctuation.
-
-It never fails CI, because its exit code is always 0. Its findings are advisory.
-
-To suppress a false positive, add `// @translation-check-ignore` on the same line in PHP, or `{# translation-check-ignore #}` on the same line in Twig.
-
-To configure it, edit the `TranslationCheck` constructor call in `gamache.php` at the project root. That call documents its own options inline: ignored call sites (`ignoredCallSites`), exception classes, ignored source namespaces, safe attribute namespaces and safe Twig functions.
-
-## Gamache checks
-
-`ubermuda/gamache` enforces project conventions through five layers, each wired into a different tool. Check all five before you conclude that gamache has no rule for something. Most of them run under `just ci` rather than `just gamache`.
-
-| Layer | Package dir | Wired via | Run by |
-|---|---|---|---|
-| Convention checks | `src/Check/` | `gamache.php` | `just gamache` (`vendor/bin/gamache`) |
-| PHPStan rules | `src/PHPStan/` | `extension.neon` + `parameters.gamache:` in `phpstan.dist.neon` | `just phpstan` / `just ci` |
-| Rector rules | `src/Rector/` | `GamacheSetList::CONVENTIONS` in `rector.php` | `just rector` |
-| PHP-CS-Fixer rules | `src/PhpCsFixer/` | `Gamache\PhpCsFixer\Fixers` in `.php-cs-fixer.dist.php` | `just cs-fix` |
-| Twig-CS-Fixer rules | `src/TwigCsFixer/` | `GamacheStandard` in `.twig-cs-fixer.php` | twig-cs-fixer |
-
-`just gamache` runs the `src/Check/` layer only, which holds the advisory and structural convention checks. The other four belong to the normal static-analysis pipeline. So "does a gamache check exist for this?" is answered by grepping the package's `src/Check/`, `src/PHPStan/`, `src/Rector/`, `src/PhpCsFixer/` and `src/TwigCsFixer/`.
-
-The PHPStan-rule layer sees only the files in PHPStan's `paths:` in `phpstan.dist.neon`. `migrations/` must stay in that list, or a migration-targeting rule such as `MigrationDescriptionRule` silently never runs. Add a new top-level source dir to `paths:` when a rule should police it.
-
-gamache is an external package, so open a PR on https://github.com/ubermuda/gamache to add or change a rule in any of the five layers. Do not add a rule, check or fixer class to this project. `src/Utils/Gamache/` no longer exists.
-
-Each `src/Check/` class takes constructor parameters, set in `gamache.php`. The PHPStan layer is configured under `parameters.gamache:` in `phpstan.dist.neon`.
-
-## Icons
-
-Use the Symfony UX Icons bundle with Lucide for every icon. Never embed inline SVG.
-
-```twig
-<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm mt-px" />
-```
-
-`assets/icons/` is committed, because a self-hosted instance must render its UI with no egress. After you add a new icon, run `bin/console ux:icons:lock` and commit what appears under `assets/icons/`. Do not `git rm --cached` these files, because that breaks production rendering.
-
-`ux:icons:lock` reads literal names only. Import a dynamically-named icon by hand with `bin/console ux:icons:import`, or it is missing in prod with no error.
-
-The `project-frontend` skill carries the rest: the `ux_icon()` form, the `iconify.on_demand` behaviour per environment, and the stroke-colour rule.
