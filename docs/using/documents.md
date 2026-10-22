@@ -92,6 +92,7 @@ A request for changes needs a review note only when the version has no open comm
 An open comment is a thread that is pending or addressed. An approval can include a note.
 After a verdict, the top bar shows the verdict as a button.
 Select it to see the reviewer, version, time and note, with **Change verdict** and **Undo**.
+**Undo** on an approval of a design can move the card back to the stage of that design. See [Undoing a design](workflows.md#undoing-a-design).
 A workflow rule can write a verdict. The reviewer then reads **Workflow**, with the id of the rule beside it.
 An approval by a rule carries the note "Approved when it entered review: no unanswered decision, no open thread, and the agent review passed."
 When a document enters review, Loupe records how many decisions had no answer and how many threads were not resolved.

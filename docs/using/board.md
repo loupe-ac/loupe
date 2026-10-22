@@ -410,7 +410,8 @@ a pull request was ready to merge, when a verdict was sent from the
 live-review widget, and when an approval started or ended the override of a
 failed agent review. A finished agent run shows its
 rule, its duration and its result, and it links to the run while the run is
-kept.
+kept. A run that a workflow rule stopped has one row of its own, with the rule, the
+duration and a **Stopped** chip, in place of the row of its close.
 
 A row names a person by their full name. An agent's change reads **Agent for**
 and the name of the person the agent works for. A change by the app reads
@@ -1049,7 +1050,8 @@ A `moved` event sets `from` and `to`, and a `created` event sets `to` alone.
 Each is a column with `id`, `slug` and `label`. `cause` says why the app moved
 the card on its own, such as a merged pull request. An action of the
 [automation](#automation) sets `pullRequest`. A `fix-requested` or `stopped`
-event also sets `reason`, such as `conflict`. A `run-finished`
+event of a pull request also sets `reason`, such as `conflict`. A `stopped` event
+of a run that a workflow rule stopped sets neither, and its `run` is null. A `run-finished`
 event carries the stored record of the run in `run`. A key that does not apply
 is null.
 

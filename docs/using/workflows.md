@@ -55,6 +55,20 @@ The older `type` parameter, which took one key, no longer exists. A template
 rule that still uses `type` fails to load, and the error names the `types`
 list.
 
+A rule runs one action, or a list of actions. A single action is a list of one.
+The engine runs the actions in order. It stops at the first action that refuses, and after a `move`.
+A refusal backs off and retries as [Pauses and retries](#pauses-and-retries) says, and the retry runs the whole list again.
+Only the actions `move`, `request-changes` and `stop-work` may share a rule with other actions,
+because the engine keeps no request, ask or pause for a second action.
+
+```yaml
+then:
+    - stop-work: {}
+    - move: { to: tech-design }
+```
+
+The **Workflow** page shows each action of a rule on its own line.
+
 The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.
@@ -479,6 +493,7 @@ column, for example when the work is no longer needed. A person can move a card
 from Implementation back to Tech design, for example when the card has no tech
 design yet. A card whose tech design is approved goes
 back to Implementation at once when it has no open blocker.
+When you withdraw the approval of a design, the card goes back to that design. See [Undoing a design](#undoing-a-design).
 
 | Slot | The workflow |
 |---|---|
@@ -875,6 +890,40 @@ because the change that caused the refusal starts the next pass.
 To approve the tech design of a feature this way, add `feature` to the `types` list of `tech-design-auto-approve` in the
 template copy of the project. To turn the feature off, remove the two rules.
 A template with no design review rule never approves a design this way, because `design_review.passed` stays false.
+
+### Undoing a design
+
+When you withdraw the approval of a design, the card goes back to the stage that the design opened.
+The undo rules read the withdrawal, and they run first in every pass, in every column.
+A withdrawal by you counts the same as the withdrawal of an approval that a rule wrote.
+
+| Condition | True when |
+|---|---|
+| `card.document.approval_withdrawn` | the newest review of the newest version of a document with the tag is a withdrawal of an approval. The withdrawal of a change request does not count. A new version of the document ends it. It is in the **Board** group |
+
+Lifecycle has two rules. Neither rule has a slot. Each needs a card that is not in a terminal column
+and not in the slot of the design.
+
+| Rule | Does, in this order |
+|---|---|
+| `product-design-undo` | Runs `stop-work`. Asks for changes on the approved or in-review documents with the tag `tech-design`, with a note that says the approval of the product design was undone. Moves the card to Product design |
+| `tech-design-undo` | Runs `stop-work`. Moves the card to Tech design |
+
+The action `stop-work` cancels the open work requests of the card that a rule owns.
+It also asks the bridge to stop each open background run of the card, and it writes one `stopped` row in the history of the card for each run.
+The row reads "Loupe stopped the implement work." and names the rule.
+It leaves an interactive session open, and the move closes the session as any move does. It leaves a request that you started from an inbox item.
+A bridge that cancels a claimed request stops the worker and posts no result, so a stopped worker adds no refusal to the card.
+
+An undone design waits for you. A design that was withdrawn counts as rejected, so the auto-approve rules do not approve it again.
+When the tech design has changes requested and the card comes back to Tech design, the rule `tech-design-revise` asks for a revision.
+A card that comes back to Implementation keeps its open pull request, so no new implementation request starts.
+
+A card in a terminal column keeps its place. The withdrawal resets the document alone, and the other design keeps its approval.
+The app moves the card as Loupe, so an epic with open children moves back like any other card.
+
+A project that updates to this version gets the two rules in its template copy. Each past withdrawal counts as handled,
+so no card moves when the update arrives. A withdrawal after the update moves the card.
 
 ### Asking about an unplanned child
 
