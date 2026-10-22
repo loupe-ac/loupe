@@ -41,6 +41,25 @@ function attachTooltip(root, tooltip) {
         clearTimeout(closeTimer);
         closeTimer = null;
     };
+    const hasPopover = () => tooltip.hasAttribute('popover') && typeof tooltip.showPopover === 'function';
+    const showPopover = () => {
+        if (hasPopover()) {
+            try {
+                tooltip.showPopover();
+            } catch {
+                // Already showing.
+            }
+        }
+    };
+    const hidePopover = () => {
+        if (hasPopover()) {
+            try {
+                tooltip.hidePopover();
+            } catch {
+                // Already hidden.
+            }
+        }
+    };
     const place = () => {
         tooltip.style.left = '0px';
         tooltip.style.top = '0px';
@@ -66,6 +85,7 @@ function attachTooltip(root, tooltip) {
         window.removeEventListener('scroll', close, true);
         document.removeEventListener('pointerdown', onOutsidePress, true);
         tooltip.removeAttribute('data-open');
+        hidePopover();
     };
     const open = (event) => {
         if (returningFocus) {
@@ -78,6 +98,7 @@ function attachTooltip(root, tooltip) {
         if (tooltip.hasAttribute('data-open')) {
             return;
         }
+        showPopover();
         place();
         tooltip.setAttribute('data-open', '');
         window.addEventListener('scroll', close, true);
@@ -144,7 +165,7 @@ export function {{ entry.name }}({ kind, label, id, className: extra, children, 
                     {GLYPHS[kind]}
                 </svg>
             </span>
-            <span role="tooltip" id={tooltipId} ref={tooltipRef} className="lp-tooltip lp-tooltip--interactive">{children}</span>
+            <span role="tooltip" id={tooltipId} ref={tooltipRef} popover="manual" className="lp-tooltip lp-tooltip--interactive">{children}</span>
         </span>
     );
 }

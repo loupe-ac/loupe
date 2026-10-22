@@ -5,4 +5,4 @@
   Any attribute, class included, is passed to the element. The anchor's own rules decide when it shows.
 #}
 {% props interactive = false %}
-<span{{ attributes.defaults({class: 'lp-tooltip' ~ (interactive ? ' lp-tooltip--interactive' : ''), role: 'tooltip'}) }}{% if interactive %} data-interactive-tooltip-target="tooltip"{% endif %}>{% block content %}{% endblock %}</span>
+<span{{ attributes.defaults({class: 'lp-tooltip' ~ (interactive ? ' lp-tooltip--interactive' : ''), role: 'tooltip'}) }}{% if interactive %} popover="manual" data-interactive-tooltip-target="tooltip"{% endif %}>{% block content %}{% endblock %}</span>

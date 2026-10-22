@@ -134,10 +134,66 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertStringContainsString('Stuck for 1 h', $box->filter('.lp-status-box__chip')->text());
         self::assertStringContainsString('1 hour ago', $box->filter('.lp-status-box__fields')->text());
         self::assertStringContainsString('Fix the cause of the pause', $box->filter('.lp-status-box__field--wide')->text());
-        $others = $box->filter('.lp-status-box__other--working');
-        self::assertCount(1, $others);
-        self::assertStringContainsString('Work waits for a bridge to take it.', $others->text());
+        self::assertCount(0, $box->filter('.lp-status-box__other--working'));
+        self::assertStringNotContainsString('Work waits for a bridge to take it.', $box->text());
         self::assertStringContainsString('Unmanaged: the workflow does not act on this card.', $box->filter('.lp-status-box__other--chip')->text());
+    }
+
+    public function test_a_running_worker_with_waiting_checks_shows_one_line_and_no_also_applies(): void
+    {
+        $crawler = $this->showCardWithMarkers('card-status-box-working@example.com', [
+            ['key' => 'work_requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'remedy' => 'marker.work_requested.remedy', 'params' => [], 'since' => new \DateTimeImmutable('-30 minutes')->format(\DATE_ATOM)],
+            ['key' => 'waiting_on_checks', 'kind' => 'waiting', 'label' => 'marker.waiting_on_checks', 'remedy' => 'marker.waiting_on_checks.remedy', 'params' => ['%number%' => 4], 'since' => new \DateTimeImmutable('-10 minutes')->format(\DATE_ATOM)],
+        ]);
+
+        $box = $crawler->filter('[data-card-state="working"].lp-status-box--working');
+        self::assertCount(1, $box);
+        self::assertCount(0, $box->filter('.lp-status-box__other'));
+        self::assertStringNotContainsString('Also applies', $box->text());
+        self::assertStringNotContainsString('Waiting for the checks', $box->text());
+    }
+
+    public function test_a_stuck_state_shows_a_needs_you_marker_as_also_applies(): void
+    {
+        $crawler = $this->showCardWithMarkers('card-status-box-needs-you@example.com', [
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM)],
+            ['key' => 'open_question', 'kind' => 'needs-you', 'label' => 'marker.open_question', 'remedy' => 'marker.open_question.remedy', 'params' => ['%number%' => 3, '%title%' => 'Which option?'], 'since' => new \DateTimeImmutable('-30 minutes')->format(\DATE_ATOM)],
+        ]);
+
+        $box = $crawler->filter('[data-card-state="stuck"]');
+        self::assertStringContainsString('Also applies', $box->text());
+        self::assertStringContainsString('Question #3 waits for your answer: Which option?', $box->filter('.lp-status-box__other--needs-you')->text());
+    }
+
+    public function test_a_waiting_state_shows_the_unmanaged_chip_as_also_applies(): void
+    {
+        $crawler = $this->showCardWithMarkers('card-status-box-waiting-chip@example.com', [
+            ['key' => 'waiting_on_checks', 'kind' => 'waiting', 'label' => 'marker.waiting_on_checks', 'remedy' => 'marker.waiting_on_checks.remedy', 'params' => ['%number%' => 4], 'since' => new \DateTimeImmutable('-10 minutes')->format(\DATE_ATOM)],
+            ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => new \DateTimeImmutable('-2 hours')->format(\DATE_ATOM)],
+        ]);
+
+        $box = $crawler->filter('[data-card-state="waiting"]');
+        self::assertStringContainsString('Unmanaged: the workflow does not act on this card.', $box->filter('.lp-status-box__other--chip')->text());
+    }
+
+    /** @param non-empty-string $email
+     * @param list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string}> $markers */
+    private function showCardWithMarkers(string $email, array $markers): Crawler
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, $email);
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Marked card');
+        $card->markers = $markers;
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+        self::assertResponseIsSuccessful();
+
+        return $crawler;
     }
 
     public function test_a_marker_with_a_link_draws_it_under_the_remedy_and_one_without_draws_none(): void

@@ -8555,6 +8555,8 @@
             <trans-unit id="workflow.waiting.not.run_done_at_head"><source>workflow.waiting.not.run_done_at_head</source><target>Waiting: a matching work request ended done at the current head of the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_active"><source>workflow.waiting.run_work_active</source><target>Waiting: no matching work request is active.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_active"><source>workflow.waiting.not.run_work_active</source><target>Waiting: a matching work request is still active.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_open"><source>workflow.waiting.run_work_open</source><target>Waiting: no work request is open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_open"><source>workflow.waiting.not.run_work_open</source><target>Waiting: a work request is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_no_taker"><source>workflow.waiting.run_work_no_taker</source><target>Waiting: every open work request has an online bridge that could take it.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_no_taker"><source>workflow.waiting.not.run_work_no_taker</source><target>Waiting: an open work request has no online bridge that could take it.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_no_capable_taker"><source>workflow.waiting.run_work_no_capable_taker</source><target>Waiting: no online bridge is unable to run an open work request.</target></trans-unit>
