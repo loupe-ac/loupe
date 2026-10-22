@@ -76,6 +76,7 @@ final readonly class GitHubPullRequestStateMapper
             latestApprovedAt: $latestApprovedAt,
             latestApprovalId: $latestApprovalId,
             latestApproverLogin: $latestApproverLogin,
+            title: $this->title($pullRequest),
         );
     }
 
@@ -101,6 +102,18 @@ final readonly class GitHubPullRequestStateMapper
         $id = $pullRequest['author']['databaseId'] ?? null;
 
         return \is_int($id) && $id > 0 ? (string) $id : null;
+    }
+
+    /**
+     * A missing title is null, because no read decision rests on it.
+     *
+     * @param array<mixed> $pullRequest
+     */
+    private function title(array $pullRequest): ?string
+    {
+        $title = $pullRequest['title'] ?? null;
+
+        return \is_string($title) && '' !== $title ? $title : null;
     }
 
     /** @param array<mixed> $pullRequest */

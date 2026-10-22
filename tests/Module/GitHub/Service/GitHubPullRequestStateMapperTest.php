@@ -408,6 +408,24 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->headBranch);
     }
 
+    /** @return iterable<string, array{mixed, ?string}> */
+    public static function titles(): iterable
+    {
+        yield 'a title' => ['Fix the board filter', 'Fix the board filter'];
+        yield 'no title' => [null, null];
+        yield 'an empty title' => ['', null];
+        yield 'a title that is not a string' => [42, null];
+    }
+
+    #[DataProvider('titles')]
+    public function test_the_title(mixed $title, ?string $expected): void
+    {
+        $node = self::pullRequest604();
+        $node['title'] = $title;
+
+        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->title);
+    }
+
     /** @return iterable<string, array{mixed, ?string, ?string}> */
     public static function authors(): iterable
     {
