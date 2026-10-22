@@ -105,7 +105,7 @@ final readonly class CardWorkflowPanelBuilder
     private function ruleRelease(PauseView $pause, ?Template $template, ?Facts $facts): string
     {
         $rule = null === $template ? null : self::rule($template, $pause->ruleId);
-        $until = $rule?->then->until;
+        $until = $rule?->lead->until;
         if (null === $rule || null === $until || null === $facts || null !== $until->unreadable($facts)) {
             return $this->translator->trans('workflow.panel.release.next_evaluation');
         }
@@ -123,16 +123,16 @@ final readonly class CardWorkflowPanelBuilder
         $rules = $template->rulesFor($facts->slot);
         $falseRules = array_values(array_filter(
             $rules,
-            fn (Rule $rule): bool => null !== $rule->when->unreadable($facts) || null !== $rule->then->until?->unreadable($facts) || !$this->ruleSubject->bind($rule, $facts)->truth,
+            fn (Rule $rule): bool => null !== $rule->when->unreadable($facts) || null !== $rule->lead->until?->unreadable($facts) || !$this->ruleSubject->bind($rule, $facts)->truth,
         ));
-        $blocking = array_find($falseRules, static fn (Rule $rule): bool => $rule->then->traits->endsPass) ?? $falseRules[0] ?? null;
+        $blocking = array_find($falseRules, static fn (Rule $rule): bool => $rule->endsPass()) ?? $falseRules[0] ?? null;
         $waiting = null;
         if (null !== $blocking) {
             $bound = $this->ruleSubject->bind($blocking, $facts);
             $unreadable = $blocking->when->unreadable($facts);
             // The engine reads the until of a pause only once its when is true.
             if (null === $unreadable && $bound->truth) {
-                $unreadable = $blocking->then->until?->unreadable($facts);
+                $unreadable = $blocking->lead->until?->unreadable($facts);
             }
             $waiting = null === $unreadable
                 ? $blocking->when->firstFalseLeaf($bound->facts)?->waitingFor()->trans($this->translator)
@@ -159,7 +159,7 @@ final readonly class CardWorkflowPanelBuilder
 
     private function nextAction(Template $template, Rule $rule): string
     {
-        $description = $this->actions->get($rule->then->key)->describe($rule->then->params);
+        $description = $this->actions->get($rule->lead->key)->describe($rule->lead->params);
         $parameters = $description->panelParams;
         foreach ($description->panelSlots as $placeholder => $slot) {
             $parameters[$placeholder] = $this->slotLabel($template, $slot);

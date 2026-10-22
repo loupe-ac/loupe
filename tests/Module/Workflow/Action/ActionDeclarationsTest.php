@@ -30,7 +30,7 @@ final class ActionDeclarationsTest extends TestCase
     /** @return iterable<string, array{class-string<Action>, string, string, ActionTraits}> */
     public static function declarations(): iterable
     {
-        yield 'move' => [MoveCard::class, 'move', 'workflow.source.board', new ActionTraits(endsPass: true, option: true, childChoice: true)];
+        yield 'move' => [MoveCard::class, 'move', 'workflow.source.board', new ActionTraits(endsPass: true, option: true, childChoice: true, listable: true)];
         yield 'request' => [RequestWork::class, 'request', 'workflow.source.bridge', new ActionTraits(countsTowardLimit: true, refreshesFacts: true)];
         yield 'forge-write' => [ForgeWrite::class, 'forge-write', 'workflow.source.forge', new ActionTraits(countsTowardLimit: true)];
         yield 'pause' => [PauseCard::class, 'pause', 'workflow.source.board', new ActionTraits()];
@@ -40,7 +40,7 @@ final class ActionDeclarationsTest extends TestCase
         yield 'link-document' => [LinkDocument::class, 'link-document', 'workflow.source.board', new ActionTraits(option: true, childChoice: true)];
         yield 'publish-documents' => [PublishDocuments::class, 'publish-documents', 'workflow.source.board', new ActionTraits(refreshesFacts: true, publishesDocuments: true)];
         yield 'approve-document' => [ApproveDocument::class, 'approve-document', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
-        yield 'request-changes' => [RequestChanges::class, 'request-changes', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
+        yield 'request-changes' => [RequestChanges::class, 'request-changes', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
     }
 

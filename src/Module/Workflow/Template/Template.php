@@ -85,8 +85,8 @@ final readonly class Template
     {
         $tags = [];
         foreach ($rules as $rule) {
-            $tag = $rule->then->params[ParameterNames::DOCUMENT_TAG] ?? null;
-            if (self::REQUEST_ACTION === $rule->then->key && self::DESIGN_REVIEW_ROLE === ($rule->then->params['role'] ?? null) && \is_string($tag)) {
+            $tag = $rule->lead->params[ParameterNames::DOCUMENT_TAG] ?? null;
+            if (self::REQUEST_ACTION === $rule->lead->key && self::DESIGN_REVIEW_ROLE === ($rule->lead->params['role'] ?? null) && \is_string($tag)) {
                 $tags[] = $tag;
             }
         }
@@ -122,7 +122,7 @@ final readonly class Template
         return array_values(array_filter(
             $this->rules,
             static fn (Rule $rule): bool => (null === $rule->slot || $rule->slot === $slot)
-                && (null === $rule->then->from || $rule->then->from === $slot),
+                && array_all($rule->then, static fn (ActionCall $call): bool => null === $call->from || $call->from === $slot),
         ));
     }
 
@@ -151,10 +151,10 @@ final readonly class Template
     {
         $limits = [];
         foreach ($this->rules as $rule) {
-            if (!$rule->then->traits->publishesDocuments) {
+            if (!$rule->lead->traits->publishesDocuments) {
                 continue;
             }
-            $published = $rule->then->lists['tags'] ?? [];
+            $published = $rule->lead->lists['tags'] ?? [];
             foreach ($rule->when->requiredLeaves() as $leaf) {
                 $condition = $leaf->condition;
                 if (!$condition instanceof EndsReviewLoop || !$condition instanceof ReadsDocumentTag) {

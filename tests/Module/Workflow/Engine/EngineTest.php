@@ -83,6 +83,7 @@ use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseHandler;
+use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
@@ -115,10 +116,12 @@ use App\Module\Workflow\Service\WorkflowAutomation;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\TemplatePrompts;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Board\Workflow\FakeForgeWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Action\FakeRuleAsks;
+use App\Tests\Module\Workflow\Action\ListedTestAction;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
@@ -183,6 +186,7 @@ final class EngineTest extends KernelTestCase
     #[\Override]
     protected function setUp(): void
     {
+        ListedTestAction::$log = [];
         $this->logger = new RecordingLogger();
         $this->asks = new FakeRuleAsks();
     }
@@ -506,6 +510,46 @@ final class EngineTest extends KernelTestCase
 
         self::assertCount(1, $this->liveRequests($card));
         self::assertSame(1, $this->ruleState($card, 'work')->fires);
+    }
+
+    public function test_a_rule_runs_its_list_of_actions_in_order_and_fires_once(): void
+    {
+        $card = $this->boundCard([self::listRule('both', [self::listed('first'), self::listed('second')])]);
+
+        $this->evaluate($card);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(['first', 'second'], ListedTestAction::$log);
+        self::assertTrue($this->ruleState($card, 'both')->truth);
+    }
+
+    public function test_a_list_stops_at_the_first_refusal_and_runs_again_from_the_start_when_due(): void
+    {
+        $card = $this->boundCard([self::listRule('refusing', [self::listed('first'), self::listed('refuse'), self::listed('never')])]);
+
+        $this->evaluate($card);
+
+        self::assertSame(['first', 'refuse'], ListedTestAction::$log);
+        $state = $this->ruleState($card, 'refusing');
+        self::assertSame([1, 'listed-refusal', '2026-10-02 12:10:00'], [$state->attempts, $state->lastRefusal, $state->dueAt?->format('Y-m-d H:i:s')]);
+
+        $this->evaluate($card, '2026-10-02 12:10:00');
+
+        self::assertSame(['first', 'refuse', 'first', 'refuse'], ListedTestAction::$log);
+        self::assertSame(2, $this->ruleState($card, 'refusing')->attempts);
+    }
+
+    public function test_a_list_stops_after_a_move_and_the_rules_after_it_wait_for_the_next_pass(): void
+    {
+        $card = $this->boundCard([
+            self::listRule('moving', [self::listed('before'), ['move' => ['to' => 'two']], self::listed('after')]),
+            self::listRule('later', [self::listed('later')]),
+        ]);
+
+        $this->evaluate($card);
+
+        self::assertSame(['before'], ListedTestAction::$log);
+        self::assertSame('in-progress', $this->em()->find(Card::class, $card->id)?->column->slug);
     }
 
     public function test_a_refused_action_backs_off_retries_when_due_or_when_the_facts_change_and_pauses_after_the_last_retry(): void
@@ -4510,6 +4554,22 @@ final class EngineTest extends KernelTestCase
         return ['id' => $id, 'slot' => 'one', 'when' => $when, 'then' => ['move' => ['to' => $to]]];
     }
 
+    /**
+     * @param list<array<string, mixed>> $then
+     *
+     * @return array<string, mixed>
+     */
+    private static function listRule(string $id, array $then): array
+    {
+        return ['id' => $id, 'slot' => 'one', 'when' => self::NOT_EPIC, 'then' => $then];
+    }
+
+    /** @return array<string, mixed> */
+    private static function listed(string $label): array
+    {
+        return ['listed-test' => ['label' => $label]];
+    }
+
     /** @return list<array<string, mixed>> */
     private function firedRecords(): array
     {
@@ -4593,11 +4653,23 @@ final class EngineTest extends KernelTestCase
             $this->changed[] = $event;
         });
 
+        $actions = new Actions([
+            new MoveCard($this->service(CardRepository::class), $this->service(BoardColumnRepository::class), $this->service(UpdateCardHandler::class)),
+            new RequestWork($this->service(CardRepository::class), $opener, $this->service(CardPullRequests::class), $this->service(CardEventRepository::class)),
+            new PauseCard(),
+            new ReleasePause($boardPauses),
+            $this->service(ForgeWrite::class),
+            new Ask($this->asks, $this->service(TranslatorInterface::class), 'en'),
+            new EvaluateChildren($this->service(CardDirectory::class), $this->evaluations ?? new EvaluationTrigger($this->service(MessageBusInterface::class))),
+            new MissingAction(),
+            new ListedTestAction(),
+        ]);
+
         return new Engine(
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), $this->service(TemplateParser::class), $this->appRules ?? $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $actions, $this->service(TemplatePrompts::class)), $this->appRules ?? $this->service(AppRules::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),
@@ -4619,18 +4691,9 @@ final class EngineTest extends KernelTestCase
             $this->service(WorkflowAutomation::class),
             $this->service(WorkflowPendingBaselineRepository::class),
             $boardPauses,
-            new Actions([
-                new MoveCard($this->service(CardRepository::class), $this->service(BoardColumnRepository::class), $this->service(UpdateCardHandler::class)),
-                new RequestWork($this->service(CardRepository::class), $opener, $this->service(CardPullRequests::class), $this->service(CardEventRepository::class)),
-                new PauseCard(),
-                new ReleasePause($boardPauses),
-                $this->service(ForgeWrite::class),
-                new Ask($this->asks, $this->service(TranslatorInterface::class), 'en'),
-                new EvaluateChildren($this->service(CardDirectory::class), $this->evaluations ?? new EvaluationTrigger($this->service(MessageBusInterface::class))),
-                new MissingAction(),
-            ]),
+            $actions,
             $opener,
-            $this->contexts(),
+            $this->contexts($actions),
             new RuleSubject(),
             new MarkerPass(new RuleSubject(), $this->service(CardMarkerStore::class)),
             $this->asks,

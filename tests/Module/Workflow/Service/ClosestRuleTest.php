@@ -104,6 +104,6 @@ final class ClosestRuleTest extends TestCase
 
     private static function rule(string $id, Expression $when): Rule
     {
-        return new Rule($id, null, $when, new ActionCall('request', ['kind' => 'fix']));
+        return new Rule($id, null, $when, [new ActionCall('request', ['kind' => 'fix'])]);
     }
 }

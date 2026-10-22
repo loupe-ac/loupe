@@ -65,7 +65,7 @@ final readonly class RequestChanges implements Action
     #[\Override]
     public static function traits(): ActionTraits
     {
-        return new ActionTraits(refreshesFacts: true);
+        return new ActionTraits(refreshesFacts: true, listable: true);
     }
 
     #[\Override]

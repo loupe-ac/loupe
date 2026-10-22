@@ -77,6 +77,6 @@ final class RuleSubjectTest extends TestCase
 
     private static function rule(Expression $when): Rule
     {
-        return new Rule('rule', null, $when, new ActionCall('request', ['kind' => 'fix']));
+        return new Rule('rule', null, $when, [new ActionCall('request', ['kind' => 'fix'])]);
     }
 }

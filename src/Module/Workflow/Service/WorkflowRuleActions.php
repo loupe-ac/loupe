@@ -39,8 +39,8 @@ final readonly class WorkflowRuleActions implements RuleActions
 
         $params = [];
         foreach ($template->rules as $rule) {
-            if ($actionKey === $rule->then->key && self::firesOn($rule->when, $conditionKey)) {
-                $params[] = $rule->then->params;
+            if ($actionKey === $rule->lead->key && self::firesOn($rule->when, $conditionKey)) {
+                $params[] = $rule->lead->params;
             }
         }
 
