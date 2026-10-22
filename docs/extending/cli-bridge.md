@@ -524,8 +524,78 @@ account with its own `configDir` logs in once. Run
 type `/login` in that session.
 
 Claude Code also reads its MCP servers and its skills from the config folder.
-Add the `loupe` MCP server to each config folder. Install the Loupe skills in
-each config folder too. Otherwise a worker of that account cannot reach Loupe.
+Add the `loupe` MCP server to each config folder. A worker of that account
+cannot reach Loupe without it. A config folder needs its own copy of the Loupe
+skills only when the project does not ship them in `.claude/skills`.
+
+### A worker account with its own plugins
+
+Each worker runs `claude -p` with your user settings, so it loads every plugin
+that you installed for interactive work. Some plugins start each session with
+instructions that suit a person at a terminal, such as a block that tells the
+agent to ask questions. A worker never asks a question. A worker account with
+its own config folder loads only the plugins that you choose. Your interactive
+sessions keep all of them, and the bridge needs no code change.
+
+The steps below use the account name `claude-worker` and the folder
+`~/.claude-worker`. Use other names if you like.
+
+1. Log in once. Run `CLAUDE_CONFIG_DIR=~/.claude-worker claude auth login`.
+   Typing `/login` inside `CLAUDE_CONFIG_DIR=~/.claude-worker claude` also works.
+2. Install the plugins that workers keep. Run each command with
+   `CLAUDE_CONFIG_DIR=~/.claude-worker` in front. First add the marketplace
+   with `claude plugin marketplace add <marketplace>`. Then run
+   `claude plugin install <plugin>@<marketplace>` for each plugin. Editing
+   `enabledPlugins` by hand does not install the plugin files.
+3. Add the Loupe MCP server. Run
+   `CLAUDE_CONFIG_DIR=~/.claude-worker claude mcp add -s user loupe -- loupe mcp`.
+   A plugin that ships its own MCP server needs no entry.
+4. Copy the other settings you want from `~/.claude/settings.json` into
+   `~/.claude-worker/settings.json`, such as `model` and the `env` block. Leave
+   out display keys such as `statusLine`. The `env` block can hold tokens, so
+   keep the folder readable by you only.
+5. Give the folder your personal instructions without a second copy. Make
+   `~/.claude-worker/CLAUDE.md` hold one line, `@~/.claude/CLAUDE.md`. Then link
+   the two folders: `ln -s ~/.claude/rules ~/.claude-worker/rules` and
+   `ln -s ~/.claude/skills ~/.claude-worker/skills`. A later edit of the main
+   file then reaches workers at once. Step 7 checks both links. When the
+   `rules/` link does not load, import each rule file with its own line in
+   `CLAUDE.md`. When the `skills/` link does not load, copy the folder.
+6. Edit the rule file. Add the account, and make it the default:
+
+   ```yaml
+   accounts:
+     claude:
+       harness: claude-code
+     claude-worker:
+       harness: claude-code
+       configDir: ~/.claude-worker
+   defaults:
+     account: claude-worker
+   ```
+
+   Add `account: claude` to each interactive entry that names no account, so
+   your sessions keep every plugin. Entries on a `codex` account do not change.
+   Then run `loupe bridge reload`.
+7. Check the setup:
+   1. `loupe status` shows `claude-worker` as passing.
+   2. `CLAUDE_CONFIG_DIR=~/.claude-worker claude plugin list` lists only the
+      plugins you chose.
+   3. The next worker run loads no unwanted plugin block and can call a Loupe
+      tool such as `card_get`.
+   4. A session on the account can name a rule from `rules/`.
+   5. The same session lists a skill from `~/.claude/skills`. The skills check
+      of `loupe status` does not prove this, because it finds the skills of the
+      project.
+
+Run history records the account of each run, so runs before the switch show
+`claude` and runs after it show `claude-worker`. A resume keeps the account of
+the run it continues. `loupe usage backfill` reads transcripts from the
+`CLAUDE_CONFIG_DIR` of its own shell, so set `CLAUDE_CONFIG_DIR=~/.claude-worker`
+to backfill worker runs.
+
+A plugin update in the main folder does not reach the worker folder. Update the
+plugins of both folders.
 
 ### A Codex account
 
