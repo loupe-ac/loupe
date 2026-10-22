@@ -741,7 +741,10 @@ Some rules act from any slot:
    moves from the Backlog to Next in the same way, when every card it follows
    sits in a terminal column. The rule is `follow-up-to-next`. A follow-up has
    no parent, so its epic never waits for it. A board with the Simple template
-   moves no follow-up.
+   moves no follow-up. Only the `Follow-up.` marker in the Breakdown section of
+   the tech design makes an entry a follow-up. The breakdown stops, and creates
+   nothing, when an entry reads as work after the epic and has no marker, or
+   when a child entry waits for a follow-up.
 6. An epic that enters Implementation evaluates its children. The rule is
    `epic-entered-implementation`. A child that waited for its epic starts at
    once when it can.

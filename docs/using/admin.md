@@ -114,6 +114,9 @@ Gemini CLI, OpenCode, Aider and Pi. The person can also write a short text under
 "Something else?". The landing page of the hosted instance shows the form behind
 its **Notify me** button.
 
+The confirmation that a person sees after joining shows a card with a link to the
+Discord server, while the `site.link.discord` flag holds a link.
+
 Above the table, the page shows how many entries picked each choice. The
 counts run from the most picked choice to the least. They cover the ten named
 choices. The "Something else" text is not counted.

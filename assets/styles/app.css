@@ -3327,12 +3327,15 @@
     .lp-about-item {
         @apply flex flex-col items-start gap-4;
     }
-    /* Cards that stack in one column with the glyph beside the text, as on the beta welcome page. */
+    /* Cards that stack in one column, as on the beta welcome page. */
     .lp-about-cards--stacked {
         @apply grid-cols-1 lg:grid-cols-1;
     }
-    .lp-about-item--row {
-        @apply flex-row;
+    .lp-about-item--center {
+        @apply w-full items-center text-center;
+    }
+    .lp-about-item--center .lp-about-card__main {
+        @apply items-center;
     }
     .lp-about-card__glyph {
         @apply inline-flex items-center justify-center shrink-0 w-9.5 h-9.5 rounded-lg bg-accent-soft text-accent-ink;
