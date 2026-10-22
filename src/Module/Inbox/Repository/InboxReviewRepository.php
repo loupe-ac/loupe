@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Repository;
 
 use App\Module\Account\Entity\User;
-use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Review\Entity\Document;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -78,11 +76,9 @@ class InboxReviewRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('review')
             ->select('DISTINCT IDENTITY(review.document) AS documentId')
             ->join('review.item', 'item')
-            ->join(InboxAskItem::class, 'link', Join::ON, 'link.item = item')
-            ->join('link.ask', 'ask')
             ->andWhere('review.document IN (:documents)')
             ->andWhere('item.state = :state')
-            ->andWhere('ask.origin = :origin')
+            ->andWhere('item.origin = :origin')
             ->setParameter('documents', $documents)
             ->setParameter('state', InboxItemState::Open)
             ->setParameter('origin', InboxAskOrigin::Agent)

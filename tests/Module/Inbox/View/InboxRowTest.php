@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\View;
 
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -65,7 +66,7 @@ final class InboxRowTest extends TestCase
 
     public function test_a_long_title_is_cut_for_the_list_row_and_a_short_one_is_not(): void
     {
-        $long = new InboxItem($this->project(), 1, InboxItemKind::Wait, str_repeat('word ', 30), false);
+        $long = new InboxItem($this->project(), 1, InboxItemKind::Wait, str_repeat('word ', 30), false, origin: InboxAskOrigin::Loupe);
 
         self::assertSame(80, mb_strlen(new InboxRow($this->ask(), [$long])->shortTitle()));
         self::assertStringEndsWith('…', new InboxRow($this->ask(), [$long])->shortTitle());
@@ -87,7 +88,7 @@ final class InboxRowTest extends TestCase
 
     private function item(int $number, InboxItemKind $kind, bool $blocking = false, InboxItemState $state = InboxItemState::Open): InboxItem
     {
-        $item = new InboxItem($this->project(), $number, $kind, 1 === $number ? 'First' : 'Item '.$number, $blocking);
+        $item = new InboxItem($this->project(), $number, $kind, 1 === $number ? 'First' : 'Item '.$number, $blocking, origin: InboxAskOrigin::Agent);
         $item->state = $state;
 
         return $item;

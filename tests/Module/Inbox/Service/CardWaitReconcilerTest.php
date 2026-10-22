@@ -74,7 +74,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         $watch = $this->onlyWatch();
         $item = $watch->item;
-        self::assertSame(InboxItemKind::Wait, $item->kind);
+        self::assertSame(InboxItemKind::Review, $item->kind);
+        self::assertSame(InboxAskOrigin::Loupe, $item->origin);
+        self::assertTrue($item->isAutomatic());
         self::assertTrue($item->blocking);
         self::assertSame(InboxItemState::Open, $item->state);
         self::assertSame($this->project->searchLanguage, $item->searchLanguage);
@@ -382,6 +384,59 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertCount(1, $this->openWaits($watch));
     }
 
+    public function test_the_item_is_a_review_while_a_review_wait_is_open_and_waiting_after_the_last_one_ends(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, 'STAGE RESULT: blocked: cannot reach github.com [reason: needs-person]. Restore the network.');
+        $runEntry = $this->inboxEntry('run-needs-you', new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => $run->id?->toRfc4122() ?? '']));
+        $pullRequest = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $runEntry);
+        $this->reconcile();
+        self::assertSame(InboxItemKind::Wait, $this->onlyWatch()->item->kind);
+
+        $this->storeInbox($this->em, $this->card, $runEntry, $this->pullRequestEntry($pullRequest, self::HEAD_A, params: ['%number%' => 5]));
+        $this->reconcile();
+        $item = $this->onlyWatch()->item;
+        self::assertSame(InboxItemKind::Review, $item->kind);
+        self::assertSame('Pull request #5 waits for your approval.', $item->title);
+
+        $this->storeInbox($this->em, $this->card, $runEntry);
+        $this->reconcile();
+        $item = $this->onlyWatch()->item;
+        self::assertSame(InboxItemKind::Wait, $item->kind);
+        self::assertSame('Implement worker needs you: cannot reach github.com', $item->title);
+    }
+
+    public function test_an_open_waiting_item_that_holds_a_review_wait_takes_the_kind_alone(): void
+    {
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A, params: ['%number%' => 5]));
+        $this->reconcile();
+        $item = $this->onlyWatch()->item;
+        $item->kind = InboxItemKind::Wait;
+        $this->em->flush();
+        $title = $item->title;
+        $body = $item->body;
+
+        $this->reconcile();
+
+        $item = $this->onlyWatch()->item;
+        self::assertSame(InboxItemKind::Review, $item->kind);
+        self::assertSame($title, $item->title);
+        self::assertSame($body, $item->body);
+    }
+
+    public function test_a_closed_item_keeps_the_kind_it_had(): void
+    {
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A, params: ['%number%' => 5]));
+        $this->reconcile();
+
+        $this->storeInbox($this->em, $this->card);
+        $this->reconcile();
+
+        $item = $this->onlyWatch()->item;
+        self::assertSame(InboxItemState::Done, $item->state);
+        self::assertSame(InboxItemKind::Review, $item->kind);
+    }
+
     public function test_an_entry_of_the_card_opens_nothing_and_does_not_stop_the_other_entries(): void
     {
         $spell = new \DateTimeImmutable('2026-10-20 09:00:00');
@@ -569,7 +624,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
     private function searchHits(string $word): int
     {
         return (int) $this->em->getConnection()->fetchOne(
-            "SELECT COUNT(*) FROM inbox_items WHERE project_id = :project AND kind = 'wait' AND search_vector @@ to_tsquery('english', :word)",
+            "SELECT COUNT(*) FROM inbox_items WHERE project_id = :project AND origin = 'loupe' AND search_vector @@ to_tsquery('english', :word)",
             ['project' => (string) $this->project->id, 'word' => strtolower($word)],
         );
     }

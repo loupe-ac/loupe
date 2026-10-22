@@ -498,7 +498,7 @@ final class InboxAskCloserTest extends KernelTestCase
         $first = $this->linkedQuestion(1, $card);
         $second = $this->linkedQuestion(2, $card);
         // Closes after the ask does, in the same move.
-        $todo = new InboxItem(project: $this->managedProject(), number: 3, kind: InboxItemKind::Todo, title: 'Tidy up', blocking: false);
+        $todo = new InboxItem(project: $this->managedProject(), number: 3, kind: InboxItemKind::Todo, title: 'Tidy up', blocking: false, origin: InboxAskOrigin::Agent);
         $todo->cards->add(new InboxItemCard($todo, $card));
         $this->em->persist($todo);
         $this->em->flush();
@@ -704,7 +704,7 @@ final class InboxAskCloserTest extends KernelTestCase
 
     private function todo(int $number, bool $blocking = false): InboxItem
     {
-        $item = new InboxItem(project: $this->managedProject(), number: $number, kind: InboxItemKind::Todo, title: 'To-do '.$number, blocking: $blocking);
+        $item = new InboxItem(project: $this->managedProject(), number: $number, kind: InboxItemKind::Todo, title: 'To-do '.$number, blocking: $blocking, origin: InboxAskOrigin::Agent);
         $this->em->persist($item);
         $this->em->flush();
 

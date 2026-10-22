@@ -56,7 +56,7 @@ final class InboxListToolTest extends KernelTestCase
         $result = ($this->tool)();
 
         self::assertSame(['From an agent', 'The document "The design" waits for your review.'], array_column($result['items'], 'title'));
-        self::assertSame(['question', 'wait'], array_column($result['items'], 'kind'));
+        self::assertSame(['question', 'review'], array_column($result['items'], 'kind'));
         self::assertSame(['agent', 'loupe'], array_column($result['items'], 'origin'));
     }
 

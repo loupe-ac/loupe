@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Entity;
 
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -35,7 +36,7 @@ final class InboxReviewTest extends KernelTestCase
             $target = new CardPullRequest($this->card($em, $project), 'https://github.com/example/project/pull/42');
             $em->persist($target);
         }
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the change', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the change', true, origin: InboxAskOrigin::Agent);
         $item->state = InboxItemState::Done;
         $review = new InboxReview($item, $target);
         $review->verdict = InboxReviewVerdict::ChangesRequested;
@@ -85,7 +86,7 @@ final class InboxReviewTest extends KernelTestCase
         $owner = $this->owner($em, 'review-unique');
         $project = $this->project($em, $owner, 'review-unique');
         $document = $this->document($em, $project);
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the change', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the change', true, origin: InboxAskOrigin::Agent);
         $em->persist($item);
         $em->persist(new InboxReview($item, $document));
         $em->flush();

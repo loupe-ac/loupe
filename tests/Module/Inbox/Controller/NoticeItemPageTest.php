@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Controller;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -39,6 +40,7 @@ final class NoticeItemPageTest extends WebTestCase
             kind: InboxItemKind::Notice,
             title: 'A bridge rule races the app sync',
             blocking: false,
+            origin: InboxAskOrigin::Loupe,
             body: "- `sync-behind` on bridge `01990000`\n\nRemove each rule on `pull_request.behind` from rules.yaml.",
         );
         $em->persist($this->notice);

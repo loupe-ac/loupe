@@ -254,6 +254,7 @@ final readonly class CardWaitReconciler
             kind: InboxItemKind::Wait,
             title: $title,
             blocking: true,
+            origin: InboxAskOrigin::Loupe,
             createdAt: $now,
             searchLanguage: $project->searchLanguage,
         );
@@ -346,8 +347,8 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * Writes the title and the body from the card and the open waits, or from the waits this reconcile ended
-     * when the item closed, and returns whether either changed.
+     * Writes the kind, the title and the body from the card and the open waits, or from the waits this reconcile ended
+     * when the item closed, and returns whether any changed. A closed item keeps its kind.
      *
      * @param list<InboxCardWait> $ended
      */
@@ -361,9 +362,11 @@ final readonly class CardWaitReconciler
         $body = $this->waitText->body($open);
 
         $item = $watch->item;
-        if ($item->title === $title && $item->body === $body) {
+        $kind = null !== $watch->closedAt ? $item->kind : $this->waitText->kind($open);
+        if ($item->title === $title && $item->body === $body && $item->kind === $kind) {
             return false;
         }
+        $item->kind = $kind;
         $item->title = $title;
         $item->body = $body;
         $item->updatedAt = $now;

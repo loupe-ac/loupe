@@ -36,7 +36,7 @@ final readonly class SubmitInboxDocumentReviewHandler
     public function __invoke(SubmitInboxDocumentReviewCommand $command): InboxItem
     {
         $item = $command->item;
-        if (InboxItemKind::Review !== $item->kind) {
+        if (InboxItemKind::Review !== $item->kind || $item->isAutomatic()) {
             throw new DomainErrors(['verdict' => 'inbox.review.error.not_a_review']);
         }
         $error = $this->em->wrapInTransaction(function () use ($command, $item): ?DomainErrors {
