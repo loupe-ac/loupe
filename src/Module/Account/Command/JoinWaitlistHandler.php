@@ -7,6 +7,7 @@ namespace App\Module\Account\Command;
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
+use App\Module\Account\Service\WaitlistOwnerNotifier;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -20,6 +21,7 @@ final readonly class JoinWaitlistHandler
         private UserRepository $users,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private WaitlistOwnerNotifier $ownerNotifier,
     ) {
     }
 
@@ -42,6 +44,7 @@ final readonly class JoinWaitlistHandler
                     $this->em->flush();
 
                     $this->record('account.waitlist_rejoined', $existingEntry);
+                    $this->ownerNotifier->joined($existingEntry, $command->source, rejoined: true);
 
                     return;
                 }
@@ -94,6 +97,7 @@ final readonly class JoinWaitlistHandler
         }
 
         $this->record('account.waitlist_joined', $entry);
+        $this->ownerNotifier->joined($entry, $command->source, rejoined: false);
     }
 
     private function record(string $operation, WaitlistEntry $entry, AuditOutcome $outcome = AuditOutcome::Success): void

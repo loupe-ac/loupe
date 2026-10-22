@@ -9,9 +9,13 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\AgentAccountInstaller;
 use App\Module\Account\Service\VerificationEmailSender;
+use App\Module\Account\Service\WaitlistNotificationRecipients;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
+use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 /**
  * Deliberately does NOT compose RegisterUserHandler: that handler flushes
@@ -28,6 +32,7 @@ final readonly class CreateInstallAdminHandler
         private EntityManagerInterface $em,
         private UserPasswordHasherInterface $passwordHasher,
         private VerificationEmailSender $verificationEmailSender,
+        private FeatureFlagRepository $featureFlags,
 
         #[Autowire(param: 'app.terms.version')]
         private string $termsVersion,
@@ -62,6 +67,8 @@ final readonly class CreateInstallAdminHandler
             $user->termsVersion = $this->termsVersion;
             $this->em->persist($user);
 
+            $this->seedWaitlistRecipients($user);
+
             // Inside the transaction that claims the install: an instance that
             // completed the wizard must have an agent row, or the first comment
             // written over MCP fails deep in a write. Idempotent — the migration
@@ -80,5 +87,24 @@ final readonly class CreateInstallAdminHandler
         }
 
         return $user;
+    }
+
+    /**
+     * The wizard seeds the flags before this admin exists, so the list starts
+     * empty. A list the operator already filled is theirs to keep.
+     */
+    private function seedWaitlistRecipients(User $admin): void
+    {
+        $flag = $this->featureFlags->findOneBy(['name' => WaitlistNotificationRecipients::FLAG]);
+        if (null === $flag) {
+            $flag = new FeatureFlag(WaitlistNotificationRecipients::FLAG, FeatureFlagType::String, '');
+            $this->em->persist($flag);
+        }
+
+        if (\is_string($flag->value) && '' !== trim($flag->value)) {
+            return;
+        }
+
+        $flag->value = $admin->email;
     }
 }

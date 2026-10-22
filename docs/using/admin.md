@@ -118,6 +118,37 @@ Above the table, the page shows how many entries picked each choice. The
 counts run from the most picked choice to the least. They cover the ten named
 choices. The "Something else" text is not counted.
 
+### Waitlist emails
+
+The **Waitlist notification emails** flag, `waitlist.notification_emails`, holds the
+addresses that get an email about the waitlist. Separate the addresses with
+commas. White space and new lines also work. An empty flag turns the emails off.
+
+The app sends one email to each address in these cases:
+
+- A person joins the waitlist with the form.
+- A person joins the waitlist through a social login while sign-up is full.
+- A person whose account is disabled joins the waitlist again.
+- A person registers with a waitlist invite link, by the form or by a social login.
+
+Each address gets its own email, so no recipient sees the other addresses. The
+email names the person and says how they joined. The join email also lists their
+picks and their "Something else?" text. Both emails give the number of people
+who still wait, and a button to the waitlist or to the new account.
+
+A picks update, a repeated join and a registration with no invite send nothing.
+An email that fails to send never changes what the person sees. The app logs
+`account.waitlist_notification_failed` and goes on.
+
+A fresh install starts with the address of the first administrator in the flag.
+An upgraded instance starts with the addresses of every administrator who can sign
+in. The agent account and a suspended administrator are left out. Empty the flag
+to stop these emails.
+
+The flags page saves any text. **Instance status** shows a warning when an entry is
+not an email address, and the warning names every such entry. The app skips these
+entries and sends to the others.
+
 A person's waitlist entry is deleted with their account. It appears in their
 [data export](data-exports.md) as `waitlist.json`.
 

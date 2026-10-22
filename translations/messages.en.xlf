@@ -647,6 +647,87 @@
                 <target>Reactivate your account</target>
             </trans-unit>
 
+            <trans-unit id="account.email.waitlist_owner.joined.subject">
+                <source>account.email.waitlist_owner.joined.subject</source>
+                <target>New person on the waitlist</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.joined.heading">
+                <source>account.email.waitlist_owner.joined.heading</source>
+                <target>Someone joined the waitlist</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.joined.how.form">
+                <source>account.email.waitlist_owner.joined.how.form</source>
+                <target>%email% joined the waitlist with the waitlist form.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.joined.how.social-login">
+                <source>account.email.waitlist_owner.joined.how.social-login</source>
+                <target>%email% joined the waitlist through a social login while sign-up was full.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.joined.how.rejoin">
+                <source>account.email.waitlist_owner.joined.how.rejoin</source>
+                <target>%email% joined the waitlist again after their account was disabled.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.joined.button">
+                <source>account.email.waitlist_owner.joined.button</source>
+                <target>Open the waitlist</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.picks">
+                <source>account.email.waitlist_owner.picks</source>
+                <target>Picks: %picks%.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.other">
+                <source>account.email.waitlist_owner.other</source>
+                <target>Other: %other%</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.waiting">
+                <source>account.email.waitlist_owner.waiting</source>
+                <target>{0}Nobody is waiting now.|{1}One person is waiting now.|]1,Inf[%count% people are waiting now.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.subject">
+                <source>account.email.waitlist_owner.claimed.subject</source>
+                <target>A waitlist invite was claimed</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.heading">
+                <source>account.email.waitlist_owner.claimed.heading</source>
+                <target>A waitlist invite became an account</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.method.form">
+                <source>account.email.waitlist_owner.claimed.method.form</source>
+                <target>%email% created an account with the registration form.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.method.github">
+                <source>account.email.waitlist_owner.claimed.method.github</source>
+                <target>%email% created an account with GitHub.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.method.google">
+                <source>account.email.waitlist_owner.claimed.method.google</source>
+                <target>%email% created an account with Google.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.invite">
+                <source>account.email.waitlist_owner.claimed.invite</source>
+                <target>{0}The invite was sent on %date%, and the person claimed it the same day.|{1}The invite was sent on %date%, and the person claimed it 1 day later.|]1,Inf[The invite was sent on %date%, and the person claimed it %count% days later.</target>
+            </trans-unit>
+            <trans-unit id="account.email.waitlist_owner.claimed.button">
+                <source>account.email.waitlist_owner.claimed.button</source>
+                <target>Open the account</target>
+            </trans-unit>
+            <trans-unit id="check.waitlist_notification_recipients.label">
+                <source>check.waitlist_notification_recipients.label</source>
+                <target>Waitlist notification emails</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.waitlist_notification_recipients.off">
+                <source>account.system_status.waitlist_notification_recipients.off</source>
+                <target>The list is empty, so the app sends no waitlist emails.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.waitlist_notification_recipients.ok">
+                <source>account.system_status.waitlist_notification_recipients.ok</source>
+                <target>{0}Waitlist emails are off.|{1}Waitlist emails go to 1 address.|]1,Inf[Waitlist emails go to %count% addresses.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.waitlist_notification_recipients.invalid">
+                <source>account.system_status.waitlist_notification_recipients.invalid</source>
+                <target>{0}Every entry is an email address.|{1}1 entry is not an email address: %entries%.|]1,Inf[%count% entries are not email addresses: %entries%.</target>
+            </trans-unit>
+
             <!-- Reset password email template -->
             <trans-unit id="account.email.reset_password.html_title">
                 <source>account.email.reset_password.html_title</source>
