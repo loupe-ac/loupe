@@ -893,8 +893,10 @@ review had passed. This holds for the two rules above. The action `approve-docum
 check. A rule that you add to the template copy can approve with other conditions, and the note then says more than the
 rule checked.
 
-To approve the tech design of a feature this way, add `feature` to the `types` list of `tech-design-auto-approve` in the
-template copy of the project. To turn the feature off, remove the two rules.
+You cannot edit the template of a running instance yet. The Workflow page is read-only, and the template file is part of the
+release. A change to which designs approve themselves, such as `feature` in the `types` list of `tech-design-auto-approve`,
+is a change to `config/workflows/lifecycle.yaml` with a migration that writes the file into each project. It reaches an
+instance with the next release. A workflow editor will replace this path.
 A template with no design review rule never approves a design this way, because `design_review.passed` stays false.
 The rule reads the card type live. When you change a card to an allowed type while a clean design is in review, the rule approves the design at the next pass.
 
