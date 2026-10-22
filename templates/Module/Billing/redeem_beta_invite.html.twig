@@ -14,24 +14,22 @@
 {% endif %}
 
 <div class="lp-about-cards lp-about-cards--stacked mt-5">
-    <twig:Ds:Panel as="section" class="lp-about-item lp-about-item--row" aria-labelledby="beta-start" data-beta-start-card>
-        <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:arrow-right" class="lp-icon lp-icon--lg" aria-hidden="true" /></span>
+    <twig:Ds:Panel as="section" class="lp-about-item lp-about-item--center" aria-labelledby="beta-start" data-beta-start-card>
         <div class="lp-about-card__main">
             <h2 class="lp-about-card__title" id="beta-start">{{ 'billing.beta_invite.redeemed.start.heading'|trans }}</h2>
             <p class="lp-about-card__text">{{ 'billing.beta_invite.redeemed.start.body'|trans }}</p>
-            <twig:Ds:Button variant="primary" href="{{ path('app_home') }}" class="lp-about-card__action">{{ 'billing.beta_invite.redeemed.continue'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" href="{{ path('app_home') }}" class="lp-about-card__action">
+                {{ 'billing.beta_invite.redeemed.continue'|trans }}
+                <twig:ux:icon name="lucide:arrow-right" class="lp-icon lp-icon--sm" aria-hidden="true" />
+            </twig:Ds:Button>
         </div>
     </twig:Ds:Panel>
 
-    {% if site_discord_url() %}
-    <twig:Ds:Panel as="section" class="lp-about-item lp-about-item--row" aria-labelledby="beta-community" data-beta-community-card>
-        <span class="lp-about-card__glyph"><twig:ux:icon name="simple-icons:discord" class="lp-icon lp-icon--lg" aria-hidden="true" /></span>
-        <div class="lp-about-card__main">
-            <h2 class="lp-about-card__title" id="beta-community">{{ 'billing.beta_invite.redeemed.community.heading'|trans }}</h2>
-            <p class="lp-about-card__text">{{ 'billing.beta_invite.redeemed.community.body'|trans }}</p>
-            <twig:Ds:Button href="{{ site_discord_url() }}" class="lp-about-card__action" target="_blank" rel="noopener noreferrer">{{ 'billing.beta_invite.redeemed.community.button'|trans }}</twig:Ds:Button>
-        </div>
-    </twig:Ds:Panel>
-    {% endif %}
+    {% include '_discord_card.html.twig' with {
+        heading: 'billing.beta_invite.redeemed.community.heading'|trans,
+        body: 'billing.beta_invite.redeemed.community.body'|trans,
+        button: 'billing.beta_invite.redeemed.community.button'|trans,
+        headingId: 'beta-community',
+    } only %}
 </div>
 {% endblock %}
