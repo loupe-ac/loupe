@@ -37,18 +37,6 @@ final class RunConditionsTest extends TestCase
         self::assertSame($expected, $condition->evaluate($facts, $params));
     }
 
-    public function test_the_open_work_evidence_is_the_earliest_start_among_the_open_kinds(): void
-    {
-        $reading = new WorkTakerReading(WorkTakerState::Available, new \DateTimeImmutable('2026-10-01 11:30:00'), null);
-        $facts = FactsMother::facts(provided: [
-            WorkRequestFacts::class => new WorkRequestFacts(['fix', 'implement', 'review'], ['fix' => new \DateTimeImmutable('2026-10-01 10:00:00'), 'implement' => new \DateTimeImmutable('2026-10-01 11:00:00'), 'review' => new \DateTimeImmutable('2026-10-01 11:15:00')]),
-            WorkTakerFacts::class => new WorkTakerFacts(['implement' => $reading, 'review' => $reading]),
-        ]);
-
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 11:00:00'), new RunWorkOpen()->evidence($facts, [])?->since);
-        self::assertNull(new RunWorkOpen()->evidence(self::withReadings([]), []));
-    }
-
     /** @return iterable<string, array{Condition, array<string, mixed>, Facts, bool}> */
     public static function cases(): iterable
     {
@@ -113,7 +101,7 @@ final class RunConditionsTest extends TestCase
     public static function waiting(): iterable
     {
         yield 'card.run.work_active' => [new RunWorkActive(), ['kind' => 'fix'], 'run_work_active', [], [WorkRequestFacts::class]];
-        yield 'card.run.work_open' => [new RunWorkOpen(), [], 'run_work_open', [], [WorkTakerFacts::class, WorkRequestFacts::class]];
+        yield 'card.run.work_open' => [new RunWorkOpen(), [], 'run_work_open', [], [WorkTakerFacts::class]];
         yield 'card.run.worker_active' => [new RunWorkerActive(), ['kind' => 'breakdown'], 'run_worker_active', [], [WorkerRunFacts::class]];
         yield 'card.parent.run.active' => [new ParentWorkActive(), ['kind' => 'breakdown'], 'parent_work_active', [], [ParentWorkFacts::class]];
         yield 'card.run.last_refusal' => [new RunLastRefusal(), ['code' => 'no-worker'], 'run_last_refusal', ['%code%' => 'no-worker'], [RefusalFacts::class]];

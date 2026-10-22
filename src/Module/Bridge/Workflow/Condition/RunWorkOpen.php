@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Workflow\Condition;
 
-use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Workflow\Contract\Condition;
-use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
-use App\Module\Workflow\Contract\MarkerEvidence;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /** A work request of the card is open, which means no bridge claimed it yet. A claimed request does not count. */
-final readonly class RunWorkOpen implements Condition, MarkerEvidence
+final readonly class RunWorkOpen implements Condition
 {
     #[\Override]
     public static function key(): string
@@ -36,7 +33,7 @@ final readonly class RunWorkOpen implements Condition, MarkerEvidence
     #[\Override]
     public function reads(array $params): array
     {
-        return [WorkTakerFacts::class, WorkRequestFacts::class];
+        return [WorkTakerFacts::class];
     }
 
     #[\Override]
@@ -49,17 +46,5 @@ final readonly class RunWorkOpen implements Condition, MarkerEvidence
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
         return new TranslatableMessage($negated ? 'workflow.waiting.not.run_work_open' : 'workflow.waiting.run_work_open');
-    }
-
-    #[\Override]
-    public function evidence(Facts $facts, array $params): ?Evidence
-    {
-        $open = array_intersect_key($facts->get(WorkRequestFacts::class)->since, $facts->get(WorkTakerFacts::class)->readings);
-        if ([] === $open) {
-            return null;
-        }
-        $at = min($open);
-
-        return new Evidence($at);
     }
 }
