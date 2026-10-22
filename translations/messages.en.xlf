@@ -1341,6 +1341,62 @@
                 <source>review.publish.submit</source>
                 <target>Publish</target>
             </trans-unit>
+            <trans-unit id="review.draft_band.label">
+                <source>review.draft_band.label</source>
+                <target>Draft status</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.agent_title">
+                <source>review.draft_band.agent_title</source>
+                <target>An agent reviews this draft, round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.agent_text">
+                <source>review.draft_band.agent_text</source>
+                <target>Loupe sends it to your review when the agent review ends. Publish now sends it to your review at once and stops the agent review.</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.paused_title">
+                <source>review.draft_band.paused_title</source>
+                <target>The agent review of this draft is paused.</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.paused_text">
+                <source>review.draft_band.paused_text</source>
+                <target>Loupe does not publish the draft until the review goes on.</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.plain_title">
+                <source>review.draft_band.plain_title</source>
+                <target>This document is not in review yet. Publish sends it to review.</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.card_link">
+                <source>review.draft_band.card_link</source>
+                <target>Open card %number%</target>
+            </trans-unit>
+            <trans-unit id="review.draft_band.publish_now">
+                <source>review.draft_band.publish_now</source>
+                <target>Publish now</target>
+            </trans-unit>
+            <trans-unit id="review.publish.confirm.title">
+                <source>review.publish.confirm.title</source>
+                <target>Publish now?</target>
+            </trans-unit>
+            <trans-unit id="review.publish.confirm.agent_lead">
+                <source>review.publish.confirm.agent_lead</source>
+                <target>An agent still reviews this draft, round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.publish.confirm.agent_body">
+                <source>review.publish.confirm.agent_body</source>
+                <target>Publishing now stops the agent review and sends the draft to your review at once.</target>
+            </trans-unit>
+            <trans-unit id="review.publish.confirm.paused_lead">
+                <source>review.publish.confirm.paused_lead</source>
+                <target>The agent review of this draft is paused, at round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.publish.confirm.paused_body">
+                <source>review.publish.confirm.paused_body</source>
+                <target>Publishing now ends the agent review and sends the draft to your review at once.</target>
+            </trans-unit>
+            <trans-unit id="review.publish.confirm.cancel">
+                <source>review.publish.confirm.cancel</source>
+                <target>Cancel</target>
+            </trans-unit>
             <trans-unit id="review.publish.flash.published">
                 <source>review.publish.flash.published</source>
                 <target>“%title%” is now in review.</target>
@@ -1473,6 +1529,66 @@
             <trans-unit id="review.document.finish.context">
                 <source>review.document.finish.context</source>
                 <target>v%version% · %open% open threads</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.draft_warning.agent">
+                <source>review.document.finish.draft_warning.agent</source>
+                <target>An agent still reviews this draft, round %round% of %limit%. Your verdict stops that review now. Approve also moves the card to the next stage.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.draft_warning.paused">
+                <source>review.document.finish.draft_warning.paused</source>
+                <target>The agent review of this draft is paused, at round %round% of %limit%. Your verdict ends that review. Approve also moves the card to the next stage.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.draft_warning.plain">
+                <source>review.document.finish.draft_warning.plain</source>
+                <target>This document is still a draft.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.title">
+                <source>review.document.finish.stop_confirm.title</source>
+                <target>Stop the agent review?</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.back">
+                <source>review.document.finish.stop_confirm.back</source>
+                <target>Go back</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.confirm_approved">
+                <source>review.document.finish.stop_confirm.confirm_approved</source>
+                <target>Stop the review and approve</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.confirm_changes_requested">
+                <source>review.document.finish.stop_confirm.confirm_changes_requested</source>
+                <target>Stop the review and request changes</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.agent_approved_lead">
+                <source>review.document.finish.stop_confirm.agent_approved_lead</source>
+                <target>You approve this draft while an agent still reviews it, round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.agent_approved_body">
+                <source>review.document.finish.stop_confirm.agent_approved_body</source>
+                <target>Loupe stops the agent review now, and the findings of the agent for this round are lost. The card moves to the next stage.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.agent_changes_requested_lead">
+                <source>review.document.finish.stop_confirm.agent_changes_requested_lead</source>
+                <target>You request changes to this draft while an agent still reviews it, round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.agent_changes_requested_body">
+                <source>review.document.finish.stop_confirm.agent_changes_requested_body</source>
+                <target>Loupe stops the agent review now, and the findings of the agent for this round are lost. Your note goes to the author for a new revision.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.paused_approved_lead">
+                <source>review.document.finish.stop_confirm.paused_approved_lead</source>
+                <target>You approve this draft while its agent review is paused, at round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.paused_approved_body">
+                <source>review.document.finish.stop_confirm.paused_approved_body</source>
+                <target>Loupe ends the agent review now. The card moves to the next stage.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.paused_changes_requested_lead">
+                <source>review.document.finish.stop_confirm.paused_changes_requested_lead</source>
+                <target>You request changes to this draft while its agent review is paused, at round %round% of %limit%.</target>
+            </trans-unit>
+            <trans-unit id="review.document.finish.stop_confirm.paused_changes_requested_body">
+                <source>review.document.finish.stop_confirm.paused_changes_requested_body</source>
+                <target>Loupe ends the agent review now. Your note goes to the author for a new revision.</target>
             </trans-unit>
             <trans-unit id="review.document.finish.cancel">
                 <source>review.document.finish.cancel</source>

@@ -16,6 +16,7 @@ use App\Module\Review\Form\ReviseDocumentRequest;
 use App\Module\Review\Form\SubmitReviewFormType;
 use App\Module\Review\Form\SubmitReviewRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DraftReviewLoops;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -32,6 +33,7 @@ final class ShowDocumentHistoryController extends AppController
     public function __construct(
         private readonly ShowDocumentHistoryHandler $showDocumentHistory,
         private readonly ShowDocumentHandler $showDocument,
+        private readonly DraftReviewLoops $draftReviewLoops,
     ) {
     }
 
@@ -48,6 +50,7 @@ final class ShowDocumentHistoryController extends AppController
             'versions' => $view->versions,
             'version' => $current->version,
             'signals' => $current->signals,
+            'draftReviewLoop' => $this->draftReviewLoops->of($document),
             'reviseDocumentForm' => $this->createForm(
                 ReviseDocumentFormType::class,
                 ReviseDocumentRequest::fromVersion($current->version),

@@ -4,8 +4,11 @@
         '%version%': submitReviewForm.versionNumber.vars.value,
         '%open%': signals.openThreadCount,
     }) }}</p>
-    {{ form_start(submitReviewForm, {attr: {class: 'lp-form', 'data-controller': 'form-draft', 'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': 'document:review:' ~ document.id, 'data-action': 'input->form-draft#remember change->form-draft#remember submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared'}}) }}
+    {{ form_start(submitReviewForm, {attr: {class: 'lp-form', 'data-controller': 'form-draft review-stop-confirm', 'data-review-stop-confirm-active-value': draftReviewLoop is not null ? 'true' : 'false', 'data-review-stop-confirm-dialog-value': 'review-stop-confirm', 'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': 'document:review:' ~ document.id, 'data-action': 'input->form-draft#remember change->form-draft#remember submit->review-stop-confirm#check submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared'}}) }}
         {% include '@Review/_draft_notice.html.twig' with {} only %}
+        {% if document.status.value == 'draft' %}
+        {% include '@Review/_draft_review_warning.html.twig' with {document: document, draftReviewLoop: draftReviewLoop} only %}
+        {% endif %}
         <twig:Ds:FieldErrors>{{ form_errors(submitReviewForm) }}{{ form_errors(submitReviewForm.versionNumber) }}</twig:Ds:FieldErrors>
         {{ form_widget(submitReviewForm.versionNumber, {type: 'hidden', attr: {'data-form-draft-target': 'guard'}}) }}
         {{ form_widget(submitReviewForm.expectedReviewId, {attr: {'data-form-draft-target': 'guard'}}) }}
@@ -35,3 +38,16 @@
         </div>
     {{ form_end(submitReviewForm) }}
 </twig:Ds:Dialog>
+{% if document.status.value == 'draft' %}
+<div id="review-stop-confirm" data-controller="modal" data-action="review:stop-confirm@window->modal#open">
+    <twig:Ds:Dialog aria-labelledby="review-stop-confirm-title" data-action="cancel->modal#close">
+        <h2 class="lp-dialog-title" id="review-stop-confirm-title">{{ 'review.document.finish.stop_confirm.title'|trans }}</h2>
+        <p class="lp-dialog-desc" data-review-stop-confirm-lead></p>
+        <p class="lp-draft-review-stop__body" data-review-stop-confirm-body></p>
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'review.document.finish.stop_confirm.back'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="danger" type="button" data-review-stop-confirm-confirm data-action="click->modal#close"></twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </twig:Ds:Dialog>
+</div>
+{% endif %}

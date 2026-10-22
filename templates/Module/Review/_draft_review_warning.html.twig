@@ -1,0 +1,17 @@
+{# Props: document (a draft), draftReviewLoop (null when no agent review waits to publish it).
+   The copy elements hold the text of the second confirmation. The id is the target of a live replace. #}
+<div id="draft-review-warning">
+    {% if draftReviewLoop is null %}
+    <p class="lp-draft-review-warning__line">{{ 'review.document.finish.draft_warning.plain'|trans }}</p>
+    {% else %}
+    {% set formName = draftReviewLoop.paused() ? 'paused' : 'agent' %}
+    {% set rounds = {'%round%': draftReviewLoop.round, '%limit%': draftReviewLoop.limit} %}
+    <twig:Ds:Flash severity="warning">{{ ('review.document.finish.draft_warning.' ~ formName)|trans(rounds) }}</twig:Ds:Flash>
+    {% for verdict, key in {'approved': 'approved', 'changes-requested': 'changes_requested'} %}
+    <span hidden data-review-stop-confirm-copy="{{ verdict }}"
+          data-lead="{{ ('review.document.finish.stop_confirm.' ~ formName ~ '_' ~ key ~ '_lead')|trans(rounds) }}"
+          data-body="{{ ('review.document.finish.stop_confirm.' ~ formName ~ '_' ~ key ~ '_body')|trans }}"
+          data-confirm="{{ ('review.document.finish.stop_confirm.confirm_' ~ key)|trans }}"></span>
+    {% endfor %}
+    {% endif %}
+</div>

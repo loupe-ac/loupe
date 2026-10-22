@@ -37,6 +37,8 @@
         showDocumentActions: true,
         reviseDocumentForm: reviseDocumentForm,
         showPageMenu: false,
+        showDraftBand: true,
+        draftReviewLoop: draftReviewLoop,
     } only %}
     <div class="lp-history-tools">
         <h2 class="lp-history-title">{{ 'review.document.history.page.title'|trans }}</h2>
@@ -138,6 +140,7 @@
     document: document,
     submitReviewForm: submitReviewForm,
     signals: signals,
+    draftReviewLoop: draftReviewLoop,
 } only %}
 {% endif %}
 </div>

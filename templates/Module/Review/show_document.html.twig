@@ -152,6 +152,8 @@
                 showWaitLine: not diffMode and not readOnly,
                 showPageMenu: true,
                 showNewTextSwitch: not diffMode,
+                showDraftBand: not diffMode,
+                draftReviewLoop: draftReviewLoop,
             } only %}
 
             {# The way back to a discussion a revision left behind: comments
@@ -519,6 +521,7 @@
         document: document,
         submitReviewForm: submitReviewForm,
         signals: signals,
+        draftReviewLoop: draftReviewLoop,
     } only %}
     {% endif %}
 

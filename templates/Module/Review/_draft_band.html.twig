@@ -1,0 +1,45 @@
+{# Props: document (a draft), draftReviewLoop (null when no agent review waits to publish it),
+   showPublish (bool). The id is the target of a live replace. #}
+{% set paused = draftReviewLoop is not null and draftReviewLoop.paused() %}
+{% set formName = draftReviewLoop is null ? 'plain' : (paused ? 'paused' : 'agent') %}
+{% set rounds = draftReviewLoop is null ? {} : {'%round%': draftReviewLoop.round, '%limit%': draftReviewLoop.limit} %}
+{% set publishAllowed = showPublish and is_granted(constant('App\\Module\\Review\\Security\\DocumentVoter::MANAGE'), document) %}
+{% set publishUrl = path('app_document_publish', {projectId: document.project.id, documentId: document.id}) %}
+<section id="draft-band" class="lp-draft-band{{ paused ? ' lp-draft-band--paused' : '' }}" data-draft-band="{{ formName }}" aria-label="{{ 'review.draft_band.label'|trans }}">
+    <div class="lp-draft-band__body">
+        <p class="lp-draft-band__title">
+            <twig:Ds:Badge status="draft">{{ document.status.translationKey()|trans }}</twig:Ds:Badge>
+            <strong>{{ ('review.draft_band.' ~ formName ~ '_title')|trans(rounds) }}</strong>
+        </p>
+        {% if formName != 'plain' %}
+        <p class="lp-draft-band__text">
+            {% if paused %}
+            <span class="lp-draft-band__reason">{{ draftReviewLoop.pauseReason }}</span>
+            {% endif %}
+            {{ ('review.draft_band.' ~ formName ~ '_text')|trans }}
+            {% if paused %}
+            <a class="lp-draft-band__card" href="{{ path('app_board_card', {projectId: document.project.id, cardId: draftReviewLoop.cardId}) }}" data-draft-band-card>{{ 'review.draft_band.card_link'|trans({'%number%': draftReviewLoop.cardNumber}) }}</a>
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+    {% if publishAllowed and draftReviewLoop is null %}
+    <twig:Ds:ActionForm :action="publishUrl" token="document-publish" data-document-publish>
+        <twig:Ds:Button size="sm" type="submit">{{ 'review.publish.submit'|trans }}</twig:Ds:Button>
+    </twig:Ds:ActionForm>
+    {% elseif publishAllowed %}
+    <div class="lp-draft-band__action" data-controller="modal">
+        <twig:Ds:Button size="sm" type="button" data-action="click->modal#open">{{ 'review.draft_band.publish_now'|trans }}</twig:Ds:Button>
+        <twig:Ds:Dialog aria-labelledby="draft-publish-title" data-action="cancel->modal#close">
+            <h2 class="lp-dialog-title" id="draft-publish-title">{{ 'review.publish.confirm.title'|trans }}</h2>
+            <p class="lp-dialog-desc">{{ ('review.publish.confirm.' ~ formName ~ '_lead')|trans(rounds) }} {{ ('review.publish.confirm.' ~ formName ~ '_body')|trans }}</p>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'review.publish.confirm.cancel'|trans }}</twig:Ds:Button>
+                <twig:Ds:ActionForm :action="publishUrl" token="document-publish" data-document-publish>
+                    <twig:Ds:Button variant="primary" type="submit">{{ 'review.draft_band.publish_now'|trans }}</twig:Ds:Button>
+                </twig:Ds:ActionForm>
+            </twig:Ds:FormActions>
+        </twig:Ds:Dialog>
+    </div>
+    {% endif %}
+</section>
