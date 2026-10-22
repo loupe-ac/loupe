@@ -112,10 +112,10 @@ Read the epic with `card_get` on the card of the request. When its `status` is a
 4. Read the body of each merged child pull request with the forge adapter. Find the preview section that the profile `Preview` section names. A profile with no `Preview` section names it in its `Pull request` section. In that section, take each link of the form that the profile `Epics` section carries, with its label and its marker. A child with no such link carries nothing. When no listed child carries a link, stop with `STAGE RESULT: preview refreshed <epic pull request url>`.
 5. For each link, mint a link on the epic preview and prove it, as the profile says. The mint or the proof can fail, because the child seeded its state into its own database. Write such a line as not minted or not proved, and go on.
 6. Read the body of the epic pull request with the forge adapter, just before you write it.
-7. In its preview section, replace the lines that start with `#<child number>:` for each listed child, and keep every other line. When the body has no such section, add it at the top. Write one line per link:
-   - `#<child number>: <label> <link> (proved: <marker>)`
-   - `#<child number>: <label> <link> (not proved: <marker>)`
-   - `#<child number>: <label> <path> (not minted: <marker>)`, when the mint failed. `<path>` is the decoded target path, because the link of the child is signed for the child host.
+7. In its preview section, replace the lines that start with `#<child number>:` or `- #<child number>:` for each listed child, and keep every other line. When the body has no such section, add it at the top. Write one Markdown list item per link:
+   - `` - #<child number>: [<label>](<link>), proved: `<marker>` ``
+   - `` - #<child number>: [<label>](<link>), not proved: `<marker>` ``
+   - `` - #<child number>: <label> <path>, not minted: `<marker>` ``, when the mint failed. `<path>` is the decoded target path, because the link of the child is signed for the child host.
 8. Replace the body of the epic pull request with the forge adapter. Write the body to a temporary file outside the repository with a file tool, not with the shell.
 9. Read the body again. When the lines of a listed child are missing, record the block.
 10. Stop with `STAGE RESULT: preview refreshed <epic pull request url>`.
