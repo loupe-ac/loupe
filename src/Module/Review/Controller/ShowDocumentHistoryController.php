@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Review\Command\ShowDocumentCommand;
 use App\Module\Review\Command\ShowDocumentHandler;
@@ -16,6 +17,7 @@ use App\Module\Review\Form\ReviseDocumentRequest;
 use App\Module\Review\Form\SubmitReviewFormType;
 use App\Module\Review\Form\SubmitReviewRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DraftReviewLoops;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -32,6 +34,8 @@ final class ShowDocumentHistoryController extends AppController
     public function __construct(
         private readonly ShowDocumentHistoryHandler $showDocumentHistory,
         private readonly ShowDocumentHandler $showDocument,
+        private readonly DraftReviewLoops $draftReviewLoops,
+        private readonly ProjectTopicBuilder $topics,
     ) {
     }
 
@@ -45,9 +49,14 @@ final class ShowDocumentHistoryController extends AppController
 
         return $this->render('@Review/show_document_history.html.twig', [
             'document' => $view->document,
+            'documentTopic' => $this->topics->forDocument(
+                $document->project->id ?? throw new \LogicException('Project has no id.'),
+                $document->id ?? throw new \LogicException('Document has no id.'),
+            ),
             'versions' => $view->versions,
             'version' => $current->version,
             'signals' => $current->signals,
+            'draftReviewLoop' => $this->draftReviewLoops->of($document),
             'reviseDocumentForm' => $this->createForm(
                 ReviseDocumentFormType::class,
                 ReviseDocumentRequest::fromVersion($current->version),

@@ -68,20 +68,16 @@
         <span class="lp-review-doc__byline-actions">
             {% if showDocumentActions %}
             {% include '@Review/_revise_document.html.twig' with {form: reviseDocumentForm, document: document} only %}
-            {% if document.status.value == 'draft' and is_granted(constant('App\\Module\\Review\\Security\\DocumentVoter::MANAGE'), document) %}
-            <twig:Ds:ActionForm :action="path('app_document_publish', {projectId: document.project.id, documentId: document.id})" token="document-publish" data-document-publish>
-                <twig:Ds:Button variant="ghost" size="sm" type="submit">
-                    <twig:ux:icon name="lucide:send" />
-                    {{ 'review.publish.submit'|trans }}
-                </twig:Ds:Button>
-            </twig:Ds:ActionForm>
-            {% endif %}
             {% endif %}
             {% if showPageMenu %}
             {% include '@Review/_page_menu.html.twig' with {document: document, version: version, versionCount: versionCount} only %}
             {% endif %}
         </span>
     </div>
+    {% if showDraftBand|default(false) and document.status.value == 'draft' %}
+    {% include '@Review/_draft_band.html.twig' with {document: document, draftReviewLoop: draftReviewLoop|default(null), showPublish: showDocumentActions} only %}
+    <p class="lp-draft-live-status" role="status" data-review-draft-live-status></p>
+    {% endif %}
     {# The document page reaches its history and its comparison from the "⋯"
        menu. The history page keeps the tabs, which are its way back. #}
     {% if activeView == 'history' %}

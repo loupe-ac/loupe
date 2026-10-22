@@ -11,6 +11,7 @@ use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Review\Repository\CommentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Repository\ReviewRepository;
+use App\Module\Review\Service\DraftStateSignal;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -23,6 +24,7 @@ final readonly class SubmitReviewHandler
         private CommentRepository $comments,
         private ReviewRepository $reviews,
         private EventDispatcherInterface $events,
+        private DraftStateSignal $draftState,
     ) {
     }
 
@@ -87,6 +89,13 @@ final readonly class SubmitReviewHandler
         if ($result instanceof DomainErrors) {
             throw $result;
         }
+
+        // Queued after the commit: a verdict dispatches ReviewSubmitted inside
+        // its transaction, and the publisher sends whatever it holds.
+        $this->draftState->send(
+            $document->project->id ?? throw new \LogicException('A persisted project has an id.'),
+            $document->id ?? throw new \LogicException('A persisted document has an id.'),
+        );
 
         return $result;
     }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Service;
 
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\DesignReviewTags;
+use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateMissing;
@@ -27,6 +29,8 @@ final class TemplateDesignReviewTags implements DesignReviewTags, ResetInterface
         private readonly TemplateSource $source,
         private readonly ShippedTemplates $shippedTemplates,
         private readonly TemplateParser $parser,
+        private readonly ProjectRepository $projects,
+        private readonly WorkflowSlotLinkRepository $workflowSlotLinks,
     ) {
     }
 
@@ -34,6 +38,18 @@ final class TemplateDesignReviewTags implements DesignReviewTags, ResetInterface
     public function of(Uuid $projectId): array
     {
         return $this->tags[$projectId->toRfc4122()] ??= $this->template($projectId)->designReviewTags();
+    }
+
+    #[\Override]
+    public function reviewedInColumn(Uuid $projectId, string $columnId): array
+    {
+        if (!Uuid::isValid($columnId)) {
+            return [];
+        }
+        $project = $this->projects->find($projectId);
+        $slot = null === $project ? null : $this->workflowSlotLinks->findSlotKeyForColumnId($project, Uuid::fromString($columnId));
+
+        return null === $slot ? [] : $this->template($projectId)->designReviewTagsIn($slot);
     }
 
     #[\Override]

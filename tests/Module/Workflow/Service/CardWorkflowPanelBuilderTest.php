@@ -22,6 +22,7 @@ use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\PauseReasonText;
 use App\Module\Workflow\Contract\WorkLedger;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Entity\WorkflowRuleState;
@@ -400,6 +401,7 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
             $logger,
             new RuleSubject(),
             $this->service(Actions::class),
+            $this->service(PauseReasonText::class),
         );
     }
 

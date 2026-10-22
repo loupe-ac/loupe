@@ -131,6 +131,7 @@ export default defineConfig({
                 /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
+                /review\/draft-band-live\.spec\.ts/,
             ],
             use: {
                 ...devices['Desktop Chrome'],
@@ -160,6 +161,7 @@ export default defineConfig({
                 /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
+                /review\/draft-band-live\.spec\.ts/,
             ],
             workers: 1,
             use: {
