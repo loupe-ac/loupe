@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Site;
 
-use App\Site\SiteChrome;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -67,8 +66,7 @@ final class SiteChromeTest extends KernelTestCase
     {
         $html = '<a href="#top">a</a><a href="/blog">b</a><a href="https://bsky.app/x">c</a><a href="https://x.com/y">d</a><a href="https://loupe.example/">e</a>';
 
-        self::assertCount(3, ChromeLinks::problems($html, [self::SITE_HOST]));
-        self::assertSame(['x.com'], SiteChrome::OUTSIDE_HOSTS);
+        self::assertCount(4, ChromeLinks::problems($html, [self::SITE_HOST]));
     }
 
     public function test_the_bar_links_the_docs_blog_and_source_then_sign_in_and_the_waitlist(): void

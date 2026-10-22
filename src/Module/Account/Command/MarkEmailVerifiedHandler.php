@@ -6,8 +6,10 @@ namespace App\Module\Account\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -25,6 +27,7 @@ final readonly class MarkEmailVerifiedHandler
         private UserRepository $users,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -55,6 +58,7 @@ final readonly class MarkEmailVerifiedHandler
         $this->em->flush();
 
         $this->record('account.user_email_verified_by_operator', $user);
+        $this->eventDispatcher->dispatch(new UserEmailVerified($user));
 
         return new MarkEmailVerifiedResult(verified: true, tokenRevoked: $tokenRevoked);
     }

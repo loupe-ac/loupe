@@ -18,6 +18,7 @@ final class ChromeMarkersTest extends TestCase
             [
                 'NAV_MARKER' => SiteChrome::NAV_MARKER,
                 'FOOTER_MARKER' => SiteChrome::FOOTER_MARKER,
+                'MENU_MARKER' => SiteChrome::MENU_MARKER,
                 'OG_IMAGE_URL' => SiteChrome::OG_IMAGE_PLACEHOLDER,
             ],
             $this->constants($source),

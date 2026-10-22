@@ -60,13 +60,11 @@ export default defineConfig({
       customCss: ['./src/styles/theme.css'],
       components: {
         Header: './src/components/SiteHeader.astro',
+        MobileMenuFooter: './src/components/SiteMobileMenuFooter.astro',
         PageFrame: './src/components/SitePageFrame.astro',
         Sidebar: './src/components/SiteSidebar.astro',
       },
       description: 'A document- and live-review tool for humans working with AI agents.',
-      social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/loupe-ac/loupe' },
-      ],
       editLink: {
         baseUrl: 'https://github.com/loupe-ac/loupe/edit/main/docs/',
       },

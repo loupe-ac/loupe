@@ -7,6 +7,7 @@ namespace App\Module\Account\Command;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\ConnectedAccount;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\SocialLoginRace;
 use App\Module\Account\Service\StaleSocialLink;
@@ -14,6 +15,7 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final readonly class LinkSocialAccountHandler
 {
@@ -21,6 +23,7 @@ final readonly class LinkSocialAccountHandler
         private UserRepository $users,
         private EntityManagerInterface $em,
         private UserPasswordHasherInterface $passwordHasher,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -36,6 +39,7 @@ final readonly class LinkSocialAccountHandler
         // VerifyEmailHandler never checks isVerified() and its controller logs in
         // whoever presents a valid token, so an outstanding link would keep
         // working after the account is verified another way.
+        $newlyVerified = $command->profile->emailVerified && !$user->isVerified();
         if ($command->profile->emailVerified) {
             $user->emailVerifiedAt ??= new \DateTimeImmutable();
             $user->clearEmailVerificationToken();
@@ -57,6 +61,10 @@ final readonly class LinkSocialAccountHandler
             // login page; a fresh OAuth round-trip resolves through the winning
             // link.
             throw new SocialLoginRace('A concurrent request already linked this social identity.', previous: $e);
+        }
+
+        if ($newlyVerified) {
+            $this->eventDispatcher->dispatch(new UserEmailVerified($user));
         }
 
         return $account;

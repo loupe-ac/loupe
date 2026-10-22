@@ -18,6 +18,7 @@ use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Bridge\Workflow\HoldFacts;
 use App\Module\Bridge\Workflow\RunStoppedFacts;
 use App\Module\Bridge\Workflow\SessionFacts;
+use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Inbox\Workflow\OpenQuestion;
 use App\Module\Inbox\Workflow\OpenQuestionFacts;
@@ -464,7 +465,25 @@ final class ShippedMarkersTest extends KernelTestCase
             provided: [SessionFacts::class => new SessionFacts(new \DateTimeImmutable('2026-10-01 11:00:00'), 'claude')],
         );
 
-        self::assertSame(['session-open', 'run-open', 'work-requested'], $this->keys($facts));
+        self::assertSame(['session-open', 'run-open'], $this->keys($facts), 'a claimed request is no longer waiting');
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_a_second_open_request_behind_a_running_worker_still_waits(string $key): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: ['implement', 'fix'], activeWorkerKinds: ['implement']),
+            provided: [WorkRequestFacts::class => new WorkRequestFacts(['implement', 'fix'], []), WorkTakerFacts::class => $this->openRequests(['fix'])],
+        );
+
+        self::assertSame(['run-open', 'work-requested'], $this->passKeys($this->template($key), $facts));
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_a_claimed_request_with_no_worker_run_yet_shows_no_waiting_marker(string $key): void
+    {
+        self::assertSame([], $this->passKeys($this->template($key), FactsMother::facts(card: FactsMother::card(slot: 'implementation'), run: FactsMother::run(activeWorkKinds: ['implement']))));
     }
 
     public function test_a_pending_request_to_the_forge_is_working(): void
@@ -518,6 +537,7 @@ final class ShippedMarkersTest extends KernelTestCase
             pullRequest: $pullRequest,
             pullRequests: [$pullRequest],
             run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
+            provided: [WorkTakerFacts::class => $this->openRequests($work)],
         );
     }
 
@@ -530,8 +550,17 @@ final class ShippedMarkersTest extends KernelTestCase
         return FactsMother::facts(
             card: FactsMother::card(slot: 'implementation'),
             run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
-            provided: [RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null)],
+            provided: [
+                RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null),
+                WorkTakerFacts::class => $this->openRequests($work),
+            ],
         );
+    }
+
+    /** @param list<string> $work the kinds of the open work requests */
+    private function openRequests(array $work): WorkTakerFacts
+    {
+        return new WorkTakerFacts(array_fill_keys($work, new WorkTakerReading(WorkTakerState::Available, new \DateTimeImmutable('2026-10-01 11:00:00'), null)));
     }
 
     /** @param list<string> $work the kinds of the open work requests */
