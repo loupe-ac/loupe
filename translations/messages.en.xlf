@@ -7238,6 +7238,8 @@
             <trans-unit id="board.card.history.stopped"><source>board.card.history.stopped</source><target>%actor% stopped the automation on #%pr%.</target></trans-unit>
             <trans-unit id="board.card.history.ready_to_merge"><source>board.card.history.ready_to_merge</source><target>#%pr% is ready to merge.</target></trans-unit>
             <trans-unit id="board.card.history.synced"><source>board.card.history.synced</source><target>%actor% updated #%pr% with its base branch.</target></trans-unit>
+            <trans-unit id="board.card.history.stopped_work"><source>board.card.history.stopped_work</source><target>%actor% stopped the %kind% work.</target></trans-unit>
+            <trans-unit id="board.card.history.stopped_work_no_kind"><source>board.card.history.stopped_work_no_kind</source><target>A worker was stopped.</target></trans-unit>
             <trans-unit id="board.card.history.run_finished"><source>board.card.history.run_finished</source><target>%actor% ran the %kind% work.</target></trans-unit>
             <trans-unit id="board.card.history.run_finished_no_kind"><source>board.card.history.run_finished_no_kind</source><target>%actor% ran a worker.</target></trans-unit>
             <trans-unit id="board.card.history.run_not_started"><source>board.card.history.run_not_started</source><target>The %kind% work did not run.</target></trans-unit>
@@ -8747,6 +8749,7 @@
             <trans-unit id="workflow.settings.action.request"><source>workflow.settings.action.request</source><target>Request work: %kind%</target></trans-unit>
             <trans-unit id="workflow.settings.action.approve_document"><source>workflow.settings.action.approve_document</source><target>Approve the documents that passed the entry check</target></trans-unit>
             <trans-unit id="workflow.settings.action.request_changes"><source>workflow.settings.action.request_changes</source><target>Request changes on the documents</target></trans-unit>
+            <trans-unit id="workflow.settings.action.stop_work"><source>workflow.settings.action.stop_work</source><target>Stop the work of the card</target></trans-unit>
             <trans-unit id="workflow.settings.action.publish_documents"><source>workflow.settings.action.publish_documents</source><target>Publish the draft documents</target></trans-unit>
             <trans-unit id="workflow.settings.action.forge_write"><source>workflow.settings.action.forge_write</source><target>Forge write: %kind%</target></trans-unit>
             <trans-unit id="workflow.settings.action.pause"><source>workflow.settings.action.pause</source><target>Pause the card</target></trans-unit>
@@ -8810,6 +8813,8 @@
             <trans-unit id="workflow.panel.action.move_terminal"><source>workflow.panel.action.move_terminal</source><target>Move the card to a terminal column</target></trans-unit>
             <trans-unit id="workflow.panel.action.request"><source>workflow.panel.action.request</source><target>Request %kind% work from a bridge</target></trans-unit>
             <trans-unit id="workflow.panel.action.approve_document"><source>workflow.panel.action.approve_document</source><target>Approve the documents of the card that passed the entry check</target></trans-unit>
+            <trans-unit id="workflow.panel.action.stop_work"><source>workflow.panel.action.stop_work</source><target>Stop the work of the card</target></trans-unit>
+            <trans-unit id="workflow.stop_work.reason"><source>workflow.stop_work.reason</source><target>Stopped by the %rule% workflow rule.</target></trans-unit>
             <trans-unit id="workflow.panel.action.request_changes"><source>workflow.panel.action.request_changes</source><target>Request changes on the documents of the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.publish_documents"><source>workflow.panel.action.publish_documents</source><target>Publish the draft documents of the card for review</target></trans-unit>
             <trans-unit id="workflow.panel.action.forge_write"><source>workflow.panel.action.forge_write</source><target>Write %write% to the pull request</target></trans-unit>

@@ -68,7 +68,9 @@ final readonly class CardHistoryEntry
             CardEventKind::Created => self::created($event, $actor, $detail),
             CardEventKind::Moved => self::moved($event, $actor, $detail),
             CardEventKind::FixRequested => self::automation($event, $actor, $detail, 'lucide:wrench', 'board.card.history.fix_requested'),
-            CardEventKind::Stopped => self::automation($event, $actor, $detail, 'lucide:ban', 'board.card.history.stopped'),
+            CardEventKind::Stopped => \is_string($detail['runId'] ?? null)
+                ? self::stoppedRun($event, $actor, $detail, $runExists)
+                : self::automation($event, $actor, $detail, 'lucide:ban', 'board.card.history.stopped'),
             CardEventKind::ReadyToMerge => \is_int($detail['pullRequest'] ?? null)
                 ? new self('lucide:git-merge', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.ready_to_merge', ['%pr%' => $detail['pullRequest']]))
                 : null,
@@ -95,12 +97,12 @@ final readonly class CardHistoryEntry
         return $entry ?? new self('lucide:history', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.changed', ['%actor%' => $actor]));
     }
 
-    /** The run id of a `run-finished` row, when it is a UUID a query can bind. */
+    /** The run id of a `run-finished` row or of a `stopped` row of a run, when it is a UUID a query can bind. */
     public static function runIdOf(CardEvent $event): ?string
     {
         $runId = $event->detail['runId'] ?? null;
 
-        return CardEventKind::RunFinished === $event->kind && \is_string($runId) && Uuid::isValid($runId) ? $runId : null;
+        return \in_array($event->kind, [CardEventKind::RunFinished, CardEventKind::Stopped], true) && \is_string($runId) && Uuid::isValid($runId) ? $runId : null;
     }
 
     private static function actor(CardEvent $event): string|TranslatableMessage
@@ -268,6 +270,31 @@ final readonly class CardHistoryEntry
             $actor,
             new TranslatableMessage('board.card.history.verdict_failed', ['%rule%' => $rule, '%document%' => $document]),
             new TranslatableMessage(self::REFUSALS[$refusal] ?? 'board.card.history.verdict_failed_cause.other'),
+        );
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function stoppedRun(CardEvent $event, string|TranslatableMessage $actor, array $detail, bool $runExists): self
+    {
+        $stored = $detail['workKind'] ?? null;
+        $kind = \is_string($stored) && '' !== $stored ? $stored : null;
+        $rule = $detail['rule'] ?? null;
+        $seconds = $detail['durationSeconds'] ?? null;
+
+        return new self(
+            'lucide:circle-stop',
+            $event->occurredAt,
+            $actor,
+            new TranslatableMessage(null === $kind ? 'board.card.history.stopped_work_no_kind' : 'board.card.history.stopped_work', ['%actor%' => $actor, '%kind%' => $kind ?? '']),
+            \is_string($rule) && '' !== $rule ? new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => $rule]) : null,
+            new CardHistoryRun(
+                runId: $runExists ? self::runIdOf($event) : null,
+                duration: \is_int($seconds) && $seconds >= 0 ? WorkerRunListItem::formatDuration($seconds) : null,
+                stateKey: WorkerRunState::Stopped->translationKey(),
+                chipModifier: 'neutral',
+                interactive: false,
+                command: false,
+            ),
         );
     }
 

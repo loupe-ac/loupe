@@ -180,6 +180,39 @@ final class CardHistoryEntryTest extends TestCase
         ), $entry->run);
     }
 
+    public function test_a_run_that_a_rule_stopped_links_to_the_run_and_names_the_rule(): void
+    {
+        $detail = ['runId' => self::RUN_ID, 'workKind' => 'implement', 'rule' => 'product-design-undo', 'durationSeconds' => 252];
+
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::Stopped, Actor::System, null, $detail), true);
+
+        self::assertSame('lucide:circle-stop', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.stopped_work', [
+            '%actor%' => new TranslatableMessage('board.card.history.actor.system'),
+            '%kind%' => 'implement',
+        ]), $entry->sentence);
+        self::assertEquals(new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => 'product-design-undo']), $entry->cause);
+        self::assertEquals(new CardHistoryRun(
+            runId: self::RUN_ID,
+            duration: '4m 12s',
+            stateKey: 'bridge.worker_runs.state.stopped',
+            chipModifier: 'neutral',
+            interactive: false,
+            command: false,
+        ), $entry->run);
+        self::assertSame(self::RUN_ID, CardHistoryEntry::runIdOf($this->event(CardEventKind::Stopped, Actor::System, null, $detail)));
+    }
+
+    public function test_a_stopped_run_whose_row_was_purged_has_no_link_and_one_with_no_kind_has_a_plain_sentence(): void
+    {
+        $purged = CardHistoryEntry::of($this->event(CardEventKind::Stopped, Actor::System, null, ['runId' => self::RUN_ID, 'workKind' => 'implement', 'rule' => 'r']), false);
+        $plain = CardHistoryEntry::of($this->event(CardEventKind::Stopped, Actor::System, null, ['runId' => self::RUN_ID, 'workKind' => null, 'rule' => 'r']), true);
+
+        self::assertNull($purged->run?->runId);
+        self::assertNull($purged->run?->duration);
+        self::assertSame('board.card.history.stopped_work_no_kind', $plain->sentence->getMessage());
+    }
+
     public function test_a_finished_command_run_says_it_is_a_command(): void
     {
         $detail = [...$this->runDetail('failed', 4), 'command' => true];

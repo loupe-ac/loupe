@@ -21,6 +21,7 @@ use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\StopWork;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Inbox\Workflow\Condition\CardHasOpenQuestion;
 use App\Module\Workflow\Action\Actions;
@@ -71,7 +72,7 @@ final class TemplateParserTest extends TestCase
     {
         $this->actions = new Actions(array_map(
             static fn (string $class): Action => new \ReflectionClass($class)->newInstanceWithoutConstructor(),
-            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class, MissingAction::class],
+            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class, StopWork::class, MissingAction::class],
         ));
         $this->parser = new TemplateParser(new Conditions([
             new CardChildrenFinished(),
@@ -1345,14 +1346,15 @@ final class TemplateParserTest extends TestCase
     {
         $template = self::valid();
         $template['rules'][1]['then'] = [
+            ['stop-work' => []],
             ['request-changes' => ['tags' => ['design'], 'note' => 'workflow.note']],
             ['move' => ['to' => 'review']],
         ];
 
         $rule = $this->parser->parse($template)->rules[1];
 
-        self::assertSame(['request-changes', 'move'], array_map(static fn ($call): string => $call->key, $rule->then));
-        self::assertSame('request-changes', $rule->lead->key);
+        self::assertSame(['stop-work', 'request-changes', 'move'], array_map(static fn ($call): string => $call->key, $rule->then));
+        self::assertSame('stop-work', $rule->lead->key);
         self::assertTrue($rule->endsPass());
     }
 

@@ -339,6 +339,49 @@ final class CardHistoryTabTest extends WebTestCase
         self::assertCount(0, $row->filter('a[data-card-history-run]'));
     }
 
+    public function test_a_run_that_a_rule_stopped_shows_one_row_with_the_rule_and_the_row_of_its_close_stays_out(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'history-stopped@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Undo it');
+        $stoppedAt = new \DateTimeImmutable('-10 minutes');
+        $run = new WorkerRun(
+            project: $project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            workKind: 'implement',
+            state: WorkerRunState::Stopped,
+            runKey: Uuid::v4(),
+            startedAt: $stoppedAt->modify('-252 seconds'),
+            endedAt: $stoppedAt,
+            receivedAt: $stoppedAt,
+        );
+        $em->persist($run);
+        $em->flush();
+        $runId = (string) $run->id;
+        $this->events()->record($card, CardEventKind::Stopped, Actor::System, null, ['runId' => $runId, 'workKind' => 'implement', 'rule' => 'product-design-undo', 'durationSeconds' => 252], $stoppedAt);
+        $this->events()->upsertRunFinished($card, $run->id ?? throw new \LogicException('A stored run has an id.'), $owner, ['runId' => $runId, 'workKind' => 'implement', 'state' => 'stopped', 'interactive' => false, 'durationSeconds' => 253, 'stateSequence' => null], $stoppedAt->modify('+1 second'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->cardUrl($card));
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('#card-panel-history [data-card-history-entry]');
+        $stopped = $rows->reduce(static fn ($row): bool => str_contains($row->text(), 'stopped the implement work'));
+        self::assertCount(1, $stopped);
+        self::assertCount(0, $rows->reduce(static fn ($row): bool => str_contains($row->text(), 'ran the implement work')), 'The row of the close is the same run.');
+        self::assertStringContainsString('Via the product-design-undo workflow rule.', $stopped->text());
+        self::assertStringContainsString('4m 12s', $stopped->text());
+        self::assertSame('Stopped', trim($stopped->filter('.lp-status-chip--neutral')->text()));
+        self::assertCount(1, $stopped->filter('a[data-card-history-run="'.$runId.'"]'));
+    }
+
     public function test_a_finished_command_run_says_it_is_a_command(): void
     {
         $client = static::createClient();

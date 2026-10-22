@@ -12,6 +12,7 @@ use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\StopWork;
 use App\Module\Workflow\Action\Ask;
 use App\Module\Workflow\Action\EvaluateChildren;
 use App\Module\Workflow\Action\PauseCard;
@@ -41,6 +42,7 @@ final class ActionDeclarationsTest extends TestCase
         yield 'publish-documents' => [PublishDocuments::class, 'publish-documents', 'workflow.source.board', new ActionTraits(refreshesFacts: true, publishesDocuments: true)];
         yield 'approve-document' => [ApproveDocument::class, 'approve-document', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
         yield 'request-changes' => [RequestChanges::class, 'request-changes', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
+        yield 'stop-work' => [StopWork::class, 'stop-work', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
     }
 
