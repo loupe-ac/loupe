@@ -1,0 +1,21 @@
+{% extends 'email/_layout.html.twig' %}
+
+{% block title %}{{ 'billing.email.beta_welcome.subject'|trans }}{% endblock %}
+
+{% block content %}
+    <h1>{{ 'billing.email.beta_welcome.heading'|trans }}</h1>
+    <p class="body-text">
+        {{ 'billing.email.beta_welcome.access'|trans }}
+        {% if discordUrl %}{{ 'billing.email.beta_welcome.discord'|trans }}{% endif %}
+    </p>
+    <div>
+        <a href="{{ appUrl }}" class="btn">{{ 'billing.email.beta_welcome.open'|trans }}</a>
+        {% if discordUrl %}
+            <a href="{{ discordUrl }}" class="btn btn-outline">{{ 'billing.email.beta_welcome.join_discord'|trans }}</a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block footer %}
+    {{ 'billing.email.beta_welcome.footer'|trans }}
+{% endblock %}

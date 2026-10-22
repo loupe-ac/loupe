@@ -176,3 +176,82 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
         page.locator('dialog.lp-card-drawer-overlay'),
     ).toHaveJSProperty('open', true);
 });
+
+test('the tooltip of a mark in the first column draws above the sidebar', async ({
+    browser,
+    request,
+}) => {
+    test.slow();
+
+    const email = `e2e+state-mark-layer+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E Mark Layer User', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const page = await signedInPage(browser, email, PASSWORD);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await suppressToolbar(page);
+    await suppressWidget(page);
+
+    const seed = await page.request.post('/dev/seed/document', {
+        form: { title: 'E2E Mark Layer Project', markdown: '# Runs' },
+    });
+    expect(seed.status()).toBe(201);
+    const { projectId } = await seed.json();
+
+    await page.goto(`/projects/${projectId}/board/cards/new`);
+    await page.getByLabel('Title').fill('Alpha');
+    await page.getByLabel('Column').selectOption({ label: 'Next' });
+    await page.getByRole('button', { name: 'Create card' }).click();
+    await expect(page.getByRole('heading', { name: 'Alpha' })).toBeVisible({
+        timeout: 15_000,
+    });
+
+    await page.goto(`/projects/${projectId}/board`);
+    await expect(page.locator('[data-board-live-connected]')).toHaveCount(1);
+    const card = page.locator('article[data-card-title="Alpha"]');
+    const cardId = await card.getAttribute('data-card-id');
+    const token = await agentAccessToken(page);
+    const response = await request.put(
+        `/api/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+        {
+            headers: { Authorization: `Bearer ${token}` },
+            data: {
+                bridgeId: crypto.randomUUID(),
+                at: '2026-09-23T10:00:00+00:00',
+                subjectType: 'card',
+                subjectId: cardId,
+                cardNumber: 1,
+                workKind: 'implement',
+                state: 'gave-up',
+                resultStatus: 'unfinished',
+                sessionId: crypto.randomUUID(),
+                startedAt: '2026-09-23T10:00:00+00:00',
+                endedAt: '2026-09-23T10:05:00+00:00',
+                exitCode: 0,
+                hasResult: true,
+                output: 'CI still ran when the turn ended',
+            },
+        },
+    );
+    expect(response.status()).toBe(201);
+
+    const mark = card.locator('.lp-state-mark--stuck');
+    await mark.getByRole('img', { name: 'Stuck' }).hover();
+    const tooltip = mark.getByRole('tooltip');
+    await expect(tooltip).toBeVisible();
+
+    // The point sits just inside the left edge of the tooltip, where the sidebar would show through.
+    const box = await tooltip.boundingBox();
+    expect(box).not.toBeNull();
+    const covered = await tooltip.evaluate(
+        (element, point) => {
+            const hit = document.elementFromPoint(point.x, point.y);
+
+            return hit !== null && element.contains(hit);
+        },
+        { x: box!.x + 2, y: box!.y + box!.height / 2 },
+    );
+    expect(covered).toBe(true);
+});

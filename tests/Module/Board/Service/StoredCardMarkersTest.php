@@ -50,6 +50,47 @@ final class StoredCardMarkersTest extends TestCase
         self::assertSame([$paused, $unmanaged], $markers->others());
     }
 
+    public function test_the_primary_is_the_state_or_else_the_first_chip(): void
+    {
+        $working = MarkerMother::marker('run_open', MarkerKind::Working);
+        $chip = MarkerMother::marker('unmanaged', MarkerKind::Chip);
+        $note = MarkerMother::marker('a_note', MarkerKind::Chip);
+
+        self::assertNull(MarkerMother::markers()->primary());
+        self::assertSame($working, MarkerMother::markers($chip, $working)->primary());
+        self::assertSame($chip, MarkerMother::markers($chip, $note)->primary());
+    }
+
+    public function test_also_applies_keeps_only_stuck_needs_you_and_chips_besides_the_primary(): void
+    {
+        $working = MarkerMother::marker('run_open', MarkerKind::Working);
+        $waiting = MarkerMother::marker('checks_pending', MarkerKind::Waiting);
+        $needsYou = MarkerMother::marker('open_question', MarkerKind::NeedsYou, ['%number%' => 3, '%title%' => 'x']);
+        $chip = MarkerMother::marker('unmanaged', MarkerKind::Chip);
+
+        self::assertSame([], MarkerMother::markers($working, $waiting)->alsoApplies());
+        self::assertSame([$needsYou, $chip], MarkerMother::markers($working, $waiting, $needsYou, $chip)->alsoApplies());
+        self::assertSame([$chip], MarkerMother::markers($waiting, $chip)->alsoApplies());
+    }
+
+    public function test_a_stuck_state_lists_a_needs_you_marker_and_a_second_stuck_marker(): void
+    {
+        $stuck = MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5]);
+        $needsYou = MarkerMother::marker('open_question', MarkerKind::NeedsYou, ['%number%' => 3, '%title%' => 'x']);
+        $otherStuck = MarkerMother::marker('conflicting', MarkerKind::Stuck, ['%number%' => 5]);
+
+        self::assertSame([$needsYou, $otherStuck], MarkerMother::markers($stuck, $needsYou, $otherStuck)->alsoApplies());
+    }
+
+    public function test_a_card_with_only_chips_has_the_first_chip_as_primary_and_the_rest_as_also_applies(): void
+    {
+        $paused = MarkerMother::marker('a_note', MarkerKind::Chip);
+        $unmanaged = MarkerMother::marker('unmanaged', MarkerKind::Chip);
+
+        self::assertSame([], MarkerMother::markers($unmanaged)->alsoApplies());
+        self::assertSame([$unmanaged], MarkerMother::markers($paused, $unmanaged)->alsoApplies());
+    }
+
     public function test_it_reads_the_stored_entries_of_a_card(): void
     {
         $markers = StoredCardMarkers::of($this->card([

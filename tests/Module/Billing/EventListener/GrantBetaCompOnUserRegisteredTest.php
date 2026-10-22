@@ -12,6 +12,7 @@ use App\Module\Billing\EventListener\GrantBetaCompOnUserRegistered;
 use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Billing\Service\BetaCompGranter;
+use App\Module\Billing\Service\BetaWelcomeEmailSender;
 use App\Module\Billing\Service\TrialProvisioner;
 use App\Tests\Support\FeatureFlags;
 use App\Tests\Support\RecordingLogger;
@@ -57,6 +58,27 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         self::assertSame('billing.beta_comp_failed', $logger->records[0]['message']);
     }
 
+    public function test_a_failed_grant_sends_no_welcome_email(): void
+    {
+        $user = new User(fullName: 'Tester', email: 'tester@example.com');
+        [$invite] = BetaInvite::issue(null);
+        $invite->redeem($user);
+        $sender = $this->createMock(BetaWelcomeEmailSender::class);
+        $sender->expects(self::never())->method('sendIfDue');
+
+        $this->listener($this->repositoryReturning($invite), new RecordingLogger(), $sender)(new UserRegistered($user));
+
+        self::assertNull($invite->welcomeEmailDueAt, 'the sweep must not send it later either');
+    }
+
+    public function test_a_user_without_an_invite_gets_no_welcome_email(): void
+    {
+        $sender = $this->createMock(BetaWelcomeEmailSender::class);
+        $sender->expects(self::never())->method('sendIfDue');
+
+        $this->listener($this->repositoryReturning(null), new RecordingLogger(), $sender)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com')));
+    }
+
     public function test_a_user_without_an_invite_gets_no_grant(): void
     {
         $logger = new RecordingLogger();
@@ -74,7 +96,7 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         return $invites;
     }
 
-    private function listener(BetaInviteRepository $invites, RecordingLogger $logger): GrantBetaCompOnUserRegistered
+    private function listener(BetaInviteRepository $invites, RecordingLogger $logger, ?BetaWelcomeEmailSender $sender = null): GrantBetaCompOnUserRegistered
     {
         $profiles = $this->createStub(BillingProfileRepository::class);
         $profiles->method('findOneByUser')->willThrowException(new \RuntimeException('profile lookup failed'));
@@ -88,7 +110,8 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
 
         return new GrantBetaCompOnUserRegistered(
             $invites,
-            new BetaCompGranter($grantComp, SilentAuditor::create(), $logger),
+            new BetaCompGranter($grantComp, $this->createStub(BetaInviteRepository::class), SilentAuditor::create(), $logger),
+            $sender ?? $this->createStub(BetaWelcomeEmailSender::class),
             $logger,
         );
     }

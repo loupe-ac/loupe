@@ -1,10 +1,10 @@
 // Checks the built docs in dist/ (or the folder in argument 1). A page fails
 // when it has a next page and no pagination-links element, or when it lacks
-// one of the two chrome markers.
+// one of the three chrome markers.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FOOTER_MARKER, NAV_MARKER } from './src/chrome-markers.mjs';
+import { FOOTER_MARKER, MENU_MARKER, NAV_MARKER } from './src/chrome-markers.mjs';
 
 const root = path.resolve(process.argv[2] ?? fileURLToPath(new URL('./dist', import.meta.url)));
 
@@ -32,6 +32,7 @@ for (const page of pages) {
   const name = path.relative(root, page);
   if (!html.includes(NAV_MARKER)) problems.push(`${name}: site bar marker missing`);
   if (!html.includes(FOOTER_MARKER)) problems.push(`${name}: site footer marker missing`);
+  if (!html.includes(MENU_MARKER)) problems.push(`${name}: phone menu marker missing`);
   if (html.includes('rel="next"') && !html.includes('pagination-links')) {
     problems.push(`${name}: has a next page but no pagination-links element`);
   }

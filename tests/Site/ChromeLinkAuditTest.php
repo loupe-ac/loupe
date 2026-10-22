@@ -16,9 +16,14 @@ final class ChromeLinkAuditTest extends TestCase
         self::assertCount(2, ChromeLinkAudit::problems($html, ['site.example']));
     }
 
-    public function test_it_accepts_an_outside_host_of_the_bar(): void
+    public function test_it_accepts_a_host_the_caller_configures(): void
     {
-        self::assertSame([], ChromeLinkAudit::problems('<a href="https://x.com/loupehq">x</a>', ['site.example']));
+        self::assertSame([], ChromeLinkAudit::problems('<a href="https://x.com/loupehq">x</a>', ['site.example', 'X.com']));
+    }
+
+    public function test_it_no_longer_accepts_x_without_configuration(): void
+    {
+        self::assertCount(1, ChromeLinkAudit::problems('<a href="https://x.com/loupehq">x</a>', ['site.example']));
     }
 
     public function test_a_root_path_passes_only_when_the_caller_allows_it(): void

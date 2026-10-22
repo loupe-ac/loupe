@@ -23,3 +23,4 @@ A record has these sections:
 - [0002: Keep the stage skills generic, and let bridge rules set up the environment](0002-generic-stage-skills.md)
 - [0003: Replace the old shape when a requirement changes it, and keep no legacy path](0003-replace-dont-keep.md)
 - [0004: Keep workflow decisions in the workflow template, not in app code](0004-workflow-concerns-stay-in-workflow.md)
+- [0005: Update the UI live whenever the instance can](0005-live-ui.md)

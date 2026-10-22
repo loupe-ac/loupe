@@ -11,6 +11,7 @@ use App\Module\Board\Event\CardChanged;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Entity\WorkflowBinding;
@@ -61,6 +62,35 @@ final class MarkerPassFlowTest extends KernelTestCase
         $this->evaluate($card, '2026-10-02 12:05:00');
 
         self::assertCount(1, $this->liveRequests($card), 'a managed pass would cancel the request of a rule that left its slot');
+        self::assertSame(['work-requested', 'unmanaged'], $this->keys($card));
+    }
+
+    public function test_a_claimed_request_with_no_worker_run_drops_the_waiting_marker(): void
+    {
+        $card = $this->boundCard();
+        $this->hold($card);
+        $this->persistRequest($card, 'work', WorkRequestState::Open);
+        $this->evaluate($card);
+        self::assertSame(['work-requested', 'unmanaged'], $this->keys($card));
+
+        foreach ($this->liveRequests($card) as $request) {
+            $request->state = WorkRequestState::Claimed;
+        }
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(['unmanaged'], $this->keys($card));
+    }
+
+    public function test_a_second_open_request_behind_a_claimed_one_keeps_the_waiting_marker(): void
+    {
+        $card = $this->boundCard();
+        $this->hold($card);
+        $this->persistRequest($card, 'work', WorkRequestState::Claimed);
+        $this->persistRequest($card, 'fix', WorkRequestState::Open);
+
+        $this->evaluate($card);
+
         self::assertSame(['work-requested', 'unmanaged'], $this->keys($card));
     }
 
@@ -121,7 +151,7 @@ final class MarkerPassFlowTest extends KernelTestCase
             'workTimeoutMinutes' => 120,
             'rules' => [['id' => 'work', 'slot' => 'one', 'when' => ['all' => []], 'then' => ['request' => ['kind' => 'work']]]],
             'markers' => [
-                ['key' => 'work-requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'when' => ['card.run.work_active' => []]],
+                ['key' => 'work-requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'when' => ['card.run.work_open' => []]],
                 ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'when' => ['card.held' => []]],
             ],
         ]));
@@ -137,6 +167,14 @@ final class MarkerPassFlowTest extends KernelTestCase
         $this->service(Engine::class)->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable($at));
     }
 
+    private function persistRequest(Card $card, string $kind, WorkRequestState $state): void
+    {
+        $request = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, $kind, null, 'work', new \DateTimeImmutable(self::NOON));
+        $request->state = $state;
+        $this->em()->persist($request);
+        $this->em()->flush();
+    }
+
     private function hold(Card $card): void
     {
         $this->service(CardHolds::class)->hold($card->project, $card->id ?? throw new \LogicException('A flushed card has an id.'), null);
@@ -148,7 +186,7 @@ final class MarkerPassFlowTest extends KernelTestCase
         return array_column($card->markers ?? [], 'key');
     }
 
-    /** @return list<object> */
+    /** @return list<WorkRequest> */
     private function liveRequests(Card $card): array
     {
         return $this->service(WorkRequestRepository::class)->findLiveForCard($card->id ?? throw new \LogicException('A flushed card has an id.'));

@@ -11,6 +11,7 @@ use App\Module\Account\Entity\ConnectedAccount;
 use App\Module\Account\Entity\SocialProvider;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Entity\WaitlistEntry;
+use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Event\UserRegistered;
 use App\Module\Account\Registration\RegistrationPasses;
 use App\Module\Account\Repository\ConnectedAccountRepository;
@@ -575,19 +576,26 @@ final class ResolveSocialLoginHandlerTest extends KernelTestCase
         self::assertLessThan($expected->modify('+1 hour'), $trialEndsAt);
     }
 
-    public function test_existing_identity_and_auto_link_logins_dispatch_no_event(): void
+    public function test_existing_identity_and_auto_link_logins_announce_no_registration(): void
     {
         // Branch A (already-linked identity), branch B (verified email
         // colliding with a password-protected account) and branch C (auto-link
-        // to a password-less account) all return before the dispatch point —
-        // the event marks new registrations only.
+        // to a password-less account) return before the registration dispatch.
+        // Only branch C verifies an address, so only it announces that.
         $owner = $this->persistUser('no-event-owner@example.com');
         $this->em->persist(new ConnectedAccount($owner, SocialProvider::Google, 'g-no-event', 'no-event-owner@example.com'));
         $this->persistUser('no-event-collide@example.com', password: 'hashed');
         $this->persistUser('no-event-linkme@example.com');
         $this->em->flush();
 
-        $handler = $this->buildHandler(new RegistrationGate($this->openFlags(), $this->users, new InstallationState($this->users)), $this->neverDispatches());
+        $dispatched = [];
+        $dispatcher = $this->createStub(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$dispatched): object {
+            $dispatched[] = $event;
+
+            return $event;
+        });
+        $handler = $this->buildHandler(new RegistrationGate($this->openFlags(), $this->users, new InstallationState($this->users)), $dispatcher);
 
         $handler(new ResolveSocialLoginCommand(
             new SocialProfile(SocialProvider::Google, 'g-no-event', 'no-event-owner@example.com', 'Owner', emailVerified: true),
@@ -599,6 +607,10 @@ final class ResolveSocialLoginHandlerTest extends KernelTestCase
         $handler(new ResolveSocialLoginCommand(
             new SocialProfile(SocialProvider::Google, 'g-no-event-link', 'no-event-linkme@example.com', 'Link Me', emailVerified: true),
         ));
+
+        self::assertCount(1, $dispatched);
+        self::assertInstanceOf(UserEmailVerified::class, $dispatched[0]);
+        self::assertSame('no-event-linkme@example.com', $dispatched[0]->user->email);
     }
 
     public function test_a_provider_that_sends_no_name_derives_one_from_the_email(): void

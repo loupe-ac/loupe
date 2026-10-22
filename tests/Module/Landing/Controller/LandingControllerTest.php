@@ -7,10 +7,13 @@ namespace App\Tests\Module\Landing\Controller;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Site\SiteHost;
+use App\Site\SiteLinks;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class LandingControllerTest extends WebTestCase
 {
@@ -100,9 +103,16 @@ final class LandingControllerTest extends WebTestCase
         self::assertStringNotContainsString('claude design', strtolower($client->getCrawler()->filter('main')->text()));
     }
 
-    public function test_home_page_footer_links_to_the_loupe_x_account_and_not_to_bluesky(): void
+    public function test_home_page_footer_links_to_the_x_account_the_flag_names_and_not_to_bluesky(): void
     {
         $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $repository = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $repository);
+        $flag = $repository->findAllIndexed()[SiteLinks::X_FLAG] ?? null;
+        self::assertInstanceOf(FeatureFlag::class, $flag, 'A migration seeds the row.');
+        $flag->value = 'https://x.com/loupehq';
+        $em->flush();
 
         $client->request(Request::METHOD_GET, '/');
 
@@ -110,6 +120,49 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorExists('.lp-home-footer a[href="https://x.com/loupehq"]');
         self::assertSelectorNotExists('.lp-home-footer a[href*="x.com/ubermuda"]');
         self::assertSelectorNotExists('.lp-home-footer a[href*="bsky.app"]');
+    }
+
+    public function test_home_page_footer_has_no_x_link_while_the_flag_is_empty(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('.lp-home-footer a[href*="x.com"]');
+    }
+
+    public function test_home_page_footer_links_to_the_discord_server_the_flag_names(): void
+    {
+        $client = static::createClient();
+        $this->setLink(SiteLinks::DISCORD_FLAG, 'https://discord.gg/loupe');
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home-footer__social a[href="https://discord.gg/loupe"][target="_blank"][rel="noopener noreferrer"][aria-label="Loupe on Discord"]');
+        self::assertSelectorNotExists('.lp-home-nav a[href="https://discord.gg/loupe"]');
+    }
+
+    public function test_home_page_footer_has_no_discord_link_while_the_flag_is_empty(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('.lp-home-footer a[aria-label="Loupe on Discord"]');
+    }
+
+    private function setLink(string $flag, string $value): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $repository = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $repository);
+        $row = $repository->findAllIndexed()[$flag] ?? null;
+        self::assertInstanceOf(FeatureFlag::class, $row, 'A migration seeds the row.');
+        $row->value = $value;
+        $em->flush();
     }
 
     public function test_home_page_footer_links_the_blog_after_the_changelog_when_a_blog_host_is_set(): void

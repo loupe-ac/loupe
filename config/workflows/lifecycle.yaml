@@ -847,7 +847,7 @@ markers:
       remedy: marker.work_requested.remedy
       when:
           all:
-              - card.run.work_active: {}
+              - card.run.work_open: {}
               - not: { card.run.work_no_taker: {} }
               - not: { card.run.work_taker_paused: {} }
     - key: forge-request-pending
