@@ -14,6 +14,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -267,9 +268,9 @@ final class ShowWorkshopControllerTest extends WebTestCase
         $card = self::getContainer()->get(CreateCardHandler::class)(new CreateCardCommand($project, 'Checkout', '', 'feature'));
         $pullRequest = new CardPullRequest($card, 'https://github.com/example/app/pull/7', repository: 'example/app', number: 7);
         $em->persist($pullRequest);
-        $question = new InboxItem($project, 1, InboxItemKind::Question, 'Question', false);
-        $documentReview = new InboxItem($project, 2, InboxItemKind::Review, 'Read the spec', false);
-        $pullRequestReview = new InboxItem($project, 3, InboxItemKind::Review, 'Review the change', false);
+        $question = new InboxItem($project, 1, InboxItemKind::Question, 'Question', false, origin: InboxAskOrigin::Agent);
+        $documentReview = new InboxItem($project, 2, InboxItemKind::Review, 'Read the spec', false, origin: InboxAskOrigin::Agent);
+        $pullRequestReview = new InboxItem($project, 3, InboxItemKind::Review, 'Review the change', false, origin: InboxAskOrigin::Agent);
         foreach ([$question, $documentReview, $pullRequestReview] as $item) {
             $em->persist($item);
         }
@@ -306,12 +307,12 @@ final class ShowWorkshopControllerTest extends WebTestCase
         $em->persist($project);
         $em->persist($foreign);
         for ($number = 1; $number <= 8; ++$number) {
-            $em->persist(new InboxItem($project, $number, InboxItemKind::Question, 'Request '.$number, 1 === $number));
+            $em->persist(new InboxItem($project, $number, InboxItemKind::Question, 'Request '.$number, 1 === $number, origin: InboxAskOrigin::Agent));
         }
-        $closed = new InboxItem($project, 9, InboxItemKind::Todo, 'Closed request', false);
+        $closed = new InboxItem($project, 9, InboxItemKind::Todo, 'Closed request', false, origin: InboxAskOrigin::Agent);
         $closed->state = InboxItemState::Done;
         $em->persist($closed);
-        $em->persist(new InboxItem($foreign, 10, InboxItemKind::Question, 'Foreign request', true));
+        $em->persist(new InboxItem($foreign, 10, InboxItemKind::Question, 'Foreign request', true, origin: InboxAskOrigin::Agent));
         $em->flush();
         $em->clear();
         $client->loginUser($owner);
@@ -389,7 +390,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         $owner = $this->user($em, 'workshop-guide-discovery@example.com');
         [$quiet, $busy] = $this->projects($em, $owner, 'Guide discovery', 'Guide discovery busy');
         $this->readyForDiscovery($em, $owner, $quiet, $busy);
-        $em->persist(new InboxItem($busy, 1, InboxItemKind::Question, 'A question', false));
+        $em->persist(new InboxItem($busy, 1, InboxItemKind::Question, 'A question', false, origin: InboxAskOrigin::Agent));
         $em->flush();
         $em->clear();
         $client->loginUser($owner);
@@ -458,7 +459,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::getContainer()->get(FeatureFlagRepository::class)->findAllIndexed()['inbox.enabled']->value = true;
         $owner = $this->user($em, 'workshop-guide-inbox@example.com');
         [$project] = $this->projects($em, $owner, 'Guide inbox');
-        $em->persist(new InboxItem($project, 1, InboxItemKind::Question, 'A question', false));
+        $em->persist(new InboxItem($project, 1, InboxItemKind::Question, 'A question', false, origin: InboxAskOrigin::Agent));
         $em->flush();
         $em->clear();
         $client->loginUser($owner);

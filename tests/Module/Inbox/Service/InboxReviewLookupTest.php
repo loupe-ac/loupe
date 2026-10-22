@@ -8,6 +8,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Inbox\Command\SubmitInboxPullRequestReviewCommand;
 use App\Module\Inbox\Command\SubmitInboxPullRequestReviewHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
@@ -32,7 +33,7 @@ final class InboxReviewLookupTest extends KernelTestCase
         $owner = $this->owner($em, 'review-lookup');
         $project = $this->project($em, $owner, 'review-lookup');
         $target = new CardPullRequest($this->card($em, $project), 'https://github.com/example/project/pull/5');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false, origin: InboxAskOrigin::Agent);
         foreach ([$target, $item, new InboxReview($item, $target)] as $entity) {
             $em->persist($entity);
         }

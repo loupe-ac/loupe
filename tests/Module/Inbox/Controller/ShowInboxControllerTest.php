@@ -10,6 +10,7 @@ use App\Mercure\UserTopicBuilder;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -1046,7 +1047,7 @@ final class ShowInboxControllerTest extends WebTestCase
         for ($number = 1; $number <= 4; ++$number) {
             $document = new Document($owner, $project, 'Design '.$number);
             $document->addVersion('# Design', '<h1>Design</h1>');
-            $item = new InboxItem($project, $number, InboxItemKind::Review, 'Review design '.$number, false);
+            $item = new InboxItem($project, $number, InboxItemKind::Review, 'Review design '.$number, false, origin: InboxAskOrigin::Agent);
             $this->em->persist($document);
             $this->em->persist($item);
             $this->em->persist(new InboxReview($item, $document));

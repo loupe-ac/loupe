@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Entity;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxBridgeOutage;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -56,7 +57,7 @@ final class InboxBridgeOutageTest extends KernelTestCase
 
     private function notice(\App\Module\Project\Entity\Project $project, int $number): InboxItem
     {
-        $notice = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Notice, title: 'No bridge can take work', blocking: false);
+        $notice = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Notice, title: 'No bridge can take work', blocking: false, origin: InboxAskOrigin::Loupe);
         $this->em->persist($notice);
 
         return $notice;

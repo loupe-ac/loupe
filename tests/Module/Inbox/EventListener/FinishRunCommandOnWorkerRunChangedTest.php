@@ -19,6 +19,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -205,7 +206,7 @@ final class FinishRunCommandOnWorkerRunChangedTest extends KernelTestCase
 
     private function todo(): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export it', blocking: false, origin: InboxAskOrigin::Agent);
         $this->em()->persist($item);
         $this->em()->flush();
 
@@ -227,7 +228,7 @@ final class FinishRunCommandOnWorkerRunChangedTest extends KernelTestCase
             sessionId: Uuid::v4(),
         );
         $this->em()->persist($stopped);
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($item);
         $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
         $this->em()->persist($watch);

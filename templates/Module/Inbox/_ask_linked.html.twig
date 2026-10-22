@@ -4,7 +4,7 @@
 {% set pullRequests = {} %}
 {% set reviewDocumentId = null %}
 {% for item in items %}
-    {% set review = item.kind.value == 'review' ? inbox_review(item) : null %}
+    {% set review = item.kind.value == 'review' and not item.isAutomatic() ? inbox_review(item) : null %}
     {% if review and review.document %}
         {% set reviewDocumentId = review.document.id ~ '' %}
         {% set documents = documents|merge({(review.document.id ~ ''): {document: review.document, version: inbox_review_version(review)}}) %}

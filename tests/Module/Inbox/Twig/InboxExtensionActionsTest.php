@@ -13,6 +13,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -233,7 +234,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
             sessionId: Uuid::v4(),
         );
         $this->em()->persist($run);
-        $item = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($item);
         $watch = new InboxCardWatch($item, $this->card->id, $this->card->number);
         $this->em()->persist($watch);

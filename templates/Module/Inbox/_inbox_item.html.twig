@@ -1,6 +1,6 @@
 {% set home = inbox.isHome(item, ask) %}
 {% set open = item.state.value == 'open' %}
-{% set review = item.kind.value == 'review' ? inbox_review(item) : null %}
+{% set review = item.kind.value == 'review' and not item.isAutomatic() ? inbox_review(item) : null %}
 {% set reviewFormShown = false %}
 {% set actionParams = {projectId: item.project.id, itemId: item.id}|merge(inbox.actionQuery) %}
 {% set responseFrame = app.request.headers.get('Turbo-Frame') == 'card-drawer-frame' ? 'card-drawer-frame' : '_top' %}
@@ -16,10 +16,10 @@
     </div>
     {% endif %}
     {# The waits below say what the body of a wait item says, with links. #}
-    {% if item.kind.value != 'wait' and item.body|trim is not empty %}
+    {% if not item.isAutomatic() and item.body|trim is not empty %}
         <div class="prose lp-prose lp-inbox-item__body">{{ item.body|inbox_markdown }}</div>
     {% endif %}
-    {% set watch = item.kind.value == 'wait' ? inbox_card_watch(item) : null %}
+    {% set watch = item.isAutomatic() ? inbox_card_watch(item) : null %}
     {% if watch %}
         {% set threadReply = home and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: watch, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: threadReply} only %}
@@ -82,7 +82,7 @@
        still takes a response. #}
     {% if not home %}
         <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, item: item.number}) }}" data-turbo-frame="_top">{{ (inbox.acceptsResponse(item) ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
-    {% elseif item.kind.value != 'wait' and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
+    {% elseif not item.isAutomatic() and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
         {# A to-do with suggested actions puts Decline and Mark done beside its split button, in one reply card. #}
@@ -143,7 +143,7 @@
                         </twig:Ds:Button>
                     </div>
                 {{ form_end(answerForm, {render_rest: false}) }}
-            {% elseif item.kind.value == 'review' %}
+            {% elseif item.kind.value == 'review' and not item.isAutomatic() %}
                 {% if review and review.targetKind.value == 'pull-request' and review.pullRequest and safe_pull_request_url(review.pullRequest.url) %}
                     {% set reviewFormShown = true %}
                     {% include '@Inbox/_pull_request_review_form.html.twig' with {review: review, refusedForm: refusedForm, actionParams: actionParams, responseFrame: responseFrame, declineFormId: declineForm.vars.id, declineLabel: declineLabel} only %}
@@ -192,7 +192,7 @@
         {% endif %}
     {% endif %}
     {% if home %}
-        {% if item.kind.value == 'review' and not reviewFormShown %}
+        {% if item.kind.value == 'review' and not item.isAutomatic() and not reviewFormShown %}
             {% include '@Inbox/_response_draft.html.twig' with {
                 kind: 'review', key: item.id ~ ':review', options: [], title: 'inbox.review.unsent', hint: 'inbox.review.unsent_unavailable',
                 labels: {approved: 'inbox.review.verdict.approved'|trans, 'changes-requested': 'inbox.review.verdict.changes-requested'|trans},
