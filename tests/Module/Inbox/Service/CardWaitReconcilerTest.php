@@ -360,7 +360,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxCardWaitType::Document, $wait->type);
         self::assertSame(1, $wait->versionNumber);
         self::assertSame([$document], array_map(static fn (InboxItemDocument $link): Document => $link->document, array_values($watch->item->documents->toArray())));
-        self::assertSame('The document "Tech design" waits for your review.', $watch->item->title);
+        self::assertSame('Review "Tech design", version 1', $watch->item->title);
     }
 
     public function test_a_document_and_a_pull_request_share_one_item_and_the_end_of_one_keeps_it_open(): void

@@ -138,6 +138,9 @@ final readonly class CardWaitText
                     $action = $key.'.action';
                     break;
                 }
+                if (null !== $wait->documentId) {
+                    $titleKey = 'inbox.wait.review_title.document';
+                }
                 if ($documentLinked && null !== $wait->documentId) {
                     $href = $this->urls->generate('app_document_review', ['projectId' => $projectId, 'documentId' => $wait->documentId]);
                 }
@@ -145,6 +148,7 @@ final readonly class CardWaitText
             case InboxCardWaitType::PullRequest:
                 $pullRequest = null === $wait->pullRequestId ? null : $this->forgePullRequests->find($wait->pullRequestId);
                 $params['%number%'] = $pullRequest->number ?? 0;
+                $params['%pr_title%'] = $pullRequest->title ?? '';
                 $href = null === $pullRequest ? null : \sprintf('https://github.com/%s/pull/%d', $pullRequest->repository, $pullRequest->number);
                 break;
             case InboxCardWaitType::WorkerRun:
@@ -159,6 +163,9 @@ final readonly class CardWaitText
                 break;
         }
         $params = [...$params, ...$wait->params];
+        if (InboxCardWaitType::PullRequest === $wait->type) {
+            $titleKey = '' === ($params['%pr_title%'] ?? '') ? 'inbox.wait.review_title.pull_request_untitled' : 'inbox.wait.review_title.pull_request';
+        }
 
         if (InboxCardWaitType::WorkerRun === $wait->type && self::RUN_LABEL === $key && '' !== ($params['%headline%'] ?? '')) {
             $pageKey = $key.'.short';

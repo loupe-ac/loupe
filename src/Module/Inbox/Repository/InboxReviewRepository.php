@@ -37,8 +37,10 @@ class InboxReviewRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('review')
-            ->addSelect('reviewer')
+            ->addSelect('reviewer', 'document', 'pullRequest')
             ->leftJoin('review.reviewer', 'reviewer')
+            ->leftJoin('review.document', 'document')
+            ->leftJoin('review.pullRequest', 'pullRequest')
             ->andWhere('review.item IN (:items)')
             ->setParameter('items', $items)
             ->getQuery()

@@ -1,8 +1,10 @@
 {# One row of the list: the icon of the ask beside its title, then a meta line with the card number, the age, the mark of a blocking ask and how a closed one ended.
+   The title of an agent's review ask is followed by a line that names its document or pull request.
    Params: row (InboxRow), inbox (InboxPageView). #}
 {% set card = row.firstCard %}
 <twig:Ds:ListRow
     :title="row.shortTitle"
+    :subtitle="inbox_review_target(row.items|first)"
     :current="inbox.selected and inbox.selected.key == row.key"
     href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(row.pickedIn(inbox.view).toQuery)) }}"
     data-turbo-frame="inbox-view"

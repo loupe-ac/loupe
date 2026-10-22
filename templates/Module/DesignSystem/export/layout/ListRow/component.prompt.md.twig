@@ -4,10 +4,11 @@ Loupe's list row. {{ entry.summary }}
 
 ```jsx
 <{{ name }} href="#" title="Which format?" meta="Loupe, 5 minutes ago" />
+<{{ name }} href="#" title="Please check the filter change" subtitle="Pull request #812: Fix the board filter" meta="Card 12, 2 hours ago" />
 <{{ name }} href="#" title="Review the plan" meta={<><span>Loupe</span><span className="lp-list-row__flag">Blocking</span></>} current />
 ```
 
-Pass `current` for the row that is open. Wrap a `lp-list-row__flag` span in `meta` to highlight one item of the meta line, such as a blocking mark. Rows sit in the list pane of a SplitView.
+Pass `subtitle` for a line under the title, such as the target of a review. Pass `current` for the row that is open. Wrap a `lp-list-row__flag` span in `meta` to highlight one item of the meta line, such as a blocking mark. Rows sit in the list pane of a SplitView.
 
 Titles are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
 {% endautoescape %}
