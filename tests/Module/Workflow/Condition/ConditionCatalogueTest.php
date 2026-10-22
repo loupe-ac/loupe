@@ -35,6 +35,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.discovery.revising' => 'workflow.source.readiness',
         'card.document.agent_review_open' => 'workflow.source.inbox',
         'card.document.approval_moves' => 'workflow.source.workflow',
+        'card.document.approval_withdrawn' => 'workflow.source.board',
         'card.document.approved' => 'workflow.source.board',
         'card.document.changes_requested' => 'workflow.source.board',
         'card.document.entered_review_in_column' => 'workflow.source.board',

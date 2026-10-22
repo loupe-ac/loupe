@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\ColumnArrivalFacts;
+use App\Module\Board\Workflow\Condition\CardDocumentApprovalWithdrawn;
 use App\Module\Board\Workflow\Condition\CardDocumentEnteredReviewInColumn;
 use App\Module\Board\Workflow\Condition\CardDocumentEntryDecisionsOpen;
 use App\Module\Board\Workflow\Condition\CardDocumentEntryThreadsOpen;
@@ -13,6 +14,7 @@ use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\ReadsDocumentTag;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -34,6 +36,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
         $threads = new CardDocumentEntryThreadsOpen();
         $rejected = new CardDocumentRejectedBefore();
         $entered = new CardDocumentEnteredReviewInColumn();
+        $withdrawn = new CardDocumentApprovalWithdrawn();
 
         yield 'decisions, one unanswered at entry' => [$decisions, self::facts(self::document(decisions: 1)), true];
         yield 'decisions, none unanswered at entry' => [$decisions, self::facts(self::document(decisions: 0)), false];
@@ -63,6 +66,23 @@ final class CardDocumentEntryConditionsTest extends TestCase
         yield 'entered, an approved document is no concern' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 10:05:00'), self::document(id: 'two', status: 'approved', enteredAt: '2026-10-22 09:00:00')), true];
         yield 'entered, no arrival is known' => [$entered, self::factsArrivingAt(null, [self::document(enteredAt: '2026-10-22 10:05:00')]), false];
         yield 'entered, no document in review' => [$entered, self::facts(), false];
+
+        yield 'withdrawn, the newest review withdrew an approval' => [$withdrawn, self::facts(self::document(withdrawn: true)), true];
+        yield 'withdrawn, no withdrawal' => [$withdrawn, self::facts(self::document()), false];
+        yield 'withdrawn, a document with another tag' => [$withdrawn, self::facts(self::document(tags: ['notes'], withdrawn: true)), false];
+        yield 'withdrawn, one of two documents' => [$withdrawn, self::facts(self::document(), self::document(id: 'two', withdrawn: true)), true];
+        yield 'withdrawn, a rejection is no withdrawal' => [$withdrawn, self::facts(self::document(rejected: true)), false];
+        yield 'withdrawn, no document' => [$withdrawn, self::facts(), false];
+    }
+
+    public function test_the_withdrawal_condition_reads_the_documents_facts_and_names_no_tag_to_the_stage(): void
+    {
+        $condition = new CardDocumentApprovalWithdrawn();
+
+        self::assertSame('card.document.approval_withdrawn', $condition::key());
+        self::assertSame('workflow.source.board', $condition::source());
+        self::assertSame([DocumentsFacts::class], $condition->reads(['tag' => 'design']));
+        self::assertNotContains(ReadsDocumentTag::class, class_implements($condition), 'A rule of every column must not make its tag a tag of the stage.');
     }
 
     public function test_a_bound_document_hides_the_others_from_the_conditions_that_read_documents_in_review(): void
@@ -92,6 +112,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
         yield 'card.document.entry_threads_open' => [new CardDocumentEntryThreadsOpen(), 'workflow.waiting.card_document_entry_threads_open'];
         yield 'card.document.rejected_before' => [new CardDocumentRejectedBefore(), 'workflow.waiting.card_document_rejected_before'];
         yield 'card.document.entered_review_in_column' => [new CardDocumentEnteredReviewInColumn(), 'workflow.waiting.card_document_entered_review_in_column'];
+        yield 'card.document.approval_withdrawn' => [new CardDocumentApprovalWithdrawn(), 'workflow.waiting.card_document_approval_withdrawn'];
     }
 
     public function test_each_condition_names_its_key_the_tag_it_reads_and_the_facts_it_reads(): void
@@ -119,6 +140,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
         int $threads = 0,
         bool $rejected = false,
         string $enteredAt = '2026-10-22 10:30:00',
+        bool $withdrawn = false,
     ): DocumentFacts {
         return new DocumentFacts(
             tags: $tags,
@@ -129,6 +151,7 @@ final class CardDocumentEntryConditionsTest extends TestCase
             entryUnansweredDecisions: $check ? $decisions : null,
             entryOpenThreads: $check ? $threads : null,
             rejectedBefore: $rejected,
+            newestReviewWithdrewApproval: $withdrawn,
         );
     }
 

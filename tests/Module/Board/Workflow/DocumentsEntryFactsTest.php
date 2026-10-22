@@ -110,6 +110,51 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         self::assertTrue($facts->rejectedBefore, 'The withdrawal stays on record for the document.');
     }
 
+    public function test_the_withdrawal_of_an_approval_shows_only_while_it_is_the_newest_review_of_the_newest_version(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        self::assertFalse($this->facts($card, $document)->newestReviewWithdrewApproval, 'No review yet.');
+
+        $approval = $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'approved', 1, 'Fine.'));
+        self::assertFalse($this->facts($card, $document)->newestReviewWithdrewApproval, 'An approval is no withdrawal.');
+
+        $withdrawal = $this->service(UndoVerdictHandler::class)(new UndoVerdictCommand($document, $document->owner, $approval->id?->toRfc4122() ?? ''));
+        self::assertTrue($this->facts($card, $document)->newestReviewWithdrewApproval);
+
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'changes-requested', 1, 'Rework it.', expectedReviewId: $withdrawal->id?->toRfc4122()));
+        self::assertFalse($this->facts($card, $document)->newestReviewWithdrewApproval, 'A later review replaces the withdrawal as the newest.');
+    }
+
+    public function test_the_withdrawal_of_a_change_request_is_no_withdrawal_of_an_approval(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $request = $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'changes-requested', 1, 'Rework it.'));
+
+        $this->service(UndoVerdictHandler::class)(new UndoVerdictCommand($document, $document->owner, $request->id?->toRfc4122() ?? ''));
+
+        $facts = $this->facts($card, $document);
+        self::assertTrue($facts->rejectedBefore);
+        self::assertFalse($facts->newestReviewWithdrewApproval);
+    }
+
+    public function test_a_revision_ends_the_withdrawal_of_an_approval(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $approval = $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'approved', 1, 'Fine.'));
+        $this->service(UndoVerdictHandler::class)(new UndoVerdictCommand($document, $document->owner, $approval->id?->toRfc4122() ?? ''));
+        self::assertTrue($this->facts($card, $document)->newestReviewWithdrewApproval);
+
+        $this->service(ReviseDocumentHandler::class)(new ReviseDocumentCommand($document, "# Design\n\nA second round.", 'Second round.'));
+
+        self::assertFalse($this->facts($card, $document)->newestReviewWithdrewApproval);
+    }
+
     public function test_a_change_request_on_an_older_version_still_counts(): void
     {
         $card = $this->newCard();
@@ -136,6 +181,7 @@ final class DocumentsEntryFactsTest extends KernelTestCase
             'decisions' => new DocumentFacts(['d'], 'in-review', 'one', 'T', null, 1, 1, 'review', $at, 1, 0, false),
             'threads' => new DocumentFacts(['d'], 'in-review', 'one', 'T', null, 1, 1, 'review', $at, 0, 1, false),
             'rejection' => new DocumentFacts(['d'], 'in-review', 'one', 'T', null, 1, 1, 'review', $at, 0, 0, true),
+            'withdrawn approval' => new DocumentFacts(['d'], 'in-review', 'one', 'T', null, 1, 1, 'review', $at, 0, 0, false, true),
         ];
 
         $reference = FingerprintValue::documents([$base]);

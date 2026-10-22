@@ -26,7 +26,7 @@ final class FingerprintValue
     /**
      * @param list<DocumentFacts> $documents
      *
-     * @return list<array{string, list<string>, ?int, ?int, ?string, ?string, ?int, ?int, bool}>
+     * @return list<array{string, list<string>, ?int, ?int, ?string, ?string, ?int, ?int, bool, bool}>
      */
     public static function documents(array $documents): array
     {
@@ -41,6 +41,7 @@ final class FingerprintValue
                 $document->entryUnansweredDecisions,
                 $document->entryOpenThreads,
                 $document->rejectedBefore,
+                $document->newestReviewWithdrewApproval,
             ],
             $documents,
         ));

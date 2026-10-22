@@ -294,6 +294,7 @@ final class FactFingerprintTest extends TestCase
             $document->entryUnansweredDecisions,
             $document->entryOpenThreads,
             $document->rejectedBefore,
+            $document->newestReviewWithdrewApproval,
         ];
     }
 

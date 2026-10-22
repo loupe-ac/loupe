@@ -62,6 +62,7 @@ final readonly class DocumentsFactProvider extends BoardFactProvider
                 $document['entryUnansweredDecisions'],
                 $document['entryOpenThreads'],
                 $document['rejectedBefore'],
+                $document['newestReviewWithdrewApproval'],
             ),
             $cardDocuments->findStatusesAndTagsForCard($card),
         );
