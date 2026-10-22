@@ -1,6 +1,6 @@
 ---
 name: loupe-recommendations
-description: "Use when you recommend, choose or review a solution: a design decision, a fix, a plan, a review finding, or a trade-off between a patch and a fix."
+description: "Use when you recommend, choose or review a solution: a design decision, a fix, a plan, a review finding, or a patch against a fix."
 ---
 
 # Recommending and reviewing a solution
