@@ -39,6 +39,21 @@ class DocumentVersion
     #[ORM\OneToMany(targetEntity: Highlight::class, mappedBy: 'version', cascade: ['persist'], orphanRemoval: true)]
     public Collection $highlights;
 
+    /**
+     * When the document entered review with this version as its newest. Null when the
+     * version never began a review, such as a revision of a document already in review.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $enteredReviewAt = null;
+
+    /** The decisions of this version that had no answer when the document entered review. Set with enteredReviewAt. */
+    #[ORM\Column(nullable: true)]
+    public ?int $entryUnansweredDecisions = null;
+
+    /** The threads of this version that were not resolved when the document entered review. Set with enteredReviewAt. */
+    #[ORM\Column(nullable: true)]
+    public ?int $entryOpenThreads = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false)]
         #[ORM\ManyToOne(targetEntity: Document::class, inversedBy: 'versions')]

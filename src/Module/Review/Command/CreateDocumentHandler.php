@@ -9,6 +9,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
 use App\Module\Review\Event\DocumentStatusChanged;
+use App\Module\Review\Service\DocumentEntryCheck;
 use App\Module\Review\Service\DocumentReferenceValidator;
 use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentSeriesApplier;
@@ -37,6 +38,7 @@ final readonly class CreateDocumentHandler
         private Auditor $auditor,
         private DocumentWorkLinksInterface $workLinks,
         private EventDispatcherInterface $events,
+        private DocumentEntryCheck $entryCheck,
     ) {
     }
 
@@ -65,7 +67,7 @@ final readonly class CreateDocumentHandler
             title: $title,
             searchLanguage: $command->language ?? $command->project->searchLanguage,
         );
-        $document->addVersion($command->markdown, $this->renderer->render($command->markdown), $command->description);
+        $version = $document->addVersion($command->markdown, $this->renderer->render($command->markdown), $command->description);
         $document->status = $command->draft ? DocumentStatus::Draft : DocumentStatus::InReview;
 
         // Also before persist(), for the same reason: this rejects a reference
@@ -78,7 +80,7 @@ final readonly class CreateDocumentHandler
         // Also before persist(), for the same reason: this rejects a placement
         // whose ordinal another document in the series already holds.
         try {
-            $error = $this->em->wrapInTransaction(function () use ($document, $command): ?DomainErrors {
+            $error = $this->em->wrapInTransaction(function () use ($document, $command, $version): ?DomainErrors {
                 try {
                     if (null !== $command->workLinkIds) {
                         $this->em->lock($document->project, LockMode::PESSIMISTIC_WRITE);
@@ -90,6 +92,9 @@ final readonly class CreateDocumentHandler
                 }
                 // Before the links, because a listener of a link change may flush and evaluate the document.
                 $this->em->persist($document);
+                if (DocumentStatus::InReview === $document->status) {
+                    $this->entryCheck->record($document, $version);
+                }
                 $this->tagApplier->apply($document, $command->tagNames);
                 if (null !== $command->workLinkIds) {
                     $this->workLinks->synchronize($document, $command->workLinkIds);
