@@ -558,6 +558,18 @@
                 <source>account.waitlist.joined.back</source>
                 <target>Back to sign in</target>
             </trans-unit>
+            <trans-unit id="account.waitlist.joined.community.heading">
+                <source>account.waitlist.joined.community.heading</source>
+                <target>Talk to us while you wait</target>
+            </trans-unit>
+            <trans-unit id="account.waitlist.joined.community.body">
+                <source>account.waitlist.joined.community.body</source>
+                <target>The team and the beta testers talk on Discord. Ask questions, and see what is coming.</target>
+            </trans-unit>
+            <trans-unit id="account.waitlist.joined.community.button">
+                <source>account.waitlist.joined.community.button</source>
+                <target>Join the Discord server</target>
+            </trans-unit>
             <trans-unit id="account.error.registration_closed">
                 <source>account.error.registration_closed</source>
                 <target>Registration is currently closed — join the waitlist to get an invite.</target>

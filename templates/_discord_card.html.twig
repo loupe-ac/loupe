@@ -1,0 +1,13 @@
+{# Variables: heading, body, button (translated strings) and headingId. Renders nothing without a Discord link. #}
+{% if site_discord_url() %}
+<twig:Ds:Panel as="section" class="lp-about-item lp-about-item--center" aria-labelledby="{{ headingId }}" data-discord-card>
+    <div class="lp-about-card__main">
+        <h2 class="lp-about-card__title" id="{{ headingId }}">{{ heading }}</h2>
+        <p class="lp-about-card__text">{{ body }}</p>
+        <twig:Ds:Button href="{{ site_discord_url() }}" class="lp-about-card__action" target="_blank" rel="noopener noreferrer">
+            <twig:ux:icon name="simple-icons:discord" class="lp-icon lp-icon--sm" aria-hidden="true" />
+            {{ button }}
+        </twig:Ds:Button>
+    </div>
+</twig:Ds:Panel>
+{% endif %}
