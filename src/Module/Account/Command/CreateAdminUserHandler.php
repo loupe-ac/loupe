@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\AgentAccountInstaller;
+use App\Module\Account\Service\WorkflowAccountInstaller;
 use App\Module\Account\Service\DisplayNameDeriver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -49,6 +50,7 @@ final readonly class CreateAdminUserHandler
         // running it usually supplies an email that already exists, which
         // returns early. Idempotent, so running it every time costs nothing.
         AgentAccountInstaller::install($this->em->getConnection());
+        WorkflowAccountInstaller::install($this->em->getConnection());
 
         $existing = $this->users->findOneByEmail($email);
         if (null !== $existing) {

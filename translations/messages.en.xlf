@@ -3351,6 +3351,22 @@
                 <source>check.agent_account.label</source>
                 <target>Agent account</target>
             </trans-unit>
+            <trans-unit id="account.system_status.workflow_account.present">
+                <source>account.system_status.workflow_account.present</source>
+                <target>The workflow account exists. Every verdict that a workflow rule writes is authored by it.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.workflow_account.missing">
+                <source>account.system_status.workflow_account.missing</source>
+                <target>The workflow account is missing, so a workflow rule cannot approve or request changes on a document. Run "bin/console app:admin:create" with your existing administrator's email to restore it. Running the migrations again does not restore it, because the migration that creates the row is already recorded as applied.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.workflow_account.unreadable">
+                <source>account.system_status.workflow_account.unreadable</source>
+                <target>The workflow account could not be read. The database rejected the query. The error is in the log.</target>
+            </trans-unit>
+            <trans-unit id="check.workflow_account.label">
+                <source>check.workflow_account.label</source>
+                <target>Workflow account</target>
+            </trans-unit>
             <trans-unit id="account.system_status.trusted_proxies.resolved">
                 <source>account.system_status.trusted_proxies.resolved</source>
                 <target>The client address matches the caller named in X-Forwarded-For, so this instance sees real client addresses through its proxy.</target>
@@ -3636,6 +3652,10 @@
             <trans-unit id="account.admin.users.error.agent_account">
                 <source>account.admin.users.error.agent_account</source>
                 <target>The agent account authors everything agents write, so it cannot be changed or removed.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.users.error.workflow_account">
+                <source>account.admin.users.error.workflow_account</source>
+                <target>The workflow account authors the verdicts of workflow rules, so it cannot be changed or removed.</target>
             </trans-unit>
             <trans-unit id="account.admin.users.error.self_target">
                 <source>account.admin.users.error.self_target</source>

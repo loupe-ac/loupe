@@ -25,6 +25,9 @@ final readonly class AdminUserGuard
         if ($target->isAgent()) {
             throw new DomainErrors(['user' => 'account.admin.users.error.agent_account']);
         }
+        if ($target->isWorkflow()) {
+            throw new DomainErrors(['user' => 'account.admin.users.error.workflow_account']);
+        }
     }
 
     public function assertDeletable(User $target, User $actor): void

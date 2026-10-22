@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\AgentAccountInstaller;
+use App\Module\Account\Service\WorkflowAccountInstaller;
 use App\Module\Account\Service\VerificationEmailSender;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -68,6 +69,7 @@ final readonly class CreateInstallAdminHandler
             // already inserts it, and repeating the id is a no-op — so this only
             // matters on a database the migration's insert never reached.
             AgentAccountInstaller::install($this->em->getConnection());
+            WorkflowAccountInstaller::install($this->em->getConnection());
 
             return $user;
         });
