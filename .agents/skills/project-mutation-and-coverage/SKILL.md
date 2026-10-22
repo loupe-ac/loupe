@@ -1,6 +1,6 @@
 ---
 name: project-mutation-and-coverage
-description: "Use when running mutation testing or code coverage, reading a mutation score or a coverage percentage, fetching a weekly report from GitHub Actions, choosing between just mutation, just mutation-diff, just phpunit-coverage and just e2e-coverage, or writing a test that asserts on elapsed wall-clock time."
+description: "Use when running mutation testing or code coverage, reading a score or a weekly report, or writing a test that asserts on elapsed wall-clock time."
 ---
 
 # Mutation testing and coverage

@@ -1,6 +1,6 @@
 ---
 name: project-comments
-description: "Use when writing, reviewing, or editing code comments and docblocks anywhere in this repository, including when you are about to explain a tricky fix, justify a design choice, or document why an approach was rejected."
+description: "Use when writing, reviewing or editing code comments and docblocks in this repository, or when about to explain a fix or a design choice in a comment."
 ---
 
 # Code comments

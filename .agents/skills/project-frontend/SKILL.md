@@ -1,6 +1,6 @@
 ---
 name: project-frontend
-description: Use when working on `assets/styles/app.css`, Stimulus controllers, Turbo patterns, modal components, or any frontend visual behaviour.
+description: "Use when working on `assets/styles/app.css`, Stimulus controllers, Turbo patterns, modal components or frontend visual behaviour."
 ---
 
 # Frontend: CSS, Stimulus, Turbo, and animations

@@ -1,6 +1,6 @@
 ---
 name: project-deploy
-description: Use when deploying to production, running terraform apply against the App Platform app, verifying what version is live, or diagnosing a deploy that appears to have succeeded and changed nothing.
+description: "Use when deploying to production, running terraform apply, verifying the live version, or diagnosing a deploy that changed nothing."
 ---
 
 # Deploying

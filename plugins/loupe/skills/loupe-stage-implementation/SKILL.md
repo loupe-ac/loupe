@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-implementation
-description: "Use when a card enters the Implementation column of a Loupe board, or when a prompt names loupe-stage-implementation."
+description: "Use when a prompt names loupe-stage-implementation, or when a card enters the Implementation column."
 ---
 
 # Implementation stage

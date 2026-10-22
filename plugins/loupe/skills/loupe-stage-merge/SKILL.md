@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-merge
-description: "Use when a card's pull request is ready to merge or behind its base, when a stacked pull request needs a new base, when an epic branch is behind its base, from a merge, sync, rebase-stacked, sync-epic or epic preview work request of the workflow, or when a prompt names loupe-stage-merge."
+description: "Use when a prompt names loupe-stage-merge, or when a card's pull request is ready to merge or behind its base."
 ---
 
 # Merge stage

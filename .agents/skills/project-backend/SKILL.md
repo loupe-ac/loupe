@@ -1,6 +1,6 @@
 ---
 name: project-backend
-description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands, flash messages, or any PHP implementation work. For authorization see `project-authz`. For PHPUnit tests see `project-testing`."
+description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands or flash messages."
 ---
 
 # Backend: forms, DTOs, Doctrine, controllers, flash messages

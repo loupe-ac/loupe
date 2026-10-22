@@ -1,6 +1,6 @@
 ---
 name: loupe-discovery
-description: "Use when a bridge runs a discovery run of a Loupe project, when a prompt names loupe-discovery, or when calling readiness_get, workflow_get and readiness_report_submit to write a readiness report."
+description: "Use when a bridge runs a discovery run of a Loupe project, when a prompt names loupe-discovery, or when writing a readiness report."
 ---
 
 # Running a Loupe discovery

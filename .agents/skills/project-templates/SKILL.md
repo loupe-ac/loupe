@@ -1,6 +1,6 @@
 ---
 name: project-templates
-description: Use when working on `.html.twig` files, Twig components, or Turbo stream templates.
+description: "Use when working on `.html.twig` files, Twig components or Turbo stream templates."
 ---
 
 # Templates, Twig components and form theme

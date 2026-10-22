@@ -1,6 +1,6 @@
 ---
 name: project-e2e
-description: Use when writing, fixing, or debugging Playwright e2e tests under `e2e/`.
+description: "Use when writing, fixing or debugging Playwright e2e tests under `e2e/`."
 ---
 
 # E2E Tests

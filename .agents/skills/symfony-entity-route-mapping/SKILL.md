@@ -1,6 +1,6 @@
 ---
 name: symfony-entity-route-mapping
-description: "Use when writing or changing Symfony routes that resolve entities from URL parameters, with `{param:variable}` notation, `#[MapEntity]`, expr-based lookups, or multi-entity routes. Covers the alias/request-attribute pitfall, raw-string expr semantics, and org-scoped lookups."
+description: "Use when writing Symfony routes that resolve entities from URL parameters: `{param:variable}`, `#[MapEntity]`, expr lookups or multi-entity routes."
 ---
 
 # Entity and route mapping (Symfony EntityValueResolver)

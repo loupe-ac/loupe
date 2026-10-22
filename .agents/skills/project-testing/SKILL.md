@@ -1,6 +1,6 @@
 ---
 name: project-testing
-description: Use when writing or modifying PHPUnit tests, unit tests, integration tests, WebTestCase controller tests, or mock setup.
+description: "Use when writing or modifying PHPUnit tests: unit, integration, WebTestCase or mock setup."
 ---
 
 # Testing, PHPUnit patterns

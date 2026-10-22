@@ -1,6 +1,6 @@
 ---
 name: product-design
-description: "Use when the owner wants to run an interactive product design session for a Loupe card, from a card or from a one-line idea, or when a prompt names /loupe:product-design."
+description: "Use when the owner runs an interactive product design session for a Loupe card or a one-line idea, or when a prompt names /loupe:product-design."
 ---
 
 # Interactive product design
