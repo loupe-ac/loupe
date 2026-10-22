@@ -803,13 +803,14 @@ final readonly class Engine
         // An action that changes the facts gives the next action of the list the facts as they are then.
         $facts = $bound->facts;
         $refreshesFacts = false;
-        foreach ($rule->then as $call) {
+        $lastKey = array_key_last($rule->then);
+        foreach ($rule->then as $key => $call) {
             $outcome = $this->actions->get($call->key)->run($this->contexts->for($rule->forCall($call), $run->card, $facts, $state->fires));
             $refreshesFacts = $refreshesFacts || $call->traits->refreshesFacts;
             if (ActionOutcomeKind::Done !== $outcome->kind || $call->traits->endsPass) {
                 break;
             }
-            if ($call->traits->refreshesFacts) {
+            if ($call->traits->refreshesFacts && $key !== $lastKey) {
                 $run->facts = $this->facts($run->card, $run->now, $run->facts);
                 $facts = $this->ruleSubject->bind($rule, $run->facts)->facts;
             }

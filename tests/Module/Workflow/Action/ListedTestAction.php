@@ -22,6 +22,9 @@ final class ListedTestAction implements Action
     /** @var list<Facts> the facts that each run read */
     public static array $facts = [];
 
+    /** Runs at the end of each run, so a test can change the world that the next action reads. */
+    public static ?\Closure $afterRun = null;
+
     #[\Override]
     public static function key(): string
     {
@@ -63,6 +66,9 @@ final class ListedTestAction implements Action
     {
         self::$log[] = $context->string('label');
         self::$facts[] = $context->facts;
+        if (null !== self::$afterRun) {
+            (self::$afterRun)($context->string('label'));
+        }
 
         return 'refuse' === $context->string('label') ? ActionOutcome::refused('listed-refusal') : ActionOutcome::done();
     }

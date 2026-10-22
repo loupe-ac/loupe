@@ -89,6 +89,7 @@ use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
@@ -188,6 +189,7 @@ final class EngineTest extends KernelTestCase
     {
         ListedTestAction::$log = [];
         ListedTestAction::$facts = [];
+        ListedTestAction::$afterRun = null;
         $this->logger = new RecordingLogger();
         $this->asks = new FakeRuleAsks();
     }
@@ -532,6 +534,38 @@ final class EngineTest extends KernelTestCase
 
         self::assertCount(2, ListedTestAction::$facts);
         self::assertNotSame(ListedTestAction::$facts[0], ListedTestAction::$facts[1]);
+    }
+
+    public function test_the_second_action_of_a_list_reads_the_change_that_the_first_action_wrote(): void
+    {
+        $card = $this->boundCard([self::listRule('both', [self::listed('first'), self::listed('second')], self::PROVIDED_READY)]);
+        $this->provider()->facts = new ProvidedFacts(ready: true);
+        ListedTestAction::$afterRun = fn (string $label) => 'first' === $label ? $this->provider()->facts = new ProvidedFacts(ready: true, version: 2) : null;
+
+        $this->evaluate($card);
+
+        self::assertSame(['first', 'second'], ListedTestAction::$log);
+        self::assertSame(
+            [1, 2],
+            array_map(static fn (Facts $facts): int => $facts->get(ProvidedFacts::class)->version, ListedTestAction::$facts),
+        );
+    }
+
+    public function test_a_rule_with_one_refreshing_action_builds_the_facts_once_after_the_action(): void
+    {
+        $card = $this->boundCard([self::listRule('single', [self::listed('only')], self::PROVIDED_READY)]);
+        $this->provider()->facts = new ProvidedFacts(ready: false);
+        $this->provider()->builds = 0;
+        $this->evaluate($card);
+        $idle = $this->provider()->builds;
+        self::assertSame([], ListedTestAction::$log);
+
+        $this->provider()->facts = new ProvidedFacts(ready: true);
+        $this->provider()->builds = 0;
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(['only'], ListedTestAction::$log);
+        self::assertSame($idle + 1, $this->provider()->builds);
     }
 
     public function test_a_list_stops_at_the_first_refusal_and_runs_again_from_the_start_when_due(): void
@@ -4570,9 +4604,9 @@ final class EngineTest extends KernelTestCase
      *
      * @return array<string, mixed>
      */
-    private static function listRule(string $id, array $then): array
+    private static function listRule(string $id, array $then, array $when = self::NOT_EPIC): array
     {
-        return ['id' => $id, 'slot' => 'one', 'when' => self::NOT_EPIC, 'then' => $then];
+        return ['id' => $id, 'slot' => 'one', 'when' => $when, 'then' => $then];
     }
 
     /** @return array<string, mixed> */
