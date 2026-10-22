@@ -1,0 +1,36 @@
+---
+// Starlight's own footer, with the social icons swapped for the stamped
+// links. The stamp reads the GitHub and Discord addresses from the instance
+// flags, so the build names neither.
+import LanguageSelect from 'virtual:starlight/components/LanguageSelect';
+import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
+import { MENU_MARKER } from '../chrome-markers.mjs';
+---
+
+<div class="mobile-preferences sl-flex">
+  <div class="site-menu-links">
+    <site-chrome part-name="menu">
+      <template shadowrootmode="open"><Fragment set:html={MENU_MARKER} /></template>
+    </site-chrome>
+  </div>
+  <ThemeSelect />
+  <LanguageSelect />
+</div>
+
+<style>
+  @layer starlight.core {
+    .site-menu-links {
+      display: flex;
+      margin-inline-end: auto;
+      align-items: center;
+      padding-block: 1rem;
+    }
+    .mobile-preferences {
+      justify-content: space-between;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--sl-color-gray-6);
+      column-gap: 1rem;
+      padding: 0.5rem 0;
+    }
+  }
+</style>

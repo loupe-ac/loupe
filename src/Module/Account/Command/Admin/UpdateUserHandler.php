@@ -7,9 +7,11 @@ namespace App\Module\Account\Command\Admin;
 use App\Exception\DomainErrors;
 use App\Module\Account\Admin\AdminUserGuard;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\VerificationEmailSender;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -22,6 +24,7 @@ final readonly class UpdateUserHandler
         private EntityManagerInterface $em,
         private VerificationEmailSender $verificationEmails,
         private Auditor $auditor,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -57,6 +60,7 @@ final readonly class UpdateUserHandler
             throw new DomainErrors(['email' => 'account.admin.users.error.email_taken']);
         }
 
+        $wasVerified = $target->isVerified();
         $target->fullName = $fullName;
         $target->roles = $roles;
 
@@ -73,6 +77,10 @@ final readonly class UpdateUserHandler
 
         if ($emailChanged) {
             $this->verificationEmails->send($target);
+        }
+
+        if (!$wasVerified && $target->isVerified()) {
+            $this->eventDispatcher->dispatch(new UserEmailVerified($target));
         }
 
         // The admin is the actor the Auditor resolves from the security token,

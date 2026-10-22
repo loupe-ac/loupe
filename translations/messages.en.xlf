@@ -76,6 +76,18 @@
                 <source>about.docs.action</source>
                 <target>Read the documentation</target>
             </trans-unit>
+            <trans-unit id="about.community.heading">
+                <source>about.community.heading</source>
+                <target>Community</target>
+            </trans-unit>
+            <trans-unit id="about.community.body">
+                <source>about.community.body</source>
+                <target>Talk with the team and other Loupe users. Ask a question, or tell us what breaks.</target>
+            </trans-unit>
+            <trans-unit id="about.community.button">
+                <source>about.community.button</source>
+                <target>Join the Discord server</target>
+            </trans-unit>
             <trans-unit id="about.version.heading">
                 <source>about.version.heading</source>
                 <target>Version</target>
@@ -741,6 +753,34 @@
             <trans-unit id="billing.email.trial_end_survey.subscribed.button_label">
                 <source>billing.email.trial_end_survey.subscribed.button_label</source>
                 <target>Share your experience</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.subject">
+                <source>billing.email.beta_welcome.subject</source>
+                <target>Welcome to the Loupe beta</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.heading">
+                <source>billing.email.beta_welcome.heading</source>
+                <target>Welcome to the Loupe beta</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.access">
+                <source>billing.email.beta_welcome.access</source>
+                <target>Your account now has free access for as long as the beta runs.</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.discord">
+                <source>billing.email.beta_welcome.discord</source>
+                <target>The beta testers and the team talk on Discord: ask questions there, and tell us what breaks.</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.open">
+                <source>billing.email.beta_welcome.open</source>
+                <target>Open Loupe</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.join_discord">
+                <source>billing.email.beta_welcome.join_discord</source>
+                <target>Join the Discord server</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.footer">
+                <source>billing.email.beta_welcome.footer</source>
+                <target>You get this email because you used a Loupe beta invite.</target>
             </trans-unit>
             <trans-unit id="billing.email.cancel_survey.subject">
                 <source>billing.email.cancel_survey.subject</source>
@@ -3865,6 +3905,26 @@
                 <source>billing.beta_invite.redeemed.continue</source>
                 <target>Continue to the app</target>
             </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.start.heading">
+                <source>billing.beta_invite.redeemed.start.heading</source>
+                <target>Start using Loupe</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.start.body">
+                <source>billing.beta_invite.redeemed.start.body</source>
+                <target>Create your first project and connect your coding agent.</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.community.heading">
+                <source>billing.beta_invite.redeemed.community.heading</source>
+                <target>Join the beta testers</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.community.body">
+                <source>billing.beta_invite.redeemed.community.body</source>
+                <target>The beta testers and the team talk on Discord. Ask questions, and tell us what breaks.</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.community.button">
+                <source>billing.beta_invite.redeemed.community.button</source>
+                <target>Join the Discord server</target>
+            </trans-unit>
             <trans-unit id="billing.beta_invite.invalid.page.title">
                 <source>billing.beta_invite.invalid.page.title</source>
                 <target>Link not valid</target>
@@ -4416,6 +4476,10 @@
             <trans-unit id="landing.nav.github">
                 <source>landing.nav.github</source>
                 <target>GitHub</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.discord">
+                <source>landing.nav.discord</source>
+                <target>Discord</target>
             </trans-unit>
             <trans-unit id="landing.nav.go_to_app">
                 <source>landing.nav.go_to_app</source>
@@ -5120,6 +5184,10 @@
             <trans-unit id="landing.footer.x_label">
                 <source>landing.footer.x_label</source>
                 <target>Loupe on X</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.discord_label">
+                <source>landing.footer.discord_label</source>
+                <target>Loupe on Discord</target>
             </trans-unit>
             <trans-unit id="landing.footer.product">
                 <source>landing.footer.product</source>

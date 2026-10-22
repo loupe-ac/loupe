@@ -6,6 +6,7 @@ namespace App\Module\Account\Command;
 
 use App\Module\Account\Entity\ConnectedAccount;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Event\UserRegistered;
 use App\Module\Account\Registration\RegistrationPasses;
 use App\Module\Account\Repository\ConnectedAccountRepository;
@@ -74,10 +75,15 @@ final readonly class ResolveSocialLoginHandler
             // what makes that true: VerifyEmailHandler never checks isVerified()
             // and VerifyEmailController logs in whoever presents a valid token,
             // so a link left outstanding here keeps working afterwards.
+            $newlyVerified = !$byEmail->isVerified();
             $byEmail->emailVerifiedAt ??= new \DateTimeImmutable();
             $byEmail->clearEmailVerificationToken();
             $this->em->persist($this->link($byEmail, $profile));
             $this->flushOrRace();
+
+            if ($newlyVerified) {
+                $this->eventDispatcher->dispatch(new UserEmailVerified($byEmail));
+            }
 
             return SocialLoginOutcome::logIn($byEmail);
         }

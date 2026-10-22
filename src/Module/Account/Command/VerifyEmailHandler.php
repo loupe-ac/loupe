@@ -3,8 +3,10 @@
 namespace App\Module\Account\Command;
 
 use App\Module\Account\Entity\User;
+use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -15,6 +17,7 @@ final readonly class VerifyEmailHandler
         private UserRepository $users,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -33,6 +36,7 @@ final readonly class VerifyEmailHandler
             return null;
         }
 
+        $wasVerified = $user->isVerified();
         $user->clearEmailVerificationToken();
         $user->emailVerifiedAt = new \DateTimeImmutable();
         $this->em->flush();
@@ -44,6 +48,10 @@ final readonly class VerifyEmailHandler
             new AuditSubject('user', (string) $user->id),
             Auditor::CATEGORY_SECURITY,
         );
+
+        if (!$wasVerified) {
+            $this->eventDispatcher->dispatch(new UserEmailVerified($user));
+        }
 
         return $user;
     }

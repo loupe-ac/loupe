@@ -7,6 +7,7 @@ namespace App\Module\Billing\Command;
 use App\Module\Billing\Entity\BetaInvite;
 use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Service\BetaCompGranter;
+use App\Module\Billing\Service\BetaWelcomeEmailSender;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -15,6 +16,7 @@ final readonly class ClaimBetaInviteHandler
     public function __construct(
         private BetaInviteRepository $betaInvites,
         private BetaCompGranter $grantBetaComp,
+        private BetaWelcomeEmailSender $welcomeEmail,
         private EntityManagerInterface $em,
     ) {
     }
@@ -48,9 +50,10 @@ final readonly class ClaimBetaInviteHandler
         });
 
         // After the commit, so a failed grant leaves the invite used and the
-        // account on its trial, the same as at sign-up.
-        if (null !== $invite) {
-            ($this->grantBetaComp)($invite);
+        // account on its trial, the same as at sign-up. It sends no welcome email then,
+        // because the email promises free access.
+        if (null !== $invite && ($this->grantBetaComp)($invite)) {
+            $this->welcomeEmail->sendIfDue($invite);
         }
     }
 }
