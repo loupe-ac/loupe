@@ -113,7 +113,7 @@ final class SaveBoardAutomationSettingsHandlerTest extends KernelTestCase
 
     private function dueAt(Card $card): ?string
     {
-        $due = $this->em->getConnection()->fetchOne('SELECT markers_due_at FROM board_cards WHERE id = :id', ['id' => (string) $card->id]);
+        $due = $this->em->getConnection()->fetchOne('SELECT workflow_markers_due_at FROM board_cards WHERE id = :id', ['id' => (string) $card->id]);
 
         return false === $due ? null : $due;
     }

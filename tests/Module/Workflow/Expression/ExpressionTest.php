@@ -11,7 +11,9 @@ use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardParentExists;
 use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
+use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\ParentFacts;
+use App\Module\Workflow\Condition\CardDocumentApprovalMoves;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\PullRequestList;
@@ -21,6 +23,7 @@ use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\MissingConditionLeaf;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Expression\Not;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
@@ -222,6 +225,15 @@ final class ExpressionTest extends TestCase
         self::assertSame($failed, new Not($open)->unreadable(FactsMother::facts(provided: [PullRequestList::class => $failed])));
     }
 
+    public function test_a_leaf_that_reads_a_contract_interface_is_unreadable_while_its_provider_is(): void
+    {
+        $failed = new Unreadable(UnreadableKind::Failed, 'workflow.source.board');
+        $moves = new ConditionLeaf(new \ReflectionClass(CardDocumentApprovalMoves::class)->newInstanceWithoutConstructor(), []);
+
+        self::assertNull($moves->unreadable(FactsMother::facts()));
+        self::assertSame($failed, $moves->unreadable(FactsMother::facts(provided: [DocumentsFacts::class => $failed])));
+    }
+
     public function test_an_unreadable_leaf_makes_every_expression_above_it_unreadable(): void
     {
         $failed = new Unreadable(UnreadableKind::Failed, 'workflow.source.board');
@@ -382,5 +394,31 @@ final class ExpressionTest extends TestCase
 
         self::assertSame('card.type{"a":{"x":2,"y":1},"b":1}', $leaf->canonical());
         self::assertSame('all(any(card.type{"a":{"x":2,"y":1},"b":1}),not(card.type{"a":{"x":2,"y":1},"b":1}))', new AllOf([new AnyOf([$leaf]), new Not($leaf)])->canonical());
+    }
+
+    public function test_a_named_fact_answers_as_its_expression_does(): void
+    {
+        $open = new ConditionLeaf(new CardHasOpenBlocker(), []);
+        $epic = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $inner = new AllOf([$epic, new Not($open)]);
+        $named = new NamedFact('epic-unblocked', $inner);
+        $facts = FactsMother::facts(card: FactsMother::card(type: 'epic'));
+
+        self::assertSame($inner->evaluate($facts), $named->evaluate($facts));
+        self::assertSame($inner->canonical(), $named->canonical());
+        self::assertSame($inner->leaves(), $named->leaves());
+        self::assertSame($inner->requiredLeaves(), $named->requiredLeaves());
+        self::assertSame($inner->reads(), $named->reads());
+        self::assertEquals($inner->holdingParts($facts), $named->holdingParts($facts));
+        self::assertEquals($inner->firstFalseLeaf($facts), $named->firstFalseLeaf($facts));
+        self::assertSame($inner->countAgainst($facts, false), $named->countAgainst($facts, false));
+        self::assertEquals($inner->unreadable($facts), $named->unreadable($facts));
+    }
+
+    public function test_a_named_fact_lists_the_missing_conditions_of_its_expression(): void
+    {
+        $named = new NamedFact('gone', new AllOf([new MissingConditionLeaf('card.gone', [])]));
+
+        self::assertSame(['card.gone'], $named->missingKeys());
     }
 }

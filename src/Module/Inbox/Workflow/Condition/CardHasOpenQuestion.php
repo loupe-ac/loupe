@@ -65,7 +65,7 @@ final readonly class CardHasOpenQuestion implements Condition, MarkerEvidence
     {
         $question = self::question($facts, $params);
 
-        return null === $question ? null : new Evidence($question->since, ['%number%' => $question->number, '%title%' => $question->title]);
+        return null === $question ? null : new Evidence(['%number%' => $question->number, '%title%' => $question->title]);
     }
 
     /** @param array<string, mixed> $params */

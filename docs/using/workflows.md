@@ -48,6 +48,38 @@ The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.
 
+### Named facts
+
+A template can name a condition that several rules or markers use. The top-level
+`facts:` map holds the named conditions. Each key is a name of lowercase letters,
+digits and hyphens, and it starts with a letter. Each value is a condition
+expression, written as in a rule.
+
+```yaml
+facts:
+    pr-reviewable:
+        all:
+            - pr.open: {}
+            - not: { pr.draft: {} }
+    pr-ready-for-approval:
+        all:
+            - fact.pr-reviewable: {}
+            - pr.checks_passed: {}
+```
+
+A rule, a marker or another fact uses a named fact as `fact.<name>: {}`. A named
+fact takes no parameters. A condition inside a fact takes the parameters that its
+own class requires.
+
+The template is refused when a fact names an unknown fact, when a fact takes
+parameters, or when facts refer to each other in a loop. The message names the
+path, such as `facts.a: loop a -> b -> a`. A fact that no rule uses is still
+checked.
+
+A named fact does not change what a condition means. A rule that uses `fact.x`
+behaves as if it held the condition of `x` in place. The **Workflow** page lists
+the conditions of the fact, each with the name of the fact after it.
+
 ## Markers
 
 A marker tells a reader what a card needs now. The template defines every marker.
@@ -92,7 +124,8 @@ The shipped markers are:
 | Key | Kind | Shows when |
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
-| `run-stopped` | Stuck | The last worker run gave up, was blocked, failed or had no result, and no work is under way |
+| `run-stopped` | Stuck | The last worker run failed or had no result, and no work is under way |
+| `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
 | `checks-failed` | Stuck | A pull request has failed checks and no fix is under way |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
@@ -141,8 +174,7 @@ The **Workflow** page lists the markers in template order. Each row shows the
 label, the kind, the slots and the condition. The page is read-only.
 
 
-A marker reads the same conditions as a rule.
-markers:
+A marker reads the same conditions as a rule. These conditions suit markers:
 
 - `card.paused`: the card has an active pause.
 - `card.document.in_review` with a `tag`: a linked document with that tag is in
@@ -154,6 +186,19 @@ markers:
   card.
 - `card.run.stopped`: the latest run of the card ended with a warning, and the
   card did not move after it ended.
+- `card.run.needs_person`: the newest run of the card blocked, gave up or waits
+  for a person, and the card did not move after the run ended.
+- `card.run.asking`: the newest run of the card waits on a question of its own,
+  or that question closed less than 10 minutes ago.
+- `card.document.agent_review_open`: an agent asked you to review a document in
+  review of the card, and that review item is open.
+- `card.document.approval_moves`: a document in review of the card carries a tag
+  that a rule of the card's slot reads, and an approval or a change request on
+  it would make a rule of that slot fire.
+- `pr.checks_on_head`: the checks ran on the head commit of the pull request.
+- `pr.can_merge`: the forge reads the pull request as mergeable, behind or
+  blocked.
+- `pr.base_is_default`: the pull request targets the default branch.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
@@ -188,8 +233,6 @@ markers:
   its four fix rules, so no second fix starts while a session of the card waits
   for an answer.
 - `pr.checks_pending`: the pull request is open, and its checks run.
-- `pr.waits_for_approval`: the pull request is open, not a draft, green and
-  into the default branch, and no current approval covers its head.
 - `pr.forge_request_pending`: Loupe asked the forge to merge, sync or change
   the base of the pull request, and the forge did not answer yet. A request
   expires after 10 minutes with no answer.
@@ -206,6 +249,29 @@ The `delay` of `card.quiet_for` and of `pr.ready_for` is optional. With no
 Markers also read conditions that rules already use: `pr.open`,
 `pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
 `card.run.worker_active`.
+
+### Markers that open inbox items
+
+The top-level `inbox:` list names the markers that open an item in the inbox.
+Each entry is a marker key. The Lifecycle template lists `waits-for-approval`,
+`document-in-review`, `run-needs-you` and `paused`. The Simple template lists
+`waits-for-approval`, `run-needs-you` and `paused`.
+
+```yaml
+inbox: [waits-for-approval, document-in-review, run-needs-you, paused]
+```
+
+A listed marker opens one wait for each thing that makes it true. The thing is a
+pull request, a document version, a run or a pause. Two pull requests that wait
+for approval give two waits in one inbox item. The card has one item. A dismiss
+hides one wait, and the wait comes back only for a new thing.
+
+A marker that the list does not name opens no item. The
+[inbox page](inbox.md#automatic-items) describes the items.
+
+The template is refused when `inbox:` names an unknown marker or names a marker
+twice. A marker with no pull request, document, run or pause, called a
+card-level marker, cannot be listed yet, so the parser refuses it.
 
 ## Slots and columns
 

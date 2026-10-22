@@ -31,9 +31,9 @@ use Symfony\Component\Uid\Uuid;
 // Read by card_search, which asks a project which languages its cards hold
 // before it builds one constant tsquery per language.
 #[ORM\Index(name: 'idx_board_cards_project_search_language', columns: ['project_id', 'search_language'])]
-// The minute task reads these two to find the cards whose markers are due or not stored yet.
-#[ORM\Index(name: 'idx_board_cards_markers_due', columns: ['markers_due_at'], options: ['where' => '(markers_due_at IS NOT NULL)'])]
-#[ORM\Index(name: 'idx_board_cards_markers_missing', columns: ['project_id'], options: ['where' => '(markers IS NULL)'])]
+// The minute task reads these two to find the cards whose markers are due or not read by this version of the engine yet.
+#[ORM\Index(name: 'idx_board_cards_workflow_markers_due', columns: ['workflow_markers_due_at'], options: ['where' => '(workflow_markers_due_at IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_board_cards_inbox_markers_missing', columns: ['project_id'], options: ['where' => '(inbox_markers IS NULL)'])]
 #[ORM\Table(name: 'board_cards')]
 #[ORM\UniqueConstraint(name: 'uniq_board_card_project_number', columns: ['project_id', 'number'])]
 class Card implements ProjectScopedSubject
@@ -63,16 +63,25 @@ class Card implements ProjectScopedSubject
     public \DateTimeImmutable $updatedAt;
 
     /**
-     * The markers the workflow engine found on the card, as stored by CardMarkerStore. Null until the first pass.
+     * The board set: the markers the workflow engine found on the card, one per key, as stored by CardMarkerStore. Null until the first pass.
+     * The columns `markers` and `markers_due_at` belong to the previous version of the engine, and no code of this version maps them.
      *
      * @var list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: ?string}>|null
      */
-    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    #[ORM\Column(name: 'workflow_markers', type: Types::JSON, nullable: true, options: ['jsonb' => true])]
     public ?array $markers = null;
 
     /** The time the next timed marker may change, or null when only an event changes them. */
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(name: 'workflow_markers_due_at', nullable: true)]
     public ?\DateTimeImmutable $markersDueAt = null;
+
+    /**
+     * The inbox set: one entry per thing for each marker that the template lists under `inbox`. Null until this version of the engine reads the card.
+     *
+     * @var list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: ?string, subject?: array{type: string, ids: array<string, string>}}>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $inboxMarkers = null;
 
     /**
      * The epic this card belongs to. CardParentPolicy keeps it an epic of the

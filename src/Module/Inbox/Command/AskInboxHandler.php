@@ -194,10 +194,7 @@ final readonly class AskInboxHandler
             }
         }
         foreach ($reviewed as $document) {
-            $this->cardWaits->forDocument(
-                $command->project->id ?? throw new \LogicException('Project has no id.'),
-                $document->id ?? throw new \LogicException('Document has no id.'),
-            );
+            $this->cardWaits->forDocument($document->id ?? throw new \LogicException('Document has no id.'));
         }
 
         // After the commit, for the reason in CreateCardHandler. No title and no

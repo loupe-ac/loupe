@@ -22,18 +22,25 @@ trait MarkerScenario
 {
     private ?\DateTimeImmutable $writtenDueAt = null;
 
+    private ?Uuid $markerCardId = null;
+
     /** @var list<StoredMarker>|null null until the pass writes */
     private ?array $written = null;
 
+    /** @var list<StoredMarker>|null null until the pass writes */
+    private ?array $writtenInbox = null;
+
     /**
      * @param list<array<string, mixed>> $markers
+     * @param list<string>               $inbox   the keys of the markers that store one inbox entry per thing
+     * @param array<string, mixed>       $facts   the named facts of the template
      */
-    private function markerTemplate(array $markers): Template
+    private function markerTemplate(array $markers, array $inbox = [], array $facts = []): Template
     {
         $parser = self::getContainer()->get(TemplateParser::class);
         self::assertInstanceOf(TemplateParser::class, $parser);
 
-        return $parser->parse([
+        $parsed = $parser->parse([
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',
@@ -47,14 +54,30 @@ trait MarkerScenario
             'backoffMinutes' => [10],
             'workTimeoutMinutes' => 120,
             'rules' => [],
+            ...([] === $facts ? [] : ['facts' => $facts]),
             'markers' => $markers,
         ]);
+
+        // The parser refuses a listed marker with the card subject, and these scenarios list such markers on purpose.
+        return new Template(
+            $parsed->key,
+            $parsed->version,
+            $parsed->slots,
+            $parsed->rules,
+            $parsed->manualMoves,
+            $parsed->backoffMinutes,
+            $parsed->workTimeoutMinutes,
+            $parsed->types,
+            $parsed->defaultType,
+            markers: $parsed->markers,
+            inbox: $inbox,
+        );
     }
 
     /**
      * Runs the pass and answers the stored keys, in the stored order.
      *
-     * @param list<StoredMarker> $stored what the card held before the pass
+     * @param list<StoredMarker> $stored what the board set of the card held before the pass
      *
      * @return list<string>
      */
@@ -65,17 +88,22 @@ trait MarkerScenario
         return array_map(static fn (StoredMarker $marker): string => $marker->key, $this->written ?? []);
     }
 
-    /** @param list<StoredMarker> $stored */
-    private function pass(Template $template, Facts $facts, array $stored = []): void
+    /**
+     * @param list<StoredMarker>  $stored      the board set before the pass
+     * @param ?list<StoredMarker> $storedInbox the inbox set before the pass, null for a card that this version has not read
+     */
+    private function pass(Template $template, Facts $facts, array $stored = [], ?array $storedInbox = null): void
     {
         $this->written = null;
+        $this->writtenInbox = null;
         $this->writtenDueAt = null;
-        $store = new RecordingMarkerStore($stored);
-        $card = new CardSnapshot(Uuid::v7(), Uuid::v7(), 1, 'feature', new ColumnRef(Uuid::v7(), false, false), null, null, null);
+        $store = new RecordingMarkerStore($stored, $storedInbox);
+        $card = new CardSnapshot($this->markerCardId ??= Uuid::v7(), Uuid::v7(), 1, 'feature', new ColumnRef(Uuid::v7(), false, false), null, null, null);
         $project = new Project(new User(fullName: 'Riley', email: 'riley@example.com', password: 'hashed'), 'marker-pass');
 
         new MarkerPass(new RuleSubject(), $store)->run(new Evaluation($card, $project, $template, $facts, [], $facts->now));
         $this->written = $store->written;
+        $this->writtenInbox = $store->writtenInbox;
         $this->writtenDueAt = $store->dueAt;
     }
 

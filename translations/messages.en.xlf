@@ -2997,10 +2997,6 @@
                 <source>project.connect.tool.inbox_action_run</source>
                 <target>Run a built-in action of an inbox item for the owner, such as resume-run, retry-card or run-command. A run-command shows a preview first.</target>
             </trans-unit>
-            <trans-unit id="project.connect.tool.inbox_settings_update">
-                <source>project.connect.tool.inbox_settings_update</source>
-                <target>Turn the inbox wait switches on or off. A switch you leave out keeps its value.</target>
-            </trans-unit>
 
             <!-- First-run wizard -->
             <trans-unit id="project.wizard.progress.label">
@@ -5385,25 +5381,6 @@
                 <target>Needs you</target>
             </trans-unit>
             <trans-unit id="inbox.activity"><source>inbox.activity</source><target>View activity</target></trans-unit>
-            <trans-unit id="inbox.settings_link"><source>inbox.settings_link</source><target>Settings</target></trans-unit>
-            <trans-unit id="inbox.settings.heading"><source>inbox.settings.heading</source><target>Inbox</target></trans-unit>
-            <trans-unit id="inbox.settings.description"><source>inbox.settings.description</source><target>Loupe opens an item in your inbox when a card waits for you. Choose which waits open an item. When you save, Loupe checks every card of the project again.</target></trans-unit>
-            <trans-unit id="inbox.settings.submit"><source>inbox.settings.submit</source><target>Save inbox settings</target></trans-unit>
-            <trans-unit id="inbox.settings.flash.saved"><source>inbox.settings.flash.saved</source><target>Inbox settings saved.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.document_in_review.label"><source>inbox.form.update_inbox_settings_form.document_in_review.label</source><target>Document in review</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.document_in_review.help"><source>inbox.form.update_inbox_settings_form.document_in_review.help</source><target>A card links a document that waits for your review.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.run_blocked.label"><source>inbox.form.update_inbox_settings_form.run_blocked.label</source><target>Run blocked</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.run_blocked.help"><source>inbox.form.update_inbox_settings_form.run_blocked.help</source><target>A worker run on a card says that it cannot continue without a person.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.run_gave_up.label"><source>inbox.form.update_inbox_settings_form.run_gave_up.label</source><target>Run gave up</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.run_gave_up.help"><source>inbox.form.update_inbox_settings_form.run_gave_up.help</source><target>The bridge used every resume that the rule allows, and the worker run on a card did not finish.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.run_waiting_for_person.label"><source>inbox.form.update_inbox_settings_form.run_waiting_for_person.label</source><target>Run waiting for a person</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.run_waiting_for_person.help"><source>inbox.form.update_inbox_settings_form.run_waiting_for_person.help</source><target>The worker runs on a card reached their limit, and a person must move the card to start a new run.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.pull_request_ready.label"><source>inbox.form.update_inbox_settings_form.pull_request_ready.label</source><target>Pull request ready for review</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.pull_request_ready.help"><source>inbox.form.update_inbox_settings_form.pull_request_ready.help</source><target>A linked GitHub pull request passed its checks and waits for a review.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.pull_request_fix_stopped.label"><source>inbox.form.update_inbox_settings_form.pull_request_fix_stopped.label</source><target>Pull request fix loop stopped</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.pull_request_fix_stopped.help"><source>inbox.form.update_inbox_settings_form.pull_request_fix_stopped.help</source><target>Loupe stopped asking for fixes on a linked GitHub pull request.</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.card_paused.label"><source>inbox.form.update_inbox_settings_form.card_paused.label</source><target>Workflow paused the card</target></trans-unit>
-            <trans-unit id="inbox.form.update_inbox_settings_form.card_paused.help"><source>inbox.form.update_inbox_settings_form.card_paused.help</source><target>The workflow stopped acting on a card, and a person must look at it.</target></trans-unit>
             <trans-unit id="inbox.search.label">
                 <source>inbox.search.label</source>
                 <target>Search asks</target>
@@ -5575,14 +5552,6 @@
                 <source>inbox.item.kind.workflow</source>
                 <target>Workflow question</target>
             </trans-unit>
-            <trans-unit id="review.inbox_wait.waiting_for_review">
-                <source>review.inbox_wait.waiting_for_review</source>
-                <target>The document "%title%", version %version%, of card %card% waits for your review.</target>
-            </trans-unit>
-            <trans-unit id="review.inbox_wait.waiting_for_review.action">
-                <source>review.inbox_wait.waiting_for_review.action</source>
-                <target>Review the document</target>
-            </trans-unit>
             <trans-unit id="review.inbox_wait.document_deleted">
                 <source>review.inbox_wait.document_deleted</source>
                 <target>A deleted document, version %version%, of card %card% waited for your review.</target>
@@ -5591,185 +5560,61 @@
                 <source>review.inbox_wait.document_deleted.action</source>
                 <target>Dismiss this item</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.waiting_for_review">
-                <source>forge.inbox_wait.waiting_for_review</source>
-                <target>Pull request #%number% of card %card% waits for your review.</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.waiting_for_review.action">
-                <source>forge.inbox_wait.waiting_for_review.action</source>
-                <target>Review pull request #%number%</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.new_commits_after_approval">
-                <source>forge.inbox_wait.new_commits_after_approval</source>
-                <target>Pull request #%number% of card %card% changed after you approved it.</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.new_commits_after_approval.action">
-                <source>forge.inbox_wait.new_commits_after_approval.action</source>
-                <target>Review pull request #%number% again</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.fix_stopped">
-                <source>forge.inbox_wait.fix_stopped</source>
-                <target>The automatic fixes of pull request #%number% of card %card% stopped.</target>
-            </trans-unit>
-            <trans-unit id="forge.inbox_wait.fix_stopped.action">
-                <source>forge.inbox_wait.fix_stopped.action</source>
-                <target>Open pull request #%number%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked">
-                <source>bridge.inbox_wait.blocked</source>
-                <target>A worker on card %card% is blocked and needs you.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.action">
-                <source>bridge.inbox_wait.blocked.action</source>
-                <target>Open card %card%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up">
-                <source>bridge.inbox_wait.gave_up</source>
-                <target>A worker on card %card% gave up.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.action">
-                <source>bridge.inbox_wait.gave_up.action</source>
-                <target>Open card %card%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person">
-                <source>bridge.inbox_wait.waits_for_person</source>
-                <target>A worker on card %card% waits for an answer from you.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.action">
-                <source>bridge.inbox_wait.waits_for_person.action</source>
-                <target>Open card %card%</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.rule">
-                <source>board.inbox_wait.rule</source>
-                <target>A workflow rule paused card %card%.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.rule.action">
-                <source>board.inbox_wait.rule.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.retries">
-                <source>board.inbox_wait.retries</source>
-                <target>Card %card% paused because its work failed too many times.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.retries.action">
-                <source>board.inbox_wait.retries.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_limit">
-                <source>board.inbox_wait.work_limit</source>
-                <target>Card %card% paused because its work reached a limit.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_limit.action">
-                <source>board.inbox_wait.work_limit.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_timeout">
-                <source>board.inbox_wait.work_timeout</source>
-                <target>Card %card% paused because no bridge took its work in time.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_timeout.action">
-                <source>board.inbox_wait.work_timeout.action</source>
-                <target>Check that a bridge is online, then open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_stopped">
-                <source>board.inbox_wait.work_stopped</source>
-                <target>Card %card% paused because a worker stopped and the workflow does not retry it.</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_stopped.action">
-                <source>board.inbox_wait.work_stopped.action</source>
-                <target>Open the card and resume it</target>
-            </trans-unit>
-            <trans-unit id="review.inbox_wait.waiting_for_review.title">
-                <source>review.inbox_wait.waiting_for_review.title</source>
-                <target>Document version %version% waits for your review</target>
-            </trans-unit>
             <trans-unit id="review.inbox_wait.document_deleted.title">
                 <source>review.inbox_wait.document_deleted.title</source>
                 <target>Deleted document version %version%</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.waiting_for_review.title">
-                <source>forge.inbox_wait.waiting_for_review.title</source>
-                <target>Pull request #%number% waits for your review</target>
+            <trans-unit id="inbox.wait.fallback.document">
+                <source>inbox.wait.fallback.document</source>
+                <target>A document of card %card% waits for your review.</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.new_commits_after_approval.title">
-                <source>forge.inbox_wait.new_commits_after_approval.title</source>
-                <target>Pull request #%number% changed after your approval</target>
+            <trans-unit id="inbox.wait.fallback.pull_request">
+                <source>inbox.wait.fallback.pull_request</source>
+                <target>A pull request of card %card% waits for your review.</target>
             </trans-unit>
-            <trans-unit id="forge.inbox_wait.fix_stopped.title">
-                <source>forge.inbox_wait.fix_stopped.title</source>
-                <target>The fixes of pull request #%number% stopped</target>
+            <trans-unit id="inbox.wait.fallback.worker_run">
+                <source>inbox.wait.fallback.worker_run</source>
+                <target>A worker on card %card% needs you.</target>
             </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.title">
-                <source>bridge.inbox_wait.blocked.title</source>
-                <target>%Worker% blocked</target>
+            <trans-unit id="inbox.wait.fallback.card_pause">
+                <source>inbox.wait.fallback.card_pause</source>
+                <target>Card %card% is paused.</target>
             </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.title">
-                <source>bridge.inbox_wait.gave_up.title</source>
-                <target>%Worker% gave up</target>
+            <trans-unit id="inbox.wait.fallback.card">
+                <source>inbox.wait.fallback.card</source>
+                <target>Card %card% needs you.</target>
             </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.title">
-                <source>bridge.inbox_wait.waits_for_person.title</source>
-                <target>%Worker% waits for you</target>
+            <trans-unit id="inbox.wait.action.document">
+                <source>inbox.wait.action.document</source>
+                <target>Review the document</target>
             </trans-unit>
-            <trans-unit id="board.inbox_wait.rule.title">
-                <source>board.inbox_wait.rule.title</source>
-                <target>A workflow rule paused the card</target>
+            <trans-unit id="inbox.wait.action.pull_request">
+                <source>inbox.wait.action.pull_request</source>
+                <target>Review pull request #%number%</target>
             </trans-unit>
-            <trans-unit id="board.inbox_wait.retries.title">
-                <source>board.inbox_wait.retries.title</source>
-                <target>Card paused: its work failed too many times</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_limit.title">
-                <source>board.inbox_wait.work_limit.title</source>
-                <target>Card paused: its work reached a limit</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_timeout.title">
-                <source>board.inbox_wait.work_timeout.title</source>
-                <target>Card paused: no bridge took its work in time</target>
-            </trans-unit>
-            <trans-unit id="board.inbox_wait.work_stopped.title">
-                <source>board.inbox_wait.work_stopped.title</source>
-                <target>Card paused: a worker stopped</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.headline.title">
-                <source>bridge.inbox_wait.blocked.headline.title</source>
-                <target>%Worker% blocked: %headline%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.headline.title">
-                <source>bridge.inbox_wait.gave_up.headline.title</source>
-                <target>%Worker% gave up: %headline%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.headline.title">
-                <source>bridge.inbox_wait.waits_for_person.headline.title</source>
-                <target>%Worker% waits for you: %headline%</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.headline">
-                <source>bridge.inbox_wait.blocked.headline</source>
-                <target>The %worker% on card %card% is blocked: %headline%.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.headline">
-                <source>bridge.inbox_wait.gave_up.headline</source>
-                <target>The %worker% on card %card% gave up: %headline%.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.headline">
-                <source>bridge.inbox_wait.waits_for_person.headline</source>
-                <target>The %worker% on card %card% waits for an answer from you: %headline%.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.blocked.short">
-                <source>bridge.inbox_wait.blocked.short</source>
-                <target>The %worker% stopped because it is blocked.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.gave_up.short">
-                <source>bridge.inbox_wait.gave_up.short</source>
-                <target>The %worker% gave up.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.waits_for_person.short">
-                <source>bridge.inbox_wait.waits_for_person.short</source>
-                <target>The %worker% waits for an answer from you.</target>
-            </trans-unit>
-            <trans-unit id="bridge.inbox_wait.folded.action">
-                <source>bridge.inbox_wait.folded.action</source>
+            <trans-unit id="inbox.wait.action.worker_run">
+                <source>inbox.wait.action.worker_run</source>
                 <target>Open card %card%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.action.card_pause">
+                <source>inbox.wait.action.card_pause</source>
+                <target>Open the card and resume it</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.action.card">
+                <source>inbox.wait.action.card</source>
+                <target>Open card %card%</target>
+            </trans-unit>
+            <trans-unit id="marker.run_needs_you.headline">
+                <source>marker.run_needs_you.headline</source>
+                <target>The %worker% on card %card% needs you: %headline%.</target>
+            </trans-unit>
+            <trans-unit id="marker.run_needs_you.headline.title">
+                <source>marker.run_needs_you.headline.title</source>
+                <target>%Worker% needs you: %headline%</target>
+            </trans-unit>
+            <trans-unit id="marker.run_needs_you.short">
+                <source>marker.run_needs_you.short</source>
+                <target>The %worker% needs you.</target>
             </trans-unit>
             <trans-unit id="inbox.wait.ended.resolved">
                 <source>inbox.wait.ended.resolved</source>
@@ -7762,10 +7607,6 @@
                 <source>project.edit.nav.automation</source>
                 <target>Automation</target>
             </trans-unit>
-            <trans-unit id="project.edit.nav.inbox">
-                <source>project.edit.nav.inbox</source>
-                <target>Inbox</target>
-            </trans-unit>
             <trans-unit id="project.edit.nav.connections">
                 <source>project.edit.nav.connections</source>
                 <target>Connections</target>
@@ -8683,6 +8524,12 @@
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_merge_target"><source>workflow.waiting.not.pr_base_is_merge_target</source><target>Waiting: the pull request targets the default branch or the epic branch.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_checks_on_head"><source>workflow.waiting.pr_checks_on_head</source><target>Waiting: the checks have not run on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_checks_on_head"><source>workflow.waiting.not.pr_checks_on_head</source><target>Waiting: the checks ran on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_can_merge"><source>workflow.waiting.pr_can_merge</source><target>Waiting: the forge does not read the pull request as mergeable.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_can_merge"><source>workflow.waiting.not.pr_can_merge</source><target>Waiting: the forge reads the pull request as mergeable.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_base_is_default"><source>workflow.waiting.pr_base_is_default</source><target>Waiting: the pull request does not target the default branch.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_base_is_default"><source>workflow.waiting.not.pr_base_is_default</source><target>Waiting: the pull request targets the default branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_epic_branch"><source>workflow.waiting.pr_base_is_epic_branch</source><target>Waiting: the pull request does not target the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_epic_branch"><source>workflow.waiting.not.pr_base_is_epic_branch</source><target>Waiting: the pull request targets the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_stacked"><source>workflow.waiting.pr_stacked</source><target>Waiting: the pull request is not stacked on another pull request.</target></trans-unit>
@@ -8691,8 +8538,6 @@
             <trans-unit id="workflow.waiting.not.pr_parent_merged"><source>workflow.waiting.not.pr_parent_merged</source><target>Waiting: the parent pull request is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_checks_pending"><source>workflow.waiting.pr_checks_pending</source><target>Waiting: the checks of the open pull request do not run.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_checks_pending"><source>workflow.waiting.not.pr_checks_pending</source><target>Waiting: the checks of the pull request run.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_waits_for_approval"><source>workflow.waiting.pr_waits_for_approval</source><target>Waiting: the pull request does not wait for an approval.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_waits_for_approval"><source>workflow.waiting.not.pr_waits_for_approval</source><target>Waiting: the pull request waits for an approval that covers its head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_forge_request_pending"><source>workflow.waiting.pr_forge_request_pending</source><target>Waiting: the forge has no pending merge, sync or base change that Loupe asked for.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_forge_request_pending"><source>workflow.waiting.not.pr_forge_request_pending</source><target>Waiting: the forge has not answered a merge, sync or base change that Loupe asked for.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_stack_parent"><source>workflow.waiting.pr_stack_parent</source><target>Waiting: the pull request is not ready, or does not wait for the branch below it in the stack.</target></trans-unit>
@@ -8721,6 +8566,14 @@
             <trans-unit id="workflow.waiting.not.card_rule_held_by_blocker"><source>workflow.waiting.not.card_rule_held_by_blocker</source><target>Waiting: a move rule of the card waits for an open blocker alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_stopped"><source>workflow.waiting.card_run_stopped</source><target>Waiting: the latest run of the card did not stop with a warning.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_stopped"><source>workflow.waiting.not.card_run_stopped</source><target>Waiting: the latest run of the card stopped with a warning, and the card did not move since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_needs_person"><source>workflow.waiting.card_run_needs_person</source><target>Waiting: the newest run of the card did not stop for a person, or the card moved since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_needs_person"><source>workflow.waiting.not.card_run_needs_person</source><target>Waiting: the newest run of the card stopped for a person, and the card did not move since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_asking"><source>workflow.waiting.card_run_asking</source><target>Waiting: the newest run of the card does not wait on its own question.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_asking"><source>workflow.waiting.not.card_run_asking</source><target>Waiting: the newest run of the card waits on its own question, or that question closed lately.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_agent_review_open"><source>workflow.waiting.card_document_agent_review_open</source><target>Waiting: no agent review of a document of the card is open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_agent_review_open"><source>workflow.waiting.not.card_document_agent_review_open</source><target>Waiting: an agent review of a document of the card is open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_approval_moves"><source>workflow.waiting.card_document_approval_moves</source><target>Waiting: no verdict on a document in review would make a rule fire.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_approval_moves"><source>workflow.waiting.not.card_document_approval_moves</source><target>Waiting: a verdict on a document in review would make a rule fire.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_session_open"><source>workflow.waiting.card_run_session_open</source><target>Waiting: no interactive session is open on the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_session_open"><source>workflow.waiting.not.card_run_session_open</source><target>Waiting: an interactive session is open on the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_held"><source>workflow.waiting.card_held</source><target>Waiting: the agents of the card are not held.</target></trans-unit>
@@ -8771,6 +8624,7 @@
             <trans-unit id="workflow.source.agent_review"><source>workflow.source.agent_review</source><target>Agent review</target></trans-unit>
             <trans-unit id="workflow.source.readiness"><source>workflow.source.readiness</source><target>Readiness</target></trans-unit>
             <trans-unit id="workflow.source.inbox"><source>workflow.source.inbox</source><target>Inbox</target></trans-unit>
+            <trans-unit id="workflow.source.workflow"><source>workflow.source.workflow</source><target>Workflow</target></trans-unit>
             <trans-unit id="workflow.slot.next"><source>workflow.slot.next</source><target>Next</target></trans-unit>
             <trans-unit id="workflow.slot.product_design"><source>workflow.slot.product_design</source><target>Product design</target></trans-unit>
             <trans-unit id="workflow.slot.tech_design"><source>workflow.slot.tech_design</source><target>Tech design</target></trans-unit>
@@ -8823,6 +8677,7 @@
             <trans-unit id="workflow.settings.rules.until"><source>workflow.settings.rules.until</source><target>Until:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.refill"><source>workflow.settings.rules.refill</source><target>Starts the limit again while:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.cancel_when"><source>workflow.settings.rules.cancel_when</source><target>Cancels the work while:</target></trans-unit>
+            <trans-unit id="workflow.settings.rules.from_fact"><source>workflow.settings.rules.from_fact</source><target>[fact %fact%]</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_condition"><source>workflow.settings.rules.missing_condition</source><target>Condition no longer exists: %condition%</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_action"><source>workflow.settings.rules.missing_action</source><target>Action not known to this version: %action%</target></trans-unit>
             <trans-unit id="workflow.settings.app_rules.heading"><source>workflow.settings.app_rules.heading</source><target>Rules the app adds</target></trans-unit>
@@ -9142,6 +8997,8 @@
             <trans-unit id="marker.paused.remedy"><source>marker.paused.remedy</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
             <trans-unit id="marker.run_stopped"><source>marker.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
             <trans-unit id="marker.run_stopped.remedy"><source>marker.run_stopped.remedy</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>
+            <trans-unit id="marker.run_needs_you"><source>marker.run_needs_you</source><target>The last worker run needs you.</target></trans-unit>
+            <trans-unit id="marker.run_needs_you.remedy"><source>marker.run_needs_you.remedy</source><target>Read the summary of the last run, then answer it or resume the run.</target></trans-unit>
             <trans-unit id="marker.checks_failed"><source>marker.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
             <trans-unit id="marker.checks_failed.remedy"><source>marker.checks_failed.remedy</source><target>Fix the failing checks, or start a fix run.</target></trans-unit>
             <trans-unit id="marker.conflicting"><source>marker.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>

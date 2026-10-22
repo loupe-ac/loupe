@@ -20,7 +20,7 @@ final class CardHeldByBlockerTest extends TestCase
         $facts = self::facts(new BlockerHold('card', $since, 12, 'Ship the API'));
 
         self::assertTrue(new CardHeldByBlocker()->evaluate($facts, []));
-        self::assertEquals(new Evidence($since, ['%number%' => 12, '%title%' => 'Ship the API']), new CardHeldByBlocker()->evidence($facts, []));
+        self::assertEquals(new Evidence(['%number%' => 12, '%title%' => 'Ship the API']), new CardHeldByBlocker()->evidence($facts, []));
     }
 
     public function test_a_card_with_no_hold_is_not_held(): void

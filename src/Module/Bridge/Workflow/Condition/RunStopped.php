@@ -55,6 +55,6 @@ final readonly class RunStopped implements Condition, MarkerEvidence
     {
         $stopped = $facts->get(RunStoppedFacts::class)->stopped();
 
-        return null === $stopped ? null : new Evidence($stopped->endedAt, ['%state%' => $stopped->state->value]);
+        return null === $stopped ? null : new Evidence(['%state%' => $stopped->state->value]);
     }
 }

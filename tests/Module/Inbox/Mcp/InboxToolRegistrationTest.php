@@ -20,7 +20,6 @@ use App\Module\Inbox\Mcp\InboxGetTool;
 use App\Module\Inbox\Mcp\InboxJoinTool;
 use App\Module\Inbox\Mcp\InboxListTool;
 use App\Module\Inbox\Mcp\InboxSearchTool;
-use App\Module\Inbox\Mcp\InboxSettingsUpdateTool;
 use App\Module\Inbox\Mcp\InboxWithdrawTool;
 use App\Module\Project\Mcp\AdvertisedTools;
 use Doctrine\ORM\EntityManagerInterface;
@@ -67,7 +66,6 @@ final class InboxToolRegistrationTest extends KernelTestCase
         yield 'inbox_decline' => [InboxDeclineTool::NAME, InboxDeclineTool::class];
         yield 'inbox_done' => [InboxDoneTool::NAME, InboxDoneTool::class];
         yield 'inbox_action_run' => [InboxActionRunTool::NAME, InboxActionRunTool::class];
-        yield 'inbox_settings_update' => [InboxSettingsUpdateTool::NAME, InboxSettingsUpdateTool::class];
     }
 
     /** @param class-string $toolClass */
@@ -100,7 +98,7 @@ final class InboxToolRegistrationTest extends KernelTestCase
         $names = array_column($this->advertised()->enabled(), 'name');
         $inbox = array_values(array_filter($names, static fn (string $name): bool => str_starts_with($name, 'inbox_')));
 
-        self::assertSame([InboxAskTool::NAME, InboxActionsTool::NAME, InboxSearchTool::NAME, InboxJoinTool::NAME, InboxListTool::NAME, InboxGetTool::NAME, InboxWithdrawTool::NAME, InboxAnswerTool::NAME, InboxDeclineTool::NAME, InboxDoneTool::NAME, InboxActionRunTool::NAME, InboxSettingsUpdateTool::NAME], $inbox);
+        self::assertSame([InboxAskTool::NAME, InboxActionsTool::NAME, InboxSearchTool::NAME, InboxJoinTool::NAME, InboxListTool::NAME, InboxGetTool::NAME, InboxWithdrawTool::NAME, InboxAnswerTool::NAME, InboxDeclineTool::NAME, InboxDoneTool::NAME, InboxActionRunTool::NAME], $inbox);
     }
 
     public function test_inbox_ask_publishes_its_items_as_a_list_of_objects(): void

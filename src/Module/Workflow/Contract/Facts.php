@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Contract;
 
+use Symfony\Component\Uid\Uuid;
+
 /** What the engine knows about one card at one moment. Conditions read it and nothing else. */
 final readonly class Facts
 {
@@ -14,6 +16,8 @@ final readonly class Facts
      * @param array<class-string, object|Unreadable> $provided     what each fact provider gave, keyed by its facts class
      * @param array<class-string, mixed>             $fingerprints the fingerprint of each readable provided facts, keyed by its facts class
      * @param array<class-string, string>            $legacyGroups the old group name of each provided facts class that replaced one
+     * @param ?Uuid                                  $projectId    the project of the card, null in a test that names none
+     * @param ?DocumentFacts                         $document     the document a marker acts on, null when no marker bound one
      */
     public function __construct(
         public \DateTimeImmutable $now,
@@ -23,13 +27,15 @@ final readonly class Facts
         public array $provided = [],
         public array $fingerprints = [],
         public array $legacyGroups = [],
+        public ?Uuid $projectId = null,
+        public ?DocumentFacts $document = null,
     ) {
     }
 
     /** A copy that reads another pull request as the one the card acts on. */
     public function withPullRequest(?PullRequestFacts $pullRequest): self
     {
-        return new self($this->now, $this->slot, $this->parentSlot, $pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups);
+        return new self($this->now, $this->slot, $this->parentSlot, $pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups, $this->projectId, $this->document);
     }
 
     /**
@@ -42,7 +48,7 @@ final readonly class Facts
     {
         $kept = array_diff_key($this->fingerprints, $provided);
 
-        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, [...$this->provided, ...$provided], [...$kept, ...$fingerprints], $this->legacyGroups);
+        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, [...$this->provided, ...$provided], [...$kept, ...$fingerprints], $this->legacyGroups, $this->projectId, $this->document);
     }
 
     /** @return list<PullRequestFacts> every pull request linked to the card, empty when the list cannot be read */
@@ -51,6 +57,26 @@ final readonly class Facts
         $list = $this->provided[PullRequestList::class] ?? null;
 
         return $list instanceof PullRequestList ? $list->pullRequests : [];
+    }
+
+    /** @return list<DocumentFacts> every document linked to the card, empty when no provider gives them or they cannot be read */
+    public function documents(): array
+    {
+        $facts = $this->provided[$this->keyFor(ListsDocuments::class) ?? ListsDocuments::class] ?? null;
+
+        return $facts instanceof ListsDocuments ? $facts->documents : [];
+    }
+
+    /** A copy that reads another document as the one a marker acts on, as withPullRequest() does for a pull request. */
+    public function withDocument(?DocumentFacts $document): self
+    {
+        return new self($this->now, $this->slot, $this->parentSlot, $this->pullRequest, $this->provided, $this->fingerprints, $this->legacyGroups, $this->projectId, $document);
+    }
+
+    /** Whether a condition that reads the bound document reads this one: always, when no document is bound. */
+    public function readsDocument(string $documentId): bool
+    {
+        return null === $this->document || $this->document->id === $documentId;
     }
 
     /**
@@ -62,7 +88,7 @@ final readonly class Facts
      */
     public function get(string $class): object
     {
-        $facts = $this->provided[$class] ?? throw new \LogicException(\sprintf('No fact provider gives "%s".', $class));
+        $facts = $this->provided[$this->keyFor($class) ?? $class] ?? throw new \LogicException(\sprintf('No fact provider gives "%s".', $class));
         if (!$facts instanceof $class) {
             throw new \LogicException(\sprintf('The facts "%s" are unreadable.', $class));
         }
@@ -73,8 +99,25 @@ final readonly class Facts
     /** Null when the provider gave its facts, or when no provider gives the class. */
     public function unreadable(string $class): ?Unreadable
     {
-        $facts = $this->provided[$class] ?? null;
+        $facts = $this->provided[$this->keyFor($class) ?? $class] ?? null;
 
         return $facts instanceof Unreadable ? $facts : null;
+    }
+
+    /**
+     * The provided facts class that a condition names, either as itself or as a contract interface it implements.
+     * Null when no provider gives it.
+     */
+    public function keyFor(string $class): ?string
+    {
+        if (\array_key_exists($class, $this->provided)) {
+            return $class;
+        }
+        $keys = array_values(array_filter(array_keys($this->provided), static fn (string $key): bool => is_a($key, $class, true)));
+        if (\count($keys) > 1) {
+            throw new \LogicException(\sprintf('More than one fact provider gives "%s".', $class));
+        }
+
+        return $keys[0] ?? null;
     }
 }

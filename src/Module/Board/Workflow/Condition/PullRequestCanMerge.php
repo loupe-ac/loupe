@@ -6,18 +6,16 @@ namespace App\Module\Board\Workflow\Condition;
 
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
-use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
-use App\Module\Workflow\Contract\MarkerEvidence;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** The pull request is green and into the default branch, and no approval covers its head. */
-final readonly class PullRequestWaitsForApproval implements Condition, MarkerEvidence
+/** The forge reads the pull request as mergeable, behind or blocked, and never as conflicting or unknown. */
+final readonly class PullRequestCanMerge implements Condition
 {
     #[\Override]
     public static function key(): string
     {
-        return 'pr.waits_for_approval';
+        return 'pr.can_merge';
     }
 
     #[\Override]
@@ -35,26 +33,18 @@ final readonly class PullRequestWaitsForApproval implements Condition, MarkerEvi
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest];
+        return [EngineFact::PullRequest, EngineFact::PullRequestMergeGate];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return true === $facts->pullRequest?->waitsForApproval;
+        return true === $facts->pullRequest?->canMerge;
     }
 
     #[\Override]
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
-        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_waits_for_approval' : 'workflow.waiting.pr_waits_for_approval');
-    }
-
-    #[\Override]
-    public function evidence(Facts $facts, array $params): ?Evidence
-    {
-        $pullRequest = $facts->pullRequest;
-
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->waitsForApprovalSince);
+        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_can_merge' : 'workflow.waiting.pr_can_merge');
     }
 }

@@ -31,7 +31,7 @@ final class RunMarkerConditionsTest extends TestCase
 
         $unmoved = self::facts(new RunStoppedFacts($warning, null));
         self::assertTrue($condition->evaluate($unmoved, []));
-        self::assertEquals(new Evidence($endedAt, ['%state%' => 'gave-up']), $condition->evidence($unmoved, []));
+        self::assertEquals(new Evidence(['%state%' => 'gave-up']), $condition->evidence($unmoved, []));
 
         self::assertTrue($condition->evaluate(self::facts(new RunStoppedFacts($warning, new \DateTimeImmutable('2026-10-01 09:59:59'))), []));
 
@@ -42,31 +42,28 @@ final class RunMarkerConditionsTest extends TestCase
         self::assertFalse($condition->evaluate(self::facts(new RunStoppedFacts(null, null)), []));
     }
 
-    public function test_an_open_session_shows_its_start_and_its_name(): void
+    public function test_an_open_session_shows_its_name(): void
     {
         $since = new \DateTimeImmutable('2026-10-01 09:00:00');
         $condition = new RunSessionOpen();
 
         $named = self::facts(new SessionFacts($since, 'review'));
         self::assertTrue($condition->evaluate($named, []));
-        self::assertEquals(new Evidence($since, ['%kind%' => 'review']), $condition->evidence($named, []));
+        self::assertEquals(new Evidence(['%kind%' => 'review']), $condition->evidence($named, []));
 
-        self::assertEquals(new Evidence($since), $condition->evidence(self::facts(new SessionFacts($since, null)), []));
+        self::assertEquals(new Evidence(), $condition->evidence(self::facts(new SessionFacts($since, null)), []));
 
         $closed = self::facts(new SessionFacts(null, null));
         self::assertFalse($condition->evaluate($closed, []));
         self::assertNull($condition->evidence($closed, []));
     }
 
-    public function test_a_held_card_shows_the_time_of_the_hold(): void
+    public function test_a_card_is_held_while_a_person_holds_it(): void
     {
-        $heldAt = new \DateTimeImmutable('2026-10-01 09:00:00');
         $condition = new CardHeld();
 
-        self::assertTrue($condition->evaluate(self::facts(new HoldFacts($heldAt)), []));
-        self::assertEquals(new Evidence($heldAt), $condition->evidence(self::facts(new HoldFacts($heldAt)), []));
+        self::assertTrue($condition->evaluate(self::facts(new HoldFacts(new \DateTimeImmutable('2026-10-01 09:00:00'))), []));
         self::assertFalse($condition->evaluate(self::facts(new HoldFacts(null)), []));
-        self::assertNull($condition->evidence(self::facts(new HoldFacts(null)), []));
     }
 
     public function test_an_open_worker_run_shows_the_oldest_kind_or_the_asked_kind(): void
@@ -77,8 +74,8 @@ final class RunMarkerConditionsTest extends TestCase
         ]));
         $condition = new RunWorkerActive();
 
-        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 09:00:00'), ['%kind%' => 'implement']), $condition->evidence($facts, []));
-        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), ['%kind%' => 'fix']), $condition->evidence($facts, ['kind' => 'fix']));
+        self::assertEquals(new Evidence(['%kind%' => 'implement']), $condition->evidence($facts, []));
+        self::assertEquals(new Evidence(['%kind%' => 'fix']), $condition->evidence($facts, ['kind' => 'fix']));
         self::assertNull($condition->evidence($facts, ['kind' => 'review']));
         self::assertNull($condition->evidence(self::facts(new WorkerRunFacts([], [])), []));
     }
@@ -91,8 +88,8 @@ final class RunMarkerConditionsTest extends TestCase
         ]));
         $condition = new RunWorkActive();
 
-        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 08:00:00'), ['%kind%' => 'review']), $condition->evidence($facts, []));
-        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), ['%kind%' => 'fix']), $condition->evidence($facts, ['kind' => 'fix']));
+        self::assertEquals(new Evidence(['%kind%' => 'review']), $condition->evidence($facts, []));
+        self::assertEquals(new Evidence(['%kind%' => 'fix']), $condition->evidence($facts, ['kind' => 'fix']));
         self::assertNull($condition->evidence($facts, ['kind' => 'merge']));
         self::assertNull($condition->evidence(self::facts(new WorkRequestFacts([], [])), []));
     }

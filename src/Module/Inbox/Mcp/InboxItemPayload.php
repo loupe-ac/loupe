@@ -28,7 +28,7 @@ use App\Module\Review\Repository\ReviewRepository;
  * @phpstan-type InboxItemCardSummary array{cardId: string, number: int, title: string}
  * @phpstan-type InboxItemDocumentSummary array{documentId: string, title: string}
  * @phpstan-type InboxItemAskSummary array{askId: string, origin: string, sessionId: ?string, closedAt: ?string}
- * @phpstan-type InboxCardWaitSummary array{trigger: string, type: string, reason: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
+ * @phpstan-type InboxCardWaitSummary array{marker: string, type: string, label: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
  * @phpstan-type InboxActionSummary array{actionId: string, kind: string, note: string, requestedBy: ?string, requestedAt: string, bridgeCommandId: ?string, workRequestId: ?string, pauseId: ?string, cancelledAt: ?string}
  * @phpstan-type InboxSuggestedActionSummary array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}
  * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, respondedThroughAgent: bool, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>, suggestedActions: list<InboxSuggestedActionSummary>, actions: list<InboxActionSummary>}
@@ -158,9 +158,9 @@ final readonly class InboxItemPayload
             'cardId' => $watch?->cardId->toRfc4122(),
             'waits' => array_map(
                 static fn (InboxCardWait $wait): array => [
-                    'trigger' => $wait->trigger->value,
+                    'marker' => $wait->markerKey,
                     'type' => $wait->type->value,
-                    'reason' => $wait->reason->value,
+                    'label' => $wait->label,
                     'documentId' => $wait->documentId?->toRfc4122(),
                     'versionNumber' => $wait->versionNumber,
                     'runId' => $wait->runId?->toRfc4122(),

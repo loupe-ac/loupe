@@ -215,6 +215,7 @@ final class InboxGetToolTest extends KernelTestCase
         $this->reconcileWaits($project, $card);
         $document->addVersion('# Two', '<h1>Two</h1>');
         $this->em->flush();
+        $this->storeInbox($this->em, $card, $this->documentEntry($document, 2));
         $watch = $this->reconcileWaits($project, $card);
         $this->em->clear();
         $this->actAsMcpTokenBoundTo($project);
@@ -226,7 +227,7 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertSame((string) $card->id, $item['cardId']);
         self::assertCount(2, $item['waits']);
         [$ended, $current] = $item['waits'];
-        self::assertSame('document-in-review', $ended['trigger']);
+        self::assertSame('document-in-review', $ended['marker']);
         self::assertSame((string) $document->id, $ended['documentId']);
         self::assertSame(1, $ended['versionNumber']);
         self::assertNull($ended['runId']);
@@ -237,7 +238,7 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertSame(2, $current['versionNumber']);
         self::assertNull($current['endedAt']);
         self::assertNull($current['endReason']);
-        self::assertSame('waiting-for-review', $current['reason']);
+        self::assertSame('marker.document_in_review', $current['label']);
         self::assertCount(1, $item['asks']);
         self::assertSame('loupe', $item['asks'][0]['origin']);
         self::assertNull($item['asks'][0]['sessionId']);

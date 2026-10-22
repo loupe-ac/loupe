@@ -8,9 +8,7 @@ use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\ChildActivityFacts;
 use App\Module\Board\Workflow\StuckDelayFacts;
 use App\Module\Workflow\Contract\Condition;
-use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
-use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
@@ -21,7 +19,7 @@ use Symfony\Component\Translation\TranslatableMessage;
  * Nothing happened on the card for at least the delay, in minutes, or the stuck delay of the project with no delay.
  * With `children`, the newest event of any child counts too, and the condition is false while a child has an open worker run.
  */
-final readonly class CardQuietFor implements Condition, MarkerEvidence, TimedCondition
+final readonly class CardQuietFor implements Condition, TimedCondition
 {
     #[\Override]
     public static function key(): string
@@ -68,14 +66,6 @@ final readonly class CardQuietFor implements Condition, MarkerEvidence, TimedCon
         }
 
         return new TranslatableMessage($negated ? 'workflow.waiting.not.card_quiet_for'.$suffix : 'workflow.waiting.card_quiet_for'.$suffix, ['%delay%' => (string) $delay]);
-    }
-
-    #[\Override]
-    public function evidence(Facts $facts, array $params): ?Evidence
-    {
-        $newestEventAt = self::newestEventAt($facts, $params);
-
-        return null === $newestEventAt ? null : new Evidence($newestEventAt);
     }
 
     #[\Override]

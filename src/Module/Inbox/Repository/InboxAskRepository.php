@@ -42,35 +42,6 @@ class InboxAskRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /**
-     * When each ask closed, or null for an open one. An ask that does not exist has no entry.
-     *
-     * @param list<string> $askIds RFC 4122 strings
-     *
-     * @return array<string, ?\DateTimeImmutable> keyed by the RFC 4122 ask id
-     */
-    public function findClosedAtByIds(array $askIds): array
-    {
-        if ([] === $askIds) {
-            return [];
-        }
-
-        /** @var list<array{id: Uuid, closedAt: ?\DateTimeImmutable}> $rows */
-        $rows = $this->createQueryBuilder('a')
-            ->select('a.id', 'a.closedAt')
-            ->andWhere('a.id IN (:ids)')
-            ->setParameter('ids', $askIds)
-            ->getQuery()
-            ->getArrayResult();
-
-        $closed = [];
-        foreach ($rows as $row) {
-            $closed[$row['id']->toRfc4122()] = $row['closedAt'];
-        }
-
-        return $closed;
-    }
-
     /** When the newest ask of the session on the bridge closed after the time, counting only an ask that held a blocking item. */
     public function findLatestBlockingCloseOfSessionAfter(Uuid $projectId, Uuid $sessionId, Uuid $bridgeId, \DateTimeImmutable $after): ?\DateTimeImmutable
     {
@@ -125,6 +96,30 @@ class InboxAskRepository extends ServiceEntityRepository
         )->fetchFirstColumn();
 
         return array_values(array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids));
+    }
+
+    /**
+     * The ask that the newest run of the card waits on, with the close time of the ask and the end time of the run.
+     *
+     * @return array{closed_at: ?string, ended_at: ?string}|null null when the newest run waits on no stored ask
+     */
+    public function findAskOfNewestRunOfCard(Uuid $projectId, Uuid $cardId): ?array
+    {
+        /** @var array{closed_at: ?string, ended_at: ?string}|false $row */
+        $row = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT a.closed_at, r.ended_at
+             FROM (
+                 SELECT r.waits_on_ask_id, r.ended_at
+                 FROM bridge_worker_runs r
+                 WHERE r.project_id = :project AND r.subject_type = 'card' AND r.subject_id = :card
+                 ORDER BY r.received_at DESC, r.id DESC
+                 LIMIT 1
+             ) r
+             JOIN inbox_asks a ON a.id = r.waits_on_ask_id",
+            ['project' => $projectId->toRfc4122(), 'card' => $cardId->toRfc4122()],
+        )->fetchAssociative();
+
+        return false === $row ? null : $row;
     }
 
     /** The ask with its item memberships, or null when the project holds no such ask. */

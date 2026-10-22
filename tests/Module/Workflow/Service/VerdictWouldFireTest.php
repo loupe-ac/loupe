@@ -12,8 +12,12 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Condition\CardDocumentApprovalMoves;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\Evidence;
+use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\VerdictWouldFire;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateSource;
@@ -31,7 +35,8 @@ final class VerdictWouldFireTest extends KernelTestCase
 
     private Card $card;
 
-    private ?Tag $tag = null;
+    /** @var array<string, Tag> */
+    private array $tags = [];
 
     protected function setUp(): void
     {
@@ -93,6 +98,67 @@ final class VerdictWouldFireTest extends KernelTestCase
         self::assertSame([], $this->forCard([$document]));
     }
 
+    public function test_the_approval_moves_condition_holds_while_a_verdict_on_a_tagged_document_fires_a_rule(): void
+    {
+        $this->define(['card.document.approved' => ['tag' => 'design']]);
+        $this->document(DocumentStatus::InReview);
+
+        self::assertTrue($this->approvalMoves());
+    }
+
+    public function test_the_approval_moves_condition_fails_for_a_document_not_in_review(): void
+    {
+        $this->define(['card.document.approved' => ['tag' => 'design']]);
+        $this->document(DocumentStatus::Approved);
+
+        self::assertFalse($this->approvalMoves());
+    }
+
+    public function test_the_approval_moves_condition_fails_when_only_a_change_request_fires_a_rule(): void
+    {
+        $this->define(['card.document.changes_requested' => ['tag' => 'design']]);
+        $document = $this->document(DocumentStatus::InReview);
+
+        self::assertSame([$document], $this->forCard([$document]));
+        self::assertFalse($this->approvalMoves());
+    }
+
+    public function test_a_rule_that_reads_the_condition_is_left_out_of_the_question(): void
+    {
+        $this->define(['card.document.approval_moves' => []]);
+        $this->document(DocumentStatus::InReview);
+
+        self::assertFalse($this->approvalMoves());
+    }
+
+    public function test_a_bound_document_asks_about_itself_and_the_rules_still_read_every_document(): void
+    {
+        $this->define(['all' => [['card.document.approved' => ['tag' => 'design']], ['card.document.approved' => ['tag' => 'plan']]]]);
+        $design = $this->document(DocumentStatus::InReview);
+        $plan = $this->document(DocumentStatus::Approved, 'plan');
+        $facts = $this->service(FactsBuilder::class)->build($this->card->snapshot(), new \DateTimeImmutable());
+        $documents = [];
+        foreach ($facts->documents() as $document) {
+            $documents[$document->id] = $document;
+        }
+
+        self::assertTrue($this->condition()->evaluate($facts->withDocument($documents[$design]), []), 'the approved plan still counts for the rule');
+        self::assertFalse($this->condition()->evaluate($facts->withDocument($documents[$plan]), []));
+        self::assertEquals(new Evidence(['%title%' => 'Design'], MarkerSubject::document($documents[$design])), $this->condition()->evidence($facts, []));
+    }
+
+    private function approvalMoves(): bool
+    {
+        $facts = $this->service(FactsBuilder::class)->build($this->card->snapshot(), new \DateTimeImmutable());
+
+        return $this->condition()->evaluate($facts, []);
+    }
+
+    private function condition(): CardDocumentApprovalMoves
+    {
+        return new CardDocumentApprovalMoves($this->service(VerdictWouldFire::class), $this->service(TemplateSource::class));
+    }
+
     /** @param array<string, mixed> $when */
     private function define(array $when): void
     {
@@ -121,15 +187,15 @@ final class VerdictWouldFireTest extends KernelTestCase
         $this->em()->flush();
     }
 
-    private function document(DocumentStatus $status): string
+    private function document(DocumentStatus $status, string $tag = 'design'): string
     {
         $document = new Document($this->project->owner, $this->project, 'Design');
         $document->status = $status;
-        if (null === $this->tag) {
-            $this->tag = new Tag($this->project, 'design');
-            $this->em()->persist($this->tag);
+        if (!isset($this->tags[$tag])) {
+            $this->tags[$tag] = new Tag($this->project, $tag);
+            $this->em()->persist($this->tags[$tag]);
         }
-        $document->tags->add($this->tag);
+        $document->tags->add($this->tags[$tag]);
         $this->em()->persist($document);
         $this->em()->persist(new CardDocument($this->card, $document));
         $this->em()->flush();

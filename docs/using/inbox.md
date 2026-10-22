@@ -272,23 +272,32 @@ A removed target shows an unavailable state, while completed results retain thei
 
 ## Automatic items
 
-Loupe opens an item by itself when a card waits for a person. A card waits in
-these cases:
+Loupe opens an item by itself when a card waits for a person. The workflow
+template decides when. It lists the markers that open an item in its `inbox:`
+list. See [Markers that open inbox items](workflows.md#markers-that-open-inbox-items).
+The Lifecycle template lists four markers. The Simple template lists three, and
+not `document-in-review`. A card waits in these cases:
 
-- A linked document of the card is in review, and the workflow of the card
-  waits for it in the column where the card sits. With the Lifecycle template,
-  that is a product design, a document with the tag `product-design`, in the
-  Product design column, or a tech design, a document with the tag
-  `tech-design`, in the Tech design column.
+- A linked document of the card is in review, and an approval would make a rule
+  of the slot of the card fire. No agent review item of the document may be
+  open. With the Lifecycle template, that is a product design, a document with
+  the tag `product-design`, in the Product design column, or a tech design, a
+  document with the tag `tech-design`, in the Tech design column. This is the
+  `document-in-review` marker.
 - The newest worker run of the card is blocked, gave up, or waits for a person.
-  The card must stay in the column that started the run.
-- A GitHub pull request that is linked to the card is ready for review.
-- The workflow paused the card. The wait names the reason code of the pause,
-  and it ends when the pause is released. A new pause starts a new wait.
+  Its own question must not stand for it, and the card must not have moved
+  after the run ended. This is the `run-needs-you` marker.
+- A GitHub pull request that is linked to the card waits for your approval. This
+  is the `waits-for-approval` marker. See [Pull request waits](#pull-request-waits).
+- The workflow paused the card. The wait names the pause,
+  and it ends when the pause is released. A new pause starts a new wait. An open
+  blocking question of the card holds the wait back, and so does a recent
+  question of a run. This is the `paused` marker.
 
 A worker can ask a blocking question about its own card and then stop. The
 question is the item that you act on, and your answer resumes the worker. Loupe
-therefore opens no wait item for that stop or for its pause. It holds the wait
+therefore opens no wait item for that stop or for its pause. The `run-needs-you`
+and `paused` markers stay off while the question stands. Loupe holds the wait
 item back while the question is open, and for 10 minutes after your answer, so
 that the bridge can resume the worker. The 10 minutes count from your answer, or
 from the end of the run when the worker was still running at your answer. When
@@ -562,8 +571,8 @@ for 10 minutes and no online bridge can take it. A paused bridge keeps the work
 waiting, and Loupe opens no notice for it.
 The notice lists each card that waits. It tells you to start a bridge, or to run
 `loupe login`. When more work starts to wait, Loupe adds its card to the open
-notice. A project has one such notice at a time. The inbox switches do not
-turn it off.
+notice. A project has one such notice at a time. The `inbox:` list of the
+template does not turn it off.
 
 Loupe closes the notice as **done** when a bridge can take the work again. The
 note says when no bridge could take work, and how many cards waited. Loupe closes
@@ -605,70 +614,58 @@ Only a GitHub pull request gives a wait. Loupe reads the state of the pull
 request, and a pull request that Loupe did not read yet gives no wait. A pull
 request that is linked to two cards gives a wait on each card.
 
-A pull request is ready for review when all of these are true:
+The `waits-for-approval` marker is on when all of these are true:
 
-- It is open, and it is not a draft.
-- Its checks passed on its newest commit.
-- It is mergeable, it is behind its base branch, or GitHub blocks the merge
-  until a review.
-- It needs a review, or it has no review rule. A request for changes that a
-  fix run answered also counts. A fix run answers it when it opened after the
-  review and ended done.
-- No worker run of the card is open.
-- It does not merge with no approval. A pull request of an epic child into the
-  epic branch of its parent merges there with no approval, so it gives no wait.
-  The epic's own pull request into the main branch still gives one. A child
-  pull request into the main branch gives one too.
+- The pull request is open, and it is not a draft.
+- Its checks passed on its head commit.
+- It has no conflict, and no change request is open.
+- The forge reads it as mergeable, behind its base or blocked.
+- Its base is the default branch.
+- No worker run of the card is active.
+- No approval covers its head commit.
 
-An approval ends the wait. So does a request for changes that no fix run
-answered, a new commit whose checks did not pass yet, a merge and a close. A new
-commit alone does not answer a request for changes. A pull request with changes
-requested waits again after a fix run answered the review and the checks passed.
+A pull request of an epic child into the epic branch of its parent gives no
+wait, because its base is not the default branch. The epic's own pull request
+into the default branch gives one. A child pull request into the default branch
+gives one too.
 
-An approved pull request waits again when it gets new commits after the
-approval. The wait says "Pull request #N of card C changed after you approved it". A merge from the base branch does not
-count, with or without a conflict resolution. A force push, such as a rebase,
-counts, so you approve the rewritten branch again. A new approval of the newest
-commit ends the wait.
+An approval of the head commit ends the wait. So does a change request, a new
+commit whose checks did not pass yet, a conflict, a merge and a close. A new
+commit after an approval makes the marker true again, because no approval covers
+the new head. The wait says "Pull request #N of card C changed after you approved it".
+A force push, such as a rebase, also changes the head, so you approve the
+rewritten branch again.
 
 A workflow that stops asking for fixes pauses the card, and the pause opens
 the wait.
 
 ### Choosing which waits open an item
 
-Each project has seven switches, one for each cause of a wait:
+The `inbox:` list of the workflow template decides which waits open an item. A
+marker that the list names opens a wait. A marker that it does not name opens
+none. See [Markers that open inbox items](workflows.md#markers-that-open-inbox-items).
 
-- **Document in review**
-- **Run blocked**
-- **Run gave up**
-- **Run waiting for a person**
-- **Pull request ready for review**
-- **Pull request fix loop stopped**, which no longer opens a wait
-- **Workflow paused the card**
-
-The switches are on the inbox settings page, at **Project settings > Inbox**.
-The **Settings** link in the top bar of the inbox page also opens it. Only the
-project owner can open the page. Every switch is on until you change it. An
-agent connected to the project can change the switches with the
-`inbox_settings_update` [MCP tool](mcp.md#changing-the-project-settings). A
-switch that the call omits keeps its value.
-
-When you save, Loupe checks every card of the project again. A wait that
-already exists opens an item when you turn its switch on. A wait ends when you
-turn its switch off. Its item closes as **obsolete** when no other wait holds
-it open.
+The inbox has no settings page and no wait switches. The `inbox:` list is the
+only place that decides which waits open an item.
 
 ### When an automatic item closes
 
-A wait ends when its document leaves review. A verdict does this, and so does
+A wait ends when its marker turns off. The marker turns off when the condition
+that made it true stops holding.
+
+A document wait ends when its document leaves review. A verdict does this, and so does
 an archive. A new version of the document also ends the wait, and a new wait
 for the new version replaces it. The item then stays open. An open review
 request from an agent for the same document holds back the wait, because it
-asks for the same verdict. A document wait also ends when the card leaves the
-column that waits for the document, or when the document loses its tag.
+asks for the same verdict. A document wait also ends when an approval would no longer make a rule fire.
+This happens when the card leaves the column that waits for the document, or
+when the document loses its tag.
 
 A run wait ends when a newer run of the card starts. It also ends when the card
-moves to another column.
+moves on after the run, or when a question of the run stands for it.
+
+A pull request wait ends when the marker turns off, as the previous section
+describes.
 
 The item closes when its last wait ends:
 
@@ -676,8 +673,6 @@ The item closes when its last wait ends:
   verdict, an archive, a newer run, an approval of a pull request or a move of
   the card.
 - It closes as **obsolete** when the card finishes or someone deletes it.
-- It closes as **obsolete** when you turn off the switch of its waits on the
-  inbox settings page.
 - It closes as **obsolete** when an administrator turns the inbox off. The
   15-minute check closes it.
 
@@ -729,7 +724,7 @@ These limits hold:
 2. A review stays on the inbox page. `inbox_decline` refuses a review, and no tool records a review verdict.
 3. The answer to a workflow question is final. It runs its action at once.
 4. `inbox_action_run` runs every action that fits the item, except the links **Open** and **Review**. A `run-command` call without a `runDigest` runs nothing. It returns the command, the branch, the values and a `runDigest`. The agent shows them to you. The command runs after you confirm in chat and the agent calls again with the same branch, values and `runDigest`. A `start-session` sends the prompt that you confirm in chat. The agent shows you the suggested prompt, and you can change it or clear it, as in the field on the page. When you change nothing, the agent sends the suggested prompt unchanged.
-5. The tools follow the inbox switch. They need no second setting.
+5. The tools follow the `inbox.enabled` flag. They need no second setting.
 
 The tools trust the client you chat with. The client asks you to allow each tool call, unless you turned that prompt off. Keep it on for these tools.
 

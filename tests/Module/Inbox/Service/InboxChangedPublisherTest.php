@@ -14,7 +14,6 @@ use App\Module\Board\Command\DeleteBoardColumnHandler;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardDocument;
 use App\Module\Inbox\Command\AnswerInboxItemCommand;
 use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\AskInboxCommand;
@@ -36,8 +35,9 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Project\Entity\Project;
-use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Support\FeatureFlags;
 use Doctrine\ORM\EntityManagerInterface;
@@ -129,17 +129,15 @@ final class InboxChangedPublisherTest extends KernelTestCase
         $card = $this->card($this->em, $this->project);
         $document = $this->document($this->em, $this->project);
         $document->addVersion('# One', '<h1>One</h1>');
-        $card->documents->add(new CardDocument($card, $document));
-        $this->stageDocument($this->em, $document, $card);
         $this->em->flush();
         $reconciler = $this->service(CardWaitReconciler::class);
+        $this->storeInbox($this->em, $card, $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $document->id, 'version' => '1'])));
 
         $reconciler->reconcile($this->project, [(string) $card->id]);
         $this->assertPublishedAtTerminate(1);
         $reconciler->reconcile($this->project, [(string) $card->id]);
         $this->assertPublishedAtTerminate(1);
-        $document->status = DocumentStatus::Approved;
-        $this->em->flush();
+        $this->storeInbox($this->em, $card);
         $reconciler->reconcile($this->project, [(string) $card->id]);
         $this->assertPublishedAtTerminate(2);
 

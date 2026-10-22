@@ -214,7 +214,7 @@ final class LinkedInboxSectionTest extends WebTestCase
             static fn (array $query): string => (string) $query['sql'],
             array_filter(
                 array_merge(...array_values($collector->getQueries())),
-                static fn (array $query): bool => str_starts_with((string) $query['sql'], 'SELECT') && str_contains((string) $query['sql'], 'inbox_'),
+                static fn (array $query): bool => str_starts_with((string) $query['sql'], 'SELECT') && str_contains((string) $query['sql'], 'FROM inbox_'),
             ),
         ));
         self::assertCount(2, $inboxReads, implode("\n", $inboxReads));

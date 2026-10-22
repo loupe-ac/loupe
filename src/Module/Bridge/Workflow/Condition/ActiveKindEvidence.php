@@ -18,6 +18,6 @@ final class ActiveKindEvidence
         }
         $at = null === $kind ? null : $since[$kind] ?? null;
 
-        return null === $at ? null : new Evidence($at, ['%kind%' => (string) $kind]);
+        return null === $at ? null : new Evidence(['%kind%' => (string) $kind]);
     }
 }

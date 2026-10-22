@@ -7,7 +7,10 @@ namespace App\Tests\Module\Workflow\Condition;
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardFollowsFinished;
 use App\Module\Workflow\Condition\Conditions;
+use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Translation\TranslatorBagInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -30,6 +33,8 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.discovery.approved' => 'workflow.source.readiness',
         'card.discovery.requested' => 'workflow.source.readiness',
         'card.discovery.revising' => 'workflow.source.readiness',
+        'card.document.agent_review_open' => 'workflow.source.inbox',
+        'card.document.approval_moves' => 'workflow.source.workflow',
         'card.document.approved' => 'workflow.source.board',
         'card.document.changes_requested' => 'workflow.source.board',
         'card.document.in_review' => 'workflow.source.board',
@@ -51,9 +56,11 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.pr.linked' => 'workflow.source.forge',
         'card.quiet_for' => 'workflow.source.board',
         'card.rule.held_by_blocker' => 'workflow.source.board',
+        'card.run.asking' => 'workflow.source.inbox',
         'card.run.done_at_head' => 'workflow.source.board',
         'card.run.finished_with' => 'workflow.source.bridge',
         'card.run.last_refusal' => 'workflow.source.bridge',
+        'card.run.needs_person' => 'workflow.source.bridge',
         'card.run.session_open' => 'workflow.source.bridge',
         'card.run.stopped' => 'workflow.source.bridge',
         'card.run.waits_on_answer' => 'workflow.source.inbox',
@@ -71,11 +78,14 @@ final class ConditionCatalogueTest extends KernelTestCase
         'design_review.fix_due' => 'workflow.source.agent_review',
         'design_review.running' => 'workflow.source.agent_review',
         'pr.approval_covers_head' => 'workflow.source.forge',
+        'pr.base_is_default' => 'workflow.source.forge',
         'pr.base_is_epic_branch' => 'workflow.source.forge',
         'pr.base_is_merge_target' => 'workflow.source.forge',
         'pr.behind' => 'workflow.source.forge',
+        'pr.can_merge' => 'workflow.source.forge',
         'pr.changes_requested' => 'workflow.source.forge',
         'pr.checks_failed' => 'workflow.source.forge',
+        'pr.checks_on_head' => 'workflow.source.forge',
         'pr.checks_passed' => 'workflow.source.forge',
         'pr.checks_pending' => 'workflow.source.forge',
         'pr.conflicting' => 'workflow.source.forge',
@@ -86,7 +96,6 @@ final class ConditionCatalogueTest extends KernelTestCase
         'pr.ready_for' => 'workflow.source.forge',
         'pr.stack_parent' => 'workflow.source.forge',
         'pr.stacked' => 'workflow.source.forge',
-        'pr.waits_for_approval' => 'workflow.source.forge',
     ];
 
     /** The keys whose waiting sentence id is not the key with underscores. */
@@ -169,6 +178,19 @@ final class ConditionCatalogueTest extends KernelTestCase
         foreach (self::catalogueKeys($conditions) as $key) {
             if ($conditions->get($key) instanceof MarkerEvidence) {
                 self::assertStringContainsString('`'.$key.'`', $guide, \sprintf('docs/using/workflows.md does not name "%s".', $key));
+            }
+        }
+    }
+
+    public function test_each_marker_condition_that_reads_the_pull_request_names_the_pull_request_as_its_subject(): void
+    {
+        $conditions = static::getContainer()->get(Conditions::class);
+
+        foreach (self::catalogueKeys($conditions) as $key) {
+            $condition = $conditions->get($key);
+            if ($condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $condition->reads([]), true)) {
+                self::assertInstanceOf(NamesMarkerSubject::class, $condition, \sprintf('"%s" gives pull request evidence and names no subject type.', $key));
+                self::assertSame(MarkerSubjectType::PullRequest, $condition->subjectType(), $key);
             }
         }
     }

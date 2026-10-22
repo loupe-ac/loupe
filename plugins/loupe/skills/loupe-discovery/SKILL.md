@@ -13,7 +13,7 @@ The prompt names the project, the `projectId`, the card number and the `cardId` 
 
 Discovery changes nothing. Every change goes into the report as a proposal. Do not commit, push or create a branch. Do not change a file in the repository. Do not create, change or move a card. Do not change the project, its columns, its automation, its inbox or its origins.
 
-These tools are forbidden: `card_create`, `card_update`, `column_create`, `column_update`, `column_reorder`, `column_delete`, `automation_settings_update`, `project_update`, `project_origins_set`, `inbox_settings_update`, `readiness_guide_set` and `discovery_start`.
+These tools are forbidden: `card_create`, `card_update`, `column_create`, `column_update`, `column_reorder`, `column_delete`, `automation_settings_update`, `project_update`, `project_origins_set`, `readiness_guide_set` and `discovery_start`.
 
 You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do not run a build or a test suite that writes outside a temporary directory. Read how the project runs them instead.
 

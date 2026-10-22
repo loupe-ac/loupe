@@ -37,6 +37,7 @@ final readonly class Template
      * @param list<string>                    $agentReviewFailingSeverities     the severities of a finding that fail an agent review
      * @param list<TemplateMarker>            $markers                          the card markers, in template order
      * @param bool                            $approvalCoversConflictResolution whether an approval still covers a merge from the base that holds a conflict resolution
+     * @param list<string>                    $inbox                            the keys of the markers that store one inbox entry per thing, in template order
      */
     public function __construct(
         public string $key,
@@ -54,6 +55,7 @@ final readonly class Template
         public array $agentReviewFailingSeverities = self::DEFAULT_AGENT_REVIEW_FAILING_SEVERITIES,
         public array $markers = [],
         public bool $approvalCoversConflictResolution = true,
+        public array $inbox = [],
     ) {
     }
 

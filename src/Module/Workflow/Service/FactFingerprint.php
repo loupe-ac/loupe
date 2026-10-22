@@ -52,7 +52,7 @@ final readonly class FactFingerprint
             }
             // The prefix keeps a facts class apart from an engine group, and leaves the stored fingerprints as they were.
             $name = $legacy && isset($facts->legacyGroups[$key]) ? $facts->legacyGroups[$key] : 'class:'.$key;
-            $groups[$name] = $facts->fingerprints[$key] ?? null;
+            $groups[$name] = $facts->fingerprints[$facts->keyFor($key) ?? $key] ?? null;
         }
         ksort($groups);
 
@@ -66,6 +66,7 @@ final readonly class FactFingerprint
             EngineFact::ParentSlot => $facts->parentSlot,
             EngineFact::PullRequest => $facts->pullRequest?->fingerprint(),
             EngineFact::PullRequestHead => $facts->pullRequest?->headSha,
+            EngineFact::PullRequestMergeGate => null === $facts->pullRequest ? null : [$facts->pullRequest->checksOnHead, $facts->pullRequest->canMerge, $facts->pullRequest->baseIsDefault],
         };
     }
 }

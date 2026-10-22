@@ -25,6 +25,8 @@ use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -57,8 +59,8 @@ final class WaitItemResponsesTest extends KernelTestCase
         $this->document->addVersion('# One', '<h1>One</h1>');
         $em->persist($this->document);
         $this->card->documents->add(new CardDocument($this->card, $this->document));
-        $this->stageDocument($em, $this->document, $this->card);
         $em->flush();
+        $this->storeInbox($em, $this->card, $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $this->document->id, 'version' => '1'])));
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
     }
 

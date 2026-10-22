@@ -1013,7 +1013,7 @@ Every card row carries `state`. It is null for a card in no state, for a card
 in a terminal column, and for a card that carries only a chip such as
 **Unmanaged**. Chips are not in `state`. Otherwise it holds `kind` (`stuck`,
 `needs-you`, `working` or `waiting`), `code`, and `since`. `code` is the key of
-the marker that names the reason: `paused`, `run-stopped`, `checks-failed`,
+the marker that names the reason: `paused`, `run-stopped`, `run-needs-you`, `checks-failed`,
 `conflicting`, `ready-not-merged`, `pull-request-idle`, `nothing-happened`,
 `document-in-review`, `waits-for-approval`, `open-question`, `session-open`,
 `run-open`, `work-requested`, `forge-request-pending`, `held-by-blocker`,
