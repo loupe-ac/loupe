@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\DocumentStatusChanged;
+use App\Module\Review\Event\VerdictWithdrawn;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Repository\ReviewRepository;
 use Doctrine\DBAL\LockMode;
@@ -62,6 +63,7 @@ final readonly class UndoVerdictHandler
             $document->status = Verdict::Withdrawn->documentStatus();
 
             $this->em->persist($withdrawal);
+            $this->events->dispatch(new VerdictWithdrawn($withdrawal, $newest));
             $this->em->flush();
 
             return $withdrawal;

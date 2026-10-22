@@ -47,6 +47,10 @@ class Review
 
         #[ORM\Column(type: 'text', nullable: true)]
         public readonly ?string $note = null,
+
+        // The id of the workflow rule that wrote the verdict, or null for a verdict a person wrote.
+        #[ORM\Column(length: 100, nullable: true)]
+        public readonly ?string $workflowRule = null,
     ) {
     }
 }
