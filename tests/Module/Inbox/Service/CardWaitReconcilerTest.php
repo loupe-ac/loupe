@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Mercure\LiveUpdatePublisher;
+use App\Mercure\LiveUpdates;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
@@ -26,6 +28,7 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
+use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\Actor;
@@ -34,6 +37,9 @@ use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
+use Symfony\Component\Mercure\MockHub;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 /** The reconcile reads the inbox set that the engine stored on each card and writes the waits of the card item. */
@@ -49,9 +55,20 @@ final class CardWaitReconcilerTest extends KernelTestCase
     private Project $project;
     private Card $card;
 
+    /** @var list<string> the types of the published inbox updates */
+    private array $published = [];
+
     protected function setUp(): void
     {
         self::bootKernel();
+        self::getContainer()->set('mercure.hub.default', new MockHub('http://mercure/.well-known/mercure', new StaticTokenProvider('token'), function (Update $update): string {
+            $type = json_decode($update->getData(), true, flags: \JSON_THROW_ON_ERROR)['type'] ?? null;
+            if (\in_array($type, [InboxChangedPublisher::TYPE, InboxChangedPublisher::PAGE_TYPE], true)) {
+                $this->published[] = $type;
+            }
+
+            return 'id';
+        }));
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
@@ -424,6 +441,25 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame($body, $item->body);
     }
 
+    public function test_a_kind_change_of_an_open_item_refreshes_the_inbox_page_and_not_the_count(): void
+    {
+        $this->switchFlag($this->em, LiveUpdates::FLAG, true);
+        $run = $this->workerRun(WorkerRunState::Blocked, 'STAGE RESULT: blocked: cannot reach github.com [reason: needs-person]. Restore the network.');
+        $runEntry = $this->inboxEntry('run-needs-you', new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => $run->id?->toRfc4122() ?? '']));
+        $this->storeInbox($this->em, $this->card, $runEntry);
+        $this->reconcile();
+        $this->publishedTypes();
+
+        $this->storeInbox($this->em, $this->card, $runEntry, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A, params: ['%number%' => 5]));
+        $this->reconcile();
+
+        self::assertSame(InboxItemKind::Review, $this->onlyWatch()->item->kind);
+        self::assertSame([InboxChangedPublisher::PAGE_TYPE], $this->publishedTypes());
+
+        $this->reconcile();
+        self::assertSame([], $this->publishedTypes());
+    }
+
     public function test_a_closed_item_keeps_the_kind_it_had(): void
     {
         $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A, params: ['%number%' => 5]));
@@ -531,6 +567,18 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         self::assertSame(0, $this->searchHits('launcher'));
         self::assertSame(1, $this->searchHits('sidebar'));
+    }
+
+    /** @return list<string> */
+    private function publishedTypes(): array
+    {
+        $publisher = self::getContainer()->get(LiveUpdatePublisher::class);
+        self::assertInstanceOf(LiveUpdatePublisher::class, $publisher);
+        $publisher->publish();
+        $published = $this->published;
+        $this->published = [];
+
+        return $published;
     }
 
     private function reconcile(): void

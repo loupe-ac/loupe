@@ -56,12 +56,12 @@ final readonly class CardWaitReconciler
     /** @param list<string>|null $cardIds null for every card that has an open watch or a stored inbox entry */
     public function reconcile(Project $project, ?array $cardIds): void
     {
-        $countChanged = $this->em->wrapInTransaction(function () use ($project, $cardIds): bool {
+        [$countChanged, $pageChanged] = $this->em->wrapInTransaction(function () use ($project, $cardIds): array {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             $ids = $this->cardIds($project, $cardIds);
             if ([] === $ids) {
-                return false;
+                return [false, false];
             }
 
             $now = self::now();
@@ -126,11 +126,13 @@ final readonly class CardWaitReconciler
                 $this->searchIndexer->index($item);
             }
 
-            return $countChanged;
+            return [$countChanged, [] !== $rewritten];
         });
 
         if ($countChanged) {
             $this->inboxChanged->changed($project);
+        } elseif ($pageChanged) {
+            $this->inboxChanged->pageChanged($project);
         }
     }
 
