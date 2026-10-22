@@ -279,6 +279,17 @@ final class EvaluationListenersTest extends KernelTestCase
         ]);
     }
 
+    public function test_a_claim_of_a_work_request_asks_for_a_new_evaluation_of_its_card(): void
+    {
+        $card = $this->card($this->project, 'next');
+
+        new EvaluateCardOnWorkRequestChanged(new EventDispatcher(), $this->service(CardRepository::class), $this->trigger())(
+            new WorkRequestChanged($this->projectId(), WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), Uuid::v7(), WorkRequestState::Claimed),
+        );
+
+        self::assertSame($this->ids($card), $this->sent());
+    }
+
     public function test_a_work_request_change_of_an_epic_also_asks_for_its_children(): void
     {
         $epic = $this->card($this->project, 'next');

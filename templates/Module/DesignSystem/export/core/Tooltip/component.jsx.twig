@@ -10,7 +10,7 @@ export function {{ entry.name }}({ interactive = false, className: extra, childr
         classes.push(extra);
     }
     const className = classes.join(' ');
-    const target = interactive ? { 'data-interactive-tooltip-target': 'tooltip' } : {};
+    const target = interactive ? { popover: 'manual', 'data-interactive-tooltip-target': 'tooltip' } : {};
 
     return (
         <span role="tooltip" {...target} {...rest} className={className}>
