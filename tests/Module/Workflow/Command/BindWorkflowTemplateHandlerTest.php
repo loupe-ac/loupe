@@ -55,7 +55,7 @@ final class BindWorkflowTemplateHandlerTest extends KernelTestCase
         self::assertSame($expected, $links);
 
         self::assertSame(
-            ['bindingId' => (string) $binding->id, 'projectId' => (string) $this->project->id, 'templateKey' => 'lifecycle', 'templateVersion' => 15],
+            ['bindingId' => (string) $binding->id, 'projectId' => (string) $this->project->id, 'templateKey' => 'lifecycle', 'templateVersion' => 16],
             $this->audit->record('workflow.template_bound')->context,
         );
     }
