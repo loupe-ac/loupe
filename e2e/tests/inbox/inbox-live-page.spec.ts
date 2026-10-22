@@ -56,7 +56,9 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     await watcher.evaluate(() => {
         (window as unknown as { stayed: boolean }).stayed = true;
     });
-    const note = watcher.locator('.lp-decision__note-field').first();
+    const note = watcher.locator(
+        `[data-inbox-item="${first.questionNumber}"] .lp-decision__note-field`,
+    );
     await note.fill('Use CSV, the importer reads it faster');
 
     const actor = await signedInPage(browser, email, PASSWORD);
@@ -111,7 +113,9 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     await expect(watcher.locator('[data-inbox-locked]')).toHaveCount(0);
     await expect(note).toHaveCount(0);
     await expect(
-        watcher.locator('.lp-decision__note-field').first(),
+        watcher.locator(
+            `[data-inbox-item="${second.questionNumber}"] .lp-decision__note-field`,
+        ),
     ).toHaveValue('');
 
     await actor.context().close();
