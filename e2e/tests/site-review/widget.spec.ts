@@ -1278,6 +1278,36 @@ test('the menu of the last row opens upward', async ({ page }) => {
         .toBeLessThanOrEqual(buttonBox.y);
 });
 
+test('an open row menu follows its button when the panel height animates', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+
+    const button = page
+        .locator('#lp-list .lp-item')
+        .first()
+        .getByRole('button', { name: 'Note actions' });
+    const menu = page.locator('#lp-menu');
+    await button.click();
+    await expect(menu).toBeVisible();
+    const before = (await button.boundingBox())!.y;
+    await page.locator('#lp-panel').evaluate((panel: HTMLElement) => {
+        panel.style.height = `${panel.offsetHeight + 40}px`;
+    });
+    await expect
+        .poll(async () => Math.round((await button.boundingBox())!.y))
+        .toBe(Math.round(before - 40));
+    // An upward menu sits 4px above its button once it settles.
+    await expect
+        .poll(async () => {
+            const menuBox = (await menu.boundingBox())!;
+            return Math.round(before - 40 - (menuBox.y + menuBox.height));
+        })
+        .toBe(4);
+});
+
 test('the header menu holds Move launcher, Sign out and Delete all, with no footer button', async ({
     page,
 }) => {

@@ -3126,6 +3126,15 @@
     );
     $('lp-body').addEventListener('scroll', () => closeMenu(false));
     window.addEventListener('resize', () => closeMenu(false));
+    // The panel grows from its foot, so its rows move while its height animates.
+    panelNode.addEventListener('transitionend', (event) => {
+        if (
+            menu &&
+            event.target === panelNode &&
+            event.propertyName === 'height'
+        )
+            placeMenu();
+    });
 
     const saveDisabled = () =>
         state.saving ||
