@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Billing\Repository;
 
+use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BillingStatus;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
@@ -23,6 +24,18 @@ class SubscriptionRepository extends ServiceEntityRepository
     public function findOneByStripeSubscriptionId(string $stripeSubscriptionId): ?Subscription
     {
         return $this->findOneBy(['stripeSubscriptionId' => $stripeSubscriptionId]);
+    }
+
+    /** A query, not the profile's collection, so a comp this request just committed counts. */
+    public function holdsCurrentComp(User $user, \DateTimeImmutable $now): bool
+    {
+        return 0 < (int) $this->createQueryBuilder('s')
+            ->select('COUNT(s.id)')
+            ->join('s.billingProfile', 'p')
+            ->andWhere('p.user = :user')->setParameter('user', $user)
+            ->andWhere('s.kind = :kind')->setParameter('kind', SubscriptionKind::Comp)
+            ->andWhere('s.startsAt <= :now AND (s.endsAt IS NULL OR s.endsAt > :now)')->setParameter('now', $now)
+            ->getQuery()->getSingleScalarResult();
     }
 
     /** @return list<Subscription> trials past their end, not yet surveyed */

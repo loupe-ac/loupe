@@ -1,5 +1,6 @@
 {# The site bar: the brand, the section links, and the sign-in and waitlist links.
-   Every link names a full address, so the bar also works inside the docs pages. #}
+   Every link names a full address, so the bar also works inside the docs pages.
+   The docs stamp passes docs: true, which adds the Discord link. #}
 <header class="lp-home-nav">
     <a href="{{ site_url('/') }}" data-turbo="false" class="lp-home-brand">
         <twig:Ds:BrandMark />
@@ -9,8 +10,11 @@
         {% if site_is_split() or has_blog() %}
             <a href="{{ site_url('/blog') }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.blog'|trans }}</a>
         {% endif %}
-        {% if app_source_url %}
-            <a href="{{ app_source_url }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.github'|trans }}</a>
+        {% if site_source_url() %}
+            <a href="{{ site_source_url() }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.github'|trans }}</a>
+        {% endif %}
+        {% if docs is defined and docs and site_discord_url() %}
+            <a href="{{ site_discord_url() }}" class="lp-home-nav__link lp-home-nav__link--section" target="_blank" rel="noopener noreferrer">{{ 'landing.nav.discord'|trans }}</a>
         {% endif %}
         {% set signedIn = site_signed_in() %}
         <div class="lp-home-nav__actions">

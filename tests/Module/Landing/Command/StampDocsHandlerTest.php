@@ -8,17 +8,21 @@ use App\Module\Landing\Command\StampDocsCommand;
 use App\Module\Landing\Command\StampDocsHandler;
 use App\Module\Landing\Command\StampDocsResult;
 use App\Site\SiteChrome;
+use App\Site\SiteLinks;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 use Twig\Loader\ChainLoader;
+use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class StampDocsHandlerTest extends KernelTestCase
 {
-    private const string PAGE = '<!doctype html><html><head><meta property="og:image" content="https://loupe.ac/assets/images/og/hero.png"></head><body><header><site-chrome part-name="nav"><template shadowrootmode="open"><!--LOUPE_SITE_NAV--></template></site-chrome></header><main data-pagefind-body>Docs</main><site-chrome part-name="footer"><template shadowrootmode="open"><!--LOUPE_SITE_FOOTER--></template></site-chrome></body></html>';
+    private const string PAGE = '<!doctype html><html><head><meta property="og:image" content="https://loupe.ac/assets/images/og/hero.png"></head><body><header><site-chrome part-name="nav"><template shadowrootmode="open"><!--LOUPE_SITE_NAV--></template></site-chrome></header><main data-pagefind-body>Docs</main><div class="mobile-preferences"><site-chrome part-name="menu"><template shadowrootmode="open"><!--LOUPE_SITE_MENU--></template></site-chrome></div><site-chrome part-name="footer"><template shadowrootmode="open"><!--LOUPE_SITE_FOOTER--></template></site-chrome></body></html>';
 
-    private const string CSS = '@layer theme, base, components, utilities; .lp-home-nav { color: red; } .lp-home-footer { color: blue; } .lp-btn { color: green; } .lp-unrelated { color: pink; }';
+    private const string CSS = '@layer theme, base, components, utilities; .lp-home-nav { color: red; } .lp-home-footer { color: blue; } .lp-home-footer__social { color: teal; } .lp-btn { color: green; } .lp-unrelated { color: pink; }';
 
     private string $work = '';
 
@@ -62,6 +66,47 @@ final class StampDocsHandlerTest extends KernelTestCase
         self::assertStringContainsString('.lp-home-nav { color: red; }', $html);
         self::assertStringNotContainsString('lp-unrelated', $html);
         self::assertStringContainsString(self::PAGE, (string) file_get_contents($this->work.'/build/getting-started/index.html'));
+    }
+
+    public function test_the_docs_bar_and_the_menu_link_the_discord_server_and_the_landing_bar_does_not(): void
+    {
+        $result = $this->stamp(null, fn () => $this->setLink(SiteLinks::DISCORD_FLAG, 'https://discord.gg/loupe'));
+
+        self::assertSame([], $result->problems);
+        $html = (string) file_get_contents($this->work.'/served/getting-started/index.html');
+        $docsBar = (string) strstr($html, '<header>');
+        $docsBar = substr($docsBar, 0, (int) strpos($docsBar, '</header>'));
+        self::assertStringContainsString('lp-home-nav__link--section" target="_blank" rel="noopener noreferrer">Discord</a>', $docsBar);
+        self::assertSame(3, substr_count($html, 'href="https://discord.gg/loupe"'), 'The docs bar, the footer and the phone menu each link it once.');
+
+        $menu = (string) strstr($html, 'part-name="menu"');
+        self::assertStringContainsString('href="https://discord.gg/loupe"', $menu);
+        self::assertStringContainsString('href="https://github.com/loupe-ac/loupe"', $menu);
+        self::assertStringContainsString('lp-home-footer__social', $menu);
+
+        $twig = static::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
+        self::assertStringNotContainsString('discord.gg', $twig->render('@Landing/landing/_nav.html.twig'));
+    }
+
+    public function test_the_menu_has_no_discord_link_while_the_flag_is_empty(): void
+    {
+        $this->stamp();
+
+        $html = (string) file_get_contents($this->work.'/served/getting-started/index.html');
+        $menu = (string) strstr($html, 'part-name="menu"');
+        self::assertStringContainsString('href="https://github.com/loupe-ac/loupe"', $menu);
+        self::assertStringNotContainsString('Discord', $menu);
+        self::assertStringNotContainsString('Discord', substr($html, 0, (int) strpos($html, '</header>')));
+    }
+
+    public function test_it_fails_when_a_docs_page_has_no_menu_marker(): void
+    {
+        file_put_contents($this->work.'/build/nomenu.html', str_replace('<!--LOUPE_SITE_MENU-->', '', self::PAGE));
+
+        $result = $this->stamp();
+
+        self::assertStringContainsString('nomenu.html', implode("\n", $result->problems));
     }
 
     public function test_it_gives_the_open_graph_image_the_address_of_the_running_site(): void
@@ -137,6 +182,35 @@ final class StampDocsHandlerTest extends KernelTestCase
         self::assertFileDoesNotExist($this->work.'/served/getting-started/index.html');
     }
 
+    public function test_it_accepts_the_host_of_the_x_flag_in_the_footer(): void
+    {
+        $result = $this->stamp(null, fn () => $this->setLink(SiteLinks::X_FLAG, 'https://x.com/loupehq'));
+
+        self::assertSame([], $result->problems);
+        self::assertStringContainsString('href="https://x.com/loupehq"', (string) file_get_contents($this->work.'/served/getting-started/index.html'));
+    }
+
+    public function test_it_accepts_the_host_of_a_source_flag(): void
+    {
+        $result = $this->stamp(null, fn () => $this->setLink(SiteLinks::SOURCE_FLAG, 'https://git.example/fork/loupe'));
+
+        self::assertSame([], $result->problems);
+        self::assertStringContainsString('href="https://git.example/fork/loupe"', (string) file_get_contents($this->work.'/served/getting-started/index.html'));
+    }
+
+    public function test_a_bad_link_value_is_left_out_and_does_not_fail_the_stamp(): void
+    {
+        $result = $this->stamp(null, function (): void {
+            $this->setLink(SiteLinks::X_FLAG, '/loupehq');
+            $this->setLink(SiteLinks::DISCORD_FLAG, 'javascript:alert(1)');
+        });
+
+        self::assertSame([], $result->problems);
+        $html = (string) file_get_contents($this->work.'/served/getting-started/index.html');
+        self::assertStringNotContainsString('javascript:', $html);
+        self::assertStringNotContainsString('/loupehq', $html);
+    }
+
     public function test_it_fails_when_the_source_folder_is_missing(): void
     {
         $result = $this->stamp($this->work.'/nowhere');
@@ -161,6 +235,18 @@ final class StampDocsHandlerTest extends KernelTestCase
         $this->stamp();
 
         self::assertFileDoesNotExist($this->work.'/served/old.html');
+    }
+
+    private function setLink(string $flag, string $value): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repository = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $repository);
+        $row = $repository->findAllIndexed()[$flag] ?? null;
+        self::assertInstanceOf(FeatureFlag::class, $row, 'A migration seeds the row.');
+        $row->value = $value;
+        $em->flush();
     }
 
     private function stamp(?string $source = null, ?\Closure $afterBoot = null): StampDocsResult

@@ -4,16 +4,17 @@
   the UI is the only place those people are guaranteed to look — so this link is
   rendered on every page, signed in or out.
 
-  The URL comes from the app_source_url Twig global (the APP_SOURCE_URL
-  environment variable) rather than being hardcoded: an operator who modifies
-  Loupe must point it at their own source, because a link to upstream would not
-  offer users the code they are actually talking to.
+  The URL comes from site_source_url() (the site.link.source flag, which falls
+  back to the APP_SOURCE_URL environment variable) rather than being hardcoded:
+  an operator who modifies Loupe must point it at their own source, because a
+  link to upstream would not offer users the code they are actually talking to.
 
   Props:
     class — classes applied to the anchor, so each layout styles its own footer.
 #}
-{% if app_source_url %}
-    <a href="{{ app_source_url }}" class="{{ class }}" target="_blank" rel="noopener noreferrer">
+{% set source_url = site_source_url() %}
+{% if source_url %}
+    <a href="{{ source_url }}" class="{{ class }}" target="_blank" rel="noopener noreferrer">
         <twig:ux:icon name="lucide:code-xml" class="lp-icon lp-icon--sm" />
         <span>{{ 'footer.source.label'|trans }}</span>
     </a>

@@ -1,0 +1,9 @@
+{# The links of the docs menu on a phone. The docs stamp renders them in place of the menu marker. #}
+<div class="lp-home-footer__social">
+    {% if site_source_url() %}
+        <a href="{{ site_source_url() }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.source_label'|trans }}"><twig:UX:Icon name="simple-icons:github" class="w-4 h-4" aria-hidden="true" /></a>
+    {% endif %}
+    {% if site_discord_url() %}
+        <a href="{{ site_discord_url() }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.discord_label'|trans }}"><twig:UX:Icon name="simple-icons:discord" class="w-4 h-4" aria-hidden="true" /></a>
+    {% endif %}
+</div>
