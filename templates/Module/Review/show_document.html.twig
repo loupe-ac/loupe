@@ -72,7 +72,9 @@
 
 {% block body %}
 {% set finishReviewAvailable = verdictAvailable %}
-<div class="lp-review" data-site-review-quotes="off" data-controller="card-drawer{{ finishReviewAvailable ? ' modal' : '' }}"
+{% set draftLive = not readOnly and not diffMode and document.status.value == 'draft' %}
+<div class="lp-review" data-site-review-quotes="off" data-controller="card-drawer{{ finishReviewAvailable ? ' modal' : '' }}{{ draftLive ? ' review-draft-live' : '' }}"
+     {% if draftLive %}data-review-draft-live-url-value="{{ path('app_document_draft_state', {projectId: document.project.id, documentId: document.id}) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"{% endif %}
      {% if finishReviewAvailable %}data-action="review:finish@window->modal#open"{% endif %}
      {% if finishReviewAvailable %}data-modal-reopen-value="{{ submitReviewForm.vars.submitted ? 'true' : 'false' }}"{% endif %}>
     {# Both controllers pass diffMode explicitly: Twig's `default` filter fires

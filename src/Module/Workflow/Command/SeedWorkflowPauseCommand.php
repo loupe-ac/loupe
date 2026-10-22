@@ -10,6 +10,7 @@ final readonly class SeedWorkflowPauseCommand
 {
     public function __construct(
         public CardSnapshot $card,
+        public string $ruleId = 'tech-design-write',
     ) {
     }
 }

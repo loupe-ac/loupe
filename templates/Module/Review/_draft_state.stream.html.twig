@@ -1,0 +1,8 @@
+{# Props: document (a draft), draftReviewLoop (null when no agent review waits to publish it).
+   The attribute tells the page whether the second confirmation asks. #}
+<turbo-stream action="replace" target="draft-band">
+    <template>{% include '@Review/_draft_band.html.twig' with {document: document, draftReviewLoop: draftReviewLoop, showPublish: true} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" target="draft-review-warning" data-stop-confirm-active="{{ draftReviewLoop is not null ? 'true' : 'false' }}">
+    <template>{% include '@Review/_draft_review_warning.html.twig' with {document: document, draftReviewLoop: draftReviewLoop} only %}</template>
+</turbo-stream>

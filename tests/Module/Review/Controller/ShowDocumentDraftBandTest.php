@@ -164,6 +164,28 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         self::assertCount(0, $warning->filter('[data-review-stop-confirm-copy]'));
     }
 
+    public function test_a_draft_listens_for_live_changes_and_keeps_its_stopped_lines_outside_the_replaced_ids(): void
+    {
+        $crawler = $this->visit($this->designDraft());
+
+        $page = $crawler->filter('.lp-review');
+        self::assertStringContainsString('review-draft-live', (string) $page->attr('data-controller'));
+        self::assertMatchesRegularExpression('#^/projects/[^/]+/documents/[^/]+/review/draft-state$#', (string) $page->attr('data-review-draft-live-url-value'));
+        self::assertSame('Live updates stopped. Reload the page to see the current state.', $page->attr('data-review-draft-live-stopped-value'));
+        $lines = $crawler->filter('p[role="status"][data-review-draft-live-status]');
+        self::assertCount(2, $lines);
+        self::assertCount(0, $crawler->filter('#draft-band [data-review-draft-live-status], #draft-review-warning [data-review-draft-live-status]'));
+        self::assertCount(1, $crawler->filter('.lp-finish-review [data-review-draft-live-status]'));
+    }
+
+    public function test_a_document_in_review_does_not_listen_for_draft_changes(): void
+    {
+        $crawler = $this->visit($this->plainDraft(DocumentStatus::InReview));
+
+        self::assertStringNotContainsString('review-draft-live', (string) $crawler->filter('.lp-review')->attr('data-controller'));
+        self::assertCount(0, $crawler->filter('[data-review-draft-live-status]'));
+    }
+
     private function card(): Card
     {
         $card = new Card($this->project, $this->column($this->project, 'tech-design'), 'Ship it', '', 4);

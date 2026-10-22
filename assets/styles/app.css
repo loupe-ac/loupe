@@ -1169,6 +1169,12 @@
 .lp-review .lp-draft-band__action {
     @apply shrink-0;
 }
+.lp-review .lp-draft-live-status {
+    @apply m-0 mt-2 text-sm font-semibold text-status-pending-deep;
+}
+.lp-review .lp-draft-live-status:empty {
+    @apply hidden;
+}
 .lp-review .lp-review-doc__byline .lp-btn {
     @apply min-h-8 gap-1.5 border-0 bg-transparent px-2.5 py-0 font-medium text-fg-label;
 }

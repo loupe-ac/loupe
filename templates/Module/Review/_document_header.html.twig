@@ -76,6 +76,7 @@
     </div>
     {% if showDraftBand|default(false) and document.status.value == 'draft' %}
     {% include '@Review/_draft_band.html.twig' with {document: document, draftReviewLoop: draftReviewLoop|default(null), showPublish: showDocumentActions} only %}
+    <p class="lp-draft-live-status" role="status" data-review-draft-live-status></p>
     {% endif %}
     {# The document page reaches its history and its comparison from the "⋯"
        menu. The history page keeps the tabs, which are its way back. #}
