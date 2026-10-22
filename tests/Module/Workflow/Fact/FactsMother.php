@@ -14,6 +14,7 @@ use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Workflow\BlockerFactProvider;
 use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardActivityFacts;
+use App\Module\Board\Workflow\ColumnArrivalFacts;
 use App\Module\Board\Workflow\CardTypeFactProvider;
 use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ChildActivityFacts;
@@ -112,7 +113,7 @@ final class FactsMother
             ...self::byClass(new DocumentReviewFacts([])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
-            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
+            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
             ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WaitingAskFacts([]), new WorkTakerFacts([])),
             ...self::byClass(new RunNeedsPersonFacts(null, null, null, null), new RunAskingFacts(false, null), new AgentReviewOpenFacts([])),
         ];
@@ -122,6 +123,7 @@ final class FactsMother
             WorkAtHeadFacts::class => [[], []],
             PauseFacts::class => null,
             CardActivityFacts::class => null,
+            ColumnArrivalFacts::class => null,
             ChildActivityFacts::class => [null, false],
             StuckDelayFacts::class => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
             BlockerHoldFacts::class => null,
