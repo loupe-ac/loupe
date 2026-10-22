@@ -66,6 +66,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         $pullRequest = $this->tracked('Loupe-AC/Loupe', 70_001);
         $graphql = $this->fixture('graphql');
         $graphql['data']['repository']['pullRequest']['headRefName'] = 'card-604';
+        $graphql['data']['repository']['pullRequest']['title'] = 'Show the pending checks';
         $graphql['data']['repository']['pullRequest']['author'] = ['login' => 'ubermuda', 'databaseId' => 1234];
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
@@ -80,6 +81,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertSame(PullRequestMergeability::Blocked, $snapshot->mergeability);
         self::assertSame(self::HEAD, $snapshot->headSha);
         self::assertSame('card-604', $snapshot->headBranch);
+        self::assertSame('Show the pending checks', $snapshot->title);
         self::assertSame('1234', $snapshot->authorId);
         self::assertSame('ubermuda', $snapshot->authorLogin);
         self::assertCount(4, $this->requests);
@@ -96,6 +98,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertStringContainsString(' createdAt mergedAt ', $body['query']);
         self::assertStringContainsString(' headRefOid headRefName baseRefName ', $body['query']);
         self::assertStringContainsString('author{login ... on User{databaseId}}', $body['query']);
+        self::assertStringContainsString('pullRequest(number:$n){title author{', $body['query']);
         self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe/rules/branches/main?per_page=100&page=1', $this->requests[2]['url']);
         self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe/compare/main...'.self::HEAD, $this->requests[3]['url']);
     }
