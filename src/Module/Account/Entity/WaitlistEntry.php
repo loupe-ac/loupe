@@ -30,6 +30,9 @@ class WaitlistEntry
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $convertedAt = null;
 
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $inviteClaimedAt = null;
+
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $inviteTokenHash = null;
 
@@ -122,6 +125,16 @@ class WaitlistEntry
     }
 
     /**
+     * Converts the row through its invite. The stamp is what tells a claim from
+     * a plain registration, which converts the same row with no invite.
+     */
+    public function claimInvite(): void
+    {
+        $this->inviteClaimedAt ??= new \DateTimeImmutable();
+        $this->markConverted();
+    }
+
+    /**
      * Whether this entry's invite was issued to the given address. An invite is
      * a capacity voucher issued to one address, so possession of the token alone
      * — a forwarded or leaked link — must not let a different address claim it.
@@ -158,6 +171,7 @@ class WaitlistEntry
     public function reopen(): void
     {
         $this->convertedAt = null;
+        $this->inviteClaimedAt = null;
         $this->clearInvite();
         $this->createdAt = new \DateTimeImmutable();
     }

@@ -11,6 +11,7 @@ use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Entity\WaitlistPick;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
+use App\Module\Account\Service\WaitlistOwnerNotifier;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -110,7 +111,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor);
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
 
         $handler(new JoinWaitlistCommand('converted-disabled@example.com'));
 
@@ -147,7 +148,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor);
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
 
         $handler(new JoinWaitlistCommand('recorded-join@example.com'));
 
@@ -183,7 +184,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor);
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
 
         $handler(new JoinWaitlistCommand('diag-dupe@example.com'));
         $entry = $repo->findOneByEmail('diag-dupe@example.com');
@@ -227,7 +228,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor);
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
 
         $handler(new JoinWaitlistCommand('fresh@example.com'));
         $handler(new JoinWaitlistCommand('fresh@example.com'));
@@ -254,6 +255,14 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
             ['userId' => (string) $registered->id],
             $audit->record('account.waitlist_join_skipped_existing_account')->context,
         );
+    }
+
+    private function notifier(): WaitlistOwnerNotifier
+    {
+        $notifier = self::getContainer()->get(WaitlistOwnerNotifier::class);
+        self::assertInstanceOf(WaitlistOwnerNotifier::class, $notifier);
+
+        return $notifier;
     }
 
     private function actorProvider(): AuditActorProviderInterface
@@ -370,7 +379,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $em->persist(new WaitlistEntry('picks-merge@example.com', $joinedAt));
         $em->flush();
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor);
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier());
 
         $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::Cursor], 'Jujutsu'));
         $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::GitLab], ''));
@@ -393,7 +402,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
     {
         [, $repo, $em] = $this->services();
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor);
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier());
 
         $handler(new JoinWaitlistCommand('picks-same@example.com', [WaitlistPick::Gitea], 'Jujutsu'));
         $audit->forget();

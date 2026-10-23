@@ -34,7 +34,7 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         $invite->redeem($user);
         $logger = new RecordingLogger();
 
-        $this->listener($this->repositoryReturning($invite), $logger)(new UserRegistered($user));
+        $this->listener($this->repositoryReturning($invite), $logger)(new UserRegistered($user, null));
 
         self::assertSame(
             [[LogLevel::WARNING, 'billing.beta_comp_failed']],
@@ -52,7 +52,7 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         $invites->method('findOneRedeemedBy')->willThrowException(new \RuntimeException('database gone'));
         $logger = new RecordingLogger();
 
-        $this->listener($invites, $logger)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com')));
+        $this->listener($invites, $logger)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com'), null));
 
         self::assertCount(1, $logger->records);
         self::assertSame('billing.beta_comp_failed', $logger->records[0]['message']);
@@ -66,7 +66,7 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         $sender = $this->createMock(BetaWelcomeEmailSender::class);
         $sender->expects(self::never())->method('sendIfDue');
 
-        $this->listener($this->repositoryReturning($invite), new RecordingLogger(), $sender)(new UserRegistered($user));
+        $this->listener($this->repositoryReturning($invite), new RecordingLogger(), $sender)(new UserRegistered($user, null));
 
         self::assertNull($invite->welcomeEmailDueAt, 'the sweep must not send it later either');
     }
@@ -76,14 +76,14 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         $sender = $this->createMock(BetaWelcomeEmailSender::class);
         $sender->expects(self::never())->method('sendIfDue');
 
-        $this->listener($this->repositoryReturning(null), new RecordingLogger(), $sender)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com')));
+        $this->listener($this->repositoryReturning(null), new RecordingLogger(), $sender)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com'), null));
     }
 
     public function test_a_user_without_an_invite_gets_no_grant(): void
     {
         $logger = new RecordingLogger();
 
-        $this->listener($this->repositoryReturning(null), $logger)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com')));
+        $this->listener($this->repositoryReturning(null), $logger)(new UserRegistered(new User(fullName: 'Tester', email: 'tester@example.com'), null));
 
         self::assertSame([], $logger->records);
     }
