@@ -38,7 +38,7 @@ final readonly class ColumnArrivalFactProvider implements FactProvider
     {
         $facts instanceof ColumnArrivalFacts || throw new \LogicException('The provider fingerprints its own facts.');
 
-        return $facts->arrivedAt?->format(\DATE_ATOM);
+        return $facts->arrivedAt?->format('Y-m-d\TH:i:s.uP');
     }
 
     #[\Override]

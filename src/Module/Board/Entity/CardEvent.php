@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Project\Entity\Project;
@@ -57,7 +58,8 @@ class CardEvent
         #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '[]'])]
         public array $detail = [],
 
-        #[ORM\Column]
+        /** Kept to the microsecond, because a rule compares the arrival of the card with the publication of a document. */
+        #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public readonly \DateTimeImmutable $occurredAt = new \DateTimeImmutable(),
 
         #[ORM\Column(type: UuidType::NAME, nullable: true)]

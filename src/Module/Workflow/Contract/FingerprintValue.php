@@ -37,7 +37,7 @@ final class FingerprintValue
                 $document->version,
                 $document->cleanCheckVersion,
                 $document->newestReviewId,
-                $document->publishedAt?->format(\DATE_ATOM),
+                $document->publishedAt?->format('Y-m-d\TH:i:s.uP'),
                 $document->entryUnansweredDecisions,
                 $document->entryOpenThreads,
                 $document->rejectedBefore,

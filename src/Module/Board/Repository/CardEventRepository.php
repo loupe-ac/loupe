@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Repository;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEvent;
@@ -75,7 +76,7 @@ class CardEventRepository extends ServiceEntityRepository
                     $runId->toRfc4122(),
                     $detail['state'] ?? null,
                 ],
-                [6 => Types::JSON, 7 => Types::DATETIME_IMMUTABLE],
+                [6 => Types::JSON, 7 => MicrosecondDateTimeImmutableType::NAME],
             );
         });
     }
@@ -105,7 +106,7 @@ class CardEventRepository extends ServiceEntityRepository
         if (null !== $beforeAt && null !== $beforeId) {
             $query
                 ->andWhere('e.occurredAt < :beforeAt OR (e.occurredAt = :beforeAt AND e.id < :beforeId)')
-                ->setParameter('beforeAt', $beforeAt, Types::DATETIME_IMMUTABLE)
+                ->setParameter('beforeAt', $beforeAt, MicrosecondDateTimeImmutableType::NAME)
                 ->setParameter('beforeId', Uuid::fromString($beforeId), UuidType::NAME);
         }
 

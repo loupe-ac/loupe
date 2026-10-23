@@ -10,6 +10,7 @@ use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Workflow\ColumnArrivalFactProvider;
 use App\Module\Board\Workflow\ColumnArrivalFacts;
+use App\Module\Board\Workflow\Condition\CardDocumentPublishedInColumn;
 use App\Module\Board\Workflow\DocumentsFactProvider;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Review\Command\CreateDocumentCommand;
@@ -27,6 +28,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\FingerprintValue;
 use App\Tests\Module\Workflow\Action\ActionScenario;
+use App\Tests\Module\Workflow\Fact\FactsMother;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /** What the documents facts and the column arrival facts say about the entry check, the reviews and the arrival of a card. */
@@ -209,6 +211,40 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         self::assertTrue($provider->isOn());
     }
 
+    public function test_the_arrival_keeps_its_microseconds(): void
+    {
+        $card = $this->newCard();
+        $this->event($card, CardEventKind::Moved, '2026-10-22 10:00:00.700000');
+        $provider = $this->service(ColumnArrivalFactProvider::class);
+
+        $facts = $provider->build($card->snapshot());
+
+        self::assertInstanceOf(ColumnArrivalFacts::class, $facts);
+        self::assertEquals(new \DateTimeImmutable('2026-10-22 10:00:00.700000'), $facts->arrivedAt);
+        self::assertNotSame($provider->fingerprint($facts), $provider->fingerprint(new ColumnArrivalFacts(new \DateTimeImmutable('2026-10-22 10:00:00.200000'))));
+    }
+
+    public function test_a_move_after_the_publication_in_the_same_second_is_no_publication_in_the_column(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $published = $this->facts($card, $document)->publishedAt ?? throw new \LogicException('A published draft has a publication time.');
+        $this->event($card, CardEventKind::Moved, $published->modify('+1 microsecond')->format('Y-m-d H:i:s.u'));
+
+        self::assertFalse($this->publishedInColumn($card));
+    }
+
+    public function test_a_publication_after_the_move_in_the_same_second_is_a_publication_in_the_column(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->event($card, CardEventKind::Moved, new \DateTimeImmutable()->format('Y-m-d H:i:s.u'));
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+
+        self::assertTrue($this->publishedInColumn($card));
+    }
+
     public function test_a_card_with_no_created_or_moved_row_has_no_arrival(): void
     {
         $card = $this->newCard();
@@ -246,6 +282,20 @@ final class DocumentsEntryFactsTest extends KernelTestCase
         self::assertCount(1, $matching);
 
         return $matching[0];
+    }
+
+    private function publishedInColumn(Card $card): bool
+    {
+        $documents = $this->service(DocumentsFactProvider::class)->build($card->snapshot());
+        $arrival = $this->service(ColumnArrivalFactProvider::class)->build($card->snapshot());
+        self::assertInstanceOf(DocumentsFacts::class, $documents);
+        self::assertInstanceOf(ColumnArrivalFacts::class, $arrival);
+        self::assertNotNull($arrival->arrivedAt);
+
+        return new CardDocumentPublishedInColumn()->evaluate(
+            FactsMother::facts(card: FactsMother::card(documents: $documents->documents), provided: [ColumnArrivalFacts::class => $arrival]),
+            ['tag' => 'tech-design'],
+        );
     }
 
     private function event(Card $card, CardEventKind $kind, string $at): void

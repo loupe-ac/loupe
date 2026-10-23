@@ -59,7 +59,9 @@ final class CardDocumentEntryConditionsTest extends TestCase
         yield 'rejected, no document' => [$rejected, self::facts(), false];
 
         yield 'entered, after the arrival' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 10:05:00')), true];
-        yield 'entered, at the arrival' => [$entered, self::facts(self::document(enteredAt: self::ARRIVED)), true];
+        yield 'entered, at the arrival' => [$entered, self::facts(self::document(enteredAt: self::ARRIVED)), false];
+        yield 'entered, later in the second of the arrival' => [$entered, self::factsArrivingAt(new \DateTimeImmutable('2026-10-22 10:00:00.200000'), [self::document(enteredAt: '2026-10-22 10:00:00.700000')]), true];
+        yield 'entered, earlier in the second of the arrival' => [$entered, self::factsArrivingAt(new \DateTimeImmutable('2026-10-22 10:00:00.700000'), [self::document(enteredAt: '2026-10-22 10:00:00.200000')]), false];
         yield 'entered, before the arrival' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 09:59:59')), false];
         yield 'entered, no entry check' => [$entered, self::facts(self::document(check: false)), false];
         yield 'entered, one of two documents is early' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 10:05:00'), self::document(id: 'two', enteredAt: '2026-10-22 09:00:00')), false];
