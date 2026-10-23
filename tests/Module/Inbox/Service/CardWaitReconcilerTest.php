@@ -103,7 +103,6 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertNull($watch->closedAt);
 
         $ask = $this->onlyAskHolding($item);
-        self::assertSame(InboxAskOrigin::Loupe, $ask->origin);
         self::assertNull($ask->sessionId);
         self::assertNull($ask->closedAt);
 

@@ -30,8 +30,11 @@ type initWorld struct {
 	server  *httptest.Server
 	sites   string
 	created atomic.Int32
-	// createBody is what the server received on POST /api/projects.
+	// createBody is what the server received last on POST /api/projects.
 	createBody atomic.Value
+	// createReply, when set, answers POST /api/projects with its status and
+	// body instead of a 201 for the project "made".
+	createReply func(body map[string]any) (int, string)
 
 	execCalls []string
 	execDirs  []string
@@ -66,9 +69,16 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 			fmt.Fprintf(rw, `{"sites":[%s]}`, w.sites)
 		case r.URL.Path == "/api/projects" && r.Method == http.MethodPost:
 			w.created.Add(1)
-			var body map[string]string
+			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			w.createBody.Store(body)
+			if w.createReply != nil {
+				status, reply := w.createReply(body)
+				rw.WriteHeader(status)
+				fmt.Fprint(rw, reply)
+
+				return
+			}
 			rw.WriteHeader(http.StatusCreated)
 			fmt.Fprintf(rw, `{"id":%q,"slug":"made","name":"Made"}`, firstProject)
 		default:
@@ -156,11 +166,17 @@ func devSite() string {
 
 func runInitCmd(t *testing.T, answers string, args ...string) (string, error) {
 	t.Helper()
+
+	return runInitWithIn(t, bufio.NewReader(strings.NewReader(answers)), args...)
+}
+
+func runInitWithIn(t *testing.T, in io.Reader, args ...string) (string, error) {
+	t.Helper()
 	var out bytes.Buffer
 	cmd := newInitCmd()
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetIn(bufio.NewReader(strings.NewReader(answers)))
+	cmd.SetIn(in)
 	cmd.SetArgs(args)
 	err := cmd.Execute()
 
@@ -193,7 +209,7 @@ func TestInitRunsEveryStepOnAFreshRepository(t *testing.T) {
 	dir := inRepo(t, w.server.URL)
 	path, _ := defaultRulesPath()
 
-	out, err := runInitCmd(t, "y\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -230,7 +246,7 @@ func TestInitASecondRunChangesNothing(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	dir := inRepo(t, w.server.URL)
 	path, _ := defaultRulesPath()
-	if out, err := runInitCmd(t, "n\n", "--no-mcp"); err != nil {
+	if out, err := runInitCmd(t, "1\nn\n", "--no-mcp"); err != nil {
 		t.Fatalf("first run: %v\n%s", err, out)
 	}
 	before := map[string]string{
@@ -239,7 +255,7 @@ func TestInitASecondRunChangesNothing(t *testing.T) {
 		"profile": readOrEmpty(t, filepath.Join(dir, profile.Path)),
 	}
 
-	out, err := runInitCmd(t, "", "--no-mcp")
+	out, err := runInitCmd(t, "1\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("second run: %v\n%s", err, out)
 	}
@@ -271,7 +287,7 @@ func TestInitSignsInWhenNoLoginIsStored(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, "")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp", "--url", w.server.URL)
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp", "--url", w.server.URL)
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -314,7 +330,7 @@ func TestInitAcceptsAURLThatNamesTheStoredLogin(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp", "--url", w.server.URL+"/")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp", "--url", w.server.URL+"/")
 	if err != nil || !strings.Contains(out, "Sign in: skipped") {
 		t.Errorf("init: %v\n%s", err, out)
 	}
@@ -464,7 +480,7 @@ func TestInitCreatesAProjectFromTheOriginRemoteWhenTheLoginCoversNone(t *testing
 	if w.created.Load() != 1 {
 		t.Fatalf("created = %d, want 1", w.created.Load())
 	}
-	if body, _ := w.createBody.Load().(map[string]string); body["remote"] != "git@github.com:acme/app.git" {
+	if body, _ := w.createBody.Load().(map[string]any); body["remote"] != "git@github.com:acme/app.git" {
 		t.Errorf("create body = %v", body)
 	}
 	if !strings.Contains(out, "Project: done, created Made") {
@@ -579,7 +595,7 @@ func TestInitInstallsThePluginWhenClaudeLacksIt(t *testing.T) {
 	inRepo(t, w.server.URL)
 	w.execOut["claude plugin list"] = "honey@greenpt\n"
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -597,7 +613,7 @@ func TestInitSkipsThePluginWhenClaudeHasIt(t *testing.T) {
 	inRepo(t, w.server.URL)
 	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\n"
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -612,7 +628,7 @@ func TestInitPrintsThePluginCommandsAndGoesOnWhenInstallFails(t *testing.T) {
 	inRepo(t, w.server.URL)
 	w.execFail["claude plugin install"] = true
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("a plugin failure must not fail init: %v\n%s", err, out)
 	}
@@ -627,7 +643,7 @@ func TestInitPrintsThePluginCommandsWhenClaudeIsMissing(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -648,7 +664,7 @@ func TestInitAddsOnlyWhatAnExistingRuleFileLacks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -673,7 +689,7 @@ func TestInitSaysProductDesignWaitsOnAMachineWithNoTerminal(t *testing.T) {
 	inRepo(t, w.server.URL)
 	initGOOS = "linux"
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -681,7 +697,7 @@ func TestInitSaysProductDesignWaitsOnAMachineWithNoTerminal(t *testing.T) {
 		t.Errorf("init must say that product design waits for a person:\n%s", out)
 	}
 
-	out, err = runInitCmd(t, "n\n", "--no-mcp")
+	out, err = runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("second init: %v\n%s", err, out)
 	}
@@ -694,7 +710,7 @@ func TestInitSaysNothingAboutProductDesignWhenATerminalIsKnown(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -716,7 +732,7 @@ func TestInitResetWritesTheFirstRunFileAndKeepsTheProjectsMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp", "--reset")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp", "--reset")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -745,7 +761,7 @@ func TestInitKeepsTheAutoUpdateAnswerInAnExistingKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runInitCmd(t, "", "--no-mcp")
+	out, err := runInitCmd(t, "1\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -758,7 +774,7 @@ func TestInitAnswersNoToAutoUpdateWithoutATerminal(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "", "--no-mcp")
+	out, err := runInitCmd(t, "1\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -773,7 +789,7 @@ func TestInitReportsABridgeThatFailsToStartAfterTheLaterSteps(t *testing.T) {
 	inRepo(t, w.server.URL)
 	w.bridgeErr = errors.New("the bridge stopped at start")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err == nil || !strings.Contains(err.Error(), "the bridge stopped at start") {
 		t.Fatalf("err = %v, want the bridge failure", err)
 	}
@@ -796,7 +812,7 @@ func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
 	}
 	w.bridgeUp = true
 
-	out, err := runInitCmd(t, "", "--no-mcp")
+	out, err := runInitCmd(t, "1\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -811,7 +827,7 @@ func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
 	if err := os.WriteFile(path, full, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out, err = runInitCmd(t, "", "--no-mcp")
+	out, err = runInitCmd(t, "1\n", "--no-mcp")
 	if err != nil || w.reloads != 2 || !strings.Contains(out, "Rules: skipped") || !strings.Contains(out, "Auto-update: done") {
 		t.Errorf("an auto-update answer alone must reload too: reloads = %d, %v\n%s", w.reloads, err, out)
 	}
@@ -820,7 +836,7 @@ func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
 	if err := os.WriteFile(path, []byte("autoUpdate: false\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out, err = runInitCmd(t, "", "--no-mcp")
+	out, err = runInitCmd(t, "1\n", "--no-mcp")
 	if err == nil || !strings.Contains(err.Error(), "dev is unknown") {
 		t.Fatalf("err = %v, want the reload failure", err)
 	}
@@ -836,7 +852,7 @@ func TestInitStartsTheBridgeOnTheRulesFlag(t *testing.T) {
 	inRepo(t, w.server.URL)
 	custom := filepath.Join(t.TempDir(), "mine.yaml")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp", "--rules", custom)
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp", "--rules", custom)
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -862,7 +878,7 @@ func TestInitInstallsThePlaywrightBrowserWhenAsked(t *testing.T) {
 	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", cache)
 	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"^1.50.0"}}`)
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -882,7 +898,7 @@ func TestInitInstallsThePlaywrightBrowserOfASubfolderPackage(t *testing.T) {
 	}
 	writePackageJSON(t, e2e, `{"devDependencies":{"@playwright/test":"1"}}`)
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -905,7 +921,7 @@ func TestInitNamesTheSubfolderInThePlaywrightCommand(t *testing.T) {
 	}
 	writePackageJSON(t, e2e, `{"dependencies":{"playwright":"1"}}`)
 
-	out, err := runInitCmd(t, "n\nn\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -930,7 +946,7 @@ func TestInitLeavesThePlaywrightBrowserWhenDeclined(t *testing.T) {
 	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", t.TempDir())
 	writePackageJSON(t, dir, `{"dependencies":{"playwright":"1"}}`)
 
-	out, err := runInitCmd(t, "n\nn\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -971,7 +987,7 @@ func TestInitSkipsPlaywrightWhenChromiumIsInTheCache(t *testing.T) {
 	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
 	writePlaywrightCore(t, dir, "1234")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -989,7 +1005,7 @@ func TestInitInstallsPlaywrightWhenOnlyAnotherChromiumRevisionIsInTheCache(t *te
 	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
 	writePlaywrightCore(t, dir, "1223")
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1009,7 +1025,7 @@ func TestInitInstallsPlaywrightWhenTheChromiumDownloadIsIncomplete(t *testing.T)
 	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
 	writePlaywrightCore(t, dir, "1223")
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1031,7 +1047,7 @@ func TestInitReadsAHoistedPlaywrightCoreForASubfolderPackage(t *testing.T) {
 	writePackageJSON(t, e2e, `{"devDependencies":{"@playwright/test":"1"}}`)
 	writePlaywrightCore(t, dir, "1223")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1062,7 +1078,7 @@ func TestInitReadsThePlaywrightCoreNestedUnderThePlaywrightPackage(t *testing.T)
 	writeNodePackage(t, library)
 	writePlaywrightCore(t, library, "1223")
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1083,7 +1099,7 @@ func TestInitIgnoresATestRunnerThatThePackageDoesNotList(t *testing.T) {
 	writeNodePackage(t, runner)
 	writePlaywrightCore(t, runner, "1217")
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1100,7 +1116,7 @@ func TestInitReadsTheLocalBrowsersOfPlaywrightCore(t *testing.T) {
 	core := writePlaywrightCore(t, dir, "1223")
 	installChromium(t, filepath.Join(core, ".local-browsers"), "1223")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1116,7 +1132,7 @@ func TestInitPrintsThePlaywrightCommandWhenTheInstallFails(t *testing.T) {
 	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
 	w.execFail["npx"] = true
 
-	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("a Playwright failure must not fail init: %v", err)
 	}
@@ -1194,7 +1210,7 @@ func TestInitResetKeepsTheAutoUpdateKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runInitCmd(t, "", "--no-mcp", "--reset")
+	out, err := runInitCmd(t, "1\n", "--no-mcp", "--reset")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1214,7 +1230,7 @@ func TestInitDeclaresTheMcpServerToCodexWhenOnlyCodexIsInstalled(t *testing.T) {
 	inRepo(t, w.server.URL)
 	path, _ := defaultRulesPath()
 
-	out, err := runInitCmd(t, "y\nn\n")
+	out, err := runInitCmd(t, "1\ny\nn\n")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1253,7 +1269,7 @@ func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1279,7 +1295,7 @@ func TestInitApprovesTheToolsInTheProfileOfTheCodexAccount(t *testing.T) {
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "n\n")
+	out, err := runInitCmd(t, "1\nn\n")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1299,7 +1315,7 @@ func TestInitOffersToReplaceACodexServerThatIsNotLoupeMcp(t *testing.T) {
 	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "npx")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\ny\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1320,7 +1336,7 @@ func TestInitLeavesAWrongCodexServerWhenDeclined(t *testing.T) {
 	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "npx")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\nn\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1346,7 +1362,7 @@ func TestInitEnablesADisabledCodexServerInTheFileThatDisablesIt(t *testing.T) {
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\ny\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1368,7 +1384,7 @@ func TestInitLeavesADisabledCodexServerWhenDeclined(t *testing.T) {
 	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\nenabled = false\n")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\nn\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1395,7 +1411,7 @@ func TestInitApprovesNoCodexToolsWhenTheEnableFails(t *testing.T) {
 	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\ny\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1416,7 +1432,7 @@ func TestInitApprovesNoCodexToolsWhenTheDeclarationIsDeclined(t *testing.T) {
 	w.execFail["codex mcp get"] = true
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\nn\n")
+	out, err := runInitCmd(t, "1\nn\nn\n")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1435,7 +1451,7 @@ func TestInitPrintsTheSkillsStepWhenTheCloneFails(t *testing.T) {
 	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n")
+	out, err := runInitCmd(t, "1\nn\n")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1450,7 +1466,7 @@ func TestInitPrintsTheCodexCommandWithNoMcp(t *testing.T) {
 	w.execFail["codex mcp get"] = true
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1468,7 +1484,7 @@ func TestInitPrintsTheCodexCommandWhenTheDeclarationFails(t *testing.T) {
 	w.execFail["codex mcp"] = true
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1482,7 +1498,7 @@ func TestInitSkipsCodexWhenClaudeIsInstalled(t *testing.T) {
 	w.claude, w.codex = true, true
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1501,7 +1517,7 @@ func TestInitSetsUpTheCodexAccountOfTheRuleFileWhenClaudeIsInstalled(t *testing.
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1521,7 +1537,7 @@ func TestInitDeclaresTheCodexServerInTheHomeAndProfileOfTheAccount(t *testing.T)
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "n\n", "--mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1553,7 +1569,7 @@ func TestInitReplacesAServerThatTheProfileDeclares(t *testing.T) {
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\ny\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1588,7 +1604,7 @@ func TestInitEnablesAServerThatTheProfileDeclaresDisabled(t *testing.T) {
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "y\ny\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\ny\ny\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1612,7 +1628,7 @@ func TestInitApprovesNoToolsOfAServerThatTheProfileKeepsDisabled(t *testing.T) {
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "y\nn\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\ny\nn\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1630,7 +1646,7 @@ func TestInitApprovesNoCodexToolsWithNoMcp(t *testing.T) {
 	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1651,7 +1667,7 @@ func TestInitLeavesAServerThatTheProfileDeclaresWhenDeclined(t *testing.T) {
 	path, _ := defaultRulesPath()
 	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
 
-	out, err := runInitCmd(t, "n\nn\n", "--mcp")
+	out, err := runInitCmd(t, "1\nn\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1679,7 +1695,7 @@ func TestInitAsksBeforeItReplacesAChangedCodexSkill(t *testing.T) {
 			board := filepath.Join(home, ".agents", "skills", "loupe-board", "SKILL.md")
 			writeFile(t, board, "# my edit\n")
 
-			out, err := runInitCmd(t, answer+"\nn\n")
+			out, err := runInitCmd(t, "1\n"+answer+"\nn\n")
 			if err != nil {
 				t.Fatalf("init: %v\n%s", err, out)
 			}
@@ -1713,7 +1729,7 @@ func TestInitSkipsCodexSkillsThatAreCurrent(t *testing.T) {
 		writeFile(t, filepath.Join(home, ".agents", "skills", skill, "SKILL.md"), "# "+skill+"\n")
 	}
 
-	out, err := runInitCmd(t, "n\n")
+	out, err := runInitCmd(t, "1\nn\n")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1735,5 +1751,274 @@ func TestCopySkillsKeepsAChangedSkillWhenReplaceSaysNo(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dst, "a", "references")); !os.IsNotExist(err) {
 		t.Error("copySkills changed a skill it kept")
+	}
+}
+
+const madeReply = `{"id":"` + firstProject + `","slug":"made","name":"Made","domain":"docs.example.com","allowedOrigins":["https://docs.example.com"]}`
+
+func hasLink(t *testing.T, dir string) bool {
+	t.Helper()
+	_, err := os.Stat(filepath.Join(dir, projectfile.Name))
+
+	return err == nil
+}
+
+func TestInitListsOneProjectWithACreateRowAndWaitsForAnAnswer(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	for _, want := range []string{"1) Dev Project", "2) Create a new project", "Choose 1 to 2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if file, _ := projectfile.Load(dir); file.Project != firstProject || w.created.Load() != 0 {
+		t.Errorf("project = %q, created = %d", file.Project, w.created.Load())
+	}
+}
+
+func TestInitCreateRowWithEnterNamesTheProjectAfterTheRemote(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	w.execOut["git remote get-url origin"] = "git@github.com:acme/app.git\n"
+
+	out, err := runInitCmd(t, "2\n\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	body, _ := w.createBody.Load().(map[string]any)
+	if body["remote"] != "git@github.com:acme/app.git" || body["name"] != nil || len(body) != 1 {
+		t.Errorf("create body = %v, want the remote alone", body)
+	}
+	if !strings.Contains(out, "Enter: name it after git@github.com:acme/app.git") || !strings.Contains(out, "Project: done, created Made") {
+		t.Errorf("output:\n%s", out)
+	}
+	if file, _ := projectfile.Load(dir); file.Project != firstProject {
+		t.Errorf("project = %q", file.Project)
+	}
+}
+
+func TestInitCreateRowAsksAgainWhenThereIsNoRemoteToNameTheProject(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.execFail["git remote"] = true
+
+	out, err := runInitCmd(t, "2\n\nMy App\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	body, _ := w.createBody.Load().(map[string]any)
+	if body["name"] != "My App" || body["remote"] != nil || w.created.Load() != 1 {
+		t.Errorf("create body = %v, created = %d", body, w.created.Load())
+	}
+	if strings.Count(out, "Project name: ") != 2 || strings.Contains(out, "Enter: name it after") {
+		t.Errorf("want two prompts with no default:\n%s", out)
+	}
+}
+
+func TestInitCreateRowAsksAgainWhenTheNameIsTaken(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.execOut["git remote get-url origin"] = "git@github.com:acme/app.git\n"
+	w.createReply = func(body map[string]any) (int, string) {
+		if body["name"] == "Blog" {
+			return http.StatusConflict, `{"error":"name_taken","slug":"blog"}`
+		}
+
+		return http.StatusCreated, madeReply
+	}
+
+	out, err := runInitCmd(t, "2\nBlog\nBlog 2\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Its slug is blog") || !strings.Contains(out, "--project blog") {
+		t.Errorf("output must name the slug:\n%s", out)
+	}
+	if body, _ := w.createBody.Load().(map[string]any); body["name"] != "Blog 2" || w.created.Load() != 2 {
+		t.Errorf("create body = %v, created = %d", body, w.created.Load())
+	}
+}
+
+func TestInitCreateRowStopsWhenTheInputEnds(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	w.execFail["git remote"] = true
+
+	_, err := runInitCmd(t, "2\n", "--no-mcp")
+	if err == nil || !strings.Contains(err.Error(), "no project name was given") {
+		t.Fatalf("err = %v", err)
+	}
+	if hasLink(t, dir) || w.created.Load() != 0 {
+		t.Errorf("init made something: created = %d", w.created.Load())
+	}
+}
+
+func TestInitNameCreatesAProjectWithDomainAndOrigins(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	w.createReply = func(map[string]any) (int, string) { return http.StatusCreated, madeReply }
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "Docs", "--domain", "docs.example.com",
+		"--origin", "https://docs.example.com", "--origin", "https://*.preview.example.com")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	body, _ := w.createBody.Load().(map[string]any)
+	origins, _ := body["origins"].([]any)
+	if body["name"] != "Docs" || body["domain"] != "docs.example.com" || len(origins) != 2 || origins[1] != "https://*.preview.example.com" || body["remote"] != nil {
+		t.Errorf("create body = %v", body)
+	}
+	if strings.Contains(out, "Which project") || strings.Contains(out, "Warning") || !strings.Contains(out, "Project: done, created Made") {
+		t.Errorf("output:\n%s", out)
+	}
+	if file, _ := projectfile.Load(dir); file.Project != firstProject {
+		t.Errorf("project = %q", file.Project)
+	}
+}
+
+func TestInitNameWarnsWhenTheInstanceIgnoresDomainAndOrigins(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "Docs", "--origin", "https://docs.example.com")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Warning: this Loupe instance ignored --domain or --origin") {
+		t.Errorf("output lacks the warning:\n%s", out)
+	}
+}
+
+func TestInitRefusedOriginCreatesNothing(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	w.createReply = func(map[string]any) (int, string) {
+		return http.StatusUnprocessableEntity, `{"violations":[{"propertyPath":"origins[0]","title":"Use https."}]}`
+	}
+
+	_, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "Blog2", "--origin", "http://example.com")
+	if err == nil || !strings.Contains(err.Error(), `--origin "http://example.com": Use https.`) {
+		t.Fatalf("err = %v", err)
+	}
+	if hasLink(t, dir) {
+		t.Error("init wrote the project file")
+	}
+}
+
+func TestInitDomainAndOriginNeedName(t *testing.T) {
+	for _, args := range [][]string{
+		{"--domain", "example.com"},
+		{"--domain", ""},
+		{"--origin", "https://example.com"},
+		{"--origin", ""},
+	} {
+		flag := args[0]
+		w := newInitWorld(t, devSite())
+		dir := inRepo(t, "")
+
+		out, err := runInitCmd(t, "", args...)
+		if err == nil || !strings.Contains(err.Error(), flag+" needs --name") {
+			t.Errorf("%s: err = %v", flag, err)
+		}
+		if strings.Contains(out, "Sign in") || w.created.Load() != 0 || hasLink(t, dir) {
+			t.Errorf("%s: init went on:\n%s", flag, out)
+		}
+	}
+}
+
+func TestInitNameExcludesProject(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, "")
+
+	out, err := runInitCmd(t, "", "--name", "X", "--project", "dev")
+	if err == nil || !strings.Contains(err.Error(), "name") || !strings.Contains(err.Error(), "project") {
+		t.Errorf("err = %v", err)
+	}
+	if strings.Contains(out, "Sign in") || w.created.Load() != 0 {
+		t.Errorf("init went on:\n%s", out)
+	}
+}
+
+func TestInitNameNeedsAValue(t *testing.T) {
+	newInitWorld(t, devSite())
+	inRepo(t, "")
+
+	if _, err := runInitCmd(t, "", "--name", "  "); err == nil || !strings.Contains(err.Error(), "--name needs a project name") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestInitNameNeedsForceWhenTheRepositoryIsLinked(t *testing.T) {
+	w := newInitWorld(t, devSite()+`,{"id":"`+secondProject+`","slug":"other","name":"Other"}`)
+	dir := inRepo(t, w.server.URL)
+	if err := projectfile.Write(dir, secondProject); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "X")
+	if err == nil || !strings.Contains(err.Error(), "--force") || w.created.Load() != 0 {
+		t.Fatalf("err = %v, created = %d", err, w.created.Load())
+	}
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "X", "--force")
+	if err != nil {
+		t.Fatalf("init --force: %v\n%s", err, out)
+	}
+	if file, _ := projectfile.Load(dir); file.Project != firstProject || w.created.Load() != 1 {
+		t.Errorf("project = %q, created = %d", file.Project, w.created.Load())
+	}
+}
+
+func TestInitNameStopsWhenTheNameIsTaken(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	w.createReply = func(map[string]any) (int, string) {
+		return http.StatusConflict, `{"error":"name_taken","slug":"blog"}`
+	}
+
+	_, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "Blog")
+	if err == nil || !strings.Contains(err.Error(), "--project blog") {
+		t.Fatalf("err = %v", err)
+	}
+	if hasLink(t, dir) {
+		t.Error("init wrote the project file")
+	}
+}
+
+func TestInitWithNoTerminalListsTheProjectAndNamesBothWaysOn(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = devNull.Close() })
+
+	out, err := runInitWithIn(t, devNull, "--no-mcp")
+	if err == nil || !strings.Contains(err.Error(), "--project <slug>") || !strings.Contains(err.Error(), `--name "<name>"`) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.Contains(out, "Dev Project") || hasLink(t, dir) || w.created.Load() != 0 {
+		t.Errorf("created = %d\n%s", w.created.Load(), out)
+	}
+}
+
+func TestIsTerminalRefusesDevNullAndAcceptsOtherReaders(t *testing.T) {
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = devNull.Close() })
+
+	if isTerminal(devNull) {
+		t.Error("/dev/null is not a terminal")
+	}
+	if !isTerminal(strings.NewReader("")) {
+		t.Error("a plain reader stands in for a terminal")
 	}
 }

@@ -141,10 +141,15 @@ The steps, in order:
 | Flag | Purpose |
 |---|---|
 | `--project` | The project, by id or slug, instead of a choice from a list |
+| `--name` | Create a project with this name and link the repository to it. It cannot go with `--project`. A linked project needs `--force` |
+| `--domain` | The domain of the new project. It needs `--name` |
+| `--origin` | An allowed origin of the new project for the site-review widget. Repeat it for more. It needs `--name` |
 | `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://app.loupe.ac` |
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
+
+The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
 
 [`loupe init`](../../cli/README.md#loupe-init) gives each step in full.
 

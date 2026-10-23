@@ -32,9 +32,9 @@ When the harness supports sub-agents, dispatch one and repeat every stage rule i
 
 A sub-agent reads a prototype page with `artifact_read`. When it cannot call the `loupe` tools, put the text of its pages into its prompt.
 
-## Write and run a plan
+## Write the build notes and run them
 
-Write a task-by-task plan, submit it to Loupe, and execute it in order. Do not save a second plan file, merge into the base branch, or remove the worker folder.
+Write task-by-task build notes, submit them to Loupe, and execute them in order. Do not save a second build notes file, merge into the base branch, or remove the worker folder.
 
 ## Final reply
 

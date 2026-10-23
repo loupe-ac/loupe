@@ -63,11 +63,11 @@ Dispatch a sub-agent with the Agent tool. When the repository defines a `senior-
 
 Put the rules the stage skill names into its prompt, because it inherits no loaded instruction. The sub-agent has every tool, so it reads a prototype page with `artifact_read` itself.
 
-## Write a plan
+## Write the build notes
 
-Write the plan in plain Markdown, and follow the `loupe-documents` instruction. Submit the plan to Loupe. Save no plan file. Nobody approves the plan, so start the work as soon as it is linked.
+Write the build notes in plain Markdown, and follow the `loupe-documents` instruction. Submit them to Loupe. Save no build notes file. Nobody approves the build notes, so start the work as soon as it is linked.
 
-## Run the plan task by task
+## Run the build notes task by task
 
 For each task, dispatch one implementer sub-agent, then one reviewer sub-agent. Run the tasks in order. Fix the findings of the review before the next task starts. Never merge locally into the base branch, and never remove the worker folder.
 

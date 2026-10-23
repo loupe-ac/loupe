@@ -127,7 +127,7 @@ final class InboxAnswerToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
         $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design', 'Detach']);
         $this->em->persist($item);
-        $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, origin: InboxAskOrigin::Loupe);
+        $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null);
         $ask->items->add(new InboxAskItem($ask, $item));
         $this->em->persist($ask);
         $this->em->flush();

@@ -33,6 +33,14 @@
                 <source>readiness.form.update_agent_account_form.login.too_long</source>
                 <target>A GitHub login holds at most {{ limit }} characters.</target>
             </trans-unit>
+            <trans-unit id="project.api.error.origin_invalid">
+                <source>project.api.error.origin_invalid</source>
+                <target>Each origin must be a site origin with no path, such as https://staging.example.com or https://*.example.com. A * stands for one label, and it cannot cover a whole registry such as *.com. Plain http works on localhost only.</target>
+            </trans-unit>
+            <trans-unit id="project.api.error.origins_too_many">
+                <source>project.api.error.origins_too_many</source>
+                <target>You can allow {{ limit }} sites at most.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>
