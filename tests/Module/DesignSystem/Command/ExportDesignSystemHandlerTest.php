@@ -339,13 +339,12 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringNotContainsString('<Input', $card);
     }
 
-    public function test_the_button_card_draws_outline_on_chrome_and_icons_with_a_glyph(): void
+    public function test_the_button_card_draws_outline_with_the_other_variants_and_icons_with_a_glyph(): void
     {
         $card = $this->read('components/Button/preview.html');
 
-        self::assertStringContainsString('<div className="chrome">', $card);
-        self::assertMatchesRegularExpression('~<div className="chrome">\s*<Button variant="outline">outline</Button>~', $card);
-        self::assertStringNotContainsString('<Button variant="outline">outline</Button>'."\n".'        <Button variant="primary"', $card);
+        self::assertStringNotContainsString('<div className="chrome">', $card);
+        self::assertStringContainsString('<Button variant="outline">outline</Button>', $card);
         self::assertStringNotContainsString('>icon</Button>', $card);
         self::assertStringNotContainsString('>compact</Button>', $card);
         foreach (['icon', 'ghost icon', 'ghost icon compact'] as $variant) {
@@ -578,7 +577,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $card = $this->read('components/AppShell/preview.html');
         self::assertStringContainsString("dsFind('AppShell')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
-        self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
+        self::assertStringContainsString("counts={{ agents: '1/3', inbox: 2 }}", $card);
 
         $types = $this->read('components/AppShell/AppShell.d.ts');
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
@@ -844,29 +843,6 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertSame(3, substr_count($jsx, '.filter(shown).map('));
     }
 
-    public function test_the_app_shell_wrapper_always_shows_the_counts_the_base_template_always_shows(): void
-    {
-        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = $this->jsx('AppShell');
-
-        preg_match_all('/<twig:Ds:NavItem\b.*?\'nav\.link\.([a-z_]+)\'\|trans.*?(?:\/>|<\/twig:Ds:NavItem>)/s', $base, $anchors, \PREG_SET_ORDER);
-        $expected = [];
-        foreach ($anchors as [$anchor, $key]) {
-            if (str_contains($anchor, ':count=') || str_contains($anchor, '<span class="lp-sidebar__pill"')) {
-                $expected[] = $key;
-            }
-        }
-        sort($expected);
-        self::assertSame(['documents'], $expected);
-
-        preg_match_all("/\\{ key: '([a-z_]+)'[^}]*alwaysCount: true[^}]*\\}/", $jsx, $links);
-        $actual = $links[1];
-        sort($actual);
-        self::assertSame($expected, $actual);
-        self::assertStringContainsString('<span className="lp-sidebar__pill">{count ?? 0}</span>', $jsx);
-        self::assertStringContainsString(') : count > 0 && (', $jsx);
-    }
-
     public function test_the_app_shell_wrapper_counts_only_the_links_the_base_template_counts(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
@@ -880,7 +856,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             }
         }
         sort($expected);
-        self::assertSame(['activity', 'agents', 'documents', 'inbox'], $expected);
+        self::assertSame(['activity', 'agents', 'inbox'], $expected);
 
         preg_match_all("/\\{ key: '([a-z_]+)'[^}]*counted: true[^}]*\\}/", $jsx, $links);
         $actual = $links[1];

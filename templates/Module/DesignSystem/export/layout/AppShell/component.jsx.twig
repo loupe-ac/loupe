@@ -100,7 +100,7 @@ const WORKSPACE_LINKS = [
     { key: 'workshop', label: 'Workshop', icon: 'layout-dashboard' },
     { key: 'inbox', label: 'Needs you', icon: 'inbox', amber: true, feature: 'inbox', counted: true },
     { key: 'board', label: 'Board', icon: 'square-kanban' },
-    { key: 'documents', label: 'Documents', icon: 'file-text', counted: true, alwaysCount: true },
+    { key: 'documents', label: 'Documents', icon: 'file-text' },
     { key: 'artifacts', label: 'Artifacts', icon: 'app-window', feature: 'artifacts' },
 ];
 
@@ -135,8 +135,6 @@ function NavLink({ link, active, counts }) {
             <span className="lp-sidebar__link-label">{link.label}</span>
             {typeof count === 'string' ? (
                 <span className="lp-sidebar__pill">{count}</span>
-            ) : link.alwaysCount ? (
-                <span className="lp-sidebar__pill">{count ?? 0}</span>
             ) : count > 0 && (
                 <span className={link.amber ? 'lp-sidebar__pill lp-sidebar__pill--amber' : 'lp-sidebar__pill'}>{count}</span>
             )}

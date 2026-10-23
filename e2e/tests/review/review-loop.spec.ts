@@ -155,7 +155,7 @@ test('New document keeps an unsent draft across in-app navigation', async ({
     await expect(dialog).toBeHidden();
     await page.getByRole('link', { name: 'Workshop', exact: true }).click();
     await expect(page).not.toHaveURL(review.dashboardUrl);
-    await page.getByRole('link', { name: /^Documents \d+$/ }).click();
+    await page.getByRole('link', { name: 'Documents', exact: true }).click();
     await expect(page).toHaveURL(review.dashboardUrl);
     await page
         .getByRole('button', { name: 'New document', exact: true })
