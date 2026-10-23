@@ -96,7 +96,7 @@
                     <span><strong>{% include 'outbox/_event_type_label.html.twig' with {type: entry.event.type} only %}</strong><small>{% if entry.link %}{{ entry.link.label }} · {% endif %}<twig:Ds:RelativeTime :datetime="entry.event.createdAt" /></small></span>
                 </a>
                 {% else %}
-                <twig:Ds:EmptyState compact icon="lucide:activity" :body="'project.workshop.activity.empty'|trans" />
+                <twig:Ds:EmptyState compact onCard icon="lucide:activity" :body="'project.workshop.activity.empty'|trans" />
                 {% endfor %}
             </section>
         </aside>
