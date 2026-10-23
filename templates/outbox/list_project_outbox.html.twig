@@ -9,14 +9,10 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-site-review-page">
-    <header class="lp-site-review-header">
-        <h1 class="lp-site-review-title">{{ 'outbox.page.title'|trans }}</h1>
-        <p class="lp-site-review-description">{{ 'outbox.page.description'|trans }}</p>
-        <p class="lp-site-review-meta-line">{{ 'outbox.count'|trans({'%count%': events|length}) }}</p>
-    </header>
-
+<twig:Ds:Workspace>
     {% if events|length > 0 %}
+    <twig:Ds:PageHeader :title="'outbox.page.title'|trans" :description="'outbox.page.description'|trans" />
+    <p class="lp-site-review-meta-line">{{ 'outbox.count'|trans({'%count%': events|length}) }}</p>
     <div class="lp-site-review-list">
         {% for event in events %}
             <article class="lp-site-review-item" data-outbox-event-id="{{ event.id }}">
@@ -49,7 +45,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <twig:Ds:EmptyState icon="lucide:circle-check" iconClass="text-accent" :title="'outbox.empty'|trans" />
+    <twig:Ds:EmptyState icon="lucide:circle-check" iconClass="text-accent" :title="'outbox.empty'|trans" :body="'outbox.page.description'|trans" />
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

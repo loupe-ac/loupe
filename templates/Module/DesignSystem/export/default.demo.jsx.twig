@@ -12,12 +12,9 @@
 {% endfor %}
 {% elseif button %}
       <div className="row">
-{% for variant in entry.variants|filter(v => v not in ['outline', 'icon', 'compact']) %}
+{% for variant in entry.variants|filter(v => v not in ['icon', 'compact']) %}
         <{{ name }} variant="{{ variant }}">{{ variant }}</{{ name }}>
 {% endfor %}
-      </div>
-      <div className="chrome">
-        <{{ name }} variant="outline">outline</{{ name }}>
       </div>
       <div className="row">
         <{{ name }} variant="icon" aria-label="Close">{{ closeGlyph }}</{{ name }}>

@@ -621,14 +621,13 @@ final class ListDocumentsControllerTest extends WebTestCase
 
         $client->loginUser($alice);
 
-        // The nav pill sits directly above the list; three documents exist and
-        // two are listed, so the pill must read 2.
+        // Three documents exist and two are listed. The nav item shows no count.
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents');
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('[data-document-id]'));
-        self::assertSame('2', trim($crawler->filter('.lp-sidebar__pill')->first()->text()));
+        self::assertCount(0, $crawler->filter('.lp-sidebar__link--active .lp-sidebar__pill'));
 
-        // Same number on the project card.
+        // The project card still shows the number.
         $client->request(Request::METHOD_GET, '/projects');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-project-id="'.$projectId.'"] .lp-project-row__meta', '2 documents');
