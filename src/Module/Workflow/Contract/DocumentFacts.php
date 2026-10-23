@@ -39,9 +39,4 @@ final readonly class DocumentFacts
     {
         return null !== $this->publishedAt && null !== $this->entryUnansweredDecisions && null !== $this->entryOpenThreads;
     }
-
-    public function withStatus(string $status): self
-    {
-        return new self($this->tags, $status, $this->id, $this->title, $this->versionAt, $this->version, $this->cleanCheckVersion, $this->newestReviewId, $this->publishedAt, $this->entryUnansweredDecisions, $this->entryOpenThreads, $this->rejectedBefore, $this->newestReviewWithdrewApproval);
-    }
 }

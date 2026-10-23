@@ -283,8 +283,9 @@ list. See [Markers that open inbox items](workflows.md#markers-that-open-inbox-i
 The Lifecycle template lists four markers. The Simple template lists three, and
 not `document-in-review`. A card waits in these cases:
 
-- A linked document of the card is in review, and an approval would make a rule
-  of the slot of the card fire. No agent review item of the document may be
+- A linked document of the card is in review, and it has the tag that the slot of
+  the card waits for. An approval does not need to move the card yet, so an open
+  blocker does not hide the wait. No agent review item of the document may be
   open. With the Lifecycle template, that is a product design, a document with
   the tag `product-design`, in the Product design column, or a tech design, a
   document with the tag `tech-design`, in the Tech design column. This is the
@@ -669,9 +670,9 @@ A document wait ends when its document leaves review. A verdict does this, and s
 an archive. A new version of the document also ends the wait, and a new wait
 for the new version replaces it. The item then stays open. An open review
 request from an agent for the same document holds back the wait, because it
-asks for the same verdict. A document wait also ends when an approval would no longer make a rule fire.
-This happens when the card leaves the column that waits for the document, or
-when the document loses its tag.
+asks for the same verdict. A document wait also ends when the card leaves the
+column that waits for the document, or when the document loses the tag of that
+column.
 
 A run wait ends when a newer run of the card starts. It also ends when the card
 moves on after the run, or when a question of the run stands for it.

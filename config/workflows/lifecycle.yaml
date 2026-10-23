@@ -1,5 +1,5 @@
 key: lifecycle
-version: 17
+version: 18
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -833,7 +833,13 @@ markers:
       slots: [product-design, tech-design]
       when:
           all:
-              - card.document.approval_moves: {}
+              - any:
+                    - all:
+                          - card.in_slot: { slot: product-design }
+                          - card.document.in_review: { tag: product-design }
+                    - all:
+                          - card.in_slot: { slot: tech-design }
+                          - card.document.in_review: { tag: tech-design }
               - not: { card.document.agent_review_open: {} }
     - key: waits-for-approval
       kind: needs-you
