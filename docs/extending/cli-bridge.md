@@ -1072,8 +1072,8 @@ the token.
 ## Experiments
 
 An experiment splits the cards of a kind of work between models or accounts.
-A worker entry of the [work map](#work-requests) lists its `variants`, and its
-kind names the experiment. Each variant has a `name`, a `weight`, and a `model`
+A worker entry of the [work map](#work-requests) lists its `variants`. The
+experiment takes the name of the kind, unless the entry sets `experiment`. Each variant has a `name`, a `weight`, and a `model`
 or an `account`. A variant can also set `permissions`. The entry sets no
 `model`:
 
@@ -1115,11 +1115,37 @@ with each pin request, so the latest list wins. The bridge does not know the
 metrics of the server, so it checks the shape of each key only. The server
 shows a note for a key that it does not know.
 
+The `experiment` field names the experiment of an entry with variants. Use it
+to start a new trial on a kind of work without mixing it with an old one. The
+old experiment keeps its cards, its pins and its figures:
+
+```yaml
+work:
+  implement:
+    prompt: Implement card {cardNumber}.
+    experiment: implement-php-lsp
+    variants:
+      - {name: no-lsp, weight: 1, model: claude-sonnet-5-5}
+      - {name: lsp, weight: 1, model: claude-sonnet-5-5, account: claude-worker-lsp}
+```
+
+An entry with no `experiment` field keeps the name of its kind. The name has the
+shape of a variant name. The bridge sends it with each pin request and each run
+report. A card that a pin holds in the old experiment has no pin in the new one,
+so it draws a variant again on its next run. The draw hashes the experiment name,
+so a new name gives each card a new draw. An experiment page leaves out a card
+that already ran the same kind of work in another experiment, as
+[Experiments](../using/experiments.md) says.
+
 The bridge refuses the file, at start and on a reload, when:
 
 - an entry sets both `model` and `variants`
-- an interactive entry or a command entry sets `variants` or `metrics`
-- an entry sets `metrics` and no `variants`
+- an interactive entry or a command entry sets `variants`, `metrics` or
+  `experiment`
+- an entry sets `metrics` or `experiment` and no `variants`
+- an `experiment` value does not match `^[a-z0-9][a-z0-9_-]{0,63}$`, an empty
+  value included
+- two entries name the same experiment, by the field or by the kind
 - an entry lists more than 16 metrics, or one metric twice
 - a metric key does not match `^[a-z][a-z0-9:-]{0,63}$`
 - an entry has no variants, or more than 32
@@ -1132,7 +1158,7 @@ The bridge refuses the file, at start and on a reload, when:
 - a variant name does not match `^[a-z0-9][a-z0-9_-]{0,63}$`
 
 Before a worker starts, the bridge draws a candidate variant. It hashes the
-kind and the card id onto the weights, so every bridge draws the same candidate
+experiment name and the card id onto the weights, so every bridge draws the same candidate
 for a card. The bridge then asks the server for the pin of the card, through the
 [experiment pin endpoint](../reference/worker-runs.md#resolving-an-experiment-pin).
 The server keeps the first pin of each card, so a card keeps its variant on

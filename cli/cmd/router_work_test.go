@@ -751,6 +751,22 @@ func TestAWorkEntryWithVariantsPinsItsVariant(t *testing.T) {
 	wantExperiment(t, rec.states(), runPin{Experiment: "split", Variant: "b", RequestedModel: "sonnet"})
 }
 
+// An entry that sets experiment sends that name with the pin request and the
+// run report, in place of its kind.
+func TestAWorkEntryWithAnExperimentNameSendsThatName(t *testing.T) {
+	body := strings.Replace(interactiveWorkRules, "  split:\n", "  split:\n    experiment: split-trial\n", 1)
+	h, rec := launchHarnessWith(t, body, `[sh, -c, 'exit 0', sh, '{script}']`)
+	f := h.withWork()
+	pins := h.pins(func(context.Context, string) (string, string, error) { return "b", "", nil })
+
+	h.offer(f, workRequest(1, 87, "split", api.WorkRequestOpen))
+
+	if calls := pins.recorded(); len(calls) != 1 || calls[0].experiment != "split-trial" {
+		t.Fatalf("pin calls = %+v", calls)
+	}
+	wantExperiment(t, rec.states(), runPin{Experiment: "split-trial", Variant: "b", RequestedModel: "sonnet"})
+}
+
 // A variant that names an account and no model runs with the model of that
 // account, and its pin names that model.
 func TestAVariantWithAnAccountRunsWithTheModelOfTheAccount(t *testing.T) {

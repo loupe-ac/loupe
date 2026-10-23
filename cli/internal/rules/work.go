@@ -74,8 +74,11 @@ type WorkEntry struct {
 	Refresh    *BeforeConfig `yaml:"refresh"`
 	Reset      *BeforeConfig `yaml:"reset"`
 	WorkerPool string        `yaml:"workerPool"`
-	// Variants pick the model or the account, as the variants of an
-	// experiment named after the kind. An entry that sets them sets no model.
+	// Experiment names the experiment of the variants. A nil value names it
+	// after the kind, and an empty value is refused as a bad name.
+	Experiment *string `yaml:"experiment"`
+	// Variants pick the model or the account, as the variants of the
+	// experiment. An entry that sets them sets no model.
 	Variants []Variant `yaml:"variants"`
 	// Metrics are the metric keys the Comparison tab of the experiment shows,
 	// in this order. Only an entry with variants sets them.
@@ -206,12 +209,12 @@ var workRefusals = map[string][]refusal{
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry runs a worker"},
 	},
 	ActionInteractive: {
-		{[]string{"before", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
+		{[]string{"before", "experiment", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry launches an interactive session"},
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry launches an interactive session"},
 	},
 	ActionCommand: {
-		{[]string{"account", "before", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
+		{[]string{"account", "before", "experiment", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
 	},
 }
 
@@ -230,6 +233,7 @@ func checkWork(kind string, w *WorkEntry) error {
 			"before":         w.Before != nil,
 			"refresh":        w.Refresh != nil,
 			"reset":          w.Reset != nil,
+			"experiment":     w.Experiment != nil,
 			"metrics":        w.Metrics != nil,
 			"model":          w.Model != "",
 			"permissionMode": w.PermissionMode != "",
@@ -285,13 +289,20 @@ func checkWork(kind string, w *WorkEntry) error {
 	if w.Action == "" && w.Metrics != nil && w.Variants == nil {
 		errs = append(errs, errors.New("metrics needs variants, and only an experiment shows metrics"))
 	}
+	if w.Action == "" && w.Experiment != nil && w.Variants == nil {
+		errs = append(errs, errors.New("experiment needs variants, and only an experiment has a name"))
+	}
 	if w.Variants != nil {
 		if w.Model != "" {
 			errs = append(errs, errors.New("model and variants are both set, and the variants name the model"))
 		}
 		// An invalid kind has its own error, and is no experiment name.
 		if validKind {
-			e := Experiment{Name: kind, Variants: w.Variants, Metrics: w.Metrics}
+			name := kind
+			if w.Experiment != nil {
+				name = *w.Experiment
+			}
+			e := Experiment{Name: name, Variants: w.Variants, Metrics: w.Metrics}
 			if err := checkExperiment(e); err != nil {
 				errs = append(errs, err)
 			}

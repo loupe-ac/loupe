@@ -107,6 +107,10 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->experimentRun($plainAfter, 'a', at: '+1 hour');
         $this->plainRun($plainAfter, 'implement', '+2 hours');
 
+        $otherExperiment = Uuid::v7();
+        $this->experimentRun($otherExperiment, 'opus', at: '+1 hour', experiment: 'older-trial');
+        $this->experimentRun($otherExperiment, 'a', at: '+2 hours');
+
         $noHistory = Uuid::v7();
         $this->experimentRun($noHistory, 'a', at: '-31 days');
 
@@ -121,9 +125,10 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             (string) $otherKind => [],
             (string) $plainAfter => [],
             (string) $noHistory => ['no-history'],
-        ], $this->reasonsById($view, [$switched, $mixed, $switchedAndMixed, $beforeTest, $otherKind, $plainAfter, $noHistory]));
+            (string) $otherExperiment => ['before-test'],
+        ], $this->reasonsById($view, [$switched, $mixed, $switchedAndMixed, $beforeTest, $otherKind, $plainAfter, $noHistory, $otherExperiment]));
         self::assertSame(2, $view->includedCards);
-        self::assertSame(5, $view->leftOutCards);
+        self::assertSame(6, $view->leftOutCards);
         // A left-out card counts in no variant.
         self::assertSame([2, 0], array_map(static fn (ExperimentVariant $variant): int => $variant->cards, $view->variants));
     }
