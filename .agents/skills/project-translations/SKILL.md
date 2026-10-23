@@ -1,6 +1,6 @@
 ---
 name: project-translations
-description: "Use when adding or modifying UI strings, adding translation keys, removing form fields, or adding a new locale, or when reading, suppressing or configuring a finding of the gamache translation check."
+description: "Use when adding or changing UI strings or translation keys, removing form fields, adding a locale, or handling a finding of the gamache translation check."
 ---
 
 # Translations

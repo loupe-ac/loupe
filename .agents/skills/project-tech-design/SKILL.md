@@ -1,6 +1,6 @@
 ---
 name: project-tech-design
-description: Use when you write or revise a technical design for this project — a document that settles an architecture, an entity model, a module boundary, or a subsystem, before any implementation plan exists. Also use when a review comment reopens such a decision.
+description: "Use when writing or revising a technical design that settles an architecture, an entity model, a module boundary or a subsystem, or when a review comment reopens such a decision."
 ---
 
 # Technical designs

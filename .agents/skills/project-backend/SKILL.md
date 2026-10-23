@@ -1,6 +1,6 @@
 ---
 name: project-backend
-description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands, flash messages, or any PHP implementation work, or when changing a gamache rule or its configuration in `gamache.php`, `phpstan.dist.neon`, `rector.php`, `.php-cs-fixer.dist.php` or `.twig-cs-fixer.php`. For authorization see `project-authz`. For PHPUnit tests see `project-testing`."
+description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands or flash messages, or when changing a gamache rule or its configuration."
 ---
 
 # Backend: forms, DTOs, Doctrine, controllers, flash messages

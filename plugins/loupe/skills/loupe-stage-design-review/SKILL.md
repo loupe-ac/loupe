@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-design-review
-description: "Use when the workflow asks for a review of a draft product design or tech design of a card, from a design-review work request, or when a prompt names loupe-stage-design-review."
+description: "Use when a prompt names loupe-stage-design-review, or when the workflow asks for a review of a draft product design or tech design."
 ---
 
 # Design review stage

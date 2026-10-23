@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-product-design
-description: "Use when an existing product document of a Loupe card needs one review round, or when a prompt names loupe-stage-product-design."
+description: "Use when a prompt names loupe-stage-product-design, or when a card's product document needs one review round."
 ---
 
 # Product design stage

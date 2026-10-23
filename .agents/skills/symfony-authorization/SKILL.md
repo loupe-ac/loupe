@@ -1,6 +1,6 @@
 ---
 name: symfony-authorization
-description: "Use when writing or changing Symfony access control, Voter classes, authorization attribute names, `#[IsGranted]` placement, `subject:` resolution, or `is_granted()` in Twig. Covers the resource-grouped dotted attribute convention, voter scoping, read/write separation, and the rename checklist."
+description: "Use when writing or changing Symfony access control: Voter classes, attribute names, `#[IsGranted]` placement, `subject:` resolution or `is_granted()` in Twig."
 ---
 
 # Symfony Authorization (Voters + `#[IsGranted]`)

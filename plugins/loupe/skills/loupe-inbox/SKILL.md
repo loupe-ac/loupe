@@ -1,6 +1,6 @@
 ---
 name: loupe-inbox
-description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw inbox_answer, inbox_decline, inbox_done or inbox_action_run, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
+description: "Use when an agent needs a decision, answer or review from the project owner through the loupe MCP, hands a question or to-do to a person, resumes after an ask closed, or needs its session id."
 ---
 
 # Asking the owner through the Loupe inbox
