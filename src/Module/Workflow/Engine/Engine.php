@@ -521,7 +521,7 @@ final readonly class Engine
                 $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled) || $withdrawn;
                 continue;
             }
-            if (null !== $rule->then->cancelWhen && $this->ruleSubject->bindWhen($rule->then->cancelWhen, $run->facts)->truth) {
+            if (null !== $rule->lead->cancelWhen && $this->ruleSubject->bindWhen($rule->lead->cancelWhen, $run->facts)->truth) {
                 $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled) || $withdrawn;
                 continue;
             }
@@ -627,7 +627,7 @@ final readonly class Engine
     /** The newest resumed run of the card that reported since the time and does the work kind of the rule, from any rule. */
     private function answeringRun(Evaluation $run, Rule $rule, ?\DateTimeImmutable $since): ?RunView
     {
-        $workKind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
+        $workKind = $this->actions->get($rule->lead->key)->workKind($rule->lead->params);
 
         return null === $workKind ? null : $this->ledger->latestContinuation($run->card->id, $since, null, $workKind);
     }
@@ -655,7 +655,7 @@ final readonly class Engine
     /** Runs the release rules of a paused card. Answers whether they lifted the pause. */
     private function releasedByRule(Evaluation $run): bool
     {
-        $this->runRules($run, array_filter($run->template->rules, static fn (Rule $rule): bool => ReleasePause::KEY === $rule->then->key));
+        $this->runRules($run, array_filter($run->template->rules, static fn (Rule $rule): bool => ReleasePause::KEY === $rule->lead->key));
 
         $run->holdingPause = $this->cardPauses->findActive($run->card->id);
 
@@ -678,16 +678,16 @@ final readonly class Engine
 
         return match ($pause->kind) {
             PauseKind::Rule => match (true) {
-                Ask::KEY === $rule->then->key => match (true) {
+                Ask::KEY === $rule->lead->key => match (true) {
                     !$applies => 'facts-changed',
                     null !== $rule->when->unreadable($run->facts) => null,
                     !$bound->truth => 'facts-changed',
                     $this->ruleAsks->isOn($run->card->projectId) => 'inbox-on',
                     default => null,
                 },
-                null === $rule->then->until => 'rule-removed',
-                null !== $rule->then->until->unreadable($run->facts) => null,
-                $rule->then->until->evaluate($this->ruleSubject->paused($rule, $run->facts, $stored)) => 'until-met',
+                null === $rule->lead->until => 'rule-removed',
+                null !== $rule->lead->until->unreadable($run->facts) => null,
+                $rule->lead->until->evaluate($this->ruleSubject->paused($rule, $run->facts, $stored)) => 'until-met',
                 default => null,
             },
             PauseKind::WorkLimit => match (true) {
@@ -770,7 +770,7 @@ final readonly class Engine
         $fire = !isset($run->repairing[$rule->id])
             && ($newSubject || !$state->truth || ($state->attempts > 0 && ((null !== $state->dueAt && $state->dueAt <= $run->now) || !$this->fingerprint->sameAs($state->fingerprint, $bound->facts, $rule->when->reads()))));
         // A release rule that turned true before its pause existed would otherwise wait for a new edge.
-        if (!$fire && ReleasePause::KEY === $rule->then->key) {
+        if (!$fire && ReleasePause::KEY === $rule->lead->key) {
             $fire = null !== $run->holdingPause && $run->holdingPause->reason === ActionOutcome::code(ActionParams::string($rule, 'reason'));
         }
         // A true rule whose action asks for it fires again when its facts change, so no new item waits for a false pass.
@@ -796,11 +796,25 @@ final readonly class Engine
             $state->repaired = false;
         }
 
-        $call = $rule->then;
         // A retry keeps its attempts while its request runs, so the count reaches the limit of the template.
         // The last try after a repair keeps them too, so its refusal pauses the card.
         $retrying = !$newSubject && (null !== $state->workRequestId || $state->repaired) && $state->attempts > 0;
-        $outcome = $this->actions->get($call->key)->run($this->contexts->for($rule, $run->card, $bound->facts, $state->fires));
+        // The list stops at the first refusal and after a move, which queues the next evaluation.
+        // An action that changes the facts gives the next action of the list the facts as they are then.
+        $facts = $bound->facts;
+        $refreshesFacts = false;
+        $lastKey = array_key_last($rule->then);
+        foreach ($rule->then as $key => $call) {
+            $outcome = $this->actions->get($call->key)->run($this->contexts->for($rule->forCall($call), $run->card, $facts, $state->fires));
+            $refreshesFacts = $refreshesFacts || $call->traits->refreshesFacts;
+            if (ActionOutcomeKind::Done !== $outcome->kind || $call->traits->endsPass) {
+                break;
+            }
+            if ($call->traits->refreshesFacts && $key !== $lastKey) {
+                $run->facts = $this->facts($run->card, $run->now, $run->facts);
+                $facts = $this->ruleSubject->bind($rule, $run->facts)->facts;
+            }
+        }
         // The live request still serves the old subject, so the change waits until it settles.
         if ($newSubject && $outcome->alreadyLive) {
             self::adoptSubject($state, $stored);
@@ -850,7 +864,7 @@ final readonly class Engine
                     ++$state->fires;
                 }
                 // The rules after this one read the new request.
-                if ($call->traits->refreshesFacts && !$outcome->alreadyLive) {
+                if ($refreshesFacts && !$outcome->alreadyLive) {
                     $run->facts = $this->facts($run->card, $run->now, $run->facts);
                 }
 
@@ -909,7 +923,7 @@ final readonly class Engine
     /** Answers whether the refill of the rule holds on its stored subject. A rule with no refill, or no readable subject, never refills. */
     private function refills(Evaluation $run, Rule $rule, ?Uuid $stored): bool
     {
-        $refill = $rule->then->refill;
+        $refill = $rule->lead->refill;
         if (null === $refill || null !== $refill->unreadable($run->facts)) {
             return false;
         }
@@ -921,7 +935,7 @@ final readonly class Engine
     /** Stamps the first pass in which only an open blocker keeps a move rule false, and clears the stamp on the pass in which it does not. */
     private function markBlockerHold(Evaluation $run, Rule $rule, WorkflowRuleState $state, BoundRule $bound): void
     {
-        $held = !$bound->truth && $rule->then->traits->endsPass && 1 === $rule->when->countAgainst($bound->facts, true);
+        $held = !$bound->truth && $rule->endsPass() && 1 === $rule->when->countAgainst($bound->facts, true);
         if ($held) {
             $blocking = $rule->when->firstFalseLeaf($bound->facts);
             $held = null !== $blocking && $blocking->negated && self::OPEN_BLOCKER === $blocking->leaf->condition::key();
@@ -933,8 +947,8 @@ final readonly class Engine
     private function logMissingActions(Evaluation $run): void
     {
         foreach ($run->template->rules as $rule) {
-            if ($run->applies($rule) && MissingAction::KEY === $rule->then->key) {
-                $this->logger->warning('workflow.action_missing', ['cardId' => $run->card->id->toRfc4122(), 'ruleId' => $rule->id, 'action' => $rule->then->params['name'] ?? null]);
+            if ($run->applies($rule) && MissingAction::KEY === $rule->lead->key) {
+                $this->logger->warning('workflow.action_missing', ['cardId' => $run->card->id->toRfc4122(), 'ruleId' => $rule->id, 'action' => $rule->lead->params['name'] ?? null]);
             }
         }
     }
@@ -947,7 +961,7 @@ final readonly class Engine
             if (!$run->applies($rule)) {
                 continue;
             }
-            foreach ([...$rule->when->reads(), ...($rule->then->until?->reads() ?? []), ...($rule->then->refill?->reads() ?? []), ...($rule->then->cancelWhen?->reads() ?? [])] as $key) {
+            foreach ([...$rule->when->reads(), ...($rule->lead->until?->reads() ?? []), ...($rule->lead->refill?->reads() ?? []), ...($rule->lead->cancelWhen?->reads() ?? [])] as $key) {
                 if (\is_string($key) && !\array_key_exists($key, $run->facts->provided)) {
                     $missing[$key] = true;
                 }
@@ -966,8 +980,8 @@ final readonly class Engine
     private function waits(Evaluation $run, Rule $rule): bool
     {
         return null !== $rule->when->unreadable($run->facts)
-            || null !== $rule->then->refill?->unreadable($run->facts)
-            || (null !== $rule->then->until?->unreadable($run->facts) && $this->ruleSubject->bind($rule, $run->facts)->truth);
+            || null !== $rule->lead->refill?->unreadable($run->facts)
+            || (null !== $rule->lead->until?->unreadable($run->facts) && $this->ruleSubject->bind($rule, $run->facts)->truth);
     }
 
     /** Withdraws the ask of a state and clears its item id. An item that was answered is closed already, so the withdrawal changes nothing on it. */
@@ -1043,15 +1057,15 @@ final readonly class Engine
 
     private function refiresOnFactChange(Rule $rule): bool
     {
-        $action = $this->actions->get($rule->then->key);
+        $action = $this->actions->get($rule->lead->key);
 
-        return $action instanceof RefiresOnFactChange && $action::refiresOnFactChange($rule->then->params);
+        return $action instanceof RefiresOnFactChange && $action::refiresOnFactChange($rule->lead->params);
     }
 
     private function retriesWhileTrue(Rule $rule): bool
     {
-        $action = $this->actions->get($rule->then->key);
+        $action = $this->actions->get($rule->lead->key);
 
-        return $action instanceof RetriesWhileTrue && $action::retriesWhileTrue($rule->then->params);
+        return $action instanceof RetriesWhileTrue && $action::retriesWhileTrue($rule->lead->params);
     }
 }

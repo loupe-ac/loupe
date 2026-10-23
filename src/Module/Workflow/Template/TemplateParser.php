@@ -255,22 +255,26 @@ final readonly class TemplateParser
         $inbox = self::inbox($source['inbox'] ?? [], $markers, $lenient, $errors);
         if (!$lenient) {
             foreach ($rules as $rule) {
-                $name = $rule->then->params[self::PROMPT] ?? null;
-                if (\is_string($name) && !$this->prompts->has($key, $name)) {
-                    $errors[] = \sprintf('rules (%s): prompt "%s" has no file %s/prompts/%s.md', $rule->id, $name, $key, $name);
+                foreach ($rule->then as $call) {
+                    $name = $call->params[self::PROMPT] ?? null;
+                    if (\is_string($name) && !$this->prompts->has($key, $name)) {
+                        $errors[] = \sprintf('rules (%s): prompt "%s" has no file %s/prompts/%s.md', $rule->id, $name, $key, $name);
+                    }
                 }
             }
         }
         // The engine tells a repair request apart by its kind, so no rule may ask for that kind.
         foreach ($rules as $rule) {
-            $kind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
-            if (null !== $onWorkFailed?->repairKind && $onWorkFailed->repairKind === $kind) {
-                $errors[] = \sprintf('onWorkFailed.repair.kind: the rule "%s" already asks for the kind "%s"', $rule->id, $onWorkFailed->repairKind);
+            foreach ($rule->then as $call) {
+                $kind = $this->actions->get($call->key)->workKind($call->params);
+                if (null !== $onWorkFailed?->repairKind && $onWorkFailed->repairKind === $kind) {
+                    $errors[] = \sprintf('onWorkFailed.repair.kind: the rule "%s" already asks for the kind "%s"', $rule->id, $onWorkFailed->repairKind);
+                }
             }
         }
 
         foreach ($slots as $slot) {
-            if (null !== $slot->stageWork && !array_any($rules, fn (Rule $rule): bool => $rule->slot === $slot->key && $this->actions->get($rule->then->key)->workKind($rule->then->params) === $slot->stageWork)) {
+            if (null !== $slot->stageWork && !array_any($rules, fn (Rule $rule): bool => $rule->slot === $slot->key && array_any($rule->then, fn (ActionCall $call): bool => $this->actions->get($call->key)->workKind($call->params) === $slot->stageWork))) {
                 $errors[] = \sprintf('slots: stageWork "%s" of slot "%s" is the kind of no rule of that slot', $slot->stageWork, $slot->key);
             }
         }
@@ -372,10 +376,10 @@ final readonly class TemplateParser
      */
     private static function childlessTypesReadingChildren(Rule $rule, array $types): array
     {
-        $evaluatesChildren = EvaluateChildren::KEY === $rule->then->key && 'children' === ($rule->then->params['cards'] ?? null);
+        $evaluatesChildren = EvaluateChildren::KEY === $rule->lead->key && 'children' === ($rule->lead->params['cards'] ?? null);
         // The engine reads a pause `until`, a request `refill` and a request `cancelWhen` on a card that the `when` matched.
         $ways = self::typeReads($rule->when);
-        foreach (array_filter([$rule->then->until, $rule->then->refill, $rule->then->cancelWhen]) as $expression) {
+        foreach (array_filter([$rule->lead->until, $rule->lead->refill, $rule->lead->cancelWhen]) as $expression) {
             $ways += self::typeReads(new AllOf([$rule->when, $expression]));
         }
         $found = [];
@@ -420,9 +424,12 @@ final readonly class TemplateParser
 
             return $ways;
         }
-        $type = $expression instanceof ConditionLeaf && $expression->condition instanceof ReadsCardType ? $expression->condition->cardType($expression->params) : null;
+        $readsChildren = array_any($expression->reads(), static fn (EngineFact|string $read): bool => \is_string($read) && is_a($read, ChildFacts::class, true));
+        if (!$expression instanceof ConditionLeaf || !$expression->condition instanceof ReadsCardType) {
+            return self::typeRead(null, $readsChildren);
+        }
 
-        return self::typeRead($type, array_any($expression->reads(), static fn (EngineFact|string $read): bool => \is_string($read) && is_a($read, ChildFacts::class, true)));
+        return array_merge(...array_map(static fn (string $type): array => self::typeRead($type, $readsChildren), $expression->condition->cardType($expression->params)));
     }
 
     /** @return array<string, array{?string, bool}> */
@@ -578,7 +585,7 @@ final readonly class TemplateParser
 
             $then = null;
             if (\array_key_exists('then', $entry)) {
-                $then = $this->action($entry['then'], $where.' then', $slotKeys, $types, $facts, $errors, $lenient);
+                $then = $this->actionsOfRule($entry['then'], $where.' then', $slotKeys, $types, $facts, $errors, $lenient);
             } else {
                 $errors[] = $where.' then: is missing';
             }
@@ -586,7 +593,7 @@ final readonly class TemplateParser
             $unknownAction = null === $then ? null : self::unknownAction($then);
             if (null !== $then && null !== $unknownAction && null !== $when) {
                 $when = new AllOf([new MissingActionLeaf($unknownAction), $when]);
-                $then = new ActionCall(MissingAction::KEY, ['name' => $unknownAction], traits: MissingAction::traits(), from: $then->from);
+                $then = [new ActionCall(MissingAction::KEY, ['name' => $unknownAction], traits: MissingAction::traits(), from: $then[0]->from)];
             }
 
             if (\count($errors) === $errorCount && null !== $when && null !== $then && (null === $slot || \is_string($slot))) {
@@ -858,7 +865,7 @@ final readonly class TemplateParser
         foreach ($condition::parameters() as $parameter) {
             $declared[] = $parameter->name;
             if (!\array_key_exists($parameter->name, $value)) {
-                if ($parameter->required) {
+                if ($parameter->required && (null === $parameter->formerName || !\array_key_exists($parameter->formerName, $value))) {
                     $errors[] = \sprintf('%s: missing parameter "%s"', $where, $parameter->name);
                 }
                 continue;
@@ -877,6 +884,9 @@ final readonly class TemplateParser
                     !self::isColumn($param, $slotKeys, false) => \sprintf('unknown slot "%s"', $param),
                     default => null,
                 },
+                ParameterType::List => \is_array($param) && [] !== $param && array_is_list($param) && array_all($param, static fn (mixed $entry): bool => \is_string($entry) && '' !== $entry)
+                    ? null
+                    : \sprintf('parameter "%s" must be a non-empty list of non-empty strings', $parameter->name),
                 default => throw new \LogicException(\sprintf('The condition "%s" declares the parameter "%s" with a type that only an action takes.', $key, $parameter->name)),
             };
             if (null !== $error) {
@@ -886,11 +896,18 @@ final readonly class TemplateParser
         }
         foreach (array_keys($value) as $name) {
             if (!\in_array($name, $declared, true)) {
-                $errors[] = \sprintf('%s: unknown parameter "%s"', $where, $name);
+                $current = array_find($condition::parameters(), static fn (Parameter $parameter): bool => $parameter->formerName === $name);
+                $errors[] = null === $current
+                    ? \sprintf('%s: unknown parameter "%s"', $where, $name)
+                    : \sprintf('%s: parameter "%s" is gone, use the "%s" list', $where, $name, $current->name);
             }
         }
-        if (\count($errors) === $errorCount && null !== $types && $condition instanceof ReadsCardType && !isset($types[$condition->cardType($params)])) {
-            $errors[] = \sprintf('%s: unknown type "%s"', $where, $condition->cardType($params));
+        if (\count($errors) === $errorCount && null !== $types && $condition instanceof ReadsCardType) {
+            foreach ($condition->cardType($params) as $type) {
+                if (!isset($types[$type])) {
+                    $errors[] = \sprintf('%s: unknown type "%s"', $where, $type);
+                }
+            }
         }
 
         return \count($errors) === $errorCount ? new ConditionLeaf($condition, $params) : null;
@@ -1118,12 +1135,56 @@ final readonly class TemplateParser
         return $options;
     }
 
-    /** @return ?string the name of the first action that this version does not know, in the action or in an ask option */
-    private static function unknownAction(ActionCall $action): ?string
+    /**
+     * A single action is a list of one. A list of several holds only actions that need no bookkeeping of the engine, such as a request or a pause.
+     *
+     * @param list<string>                     $slotKeys
+     * @param ?array<string, TemplateCardType> $types
+     * @param list<string>                     $errors
+     *
+     * @return ?non-empty-list<ActionCall>
+     */
+    private function actionsOfRule(mixed $node, string $where, array $slotKeys, ?array $types, NamedFacts $facts, array &$errors, bool $lenient): ?array
     {
-        foreach ([$action, ...array_merge([], ...array_map(static fn (AskOption $option): array => $option->actions, $action->options))] as $call) {
-            if (MissingAction::KEY === $call->key) {
-                return (string) $call->params['name'];
+        if (!\is_array($node) || !array_is_list($node)) {
+            $call = $this->action($node, $where, $slotKeys, $types, $facts, $errors, $lenient);
+
+            return null === $call ? null : [$call];
+        }
+        if ([] === $node) {
+            $errors[] = $where.': a list of actions must not be empty';
+
+            return null;
+        }
+        $several = \count($node) > 1;
+        $calls = $this->actionList($node, $where, static fn (ActionTraits $traits): bool => !$several || $traits->listable, 'in a rule with several actions', $slotKeys, $types, $facts, $errors, $lenient);
+
+        if (\count($calls) !== \count($node)) {
+            return null;
+        }
+        foreach ($calls as $position => $call) {
+            if ($call->traits->endsPass && isset($calls[$position + 1])) {
+                $errors[] = \sprintf('%s[%d]: the action "%s" ends the pass, so the action "%s" after it would never run', $where, $position, $call->key, $calls[$position + 1]->key);
+
+                return null;
+            }
+        }
+
+        return $calls;
+    }
+
+    /**
+     * @param non-empty-list<ActionCall> $calls
+     *
+     * @return ?string the name of the first action that this version does not know, in an action or in an ask option
+     */
+    private static function unknownAction(array $calls): ?string
+    {
+        foreach ($calls as $action) {
+            foreach ([$action, ...array_merge([], ...array_map(static fn (AskOption $option): array => $option->actions, $action->options))] as $call) {
+                if (MissingAction::KEY === $call->key) {
+                    return (string) $call->params['name'];
+                }
             }
         }
 

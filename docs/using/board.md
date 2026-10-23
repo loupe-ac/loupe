@@ -410,7 +410,8 @@ a pull request was ready to merge, when a verdict was sent from the
 live-review widget, and when an approval started or ended the override of a
 failed agent review. A finished agent run shows its
 rule, its duration and its result, and it links to the run while the run is
-kept.
+kept. A run that a workflow rule stopped has one row of its own, with the rule, the
+duration and a **Stopped** chip, in place of the row of its close.
 
 A row names a person by their full name. An agent's change reads **Agent for**
 and the name of the person the agent works for. A change by the app reads
@@ -1039,8 +1040,8 @@ same way `card_list` does, with 50 events by default and 100 at most. Each event
 carries `kind`, `occurredAt` and `actor`.
 
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
-`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden` or
-`override-ended`. `actor` carries `kind` and `name`. Its `kind` is `human`,
+`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
+`override-ended`, `document-verdict` or `verdict-failed`. `actor` carries `kind` and `name`. Its `kind` is `human`,
 `agent`, `reviewer` or `system`. `name` is the current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
@@ -1049,7 +1050,8 @@ A `moved` event sets `from` and `to`, and a `created` event sets `to` alone.
 Each is a column with `id`, `slug` and `label`. `cause` says why the app moved
 the card on its own, such as a merged pull request. An action of the
 [automation](#automation) sets `pullRequest`. A `fix-requested` or `stopped`
-event also sets `reason`, such as `conflict`. A `run-finished`
+event of a pull request also sets `reason`, such as `conflict`. A `stopped` event
+of a run that a workflow rule stopped sets neither, and its `run` is null. A `run-finished`
 event carries the stored record of the run in `run`. A key that does not apply
 is null.
 
@@ -1064,6 +1066,13 @@ A `review-overridden` or `override-ended` event sets `pullRequest` and
 `override`. `override` holds the `headSha` of the head that the event names,
 and on a `review-overridden` event the `approver` login. `approver` is null on an
 `override-ended` event.
+
+A `document-verdict` event is a verdict on a design document of the card. A
+`verdict-failed` event means that a workflow rule tried to approve a document and
+the app refused. Both set `document`, with `documentId`, `title` and `rule`. A
+`document-verdict` event also sets `verdict` and, for a withdrawal, `withdrawn`.
+A `verdict-failed` event sets `refusal`, a short code such as `verdict_stale`.
+The `rule` is null when a person wrote the verdict.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.

@@ -18,6 +18,8 @@ final readonly class SubmitReviewCommand
         public int $versionNumber,
         public ?string $note = null,
         public ?string $expectedReviewId = null,
+        // The id of the workflow rule that writes the verdict. The reviewer is then the workflow user.
+        public ?string $workflowRule = null,
     ) {
     }
 }

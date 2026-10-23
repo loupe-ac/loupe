@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Account\Command;
 
 use App\Module\Account\Service\AgentAccountInstaller;
+use App\Module\Account\Service\WorkflowAccountInstaller;
 use Doctrine\DBAL\Connection;
 
 final readonly class ResetDatabaseHandler
@@ -33,5 +34,6 @@ final readonly class ResetDatabaseHandler
         // with the rest of `users`, so it is put back. It does not reopen the
         // install wizard — that asks for human accounts (UserRepository::countHumans).
         AgentAccountInstaller::install($this->conn);
+        WorkflowAccountInstaller::install($this->conn);
     }
 }

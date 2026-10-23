@@ -37,7 +37,7 @@ final readonly class WorkflowRuleBudgets implements RuleBudgets
 
         foreach ($template->rules as $rule) {
             if ($ruleId === $rule->id) {
-                $limit = $rule->then->params['limit'] ?? null;
+                $limit = $rule->lead->params['limit'] ?? null;
 
                 return \is_int($limit) ? $limit : null;
             }

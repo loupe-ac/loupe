@@ -55,6 +55,33 @@ final class CardHistoryTabTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-card-history-empty]'));
     }
 
+    public function test_the_rows_of_a_rule_verdict_and_a_withdrawal_read_as_sentences(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'history-verdicts@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Approved by a rule');
+        $events = $this->events();
+        $events->record($card, CardEventKind::DocumentVerdict, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Tech design', 'verdict' => 'approved'], new \DateTimeImmutable('-3 hours'));
+        $events->record($card, CardEventKind::DocumentVerdict, Actor::Human, $owner, ['rule' => null, 'document' => 'Tech design', 'verdict' => 'withdrawn', 'withdrawn' => 'approved'], new \DateTimeImmutable('-2 hours'));
+        $events->record($card, CardEventKind::VerdictFailed, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Tech design', 'refusal' => 'verdict_stale'], new \DateTimeImmutable('-1 hour'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->cardUrl($card));
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('#card-panel-history [data-card-history-entry]');
+        self::assertCount(3, $rows);
+        self::assertStringContainsString('The tech-design-auto-approve workflow rule did not approve Tech design.', $rows->eq(0)->text());
+        self::assertStringContainsString('The document has a newer version than the one the rule checked.', $rows->eq(0)->text());
+        self::assertStringContainsString('Riley Chen withdrew the approval of Tech design.', $rows->eq(1)->text());
+        self::assertStringContainsString('The tech-design-auto-approve workflow rule approved Tech design.', $rows->eq(2)->text());
+        self::assertStringContainsString('No unanswered decision, no open thread, and the agent review passed.', $rows->eq(2)->text());
+    }
+
     public function test_a_card_with_no_rows_says_so(): void
     {
         $client = static::createClient();
@@ -310,6 +337,87 @@ final class CardHistoryTabTest extends WebTestCase
         self::assertCount(1, $row);
         self::assertStringContainsString('Agent for Riley Chen ran the implement work.', $row->text());
         self::assertCount(0, $row->filter('a[data-card-history-run]'));
+    }
+
+    public function test_a_run_that_a_rule_stopped_shows_one_row_with_the_rule_and_the_row_of_its_close_stays_out(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'history-stopped@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Undo it');
+        $stoppedAt = new \DateTimeImmutable('-10 minutes');
+        $run = new WorkerRun(
+            project: $project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            workKind: 'implement',
+            state: WorkerRunState::Stopped,
+            runKey: Uuid::v4(),
+            startedAt: $stoppedAt->modify('-252 seconds'),
+            endedAt: $stoppedAt,
+            receivedAt: $stoppedAt,
+        );
+        $em->persist($run);
+        $em->flush();
+        $runId = (string) $run->id;
+        $this->events()->record($card, CardEventKind::Stopped, Actor::System, null, ['runId' => $runId, 'workKind' => 'implement', 'rule' => 'product-design-undo', 'durationSeconds' => 252], $stoppedAt);
+        $this->events()->upsertRunFinished($card, $run->id ?? throw new \LogicException('A stored run has an id.'), $owner, ['runId' => $runId, 'workKind' => 'implement', 'state' => 'stopped', 'interactive' => false, 'durationSeconds' => 253, 'stateSequence' => null], $stoppedAt->modify('+1 second'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->cardUrl($card));
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('#card-panel-history [data-card-history-entry]');
+        $stopped = $rows->reduce(static fn ($row): bool => str_contains($row->text(), 'stopped the implement work'));
+        self::assertCount(1, $stopped);
+        self::assertCount(0, $rows->reduce(static fn ($row): bool => str_contains($row->text(), 'ran the implement work')), 'The row of the close is the same run.');
+        self::assertStringContainsString('Via the product-design-undo workflow rule.', $stopped->text());
+        self::assertStringContainsString('4m 12s', $stopped->text());
+        self::assertSame('Stopped', trim($stopped->filter('.lp-status-chip--neutral')->text()));
+        self::assertCount(1, $stopped->filter('a[data-card-history-run="'.$runId.'"]'));
+    }
+
+    public function test_a_run_that_finished_on_its_own_after_a_stop_request_keeps_the_row_of_its_close(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'history-stop-raced@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Undo it');
+        $stoppedAt = new \DateTimeImmutable('-10 minutes');
+        $run = new WorkerRun(
+            project: $project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            workKind: 'implement',
+            state: WorkerRunState::Succeeded,
+            runKey: Uuid::v4(),
+            startedAt: $stoppedAt->modify('-252 seconds'),
+            endedAt: $stoppedAt->modify('+5 seconds'),
+            receivedAt: $stoppedAt,
+        );
+        $em->persist($run);
+        $em->flush();
+        $runId = (string) $run->id;
+        $this->events()->record($card, CardEventKind::Stopped, Actor::System, null, ['runId' => $runId, 'workKind' => 'implement', 'rule' => 'product-design-undo', 'durationSeconds' => 252], $stoppedAt);
+        $this->events()->upsertRunFinished($card, $run->id ?? throw new \LogicException('A stored run has an id.'), $owner, ['runId' => $runId, 'workKind' => 'implement', 'state' => 'succeeded', 'interactive' => false, 'durationSeconds' => 257, 'stateSequence' => null], $stoppedAt->modify('+5 seconds'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->cardUrl($card));
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('#card-panel-history [data-card-history-entry]');
+        self::assertCount(1, $rows->reduce(static fn ($row): bool => str_contains($row->text(), 'stopped the implement work')));
+        self::assertCount(1, $rows->reduce(static fn ($row): bool => str_contains($row->text(), 'ran the implement work')), 'The run ended on its own, and its close is the real end state.');
     }
 
     public function test_a_finished_command_run_says_it_is_a_command(): void

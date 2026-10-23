@@ -134,6 +134,24 @@ final class CardGetHistoryToolTest extends KernelTestCase
         self::assertNull($creation['override']);
     }
 
+    public function test_a_document_verdict_row_and_a_failed_verdict_row_read_their_rule_document_and_refusal(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-history-document'));
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->card($created['cardId']);
+        $this->events()->record($card, CardEventKind::DocumentVerdict, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Design', 'documentId' => 'doc-1', 'verdict' => 'approved'], new \DateTimeImmutable('+1 minute'));
+        $this->events()->record($card, CardEventKind::DocumentVerdict, Actor::Human, null, ['rule' => null, 'document' => 'Design', 'documentId' => 'doc-1', 'verdict' => 'withdrawn', 'withdrawn' => 'approved'], new \DateTimeImmutable('+2 minutes'));
+        $this->events()->record($card, CardEventKind::VerdictFailed, Actor::System, null, ['rule' => 'tech-design-auto-approve', 'document' => 'Design', 'documentId' => 'doc-1', 'refusal' => 'verdict_stale'], new \DateTimeImmutable('+3 minutes'));
+        $this->em->flush();
+
+        [$failed, $withdrawn, $approved, $creation] = ($this->tool)($created['cardId'])['events'];
+
+        self::assertSame(['documentId' => 'doc-1', 'title' => 'Design', 'rule' => 'tech-design-auto-approve', 'verdict' => 'approved', 'withdrawn' => null, 'refusal' => null], $approved['document']);
+        self::assertSame(['documentId' => 'doc-1', 'title' => 'Design', 'rule' => null, 'verdict' => 'withdrawn', 'withdrawn' => 'approved', 'refusal' => null], $withdrawn['document']);
+        self::assertSame(['documentId' => 'doc-1', 'title' => 'Design', 'rule' => 'tech-design-auto-approve', 'verdict' => null, 'withdrawn' => null, 'refusal' => 'verdict_stale'], $failed['document']);
+        self::assertNull($creation['document']);
+    }
+
     public function test_a_finished_run_passes_its_whole_detail_through(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-history-run'));

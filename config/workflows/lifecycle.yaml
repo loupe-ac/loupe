@@ -1,5 +1,5 @@
 key: lifecycle
-version: 15
+version: 18
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -55,6 +55,29 @@ facts:
             - not: { pr.approval_covers_head: { min: 1 } }
             - not: { card.run.worker_active: {} }
 rules:
+    # These two come first and have no slot. A person who withdraws an approval undoes the stage it opened.
+    # A card in a terminal column keeps its place, and a card already in the slot of the design has nothing to undo.
+    - id: product-design-undo
+      when:
+          all:
+              - card.document.approval_withdrawn: { tag: product-design }
+              - not: { card.in_slot: { slot: '@terminal' } }
+              - not: { card.in_slot: { slot: product-design } }
+      then:
+          - stop-work: {}
+          - request-changes: { tags: [tech-design], note: workflow.note.product_design_undone }
+          - move: { to: product-design }
+
+    - id: tech-design-undo
+      when:
+          all:
+              - card.document.approval_withdrawn: { tag: tech-design }
+              - not: { card.in_slot: { slot: '@terminal' } }
+              - not: { card.in_slot: { slot: tech-design } }
+      then:
+          - stop-work: {}
+          - move: { to: tech-design }
+
     - id: product-design-session
       slot: product-design
       when: { not: { card.document.linked: { tag: product-design } } }
@@ -122,6 +145,18 @@ rules:
               - not: { card.run.work_active: {} }
               - not: { card.run.worker_active: {} }
       then: { publish-documents: { tags: [product-design] } }
+
+    - id: product-design-auto-approve
+      slot: product-design
+      when:
+          all:
+              - card.document.in_review: { tag: product-design }
+              - card.document.published_in_column: { tag: product-design }
+              - not: { card.document.entry_decisions_open: { tag: product-design } }
+              - not: { card.document.entry_threads_open: { tag: product-design } }
+              - not: { card.document.rejected_before: { tag: product-design } }
+              - design_review.passed: { tag: product-design }
+      then: { approve-document: { tag: product-design } }
 
     - id: product-design-approved
       slot: product-design
@@ -201,6 +236,19 @@ rules:
               - not: { card.run.worker_active: {} }
       then: { publish-documents: { tags: [tech-design, deploy-notes] } }
 
+    - id: tech-design-auto-approve
+      slot: tech-design
+      when:
+          all:
+              - card.type: { types: [bug, tooling, docs] }
+              - card.document.in_review: { tag: tech-design }
+              - card.document.published_in_column: { tag: tech-design }
+              - not: { card.document.entry_decisions_open: { tag: tech-design } }
+              - not: { card.document.entry_threads_open: { tag: tech-design } }
+              - not: { card.document.rejected_before: { tag: tech-design } }
+              - design_review.passed: { tag: tech-design }
+      then: { approve-document: { tag: tech-design } }
+
     - id: tech-design-recheck
       slot: tech-design
       when:
@@ -234,7 +282,7 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - not: { card.pr.linked: {} }
       then:
           request:
@@ -251,7 +299,7 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - not: { card.pr.linked: {} }
               - not: { card.run.work_active: {} }
               - card.run.finished_with: { kind: implement, reason: nothing-to-build }
@@ -261,7 +309,7 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - not: { card.pr.linked: {} }
               - not: { card.run.work_active: {} }
               - card.run.finished_with: { kind: implement, reason: delivered-without-code }
@@ -269,7 +317,7 @@ rules:
 
     - id: breakdown
       slot: implementation
-      when: { card.type: { type: epic } }
+      when: { card.type: { types: [epic] } }
       then:
           request:
               kind: breakdown
@@ -281,7 +329,7 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - pr.open: {}
               - not: { card.pr.draft_open: {} }
               - not: { pr.draft: {} }
@@ -322,7 +370,7 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - pr.open: {}
               - agent_review.due: {}
               - not: { card.run.work_active: { kind: implement } }
@@ -362,7 +410,7 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - pr.draft: {}
               - any:
                     - agent_review.passed: {}
@@ -409,7 +457,7 @@ rules:
       slot: in-review
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - pr.open: {}
               - agent_review.due: {}
               - not: { card.run.work_active: { kind: implement } }
@@ -449,7 +497,7 @@ rules:
       slot: in-review
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - pr.draft: {}
       then: { move: { to: implementation } }
 
@@ -514,7 +562,7 @@ rules:
       slot: implementation
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - card.children.exist: {}
               - card.children.finished: {}
               - pr.open: {}
@@ -525,7 +573,7 @@ rules:
       slot: implementation
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - card.children.exist: {}
               - card.children.finished: {}
               - not: { card.pr.linked: {} }
@@ -535,13 +583,13 @@ rules:
 
     - id: epic-entered-implementation
       slot: implementation
-      when: { card.type: { type: epic } }
+      when: { card.type: { types: [epic] } }
       then: { evaluate: { cards: children } }
 
     - id: breakdown-ended
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - not: { card.run.worker_active: {} }
       then: { evaluate: { cards: children } }
 
@@ -549,7 +597,7 @@ rules:
       slot: in-review
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - not: { card.children.finished: {} }
       then: { move: { to: implementation } }
 
@@ -557,7 +605,7 @@ rules:
       slot: '@terminal'
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - not: { card.children.finished: {} }
       then: { move: { to: implementation } }
 
@@ -565,24 +613,24 @@ rules:
       slot: implementation
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - card.children.merged_into_epic_branch: {}
               - not: { pr.open: {} }
       then: { forge-write: { write: open-epic } }
 
     - id: epic-draft
       slot: implementation
-      when: { card.type: { type: epic } }
+      when: { card.type: { types: [epic] } }
       then: { forge-write: { write: draft } }
 
     - id: epic-ready
       slot: in-review
-      when: { card.type: { type: epic } }
+      when: { card.type: { types: [epic] } }
       then: { forge-write: { write: ready } }
 
     - id: epic-close
       slot: '@backlog'
-      when: { card.type: { type: epic } }
+      when: { card.type: { types: [epic] } }
       then: { forge-write: { write: close } }
 
     - id: teardown
@@ -597,7 +645,7 @@ rules:
       slot: in-review
       when:
           all:
-              - card.type: { type: epic }
+              - card.type: { types: [epic] }
               - card.children.finished: {}
               - pr.open: {}
               - not: { card.run.done_at_head: { kind: epic-preview } }
@@ -654,7 +702,7 @@ rules:
     - id: pull-request-reopened
       when:
           all:
-              - not: { card.type: { type: epic } }
+              - not: { card.type: { types: [epic] } }
               - pr.open: {}
       then: { move: { to: implementation, from: '@backlog' } }
 
@@ -664,7 +712,7 @@ rules:
               - not: { card.in_slot: { slot: '@terminal' } }
               - card.pr.all_finished_one_merged: {}
               - card.children.finished: {}
-              - any: [{ not: { card.type: { type: epic } } }, { not: { card.run.worker_active: {} } }]
+              - any: [{ not: { card.type: { types: [epic] } } }, { not: { card.run.worker_active: {} } }]
       then: { move: { to: '@terminal', outcome: merged } }
 
     # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.

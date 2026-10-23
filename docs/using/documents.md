@@ -92,8 +92,35 @@ A request for changes needs a review note only when the version has no open comm
 An open comment is a thread that is pending or addressed. An approval can include a note.
 After a verdict, the top bar shows the verdict as a button.
 Select it to see the reviewer, version, time and note, with **Change verdict** and **Undo**.
+**Undo** on an approval of a design can move the card back to the stage of that design. See [Undoing a design](workflows.md#undoing-a-design).
+A workflow rule can write a verdict. The reviewer then reads **Workflow**, with the id of the rule beside it.
+An approval by a rule carries the note "Approved when it was published: no unanswered decision, no open thread, and the agent review passed."
+When a document is published, which moves it out of Draft, Loupe records how many decisions had no answer and how many threads were not resolved.
+A workflow rule reads that record. The rule approves a design only when both counts are 0, the agent review passed, and nobody rejected the document before.
+A later answer or comment does not change the record. A document created in review, or put back in review by a revision, writes no record, so a rule does not approve it.
+See [Automatic approval of a design](workflows.md#automatic-approval-of-a-design).
+Only the owner of the document can open it, change the verdict or select **Undo**.
 The account export and `document_get_review` result include the note.
 Open threads do not prevent approval.
+
+When you open **Finish review**, Loupe selects a verdict for you.
+It selects **Approve** when every decision has an answer and no thread is pending.
+An addressed thread does not count as pending.
+A note on a decision is not a comment.
+In all other cases, it selects **Request changes**.
+A choice that you made in the dialog and did not send stays selected.
+
+You cannot approve a version while a decision has no answer.
+In this case, **Approve** is dimmed and you cannot select it.
+The dialog shows how many decisions have no answer.
+Select **Go to the first one** to close the dialog and show that decision.
+A decision has an answer when it has a picked option or a note.
+You can still request changes.
+
+If someone clears an answer after you open the dialog, Loupe refuses the approval.
+The dialog stays open with the error and keeps your note.
+The document stays in review.
+A document review in the inbox follows the same rule.
 
 A verdict applies to the version shown when the reviewer opens the page.
 If another verdict or revision arrives first, Loupe rejects the submission and keeps the note visible.
@@ -231,7 +258,7 @@ Three views help across versions:
 
 Select **Version history** in the **⋯** menu to see every version in one table, newest first.
 Each row shows the version, its revision note, its reviews, and **Read** and **Diff** links.
-Each review shows the reviewer, verdict, note and time.
+Each review shows the reviewer, verdict, note and time. A verdict that a workflow rule wrote shows **Workflow** and the id of the rule.
 Withdrawals remain beside the original verdict. Versions without reviews say so.
 History keeps the document header, with Document, Diff and History tabs to move back.
 Use **Revise** or **Finish review** there to act on the current version.

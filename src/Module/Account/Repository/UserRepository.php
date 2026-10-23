@@ -4,6 +4,7 @@ namespace App\Module\Account\Repository;
 
 use App\Module\Account\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
@@ -28,11 +29,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     public function loadUserByIdentifier(string $identifier): UserInterface
     {
         $user = $this->findOneBy(['email' => strtolower($identifier)]);
-        // The agent account is never a principal. What actually makes it
+        // The agent and workflow accounts are never principals. What actually makes it
         // unreachable is its null password plus the fact that it owns no
         // project and so can never own an API token; this only closes the
         // form-login path, which is the one that comes through here.
-        if (!$user instanceof User || $user->isAgent()) {
+        if (!$user instanceof User || $user->isAgent() || $user->isWorkflow()) {
             throw new UserNotFoundException(sprintf('User "%s" not found.', $identifier));
         }
 
@@ -90,8 +91,8 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
-     * Every account a person could sign into. The agent is excluded because the
-     * migration that inserts it runs before anyone registers: counted, it would
+     * Every account a person could sign into. The agent and workflow accounts are excluded because the
+     * migrations that insert them run before anyone registers: counted, they would
      * make a brand-new install look already populated and lock the install
      * wizard out permanently.
      */
@@ -99,8 +100,8 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         $qb = $this->createQueryBuilder('u')
             ->select('COUNT(u.id)')
-            ->where('u.id != :agent')
-            ->setParameter('agent', User::AGENT_ID);
+            ->where('u.id NOT IN (:system)')
+            ->setParameter('system', User::SYSTEM_IDS, ArrayParameterType::STRING);
 
         if ($activeOnly) {
             $qb->andWhere('u.disabledAt IS NULL');
@@ -110,7 +111,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
-     * Administrators who could still log in. The agent is excluded for the same
+     * Administrators who could still log in. The agent and workflow accounts are excluded for the same
      * reason countHumans() excludes it, and a suspended admin does not count —
      * the suspension gate pins them out of the admin area entirely.
      */
@@ -118,17 +119,17 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         $sql = <<<'SQL'
             SELECT COUNT(*) FROM users
-            WHERE id != :agent
+            WHERE id NOT IN (:system)
               AND suspended_at IS NULL
               AND jsonb_exists(roles::jsonb, 'ROLE_ADMIN')
             SQL;
 
         return (int) $this->getEntityManager()->getConnection()
-            ->fetchOne($sql, ['agent' => User::AGENT_ID]);
+            ->fetchOne($sql, ['system' => User::SYSTEM_IDS], ['system' => ArrayParameterType::STRING]);
     }
 
     /**
-     * The admin user list. The agent is excluded here rather than by a filter
+     * The admin user list. The agent and workflow accounts are excluded here rather than by a filter
      * so no call site can forget: it authors agent-written content across the
      * app and is not a person an admin acts on.
      *
@@ -143,8 +144,8 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     public function findPaginatedForAdmin(int $page, int $perPage, string $sort, string $dir, array $filters): Paginator
     {
         $qb = $this->createQueryBuilder('u')
-            ->where('u.id != :agent')
-            ->setParameter('agent', User::AGENT_ID)
+            ->where('u.id NOT IN (:system)')
+            ->setParameter('system', User::SYSTEM_IDS, ArrayParameterType::STRING)
             ->orderBy('u.'.$sort, 'asc' === $dir ? 'ASC' : 'DESC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
@@ -188,6 +189,16 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         return $this->find(Uuid::fromString(User::AGENT_ID))
             ?? throw new \LogicException('The agent user is missing; the database has not been fully migrated.');
+    }
+
+    /**
+     * The singleton account that authors the verdicts of workflow rules.
+     * Inserted by a migration, like the agent.
+     */
+    public function workflow(): User
+    {
+        return $this->find(Uuid::fromString(User::WORKFLOW_ID))
+            ?? throw new \LogicException('The workflow user is missing; the database has not been fully migrated.');
     }
 
     /**

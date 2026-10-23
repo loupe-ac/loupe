@@ -26,10 +26,24 @@ final class FingerprintValue
     /**
      * @param list<DocumentFacts> $documents
      *
-     * @return list<array{string, list<string>}>
+     * @return list<array{string, list<string>, ?int, ?int, ?string, ?string, ?int, ?int, bool, bool}>
      */
     public static function documents(array $documents): array
     {
-        return self::sorted(array_map(static fn (DocumentFacts $document): array => [$document->status, self::sorted($document->tags)], $documents));
+        return self::sorted(array_map(
+            static fn (DocumentFacts $document): array => [
+                $document->status,
+                self::sorted($document->tags),
+                $document->version,
+                $document->cleanCheckVersion,
+                $document->newestReviewId,
+                $document->publishedAt?->format('Y-m-d\TH:i:s.uP'),
+                $document->entryUnansweredDecisions,
+                $document->entryOpenThreads,
+                $document->rejectedBefore,
+                $document->newestReviewWithdrewApproval,
+            ],
+            $documents,
+        ));
     }
 }

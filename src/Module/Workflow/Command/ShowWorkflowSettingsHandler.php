@@ -16,6 +16,7 @@ use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Expression\Not;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
+use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMove;
 use App\Module\Workflow\Template\ManualMoveActor;
 use App\Module\Workflow\Template\Rule;
@@ -101,22 +102,28 @@ final readonly class ShowWorkflowSettingsHandler
 
     private function rule(Template $template, Rule $rule): WorkflowRuleView
     {
-        $description = $this->actions->get($rule->then->key)->describe($rule->then->params);
-        $expressions = array_values(array_filter([$rule->when, $rule->then->until, $rule->then->refill, $rule->then->cancelWhen]));
+        $actions = array_map(function (ActionCall $call) use ($template): WorkflowRuleActionView {
+            $description = $this->actions->get($call->key)->describe($call->params);
+
+            return new WorkflowRuleActionView(
+                actionKey: $description->settingsKey,
+                targetKey: null === $description->settingsTarget ? null : self::placeKey($template, $description->settingsTarget),
+                kind: $description->settingsDetail,
+            );
+        }, $rule->then);
+        $expressions = array_values(array_filter([$rule->when, ...array_merge(...array_map(static fn (ActionCall $call): array => [$call->until, $call->refill, $call->cancelWhen], $rule->then))]));
         $missing = array_merge(...array_map(static fn (Expression $expression): array => $expression->missingKeys(), $expressions));
 
         return new WorkflowRuleView(
             id: $rule->id,
             appliesToKey: self::placeKey($template, $rule->slot ?? '*'),
-            actionKey: $description->settingsKey,
-            targetKey: null === $description->settingsTarget ? null : self::placeKey($template, $description->settingsTarget),
-            kind: $description->settingsDetail,
+            actions: $actions,
             whenGroups: self::groups($rule->when),
-            untilGroups: null === $rule->then->until ? [] : self::groups($rule->then->until),
-            refillGroups: null === $rule->then->refill ? [] : self::groups($rule->then->refill),
+            untilGroups: null === $rule->lead->until ? [] : self::groups($rule->lead->until),
+            refillGroups: null === $rule->lead->refill ? [] : self::groups($rule->lead->refill),
             missingConditions: array_values(array_unique($missing)),
-            missingAction: MissingAction::KEY === $rule->then->key ? (string) $rule->then->params['name'] : null,
-            cancelWhenGroups: null === $rule->then->cancelWhen ? [] : self::groups($rule->then->cancelWhen),
+            missingAction: MissingAction::KEY === $rule->lead->key ? (string) $rule->lead->params['name'] : null,
+            cancelWhenGroups: null === $rule->lead->cancelWhen ? [] : self::groups($rule->lead->cancelWhen),
         );
     }
 

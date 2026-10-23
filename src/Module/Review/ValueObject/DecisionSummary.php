@@ -42,6 +42,23 @@ final readonly class DecisionSummary
         ));
     }
 
+    public function unansweredCount(): int
+    {
+        return \count($this->decisions) - $this->answeredCount();
+    }
+
+    /** The element id of the first decision in document order that has no answer, null when every one has. */
+    public function firstUnansweredElementId(): ?string
+    {
+        foreach ($this->decisions as $decision) {
+            if (!$this->isAnswered($decision)) {
+                return DecisionBlockService::blockElementId($decision->id);
+            }
+        }
+
+        return null;
+    }
+
     /** A saved note answers a decision even when no option is chosen. */
     public function isAnswered(Decision $decision): bool
     {

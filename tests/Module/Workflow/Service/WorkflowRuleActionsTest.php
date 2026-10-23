@@ -53,7 +53,7 @@ final class WorkflowRuleActionsTest extends TestCase
         $settings->method('automationEnabled')->willReturn(true);
         $templates = $this->createStub(TemplateSource::class);
         $templates->method('forProject')->willReturn(new Template('test', 1, [], [
-            new Rule('verdict', null, $when, new ActionCall('post-review', ['kind' => 'review'])),
+            new Rule('verdict', null, $when, [new ActionCall('post-review', ['kind' => 'review'])]),
         ], [], [10], 120, [], 'feature'));
 
         return new WorkflowRuleActions($settings, $templates);

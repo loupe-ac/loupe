@@ -152,7 +152,7 @@ final class ListUsersControllerTest extends WebTestCase
         $this->assertResponseIsSuccessful();
     }
 
-    public function test_the_agent_account_is_never_listed(): void
+    public function test_the_agent_and_workflow_accounts_are_never_listed(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -172,6 +172,8 @@ final class ListUsersControllerTest extends WebTestCase
             '/admin/users?verified=no',
             '/admin/users?state=active',
             '/admin/users?q=agent&role=user&verified=no&state=active',
+            '/admin/users?q=workflow',
+            '/admin/users?q=workflow@loupe.invalid',
         ];
 
         foreach ($urls as $url) {
@@ -180,6 +182,11 @@ final class ListUsersControllerTest extends WebTestCase
             $this->assertCount(
                 0,
                 $crawler->filter(sprintf('[data-user-id="%s"]', User::AGENT_ID)),
+                $url,
+            );
+            $this->assertCount(
+                0,
+                $crawler->filter(sprintf('[data-user-id="%s"]', User::WORKFLOW_ID)),
                 $url,
             );
         }

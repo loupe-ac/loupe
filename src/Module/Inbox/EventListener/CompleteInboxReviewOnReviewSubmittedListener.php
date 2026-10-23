@@ -30,10 +30,11 @@ final readonly class CompleteInboxReviewOnReviewSubmittedListener
     public function __invoke(ReviewSubmitted $event): void
     {
         $result = $event->review;
+        $actor = null === $result->workflowRule ? InboxEventType::ACTOR_HUMAN : InboxEventType::ACTOR_SYSTEM;
         $reviews = $this->inboxReviews->findOpenForDocument($result->version->document);
         $this->inboxItems->reloadChangeableColumns(array_map(static fn ($review) => $review->item, $reviews));
         foreach ($reviews as $review) {
-            if (!$this->closer->close($review->item, InboxItemState::Done, null, $result->submittedAt, InboxEventType::ACTOR_HUMAN)) {
+            if (!$this->closer->close($review->item, InboxItemState::Done, null, $result->submittedAt, $actor)) {
                 continue;
             }
 

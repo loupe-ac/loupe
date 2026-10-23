@@ -22,9 +22,24 @@ use Symfony\Component\Uid\Uuid;
  */
 class DocumentRepository extends ServiceEntityRepository
 {
+    /**
+     * Blocks another verdict lock and a FOR UPDATE lock, and waits for neither a key share nor
+     * a plain update. An outbox insert holds a key share on the project row, and a verdict may
+     * run inside the workflow engine pass that wrote it.
+     */
+    public const string VERDICT_LOCK = 'FOR NO KEY UPDATE';
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Document::class);
+    }
+
+    /** Locks the project row and then the document row, in the order every verdict writer takes them. */
+    public function lockForVerdict(Document $document): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $connection->executeQuery('SELECT id FROM projects WHERE id = ? '.self::VERDICT_LOCK, [(string) $document->project->id]);
+        $connection->executeQuery('SELECT id FROM documents WHERE id = ? '.self::VERDICT_LOCK, [(string) $document->id]);
     }
 
     /** @return list<Document> */

@@ -210,6 +210,12 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
             ['key' => 'chore', 'label' => 'Chore', 'tone' => 'pink'],
             ['key' => 'epic', 'label' => 'Epic', 'tone' => 'blue', 'capabilities' => ['children', 'lane']],
         ];
+        foreach ($definition['rules'] as &$rule) {
+            if ('tech-design-auto-approve' === $rule['id']) {
+                $rule['when']['all'][0] = ['card.type' => ['types' => ['feature']]];
+            }
+        }
+        unset($rule);
         $binding->definition = $definition;
         $this->em()->flush();
         $catalog = self::getContainer()->get(TemplateCardTypeCatalog::class);

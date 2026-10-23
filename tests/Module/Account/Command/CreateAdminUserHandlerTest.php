@@ -69,6 +69,18 @@ final class CreateAdminUserHandlerTest extends KernelTestCase
         self::assertSame(1, $this->countAgentRows());
     }
 
+    public function test_it_restores_a_missing_workflow_account(): void
+    {
+        $this->em->getConnection()->delete('users', ['id' => User::WORKFLOW_ID]);
+
+        ($this->handler)(new CreateAdminUserCommand(
+            email: 'workflowrepair@example.com',
+            plainPassword: 'SecurePassword1!',
+        ));
+
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM users WHERE id = :id', ['id' => User::WORKFLOW_ID]));
+    }
+
     public function test_it_restores_a_missing_agent_account_for_an_existing_administrator(): void
     {
         // The repair case that matters: an operator re-running this command to

@@ -1735,6 +1735,18 @@
                 <source>review.document.finish.submit</source>
                 <target>Submit review</target>
             </trans-unit>
+            <trans-unit id="review.document.flash.decisions_unanswered">
+                <source>review.document.flash.decisions_unanswered</source>
+                <target>{0}Every decision has an answer.|{1}%count% decision has no answer. Answer it, or request changes.|]1,Inf[%count% decisions have no answer. Answer them, or request changes.</target>
+            </trans-unit>
+            <trans-unit id="review.finish.approve_blocked">
+                <source>review.finish.approve_blocked</source>
+                <target>{0}Every decision has an answer.|{1}%count% decision has no answer.|]1,Inf[%count% decisions have no answer.</target>
+            </trans-unit>
+            <trans-unit id="review.finish.approve_blocked_link">
+                <source>review.finish.approve_blocked_link</source>
+                <target>Go to the first one</target>
+            </trans-unit>
             <trans-unit id="review.form.submit_review_form.verdict.label">
                 <source>review.form.submit_review_form.verdict.label</source>
                 <target>Verdict</target>
@@ -1758,6 +1770,10 @@
             <trans-unit id="review.document.verdict.request_changes">
                 <source>review.document.verdict.request_changes</source>
                 <target>Request changes</target>
+            </trans-unit>
+            <trans-unit id="review.document.verdict.workflow_approved_note">
+                <source>review.document.verdict.workflow_approved_note</source>
+                <target>Approved when it was published: no unanswered decision, no open thread, and the agent review passed.</target>
             </trans-unit>
             <trans-unit id="review.document.verdict.undo">
                 <source>review.document.verdict.undo</source>
@@ -3432,6 +3448,22 @@
                 <source>check.agent_account.label</source>
                 <target>Agent account</target>
             </trans-unit>
+            <trans-unit id="account.system_status.workflow_account.present">
+                <source>account.system_status.workflow_account.present</source>
+                <target>The workflow account exists. It writes every verdict that a workflow rule gives.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.workflow_account.missing">
+                <source>account.system_status.workflow_account.missing</source>
+                <target>The workflow account is missing, so a workflow rule cannot approve or request changes on a document. Run "bin/console app:admin:create" with your existing administrator's email to restore it. Running the migrations again does not restore it, because the migration that creates the row is already recorded as applied.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.workflow_account.unreadable">
+                <source>account.system_status.workflow_account.unreadable</source>
+                <target>The workflow account could not be read. The database rejected the query. The error is in the log.</target>
+            </trans-unit>
+            <trans-unit id="check.workflow_account.label">
+                <source>check.workflow_account.label</source>
+                <target>Workflow account</target>
+            </trans-unit>
             <trans-unit id="account.system_status.trusted_proxies.resolved">
                 <source>account.system_status.trusted_proxies.resolved</source>
                 <target>The client address matches the caller named in X-Forwarded-For, so this instance sees real client addresses through its proxy.</target>
@@ -3717,6 +3749,10 @@
             <trans-unit id="account.admin.users.error.agent_account">
                 <source>account.admin.users.error.agent_account</source>
                 <target>The agent account authors everything agents write, so it cannot be changed or removed.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.users.error.workflow_account">
+                <source>account.admin.users.error.workflow_account</source>
+                <target>The workflow account authors the verdicts of workflow rules, so it cannot be changed or removed.</target>
             </trans-unit>
             <trans-unit id="account.admin.users.error.self_target">
                 <source>account.admin.users.error.self_target</source>
@@ -7319,6 +7355,8 @@
             <trans-unit id="board.card.history.stopped"><source>board.card.history.stopped</source><target>%actor% stopped the automation on #%pr%.</target></trans-unit>
             <trans-unit id="board.card.history.ready_to_merge"><source>board.card.history.ready_to_merge</source><target>#%pr% is ready to merge.</target></trans-unit>
             <trans-unit id="board.card.history.synced"><source>board.card.history.synced</source><target>%actor% updated #%pr% with its base branch.</target></trans-unit>
+            <trans-unit id="board.card.history.stopped_work"><source>board.card.history.stopped_work</source><target>%actor% stopped the %kind% work.</target></trans-unit>
+            <trans-unit id="board.card.history.stopped_work_no_kind"><source>board.card.history.stopped_work_no_kind</source><target>A worker was stopped.</target></trans-unit>
             <trans-unit id="board.card.history.run_finished"><source>board.card.history.run_finished</source><target>%actor% ran the %kind% work.</target></trans-unit>
             <trans-unit id="board.card.history.run_finished_no_kind"><source>board.card.history.run_finished_no_kind</source><target>%actor% ran a worker.</target></trans-unit>
             <trans-unit id="board.card.history.run_not_started"><source>board.card.history.run_not_started</source><target>The %kind% work did not run.</target></trans-unit>
@@ -7361,6 +7399,16 @@
             <trans-unit id="board.card.history.cause.run_no_kind"><source>board.card.history.cause.run_no_kind</source><target>Via a run.</target></trans-unit>
             <trans-unit id="board.card.history.cause.workflow_rule"><source>board.card.history.cause.workflow_rule</source><target>Via the %rule% workflow rule.</target></trans-unit>
             <trans-unit id="board.card.history.cause.pause_released"><source>board.card.history.cause.pause_released</source><target>Because %reason%. Via the %rule% workflow rule.</target></trans-unit>
+            <trans-unit id="board.card.history.document_approved_by_rule"><source>board.card.history.document_approved_by_rule</source><target>The %rule% workflow rule approved %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.changes_requested_by_rule"><source>board.card.history.changes_requested_by_rule</source><target>The %rule% workflow rule requested changes on %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.approval_withdrawn"><source>board.card.history.approval_withdrawn</source><target>%actor% withdrew the approval of %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.change_request_withdrawn"><source>board.card.history.change_request_withdrawn</source><target>%actor% withdrew the change request on %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed"><source>board.card.history.verdict_failed</source><target>The %rule% workflow rule did not approve %document%.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.decisions_unanswered"><source>board.card.history.verdict_failed_cause.decisions_unanswered</source><target>A decision in the document has no answer.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict_failed_cause.other"><source>board.card.history.verdict_failed_cause.other</source><target>The app refused the approval.</target></trans-unit>
             <trans-unit id="board.card.history.cause.column_deleted"><source>board.card.history.cause.column_deleted</source><target>After the %column% column was deleted.</target></trans-unit>
             <trans-unit id="board.card.overview.description"><source>board.card.overview.description</source><target>Description</target></trans-unit>
             <trans-unit id="board.card.overview.status"><source>board.card.overview.status</source><target>Status</target></trans-unit>
@@ -8603,6 +8651,8 @@
             <trans-unit id="workflow.waiting.not.design_review_fix_due"><source>workflow.waiting.not.design_review_fix_due</source><target>Waiting: the review of a draft %tag% document asks for a fix round.</target></trans-unit>
             <trans-unit id="workflow.waiting.design_review_finished"><source>workflow.waiting.design_review_finished</source><target>Waiting: a draft %tag% document has no finished design review.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.design_review_finished"><source>workflow.waiting.not.design_review_finished</source><target>Waiting: every draft %tag% document has a finished design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_passed"><source>workflow.waiting.design_review_passed</source><target>Waiting: a %tag% document in review has no agent review that passed.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_passed"><source>workflow.waiting.not.design_review_passed</source><target>Waiting: every %tag% document in review has an agent review that passed.</target></trans-unit>
             <trans-unit id="workflow.waiting.design_review_running"><source>workflow.waiting.design_review_running</source><target>Waiting: no draft %tag% document has a design review in progress.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.design_review_running"><source>workflow.waiting.not.design_review_running</source><target>Waiting: a draft %tag% document has a design review in progress.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_uncommented"><source>workflow.waiting.agent_review_uncommented</source><target>Waiting: an agent review with findings and a new check needs its summary comment.</target></trans-unit>
@@ -8669,6 +8719,16 @@
             <trans-unit id="workflow.waiting.not.card_paused"><source>workflow.waiting.not.card_paused</source><target>Waiting: the card is paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document_in_review"><source>workflow.waiting.card_document_in_review</source><target>Waiting: the card has no %tag% document in review.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_document_in_review"><source>workflow.waiting.not.card_document_in_review</source><target>Waiting: a %tag% document of the card is in review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_entry_decisions_open"><source>workflow.waiting.card_document_entry_decisions_open</source><target>Waiting: no %tag% document in review had an unanswered decision when it was published.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_entry_decisions_open"><source>workflow.waiting.not.card_document_entry_decisions_open</source><target>Waiting: a %tag% document in review had an unanswered decision when it was published, or has no entry check.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_entry_threads_open"><source>workflow.waiting.card_document_entry_threads_open</source><target>Waiting: no %tag% document in review had an open thread when it was published.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_entry_threads_open"><source>workflow.waiting.not.card_document_entry_threads_open</source><target>Waiting: a %tag% document in review had an open thread when it was published, or has no entry check.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_rejected_before"><source>workflow.waiting.card_document_rejected_before</source><target>Waiting: no %tag% document of the card ever got a change request or a withdrawal.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_rejected_before"><source>workflow.waiting.not.card_document_rejected_before</source><target>Waiting: a %tag% document of the card got a change request or a withdrawal.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_published_in_column"><source>workflow.waiting.card_document_published_in_column</source><target>Waiting: a %tag% document in review was published before the card arrived in its column, or has no entry check.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_published_in_column"><source>workflow.waiting.not.card_document_published_in_column</source><target>Waiting: every %tag% document in review was published after the card arrived in its column.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_approval_withdrawn"><source>workflow.waiting.card_document_approval_withdrawn</source><target>Waiting: no %tag% document of the card had its approval withdrawn.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_approval_withdrawn"><source>workflow.waiting.not.card_document_approval_withdrawn</source><target>Waiting: a %tag% document of the card had its approval withdrawn.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_quiet_for"><source>workflow.waiting.card_quiet_for</source><target>Waiting: something happened on the card in the last %delay% minutes.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_quiet_for"><source>workflow.waiting.not.card_quiet_for</source><target>Waiting: nothing happened on the card for %delay% minutes or more.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_quiet_for_stuck_delay"><source>workflow.waiting.card_quiet_for_stuck_delay</source><target>Waiting: something happened on the card within the stuck delay.</target></trans-unit>
@@ -8802,6 +8862,9 @@
             <trans-unit id="workflow.settings.where.any"><source>workflow.settings.where.any</source><target>any column</target></trans-unit>
             <trans-unit id="workflow.settings.action.move"><source>workflow.settings.action.move</source><target>Move the card to %target%</target></trans-unit>
             <trans-unit id="workflow.settings.action.request"><source>workflow.settings.action.request</source><target>Request work: %kind%</target></trans-unit>
+            <trans-unit id="workflow.settings.action.approve_document"><source>workflow.settings.action.approve_document</source><target>Approve the documents that passed the entry check</target></trans-unit>
+            <trans-unit id="workflow.settings.action.request_changes"><source>workflow.settings.action.request_changes</source><target>Request changes on the documents</target></trans-unit>
+            <trans-unit id="workflow.settings.action.stop_work"><source>workflow.settings.action.stop_work</source><target>Stop the work of the card</target></trans-unit>
             <trans-unit id="workflow.settings.action.publish_documents"><source>workflow.settings.action.publish_documents</source><target>Publish the draft documents</target></trans-unit>
             <trans-unit id="workflow.settings.action.forge_write"><source>workflow.settings.action.forge_write</source><target>Forge write: %kind%</target></trans-unit>
             <trans-unit id="workflow.settings.action.pause"><source>workflow.settings.action.pause</source><target>Pause the card</target></trans-unit>
@@ -8864,6 +8927,10 @@
             <trans-unit id="workflow.panel.action.move_backlog"><source>workflow.panel.action.move_backlog</source><target>Move the card to the Backlog</target></trans-unit>
             <trans-unit id="workflow.panel.action.move_terminal"><source>workflow.panel.action.move_terminal</source><target>Move the card to a terminal column</target></trans-unit>
             <trans-unit id="workflow.panel.action.request"><source>workflow.panel.action.request</source><target>Request %kind% work from a bridge</target></trans-unit>
+            <trans-unit id="workflow.panel.action.approve_document"><source>workflow.panel.action.approve_document</source><target>Approve the documents of the card that passed the entry check</target></trans-unit>
+            <trans-unit id="workflow.panel.action.stop_work"><source>workflow.panel.action.stop_work</source><target>Stop the work of the card</target></trans-unit>
+            <trans-unit id="workflow.stop_work.reason"><source>workflow.stop_work.reason</source><target>Stopped by the %rule% workflow rule.</target></trans-unit>
+            <trans-unit id="workflow.panel.action.request_changes"><source>workflow.panel.action.request_changes</source><target>Request changes on the documents of the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.publish_documents"><source>workflow.panel.action.publish_documents</source><target>Publish the draft documents of the card for review</target></trans-unit>
             <trans-unit id="workflow.panel.action.forge_write"><source>workflow.panel.action.forge_write</source><target>Write %write% to the pull request</target></trans-unit>
             <trans-unit id="workflow.panel.action.pause"><source>workflow.panel.action.pause</source><target>Pause the card</target></trans-unit>
@@ -8877,6 +8944,7 @@
             <trans-unit id="workflow.pause.repair-failed"><source>workflow.pause.repair-failed</source><target>The repair worker could not fix the failure.</target></trans-unit>
             <trans-unit id="workflow.pause.inbox-off"><source>workflow.pause.inbox-off</source><target>The inbox is off, so the workflow cannot ask the owner about this card. The pause ends when the inbox is on.</target></trans-unit>
             <trans-unit id="workflow.pause.work-limit-reached"><source>workflow.pause.work-limit-reached</source><target>The rule requested the most work that it may request for this card.</target></trans-unit>
+            <trans-unit id="workflow.note.product_design_undone"><source>workflow.note.product_design_undone</source><target>The approval of the product design was undone. Check the tech design against the product design again.</target></trans-unit>
             <trans-unit id="workflow.refusal.move-refused"><source>workflow.refusal.move-refused</source><target>The board refused the move.</target></trans-unit>
             <trans-unit id="workflow.refusal.epic-children-open"><source>workflow.refusal.epic-children-open</source><target>The epic still has open child cards.</target></trans-unit>
             <trans-unit id="workflow.refusal.workflow-slot-missing"><source>workflow.refusal.workflow-slot-missing</source><target>No column of the board is linked to the target slot.</target></trans-unit>
@@ -8894,7 +8962,9 @@
             <trans-unit id="workflow.refusal.document-ambiguous"><source>workflow.refusal.document-ambiguous</source><target>The card has more than one document with the tag that the rule names.</target></trans-unit>
             <trans-unit id="workflow.refusal.no-parent-document"><source>workflow.refusal.no-parent-document</source><target>The parent of the card has no document with the tag that the rule names.</target></trans-unit>
             <trans-unit id="workflow.refusal.document-link-refused"><source>workflow.refusal.document-link-refused</source><target>The board refused the document link.</target></trans-unit>
+            <trans-unit id="workflow.refusal.document-verdict-refused"><source>workflow.refusal.document-verdict-refused</source><target>The app refused a change request on a document of the card.</target></trans-unit>
             <trans-unit id="workflow.refusal.document-publish-refused"><source>workflow.refusal.document-publish-refused</source><target>The app refused to publish a draft document of the card.</target></trans-unit>
+            <trans-unit id="workflow.refusal.stop-run-refused"><source>workflow.refusal.stop-run-refused</source><target>The app could not ask the bridge to stop every open run of the card.</target></trans-unit>
             <trans-unit id="workflow.refusal.detach-refused"><source>workflow.refusal.detach-refused</source><target>The board refused to remove the parent of the card.</target></trans-unit>
             <trans-unit id="project.edit.nav.readiness"><source>project.edit.nav.readiness</source><target>Agent readiness</target></trans-unit>
             <trans-unit id="readiness.guide.title"><source>readiness.guide.title</source><target>Ready for agents</target></trans-unit>

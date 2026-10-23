@@ -17,9 +17,9 @@ use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -58,6 +58,7 @@ final readonly class RequestBridgeCommandHandler
         private ClockInterface $clock,
         private Auditor $auditor,
         private WorkRequestRepository $workRequests,
+        private ProjectRepository $projects,
     ) {
     }
 
@@ -95,10 +96,11 @@ final readonly class RequestBridgeCommandHandler
                 if ($this->bridgeCommands->hasPendingForRun($run)) {
                     return self::PENDING;
                 }
-                // The lock a pause takes, so a pause cannot commit between this read and the resume.
-                // Always after the bridge lock: no holder of a project lock takes a bridge lock.
+                // Blocks a pause, which locks the project row, so a pause cannot commit between this read and the resume.
+                // Always after the bridge lock: no holder of a project lock takes a bridge lock. The lock waits for
+                // no key share, because a workflow pass holds one while it waits for the bridge lock of this request.
                 if (BridgeCommandKind::ResumeRun === $command->kind) {
-                    $this->em->lock($run->project, LockMode::PESSIMISTIC_WRITE);
+                    $this->projects->lockForWrite($run->project);
                     if ($this->isCardHeld($run)) {
                         return self::CARD_HELD;
                     }

@@ -8,6 +8,8 @@ use App\Exception\DomainErrors;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\DocumentVersionRepository;
+use App\Module\Review\Service\DocumentEntryCheck;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -23,6 +25,8 @@ final readonly class PublishDocumentHandler
 {
     public function __construct(
         private DocumentRepository $documents,
+        private DocumentVersionRepository $documentVersions,
+        private DocumentEntryCheck $entryCheck,
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private EventDispatcherInterface $events,
@@ -52,6 +56,7 @@ final readonly class PublishDocumentHandler
             }
 
             $document->status = DocumentStatus::InReview;
+            $this->entryCheck->record($document, $this->documentVersions->findLatest($document));
             $this->em->flush();
 
             return true;

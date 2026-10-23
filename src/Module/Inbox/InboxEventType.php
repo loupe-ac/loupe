@@ -15,6 +15,9 @@ final class InboxEventType
     /** An agent withdrew the last blocking item, or its cards finished. */
     public const string ACTOR_AGENT = 'agent';
 
+    /** A workflow rule wrote the verdict that closed the last blocking item. */
+    public const string ACTOR_SYSTEM = 'system';
+
     private function __construct()
     {
     }

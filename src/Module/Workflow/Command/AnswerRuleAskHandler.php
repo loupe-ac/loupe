@@ -103,7 +103,7 @@ final readonly class AnswerRuleAskHandler
             return $this->skip('no-template', $itemId);
         }
         $rule = array_find($template->rules, static fn (Rule $rule): bool => $rule->id === $state->ruleId);
-        $option = Ask::KEY === $rule?->then->key ? ($rule->then->options[$optionIndex] ?? null) : null;
+        $option = Ask::KEY === $rule?->lead->key ? ($rule->lead->options[$optionIndex] ?? null) : null;
         if (null === $rule || null === $option) {
             return $this->skip('no-option', $itemId);
         }
@@ -120,7 +120,7 @@ final readonly class AnswerRuleAskHandler
         foreach ($option->actions as $call) {
             // Facts again for each action: the one before may have changed the card.
             $facts = $this->factsBuilder->build($snapshot, $now);
-            $optionRule = new Rule($rule->id, $rule->slot, $rule->when, $call, $rule->origin);
+            $optionRule = $rule->forCall($call);
             $result = $this->actions->get($call->key)->run($this->contexts->for($optionRule, $snapshot, $facts, $state->fires));
             if (ActionOutcomeKind::Done !== $result->kind) {
                 $refusal = $result->code ?? $result->kind->value;

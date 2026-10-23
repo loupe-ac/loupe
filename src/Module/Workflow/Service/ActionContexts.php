@@ -43,7 +43,7 @@ final readonly class ActionContexts
 
     private function prompt(Rule $rule, Uuid $projectId): ?string
     {
-        $name = $rule->then->params[TemplateParser::PROMPT] ?? null;
+        $name = $rule->lead->params[TemplateParser::PROMPT] ?? null;
         if (!\is_string($name)) {
             return null;
         }
@@ -57,8 +57,8 @@ final readonly class ActionContexts
     public function columns(Rule $rule, Uuid $projectId): array
     {
         $slots = [];
-        foreach ($this->actions->get($rule->then->key)::parameters() as $parameter) {
-            $slot = $rule->then->params[$parameter->name] ?? null;
+        foreach ($this->actions->get($rule->lead->key)::parameters() as $parameter) {
+            $slot = $rule->lead->params[$parameter->name] ?? null;
             if (ParameterType::Slot === $parameter->type && \is_string($slot)) {
                 $slots[$parameter->name] = $slot;
             }

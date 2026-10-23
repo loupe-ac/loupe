@@ -78,7 +78,7 @@ final class ClosestRuleTest extends TestCase
         $near = FactsMother::pullRequest(draft: true, checks: ChecksState::Passed, id: Uuid::v7());
         $facts = FactsMother::facts(pullRequest: $far, pullRequests: [$merged, $far, $near]);
         $ready = self::rule('ready', new AllOf([new Not(self::leaf(new PullRequestDraft())), self::leaf(new PullRequestChecksPassed())]));
-        $epic = self::rule('epic', new AllOf([self::leaf(new CardHasType(), ['type' => 'epic']), self::leaf(new CardParentExists())]));
+        $epic = self::rule('epic', new AllOf([self::leaf(new CardHasType(), ['types' => ['epic']]), self::leaf(new CardParentExists())]));
 
         $match = new ClosestRule()->find([$epic, $ready], $facts);
 
@@ -104,6 +104,6 @@ final class ClosestRuleTest extends TestCase
 
     private static function rule(string $id, Expression $when): Rule
     {
-        return new Rule($id, null, $when, new ActionCall('request', ['kind' => 'fix']));
+        return new Rule($id, null, $when, [new ActionCall('request', ['kind' => 'fix'])]);
     }
 }

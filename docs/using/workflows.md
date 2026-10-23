@@ -44,6 +44,31 @@ board. Both shipped templates declare the same seven types, and only Epic has
 children and a lane. Feature is the default type. The **Workflow** page lists
 the types.
 
+The condition `card.type` takes a `types` list of card type keys. It is true
+when the card has any type in the list.
+
+```yaml
+when: { card.type: { types: [epic] } }
+```
+
+The older `type` parameter, which took one key, no longer exists. A template
+rule that still uses `type` fails to load, and the error names the `types`
+list.
+
+A rule runs one action, or a list of actions. A single action is a list of one.
+The engine runs the actions in order. It stops at the first action that refuses, and after a `move`.
+A refusal backs off and retries as [Pauses and retries](#pauses-and-retries) says, and the retry runs the whole list again.
+Only the actions `move`, `request-changes` and `stop-work` may share a rule with other actions,
+because the engine keeps no request, ask or pause for a second action.
+
+```yaml
+then:
+    - stop-work: {}
+    - move: { to: tech-design }
+```
+
+The **Workflow** page shows each action of a rule on its own line.
+
 The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.
@@ -468,11 +493,12 @@ column, for example when the work is no longer needed. A person can move a card
 from Implementation back to Tech design, for example when the card has no tech
 design yet. A card whose tech design is approved goes
 back to Implementation at once when it has no open blocker.
+When you withdraw the approval of a design, the card goes back to that design. See [Undoing a design](#undoing-a-design).
 
 | Slot | The workflow |
 |---|---|
-| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
-| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
+| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
+| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design of a bug, tooling or docs card [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
@@ -822,6 +848,93 @@ review, and no draft gets one.
 To turn the design review off, remove the six rules and the marker
 `design-review-running` from the template. The writer then has to publish its
 own draft.
+
+### Automatic approval of a design
+
+A design can approve itself in the pass that publishes it. The rule reads the entry check of the document.
+The entry check records what stood open on the newest version when the document was published.
+
+A publish moves a document out of Draft, and only a publish writes an entry check. The app counts the decisions with no
+answer and the threads that are not resolved. A pending thread and an addressed thread both count. The app writes both counts and the
+time on the newest version.
+
+A document created in review writes no check. A revision writes none either, also when it moves the document out of
+Approved or Changes requested, so the new version has no clean entry. An undo of a verdict is not a publish. A document that was in review before this feature has no check, so no rule approves it.
+
+Five conditions read these facts. Each takes a `tag`:
+
+| Condition | True when |
+|---|---|
+| `card.document.entry_decisions_open` | a document with the tag in review had a decision with no answer when it was published, or has no entry check |
+| `card.document.entry_threads_open` | a document with the tag in review had a thread that was not resolved when it was published, or has no entry check |
+| `card.document.rejected_before` | a document with the tag ever got a change request or a withdrawal, on any version |
+| `card.document.published_in_column` | each document with the tag in review was published at or after the card arrived in its current column. The arrival is the time of the newest created or moved row of the card. A document with no entry check fails it, and so does a card with no such row |
+| `design_review.passed` | the newest agent review of each document with the tag in review passed, and it read the newest version of the document. A document with no agent review fails it, and so does a review of an older version |
+
+The last condition is in the **Agent review** group. The others are in the **Board** group.
+An answer or a comment that comes after the publish changes none of these facts.
+
+Lifecycle uses them in two rules. Each rule sits right after the `<slot>-review-publish` rule of its slot, so it fires in
+the same pass as the publish. The `<slot>-approved` rule then moves the card. The marker pass runs last,
+so no `document-in-review` item opens in your inbox.
+
+| Rule | Does |
+|---|---|
+| `product-design-auto-approve` | Runs `approve-document` for the tag `product-design` when a document with the tag is in review, was published after the card arrived in its column, had no open decision and no open thread, never got a change request or a withdrawal, and has a passed agent review. It has no condition on the card type |
+| `tech-design-auto-approve` | The same for the tag `tech-design`. It also needs `card.type` with the types `bug`, `tooling` and `docs`. A feature or an epic waits for you |
+
+The action `approve-document` takes a `tag`. It approves each document of the card that has the tag, is in review and has a
+clean entry check on its newest version. The Workflow account writes the approval. The approval names the version of the check
+and the newest review that the rule read. When a revision or a verdict landed after the rule read the facts, the app
+refuses the approval. It also refuses when you cleared the answer of a decision after the document was published.
+The action then writes a `verdict-failed` row in the history of the card and ends. It does not retry.
+The document stays in review until you act on it.
+
+The approval note on the document says that the document had no unanswered decision and no open thread, and that its agent
+review had passed. This holds for the two rules above. The action `approve-document` itself checks only the clean entry
+check. A rule that you add to the template copy can approve with other conditions, and the note then says more than the
+rule checked.
+
+You cannot edit the template of a running instance yet. The Workflow page is read-only, and the template file is part of the
+release. A change to which designs approve themselves, such as `feature` in the `types` list of `tech-design-auto-approve`,
+is a change to `config/workflows/lifecycle.yaml` with a migration that writes the file into each project. It reaches an
+instance with the next release. A workflow editor will replace this path.
+A template with no design review rule never approves a design this way, because `design_review.passed` stays false.
+The rule reads the card type live. When you change a card to an allowed type while a clean design is in review, the rule approves the design at the next pass.
+
+### Undoing a design
+
+When you withdraw the approval of a design, the card goes back to the stage that the design opened.
+The undo rules read the withdrawal, and they run first in every pass, in every column.
+A withdrawal by you counts the same as the withdrawal of an approval that a rule wrote.
+
+| Condition | True when |
+|---|---|
+| `card.document.approval_withdrawn` | the newest review of the newest version of a document with the tag is a withdrawal of an approval. The withdrawal of a change request does not count. A new version of the document ends it. It is in the **Board** group |
+
+Lifecycle has two rules. Neither rule has a slot. Each needs a card that is not in a terminal column
+and not in the slot of the design.
+
+| Rule | Does, in this order |
+|---|---|
+| `product-design-undo` | Runs `stop-work`. Asks for changes on the approved or in-review documents with the tag `tech-design`, with a note that says the approval of the product design was undone. Moves the card to Product design |
+| `tech-design-undo` | Runs `stop-work`. Moves the card to Tech design |
+
+The action `stop-work` cancels the open work requests of the card that a rule owns.
+It also asks the bridge to stop each open background run of the card, and it writes one `stopped` row in the history of the card for each run.
+The row reads "Loupe stopped the implement work." and names the rule.
+It leaves an interactive session open, and the move closes the session as any move does. It leaves a request that you started from an inbox item.
+A bridge that cancels a claimed request stops the worker and posts no result, so a stopped worker adds no refusal to the card.
+
+An undone design waits for you. A design that was withdrawn counts as rejected, so the auto-approve rules do not approve it again.
+When the tech design has changes requested and the card comes back to Tech design, the rule `tech-design-revise` asks for a revision.
+A card that comes back to Implementation keeps its open pull request, so no new implementation request starts.
+
+A card in a terminal column keeps its place. The withdrawal resets the document alone, and the other design keeps its approval.
+The app moves the card as Loupe, so an epic with open children moves back like any other card.
+
+A project that updates to this version gets the two rules in its template copy. Each past withdrawal counts as handled,
+so no card moves when the update arrives. A withdrawal after the update moves the card.
 
 ### Asking about an unplanned child
 

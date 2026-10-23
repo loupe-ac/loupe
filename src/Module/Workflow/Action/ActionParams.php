@@ -11,19 +11,19 @@ final class ActionParams
 {
     public static function string(Rule $rule, string $name): string
     {
-        $value = $rule->then->params[$name] ?? null;
+        $value = $rule->lead->params[$name] ?? null;
 
         return \is_string($value) ? $value : throw new \LogicException(\sprintf('The rule "%s" has no string parameter "%s".', $rule->id, $name));
     }
 
     public static function optionalString(Rule $rule, string $name): ?string
     {
-        return \array_key_exists($name, $rule->then->params) ? self::string($rule, $name) : null;
+        return \array_key_exists($name, $rule->lead->params) ? self::string($rule, $name) : null;
     }
 
     public static function optionalInt(Rule $rule, string $name): ?int
     {
-        $value = $rule->then->params[$name] ?? null;
+        $value = $rule->lead->params[$name] ?? null;
         if (null !== $value && !\is_int($value)) {
             throw new \LogicException(\sprintf('The rule "%s" has no integer parameter "%s".', $rule->id, $name));
         }

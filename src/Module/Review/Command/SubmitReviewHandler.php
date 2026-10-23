@@ -9,10 +9,11 @@ use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Review\Repository\CommentRepository;
+use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Repository\ReviewRepository;
+use App\Module\Review\Service\DecisionSummaryReader;
 use App\Module\Review\Service\DraftStateSignal;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -20,11 +21,13 @@ final readonly class SubmitReviewHandler
 {
     public function __construct(
         private EntityManagerInterface $em,
+        private DocumentRepository $documents,
         private DocumentVersionRepository $documentVersions,
         private CommentRepository $comments,
         private ReviewRepository $reviews,
         private EventDispatcherInterface $events,
         private DraftStateSignal $draftState,
+        private DecisionSummaryReader $decisionSummary,
     ) {
     }
 
@@ -46,11 +49,10 @@ final readonly class SubmitReviewHandler
         $document = $command->document;
 
         $result = $this->em->wrapInTransaction(function () use ($command, $document, $verdict, $note): Review|DomainErrors {
-            $this->em->lock($document->project, LockMode::PESSIMISTIC_WRITE);
             // The version is read under the document's own row lock: a revision
             // landing between the read and the write would otherwise attach the
             // verdict to a version the reviewer never saw.
-            $this->em->lock($document, LockMode::PESSIMISTIC_WRITE);
+            $this->documents->lockForVerdict($document);
 
             $version = $this->documentVersions->findLatest($document);
             if ($version->versionNumber !== $command->versionNumber) {
@@ -61,6 +63,18 @@ final readonly class SubmitReviewHandler
             $expectedReviewId = null === $command->expectedReviewId ? null : strtolower($command->expectedReviewId);
             if ($newest?->id?->toRfc4122() !== $expectedReviewId) {
                 return new DomainErrors(['expectedReviewId' => 'review.document.flash.verdict_changed']);
+            }
+
+            // Read under the same lock as the write, so an answer cleared in
+            // another tab cannot slip in between the check and the approval.
+            if (Verdict::Approved === $verdict) {
+                $unanswered = ($this->decisionSummary)($document, $version)->unansweredCount();
+                if ($unanswered > 0) {
+                    return new DomainErrors(
+                        ['verdict' => 'review.document.flash.decisions_unanswered'],
+                        ['verdict' => ['%count%' => $unanswered]],
+                    );
+                }
             }
 
             if (Verdict::ChangesRequested === $verdict && '' === $note && 0 === $this->comments->countOpenThreadsByVersion($version)) {
@@ -75,6 +89,7 @@ final readonly class SubmitReviewHandler
                 reviewer: $command->reviewer,
                 sequence: null === $newest ? 1 : $newest->sequence + 1,
                 note: '' === $note ? null : $note,
+                workflowRule: $command->workflowRule,
             );
 
             $document->status = $verdict->documentStatus();

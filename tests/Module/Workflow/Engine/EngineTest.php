@@ -83,11 +83,13 @@ use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseHandler;
+use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
@@ -115,10 +117,12 @@ use App\Module\Workflow\Service\WorkflowAutomation;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\TemplatePrompts;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Board\Workflow\FakeForgeWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Action\FakeRuleAsks;
+use App\Tests\Module\Workflow\Action\ListedTestAction;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
@@ -152,7 +156,7 @@ final class EngineTest extends KernelTestCase
 
     private const array ALWAYS = ['all' => []];
 
-    private const array NOT_EPIC = ['not' => ['card.type' => ['type' => 'epic']]];
+    private const array NOT_EPIC = ['not' => ['card.type' => ['types' => ['epic']]]];
 
     private const array PROVIDED_READY = [ProvidedFactsReady::KEY => []];
 
@@ -183,6 +187,9 @@ final class EngineTest extends KernelTestCase
     #[\Override]
     protected function setUp(): void
     {
+        ListedTestAction::$log = [];
+        ListedTestAction::$facts = [];
+        ListedTestAction::$afterRun = null;
         $this->logger = new RecordingLogger();
         $this->asks = new FakeRuleAsks();
     }
@@ -237,7 +244,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([
             self::requestRule('review', self::ALWAYS, kind: 'fix'),
-            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['types' => ['bug']]], kind: 'fix'),
         ]);
         $this->evaluate($card);
         $review = $this->liveRequestOfKind($card, 'fix');
@@ -257,7 +264,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_rule_whose_own_request_settles_right_after_the_answer_fires_no_second_request(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]])]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $own = $this->liveRequests($card)[0];
@@ -293,7 +300,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_retry_that_joins_another_rules_live_request_counts_its_refusal_once(): void
     {
         $card = $this->boundCard([
-            self::requestRule('review', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('review', ['card.type' => ['types' => ['bug']]], kind: 'fix'),
             self::requestRule('checks', self::ALWAYS, kind: 'fix'),
         ], onWorkFailed: self::RETRY_ONCE);
         $this->evaluate($card);
@@ -318,7 +325,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_rule_that_finds_its_own_request_live_fires_no_second_request_when_it_ends(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]])]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->setType($card, 'feature');
@@ -506,6 +513,88 @@ final class EngineTest extends KernelTestCase
 
         self::assertCount(1, $this->liveRequests($card));
         self::assertSame(1, $this->ruleState($card, 'work')->fires);
+    }
+
+    public function test_a_rule_runs_its_list_of_actions_in_order_and_fires_once(): void
+    {
+        $card = $this->boundCard([self::listRule('both', [self::listed('first'), self::listed('second')])]);
+
+        $this->evaluate($card);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(['first', 'second'], ListedTestAction::$log);
+        self::assertTrue($this->ruleState($card, 'both')->truth);
+    }
+
+    public function test_an_action_that_changes_the_facts_gives_the_next_action_of_the_list_the_facts_as_they_are_then(): void
+    {
+        $card = $this->boundCard([self::listRule('both', [self::listed('first'), self::listed('second')])]);
+
+        $this->evaluate($card);
+
+        self::assertCount(2, ListedTestAction::$facts);
+        self::assertNotSame(ListedTestAction::$facts[0], ListedTestAction::$facts[1]);
+    }
+
+    public function test_the_second_action_of_a_list_reads_the_change_that_the_first_action_wrote(): void
+    {
+        $card = $this->boundCard([self::listRule('both', [self::listed('first'), self::listed('second')], self::PROVIDED_READY)]);
+        $this->provider()->facts = new ProvidedFacts(ready: true);
+        ListedTestAction::$afterRun = fn (string $label) => 'first' === $label ? $this->provider()->facts = new ProvidedFacts(ready: true, version: 2) : null;
+
+        $this->evaluate($card);
+
+        self::assertSame(['first', 'second'], ListedTestAction::$log);
+        self::assertSame(
+            [1, 2],
+            array_map(static fn (Facts $facts): int => $facts->get(ProvidedFacts::class)->version, ListedTestAction::$facts),
+        );
+    }
+
+    public function test_a_rule_with_one_refreshing_action_builds_the_facts_once_after_the_action(): void
+    {
+        $card = $this->boundCard([self::listRule('single', [self::listed('only')], self::PROVIDED_READY)]);
+        $this->provider()->facts = new ProvidedFacts(ready: false);
+        $this->provider()->builds = 0;
+        $this->evaluate($card);
+        $idle = $this->provider()->builds;
+        self::assertSame([], ListedTestAction::$log);
+
+        $this->provider()->facts = new ProvidedFacts(ready: true);
+        $this->provider()->builds = 0;
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(['only'], ListedTestAction::$log);
+        self::assertSame($idle + 1, $this->provider()->builds);
+    }
+
+    public function test_a_list_stops_at_the_first_refusal_and_runs_again_from_the_start_when_due(): void
+    {
+        $card = $this->boundCard([self::listRule('refusing', [self::listed('first'), self::listed('refuse'), self::listed('never')])]);
+
+        $this->evaluate($card);
+
+        self::assertSame(['first', 'refuse'], ListedTestAction::$log);
+        $state = $this->ruleState($card, 'refusing');
+        self::assertSame([1, 'listed-refusal', '2026-10-02 12:10:00'], [$state->attempts, $state->lastRefusal, $state->dueAt?->format('Y-m-d H:i:s')]);
+
+        $this->evaluate($card, '2026-10-02 12:10:00');
+
+        self::assertSame(['first', 'refuse', 'first', 'refuse'], ListedTestAction::$log);
+        self::assertSame(2, $this->ruleState($card, 'refusing')->attempts);
+    }
+
+    public function test_a_list_ends_with_a_move_and_the_rules_after_it_wait_for_the_next_pass(): void
+    {
+        $card = $this->boundCard([
+            self::listRule('moving', [self::listed('before'), ['move' => ['to' => 'two']]]),
+            self::listRule('later', [self::listed('later')]),
+        ]);
+
+        $this->evaluate($card);
+
+        self::assertSame(['before'], ListedTestAction::$log);
+        self::assertSame('in-progress', $this->em()->find(Card::class, $card->id)?->column->slug);
     }
 
     public function test_a_refused_action_backs_off_retries_when_due_or_when_the_facts_change_and_pauses_after_the_last_retry(): void
@@ -730,7 +819,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_work_limit_pause_ends_when_a_resumed_run_reports(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->setType($card, 'feature');
@@ -822,7 +911,7 @@ final class EngineTest extends KernelTestCase
             'id' => 'hold',
             'slot' => 'one',
             'when' => self::ALWAYS,
-            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'bug']]]],
+            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['bug']]]]],
         ]]);
         $this->evaluate($card);
         $pause = $this->activePause($card);
@@ -1025,7 +1114,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_the_failure_of_a_resumed_worker_does_not_count_after_the_rule_turned_false_and_true_again(): void
     {
-        $card = $this->twoRuleCard(ruleBWhen: ['card.type' => ['type' => 'bug']]);
+        $card = $this->twoRuleCard(ruleBWhen: ['card.type' => ['types' => ['bug']]]);
         $this->setType($card, 'bug');
         $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
         $this->evaluate($card, '2026-10-02 12:21:00');
@@ -1171,8 +1260,8 @@ final class EngineTest extends KernelTestCase
             [
                 'id' => 'hold',
                 'slot' => 'one',
-                'when' => ['card.type' => ['type' => 'bug']],
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'security']]]],
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['security']]]]],
             ],
             self::requestRule('work', self::ALWAYS),
         ], onWorkFailed: ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10, 60]]);
@@ -1494,7 +1583,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_live_request_is_cancelled_when_its_cancel_when_holds(): void
     {
         $rule = self::requestRule('work', self::ALWAYS);
-        $rule['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'epic']];
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['types' => ['epic']]];
         $card = $this->boundCard([$rule]);
         $this->evaluate($card);
         $request = $this->liveRequestOfKind($card, 'work');
@@ -1508,7 +1597,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_live_request_stays_when_its_rule_turns_false_and_its_cancel_when_does_not_hold(): void
     {
         $rule = self::requestRule('work', self::NOT_EPIC);
-        $rule['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'bug']];
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['types' => ['bug']]];
         $card = $this->boundCard([$rule]);
         $this->evaluate($card);
         $request = $this->liveRequestOfKind($card, 'work');
@@ -1700,7 +1789,7 @@ final class EngineTest extends KernelTestCase
             'id' => 'hold',
             'slot' => 'one',
             'when' => self::ALWAYS,
-            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'bug']]]],
+            'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['bug']]]]],
         ]]);
 
         $this->evaluate($card);
@@ -1720,7 +1809,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_the_request_limit_pauses_and_the_work_limit_pause_stays_until_the_card_leaves_the_slot(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->setType($card, 'feature');
@@ -1871,7 +1960,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_work_limit_pause_that_a_person_releases_lets_the_rule_request_work_again(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->finish($this->liveRequests($card)[0]);
@@ -1924,12 +2013,12 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_rule_that_was_true_before_the_pause_still_releases_it(): void
     {
         $card = $this->boundCard([
-            ['id' => 'unhold', 'when' => ['card.type' => ['type' => 'bug']], 'then' => ['release' => ['reason' => 'on-hold']]],
+            ['id' => 'unhold', 'when' => ['card.type' => ['types' => ['bug']]], 'then' => ['release' => ['reason' => 'on-hold']]],
             [
                 'id' => 'hold',
                 'slot' => 'one',
-                'when' => ['card.type' => ['type' => 'bug']],
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'epic']]]],
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
             ],
         ]);
         $this->setType($card, 'bug');
@@ -1945,15 +2034,15 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_second_release_rule_does_not_fire_after_the_first_lifts_the_pause(): void
     {
-        $unhold = static fn (string $id): array => ['id' => $id, 'when' => ['card.type' => ['type' => 'bug']], 'then' => ['release' => ['reason' => 'on-hold']]];
+        $unhold = static fn (string $id): array => ['id' => $id, 'when' => ['card.type' => ['types' => ['bug']]], 'then' => ['release' => ['reason' => 'on-hold']]];
         $card = $this->boundCard([
             $unhold('unhold-a'),
             $unhold('unhold-b'),
             [
                 'id' => 'hold',
                 'slot' => 'one',
-                'when' => ['card.type' => ['type' => 'bug']],
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'epic']]]],
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
             ],
         ]);
         $this->setType($card, 'bug');
@@ -1969,8 +2058,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_pause_ends_the_evaluation_before_the_release_check_and_any_move(): void
     {
         $card = $this->boundCard([
-            self::requestRule('work', ['card.type' => ['type' => 'bug']]),
-            self::moveRule('advance', 'two', ['card.type' => ['type' => 'feature']]),
+            self::requestRule('work', ['card.type' => ['types' => ['bug']]]),
+            self::moveRule('advance', 'two', ['card.type' => ['types' => ['feature']]]),
         ]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
@@ -1987,7 +2076,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_request_that_is_already_live_does_not_count_toward_the_limit(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 2)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 2)]);
         foreach (['bug', 'feature', 'bug', 'feature', 'bug'] as $type) {
             $this->setType($card, $type);
             $this->evaluate($card);
@@ -2228,7 +2317,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_work_limit_pause_released_from_a_hold_stays_on_the_same_pull_request(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']], limit: 1)]);
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['types' => ['bug']]], limit: 1)]);
         $this->setType($card, 'bug');
         $this->evaluate($card);
         $this->finish($this->liveRequests($card)[0]);
@@ -2369,10 +2458,10 @@ final class EngineTest extends KernelTestCase
                 'id' => 'hold',
                 'slot' => 'one',
                 'when' => self::ALWAYS,
-                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['type' => 'epic']]]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
             ],
             self::requestRule('work', self::ALWAYS),
-            ['id' => 'unhold', 'when' => ['card.type' => ['type' => 'bug']], 'then' => ['release' => ['reason' => 'on-hold']]],
+            ['id' => 'unhold', 'when' => ['card.type' => ['types' => ['bug']]], 'then' => ['release' => ['reason' => 'on-hold']]],
         ];
     }
 
@@ -2537,7 +2626,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([
             self::requestRule('work', self::ALWAYS),
-            self::requestRule('fix', ['card.type' => ['type' => 'bug']]),
+            self::requestRule('fix', ['card.type' => ['types' => ['bug']]]),
             self::moveRule('stuck', 'three', self::NOT_EPIC),
         ]);
         $this->hold($card);
@@ -2781,7 +2870,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_card_whose_board_automation_is_off_fires_nothing_and_turning_it_on_again_is_quiet(): void
     {
-        $card = $this->boundCard([self::requestRule('work', self::ALWAYS), self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS), self::requestRule('fix', ['card.type' => ['types' => ['bug']]])]);
         $this->saveAutomation($card, false);
 
         $this->evaluate($card);
@@ -4450,7 +4539,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([
             self::requestRule('review', self::ALWAYS, kind: 'fix'),
-            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['types' => ['bug']]], kind: 'fix'),
         ]);
         $this->evaluate($card);
         $review = $this->liveRequestOfKind($card, 'fix');
@@ -4508,6 +4597,23 @@ final class EngineTest extends KernelTestCase
     private static function moveRule(string $id, string $to, array $when): array
     {
         return ['id' => $id, 'slot' => 'one', 'when' => $when, 'then' => ['move' => ['to' => $to]]];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $then
+     * @param array<string, mixed>       $when
+     *
+     * @return array<string, mixed>
+     */
+    private static function listRule(string $id, array $then, array $when = self::NOT_EPIC): array
+    {
+        return ['id' => $id, 'slot' => 'one', 'when' => $when, 'then' => $then];
+    }
+
+    /** @return array<string, mixed> */
+    private static function listed(string $label): array
+    {
+        return ['listed-test' => ['label' => $label]];
     }
 
     /** @return list<array<string, mixed>> */
@@ -4593,11 +4699,23 @@ final class EngineTest extends KernelTestCase
             $this->changed[] = $event;
         });
 
+        $actions = new Actions([
+            new MoveCard($this->service(CardRepository::class), $this->service(BoardColumnRepository::class), $this->service(UpdateCardHandler::class)),
+            new RequestWork($this->service(CardRepository::class), $opener, $this->service(CardPullRequests::class), $this->service(CardEventRepository::class)),
+            new PauseCard(),
+            new ReleasePause($boardPauses),
+            $this->service(ForgeWrite::class),
+            new Ask($this->asks, $this->service(TranslatorInterface::class), 'en'),
+            new EvaluateChildren($this->service(CardDirectory::class), $this->evaluations ?? new EvaluationTrigger($this->service(MessageBusInterface::class))),
+            new MissingAction(),
+            new ListedTestAction(),
+        ]);
+
         return new Engine(
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), $this->service(TemplateParser::class), $this->appRules ?? $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $this->parsingActions(), $this->service(TemplatePrompts::class)), $this->appRules ?? $this->service(AppRules::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),
@@ -4619,24 +4737,23 @@ final class EngineTest extends KernelTestCase
             $this->service(WorkflowAutomation::class),
             $this->service(WorkflowPendingBaselineRepository::class),
             $boardPauses,
-            new Actions([
-                new MoveCard($this->service(CardRepository::class), $this->service(BoardColumnRepository::class), $this->service(UpdateCardHandler::class)),
-                new RequestWork($this->service(CardRepository::class), $opener, $this->service(CardPullRequests::class), $this->service(CardEventRepository::class)),
-                new PauseCard(),
-                new ReleasePause($boardPauses),
-                $this->service(ForgeWrite::class),
-                new Ask($this->asks, $this->service(TranslatorInterface::class), 'en'),
-                new EvaluateChildren($this->service(CardDirectory::class), $this->evaluations ?? new EvaluationTrigger($this->service(MessageBusInterface::class))),
-                new MissingAction(),
-            ]),
+            $actions,
             $opener,
-            $this->contexts(),
+            $this->contexts($actions),
             new RuleSubject(),
             new MarkerPass(new RuleSubject(), $this->service(CardMarkerStore::class)),
             $this->asks,
             $engineEvents,
             $this->logger,
         );
+    }
+
+    /** The actions of the container and the listed test action, so a stored rule can name any of them. */
+    private function parsingActions(): Actions
+    {
+        $actions = $this->service(Actions::class);
+
+        return new Actions([...array_map($actions->get(...), $actions->keys()), new ListedTestAction()]);
     }
 
     /** @param array<string, mixed> $onWorkFailed */

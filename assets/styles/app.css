@@ -1980,6 +1980,20 @@
     :is(.lp-comment-action, .lp-review-verdict-choice, .lp-history__action) {
     @apply cursor-pointer;
 }
+.lp-review .lp-review-verdict-choice--disabled {
+    @apply cursor-not-allowed opacity-60;
+}
+.lp-review
+    .lp-review-verdict-choice--disabled
+    .lp-review-verdict-choice__label {
+    @apply text-fg-dim;
+}
+.lp-review .lp-review-verdict-choice__reason {
+    @apply block text-status-pending-deep;
+}
+.lp-review .lp-review-verdict-choice__reason a {
+    @apply cursor-pointer text-status-pending-deep underline;
+}
 /* A highlight is no element, so the controller marks the pane while the
    pointer is over a passage that opens a thread. */
 .lp-review .lp-comment-anchor-hovered {
@@ -4722,6 +4736,10 @@
     }
     .lp-verdict-chip__reviewer {
         @apply font-semibold text-ink;
+    }
+    /* The name of the workflow reviewer, then the id of the rule that wrote the verdict. */
+    .lp-verdict-chip__rule {
+        @apply flex flex-wrap items-center gap-1.5;
     }
     .lp-verdict-chip__action-icon {
         @apply size-3.5 shrink-0;

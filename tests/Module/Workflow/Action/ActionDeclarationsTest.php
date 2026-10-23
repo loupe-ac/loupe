@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Action;
 
+use App\Module\Board\Workflow\ApproveDocument;
 use App\Module\Board\Workflow\Detach;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\LinkDocument;
 use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
+use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\StopWork;
 use App\Module\Workflow\Action\Ask;
 use App\Module\Workflow\Action\EvaluateChildren;
 use App\Module\Workflow\Action\PauseCard;
@@ -28,7 +31,7 @@ final class ActionDeclarationsTest extends TestCase
     /** @return iterable<string, array{class-string<Action>, string, string, ActionTraits}> */
     public static function declarations(): iterable
     {
-        yield 'move' => [MoveCard::class, 'move', 'workflow.source.board', new ActionTraits(endsPass: true, option: true, childChoice: true)];
+        yield 'move' => [MoveCard::class, 'move', 'workflow.source.board', new ActionTraits(endsPass: true, option: true, childChoice: true, listable: true)];
         yield 'request' => [RequestWork::class, 'request', 'workflow.source.bridge', new ActionTraits(countsTowardLimit: true, refreshesFacts: true)];
         yield 'forge-write' => [ForgeWrite::class, 'forge-write', 'workflow.source.forge', new ActionTraits(countsTowardLimit: true)];
         yield 'pause' => [PauseCard::class, 'pause', 'workflow.source.board', new ActionTraits()];
@@ -37,6 +40,9 @@ final class ActionDeclarationsTest extends TestCase
         yield 'ask' => [Ask::class, 'ask', 'workflow.source.board', new ActionTraits()];
         yield 'link-document' => [LinkDocument::class, 'link-document', 'workflow.source.board', new ActionTraits(option: true, childChoice: true)];
         yield 'publish-documents' => [PublishDocuments::class, 'publish-documents', 'workflow.source.board', new ActionTraits(refreshesFacts: true, publishesDocuments: true)];
+        yield 'approve-document' => [ApproveDocument::class, 'approve-document', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
+        yield 'request-changes' => [RequestChanges::class, 'request-changes', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
+        yield 'stop-work' => [StopWork::class, 'stop-work', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
     }
 
@@ -56,7 +62,7 @@ final class ActionDeclarationsTest extends TestCase
         self::assertSame('fix', self::action(RequestWork::class)->workKind(['kind' => 'fix', 'limit' => 3]));
         self::assertSame('merge', self::action(ForgeWrite::class)->workKind(['write' => 'merge', 'fallback' => 'merge']));
         self::assertNull(self::action(ForgeWrite::class)->workKind(['write' => 'draft']));
-        foreach ([MoveCard::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class] as $class) {
+        foreach ([MoveCard::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class] as $class) {
             self::assertNull(self::action($class)->workKind(['to' => 'build', 'reason' => 'r']), $class);
         }
     }
@@ -98,6 +104,8 @@ final class ActionDeclarationsTest extends TestCase
             Ask::class => 'ask',
             LinkDocument::class => 'link_document',
             PublishDocuments::class => 'publish_documents',
+            ApproveDocument::class => 'approve_document',
+            RequestChanges::class => 'request_changes',
             Detach::class => 'detach',
         ];
         foreach ($texts as $class => $name) {
