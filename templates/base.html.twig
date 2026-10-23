@@ -76,7 +76,7 @@
                     {% include '@Inbox/_live_open_total.html.twig' with {total: inbox_open_total(app.user)} only %}
                     {% endif %}
                     <twig:Ds:NavItem :url="path('app_project_board', {id: project.id})" icon="lucide:square-kanban" :label="'nav.link.board'|trans" :active="route starts with 'app_project_board' or route starts with 'app_board_card'" />
-                    <twig:Ds:NavItem :url="path('app_project_documents', {id: project.id})" icon="lucide:file-text" :label="'nav.link.documents'|trans" :active="route == 'app_project_documents' or route starts with 'app_document'" :count="project_document_count(project)" />
+                    <twig:Ds:NavItem :url="path('app_project_documents', {id: project.id})" icon="lucide:file-text" :label="'nav.link.documents'|trans" :active="route == 'app_project_documents' or route starts with 'app_document'" />
                     {% if is_feature_enabled('artifacts.enabled') %}
                     <twig:Ds:NavItem :url="path('app_project_artifacts', {id: project.id})" icon="lucide:app-window" :label="'nav.link.artifacts'|trans" :active="route starts with 'app_project_artifact'" />
                     {% endif %}
@@ -163,7 +163,7 @@
                             {% include 'outbox/_activity_drawer.html.twig' with {project: project} only %}
                             {% endif %}
                             {% if project %}
-                            <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="{{ path('app_board_card_create', {id: project.id}) }}" aria-label="{{ 'nav.new_work'|trans }}">
+                            <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="{{ path('app_board_card_create', {id: project.id}) }}" data-card-drawer-opener aria-label="{{ 'nav.new_work'|trans }}">
                                 <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />
                                 <span>{{ 'nav.new_work'|trans }}</span>
                             </twig:Ds:Button>

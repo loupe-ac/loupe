@@ -62,7 +62,7 @@
             </trans-unit>
             <trans-unit id="about.lead">
                 <source>about.lead</source>
-                <target>Loupe collects review comments on documents and live pages, and hands them to the coding agent that acts on them.</target>
+                <target>Loupe is a software factory for coding agents. Product design, tech design, code and review run in one workflow, on your own machine.</target>
             </trans-unit>
             <trans-unit id="about.docs.heading">
                 <source>about.docs.heading</source>
@@ -4388,7 +4388,7 @@
             </trans-unit>
             <trans-unit id="outbox.empty">
                 <source>outbox.empty</source>
-                <target>Every event has been delivered.</target>
+                <target>Nothing waits to be sent</target>
             </trans-unit>
             <trans-unit id="outbox.event_label">
                 <source>outbox.event_label</source>
@@ -5509,7 +5509,6 @@
                 <source>inbox.page.title</source>
                 <target>Needs you</target>
             </trans-unit>
-            <trans-unit id="inbox.activity"><source>inbox.activity</source><target>View activity</target></trans-unit>
             <trans-unit id="inbox.search.label">
                 <source>inbox.search.label</source>
                 <target>Search asks</target>
@@ -6057,10 +6056,6 @@
             <trans-unit id="board.page.title">
                 <source>board.page.title</source>
                 <target>Project board</target>
-            </trans-unit>
-            <trans-unit id="board.card.create.action">
-                <source>board.card.create.action</source>
-                <target>Add card</target>
             </trans-unit>
 
             <!-- Board columns and card vocabulary -->
@@ -7632,7 +7627,6 @@
             <trans-unit id="inbox.closed.empty"><source>inbox.closed.empty</source><target>No ask is closed yet.</target></trans-unit>
             <trans-unit id="inbox.empty.title"><source>inbox.empty.title</source><target>Nothing needs you</target></trans-unit>
             <trans-unit id="inbox.empty.body"><source>inbox.empty.body</source><target>Agents ask here when they need a decision, a review or a hand. Loupe adds a card when it waits on you.</target></trans-unit>
-            <trans-unit id="inbox.empty.closed_link"><source>inbox.empty.closed_link</source><target>See what you already answered</target></trans-unit>
             <trans-unit id="inbox.linked_items.item"><source>inbox.linked_items.item</source><target>Item</target></trans-unit>
             <trans-unit id="inbox.linked_items.status"><source>inbox.linked_items.status</source><target>Status</target></trans-unit>
             <trans-unit id="inbox.linked_items.open"><source>inbox.linked_items.open</source><target>Open</target></trans-unit>

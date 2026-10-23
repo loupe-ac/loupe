@@ -57,6 +57,11 @@ final class OutboxPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('[data-outbox-event-id]'));
         self::assertCount(1, $crawler->filter('.lp-empty-state'));
+        self::assertSame('Undelivered events', $crawler->filter('h1')->text());
+        self::assertSame('Nothing waits to be sent', $crawler->filter('.lp-empty-state__title')->text());
+        self::assertStringStartsWith('Every event bound for your agent is recorded', $crawler->filter('.lp-empty-state__body')->text());
+        self::assertCount(0, $crawler->filter('.lp-page-header'));
+        self::assertCount(0, $crawler->filter('.lp-site-review-meta-line'));
     }
 
     public function test_a_stranger_cannot_read_another_projects_outbox(): void
