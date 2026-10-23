@@ -38,7 +38,7 @@ final class DesignInReviewInboxWaitTest extends KernelTestCase
 
         self::assertContains('document-in-review', $this->markerKeys($card));
         self::assertNotContains('held-by-blocker', $this->markerKeys($card));
-        self::assertSame(1, $this->openWaitItems($card));
+        self::assertSame(['review'], $this->openAutomaticItemKinds($card));
 
         $approved = $this->em()->find(Document::class, $document->id) ?? throw new \LogicException('The document stays.');
         $approved->status = DocumentStatus::Approved;
@@ -48,7 +48,7 @@ final class DesignInReviewInboxWaitTest extends KernelTestCase
         self::assertSame('tech-design', $card->column->slug);
         self::assertNotContains('document-in-review', $this->markerKeys($card));
         self::assertContains('held-by-blocker', $this->markerKeys($card));
-        self::assertSame(0, $this->openWaitItems($card));
+        self::assertSame([], $this->openAutomaticItemKinds($card));
     }
 
     /** @return array{Card, Document} */
@@ -91,9 +91,10 @@ final class DesignInReviewInboxWaitTest extends KernelTestCase
         return array_map(static fn (array $marker): string => $marker['key'], $card->markers ?? []);
     }
 
-    private function openWaitItems(Card $card): int
+    /** @return list<string> */
+    private function openAutomaticItemKinds(Card $card): array
     {
-        return (int) $this->em()->getConnection()->fetchOne("SELECT COUNT(*) FROM inbox_items WHERE project_id = :id AND kind = 'wait' AND state = 'open'", ['id' => $card->project->id]);
+        return $this->em()->getConnection()->fetchFirstColumn("SELECT kind FROM inbox_items WHERE project_id = :id AND origin = 'loupe' AND state = 'open'", ['id' => $card->project->id]);
     }
 
     private function enableInbox(): void
