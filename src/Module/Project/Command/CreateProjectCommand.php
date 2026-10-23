@@ -17,6 +17,8 @@ final readonly class CreateProjectCommand
         public SearchLanguage $searchLanguage,
         public ?string $description = null,
         public ?string $workflowTemplate = null,
+        /** @var list<string> */
+        public array $allowedOrigins = [],
     ) {
     }
 }

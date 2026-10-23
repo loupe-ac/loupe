@@ -215,10 +215,21 @@ final class CreateProjectHandlerTest extends KernelTestCase
         self::assertSame([
             'projectId' => (string) $project->id,
             'ownerId' => (string) $owner->id,
+            'originCount' => 0,
         ], $record->context);
 
         self::assertSame(['project.created'], $this->audit->domainLogLines());
         self::assertSame([], $this->audit->securityLogLines());
+    }
+
+    public function test_it_stores_the_allowed_origins_and_counts_them_in_the_audit(): void
+    {
+        $owner = $this->user('create-project-origins@example.com');
+
+        $project = ($this->handler)(new CreateProjectCommand($owner, 'with-origins', null, SearchLanguage::English, allowedOrigins: ['https://a.example.com', 'https://*.b.example.com']));
+
+        self::assertSame(['https://a.example.com', 'https://*.b.example.com'], $project->allowedOrigins);
+        self::assertSame(2, $this->audit->record('project.created')->context['originCount']);
     }
 
     public function test_a_refused_create_records_nothing(): void

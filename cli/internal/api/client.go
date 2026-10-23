@@ -30,6 +30,10 @@ type Site struct {
 	// SubcommandPrograms are the programs whose subcommand a signature keeps.
 	// nil means the bridge's default list, and an empty list keeps none.
 	SubcommandPrograms []string `json:"subcommandPrograms"`
+	// Domain and AllowedOrigins come back from the create call only. An
+	// instance that predates them leaves both empty.
+	Domain         string   `json:"domain"`
+	AllowedOrigins []string `json:"allowedOrigins"`
 }
 
 // EventsProject is one project of GET /api/events. Its events arrive on the

@@ -318,3 +318,37 @@ func TestReviewIOSPassesTheSetupLinkBeforeTheProjectFile(t *testing.T) {
 		t.Fatalf("open = %v", got)
 	}
 }
+
+func TestInitNameInASecondSetupCreatesAndLinksInTheSetup(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir, setupDir := secondSetup(t, w.server.URL)
+	if err := os.Remove(filepath.Join(dir, projectfile.Name)); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInitCmd(t, "n\n", "--name", "Docs")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if got := linkOf(t, setupDir, dir); got != firstProject || w.created.Load() != 1 {
+		t.Errorf("link = %q, created = %d", got, w.created.Load())
+	}
+
+	_, err = runInitCmd(t, "n\n", "--name", "Docs 2")
+	if err == nil || !strings.Contains(err.Error(), "--force") || w.created.Load() != 1 {
+		t.Errorf("a linked folder must need --force: %v, created = %d", err, w.created.Load())
+	}
+}
+
+func TestInitInASecondSetupListsOneProjectWithACreateRow(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir, setupDir := secondSetup(t, w.server.URL)
+
+	out, err := runInitCmd(t, "1\nn\n", "--force")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "2) Create a new project") || linkOf(t, setupDir, dir) != firstProject {
+		t.Errorf("output:\n%s", out)
+	}
+}

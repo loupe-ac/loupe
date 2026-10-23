@@ -48,6 +48,24 @@ final class UpdateProjectAllowedOriginsHandlerTest extends KernelTestCase
         self::assertSame(['https://shop.example.com', 'http://localhost:3000'], $reloaded->allowedOrigins);
     }
 
+    public function test_a_trailing_newline_is_not_an_error(): void
+    {
+        $project = $this->project('origins-trailing@example.com');
+
+        ($this->handler)(new UpdateProjectAllowedOriginsCommand($project, "https://shop.example.com\n"));
+
+        self::assertSame(['https://shop.example.com'], $project->allowedOrigins);
+    }
+
+    public function test_copies_of_one_origin_count_once_against_the_cap(): void
+    {
+        $project = $this->project('origins-copies@example.com');
+
+        ($this->handler)(new UpdateProjectAllowedOriginsCommand($project, implode("\n", array_fill(0, SiteOrigins::MAX + 1, 'https://shop.example.com'))));
+
+        self::assertSame(['https://shop.example.com'], $project->allowedOrigins);
+    }
+
     public function test_it_stores_a_wildcard_entry(): void
     {
         $project = $this->project('origins-wildcard@example.com');

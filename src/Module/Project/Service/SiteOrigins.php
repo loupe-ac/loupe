@@ -105,6 +105,33 @@ final class SiteOrigins
         return str_replace($standIn, self::WILDCARD, $origin);
     }
 
+    /**
+     * The entries of a project's list, normalised and without duplicates, or
+     * null when one entry is refused. A blank entry is skipped. The caller
+     * compares the length with MAX.
+     *
+     * @param iterable<string> $values
+     *
+     * @return list<string>|null
+     */
+    public static function normaliseList(iterable $values): ?array
+    {
+        $origins = [];
+        foreach ($values as $value) {
+            if ('' === trim($value)) {
+                continue;
+            }
+
+            $origin = self::normalisePattern($value);
+            if (null === $origin) {
+                return null;
+            }
+            $origins[$origin] = true;
+        }
+
+        return array_keys($origins);
+    }
+
     /** Whether an origin the browser reported is the one this entry names. */
     public static function matches(string $pattern, string $origin): bool
     {

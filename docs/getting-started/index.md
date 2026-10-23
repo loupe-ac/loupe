@@ -34,8 +34,10 @@ that the page shows the same code, then choose **Allow**.
 [Signing in the CLI with a code](../using/connected-apps.md#signing-in-the-cli-with-a-code)
 tells what the page shows. Later runs need no `--url`.
 
-Then it chooses the project. It lists the projects your login covers and asks
-which one. When your login covers none, it creates one from the `origin` remote.
+Then it chooses the project. It lists the projects your login covers, even when
+that is one project, and asks which one. The last row of the list creates a new
+project. Pass `--name "<name>"` to create a project without the list. When your
+login covers none, it creates one from the `origin` remote.
 It runs `loupe project link` for that project, then installs the Claude Code
 plugin, writes the rule file, and starts the bridge in the background.
 [Run the bridge](run-the-bridge.md) describes these steps. A second run changes
