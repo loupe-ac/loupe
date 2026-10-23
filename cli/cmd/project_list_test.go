@@ -150,3 +150,20 @@ func TestProjectListInASecondSetupFallsBackToTheProjectFile(t *testing.T) {
 		t.Fatalf("output must mark the project of .loupe.yaml:\n%s", out)
 	}
 }
+
+func TestProjectListInASecondSetupMarksNothingWhenTheLinkFileIsBroken(t *testing.T) {
+	server := projectsServer(t, twoSites())
+	_, setupDir := secondSetup(t, server.URL)
+	writeFile(t, setupDir+"/"+projectfile.LinksName, "not json")
+
+	out, errOut, err := runList(t)
+	if err != nil {
+		t.Fatalf("project list: %v", err)
+	}
+	if strings.Contains(out, "* ") || !strings.Contains(out, secondProject) {
+		t.Fatalf("output must list the projects and mark none, not the one of .loupe.yaml:\n%s", out)
+	}
+	if !strings.Contains(errOut, "read the project links of the setup "+setupDir) {
+		t.Fatalf("stderr must say the link file is broken, got %q", errOut)
+	}
+}

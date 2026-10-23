@@ -144,7 +144,8 @@ func runProjectList(cmd *cobra.Command, _ []string) error {
 // listedProject gives the project of the working directory and the words
 // that name where it came from, in the order `loupe mcp` reads them. A file
 // that fails to read gives no project and a note on notes, because the list
-// helps to fix it.
+// helps to fix it. A broken link file never falls back to the project file,
+// because `loupe mcp` does not fall back either.
 func listedProject(notes io.Writer) (project, source string) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -155,6 +156,8 @@ func listedProject(notes io.Writer) (project, source string) {
 	link, err := setupLink(dir)
 	if err != nil {
 		fmt.Fprintf(notes, "read the project links of the setup %s: %v\n", config.Current().Dir, err)
+
+		return "", ""
 	}
 	if link != "" {
 		return link, "the project link of the setup " + config.Current().Dir
