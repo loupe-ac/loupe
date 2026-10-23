@@ -42,6 +42,8 @@ final class SeedInstallFlagsHandlerTest extends KernelTestCase
         self::assertSame([], $indexed['billing.stripe_price_id']->options);
         self::assertTrue($indexed['auth.github.enabled']->value);
         self::assertFalse($indexed['auth.google.enabled']->value);
+        self::assertSame(FeatureFlagType::String, $indexed['waitlist.notification_emails']->type);
+        self::assertSame('', $indexed['waitlist.notification_emails']->value);
     }
 
     public function test_existing_flag_is_left_untouched(): void

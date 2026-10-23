@@ -31,7 +31,7 @@ final class ProvisionTrialOnUserRegisteredTest extends TestCase
         $profiles = $this->createMock(BillingProfileRepository::class);
         $profiles->expects($this->once())->method('findOneByUser')->with($user)->willReturn($profile);
 
-        $this->listener($profiles, ['billing.enabled' => true])(new UserRegistered($user));
+        $this->listener($profiles, ['billing.enabled' => true])(new UserRegistered($user, null));
     }
 
     /**
@@ -44,7 +44,7 @@ final class ProvisionTrialOnUserRegisteredTest extends TestCase
         $profiles = $this->createMock(BillingProfileRepository::class);
         $profiles->expects($this->never())->method('findOneByUser');
 
-        $this->listener($profiles, ['billing.enabled' => false])(new UserRegistered($this->user()));
+        $this->listener($profiles, ['billing.enabled' => false])(new UserRegistered($this->user(), null));
     }
 
     public function test_missing_flag_is_treated_as_off(): void
@@ -52,7 +52,7 @@ final class ProvisionTrialOnUserRegisteredTest extends TestCase
         $profiles = $this->createMock(BillingProfileRepository::class);
         $profiles->expects($this->never())->method('findOneByUser');
 
-        $this->listener($profiles, [])(new UserRegistered($this->user()));
+        $this->listener($profiles, [])(new UserRegistered($this->user(), null));
     }
 
     private function user(): User

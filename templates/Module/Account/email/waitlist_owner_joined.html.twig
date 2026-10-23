@@ -1,0 +1,24 @@
+{% extends 'email/_layout.html.twig' %}
+
+{% block title %}{{ 'account.email.waitlist_owner.joined.subject'|trans }}{% endblock %}
+
+{% block content %}
+    <h1>{{ 'account.email.waitlist_owner.joined.heading'|trans }}</h1>
+    <p class="body-text">{{ ('account.email.waitlist_owner.joined.how.' ~ how)|trans({'%email%': visitorEmail}) }}</p>
+    {% if picks is not empty %}
+        {% set labels = [] %}
+        {% for pick in picks %}
+            {% set labels = labels|merge([('account.form.waitlist_join_form.picks.choice.' ~ pick)|trans]) %}
+        {% endfor %}
+        <p class="body-text">{{ 'account.email.waitlist_owner.picks'|trans({'%picks%': labels|join(', ')}) }}</p>
+    {% endif %}
+    {% if other %}
+        <p class="body-text">{{ 'account.email.waitlist_owner.other'|trans({'%other%': other}) }}</p>
+    {% endif %}
+    <p class="body-text">{{ 'account.email.waitlist_owner.waiting'|trans({'%count%': waitingCount}) }}</p>
+    <a href="{{ adminUrl }}" class="btn">{{ 'account.email.waitlist_owner.joined.button'|trans }}</a>
+{% endblock %}
+
+{% block footer %}
+    {{ 'account.email.verification.footer_copy_link'|trans }} {{ adminUrl }}
+{% endblock %}
