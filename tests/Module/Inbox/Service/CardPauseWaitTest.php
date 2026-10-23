@@ -23,7 +23,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
-/** A pause entry in the inbox set opens a wait, and its removal ends it, through the stored set and the queued reconcile. */
+/** A pause or card entry in the inbox set opens a wait, and its removal ends it, through the stored set and the queued reconcile. */
 final class CardPauseWaitTest extends KernelTestCase
 {
     use InboxFixtures;
@@ -93,6 +93,26 @@ final class CardPauseWaitTest extends KernelTestCase
         $reconciler->reconcile($this->project, null);
 
         self::assertSame('paused', $this->onlyWait($this->onlyWatch())->markerKey);
+    }
+
+    public function test_a_card_entry_opens_a_wait_for_one_spell_and_its_removal_ends_it(): void
+    {
+        $spell = new \DateTimeImmutable('2026-10-20 09:00:00');
+        $card = $this->em->find(Card::class, $this->cardId()) ?? throw new \LogicException('The card is stored.');
+        $this->storeInbox($this->em, $card, $this->inboxEntry('nothing-happened', MarkerSubject::card($this->cardId(), $spell)));
+        $this->drain();
+
+        $watch = $this->onlyWatch();
+        $wait = $this->onlyWait($watch);
+        self::assertSame('nothing-happened', $wait->markerKey);
+        self::assertEquals($spell, $wait->spellStartedAt);
+        self::assertSame(InboxItemState::Open, $watch->item->state);
+
+        $card = $this->em->find(Card::class, $this->cardId()) ?? throw new \LogicException('The card is stored.');
+        $this->storeInbox($this->em, $card);
+        $this->drain();
+
+        self::assertSame(InboxItemState::Done, $this->onlyWatch()->item->state);
     }
 
     /** Stores the inbox set as the engine does, with one pause entry or none. */

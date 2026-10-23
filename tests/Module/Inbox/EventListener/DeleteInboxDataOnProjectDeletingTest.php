@@ -25,13 +25,12 @@ use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Uid\Uuid;
 
 final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_project_settings', 'inbox_actions', 'inbox_bridge_outages'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -56,8 +55,6 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         [$doomed, $doomedRows] = $this->seedInbox($owner, 'doomed');
         [$spared, $sparedRows] = $this->seedInbox($owner, 'spared');
         $this->em->flush();
-        $doomedRows['inbox_project_settings'] = $this->insertSettings($doomed);
-        $sparedRows['inbox_project_settings'] = $this->insertSettings($spared);
         $doomedIds = $this->ids($doomedRows);
         $sparedIds = $this->ids($sparedRows);
 
@@ -83,8 +80,6 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         [$doomed, $doomedRows] = $this->seedInbox($owner, 'doomed');
         [$spared, $sparedRows] = $this->seedInbox($owner, 'spared');
         $this->em->flush();
-        $doomedRows['inbox_project_settings'] = $this->insertSettings($doomed);
-        $sparedRows['inbox_project_settings'] = $this->insertSettings($spared);
         $doomedId = (string) $doomed->id;
         $doomedIds = $this->ids($doomedRows);
         $sparedIds = $this->ids($sparedRows);
@@ -143,20 +138,6 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_actions' => $action,
             'inbox_bridge_outages' => $outage,
         ]];
-    }
-
-    /**
-     * The table has no entity any more, so a plain insert stands in for a row saved before the switches went.
-     */
-    private function insertSettings(Project $project): object
-    {
-        $id = Uuid::v7()->toRfc4122();
-        $this->connection->executeStatement(
-            'INSERT INTO inbox_project_settings (id, project_id) VALUES (:id, :project)',
-            ['id' => $id, 'project' => (string) $project->id],
-        );
-
-        return (object) ['id' => $id];
     }
 
     /**

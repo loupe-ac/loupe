@@ -296,7 +296,8 @@ A marker that the list does not name opens no item. The
 
 The template is refused when `inbox:` names an unknown marker or names a marker
 twice. A marker with no pull request, document, run or pause, called a
-card-level marker, cannot be listed yet, so the parser refuses it.
+card-level marker, can be listed. It opens one inbox item for each spell of the
+marker on the card, and the item ends when the marker turns off.
 
 ## Slots and columns
 

@@ -64,7 +64,6 @@ class Card implements ProjectScopedSubject
 
     /**
      * The board set: the markers the workflow engine found on the card, one per key, as stored by CardMarkerStore. Null until the first pass.
-     * The columns `markers` and `markers_due_at` belong to the previous version of the engine, and no code of this version maps them.
      *
      * @var list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: ?string}>|null
      */

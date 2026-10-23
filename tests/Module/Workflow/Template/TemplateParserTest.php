@@ -1711,7 +1711,7 @@ final class TemplateParserTest extends TestCase
 
     /** @param array<string, mixed> $when */
     #[DataProvider('cardSubjectConditions')]
-    public function test_a_listed_marker_with_the_card_subject_is_refused_and_a_stored_copy_skips_it(array $when): void
+    public function test_a_listed_marker_with_the_card_subject_is_accepted(array $when): void
     {
         $markers = [
             ['key' => 'a', 'kind' => 'stuck', 'label' => 'marker.a', 'when' => ['pr.open' => []]],
@@ -1719,16 +1719,8 @@ final class TemplateParserTest extends TestCase
         ];
         $source = self::valid() + ['markers' => $markers, 'inbox' => ['b', 'a']];
 
-        try {
-            $this->parser->parse($source);
-            self::fail('The template should be refused.');
-        } catch (InvalidTemplate $e) {
-            self::assertSame(['inbox: marker "b" names no single pull request, document, run or pause, and such a marker reaches the inbox from the next release'], $e->errors);
-        }
-
-        $stored = $this->parser->parseStored($source);
-        self::assertSame(['a'], $stored->inbox);
-        self::assertSame(['a', 'b'], array_map(static fn ($marker) => $marker->key, $stored->markers));
+        self::assertSame(['b', 'a'], $this->parser->parse($source)->inbox);
+        self::assertSame(['b', 'a'], $this->parser->parseStored($source)->inbox);
     }
 
     /** @return iterable<string, array{array<string, mixed>}> */
@@ -1750,7 +1742,7 @@ final class TemplateParserTest extends TestCase
         self::assertSame(['a'], $this->parser->parse($source)->inbox);
     }
 
-    public function test_a_listed_marker_whose_named_fact_names_no_thing_is_refused(): void
+    public function test_a_listed_marker_whose_named_fact_names_no_thing_is_accepted(): void
     {
         $source = self::valid() + [
             'facts' => ['bug' => ['card.type' => ['types' => ['bug']]]],
@@ -1758,14 +1750,7 @@ final class TemplateParserTest extends TestCase
             'inbox' => ['a'],
         ];
 
-        try {
-            $this->parser->parse($source);
-            self::fail('The template should be refused.');
-        } catch (InvalidTemplate $e) {
-            self::assertCount(1, $e->errors);
-            self::assertStringContainsString('reaches the inbox from the next release', $e->errors[0]);
-        }
-        self::assertSame([], $this->parser->parseStored($source)->inbox);
+        self::assertSame(['a'], $this->parser->parse($source)->inbox);
     }
 
     #[DataProvider('invalidInboxLists')]

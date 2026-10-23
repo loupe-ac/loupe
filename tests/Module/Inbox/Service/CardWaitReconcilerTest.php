@@ -473,7 +473,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxItemKind::Review, $item->kind);
     }
 
-    public function test_an_entry_of_the_card_opens_nothing_and_does_not_stop_the_other_entries(): void
+    public function test_an_entry_of_the_card_opens_a_wait_beside_the_other_entries(): void
     {
         $spell = new \DateTimeImmutable('2026-10-20 09:00:00');
         $cardEntry = $this->inboxEntry('nothing-happened', MarkerSubject::card($this->card->id ?? throw new \LogicException('Flushed.'), $spell), since: $spell);
@@ -481,14 +481,16 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         $this->reconcile();
 
-        self::assertSame([], $this->watches());
+        $watch = $this->onlyWatch();
+        self::assertSame(InboxCardWaitType::Card, $this->onlyWait($watch)->type);
 
         $this->storeInbox($this->em, $this->card, $cardEntry, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
 
-        $watch = $this->onlyWatch();
-        self::assertCount(1, $watch->waits);
-        self::assertSame(InboxCardWaitType::PullRequest, $this->onlyWait($watch)->type);
+        $types = array_map(static fn (InboxCardWait $wait): InboxCardWaitType => $wait->type, $this->onlyWatch()->waits->toArray());
+        self::assertCount(2, $types);
+        self::assertContains(InboxCardWaitType::PullRequest, $types);
+        self::assertContains(InboxCardWaitType::Card, $types);
     }
 
     public function test_a_second_reconcile_changes_nothing(): void
