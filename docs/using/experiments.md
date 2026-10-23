@@ -17,7 +17,9 @@ run comes first. Select a name to open the comparison of that experiment.
 
 A project with no experiment shows how to start one. Give a worker entry of the
 `work:` map in `rules.yaml` its variants. The kind of the entry names the
-experiment. A variant sets a `model` or an
+experiment, unless the entry sets `experiment`. To start a new trial on a kind
+that has an old one, set `experiment` to a new name. The old experiment keeps
+its page. A variant sets a `model` or an
 [`account`](../extending/cli-bridge.md#accounts), and it can set `permissions`.
 A variant with no model takes the model of its account, or the `--model` flag
 of the bridge when the account names none.
@@ -95,7 +97,7 @@ below the metrics shows how many cards are left out, and links to them.
 |---|---|
 | Switched variant | a run of the card moved it from a variant that the rule no longer offered |
 | Mixed variants | the runs and the pin of the card name more than one variant |
-| Implemented before the test | a worker run with no experiment worked the card in the same column before the first experiment run |
+| Implemented before the test | a worker run of no experiment or of another experiment worked the card in the same column before the first run of this experiment |
 | Run before the card history | the first experiment run of the card is older than the card history of the project |
 | No experiment run | a pin puts the card in the experiment, and no experiment run worked the card |
 

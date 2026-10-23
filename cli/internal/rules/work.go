@@ -15,6 +15,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/directive"
 	"github.com/loupe-ac/loupe/cli/internal/event"
+	"go.yaml.in/yaml/v3"
 )
 
 // WorkRulePrefix starts the rule name of a work match. The kind follows it.
@@ -74,8 +75,11 @@ type WorkEntry struct {
 	Refresh    *BeforeConfig `yaml:"refresh"`
 	Reset      *BeforeConfig `yaml:"reset"`
 	WorkerPool string        `yaml:"workerPool"`
-	// Variants pick the model or the account, as the variants of an
-	// experiment named after the kind. An entry that sets them sets no model.
+	// Experiment names the experiment of the variants. An absent key names it
+	// after the kind. A node keeps an explicit null apart from an absent key.
+	Experiment yaml.Node `yaml:"experiment"`
+	// Variants pick the model or the account, as the variants of the
+	// experiment. An entry that sets them sets no model.
 	Variants []Variant `yaml:"variants"`
 	// Metrics are the metric keys the Comparison tab of the experiment shows,
 	// in this order. Only an entry with variants sets them.
@@ -206,12 +210,12 @@ var workRefusals = map[string][]refusal{
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry runs a worker"},
 	},
 	ActionInteractive: {
-		{[]string{"before", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
+		{[]string{"before", "experiment", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry launches an interactive session"},
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry launches an interactive session"},
 	},
 	ActionCommand: {
-		{[]string{"account", "before", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
+		{[]string{"account", "before", "experiment", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
 	},
 }
 
@@ -230,6 +234,7 @@ func checkWork(kind string, w *WorkEntry) error {
 			"before":         w.Before != nil,
 			"refresh":        w.Refresh != nil,
 			"reset":          w.Reset != nil,
+			"experiment":     w.Experiment.Kind != 0,
 			"metrics":        w.Metrics != nil,
 			"model":          w.Model != "",
 			"permissionMode": w.PermissionMode != "",
@@ -285,13 +290,20 @@ func checkWork(kind string, w *WorkEntry) error {
 	if w.Action == "" && w.Metrics != nil && w.Variants == nil {
 		errs = append(errs, errors.New("metrics needs variants, and only an experiment shows metrics"))
 	}
+	if w.Action == "" && w.Experiment.Kind != 0 && w.Variants == nil {
+		errs = append(errs, errors.New("experiment needs variants, and only an experiment has a name"))
+	}
 	if w.Variants != nil {
 		if w.Model != "" {
 			errs = append(errs, errors.New("model and variants are both set, and the variants name the model"))
 		}
 		// An invalid kind has its own error, and is no experiment name.
 		if validKind {
-			e := Experiment{Name: kind, Variants: w.Variants, Metrics: w.Metrics}
+			name, err := experimentName(w.Experiment, kind)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			e := Experiment{Name: name, Variants: w.Variants, Metrics: w.Metrics}
 			if err := checkExperiment(e); err != nil {
 				errs = append(errs, err)
 			}
@@ -300,6 +312,19 @@ func checkWork(kind string, w *WorkEntry) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// experimentName reads the experiment field, and gives the kind when the key
+// is absent. A null or a list is no name.
+func experimentName(n yaml.Node, kind string) (string, error) {
+	switch {
+	case n.Kind == 0:
+		return kind, nil
+	case n.Kind != yaml.ScalarNode || n.ShortTag() == "!!null":
+		return "", errors.New("experiment needs a name, or no experiment key to take the kind")
+	}
+
+	return n.Value, nil
 }
 
 // checkSubject checks the subject of the entry, and fills card when it is
