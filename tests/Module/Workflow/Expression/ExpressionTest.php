@@ -13,7 +13,6 @@ use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\ParentFacts;
-use App\Module\Workflow\Condition\CardDocumentApprovalMoves;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\PullRequestList;
@@ -26,6 +25,7 @@ use App\Module\Workflow\Expression\MissingConditionLeaf;
 use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Expression\Not;
 use App\Tests\Module\Workflow\Fact\FactsMother;
+use App\Tests\Module\Workflow\Fact\ListsDocumentsReady;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
 use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
@@ -228,7 +228,7 @@ final class ExpressionTest extends TestCase
     public function test_a_leaf_that_reads_a_contract_interface_is_unreadable_while_its_provider_is(): void
     {
         $failed = new Unreadable(UnreadableKind::Failed, 'workflow.source.board');
-        $moves = new ConditionLeaf(new \ReflectionClass(CardDocumentApprovalMoves::class)->newInstanceWithoutConstructor(), []);
+        $moves = new ConditionLeaf(new ListsDocumentsReady(), []);
 
         self::assertNull($moves->unreadable(FactsMother::facts()));
         self::assertSame($failed, $moves->unreadable(FactsMother::facts(provided: [DocumentsFacts::class => $failed])));
