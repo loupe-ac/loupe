@@ -71,7 +71,8 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(36, $flags);
+        self::assertCount(37, $flags);
+        self::assertSame('', $flags['waitlist.notification_emails']->value);
         foreach (['site.link.discord', 'site.link.x', 'site.link.source'] as $linkFlag) {
             self::assertSame('', $flags[$linkFlag]->value);
         }
