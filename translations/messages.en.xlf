@@ -6057,10 +6057,6 @@
                 <source>board.page.title</source>
                 <target>Project board</target>
             </trans-unit>
-            <trans-unit id="board.card.create.action">
-                <source>board.card.create.action</source>
-                <target>Add card</target>
-            </trans-unit>
 
             <!-- Board columns and card vocabulary -->
             <trans-unit id="board.card.status.backlog">
