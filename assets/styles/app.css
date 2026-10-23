@@ -1162,7 +1162,7 @@
     @apply flex min-w-0 flex-1 flex-col gap-1;
 }
 .lp-review .lp-draft-band__title {
-    @apply m-0 flex flex-wrap items-center gap-2 text-ink;
+    @apply m-0 flex min-h-9 flex-wrap items-center gap-2 text-ink;
 }
 .lp-review .lp-draft-band__text {
     @apply m-0 text-fg-mute;
@@ -1456,9 +1456,9 @@
 }
 
 /* ── Column ─────────────────────────────────────────────────────── */
-/* A 48rem text column at the left. The panel column ends level with the top
-   bar's right edge, at least 5rem from the text for the comment markers, and
-   takes 20rem to 24rem. Below 75rem the toolbar and panels stack above. */
+/* A 48rem text column at the left. The panel column starts 5rem right of the
+   text for the comment markers, and takes 20rem to 24rem. Below 75rem the
+   toolbar and panels stack above. */
 .lp-review .lp-review-block {
     --doc-margin: calc(var(--spacing) * 80);
     --doc-margin-max: calc(var(--spacing) * 96);
@@ -1506,7 +1506,12 @@
         );
     }
     .lp-review .lp-review-panels {
-        @apply absolute top-0 right-0 bottom-0 mb-0;
+        @apply absolute top-0 bottom-0 mb-0;
+        left: calc(
+            var(--review-column-start) + var(--review-column) +
+                var(--doc-margin-gap)
+        );
+        right: auto;
         width: var(--review-panels-width);
     }
     /* Side by side starts with every panel hidden. An open one takes the panel
