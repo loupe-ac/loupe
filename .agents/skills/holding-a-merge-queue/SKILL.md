@@ -1,6 +1,6 @@
 ---
 name: holding-a-merge-queue
-description: "Use when one session holds the merge queue while other sessions push branches, when watching several pull requests for approval or CI changes, when a merge, review or plan change affects another session's branch, when an approved branch conflicts with main or needs a fix, when a merged pull request's board card must move, when acting on a peer session's report, when a check fails for a reason the diff cannot explain or passes on a re-run, or before a machine-wide action such as a restart or a keep-awake change."
+description: "Use when holding the merge queue or watching several PRs, when a change hits another session's branch, or for a conflicted or failing branch, merged card, flaky check, peer report or host-wide action."
 ---
 
 # Holding a merge queue

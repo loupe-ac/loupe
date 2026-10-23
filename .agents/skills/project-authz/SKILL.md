@@ -1,6 +1,6 @@
 ---
 name: project-authz
-description: "Use when adding, changing, or reviewing access control: Voters, #[IsGranted], security gates, Mercure topic authorization, or account enumeration policy."
+description: "Use when adding, changing or reviewing access control: Voters, `#[IsGranted]`, security gates, Mercure topic authorization or account enumeration."
 ---
 
 # Authorization

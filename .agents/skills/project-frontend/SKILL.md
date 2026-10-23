@@ -1,6 +1,6 @@
 ---
 name: project-frontend
-description: Use when working on `assets/styles/app.css`, Stimulus controllers, Turbo patterns, modal components, or any frontend visual behaviour, or when a Tailwind class does not appear in the compiled CSS, or when running the Tailwind watcher.
+description: "Use when working on `assets/styles/app.css`, Stimulus controllers, Turbo patterns, modals or frontend visual behaviour, or when a Tailwind class or the Tailwind watcher misbehaves."
 ---
 
 # Frontend: CSS, Stimulus, Turbo, and animations

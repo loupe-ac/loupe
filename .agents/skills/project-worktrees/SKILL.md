@@ -1,6 +1,6 @@
 ---
 name: project-worktrees
-description: Use when creating, entering, debugging or removing a git worktree under `.worktrees/`, when a worktree URL returns 404 or 502, when writing tooling that resolves a worktree's hostname, database or container name, or when starting, stopping or debugging the shared Docker stack or a process inside a container.
+description: "Use when creating, entering, debugging or removing a worktree under `.worktrees/`, when its URL returns 404 or 502, when writing worktree tooling, or for the Docker stack or a container process."
 ---
 
 # Git Worktrees

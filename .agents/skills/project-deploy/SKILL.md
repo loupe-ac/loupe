@@ -1,6 +1,6 @@
 ---
 name: project-deploy
-description: Use when deploying to production, running terraform apply against the App Platform app, verifying what version is live, or diagnosing a deploy that appears to have succeeded and changed nothing, or when changing the production container layout, the worker command, or `docker/compose/prod.yaml`.
+description: "Use when deploying to production, running terraform apply, verifying the live version, diagnosing a no-op deploy, or changing the prod containers, worker command or `docker/compose/prod.yaml`."
 ---
 
 # Deploying

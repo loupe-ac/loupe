@@ -1,6 +1,6 @@
 ---
 name: loupe-board
-description: "Use when working a project board in the Loupe app through the loupe MCP, calling board_columns, card_create, card_list, card_get, card_get_history, card_update, card_run_open, card_run_close, column_create, column_update, column_reorder, column_delete or automation_settings_update, writing a card, moving a card between columns, changing the columns, linking a document to a card, or linking a pull request to a card."
+description: "Use when working a Loupe project board through the loupe MCP: reading or writing a card, moving a card, changing the columns, or linking a document or a pull request to a card."
 ---
 
 # Working a Loupe board

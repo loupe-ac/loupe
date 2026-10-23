@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-fix-round
-description: "Use when a Loupe card needs one round of review feedback answered in its current stage, or when a prompt names loupe-stage-fix-round."
+description: "Use when a prompt names loupe-stage-fix-round, or when a card needs one round of review feedback answered in its current stage."
 ---
 
 # Fix round

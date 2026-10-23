@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-repair
-description: "Use when the workflow asks for repair work on a Loupe card after a rule's work failed and its retries ran out, or when a prompt names loupe-stage-repair."
+description: "Use when a prompt names loupe-stage-repair, or when the workflow asks for repair after a rule's work failed and its retries ran out."
 ---
 
 # Repair stage

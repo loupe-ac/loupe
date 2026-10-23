@@ -1,6 +1,6 @@
 ---
 name: loupe-site-review
-description: Use when acting on live-review feedback through the loupe MCP, reading the feedback of a card with card_get or of the project with feedback_list, fixing it, or calling feedback_mark_addressed.
+description: "Use when acting on live-review feedback through the loupe MCP: reading the feedback of a card or project, fixing it, or marking it addressed."
 ---
 
 # Acting on live-review feedback
