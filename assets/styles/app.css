@@ -2313,7 +2313,7 @@
     /* Document, Status, Author, Linked card, Updated, Actions. The artifacts list shares it.
        A row is a title line and a meta line, so it grows past the one-line height. */
     .lp-data-table--documents {
-        --lp-data-table-columns: minmax(0, 2fr)
+        --lp-data-table-columns: minmax(calc(var(--spacing) * 72), 3fr)
             minmax(calc(var(--spacing) * 34), 0.75fr)
             minmax(calc(var(--spacing) * 32), 0.7fr)
             minmax(calc(var(--spacing) * 28), 0.6fr)

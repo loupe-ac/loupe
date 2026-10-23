@@ -1,14 +1,18 @@
 /* The badge: a solid-filled document status. `templates/components/Ds/Badge.html.twig` renders it. */
 @layer components {
-    /* Solid fills, no border. "In review" is deliberately the neutral one: it is
-       the resting state of every document, so colouring it would leave a list of
-       untouched documents looking like a list of alerts. */
+    /* Solid fills. "In review" is deliberately the neutral one: it is the
+       resting state of every document, so colouring it would leave a list of
+       untouched documents looking like a list of alerts. The transparent
+       border keeps the outlined draft badge the same size. */
     .lp-badge {
-        @apply inline-flex items-center py-0.75 px-1.75 rounded-md text-xs leading-4 font-semibold whitespace-nowrap;
+        @apply inline-flex items-center py-0.75 px-1.75 rounded-md border border-transparent text-xs leading-4 font-semibold whitespace-nowrap;
     }
-    .lp-badge--in-review,
-    .lp-badge--draft {
+    .lp-badge--in-review {
         @apply bg-surface-3 text-ink-soft;
+    }
+    /* A draft is not published yet, so it is an outline and not a fill. */
+    .lp-badge--draft {
+        @apply bg-surface-1 text-ink-soft border-dashed border-line-strong;
     }
     .lp-badge--approved {
         @apply bg-status-ok-border text-status-ok-ink;

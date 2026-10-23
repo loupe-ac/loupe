@@ -11,6 +11,8 @@ them.
 Search and the status filter stay on one row, including on narrow screens.
 With enlarged text, the row scrolls horizontally when needed. Keyboard focus brings each control into view.
 Tag and series filters remain available when the project uses them.
+The filters sit on top of the table as one block.
+The Status column shows a draft as a dashed outline, so it stands out from a filled In review badge.
 
 ## Creating
 
