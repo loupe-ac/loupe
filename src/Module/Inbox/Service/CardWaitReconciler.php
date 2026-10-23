@@ -176,8 +176,7 @@ final readonly class CardWaitReconciler
                 continue;
             }
             foreach ($entries as $entry) {
-                // The database refuses a card wait in this release, so an entry of the card opens nothing.
-                if (null !== $entry->subject && MarkerSubjectType::Card !== $entry->subject->type) {
+                if (null !== $entry->subject) {
                     $candidates[] = [$cardId, WantedCardWait::fromMarker($entry)];
                 }
             }
