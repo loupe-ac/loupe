@@ -29,7 +29,7 @@
         @apply inline-flex gap-0.5 overflow-visible rounded-lg border-b-0 bg-surface-3 p-0.5 mb-0;
     }
     .lp-tabs--segmented .lp-tabs__tab {
-        @apply h-8 rounded-md border-b-0 px-2.5 py-0;
+        @apply h-8 flex-1 justify-center rounded-md border-b-0 px-2.5 py-0;
     }
     .lp-tabs--segmented .lp-tabs__tab[aria-selected='true'],
     .lp-tabs--segmented .lp-tabs__tab[aria-current='page'],
