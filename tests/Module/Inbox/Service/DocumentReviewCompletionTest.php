@@ -138,7 +138,7 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         $project = $this->project($em, $owner, 'rule-completion');
         $document = $this->document($em, $project);
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         $ask = $this->ask($em, $project);
         $link = new InboxAskItem($ask, $item);

@@ -136,7 +136,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $document = new Document($this->owner, $this->project, 'Review design');
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -227,7 +227,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $create = static::getContainer()->get(CreateDocumentHandler::class);
         self::assertInstanceOf(CreateDocumentHandler::class, $create);
         $document = $create(new CreateDocumentCommand($this->project, 'Decision design', "<!-- decision: target -->\n\n- ( ) Staging\n- ( ) Production\n\n<!-- /decision -->"));
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$item, $review] as $entity) {
             $this->em->persist($entity);
