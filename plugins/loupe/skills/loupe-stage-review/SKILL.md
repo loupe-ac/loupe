@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-review
-description: "Use when the workflow asks for a review of a card's pull request, from a review work request, or when a prompt names loupe-stage-review."
+description: "Use when a prompt names loupe-stage-review, or when the workflow asks for a review of a card's pull request."
 ---
 
 # Review stage
