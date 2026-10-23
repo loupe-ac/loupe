@@ -14,7 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 require_once __DIR__.'/../../migrations/Version20261023173506.php';
 
 /** Runs down() and up() inside the test's own transaction, which Postgres rolls back with the DDL. */
-final class DropInboxAskOriginMigrationTest extends KernelTestCase
+final class DropInboxItemOriginTriggerMigrationTest extends KernelTestCase
 {
     private Connection $connection;
 
@@ -27,14 +27,22 @@ final class DropInboxAskOriginMigrationTest extends KernelTestCase
         $this->connection = $em->getConnection();
     }
 
-    public function test_up_drops_the_trigger_the_function_and_the_ask_column(): void
+    public function test_up_drops_the_trigger_and_the_function(): void
     {
         $this->migrate(down: true);
         $this->migrate();
 
         self::assertSame(0, $this->rows("SELECT COUNT(*) FROM pg_trigger WHERE tgname = 'inbox_items_fill_origin'"));
         self::assertSame(0, $this->rows("SELECT COUNT(*) FROM pg_proc WHERE proname = 'inbox_items_fill_origin'"));
-        self::assertSame(0, $this->rows("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'inbox_asks' AND column_name = 'origin'"));
+    }
+
+    /** The previous image still inserts inbox_asks.origin, and this image omits it, so the column stays with its default. */
+    public function test_up_keeps_the_ask_column_with_its_default(): void
+    {
+        $this->migrate(down: true);
+        $this->migrate();
+
+        self::assertSame(1, $this->rows("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'inbox_asks' AND column_name = 'origin' AND column_default LIKE '''agent''%'"));
     }
 
     public function test_up_keeps_the_origin_of_inbox_items(): void
@@ -45,12 +53,11 @@ final class DropInboxAskOriginMigrationTest extends KernelTestCase
         self::assertSame(1, $this->rows("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'inbox_items' AND column_name = 'origin' AND is_nullable = 'NO'"));
     }
 
-    public function test_down_restores_the_trigger_and_the_ask_column(): void
+    public function test_down_restores_the_trigger(): void
     {
         $this->migrate(down: true);
 
         self::assertSame(1, $this->rows("SELECT COUNT(*) FROM pg_trigger WHERE tgname = 'inbox_items_fill_origin'"));
-        self::assertSame(1, $this->rows("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'inbox_asks' AND column_name = 'origin'"));
     }
 
     private function rows(string $sql): int
