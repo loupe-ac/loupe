@@ -69,6 +69,7 @@ final readonly class InboxRuleAsks implements RuleAsks
                 kind: InboxItemKind::Workflow,
                 title: mb_substr($question, 0, InboxItem::MAX_TITLE_LENGTH),
                 blocking: true,
+                origin: InboxAskOrigin::Loupe,
                 options: array_values($options),
                 createdAt: $now,
                 searchLanguage: $project->searchLanguage,

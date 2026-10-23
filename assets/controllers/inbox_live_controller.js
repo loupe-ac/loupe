@@ -171,7 +171,9 @@ export default class extends Controller {
             const target = event.target;
             if (
                 target.classList?.contains('lp-flash') ||
-                (target instanceof HTMLFormElement && hasUnsavedInput(target))
+                (target instanceof HTMLFormElement &&
+                    hasUnsavedInput(target) &&
+                    holdsSameForm(target, event.detail?.newElement))
             ) {
                 event.preventDefault();
             }
@@ -240,9 +242,23 @@ function keepNotices(current, fresh) {
 }
 
 /**
- * A form with typed input stays on screen even when its item closed. The
- * fresh view holds no form for that item, so the locked actions go into it, and
- * the morph finds them equal. The typed note stays readable.
+ * Turbo fires the same event when a morph removes a form, with no new element.
+ * A form with typed input stays only when the new view holds the form of the
+ * same item, which its id names.
+ */
+function holdsSameForm(form, newElement) {
+    return (
+        newElement instanceof HTMLFormElement &&
+        form.id !== '' &&
+        newElement.id === form.id
+    );
+}
+
+/**
+ * A form with typed input stays on screen when its item closed. The fresh
+ * view holds no form for that item, so the locked actions go into it, and the
+ * morph finds them equal. The typed note stays readable. An item that is still
+ * open gets no copy, so the morph removes a form its new view dropped.
  */
 function lockClosedForms(current, fresh) {
     const grafted = new Set();
@@ -257,6 +273,7 @@ function lockClosedForms(current, fresh) {
         );
         if (
             !twin ||
+            twin.dataset.inboxItemOpen !== 'false' ||
             (!grafted.has(twin) &&
                 twin.querySelector('.lp-inbox-item__actions'))
         ) {

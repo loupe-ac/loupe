@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Account\Deletion\AccountDeletionCleanup;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -103,7 +104,7 @@ final class InboxReviewLifecycleTest extends KernelTestCase
         $document = $this->document($this->em, $project);
         $document->addVersion('# Review', '<h1>Review</h1>');
         $verdict = new Review($document->currentVersion(), Verdict::Approved, $owner, note: 'The retry behaviour is clear.');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $item->state = InboxItemState::Done;
         $review = new InboxReview($item, $document);
         $review->verdict = InboxReviewVerdict::Approved;

@@ -43,6 +43,13 @@
         line-height: 1.5;
     }
 
+    .lp-list-row__subtitle {
+        grid-column: 2;
+        color: var(--text-dim);
+        font-size: var(--text-xs);
+        overflow-wrap: anywhere;
+    }
+
     .lp-list-row__meta {
         display: flex;
         grid-column: 2;

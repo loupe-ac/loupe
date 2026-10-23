@@ -11,6 +11,7 @@ use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxLinkedPage;
 use App\Module\Project\Entity\Project;
@@ -53,7 +54,7 @@ class InboxItemRepository extends ServiceEntityRepository
             "SELECT ic.card_id, i.number, i.title, i.created_at, i.blocking
              FROM inbox_item_cards ic
              JOIN inbox_items i ON i.id = ic.item_id
-             WHERE i.project_id = :project AND i.state = 'open' AND i.kind NOT IN ('wait', 'notice') AND ic.card_id IN (:cards)
+             WHERE i.project_id = :project AND i.state = 'open' AND i.kind <> 'notice' AND NOT (i.origin = 'loupe' AND i.kind IN ('wait', 'review')) AND ic.card_id IN (:cards)
              ORDER BY i.created_at, i.id",
             ['project' => (string) ($project->id ?? throw new \LogicException('Project has no id.')), 'cards' => $cardIds],
             ['cards' => ArrayParameterType::STRING],
@@ -397,9 +398,9 @@ class InboxItemRepository extends ServiceEntityRepository
             return;
         }
 
-        /** @var list<array{id: Uuid, title: string, body: ?string, blocking: bool, options: list<string>, multiple: bool, freeText: bool, state: InboxItemState, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, respondedThroughAgent: bool, updatedAt: \DateTimeImmutable, closedAt: ?\DateTimeImmutable}> $rows */
+        /** @var list<array{id: Uuid, kind: InboxItemKind, title: string, body: ?string, blocking: bool, options: list<string>, multiple: bool, freeText: bool, state: InboxItemState, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, respondedThroughAgent: bool, updatedAt: \DateTimeImmutable, closedAt: ?\DateTimeImmutable}> $rows */
         $rows = $this->createQueryBuilder('i')
-            ->select('i.id, i.title, i.body, i.blocking, i.options, i.multiple, i.freeText, i.state, i.selectedOptions, i.answerText, i.closeNote, i.respondedThroughAgent, i.updatedAt, i.closedAt')
+            ->select('i.id, i.kind, i.title, i.body, i.blocking, i.options, i.multiple, i.freeText, i.state, i.selectedOptions, i.answerText, i.closeNote, i.respondedThroughAgent, i.updatedAt, i.closedAt')
             ->andWhere('i IN (:items)')
             ->setParameter('items', $items)
             ->getQuery()
@@ -416,6 +417,7 @@ class InboxItemRepository extends ServiceEntityRepository
             if (null === $row) {
                 continue;
             }
+            $item->kind = $row['kind'];
             $item->title = $row['title'];
             $item->body = $row['body'];
             $item->blocking = $row['blocking'];

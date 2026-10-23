@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Entity;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWaitType;
@@ -246,7 +247,7 @@ final class InboxCardWatchTest extends KernelTestCase
 
     private function watch(Project $project, Uuid $cardId, int $cardNumber = 1, int $number = 1): InboxCardWatch
     {
-        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Wait, title: '#'.$cardNumber.' Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Wait, title: '#'.$cardNumber.' Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em->persist($item);
         $watch = new InboxCardWatch($item, $cardId, $cardNumber);
         $this->em->persist($watch);

@@ -21,6 +21,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -366,7 +367,7 @@ final class InboxActionControllersTest extends WebTestCase
         $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
         $session->lastSeenAt = new \DateTimeImmutable();
         $this->em()->persist($session);
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the <skill>.']];
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em()->persist($item);
@@ -393,7 +394,7 @@ final class InboxActionControllersTest extends WebTestCase
         $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
         $session->lastSeenAt = new \DateTimeImmutable();
         $this->em()->persist($session);
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']];
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em()->persist($item);
@@ -442,7 +443,7 @@ final class InboxActionControllersTest extends WebTestCase
         $document = new Document($this->project->owner, $this->project, 'Plan');
         $document->addVersion('# One', '<h1>One</h1>');
         $this->em()->persist($document);
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Read the plan', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Read the plan', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [['action' => 'open', 'reason' => 'The plan waits.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null]];
         $item->documents->add(new InboxItemDocument($item, $document));
         $this->em()->persist($item);
@@ -1091,7 +1092,7 @@ final class InboxActionControllersTest extends WebTestCase
             ['projectId' => (string) $this->project->id, 'branch' => 'main', 'path' => '/work/loupe'],
             ['projectId' => (string) $this->project->id, 'branch' => 'epic/42', 'path' => '/work/loupe/.worktrees/card-42'],
         ];
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => null]];
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em()->persist($item);
@@ -1134,7 +1135,7 @@ final class InboxActionControllersTest extends WebTestCase
     /** @param \Closure(InboxCardWatch): InboxCardWait $wait */
     private function itemWithWait(\Closure $wait, bool $linkCard = false): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($item);
         $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
         $this->em()->persist($watch);
@@ -1168,7 +1169,7 @@ final class InboxActionControllersTest extends WebTestCase
     /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: null, proposedEntry?: null, prompt?: string|null}>|null $suggestions */
     private function sessionQuestion(?array $suggestions): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which tag order?', blocking: true, options: ['By name', 'By use'], freeText: true);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which tag order?', blocking: true, origin: InboxAskOrigin::Agent, options: ['By name', 'By use'], freeText: true);
         $item->suggestedActions = $suggestions;
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em()->persist($item);

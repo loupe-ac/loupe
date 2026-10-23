@@ -9,6 +9,7 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
@@ -115,7 +116,7 @@ trait InboxFixtures
 
     private function item(EntityManagerInterface $em, Project $project, int $number = 1, string $title = 'Which column?'): InboxItem
     {
-        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Question, title: $title, blocking: true, options: ['next', 'done']);
+        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Question, title: $title, blocking: true, origin: InboxAskOrigin::Agent, options: ['next', 'done']);
         $em->persist($item);
 
         return $item;

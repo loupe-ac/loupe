@@ -18,6 +18,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
@@ -159,7 +160,7 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
 
     private function closedAsk(Project $project, Bridge $bridge, WorkerRun $run, \DateTimeImmutable $closedAt, bool $blocking = true, bool $skipped = false): void
     {
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Question, title: 'Which column?', blocking: $blocking);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Question, title: 'Which column?', blocking: $blocking, origin: InboxAskOrigin::Agent);
         $ask = new InboxAsk(project: $project, sessionId: $run->sessionId, bridgeId: $bridge->id);
         $ask->items->add(new InboxAskItem($ask, $item));
         $ask->closedAt = $closedAt;

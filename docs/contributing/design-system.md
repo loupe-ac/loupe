@@ -82,7 +82,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | MarketingShell | The frame of a public page for a signed-out visitor: the site bar, the page body and the site footer. It has no Twig component: `templates/marketing_base.html.twig` draws it, and a page fills `block body` | none |
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
-| ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
+| ListRow | One row of a list: an icon, a title, an optional subtitle and a meta line | none. The state current marks the open row |
 | Workspace | The page container: the frame that holds the content of a page | narrow, for a form page, and full, which drops the width cap |
 | SettingsLayout | A settings page: the page header, a section navigation and the content column | none. The state active marks the open section |
 | Drawer | A panel that slides in from the right edge. The `modal` controller opens it | none |
@@ -122,7 +122,7 @@ The Workspace takes `width`, which is `default`, `narrow` or `full`, and wraps t
 
 The shell has one width option. A page whose frame must reach the window edge, such as the board, sets `{% block shell_width %}full{% endblock %}`, which adds `lp-shell--full`. A page that needs a different ground sets `{% block main_surface %}` to `paper` (white) or `fill` (a column that clips its overflow).
 
-The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
+The ListRow takes `title`, `subtitle`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
 
 ```twig
 <twig:Ds:ListRow :title="row.title" :current="true" href="{{ path('app_home') }}" icon:data-kind="question">
