@@ -306,8 +306,17 @@ Read two results. The effective URL must end in the `--path` you minted, or the
 sign-in failed. The count must be 1 or more, or the state is not seeded. Fetch
 the bare page URL once without the link, and confirm that the count is 0.
 
-Write one line per link in the Preview section, naming the marker that you
-found. A branch that changes a page and cannot show its marker is not ready.
+Write one Markdown list item per link in the Preview section, naming the
+marker that you found:
+
+```markdown
+- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
+```
+
+A child of an epic appends `. State: <text>` to the line. A link to a file,
+an artifact or a CI run takes the same shape with no marker, and so does the
+card line: `- [Card 42: <title>](<card URL>)`.
+A branch that changes a page and cannot show its marker is not ready.
 "The tests cover it", "the seed holds no X" and "it shows after a bridge
 reports data" do not replace a seeded state.
 
