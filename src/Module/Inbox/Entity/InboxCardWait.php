@@ -14,9 +14,6 @@ use Symfony\Component\Uid\Uuid;
  * One marker entry a card waits on. The marker key, the label and its values come from the stored marker.
  * A document wait names one version, a run wait names one run, a pull request wait names one head commit,
  * and a card wait names one spell of the marker on the card.
- *
- * The table still has the columns `trigger` and `reason`, which the previous version of the code reads.
- * A database trigger fills them, so this class maps neither.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'inbox_card_waits')]
