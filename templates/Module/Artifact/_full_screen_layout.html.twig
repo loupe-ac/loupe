@@ -5,4 +5,10 @@
 <main id="main-content" class="lp-artifact-full-screen__main">
     {% block body %}{% endblock %}
 </main>
+{% if app.user and is_feature_enabled('inbox.enabled') %}
+{# A frame response replaces the cookie of its host page, so only a full page subscribes. #}
+{% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(inbox_topic(app.user)) %}{% endif %}
+{% include '@Inbox/_live_open_total.html.twig' with {total: inbox_open_total(app.user)} only %}
+{% endif %}
+{% include '_mercure_subscriptions.html.twig' only %}
 {% endblock %}

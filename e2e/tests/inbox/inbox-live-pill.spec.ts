@@ -6,7 +6,7 @@
  */
 
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { signedInPage } from '../fixtures';
+import { agentAccessToken, signedInPage } from '../fixtures';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eInboxLivePill1!';
@@ -26,9 +26,10 @@ async function setFlag(
 // warm local worktree, too close to the 30-second default.
 test.setTimeout(60_000);
 
-// The flag is global, so it goes back off for the specs that run after this one.
+// The flags are global, so they go back off for the specs that run after this one.
 test.afterAll(async ({ request }) => {
     await setFlag(request, 'inbox.enabled', false);
+    await setFlag(request, 'artifacts.enabled', false);
 });
 
 test('an answer in one browser lowers the pill in another without a reload', async ({
@@ -58,6 +59,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     await expect(link).toHaveAttribute('data-live-pill-connected', '');
     const pill = link.locator('[data-inbox-open-count]');
     await expect(pill).toHaveText('2');
+    await expect(watcher).toHaveTitle(/^\(2\) /);
 
     // A full navigation would drop this marker.
     await watcher.evaluate(() => {
@@ -73,6 +75,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     );
 
     await expect(pill).toHaveText('1');
+    await expect(watcher).toHaveTitle(/^\(1\) /);
 
     // A reload that fails, as an expired session or a down server would, keeps
     // the pill it had instead of writing Turbo's error into the link.
@@ -101,6 +104,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     );
 
     await failedReload;
+    await expect(watcher).toHaveTitle(/^(?!\()/);
     await expect(pill).toHaveText('1');
     await expect(link).not.toContainText('Content missing');
     expect(
@@ -119,4 +123,47 @@ test('an answer in one browser lowers the pill in another without a reload', asy
 
     await editor.context().close();
     await watcher.context().close();
+});
+
+test('the full-screen artifact page keeps the count in its tab title', async ({
+    browser,
+    request,
+}) => {
+    await setFlag(request, 'inbox.enabled', true);
+    await setFlag(request, 'artifacts.enabled', true);
+    await setFlag(request, 'live_updates.enabled', true);
+
+    const email = `e2e+inbox+title+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E Inbox Title User', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const page = await signedInPage(browser, email, PASSWORD);
+    const seeded = await page.request.post('/dev/seed/inbox');
+    expect(seeded.status()).toBe(201);
+    const { projectId } = await seeded.json();
+
+    const token = await agentAccessToken(page);
+    const stored = await request.post(`/api/projects/${projectId}/artifacts`, {
+        headers: { Authorization: `Bearer ${token}` },
+        multipart: {
+            name: 'Title check',
+            'paths[0]': 'index.html',
+            'files[0]': {
+                name: 'index.html',
+                mimeType: 'text/html',
+                buffer: Buffer.from('<h1>Title check</h1>'),
+            },
+        },
+    });
+    expect(stored.status()).toBe(201);
+    const { artifactId } = await stored.json();
+
+    await page.goto(
+        `/projects/${projectId}/artifacts/${artifactId}/full-screen`,
+    );
+    await expect(page).toHaveTitle(/^\(2\) /);
+
+    await page.context().close();
 });

@@ -148,7 +148,7 @@ export default defineConfig({
         },
         {
             name: 'global-flags',
-            // billing.enabled, inbox.enabled, search.topbar.enabled,
+            // billing.enabled, inbox.enabled, artifacts.enabled, search.topbar.enabled,
             // review.mermaid.enabled, live_updates.enabled
             // and the OAuth provider flags change what signed-in pages and the login form
             // render, so nothing else runs beside these.

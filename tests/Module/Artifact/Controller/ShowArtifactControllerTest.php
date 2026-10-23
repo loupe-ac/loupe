@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Artifact\Controller;
 
+use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Tests\Module\Artifact\ArtifactScenario;
 use App\Tests\Module\Artifact\LinkedCardScenario;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -114,6 +115,27 @@ final class ShowArtifactControllerTest extends WebTestCase
             self::assertCount(0, $crawler->filter('[data-artifact-full-screen]'));
             self::assertSame($number, $crawler->filter('[data-artifact-version-link][aria-current="true"]')->attr('data-artifact-version-link'));
         }
+    }
+
+    public function test_the_full_screen_window_keeps_the_tab_count_while_the_inbox_is_on(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('show-full-inbox@example.com');
+        $artifact = $this->storedArtifact($project, 'Alone', [['index.html' => 'one']]);
+        [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+        $this->em()->clear();
+        $client->loginUser($project->owner);
+        $url = '/projects/'.$projectId.'/artifacts/'.$artifactId.'/full-screen';
+
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url);
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-controller~="tab-count"]'));
+
+        $this->em()->getConnection()->executeStatement("UPDATE feature_flag SET value = 'true' WHERE name = ?", [InboxInstallFlags::FLAG_INBOX_ENABLED]);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url);
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-controller~="tab-count"] turbo-frame#inbox-open-total'));
+        self::assertCount(1, $crawler->filter('form#mercure-subscriptions'));
     }
 
     public function test_the_menu_lists_the_revision_notes_of_each_version(): void

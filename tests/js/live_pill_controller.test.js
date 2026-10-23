@@ -24,10 +24,10 @@ let application;
 let frame;
 let link;
 
-function mount(events = ['worker_run.changed']) {
+function mount(events = ['worker_run.changed'], project = PROJECT) {
     document.body.innerHTML = `
         <a data-controller="live-pill"
-           data-live-pill-project-value="${PROJECT}"
+           data-live-pill-project-value="${project}"
            data-live-pill-url-value="${URL}"
            data-live-pill-events-value='${JSON.stringify(events)}'>
             <turbo-frame id="pill" data-live-pill-target="frame"></turbo-frame>
@@ -85,6 +85,17 @@ it('reloads on a change with no project and on one of its project, and ignores a
     expect(frame.reload).toHaveBeenCalledTimes(2);
 
     handler({ type: 'inbox.open_count_changed', projectId: 'another' });
+    expect(frame.reload).toHaveBeenCalledTimes(2);
+});
+
+it('reloads on a change of any project when it names none', async () => {
+    mount(['inbox.open_count_changed'], '');
+    await Promise.resolve();
+    frame.setAttribute('src', URL);
+    const { handler } = live.subscriptions[0];
+
+    handler({ type: 'inbox.open_count_changed', projectId: 'another' });
+    handler({ type: 'inbox.open_count_changed', projectId: PROJECT });
     expect(frame.reload).toHaveBeenCalledTimes(2);
 });
 

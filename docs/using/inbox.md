@@ -33,6 +33,9 @@ the items. An item that blocks the agent carries a **Blocking** label.
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
 many items are still open. The link is absent while the flag is off.
 
+The browser tab title starts with the number of open items over all your
+projects, such as `(3) Board`. The title has no number at zero.
+
 The page has no header of its own. Its **View activity** and **Settings** links
 sit in the top bar, and on a phone they show as icons.
 
