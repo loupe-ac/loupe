@@ -1,6 +1,6 @@
 ---
 name: project-e2e
-description: Use when writing, fixing, or debugging Playwright e2e tests under `e2e/`, or when running the suite, starting or stopping the disposable e2e target, or reading the e2e CI checks.
+description: "Use when writing, fixing, debugging or running Playwright e2e tests under `e2e/`, starting or stopping the e2e target, or reading the e2e CI checks."
 ---
 
 # E2E Tests

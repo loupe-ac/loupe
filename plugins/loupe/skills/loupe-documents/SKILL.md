@@ -1,6 +1,6 @@
 ---
 name: loupe-documents
-description: Use when writing or revising a document for the Loupe app, anything sent through the loupe MCP's document_create or document_revise (implementation plans, specs, RFCs, audit reports, retrospectives, any long-form review document).
+description: "Use when writing or revising a document for the Loupe app through the loupe MCP, such as a plan, spec, RFC, audit report or retrospective."
 ---
 
 # Writing documents for Loupe review

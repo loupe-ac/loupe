@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-tech-design
-description: "Use when a card enters the Tech design column of a Loupe board, or when a prompt names loupe-stage-tech-design."
+description: "Use when a prompt names loupe-stage-tech-design, or when a card enters the Tech design column."
 ---
 
 # Tech design stage
