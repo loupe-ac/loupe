@@ -5,13 +5,13 @@
     "url": "https://github.com/loupe-ac"
   },
   "description": "The Loupe plugin for Claude Code \u2014 skills for documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
-  "version": "0.46.0",
+  "version": "0.47.0",
   "plugins": [
     {
       "name": "loupe",
       "displayName": "Loupe",
       "source": "./plugins/loupe",
-      "version": "0.46.0",
+      "version": "0.47.0",
       "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
       "author": {
         "name": "Geoffrey Bachelet",
