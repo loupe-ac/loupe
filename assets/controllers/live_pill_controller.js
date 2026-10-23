@@ -6,6 +6,7 @@ import { on } from '../lib/live.js';
  * open of the connection for any change made while it was not listening, the
  * first open included. A message that names a project is ignored when it
  * names another one, because one topic can carry every project of the user.
+ * With no project value it follows every project.
  */
 export default class extends Controller {
     static targets = ['frame'];
@@ -19,7 +20,11 @@ export default class extends Controller {
         this.unsubscribe = on(
             this.eventsValue,
             (data) => {
-                if (!data?.projectId || data.projectId === this.projectValue) {
+                if (
+                    !this.projectValue ||
+                    !data?.projectId ||
+                    data.projectId === this.projectValue
+                ) {
                     this.reload();
                 }
             },

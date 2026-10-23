@@ -1,0 +1,7 @@
+{# Hidden. Keeps the tab title prefix current: the live-pill controller reloads the frame, the tab-count controller reads it. #}
+<div hidden data-controller="live-pill tab-count"
+     data-action="turbo:frame-missing->live-pill#keepPill turbo:frame-load->tab-count#sync"
+     data-live-pill-events-value="{{ ['inbox.open_count_changed']|json_encode }}"
+     data-live-pill-url-value="{{ path('app_inbox_open_total') }}">
+    {% include '@Inbox/_open_total.html.twig' with {total: total} only %}
+</div>

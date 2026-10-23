@@ -7,6 +7,8 @@ namespace App\Module\Inbox\Twig;
 use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Command\ShowInboxOpenTotalCommand;
+use App\Module\Inbox\Command\ShowInboxOpenTotalHandler;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -71,6 +73,7 @@ final class InboxExtension extends AbstractExtension
         private readonly InboxThreadActionBuilder $threadActions,
         private readonly InboxActionStatuses $actionStatuses,
         private readonly InboxActionRepository $inboxActions,
+        private readonly ShowInboxOpenTotalHandler $openTotal,
     ) {
     }
 
@@ -96,6 +99,7 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_document_review_form', $this->documentReviewForm(...)),
             new TwigFunction('inbox_refusals', $this->refusals(...)),
             new TwigFunction('project_inbox_open_count', $this->openCount(...)),
+            new TwigFunction('inbox_open_total', $this->openTotal(...)),
             new TwigFunction('inbox_topic', $this->topic(...)),
             new TwigFunction('inbox_page_topic', $this->pageTopic(...)),
         ];
@@ -327,6 +331,12 @@ final class InboxExtension extends AbstractExtension
     public function openCount(Project $project): int
     {
         return $this->inboxItems->countOpenByProject($project);
+    }
+
+    /** Feeds the tab title: the open items over every project of the user, or zero with nobody signed in. */
+    public function openTotal(?User $user): int
+    {
+        return null === $user ? 0 : ($this->openTotal)(new ShowInboxOpenTotalCommand($user));
     }
 
     /** The topic the pill listens on for the open counts of every project of the user. */
