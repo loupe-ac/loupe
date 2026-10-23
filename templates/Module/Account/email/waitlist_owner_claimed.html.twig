@@ -1,0 +1,15 @@
+{% extends 'email/_layout.html.twig' %}
+
+{% block title %}{{ 'account.email.waitlist_owner.claimed.subject'|trans }}{% endblock %}
+
+{% block content %}
+    <h1>{{ 'account.email.waitlist_owner.claimed.heading'|trans }}</h1>
+    <p class="body-text">{{ ('account.email.waitlist_owner.claimed.method.' ~ method)|trans({'%email%': visitorEmail}) }}</p>
+    <p class="body-text">{{ 'account.email.waitlist_owner.claimed.invite'|trans({'%date%': invitedOn, '%count%': days}) }}</p>
+    <p class="body-text">{{ 'account.email.waitlist_owner.waiting'|trans({'%count%': waitingCount}) }}</p>
+    <a href="{{ adminUrl }}" class="btn">{{ 'account.email.waitlist_owner.claimed.button'|trans }}</a>
+{% endblock %}
+
+{% block footer %}
+    {{ 'account.email.verification.footer_copy_link'|trans }} {{ adminUrl }}
+{% endblock %}

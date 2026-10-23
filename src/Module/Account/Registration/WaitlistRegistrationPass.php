@@ -44,7 +44,7 @@ final readonly class WaitlistRegistrationPass implements RegistrationPassInterfa
             return false;
         }
 
-        $invite->markConverted();
+        $invite->claimInvite();
 
         return true;
     }
