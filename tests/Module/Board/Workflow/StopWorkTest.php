@@ -165,6 +165,21 @@ final class StopWorkTest extends KernelTestCase
         self::assertSame(100, $this->countCommands($this->em()));
     }
 
+    public function test_interactive_sessions_do_not_count_toward_the_limit_of_one_pass(): void
+    {
+        [$card, $bridge] = $this->card('stop-work-interactive-many');
+        for ($i = 1; $i <= 101; ++$i) {
+            $run = $this->seedRun($this->em(), $card->project, workKind: 'product-design', bridgeId: $bridge->id, cardId: $card->id, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+            $this->startLater($run, $i);
+        }
+        $this->seedRun($this->em(), $card->project, workKind: 'implement', bridgeId: $bridge->id, cardId: $card->id, state: WorkerRunState::Running);
+
+        self::assertEquals(ActionOutcome::done(), $this->stop($card));
+        $this->em()->flush();
+
+        self::assertSame(1, $this->countCommands($this->em()));
+    }
+
     /**
      * @template T of object
      *

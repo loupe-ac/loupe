@@ -98,12 +98,9 @@ final readonly class StopWork implements Action
 
         $reason = $this->translator->trans('workflow.stop_work.reason', ['%rule%' => $context->ruleId]);
         $now = $this->clock->now();
-        $open = $this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS + 1);
+        $open = $this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS + 1, WorkerRunKind::Interactive);
         $refused = \count($open) > self::MAX_RUNS;
-        $runs = array_filter(
-            \array_slice($open, 0, self::MAX_RUNS),
-            static fn (WorkerRun $run): bool => WorkerRunKind::Interactive !== $run->kind,
-        );
+        $runs = \array_slice($open, 0, self::MAX_RUNS);
         usort($runs, static fn (WorkerRun $a, WorkerRun $b): int => strcmp((string) $a->bridgeId, (string) $b->bridgeId));
         foreach ($runs as $run) {
             try {
