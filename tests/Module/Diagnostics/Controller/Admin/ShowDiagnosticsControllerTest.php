@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Tests\Module\Diagnostics\Controller\Admin;
 
 use App\Module\Account\Diagnostics\AgentAccountCheck;
+use App\Module\Account\Diagnostics\WaitlistNotificationRecipientsCheck;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Service\WaitlistNotificationRecipients;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 use Ubermuda\HealthCheckBundle\Command\RunDiagnosticsHandler;
 use Ubermuda\HealthCheckBundle\Testing\HealthChecks;
 
@@ -58,6 +62,26 @@ final class ShowDiagnosticsControllerTest extends WebTestCase
         self::assertGreaterThan(0, $crawler->filter('a[href="/admin/status"]')->count());
     }
 
+    public function test_a_bad_waitlist_recipient_shows_one_warning_that_names_every_entry(): void
+    {
+        $client = static::createClient();
+        $this->useOfflineStatusHandler();
+        $admin = $this->seedUser('system-status-waitlist@admin-test.example.com', ['ROLE_ADMIN']);
+        $flag = self::getContainer()->get(FeatureFlagRepository::class)->findOneBy(['name' => WaitlistNotificationRecipients::FLAG]);
+        self::assertInstanceOf(FeatureFlag::class, $flag);
+        $flag->value = 'ana@example.com, bo@example, carl';
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $client->loginUser($admin);
+        $crawler = $client->request(Request::METHOD_GET, '/admin/status');
+
+        $row = $crawler->filter('[data-system-check="waitlist_notification_recipients"]');
+        self::assertCount(1, $row);
+        self::assertSame('warning', $row->attr('data-system-check-state'));
+        self::assertSame('Waitlist notification emails', $row->filter('.status-check-label')->text());
+        self::assertStringContainsString('2 entries are not email addresses: bo@example, carl.', $row->text());
+    }
+
     public function test_logged_in_non_admin_gets_403(): void
     {
         $client = static::createClient();
@@ -91,6 +115,7 @@ final class ShowDiagnosticsControllerTest extends WebTestCase
             new RunDiagnosticsHandler([
                 ...HealthChecks::checks($connection, mailerFromAddress: 'ops@example.com'),
                 new AgentAccountCheck($connection, new NullLogger()),
+                new WaitlistNotificationRecipientsCheck(self::getContainer()->get(WaitlistNotificationRecipients::class)),
             ]),
         );
     }

@@ -43,4 +43,51 @@ final class WaitlistEntryRepositoryTest extends KernelTestCase
         rsort($sorted);
         self::assertSame($sorted, $values);
     }
+
+    public function test_count_waiting_counts_only_entries_the_admin_page_shows_as_waiting(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repo = self::getContainer()->get(WaitlistEntryRepository::class);
+        self::assertInstanceOf(WaitlistEntryRepository::class, $repo);
+
+        $before = $repo->countWaiting();
+
+        $waiting = new WaitlistEntry('waiting@example.com');
+        $invited = new WaitlistEntry('invited@example.com');
+        $invited->issueInviteToken();
+        $expired = new WaitlistEntry('expired@example.com');
+        $expired->issueInviteToken(new \DateTimeImmutable('-1 day'));
+        $converted = new WaitlistEntry('converted@example.com');
+        $converted->markConverted();
+        foreach ([$waiting, $invited, $expired, $converted] as $entry) {
+            $em->persist($entry);
+        }
+        $em->flush();
+
+        self::assertSame($before + 1, $repo->countWaiting());
+    }
+
+    public function test_find_one_claimed_by_email_ignores_an_unclaimed_entry(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repo = self::getContainer()->get(WaitlistEntryRepository::class);
+        self::assertInstanceOf(WaitlistEntryRepository::class, $repo);
+
+        $claimed = new WaitlistEntry('claimed@example.com');
+        $claimed->issueInviteToken();
+        $claimed->claimInvite();
+        $plain = new WaitlistEntry('plain@example.com');
+        $plain->markConverted();
+        $em->persist($claimed);
+        $em->persist($plain);
+        $em->flush();
+
+        self::assertSame($claimed, $repo->findOneClaimedByEmail('Claimed@Example.com'));
+        self::assertNull($repo->findOneClaimedByEmail('plain@example.com'));
+        self::assertNull($repo->findOneClaimedByEmail('nobody@example.com'));
+    }
 }

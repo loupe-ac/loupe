@@ -6,6 +6,7 @@ namespace App\Module\Account\Command;
 
 use App\Module\Account\Entity\ConnectedAccount;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Entity\WaitlistJoinSource;
 use App\Module\Account\Event\UserEmailVerified;
 use App\Module\Account\Event\UserRegistered;
 use App\Module\Account\Registration\RegistrationPasses;
@@ -149,7 +150,7 @@ final readonly class ResolveSocialLoginHandler
         });
 
         if (null === $user) {
-            ($this->joinWaitlist)(new JoinWaitlistCommand($matchEmail));
+            ($this->joinWaitlist)(new JoinWaitlistCommand($matchEmail, source: WaitlistJoinSource::SocialLogin));
             $this->auditor->record(
                 'account.waitlist_oauth_diverted',
                 AuditOutcome::Refused,
@@ -177,7 +178,7 @@ final readonly class ResolveSocialLoginHandler
         // existing-identity branch. Trial provisioning self-heals via
         // PaywallGate, so record it and complete the login.
         try {
-            $this->eventDispatcher->dispatch(new UserRegistered($user));
+            $this->eventDispatcher->dispatch(new UserRegistered($user, $profile->provider));
         } catch (\Throwable $e) {
             $this->auditor->record(
                 'account.registration_listener_failed',
