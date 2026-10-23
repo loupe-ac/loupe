@@ -303,8 +303,9 @@ cookie jar, the redirect lands on `/login`. The macOS `/usr/bin/curl` trusts the
 local certificate authority through the keychain, so it needs no `-k`.
 
 Read two results. The effective URL must end in the `--path` you minted, or the
-sign-in failed. The count must be 1 or more, or the state is not seeded. Fetch
-the bare page URL once without the link, and confirm that the count is 0.
+sign-in failed. The count must be 1 or more, or the state is not seeded. For a
+signed link, fetch the bare page URL once without the link, and confirm that
+the count is 0.
 
 Write one Markdown list item per link in the Preview section, naming the
 marker that you found:
@@ -313,7 +314,19 @@ marker that you found:
 - [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
 ```
 
-A child of an epic appends `. State: <text>` to the line. A link to a file,
+A page that only a signed-out visitor sees, such as the landing page at `/`,
+takes a plain link. A signed link signs the reader in, and the page then
+redirects. Prove the plain link with the same `curl`, with no cookie jar, and
+end the line with `. Signed out.`. The plain link is the bare page URL, so skip
+the zero-count fetch. The effective URL must end in the path, and the count
+must be 1 or more. The marker must not be on `main`:
+
+```markdown
+- [Landing page](https://card-42.loupe.dev.localhost/), marker `rel="help"`. Signed out.
+```
+
+A child of an epic appends `. State: <text>` to the line, so a signed-out
+line ends `. Signed out. State: <text>`. A link to a file,
 an artifact or a CI run takes the same shape with no marker, and so does the
 card line: `- [Card 42: <title>](<card URL>)`.
 A branch that changes a page and cannot show its marker is not ready.
@@ -827,8 +840,10 @@ card has the merge stage refresh the epic preview at
 `https://epic-<n>.loupe.dev.localhost`, once for each head of the epic pull
 request. The stage carries the preview links of the children to the `## Preview` section of the epic pull
 request. It re-mints each signed link
-from its `to` and `email` parameters. So write each Preview line of a child with
-a signed link, its marker in backticks, and a `State:` text. The child's
+from its `to` and `email` parameters. It carries a plain signed-out link by
+its path, and proves it on the epic preview with no cookie jar. So write each
+Preview line of a child with a signed link, or a plain link for a signed-out
+page, its marker in backticks, and a `State:` text. The child's
 database goes at teardown, and the stage seeds each state again on the epic
 preview from that text alone. So name every record the page needs, with its
 counts, its flags and the account that owns it. For example: "State: project

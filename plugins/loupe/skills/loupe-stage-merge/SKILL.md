@@ -115,6 +115,8 @@ Read the epic with `card_get` on the card of the request. When its `status` is a
 7. In its preview section, replace the lines of each listed child, and keep every other line. A line of a child starts with `- [#<child number>:`, `- #<child number>:` or `#<child number>:`. When the body has no such section, add it at the top. Write one Markdown list item per link, in the shape of the profile `Preview` section `Line` item, with the child number at the start of the label:
    - `` - [#<child number>: <label>](<link>), marker `<marker>` ``, when the proof passed.
    - `` - [#<child number>: <label>](<link>), marker `<marker>`, not proved ``, when the proof failed.
+   - `` - [#<child number>: <label>](<link>), marker `<marker>`. Signed out. ``, when the proof of a plain link passed. A plain link is the signed-out form of the profile `Preview` section.
+   - `` - [#<child number>: <label>](<link>), marker `<marker>`, not proved. Signed out. ``, when the proof of a plain link failed.
    - `` - #<child number>: <label>, not minted, path `<path>`, marker `<marker>` ``, when the mint failed. This line holds no link, so nobody takes it for a preview link. `<path>` is the decoded target path, because the link of the child is signed for the child host.
 8. Replace the body of the epic pull request with the forge adapter. Write the body to a temporary file outside the repository with a file tool, not with the shell.
 9. Read the body again. When the lines of a listed child are missing, record the block.
