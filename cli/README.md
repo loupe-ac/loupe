@@ -287,6 +287,8 @@ itself when it is done already, so a second run changes nothing.
 ```bash
 loupe init                       # every step, asking only what it must
 loupe init --project <uuid>      # name the project yourself
+loupe init --name "Docs" --domain docs.example.com --origin https://docs.example.com
+                                 # create a project, then link the repository
 loupe init --url https://loupe.example.com   # sign in to a self-hosted instance
 loupe init --rules ~/loupe-rules.yaml        # read and write another rule file
 loupe init --reset               # write the first-run rules again
@@ -297,11 +299,17 @@ loupe init --reset               # write the first-run rules again
 `done` or `skipped` and why.
 
 1. Sign in with `loupe login`, when you are not signed in.
-2. Choose the project. `--project` names it. Else `.loupe.yaml` names it. Else
-   the command lists your projects. A `--project` that differs from the project
-   of an existing `.loupe.yaml` stops the command, unless you pass `--force`. When your login covers none, it creates one
-   from the `origin` remote of the repository. With no remote, it stops and asks
-   for `--project`.
+2. Choose the project. `--project` names it. `--name` creates a project
+   with that name, and `--domain` and `--origin` (repeatable) set its domain and
+   allowed origins. Both need `--name`, and `--name` cannot go with `--project`.
+   Else `.loupe.yaml` names it. Else the command lists your projects, also when
+   the login covers one. The last row creates a project: it asks for a name, and
+   Enter takes the name of the `origin` remote. With no terminal, the command
+   prints the list and stops. A `--project` or `--name` that differs from the
+   project of an existing `.loupe.yaml` stops the command, unless you pass
+   `--force`. When your login covers none, it creates a project from the `origin`
+   remote of the repository. With no remote, it stops and asks for `--project`
+   or `--name`.
 3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
    The step also writes `.loupe/lifecycle.md`.
 4. Install the Loupe plugin in Claude Code, when `claude` is on your `PATH` and

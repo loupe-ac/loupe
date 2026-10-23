@@ -55,6 +55,7 @@ final readonly class CreateProjectHandler
         $description = trim($command->description ?? '');
         $project->description = '' === $description ? null : $description;
         $project->searchLanguage = $command->searchLanguage;
+        $project->allowedOrigins = $command->allowedOrigins;
 
         try {
             $this->em->persist($project);
@@ -74,6 +75,7 @@ final readonly class CreateProjectHandler
                 // actor itself. The two coincide only while a project is
                 // editable by its owner alone.
                 'ownerId' => (string) $command->owner->id,
+                'originCount' => \count($project->allowedOrigins),
             ],
             new AuditSubject('project', (string) $project->id),
         );

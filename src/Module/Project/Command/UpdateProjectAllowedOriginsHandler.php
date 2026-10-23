@@ -21,23 +21,15 @@ final readonly class UpdateProjectAllowedOriginsHandler
 
     public function __invoke(UpdateProjectAllowedOriginsCommand $command): void
     {
-        $origins = [];
-        foreach (preg_split('/\R/', $command->origins) ?: [] as $line) {
-            if ('' === trim($line)) {
-                continue;
-            }
-
-            $origin = SiteOrigins::normalisePattern($line)
-                ?? throw new DomainErrors(['origins' => 'project.allowed_origins.error.invalid']);
-            $origins[$origin] = true;
-        }
+        $origins = SiteOrigins::normaliseList(preg_split('/\R/', $command->origins) ?: [])
+            ?? throw new DomainErrors(['origins' => 'project.allowed_origins.error.invalid']);
 
         if (\count($origins) > SiteOrigins::MAX) {
             throw new DomainErrors(['origins' => 'project.allowed_origins.error.too_many']);
         }
 
         $project = $command->project;
-        $project->allowedOrigins = array_keys($origins);
+        $project->allowedOrigins = $origins;
         $this->em->flush();
 
         $this->auditor->record(

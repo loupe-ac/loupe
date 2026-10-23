@@ -95,6 +95,9 @@ type initOptions struct {
 	reset     bool
 	rulesPath string
 	baseURL   string
+	name      string
+	domain    string
+	origins   []string
 }
 
 func newInitCmd() *cobra.Command {
@@ -107,8 +110,14 @@ func newInitCmd() *cobra.Command {
 			"so you can run the command again and nothing changes.\n\n" +
 			"1. Sign in with `loupe login`, when you are not signed in. --url names the instance. A login to another instance stops the command.\n" +
 			"2. Choose the project. --project names it by its id or its slug. Else " + projectfile.Name + " in this directory " +
-			"names it. Else the command lists your projects. When your login covers none, it " +
-			"creates one from the `origin` remote of this repository.\n" +
+			"names it. Else the command lists your projects, also when you have one, and the last row creates a new project. " +
+			"With no terminal to answer, the command prints the list and stops: pass --project <slug> to use a project, " +
+			"or --name \"<name>\" to create one. --name creates a project with that name and skips the list. " +
+			"--domain sets its domain, and --origin adds an allowed origin for the site-review widget. " +
+			"--origin can repeat, and both flags need --name. " +
+			"The server checks every value first, and a bad value creates no project. " +
+			"--name cannot go with --project, and it needs --force when " + projectfile.Name + " names a project already. " +
+			"When your login covers no project, the command creates one from the `origin` remote of this repository.\n" +
 			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + " and " +
 			profile.Path + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
@@ -139,6 +148,9 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.link.projectID, "project", "", "project id or slug to use, instead of choosing from a list")
+	cmd.Flags().StringVar(&o.name, "name", "", "create a project with this `name` and use it, instead of choosing from a list")
+	cmd.Flags().StringVar(&o.domain, "domain", "", "domain of the new project; needs --name")
+	cmd.Flags().StringArrayVar(&o.origins, "origin", nil, "allowed origin of the new project for the site-review widget; repeat it for more; needs --name")
 	cmd.Flags().BoolVar(&o.reset, "reset", false, "write the first-run rules again, and keep the projects map")
 	cmd.Flags().BoolVar(&o.link.force, "force", false, "replace an existing "+projectfile.Name)
 	cmd.Flags().BoolVar(&o.link.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
@@ -146,6 +158,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.link.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read and write the rule file at this `path`; empty uses rules.yaml in your config directory")
 	cmd.Flags().StringVar(&o.baseURL, "url", "", "Loupe base URL to sign in to (else LOUPE_URL env, else "+DefaultBaseURL+")")
+	cmd.MarkFlagsMutuallyExclusive("name", "project")
 	cmd.MarkFlagsMutuallyExclusive("mcp", "no-mcp")
 	cmd.MarkFlagsMutuallyExclusive("mcp-json", "no-mcp")
 
@@ -155,6 +168,9 @@ func newInitCmd() *cobra.Command {
 // runInit runs the steps in order. A step that cannot go on returns its
 // error. The bridge is the one step that reports its error after the last.
 func runInit(cmd *cobra.Command, o initOptions) error {
+	if err := checkNameFlags(cmd, &o); err != nil {
+		return err
+	}
 	dir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -204,6 +220,24 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	initNext(cmd, cfg.BaseURL)
 
 	return bridgeErr
+}
+
+// checkNameFlags checks the flags that need no network, before init signs in.
+func checkNameFlags(cmd *cobra.Command, o *initOptions) error {
+	o.name = strings.TrimSpace(o.name)
+	if cmd.Flags().Changed("name") && o.name == "" {
+		return errors.New("--name needs a project name")
+	}
+	if o.name == "" && (o.domain != "" || len(o.origins) > 0) {
+		flag := "--domain"
+		if o.domain == "" {
+			flag = "--origin"
+		}
+
+		return fmt.Errorf("%s needs --name: it sets a value of the new project", flag)
+	}
+
+	return nil
 }
 
 // inSecondSetup reports whether the setup is not the default one. A second
@@ -292,6 +326,16 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 		linked = file.Project
 	}
 
+	if o.name != "" {
+		if linked != "" {
+			linkedSite, _ := find(linked)
+
+			return api.Site{}, fmt.Errorf("%s names %s: pass --force to create the new project and replace the file", projectfile.Name, describe(linkedSite))
+		}
+
+		return initCreateNamed(cmd, client, o)
+	}
+
 	if o.link.projectID != "" {
 		site, ok := find(o.link.projectID)
 		if !ok {
@@ -326,14 +370,7 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 		return site, nil
 	}
 
-	id, err := chooseProject(out, cmd.InOrStdin(), sites)
-	if err != nil {
-		return api.Site{}, err
-	}
-	site, _ := find(id)
-	step(out, "Project", "done", "using "+describe(site))
-
-	return site, nil
+	return initPickProject(cmd, client, dir, sites, find)
 }
 
 // initSetupProject chooses the project in a setup other than the default. The
@@ -348,6 +385,16 @@ func initSetupProject(cmd *cobra.Command, cfg config.Config, dir string, o initO
 	}
 	if o.link.force {
 		linked = ""
+	}
+
+	if o.name != "" {
+		if linked != "" {
+			linkedSite, _ := find(linked)
+
+			return api.Site{}, fmt.Errorf("the setup %s links this folder to %s: pass --force to create the new project and replace the link", setup.Dir, describe(linkedSite))
+		}
+
+		return initCreateNamed(cmd, apiClient(cfg), o)
 	}
 
 	if o.link.projectID != "" {
@@ -387,14 +434,143 @@ func initSetupProject(cmd *cobra.Command, cfg config.Config, dir string, o initO
 		return site, nil
 	}
 
-	id, err := chooseProject(out, cmd.InOrStdin(), sites)
+	return initPickProject(cmd, apiClient(cfg), dir, sites, find)
+}
+
+// initPickProject asks which project to use. The last row of the list creates
+// one.
+func initPickProject(cmd *cobra.Command, client *api.Client, dir string, sites []api.Site, find func(string) (api.Site, bool)) (api.Site, error) {
+	out := cmd.OutOrStdout()
+	choice, err := chooseProject(out, cmd.InOrStdin(), sites, true)
 	if err != nil {
 		return api.Site{}, err
 	}
-	site, _ := find(id)
-	step(out, "Project", "done", "using "+describe(site))
+	if !choice.create {
+		site, _ := find(choice.id)
+		step(out, "Project", "done", "using "+describe(site))
+
+		return site, nil
+	}
+
+	site, err := createByAsking(cmd, client, dir)
+	if err != nil {
+		return api.Site{}, err
+	}
+	step(out, "Project", "done", "created "+describe(site))
 
 	return site, nil
+}
+
+// createByAsking asks for a project name until the server takes one. Enter
+// sends the remote alone, and the server names the project after it.
+func createByAsking(cmd *cobra.Command, client *api.Client, dir string) (api.Site, error) {
+	out, in := cmd.OutOrStdout(), cmd.InOrStdin()
+	remote := initOriginRemote(cmd.Context(), dir)
+
+	for {
+		name, err := askProjectName(out, in, remote)
+		if err != nil {
+			return api.Site{}, err
+		}
+		req := api.CreateProjectRequest{Name: name}
+		if name == "" {
+			req.Remote = remote
+		}
+
+		ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+		site, err := client.CreateProject(ctx, req)
+		cancel()
+
+		var taken *api.NameTakenError
+		if errors.As(err, &taken) {
+			if taken.Slug == "" {
+				fmt.Fprintln(out, "You already have a project with this name or slug. Choose another name.")
+			} else {
+				fmt.Fprintf(out, "You already have a project with this name. Its slug is %s: `--project %s` uses it. Or choose another name.\n", taken.Slug, taken.Slug)
+			}
+
+			continue
+		}
+		if err != nil {
+			return api.Site{}, err
+		}
+
+		return site, nil
+	}
+}
+
+// askProjectName reads a project name. It returns "" when the user pressed
+// Enter and the remote can name the project. With no remote, Enter asks again.
+func askProjectName(out io.Writer, in io.Reader, remote string) (string, error) {
+	r := lineReader(in)
+	for {
+		if remote == "" {
+			fmt.Fprint(out, "Project name: ")
+		} else {
+			fmt.Fprintf(out, "Project name (Enter: name it after %s): ", remote)
+		}
+
+		line, err := r.ReadString('\n')
+		if err != nil && (!errors.Is(err, io.EOF) || line == "") {
+			if errors.Is(err, io.EOF) {
+				return "", errors.New("no project name was given: pass --name \"<name>\" or --project <slug>")
+			}
+
+			return "", err
+		}
+
+		name := strings.TrimSpace(line)
+		if name != "" || remote != "" {
+			return name, nil
+		}
+		fmt.Fprintln(out, "This repository has no origin remote to name the project, so type a name.")
+	}
+}
+
+// initCreateNamed creates the project that --name asks for.
+func initCreateNamed(cmd *cobra.Command, client *api.Client, o initOptions) (api.Site, error) {
+	out := cmd.OutOrStdout()
+	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+	defer cancel()
+
+	site, err := createNamedProject(ctx, client, o)
+	if err != nil {
+		return api.Site{}, err
+	}
+	if o.domain != "" && site.Domain == "" || len(o.origins) > 0 && len(site.AllowedOrigins) == 0 {
+		fmt.Fprintln(out, "Warning: this Loupe instance ignored --domain or --origin, because it is older than this CLI. Set them in the project settings.")
+	}
+	step(out, "Project", "done", "created "+describe(site))
+
+	return site, nil
+}
+
+// createNamedProject sends the name, the domain and the origins. It sends no
+// remote, because the server uses the remote only to find a name.
+func createNamedProject(ctx context.Context, client *api.Client, o initOptions) (api.Site, error) {
+	site, err := client.CreateProject(ctx, api.CreateProjectRequest{Name: o.name, Domain: o.domain, Origins: o.origins})
+
+	var taken *api.NameTakenError
+	if errors.As(err, &taken) {
+		if taken.Slug == "" {
+			return api.Site{}, fmt.Errorf("you already have a project with the name or slug of %q: choose another name", o.name)
+		}
+
+		return api.Site{}, fmt.Errorf("you already have a project with this name, %s: pass --project %s to use it, or choose another name", taken.Slug, taken.Slug)
+	}
+
+	return site, err
+}
+
+// originRemote returns the origin remote of the repository without its
+// credentials, or "" when there is none.
+func initOriginRemote(ctx context.Context, dir string) string {
+	raw, err := initExec(ctx, dir, nil, "git", "remote", "get-url", "origin")
+	if err != nil {
+		return ""
+	}
+
+	return withoutUserinfo(strings.TrimSpace(string(raw)))
 }
 
 // createProjectFromRemote creates the project of a login that covers none,
@@ -402,9 +578,8 @@ func initSetupProject(cmd *cobra.Command, cfg config.Config, dir string, o initO
 func createProjectFromRemote(ctx context.Context, client *api.Client, dir, baseURL string) (api.Site, error) {
 	byHand := fmt.Sprintf("pass --project <id>, or create the project in the app at %s", baseURL)
 
-	raw, err := initExec(ctx, dir, nil, "git", "remote", "get-url", "origin")
-	remote := withoutUserinfo(strings.TrimSpace(string(raw)))
-	if err != nil || remote == "" {
+	remote := initOriginRemote(ctx, dir)
+	if remote == "" {
 		return api.Site{}, fmt.Errorf("your login covers no project, and this repository has no origin remote to name one: %s", byHand)
 	}
 

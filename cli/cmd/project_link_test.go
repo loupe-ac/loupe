@@ -77,16 +77,19 @@ func runLink(t *testing.T, answer string, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func TestProjectLinkWritesTheOneProjectTheLoginCoversWithNoQuestion(t *testing.T) {
+func TestProjectLinkAsksEvenWhenTheLoginCoversOneProject(t *testing.T) {
 	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
 	dir := inRepo(t, server.URL)
 
-	out, err := runLink(t, "")
+	out, err := runLink(t, "1\n")
 	if err != nil {
 		t.Fatalf("project link: %v", err)
 	}
-	if !strings.Contains(out, "Dev Project") {
-		t.Fatalf("output must name the project, got %q", out)
+	if !strings.Contains(out, "1) Dev Project") || !strings.Contains(out, "Choose 1 to 1") {
+		t.Fatalf("output must list the project and ask, got %q", out)
+	}
+	if strings.Contains(out, "Create a new project") {
+		t.Fatalf("project link must not offer to create a project, got %q", out)
 	}
 
 	file, err := projectfile.Load(dir)
@@ -95,6 +98,46 @@ func TestProjectLinkWritesTheOneProjectTheLoginCoversWithNoQuestion(t *testing.T
 	}
 	if file.Project != firstProject {
 		t.Fatalf("Project: got %q, want %q", file.Project, firstProject)
+	}
+}
+
+func TestProjectLinkRefusesTheCreateRowNumber(t *testing.T) {
+	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
+	dir := inRepo(t, server.URL)
+
+	if _, err := runLink(t, "2\n"); err == nil {
+		t.Fatal("project link with a number past the list: got no error")
+	}
+	if _, err := projectfile.Load(dir); err == nil {
+		t.Fatal("project link must write no file when the answer is refused")
+	}
+}
+
+func TestProjectLinkWithNoTerminalListsTheProjectsAndStops(t *testing.T) {
+	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
+	dir := inRepo(t, server.URL)
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = devNull.Close() })
+
+	var out bytes.Buffer
+	cmd := newProjectLinkCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetIn(devNull)
+	cmd.SetArgs(nil)
+	err = cmd.Execute()
+
+	if err == nil || !strings.Contains(err.Error(), "--project <slug>") || strings.Contains(err.Error(), "--name") {
+		t.Fatalf("err = %v, want a stop that names --project alone", err)
+	}
+	if !strings.Contains(out.String(), "Dev Project") {
+		t.Errorf("output must list the project, got %q", out.String())
+	}
+	if _, err := projectfile.Load(dir); err == nil {
+		t.Fatal("project link must write no file when nobody can answer")
 	}
 }
 
@@ -450,7 +493,7 @@ func TestProjectLinkWritesTheStarterProfileFromWhatItDetects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runLink(t, "")
+	out, err := runLink(t, "1\n")
 	if err != nil {
 		t.Fatalf("project link: %v", err)
 	}
@@ -478,7 +521,7 @@ func TestProjectLinkKeepsAProfileThatExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runLink(t, "")
+	out, err := runLink(t, "1\n")
 	if err != nil {
 		t.Fatalf("project link: %v", err)
 	}
