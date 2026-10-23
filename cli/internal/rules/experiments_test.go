@@ -149,9 +149,15 @@ func TestParseRefusesAnInvalidExperimentField(t *testing.T) {
 		"empty value":           {entryWith("implement", "    experiment: \"\"\n"+twoVariants), "a name is 1 to 64 lowercase letters"},
 		"bad shape":             {entryWith("implement", "    experiment: Php LSP\n"+twoVariants), "a name is 1 to 64 lowercase letters"},
 		"no variants":           {entryWith("implement", "    experiment: trial\n"), "experiment needs variants"},
+		"null, variants":        {entryWith("implement", "    experiment: null\n"+twoVariants), "experiment needs a name"},
+		"tilde, variants":       {entryWith("implement", "    experiment: ~\n"+twoVariants), "experiment needs a name"},
+		"bare key, variants":    {entryWith("implement", "    experiment:\n"+twoVariants), "experiment needs a name"},
+		"list, variants":        {entryWith("implement", "    experiment: [a]\n"+twoVariants), "experiment needs a name"},
+		"null, no variants":     {entryWith("implement", "    experiment: null\n"), "experiment needs variants"},
 		"empty value, variants": {entryWith("implement", "    experiment: \"\"\n"), "experiment needs variants"},
 		"interactive entry":     {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  pair:\n    action: interactive\n    prompt: x\n    experiment: trial\n", "experiment names worker behaviour"},
 		"command entry":         {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  test:\n    action: command\n    run: [make]\n    experiment: trial\n", "experiment names agent behaviour"},
+		"null on command entry": {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  test:\n    action: command\n    run: [make]\n    experiment: null\n", "experiment names agent behaviour"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			text, _ := file(t, tc.body)
