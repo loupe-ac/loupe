@@ -228,13 +228,12 @@ func checkNameFlags(cmd *cobra.Command, o *initOptions) error {
 	if cmd.Flags().Changed("name") && o.name == "" {
 		return errors.New("--name needs a project name")
 	}
-	if o.name == "" && (o.domain != "" || len(o.origins) > 0) {
-		flag := "--domain"
-		if o.domain == "" {
-			flag = "--origin"
+	if o.name == "" {
+		for _, flag := range []string{"domain", "origin"} {
+			if cmd.Flags().Changed(flag) {
+				return fmt.Errorf("--%s needs --name: it sets a value of the new project", flag)
+			}
 		}
-
-		return fmt.Errorf("%s needs --name: it sets a value of the new project", flag)
 	}
 
 	return nil

@@ -1911,10 +1911,13 @@ func TestInitRefusedOriginCreatesNothing(t *testing.T) {
 }
 
 func TestInitDomainAndOriginNeedName(t *testing.T) {
-	for flag, args := range map[string][]string{
-		"--domain": {"--domain", "example.com"},
-		"--origin": {"--origin", "https://example.com"},
+	for _, args := range [][]string{
+		{"--domain", "example.com"},
+		{"--domain", ""},
+		{"--origin", "https://example.com"},
+		{"--origin", ""},
 	} {
+		flag := args[0]
 		w := newInitWorld(t, devSite())
 		dir := inRepo(t, "")
 
