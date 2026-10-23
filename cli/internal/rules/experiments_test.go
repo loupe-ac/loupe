@@ -104,3 +104,98 @@ func uuidV7(rng *rand.Rand) string {
 
 	return fmt.Sprintf("%08x-%04x-7%03x-%04x-%012x", ms>>16, ms&0xffff, a&0xfff, 0x8000|(b>>48)&0x3fff, b&0xffffffffffff)
 }
+
+// entryWith builds a rule file with one work entry of the kind, and extra
+// lines at the end of that entry.
+func entryWith(kind, entry string) string {
+	return claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  " + kind + ":\n    prompt: x\n" + entry
+}
+
+const twoVariants = "    variants:\n      - {name: a, weight: 1, model: opus}\n      - {name: b, weight: 1, model: sonnet}\n"
+
+func TestExperimentNameDefaultsToTheKind(t *testing.T) {
+	s := checked(t, entryWith("implement", twoVariants))
+	if m := s.MatchWork(workRequest("implement")); m.Experiment == nil || m.Experiment.Name != "implement" {
+		t.Fatalf("experiment = %+v", m.Experiment)
+	}
+}
+
+func TestExperimentFieldNamesTheExperiment(t *testing.T) {
+	s := checked(t, entryWith("implement", "    experiment: implement-php-lsp\n"+twoVariants))
+	if m := s.MatchWork(workRequest("implement")); m.Experiment == nil || m.Experiment.Name != "implement-php-lsp" {
+		t.Fatalf("experiment = %+v", m.Experiment)
+	}
+}
+
+func TestExperimentNameChangesTheDraw(t *testing.T) {
+	a := Experiment{Name: "implement", Variants: []Variant{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}}
+	b := a
+	b.Name = "implement-php-lsp"
+	rng := rand.New(rand.NewPCG(1, 2))
+	for range 200 {
+		id := uuidV7(rng)
+		if a.Pick(id) != b.Pick(id) {
+			return
+		}
+	}
+	t.Fatal("two names drew the same variant for 200 cards")
+}
+
+func TestParseRefusesAnInvalidExperimentField(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body string
+		want string
+	}{
+		"empty value":           {entryWith("implement", "    experiment: \"\"\n"+twoVariants), "a name is 1 to 64 lowercase letters"},
+		"bad shape":             {entryWith("implement", "    experiment: Php LSP\n"+twoVariants), "a name is 1 to 64 lowercase letters"},
+		"no variants":           {entryWith("implement", "    experiment: trial\n"), "experiment needs variants"},
+		"null, variants":        {entryWith("implement", "    experiment: null\n"+twoVariants), "experiment needs a name"},
+		"tilde, variants":       {entryWith("implement", "    experiment: ~\n"+twoVariants), "experiment needs a name"},
+		"bare key, variants":    {entryWith("implement", "    experiment:\n"+twoVariants), "experiment needs a name"},
+		"list, variants":        {entryWith("implement", "    experiment: [a]\n"+twoVariants), "experiment needs a name"},
+		"null, no variants":     {entryWith("implement", "    experiment: null\n"), "experiment needs variants"},
+		"empty value, variants": {entryWith("implement", "    experiment: \"\"\n"), "experiment needs variants"},
+		"interactive entry":     {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  pair:\n    action: interactive\n    prompt: x\n    experiment: trial\n", "experiment names worker behaviour"},
+		"command entry":         {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  test:\n    action: command\n    run: [make]\n    experiment: trial\n", "experiment names agent behaviour"},
+		"null on command entry": {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  test:\n    action: command\n    run: [make]\n    experiment: null\n", "experiment names agent behaviour"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			text, _ := file(t, tc.body)
+			_, err := Parse([]byte(text), Defaults{})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want it to contain %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseRefusesASharedExperimentName(t *testing.T) {
+	two := func(first, second string) string {
+		return claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  implement:\n    prompt: x\n" + first + twoVariants + "  fix:\n    prompt: x\n" + second + twoVariants
+	}
+	for name, tc := range map[string]struct {
+		body string
+		bad  bool
+	}{
+		"same field":            {two("    experiment: shared\n", "    experiment: shared\n"), true},
+		"field takes a kind":    {two("    experiment: fix\n", ""), true},
+		"distinct fields":       {two("    experiment: one\n", "    experiment: two\n"), false},
+		"default names differ":  {two("", ""), false},
+		"field beside no entry": {two("    experiment: fix-trial\n", ""), false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			text, _ := file(t, tc.body)
+			_, err := Parse([]byte(text), Defaults{})
+			if tc.bad {
+				if err == nil || !strings.Contains(err.Error(), "both name experiment") {
+					t.Fatalf("err = %v", err)
+				}
+
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}

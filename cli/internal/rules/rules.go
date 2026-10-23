@@ -485,6 +485,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		}
 		s.work[kind] = w
 	}
+	errs = append(errs, checkSharedExperiments(s.work)...)
 	if s.appPrompts {
 		if err := checkPool("", f.WorkerPools, pools, known, s.maxWorkers); err != nil {
 			errs = append(errs, fmt.Errorf("appPrompts: %w", err))
@@ -866,7 +867,7 @@ func refuseOldFormat(doc any) error {
 		errs = append(errs, errors.New("parse rule file: the rules list is gone, because Loupe now decides when work runs; map each kind of work request under work instead, such as work: {implement: {prompt: ...}}, and drop on, to, from, when, maxChain, resume and maxResumes"))
 	}
 	if _, ok := top["experiments"]; ok {
-		errs = append(errs, errors.New("parse rule file: the experiments list is gone; give a work entry its variants instead, and the experiment takes the name of its kind"))
+		errs = append(errs, errors.New("parse rule file: the experiments list is gone; give a work entry its variants instead, and the experiment takes the name of its kind unless the entry sets experiment"))
 	}
 	// A file with no accounts block loads with its agents off, old keys and all.
 	if _, ok := top["accounts"]; !ok {
@@ -1512,4 +1513,23 @@ func renderArgv(run []string, v map[string]string) []string {
 	}
 
 	return out
+}
+
+// checkSharedExperiments refuses a name that two entries with variants share,
+// because the server keeps one set of weights and metrics for each name.
+func checkSharedExperiments(work map[string]WorkEntry) []error {
+	kinds := map[string][]string{}
+	for _, kind := range slices.Sorted(maps.Keys(work)) {
+		if e := work[kind].experiment; e != nil {
+			kinds[e.Name] = append(kinds[e.Name], kind)
+		}
+	}
+	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(kinds)) {
+		if len(kinds[name]) > 1 {
+			errs = append(errs, fmt.Errorf("work entries %s both name experiment %s, and one experiment takes one entry", strings.Join(kinds[name], " and "), name))
+		}
+	}
+
+	return errs
 }
