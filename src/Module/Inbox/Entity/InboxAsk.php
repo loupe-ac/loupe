@@ -66,9 +66,6 @@ class InboxAsk
 
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
-
-        #[ORM\Column(length: 20, enumType: InboxAskOrigin::class, options: ['default' => 'agent'])]
-        public readonly InboxAskOrigin $origin = InboxAskOrigin::Agent,
     ) {
         $this->items = new ArrayCollection();
     }

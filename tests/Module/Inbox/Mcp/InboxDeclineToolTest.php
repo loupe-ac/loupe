@@ -126,7 +126,7 @@ final class InboxDeclineToolTest extends KernelTestCase
         $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Review, title: 'Review the design', blocking: true, origin: InboxAskOrigin::Agent);
         $this->em->persist($item);
         $this->em->persist(new InboxReview($item, $document));
-        $ask = new InboxAsk(project: $project, sessionId: Uuid::v4(), bridgeId: null, origin: InboxAskOrigin::Agent);
+        $ask = new InboxAsk(project: $project, sessionId: Uuid::v4(), bridgeId: null);
         $ask->items->add(new InboxAskItem($ask, $item));
         $this->em->persist($ask);
         $this->em->flush();
