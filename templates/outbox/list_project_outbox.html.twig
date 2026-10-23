@@ -45,6 +45,7 @@
         {% endfor %}
     </div>
     {% else %}
+    <h1 class="sr-only">{{ 'outbox.page.title'|trans }}</h1>
     <twig:Ds:EmptyState icon="lucide:circle-check" iconClass="text-accent" :title="'outbox.empty'|trans" :body="'outbox.page.description'|trans" />
     {% endif %}
 </twig:Ds:Workspace>
