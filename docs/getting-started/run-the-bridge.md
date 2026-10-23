@@ -80,7 +80,8 @@ for a person, and names the keys to add by hand.
 
 By default, the bridge works each card in its own git worktree, in a folder
 outside the repository. [Worker folders](../extending/cli-bridge.md#worker-folders)
-describes where they live, and how to turn this off.
+describes where they live, and how to turn this off. It also gives the contract
+for a worktree script of your own, such as one that your repository has already.
 
 ## Start and stop the bridge
 

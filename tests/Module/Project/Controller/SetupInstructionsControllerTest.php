@@ -24,7 +24,9 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertStringContainsString('curl -fsSL http://localhost/install.sh | LOUPE_INSTALL_NO_TTY=1 sh', $body);
         self::assertStringContainsString('<project id>', $body);
         // Shell redirections in the steps prove the text is not HTML-escaped.
-        self::assertStringContainsString('> /tmp/loupe-init.log 2>&1 < /dev/null &', $body);
+        self::assertStringContainsString('log=$(mktemp "${TMPDIR:-/tmp}/loupe-init.XXXXXX")', $body);
+        self::assertStringContainsString('> "$log" 2>&1 < /dev/null &', $body);
+        self::assertStringNotContainsString('/tmp/loupe-init.log', $body);
         self::assertStringNotContainsString('&gt;', $body);
         self::assertStringNotContainsString('&amp;', $body);
         self::assertStringNotContainsString('&lt;', $body);

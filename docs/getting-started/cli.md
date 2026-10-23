@@ -198,7 +198,8 @@ the Go version and the platform.
 After the install, run `loupe init` in your repository. It signs you in, links the
 project, writes a rule file and starts the bridge. [Run the bridge](run-the-bridge.md)
 describes each step. [Command-line bridge](../extending/cli-bridge.md) describes
-what the bridge does, and [`cli/README.md`](../../cli/README.md) lists every
-flag.
+what the bridge does. The [`loupe init` reference](../reference/cli.md#loupe-init)
+lists its flags, and [`cli/README.md`](../../cli/README.md) lists every flag of
+every command.
 
 Preview tokens are described in [Live review](../using/live-review.md#preview-sites).
