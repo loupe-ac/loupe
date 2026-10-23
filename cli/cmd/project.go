@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
@@ -36,7 +37,7 @@ func newProjectCmd() *cobra.Command {
 		Use:   "project",
 		Short: "Work with the Loupe project of this repository",
 	}
-	cmd.AddCommand(newProjectLinkCmd())
+	cmd.AddCommand(newProjectLinkCmd(), newProjectListCmd())
 
 	return cmd
 }
@@ -82,6 +83,102 @@ func newProjectLinkCmd() *cobra.Command {
 	cmd.MarkFlagsMutuallyExclusive("mcp-json", "no-mcp")
 
 	return cmd
+}
+
+func newProjectListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List the projects your login covers",
+		Long: "Prints the id, the slug and the name of each project your login covers. " +
+			"Pass the id to `loupe init --project <id>` or `loupe project link --project <id>`.\n\n" +
+			"A star marks the project of the current directory. In a setup other than the default, " +
+			"the project link of the setup names it first, then " + projectfile.Name + ". " +
+			"In the default setup, " + projectfile.Name + " names it.",
+		Args: cobra.NoArgs,
+		RunE: runProjectList,
+	}
+}
+
+func runProjectList(cmd *cobra.Command, _ []string) error {
+	out := cmd.OutOrStdout()
+	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+	defer cancel()
+	sites, err := loginSites(ctx)
+	if err != nil {
+		return err
+	}
+	if len(sites) == 0 {
+		fmt.Fprintln(out, "Your login covers no project. Create one with `loupe init --name \"<name>\"`, or in the app.")
+
+		return nil
+	}
+
+	current, source := listedProject(cmd.ErrOrStderr())
+	marked := false
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "  ID\tSLUG\tNAME")
+	for _, s := range sites {
+		mark := " "
+		if current != "" && strings.EqualFold(s.ID, current) {
+			mark, marked = "*", true
+		}
+		slug := s.Slug
+		if slug == "" {
+			slug = "-"
+		}
+		fmt.Fprintf(w, "%s %s\t%s\t%s\n", mark, s.ID, slug, s.Name)
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	switch {
+	case marked:
+		fmt.Fprintf(out, "\n* marks the project that %s names.\n", source)
+	case current != "":
+		fmt.Fprintf(out, "\n%s names project %s, which your login does not cover.\n", source, current)
+	}
+
+	return nil
+}
+
+// listedProject gives the project of the working directory and the words
+// that name where it came from, in the order `loupe mcp` reads them. A file
+// that fails to read gives no project and a note on notes, because the list
+// helps to fix it.
+func listedProject(notes io.Writer) (project, source string) {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(notes, err)
+
+		return "", ""
+	}
+	link, err := setupLink(dir)
+	if err != nil {
+		fmt.Fprintf(notes, "read the project links of the setup %s: %v\n", config.Current().Dir, err)
+	}
+	if link != "" {
+		return link, "the project link of the setup " + config.Current().Dir
+	}
+	file, err := projectfile.Load(dir)
+	if err != nil {
+		if !errors.Is(err, projectfile.ErrNoFile) {
+			fmt.Fprintln(notes, err)
+		}
+
+		return "", ""
+	}
+
+	return file.Project, projectfile.Name
+}
+
+// loginSites lists the projects that the stored login covers.
+func loginSites(ctx context.Context) ([]api.Site, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	return apiClient(cfg).Sites(ctx)
 }
 
 // runProjectLink links the current directory to a project. It reads and

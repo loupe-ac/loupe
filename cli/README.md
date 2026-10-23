@@ -400,6 +400,22 @@ The reader ignores keys it does not know, so a later version can add a
 cannot read stops `loupe mcp` before it connects, and the message names the
 file.
 
+
+## `loupe project list`
+
+Lists the id, the slug and the name of each project your login covers. Give
+the id to `loupe init --project <id>` or `loupe project link --project <id>`.
+
+```bash
+loupe project list
+```
+
+A star marks the project of the current directory. In a setup other than the
+default, the link of the setup names it first, then `.loupe.yaml`. When that
+project is not in the list, the command says so. A `.loupe.yaml` that does not
+parse gives a note on stderr, and the list still prints. With no project, the
+command says how to create one and exits with status 0.
+
 ## `loupe mcp`
 
 Serves Loupe's MCP tools to an agent on this machine.
