@@ -295,7 +295,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $item = new InboxItem(project: $this->project, number: 6, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design', 'Detach']);
         $this->em->persist($item);
-        $ask = new InboxAsk(project: $this->project, sessionId: null, bridgeId: null, origin: InboxAskOrigin::Loupe);
+        $ask = new InboxAsk(project: $this->project, sessionId: null, bridgeId: null);
         $ask->items->add(new InboxAskItem($ask, $item));
         $this->em->persist($ask);
         $this->em->flush();

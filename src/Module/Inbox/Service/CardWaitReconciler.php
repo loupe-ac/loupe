@@ -263,7 +263,7 @@ final readonly class CardWaitReconciler
         $item->cards->add(new InboxItemCard($item, $card, $now));
         $this->em->persist($item);
 
-        $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $now, origin: InboxAskOrigin::Loupe);
+        $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $now);
         $ask->items->add(new InboxAskItem($ask, $item, $now));
         $this->em->persist($ask);
 

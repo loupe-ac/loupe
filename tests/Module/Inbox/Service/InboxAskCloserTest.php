@@ -209,7 +209,7 @@ final class InboxAskCloserTest extends KernelTestCase
     public function test_a_loupe_ask_closes_with_no_card_and_no_event(): void
     {
         $item = $this->question(1);
-        $ask = new InboxAsk(project: $this->managedProject(), sessionId: null, origin: InboxAskOrigin::Loupe);
+        $ask = new InboxAsk(project: $this->managedProject(), sessionId: null);
         $ask->items->add(new InboxAskItem($ask, $item));
         $this->em->persist($ask);
         $this->em->flush();
