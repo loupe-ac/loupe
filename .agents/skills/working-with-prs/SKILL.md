@@ -322,7 +322,8 @@ end the line with `. Signed out.`:
 - [Landing page](https://card-42.loupe.dev.localhost/), marker `rel="help"`. Signed out.
 ```
 
-A child of an epic appends `. State: <text>` to the line. A link to a file,
+A child of an epic appends `. State: <text>` to the line, so a signed-out
+line ends `. Signed out. State: <text>`. A link to a file,
 an artifact or a CI run takes the same shape with no marker, and so does the
 card line: `- [Card 42: <title>](<card URL>)`.
 A branch that changes a page and cannot show its marker is not ready.
@@ -836,8 +837,10 @@ card has the merge stage refresh the epic preview at
 `https://epic-<n>.loupe.dev.localhost`, once for each head of the epic pull
 request. The stage carries the preview links of the children to the `## Preview` section of the epic pull
 request. It re-mints each signed link
-from its `to` and `email` parameters. So write each Preview line of a child with
-a signed link, its marker in backticks, and a `State:` text. The child's
+from its `to` and `email` parameters. It carries a plain signed-out link by
+its path, and proves it on the epic preview with no cookie jar. So write each
+Preview line of a child with a signed link, or a plain link for a signed-out
+page, its marker in backticks, and a `State:` text. The child's
 database goes at teardown, and the stage seeds each state again on the epic
 preview from that text alone. So name every record the page needs, with its
 counts, its flags and the account that owns it. For example: "State: project
