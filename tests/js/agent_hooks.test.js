@@ -1,12 +1,15 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const hooks = fileURLToPath(new URL('../../.agents/hooks/', import.meta.url));
 
-function decide(hook, command) {
+function decide(hook, command, cwd) {
     const run = spawnSync('bash', [hooks + hook], {
-        input: JSON.stringify({ tool_input: { command } }),
+        input: JSON.stringify({ tool_input: { command }, cwd }),
         encoding: 'utf8',
     });
     expect(run.status).toBe(0);
@@ -208,6 +211,113 @@ describe('no-full-e2e.sh', () => {
     });
 });
 
+describe('no-unsafe-git.sh', () => {
+    it.each([
+        ['git add -A', 'deny'],
+        ['git add --all', 'deny'],
+        ['git add -Av', 'deny'],
+        ['git add -fA', 'deny'],
+        ['git add .', 'deny'],
+        ['git add ./', 'deny'],
+        ['git add :/', 'deny'],
+        ['git add -- .', 'deny'],
+        ['git -C x add -A', 'deny'],
+        ['git -c user.name=x add -A', 'deny'],
+        ['git --git-dir=x/.git add -A', 'deny'],
+        ['git commit -a -m x', 'deny'],
+        ['git commit -am x', 'deny'],
+        ['git commit --all -m x', 'deny'],
+        ['git add -A && git commit -m x', 'deny'],
+        ['bash -c "git add -A"', 'deny'],
+        ['timeout 60 git add -A', 'deny'],
+        ['GIT_TRACE=1 git add -A', 'deny'],
+        ['git add src/Foo.php tests/FooTest.php', 'allow'],
+        ['git add -u src', 'allow'],
+        ['git add -p', 'allow'],
+        ['git add src/.', 'allow'],
+        ['git add .gitignore', 'allow'],
+        ['git commit -m x', 'allow'],
+        ['git commit --amend --no-edit', 'allow'],
+        ['git commit -m "git add -A"', 'allow'],
+        ['echo git add -A', 'allow'],
+        ['grep "git add -A" AGENTS.md', 'allow'],
+        ['git status', 'allow'],
+        ['gh pr ready', 'deny'],
+        ['gh pr ready 12', 'deny'],
+        ['gh pr ready --repo a/b 12', 'deny'],
+        ['gh pr ready --undo 12', 'allow'],
+        ['gh pr merge 12 --squash --admin', 'deny'],
+        ['gh pr merge --admin 12', 'deny'],
+        ['timeout 60 gh pr merge 12 --admin', 'deny'],
+        ["sh -c 'gh pr merge 12 --admin'", 'deny'],
+        ['gh pr merge 12 --squash', 'allow'],
+        ['gh pr create --draft', 'allow'],
+        ['gh pr view 12', 'allow'],
+        ['echo gh pr ready', 'allow'],
+        ['cat > x <<EOF\ngh pr ready\nEOF', 'allow'],
+    ])('%j is %s', (command, expected) => {
+        expect(decide('no-unsafe-git.sh', command)).toBe(expected);
+    });
+
+    describe('docker compose', () => {
+        let root;
+        let main;
+        let worktree;
+
+        beforeAll(() => {
+            root = realpathSync(mkdtempSync(join(tmpdir(), 'unsafe-git-')));
+            main = join(root, 'main');
+            worktree = join(root, 'wt');
+            const git = (...args) =>
+                spawnSync('git', ['-C', main, ...args], {
+                    encoding: 'utf8',
+                    env: {
+                        ...process.env,
+                        GIT_AUTHOR_NAME: 't',
+                        GIT_AUTHOR_EMAIL: 't@t',
+                        GIT_COMMITTER_NAME: 't',
+                        GIT_COMMITTER_EMAIL: 't@t',
+                    },
+                });
+            spawnSync('git', ['init', '-q', main]);
+            git('commit', '-q', '--allow-empty', '-m', 'x');
+            git('worktree', 'add', '-q', '-b', 'wt', worktree);
+        });
+
+        afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+        it.each([
+            ['docker compose up -d', 'deny'],
+            ['docker compose restart php-fpm', 'deny'],
+            ['docker compose down', 'deny'],
+            ['docker compose exec php-fpm bash', 'deny'],
+            ['docker compose -f compose.yaml -p x up', 'deny'],
+            ['docker-compose up', 'deny'],
+            ['bash -c "docker compose up"', 'deny'],
+            ['just worktree-up && docker compose up', 'deny'],
+            ['docker compose ps', 'allow'],
+            ['docker compose logs worker', 'allow'],
+            ['docker compose -p x logs worker', 'allow'],
+            ['docker compose config', 'allow'],
+            ['docker compose version', 'allow'],
+            ['docker ps', 'allow'],
+            ['echo docker compose up', 'allow'],
+        ])('%j in a worktree is %s', (command, expected) => {
+            expect(decide('no-unsafe-git.sh', command, worktree)).toBe(
+                expected,
+            );
+        });
+
+        it.each([
+            ['docker compose up -d', 'main checkout', () => main],
+            ['docker compose up -d', 'folder outside git', () => root],
+            ['docker compose up -d', 'input with no cwd', () => undefined],
+        ])('%j in an %s is allowed', (command, _name, folder) => {
+            expect(decide('no-unsafe-git.sh', command, folder())).toBe('allow');
+        });
+    });
+});
+
 describe('a 20 KB input', () => {
     it.each([
         [
@@ -224,6 +334,13 @@ describe('a 20 KB input', () => {
         ['no-full-e2e.sh', 'lines', 'echo a\n'.repeat(2900)],
         ['no-full-ci.sh', 'segments', 'echo a; '.repeat(2500)],
         ['no-full-e2e.sh', 'segments', 'echo a; '.repeat(2500)],
+        [
+            'no-unsafe-git.sh',
+            'here-document',
+            'cat <<EOF\n' + 'git add -A\n'.repeat(1700) + 'EOF',
+        ],
+        ['no-unsafe-git.sh', 'lines', 'echo a\n'.repeat(2900)],
+        ['no-unsafe-git.sh', 'segments', 'echo a; '.repeat(2500)],
     ])('is allowed by %s as %s', (hook, kind, command) => {
         expect(decide(hook, command)).toBe('allow');
     });

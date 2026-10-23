@@ -13,6 +13,7 @@ use App\Module\Inbox\Command\MarkInboxItemDoneCommand;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -35,7 +36,7 @@ final class NoticeItemResponsesTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
         $project = $this->project($em, $this->owner($em, 'notice-responses'), 'notice-responses');
-        $this->notice = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A bridge rule races the app sync', blocking: false, body: 'Remove it.');
+        $this->notice = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A bridge rule races the app sync', blocking: false, origin: InboxAskOrigin::Loupe, body: 'Remove it.');
         $em->persist($this->notice);
         $em->flush();
     }

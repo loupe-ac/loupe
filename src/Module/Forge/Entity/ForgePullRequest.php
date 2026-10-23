@@ -50,6 +50,10 @@ class ForgePullRequest
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $headBranch = null;
 
+    /** The title at the last read. A row read before this column existed holds null. */
+    #[ORM\Column(length: 1024, nullable: true)]
+    public ?string $title = null;
+
     /** The forge's id of the account that opened the pull request. */
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $authorId = null;
@@ -261,6 +265,7 @@ class ForgePullRequest
         $this->authorId = $snapshot->authorId;
         $this->authorLogin = $snapshot->authorLogin;
         $this->authorRead = true;
+        $this->title = $snapshot->title;
         $this->baseBranch = $snapshot->baseBranch;
         $this->checks = $snapshot->checks;
         $this->checksSha = $snapshot->checksSha;
@@ -383,6 +388,7 @@ class ForgePullRequest
             $this->latestApprovedAt,
             $this->latestApprovalId,
             $this->latestApproverLogin,
+            $this->title,
         );
     }
 }

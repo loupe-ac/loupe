@@ -55,8 +55,8 @@ final class InboxListToolTest extends KernelTestCase
 
         $result = ($this->tool)();
 
-        self::assertSame(['From an agent', 'The document "The design" waits for your review.'], array_column($result['items'], 'title'));
-        self::assertSame(['question', 'wait'], array_column($result['items'], 'kind'));
+        self::assertSame(['From an agent', 'Review "The design", version 1'], array_column($result['items'], 'title'));
+        self::assertSame(['question', 'review'], array_column($result['items'], 'kind'));
         self::assertSame(['agent', 'loupe'], array_column($result['items'], 'origin'));
     }
 
@@ -78,7 +78,7 @@ final class InboxListToolTest extends KernelTestCase
         $items = ($this->tool)()['items'];
         $rows = ($this->tool)(readerSessionId: (string) Uuid::v4())['items'];
 
-        self::assertSame(['From an agent', 'The document "The design" waits for your review.', 'The document "The design" waits for your review.'], array_column($items, 'title'));
+        self::assertSame(['From an agent', 'Review "The design", version 1', 'Review "The design", version 1'], array_column($items, 'title'));
         self::assertSame([[], [7], [4]], array_column($items, 'cardNumbers'));
         self::assertSame([[], [7], [4]], array_column($rows, 'cardNumbers'));
     }

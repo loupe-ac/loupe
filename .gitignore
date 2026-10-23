@@ -39,7 +39,7 @@
 # icons have to be in it. Re-ignoring them silently returns the product to
 # fetching its own icons over the network at render time.
 # Refresh with `bin/console ux:icons:lock`; icons whose name is built
-# dynamically in a template need an explicit `ux:icons:import` (see AGENTS.md).
+# dynamically in a template need an explicit `ux:icons:import` (see the `project-frontend` skill).
 
 ###> friendsofphp/php-cs-fixer ###
 /.php-cs-fixer.php
