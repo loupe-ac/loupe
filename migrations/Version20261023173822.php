@@ -35,7 +35,7 @@ final class Version20261023173822 extends AbstractMigration
         $this->addSql('DROP TABLE inbox_project_settings');
     }
 
-    /** The fill function stays gone, because the code of this release writes every wait column itself. */
+    /** The image before this release maps neither `trigger` nor `reason`, so down restores the fill function that writes them. */
     #[\Override]
     public function down(Schema $schema): void
     {
@@ -51,5 +51,51 @@ final class Version20261023173822 extends AbstractMigration
         $this->addSql("ALTER TABLE inbox_card_waits ADD reason VARCHAR(200) DEFAULT 'waiting-for-review' NOT NULL");
         $this->addSql('ALTER TABLE inbox_card_waits ALTER "trigger" DROP DEFAULT');
         $this->addSql('ALTER TABLE inbox_card_waits ALTER reason DROP DEFAULT');
+        $this->addSql(<<<'SQL'
+            CREATE FUNCTION inbox_card_waits_fill() RETURNS trigger LANGUAGE plpgsql AS $$
+            DECLARE
+                run_state text;
+            BEGIN
+                IF NEW.type = 'worker-run' THEN
+                    SELECT state INTO run_state FROM bridge_worker_runs WHERE id = NEW.run_id;
+                END IF;
+                IF NEW."trigger" IS NULL OR NEW."trigger" = '' THEN
+                    NEW."trigger" = CASE NEW.type
+                        WHEN 'pull-request' THEN 'pull-request-ready'
+                        WHEN 'document' THEN 'document-in-review'
+                        WHEN 'card-pause' THEN 'card-paused'
+                        WHEN 'worker-run' THEN CASE run_state
+                            WHEN 'blocked' THEN 'run-blocked'
+                            WHEN 'gave-up' THEN 'run-gave-up'
+                            ELSE 'run-waiting-for-person' END
+                        ELSE NULL END;
+                END IF;
+                IF NEW.reason IS NULL OR NEW.reason = '' THEN
+                    NEW.reason = CASE NEW.type
+                        WHEN 'pull-request' THEN 'waiting-for-review'
+                        WHEN 'document' THEN 'waiting-for-review'
+                        WHEN 'card-pause' THEN COALESCE((SELECT kind FROM card_pauses WHERE id = NEW.pause_id), 'work-stopped')
+                        WHEN 'worker-run' THEN CASE run_state
+                            WHEN 'blocked' THEN 'blocked'
+                            WHEN 'gave-up' THEN 'gave-up'
+                            ELSE 'waits-for-person' END
+                        ELSE NULL END;
+                END IF;
+                IF NEW.marker_key = '' THEN
+                    NEW.marker_key = CASE NEW."trigger"
+                        WHEN 'pull-request-ready' THEN 'waits-for-approval'
+                        WHEN 'pull-request-fix-stopped' THEN 'waits-for-approval'
+                        WHEN 'document-in-review' THEN 'document-in-review'
+                        WHEN 'run-blocked' THEN 'run-needs-you'
+                        WHEN 'run-gave-up' THEN 'run-needs-you'
+                        WHEN 'run-waiting-for-person' THEN 'run-needs-you'
+                        WHEN 'card-paused' THEN 'paused'
+                        ELSE '' END;
+                END IF;
+                RETURN NEW;
+            END;
+            $$
+            SQL);
+        $this->addSql('CREATE TRIGGER inbox_card_waits_fill BEFORE INSERT ON inbox_card_waits FOR EACH ROW EXECUTE FUNCTION inbox_card_waits_fill()');
     }
 }

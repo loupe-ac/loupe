@@ -79,6 +79,34 @@ final class InboxOldColumnsDropMigrationTest extends KernelTestCase
         self::assertSame(0, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'inbox_project_settings'"));
     }
 
+    public function test_after_down_a_wait_insert_that_names_no_trigger_or_reason_gets_both_from_the_fill_function(): void
+    {
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $project = $this->project($em, $this->owner($em, 'drop-columns-down'), 'drop-columns-down');
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
+        $em->persist($item);
+        $watch = new InboxCardWatch($item, Uuid::v7(), 1);
+        $em->persist($watch);
+        $em->flush();
+
+        $this->migrate(down: true);
+        $id = (string) Uuid::v7();
+        $this->connection->executeStatement(
+            "INSERT INTO inbox_card_waits (id, watch_id, type, pull_request_id, head_sha, started_at) VALUES (:id, :watch, 'pull-request', :pullRequest, 'abc123', '2026-10-20 09:00:00')",
+            ['id' => $id, 'watch' => (string) $watch->id, 'pullRequest' => (string) Uuid::v7()],
+        );
+
+        self::assertSame(
+            ['trigger' => 'pull-request-ready', 'reason' => 'waiting-for-review', 'marker_key' => 'waits-for-approval'],
+            $this->connection->fetchAssociative('SELECT "trigger", reason, marker_key FROM inbox_card_waits WHERE id = :id', ['id' => $id]),
+        );
+
+        $this->migrate();
+
+        self::assertSame(0, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM pg_proc WHERE proname = 'inbox_card_waits_fill'"));
+    }
+
     /** @param list<string> $names */
     private function columns(string $table, array $names): int
     {
