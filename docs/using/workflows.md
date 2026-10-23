@@ -499,7 +499,7 @@ When you withdraw the approval of a design, the card goes back to that design. S
 | Slot | The workflow |
 |---|---|
 | Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
-| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design of a bug, tooling or docs card [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
+| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
@@ -891,7 +891,7 @@ so no `document-in-review` item opens in your inbox.
 | Rule | Does |
 |---|---|
 | `product-design-auto-approve` | Runs `approve-document` for the tag `product-design` when a document with the tag is in review, was published after the card arrived in its column, had no open decision and no open thread, never got a change request or a withdrawal, and has a passed agent review. It has no condition on the card type |
-| `tech-design-auto-approve` | The same for the tag `tech-design`. It also needs `card.type` with the types `bug`, `tooling` and `docs`. A feature or an epic waits for you |
+| `tech-design-auto-approve` | The same for the tag `tech-design`. It has no condition on the card type either |
 
 The action `approve-document` takes a `tag`. It approves each document of the card that has the tag, is in review and has a
 clean entry check on its newest version. The Workflow account writes the approval. The approval names the version of the check
@@ -906,11 +906,11 @@ check. A rule that you add to the template copy can approve with other condition
 rule checked.
 
 You cannot edit the template of a running instance yet. The Workflow page is read-only, and the template file is part of the
-release. A change to which designs approve themselves, such as `feature` in the `types` list of `tech-design-auto-approve`,
+release. A change to which designs approve themselves, such as a `card.type` condition on `tech-design-auto-approve`,
 is a change to `config/workflows/lifecycle.yaml` with a migration that writes the file into each project. It reaches an
 instance with the next release. A workflow editor will replace this path.
 A template with no design review rule never approves a design this way, because `design_review.passed` stays false.
-The rule reads the card type live. When you change a card to an allowed type while a clean design is in review, the rule approves the design at the next pass.
+A rule with a `card.type` condition reads the card type live. When you change a card to an allowed type while a clean design is in review, the rule approves the design at the next pass.
 
 ### Undoing a design
 

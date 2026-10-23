@@ -29,7 +29,6 @@ use App\Module\Review\Entity\Review;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
-use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -105,17 +104,16 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         self::assertSame('tech-design', $this->fresh($card)->column->slug);
     }
 
-    public function test_a_feature_tech_design_is_published_and_waits_for_a_person(): void
+    public function test_a_feature_tech_design_approves_itself(): void
     {
         $card = $this->card('feature');
         $document = $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
 
         $this->evaluate($card);
-        $this->evaluate($card, '+1 day');
 
-        self::assertSame(DocumentStatus::InReview, $this->reload($document)->status);
-        self::assertSame([], $this->reviews($document));
-        self::assertSame('tech-design', $this->fresh($card)->column->slug);
+        self::assertSame(DocumentStatus::Approved, $this->reload($document)->status);
+        self::assertSame('tech-design-auto-approve', $this->reviews($document)[0]->workflowRule);
+        self::assertSame('in-progress', $this->fresh($card)->column->slug);
     }
 
     #[DataProvider('openAtEntry')]
@@ -308,32 +306,6 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         self::assertSame(DocumentStatus::InReview, $this->reload($document)->status);
         self::assertSame([], $this->reviews($document));
         self::assertSame('tech-design', $this->fresh($card)->column->slug);
-    }
-
-    public function test_a_template_copy_that_lists_feature_approves_a_feature_design(): void
-    {
-        $card = $this->card('feature');
-        $binding = $this->service(WorkflowBindingRepository::class)->findOneBy(['project' => $card->project]);
-        self::assertNotNull($binding);
-        $definition = $binding->definition;
-        $edited = false;
-        foreach ($definition['rules'] as $index => $rule) {
-            if ('tech-design-auto-approve' === $rule['id']) {
-                self::assertSame(['bug', 'tooling', 'docs'], $rule['when']['all'][0]['card.type']['types']);
-                $definition['rules'][$index]['when']['all'][0]['card.type']['types'][] = 'feature';
-                $edited = true;
-            }
-        }
-        self::assertTrue($edited);
-        $binding->definition = $definition;
-        $this->em()->flush();
-        $document = $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
-
-        $this->evaluate($card);
-
-        self::assertSame(DocumentStatus::Approved, $this->reload($document)->status);
-        self::assertSame('tech-design-auto-approve', $this->reviews($document)[0]->workflowRule);
-        self::assertSame('in-progress', $this->fresh($card)->column->slug);
     }
 
     private function card(string $type, string $column = 'tech-design', ?string $arrival = '-1 hour'): Card
