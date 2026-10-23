@@ -135,4 +135,31 @@ final class SiteOriginsTest extends TestCase
         self::assertFalse(SiteOrigins::allows($list, 'https://evil.example'));
         self::assertFalse(SiteOrigins::allows([], 'https://shop.example.com'));
     }
+
+    public function test_a_list_is_normalised_without_duplicates(): void
+    {
+        self::assertSame(
+            ['https://shop.example.com', 'http://localhost:3000'],
+            SiteOrigins::normaliseList(['https://Shop.Example.com/', 'http://localhost:3000', 'https://shop.example.com:443']),
+        );
+    }
+
+    public function test_a_list_skips_an_empty_and_a_whitespace_only_entry(): void
+    {
+        self::assertSame(['https://shop.example.com'], SiteOrigins::normaliseList(['', 'https://shop.example.com', " \t "]));
+        self::assertSame([], SiteOrigins::normaliseList(['', ' ']));
+    }
+
+    public function test_one_bad_entry_refuses_the_whole_list(): void
+    {
+        self::assertNull(SiteOrigins::normaliseList(['https://shop.example.com', 'https://shop.example.com/checkout']));
+        self::assertNull(SiteOrigins::normaliseList(['https://*.co.uk']));
+    }
+
+    public function test_a_list_is_not_counted_against_the_cap(): void
+    {
+        $list = array_map(static fn (int $n): string => 'https://site'.$n.'.example.com', range(1, SiteOrigins::MAX + 1));
+
+        self::assertCount(SiteOrigins::MAX + 1, SiteOrigins::normaliseList($list) ?? []);
+    }
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // projectLinkOptions are the flags of `loupe project link`.
@@ -50,7 +51,8 @@ func newProjectLinkCmd() *cobra.Command {
 			"sends that project with every request, so an agent in this repository acts on this " +
 			"project and no other.\n\n" +
 			"With no --project, it lists the projects your login covers and asks which one. " +
-			"A login that covers exactly one project needs no answer.\n\n" +
+			"It asks also when your login covers one project. With no terminal to answer, it " +
+			"prints the list and stops, so pass --project <slug>.\n\n" +
 			"It refuses to replace an existing file unless you pass --force.\n\n" +
 			"It also writes " + profile.Path + " when the repository has none, also when " +
 			projectfile.Name + " exists already. The stage skills " +
@@ -127,9 +129,11 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 			return err
 		}
 
-		if projectID, err = chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites); err != nil {
+		choice, err := chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites, false)
+		if err != nil {
 			return err
 		}
+		projectID = choice.id
 	}
 
 	if err := projectfile.Write(dir, projectID); err != nil {
@@ -169,9 +173,11 @@ func runSetupProjectLink(cmd *cobra.Command, dir string, o projectLinkOptions) e
 		if err != nil {
 			return err
 		}
-		if projectID, err = chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites); err != nil {
+		choice, err := chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites, false)
+		if err != nil {
 			return err
 		}
+		projectID = choice.id
 	}
 	if err := projectfile.WriteLink(setup.Dir, key, projectID); err != nil {
 		return err
@@ -364,10 +370,8 @@ func confirmNo(out io.Writer, in io.Reader, question string) bool {
 }
 
 func askYesNo(out io.Writer, in io.Reader, question string, defaultYes bool) bool {
-	if f, ok := in.(*os.File); ok {
-		if info, err := f.Stat(); err != nil || 0 == info.Mode()&os.ModeCharDevice {
-			return false
-		}
+	if !isTerminal(in) {
+		return false
 	}
 
 	hint := "[Y/n]"
@@ -405,35 +409,75 @@ func lineReader(in io.Reader) *bufio.Reader {
 	return bufio.NewReader(in)
 }
 
-// chooseProject asks which project the file should name. One project needs no
-// question, and no project is an error rather than an empty file.
-func chooseProject(out io.Writer, in io.Reader, sites []api.Site) (string, error) {
-	switch len(sites) {
-	case 0:
-		return "", errors.New("your login covers no project: create one in Loupe first")
-	case 1:
-		fmt.Fprintf(out, "Your login covers one project, %s.\n", describe(sites[0]))
-
-		return sites[0].ID, nil
+// isTerminal reports whether somebody can answer on in. A file counts only
+// when it is a real terminal: /dev/null is a character device and fails the
+// test. Any other reader counts, so tests can feed answers.
+func isTerminal(in io.Reader) bool {
+	f, ok := in.(*os.File)
+	if !ok {
+		return true
 	}
 
-	fmt.Fprintln(out, "Which project does this repository belong to?")
+	return term.IsTerminal(int(f.Fd()))
+}
+
+// projectChoice is the answer of chooseProject: a project id, or create when
+// the user picked the row that makes a new project.
+type projectChoice struct {
+	id     string
+	create bool
+}
+
+// chooseProject asks which project the file should name. It always asks, also
+// for one project, because a silent pick links a repository to the wrong
+// project. With canCreate the list ends with a row that creates one.
+func chooseProject(out io.Writer, in io.Reader, sites []api.Site, canCreate bool) (projectChoice, error) {
+	if len(sites) == 0 && !canCreate {
+		return projectChoice{}, errors.New("your login covers no project: create one in Loupe first")
+	}
+
+	terminal := isTerminal(in)
+	if terminal {
+		fmt.Fprintln(out, "Which project does this repository belong to?")
+	} else {
+		fmt.Fprintln(out, "Your login covers these projects:")
+	}
 	for i, site := range sites {
 		fmt.Fprintf(out, "  %d) %s\n", i+1, describe(site))
 	}
-	fmt.Fprintf(out, "Choose 1 to %d: ", len(sites))
+	if !terminal {
+		return projectChoice{}, errors.New(noAnswerMessage(canCreate))
+	}
+
+	rows := len(sites)
+	if canCreate {
+		rows++
+		fmt.Fprintf(out, "  %d) Create a new project\n", rows)
+	}
+	fmt.Fprintf(out, "Choose 1 to %d: ", rows)
 
 	line, err := lineReader(in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
-		return "", err
+		return projectChoice{}, err
 	}
 
-	choice, err := strconv.Atoi(strings.TrimSpace(line))
-	if err != nil || choice < 1 || choice > len(sites) {
-		return "", fmt.Errorf("choose a number between 1 and %d, or pass --project", len(sites))
+	n, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil || n < 1 || n > rows {
+		return projectChoice{}, fmt.Errorf("choose a number between 1 and %d, or pass --project", rows)
+	}
+	if n > len(sites) {
+		return projectChoice{create: true}, nil
 	}
 
-	return sites[choice-1].ID, nil
+	return projectChoice{id: sites[n-1].ID}, nil
+}
+
+func noAnswerMessage(canCreate bool) string {
+	if canCreate {
+		return `nobody can answer here: pass --project <slug> to use one of these projects, or --name "<name>" to create a new one`
+	}
+
+	return "nobody can answer here: pass --project <slug> to use one of these projects"
 }
 
 // describe names a project the way the chooser shows it. A project with no slug

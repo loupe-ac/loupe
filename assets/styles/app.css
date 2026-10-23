@@ -211,6 +211,17 @@
         color: var(--ink);
     }
 
+    @media (hover: hover) {
+        .lp-core-board .lp-board__add-card {
+            opacity: 0;
+        }
+
+        .lp-core-board .lp-board__column:hover .lp-board__add-card,
+        .lp-core-board .lp-board__column:focus-within .lp-board__add-card {
+            opacity: 1;
+        }
+    }
+
     .lp-core-board .lp-board__column-count {
         border: 0;
         background: var(--border);
@@ -349,6 +360,10 @@
         flex-direction: column;
         gap: calc(var(--spacing) * 2);
         padding-bottom: calc(var(--spacing) * 2.5);
+    }
+
+    .lp-core-inbox .lp-inbox-list-head .lp-tabs--segmented {
+        @apply w-full;
     }
 
     .lp-core-inbox .lp-inbox-list-head .lp-filter-search {
@@ -1070,7 +1085,12 @@
         @apply max-w-full break-words whitespace-normal text-xl;
     }
     .lp-project-tile-grid .lp-project-row__meta {
-        @apply mt-5 flex-wrap border-t border-line pt-4 text-xs;
+        @apply mt-auto flex-wrap border-t border-line pt-4 text-xs;
+    }
+    .lp-project-tile-grid
+        .lp-project-row__main
+        > :has(+ .lp-project-row__meta) {
+        @apply mb-5;
     }
     .lp-project-tile-grid .lp-project-row__edit {
         @apply absolute right-4 top-4;
@@ -1158,7 +1178,7 @@
     @apply flex min-w-0 flex-1 flex-col gap-1;
 }
 .lp-review .lp-draft-band__title {
-    @apply m-0 flex flex-wrap items-center gap-2 text-ink;
+    @apply m-0 flex min-h-9 flex-wrap items-center gap-2 text-ink;
 }
 .lp-review .lp-draft-band__text {
     @apply m-0 text-fg-mute;
@@ -1452,9 +1472,9 @@
 }
 
 /* ── Column ─────────────────────────────────────────────────────── */
-/* A 48rem text column at the left. The panel column ends level with the top
-   bar's right edge, at least 5rem from the text for the comment markers, and
-   takes 20rem to 24rem. Below 75rem the toolbar and panels stack above. */
+/* A 48rem text column at the left. The panel column starts 5rem right of the
+   text for the comment markers, and takes 20rem to 24rem. Below 75rem the
+   toolbar and panels stack above. */
 .lp-review .lp-review-block {
     --doc-margin: calc(var(--spacing) * 80);
     --doc-margin-max: calc(var(--spacing) * 96);
@@ -1502,7 +1522,12 @@
         );
     }
     .lp-review .lp-review-panels {
-        @apply absolute top-0 right-0 bottom-0 mb-0;
+        @apply absolute top-0 bottom-0 mb-0;
+        left: calc(
+            var(--review-column-start) + var(--review-column) +
+                var(--doc-margin-gap)
+        );
+        right: auto;
         width: var(--review-panels-width);
     }
     /* Side by side starts with every panel hidden. An open one takes the panel
@@ -2313,7 +2338,7 @@
     /* Document, Status, Author, Linked card, Updated, Actions. The artifacts list shares it.
        A row is a title line and a meta line, so it grows past the one-line height. */
     .lp-data-table--documents {
-        --lp-data-table-columns: minmax(0, 2fr)
+        --lp-data-table-columns: minmax(calc(var(--spacing) * 72), 3fr)
             minmax(calc(var(--spacing) * 34), 0.75fr)
             minmax(calc(var(--spacing) * 32), 0.7fr)
             minmax(calc(var(--spacing) * 28), 0.6fr)
@@ -2531,21 +2556,6 @@
 }
 
 @layer components {
-    /* The links of the inbox page sit in the top bar, and only their icons stay on a phone. */
-    .lp-inbox-topbar-actions {
-        @apply flex items-center gap-1 ml-auto;
-    }
-    .lp-topbar > .lp-inbox-topbar-actions + .lp-topbar__global-actions {
-        @apply ml-0;
-    }
-    @media (width < 40rem) {
-        .lp-inbox-topbar-actions .lp-btn {
-            @apply w-9 px-0;
-        }
-        .lp-inbox-topbar-actions__label {
-            @apply sr-only;
-        }
-    }
     .lp-inbox-section {
         scroll-margin-top: calc(var(--spacing) * 20);
     }
@@ -7930,7 +7940,8 @@
     .lp-workshop-supporting {
         @apply min-w-0;
     }
-    .lp-workshop-crew {
+    .lp-workshop-crew,
+    .lp-workshop-recent {
         @apply rounded-xl border border-line bg-white p-5;
     }
     .lp-workshop-icon-link {
@@ -7961,7 +7972,7 @@
         @apply mt-6;
     }
     .lp-workshop-recent__row {
-        @apply flex items-start gap-3 mt-3 py-3 border-b border-line no-underline;
+        @apply flex items-start gap-3 mt-1 pt-4 border-t border-line-faint no-underline;
     }
     .lp-workshop-recent__row > span:first-child {
         @apply grid place-items-center w-8 h-8 shrink-0 rounded-lg border border-line bg-white text-fg-dim;

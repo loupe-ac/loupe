@@ -10,6 +10,8 @@ use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Command\CreateProjectCommand;
 use App\Module\Project\Command\CreateProjectHandler;
+use App\Module\Project\Command\FindTakenProjectSlugCommand;
+use App\Module\Project\Command\FindTakenProjectSlugHandler;
 use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
@@ -38,6 +40,7 @@ final class CreateProjectController extends AppController
 {
     public function __construct(
         private readonly CreateProjectHandler $createProject,
+        private readonly FindTakenProjectSlugHandler $findTakenSlug,
         private readonly TokenStorageInterface $tokenStorage,
         public readonly CredentialRateLimitKey $rateLimitKey,
     ) {
@@ -64,20 +67,29 @@ final class CreateProjectController extends AppController
             $project = ($this->createProject)(new CreateProjectCommand(
                 owner: $user,
                 name: $name,
-                domain: $payload->website(),
+                domain: $payload->domain(),
                 searchLanguage: SearchLanguage::DEFAULT,
+                allowedOrigins: $payload->origins(),
             ));
         } catch (DomainErrors $e) {
-            return match (true) {
-                isset($e->errors['name']) && 'project.error.slug_empty' === $e->errors['name'] => $this->json(['error' => 'name_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
-                default => $this->json(['error' => 'name_taken'], JsonResponse::HTTP_CONFLICT),
-            };
+            if (isset($e->errors['name']) && 'project.error.slug_empty' === $e->errors['name']) {
+                return $this->json(['error' => 'name_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $slug = ($this->findTakenSlug)(new FindTakenProjectSlugCommand($user, $name));
+
+            return $this->json(
+                ['error' => 'name_taken'] + (null === $slug ? [] : ['slug' => $slug]),
+                JsonResponse::HTTP_CONFLICT,
+            );
         }
 
         return $this->json([
             'id' => (string) $project->id,
             'slug' => $project->slug,
             'name' => $project->name,
+            'domain' => $project->domain,
+            'allowedOrigins' => $project->allowedOrigins,
         ], JsonResponse::HTTP_CREATED);
     }
 }

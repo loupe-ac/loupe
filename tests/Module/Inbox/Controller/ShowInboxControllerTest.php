@@ -95,7 +95,8 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.lp-empty-state', 'Nothing needs you');
-        self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"] a[href="/projects/'.$project->id.'/inbox?side=closed"]', 'See what you already answered');
+        self::assertSelectorExists('[data-inbox-queue-empty="open-asks"] .lp-empty-state__icon');
+        self::assertSelectorNotExists('[data-inbox-queue-empty="open-asks"] a');
         self::assertSelectorNotExists('[data-inbox-open-count]');
         // The frame stays, so a live reload has somewhere to put a count.
         self::assertSelectorExists('a[data-controller="live-pill"] turbo-frame#inbox-open-count-'.$project->id);
@@ -751,7 +752,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('/projects/'.$project->id.'/inbox?side=closed', $search->filter('.lp-filter-clear')->attr('href'));
     }
 
-    public function test_nothing_needs_you_links_to_the_closed_asks(): void
+    public function test_nothing_needs_you_shows_an_icon_and_no_link(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-nothing');
         $project = $this->inboxProject($this->em, $owner);
@@ -762,7 +763,8 @@ final class ShowInboxControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
         self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"]', 'Nothing needs you');
-        self::assertSame('/projects/'.$project->id.'/inbox?side=closed', $crawler->filter('[data-inbox-queue-empty] a')->attr('href'));
+        self::assertCount(1, $crawler->filter('[data-inbox-queue-empty="open-asks"] .lp-empty-state__icon'));
+        self::assertCount(0, $crawler->filter('[data-inbox-queue-empty] a'));
         self::assertSame('true', $crawler->filter('.lp-inbox-split')->attr('data-inbox-empty'));
     }
 

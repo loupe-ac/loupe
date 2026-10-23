@@ -238,9 +238,9 @@ the same colour. The workflow template sets the colour of a card type, and it
 also declares which types the board offers. The owner picks a column's colour from twelve in its
 **Colour** setting. The colour stays with the column when the columns move.
 
-The page header is one row: the title, the search, the card count, the
-**Board** and **List** switch, a **Board settings** button with a gear icon,
-and **Add card**. It wraps on a narrow screen, and it stays in place when the
+The page header is one row: the title, the search, the card count, a
+**Board settings** button with a gear icon, and the **Board** and **List**
+switch. To add a card, use **New work** in the top bar. It wraps on a narrow screen, and it stays in place when the
 cards scroll.
 
 A second header row holds a **Backlog** button. The button shows how many cards
@@ -266,7 +266,7 @@ involved change, and the scroll position and the filter stay as they are. A move
 the server refuses puts the card back where it started, and a message says so.
 The server refuses a move to a column that no longer exists.
 
-**Add card**, in the page header or under a column, opens the create form in the card drawer. A column's Add card preselects that column. The button reads **Creating…** while the card saves. Then the drawer closes, and the card appears in its column with no reload of the board. Without JavaScript, the same link opens the form as a page. Under each terminal column, a link opens the
+**New work** in the top bar and **Add card** under a column open the create form in the card drawer. A column's Add card preselects that column. On a screen with a mouse, Add card shows when the pointer is over the column or the keyboard focus is in it. A touch screen always shows it. The button reads **Creating…** while the card saves. Then the drawer closes, and the card appears in its column with no reload of the board. Without JavaScript, the same link opens the form as a page. Under each terminal column, a link opens the
 history page at **`/projects/<project>/board/terminal/<column id>`**. That page
 lists every card in the column, newest completion first, 25 to a page. The
 older address **`/projects/<project>/board/done`** still works. It opens the

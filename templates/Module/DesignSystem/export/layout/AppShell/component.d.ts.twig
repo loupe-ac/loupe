@@ -36,7 +36,7 @@ export interface {{ entry.name }}Props {
     actions?: ReactNode;
     /** The signed-in user, shown in the account row. */
     userName?: string;
-    /** Numbers shown beside a nav link, keyed by the link name. Only inbox, documents, agents and activity take a count, as in the app. Agents takes text such as '1/3', the busy workers over the worker limit. Documents always shows its count, 0 included, and it counts the documents in review. Inbox and activity show it only above 0, and activity takes the number of open runs. */
+    /** Numbers shown beside a nav link, keyed by the link name. Only inbox, agents and activity take a count, as in the app. Agents takes text such as '1/3', the busy workers over the worker limit. Inbox and activity show it only above 0, and activity takes the number of open runs. */
     counts?: { [link: string]: number | string };
     /** The projects that the switcher lists, with the document count of each. The entry whose name is projectName gets the current marker. Defaults to projectName alone. */
     projects?: Array<{ name: string; documentCount?: number }>;
