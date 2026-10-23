@@ -54,7 +54,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-board-card a[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
         self::assertCount(3, $crawler->filter('a.lp-board__add-card[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
         self::assertCount(0, $crawler->filter('.lp-board-toolbar a[href$="/board/cards/new"]'));
-        self::assertCount(1, $crawler->filter('.lp-topbar__new-work[href$="/board/cards/new"][data-turbo-frame="card-drawer-frame"][data-card-drawer-opener]'));
+        self::assertCount(1, $crawler->filter('.lp-topbar__new-work[href$="/board/cards/new"][data-card-drawer-opener]:not([data-turbo-frame])'));
         $actions = $crawler->filter('.lp-board-toolbar__actions')->html();
         self::assertLessThan(
             (int) strpos($actions, 'lp-board-toolbar__mode'),

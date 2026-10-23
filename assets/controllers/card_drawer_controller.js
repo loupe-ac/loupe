@@ -29,6 +29,13 @@ export default class extends ModalController {
         this.onBeforeCache = () => this.#reset();
         document.addEventListener('turbo:before-cache', this.onBeforeCache);
         document.addEventListener('click', this.#onOpenerClick);
+        // A page with no drawer keeps the opener a full visit.
+        this.openers = [
+            ...document.querySelectorAll('[data-card-drawer-opener]'),
+        ];
+        this.openers.forEach((opener) => {
+            opener.dataset.turboFrame = 'card-drawer-frame';
+        });
         this.stopLive = on('board.card_changed', (change) =>
             this.cardChanged(change),
         );
@@ -38,6 +45,7 @@ export default class extends ModalController {
         super.disconnect();
         document.removeEventListener('turbo:before-cache', this.onBeforeCache);
         document.removeEventListener('click', this.#onOpenerClick);
+        this.openers.forEach((opener) => delete opener.dataset.turboFrame);
         this.stopLive?.();
     }
 
