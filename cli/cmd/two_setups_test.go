@@ -113,8 +113,10 @@ func TestTwoSetupsKeepSeparateBridges(t *testing.T) {
 			t.Fatal(err)
 		}
 		ctx, cancel := context.WithCancel(context.Background())
+		// A bridge closes its socket before it releases its lock.
 		done := serveControl(ctx, ln, controlOps{stop: func() {
 			cancel()
+			ln.Close()
 			lock.Close()
 		}})
 		t.Cleanup(func() {
