@@ -1,6 +1,6 @@
 ---
 name: holding-a-merge-queue
-description: "Use when holding the merge queue, watching several pull requests, fixing a conflicted or failing branch, moving a merged card, meeting a flaky check, or acting on a peer report or machine-wide action."
+description: "Use when holding the merge queue or watching several PRs, when a change hits another session's branch, or for a conflicted or failing branch, merged card, flaky check, peer report or host-wide action."
 ---
 
 # Holding a merge queue

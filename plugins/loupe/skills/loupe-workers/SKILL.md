@@ -1,6 +1,6 @@
 ---
 name: loupe-workers
-description: "Use when reading worker runs or bridges through the loupe MCP, stopping, resuming or holding workers, or recovering workers after a usage limit or network outage."
+description: "Use when reading worker runs or bridges through the loupe MCP, stopping, resuming or holding workers, cancelling a bridge command, or recovering workers after a usage limit or network outage."
 ---
 
 # Controlling Loupe workers
