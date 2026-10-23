@@ -134,7 +134,7 @@ final class EvaluateParentOnChildMarkersChangedTest extends KernelTestCase
     /** @param list<StoredMarker> $markers */
     private function write(Card $card, array $markers): void
     {
-        $this->markers->write($card->project->requireId(), $card->id ?? throw new \LogicException('A stored card has an id.'), $markers, null);
+        $this->markers->write($card->project->requireId(), $card->id ?? throw new \LogicException('A stored card has an id.'), $markers, [], null);
     }
 
     private static function stuck(): StoredMarker

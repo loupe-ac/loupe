@@ -80,26 +80,25 @@ test.afterAll(async ({ request }) => {
     await setInboxFlag(request, false);
 });
 
-test('the inbox links sit in the top bar and stay reachable at every width', async ({
+test('the inbox activity link sits in the top bar and stays reachable at every width', async ({
     page,
     inbox,
 }) => {
     const projectPath = inbox.inboxUrl.replace(/\/inbox$/, '');
-    // The page draws no header of its own, so its links live in the top bar.
+    // The page draws no header of its own, so its link lives in the top bar.
     await expect(page.locator('main .lp-page-header')).toHaveCount(0);
     const topbar = page.locator('.lp-topbar');
     const activity = topbar.getByRole('link', {
         name: 'View activity',
         exact: true,
     });
-    const settings = topbar.getByRole('link', {
-        name: 'Settings',
-        exact: true,
-    });
+    // The inbox has no settings page, so the top bar links to none.
+    await expect(
+        topbar.getByRole('link', { name: 'Settings', exact: true }),
+    ).toHaveCount(0);
     for (const width of [1440, 950, 390]) {
         await page.setViewportSize({ width, height: 1000 });
         await expect(activity).toBeInViewport({ ratio: 1 });
-        await expect(settings).toBeInViewport({ ratio: 1 });
         expect(
             await topbar.evaluate(
                 (element) => element.scrollWidth - element.clientWidth,

@@ -28,7 +28,7 @@ use App\Module\Review\Repository\ReviewRepository;
  * @phpstan-type InboxItemCardSummary array{cardId: string, number: int, title: string}
  * @phpstan-type InboxItemDocumentSummary array{documentId: string, title: string}
  * @phpstan-type InboxItemAskSummary array{askId: string, origin: string, sessionId: ?string, closedAt: ?string}
- * @phpstan-type InboxCardWaitSummary array{trigger: string, type: string, reason: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
+ * @phpstan-type InboxCardWaitSummary array{marker: string, type: string, label: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
  * @phpstan-type InboxActionSummary array{actionId: string, kind: string, note: string, requestedBy: ?string, requestedAt: string, bridgeCommandId: ?string, workRequestId: ?string, pauseId: ?string, cancelledAt: ?string}
  * @phpstan-type InboxSuggestedActionSummary array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}
  * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, respondedThroughAgent: bool, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>, suggestedActions: list<InboxSuggestedActionSummary>, actions: list<InboxActionSummary>}
@@ -91,7 +91,7 @@ final readonly class InboxItemPayload
     {
         $this->inboxItems->loadCards($items);
         $reviews = [];
-        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind));
+        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind && !$item->isAutomatic()));
         foreach ($this->inboxReviews->findForItems($reviewItems) as $review) {
             $reviews[(string) $review->item->id] = $this->forReview($review);
         }
@@ -114,8 +114,8 @@ final readonly class InboxItemPayload
      */
     public function forItem(InboxItem $item, array $asks): array
     {
-        $review = InboxItemKind::Review === $item->kind ? $this->inboxReviews->findOneBy(['item' => $item]) : null;
-        $watch = InboxItemKind::Wait === $item->kind ? $this->inboxCardWatches->findOneForItem($item) : null;
+        $review = InboxItemKind::Review === $item->kind && !$item->isAutomatic() ? $this->inboxReviews->findOneBy(['item' => $item]) : null;
+        $watch = $item->isAutomatic() ? $this->inboxCardWatches->findOneForItem($item) : null;
         $waits = null === $watch ? [] : array_values($watch->waits->toArray());
         // A start time holds whole seconds, so on a tie an ended wait comes before the open one that replaced it.
         usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, null === $a->endedAt, $a->key()] <=> [$b->startedAt, null === $b->endedAt, $b->key()]);
@@ -147,9 +147,9 @@ final readonly class InboxItemPayload
                 array_values($item->documents->toArray()),
             ),
             'asks' => array_map(
-                static fn (InboxAsk $ask): array => [
+                fn (InboxAsk $ask): array => [
                     'askId' => (string) $ask->id,
-                    'origin' => $ask->origin->value,
+                    'origin' => $item->origin->value,
                     'sessionId' => $ask->sessionId?->toRfc4122(),
                     'closedAt' => $ask->closedAt?->format(\DATE_ATOM),
                 ],
@@ -158,9 +158,9 @@ final readonly class InboxItemPayload
             'cardId' => $watch?->cardId->toRfc4122(),
             'waits' => array_map(
                 static fn (InboxCardWait $wait): array => [
-                    'trigger' => $wait->trigger->value,
+                    'marker' => $wait->markerKey,
                     'type' => $wait->type->value,
-                    'reason' => $wait->reason->value,
+                    'label' => $wait->label,
                     'documentId' => $wait->documentId?->toRfc4122(),
                     'versionNumber' => $wait->versionNumber,
                     'runId' => $wait->runId?->toRfc4122(),

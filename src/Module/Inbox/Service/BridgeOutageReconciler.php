@@ -11,6 +11,7 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxBridgeOutage;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
@@ -191,6 +192,7 @@ final readonly class BridgeOutageReconciler
             kind: InboxItemKind::Notice,
             title: $this->translator->trans('inbox.bridge_outage.title', [], null, $this->locale),
             blocking: false,
+            origin: InboxAskOrigin::Loupe,
             createdAt: $now,
             searchLanguage: $project->searchLanguage,
         );

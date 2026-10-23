@@ -131,6 +131,7 @@ export default defineConfig({
                 /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
+                /review\/draft-band-live\.spec\.ts/,
             ],
             use: {
                 ...devices['Desktop Chrome'],
@@ -147,7 +148,7 @@ export default defineConfig({
         },
         {
             name: 'global-flags',
-            // billing.enabled, inbox.enabled, search.topbar.enabled,
+            // billing.enabled, inbox.enabled, artifacts.enabled, search.topbar.enabled,
             // review.mermaid.enabled, live_updates.enabled
             // and the OAuth provider flags change what signed-in pages and the login form
             // render, so nothing else runs beside these.
@@ -160,6 +161,7 @@ export default defineConfig({
                 /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
+                /review\/draft-band-live\.spec\.ts/,
             ],
             workers: 1,
             use: {

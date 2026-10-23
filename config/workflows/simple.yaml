@@ -1,5 +1,5 @@
 key: simple
-version: 8
+version: 9
 defaultType: feature
 epicBranch: 'epic/{number}'
 types:
@@ -15,6 +15,22 @@ manualMoves:
     - { from: '*', to: '*' }
 backoffMinutes: [10, 60, 360]
 workTimeoutMinutes: 120
+facts:
+    pr-reviewable:
+        all:
+            - pr.open: {}
+            - not: { pr.draft: {} }
+            - pr.checks_passed: {}
+            - not: { pr.conflicting: {} }
+            - not: { pr.changes_requested: {} }
+    pr-waits-for-approval:
+        all:
+            - fact.pr-reviewable: {}
+            - pr.checks_on_head: {}
+            - pr.can_merge: {}
+            - pr.base_is_default: {}
+            - not: { pr.approval_covers_head: { min: 1 } }
+            - not: { card.run.worker_active: {} }
 rules:
     - id: merged
       when:
@@ -32,6 +48,7 @@ rules:
               kind: teardown
               onTimeout: expire
 
+inbox: [waits-for-approval, run-needs-you, paused]
 markers:
     - key: paused
       kind: stuck
@@ -41,6 +58,7 @@ markers:
           all:
               - card.paused: {}
               - not: { card.inbox.open_question: { blocking: true } }
+              - not: { card.run.asking: {} }
     - key: run-stopped
       kind: stuck
       label: marker.run_stopped
@@ -48,11 +66,20 @@ markers:
       when:
           all:
               - card.run.stopped: {}
+              - not: { card.run.needs_person: {} }
               - not:
                     any:
                         - card.run.work_active: {}
                         - card.run.worker_active: {}
                         - card.inbox.open_question: { blocking: true }
+    - key: run-needs-you
+      kind: stuck
+      label: marker.run_needs_you
+      remedy: marker.run_needs_you.remedy
+      when:
+          all:
+              - card.run.needs_person: {}
+              - not: { card.run.asking: {} }
     - key: checks-failed
       kind: stuck
       label: marker.checks_failed
@@ -96,7 +123,7 @@ markers:
       kind: needs-you
       label: marker.waits_for_approval
       remedy: marker.waits_for_approval.remedy
-      when: { pr.waits_for_approval: {} }
+      when: { fact.pr-waits-for-approval: {} }
     - key: open-question
       kind: needs-you
       label: marker.open_question
@@ -139,7 +166,7 @@ markers:
       remedy: marker.work_requested.remedy
       when:
           all:
-              - card.run.work_active: {}
+              - card.run.work_open: {}
               - not: { card.run.work_no_taker: {} }
               - not: { card.run.work_taker_paused: {} }
     - key: forge-request-pending

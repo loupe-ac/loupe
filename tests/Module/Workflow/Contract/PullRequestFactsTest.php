@@ -61,7 +61,6 @@ final class PullRequestFactsTest extends TestCase
             checksFailedSince: new \DateTimeImmutable('11:00'),
             checksPendingSince: new \DateTimeImmutable('11:00'),
             conflictingSince: new \DateTimeImmutable('11:00'),
-            waitsForApprovalSince: new \DateTimeImmutable('11:00'),
             forgeRequests: [new ForgeRequest(new \DateTimeImmutable('11:00'), new \DateTimeImmutable('11:10'))],
         );
 

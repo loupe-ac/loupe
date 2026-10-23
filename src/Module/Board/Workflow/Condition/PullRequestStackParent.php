@@ -9,6 +9,8 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
@@ -19,7 +21,7 @@ use Symfony\Component\Translation\TranslatableMessage;
  * The pull request is ready to merge and waits for the branch it is stacked on. With "known", a card links the open
  * parent pull request. With "unknown", only the branch is known.
  */
-final readonly class PullRequestStackParent implements Condition, MarkerEvidence, TimedCondition
+final readonly class PullRequestStackParent implements Condition, MarkerEvidence, NamesMarkerSubject, TimedCondition
 {
     private const string KNOWN = 'known';
 
@@ -86,7 +88,7 @@ final readonly class PullRequestStackParent implements Condition, MarkerEvidence
             return null;
         }
 
-        return PullRequestEvidence::of($pullRequest, $pullRequest->readySince, $parent->known()
+        return PullRequestEvidence::of($pullRequest, $parent->known()
             ? ['%parent_number%' => $parent->card ?? 0, '%pull_request%' => $parent->pullRequest ?? 0]
             : ['%branch%' => $parent->branch]);
     }
@@ -95,5 +97,11 @@ final readonly class PullRequestStackParent implements Condition, MarkerEvidence
     public function changesAt(Facts $facts, array $params): ?\DateTimeImmutable
     {
         return $facts->pullRequest?->firstForgeRequestExpiresAt($facts->now);
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::PullRequest;
     }
 }

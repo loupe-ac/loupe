@@ -1,6 +1,6 @@
 ---
 name: project-backend
-description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands, flash messages, or any PHP implementation work. For authorization see `project-authz`. For PHPUnit tests see `project-testing`."
+description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands or flash messages, or when changing a gamache rule or its configuration."
 ---
 
 # Backend: forms, DTOs, Doctrine, controllers, flash messages
@@ -117,6 +117,8 @@ For PHPUnit patterns, including WebTestCase mocking, controller integration test
 Before you mark a PHP task done, apply fixes with `just cs`, which runs prettier, rector, cs-fixer and twig-cs-fixer in write mode. Then run `just phpstan`, `just arkitect` and `just gamache`, which check the whole project. Then run PHPUnit on the tests for what changed, with `just phpunit tests/<path>` or `just phpunit --filter <name>`. A hook refuses `just ci` and a full PHPUnit run, because CI's required checks are the full gate. `just e2e` is separate.
 
 Do not deliver code that fails any of these commands. Fix the underlying issue. Never skip hooks, and never suppress an error with `@phpstan-ignore` without a comment that explains why.
+
+**php-cs-fixer works from worktrees.** `.php-cs-fixer.dist.php` uses explicit excludes rather than `ignoreVCSIgnored(true)`, and throws when the finder matches zero files. Both matter. The old VCS-ignore heuristic matched 0 files under the gitignored `.claude/worktrees/`, so `just cs` fixed nothing and `just ci`'s cs-check leg passed vacuously. Worktree roots stay excluded deliberately, because the main run would otherwise scan every worktree's copy of the tree.
 
 ## Property access in all PHP classes
 
@@ -312,7 +314,23 @@ Tests must never dictate what is nullable. Whether a constructor parameter is nu
 
 ## Custom static-analysis rules
 
-Custom PHPStan, PHP CS Fixer, Rector and TwigCsFixer rules live in the `ubermuda/gamache` package, in `vendor/ubermuda/gamache/src/`, consumed as `dev-main`. They are not in this repo. When a check fires for something that is not in the standard PHPStan, Rector or TwigCsFixer docs, look there first. The rule class names in the error output match the class names in that package. Add a new rule in the gamache repo. See "Gamache Checks" in `AGENTS.md`. Run `just cs` and `just phpstan` to exercise all of them.
+Custom PHPStan, PHP CS Fixer, Rector and TwigCsFixer rules live in the `ubermuda/gamache` package, in `vendor/ubermuda/gamache/src/`, consumed as `dev-main`. They are not in this repo. When a check fires for something that is not in the standard PHPStan, Rector or TwigCsFixer docs, look there first. The rule class names in the error output match the class names in that package. Add a new rule in the gamache repo. Run `just cs` and `just phpstan` to exercise all of them.
+
+`ubermuda/gamache` enforces project conventions through five layers, each wired into a different tool. Check all five before you conclude that gamache has no rule for something. Most of them run under `just ci` rather than `just gamache`.
+
+| Layer | Package dir | Wired via | Run by |
+|---|---|---|---|
+| Convention checks | `src/Check/` | `gamache.php` | `just gamache` (`vendor/bin/gamache`) |
+| PHPStan rules | `src/PHPStan/` | `extension.neon` + `parameters.gamache:` in `phpstan.dist.neon` | `just phpstan` / `just ci` |
+| Rector rules | `src/Rector/` | `GamacheSetList::CONVENTIONS` in `rector.php` | `just rector` |
+| PHP-CS-Fixer rules | `src/PhpCsFixer/` | `Gamache\PhpCsFixer\Fixers` in `.php-cs-fixer.dist.php` | `just cs-fix` |
+| Twig-CS-Fixer rules | `src/TwigCsFixer/` | `GamacheStandard` in `.twig-cs-fixer.php` | twig-cs-fixer |
+
+`just gamache` runs the `src/Check/` layer only, which holds the advisory and structural convention checks. The other four belong to the normal static-analysis pipeline. To answer "does a gamache check exist for this?", grep the package's `src/Check/`, `src/PHPStan/`, `src/Rector/`, `src/PhpCsFixer/` and `src/TwigCsFixer/`.
+
+1. The PHPStan-rule layer sees only the files in PHPStan's `paths:` in `phpstan.dist.neon`. `migrations/` must stay in that list, or a migration-targeting rule such as `MigrationDescriptionRule` never runs. Add a new top-level source dir to `paths:` when a rule should police it.
+2. gamache is an external package. Open a PR on https://github.com/ubermuda/gamache to add or change a rule in any of the five layers. Do not add a rule, check or fixer class to this project. `src/Utils/Gamache/` no longer exists.
+3. Each `src/Check/` class takes constructor parameters, set in `gamache.php`. The PHPStan layer is configured under `parameters.gamache:` in `phpstan.dist.neon`.
 
 ## Event listeners
 

@@ -16,7 +16,8 @@ const focusVisible = (element) => {
 /**
  * Opens a tooltip that holds a link. It stays open while the pointer moves from
  * the anchor into the tooltip, and while the keyboard focus is inside it. The
- * tooltip is fixed, so a scrolling column cannot clip it.
+ * tooltip is fixed, so a scrolling column cannot clip it. A popover also draws
+ * it in the top layer, above the sidebar.
  */
 export default class extends Controller {
     static targets = ['tooltip'];
@@ -48,6 +49,7 @@ export default class extends Controller {
         if (this.tooltipTarget.hasAttribute('data-open')) {
             return;
         }
+        this.showPopover();
         this.place();
         this.tooltipTarget.setAttribute('data-open', '');
         window.addEventListener('scroll', this.onScroll, true);
@@ -62,6 +64,7 @@ export default class extends Controller {
             return;
         }
         this.tooltipTarget.removeAttribute('data-open');
+        this.hidePopover();
         // Escape from the link would leave the focus on a hidden element.
         if (
             event?.type === 'keydown' &&
@@ -111,6 +114,36 @@ export default class extends Controller {
     cancelClose() {
         clearTimeout(this.closeTimer);
         this.closeTimer = null;
+    }
+
+    hasPopover() {
+        return (
+            this.tooltipTarget.hasAttribute('popover') &&
+            typeof this.tooltipTarget.showPopover === 'function'
+        );
+    }
+
+    /** A closed popover has no size, so this runs before place(). */
+    showPopover() {
+        if (!this.hasPopover()) {
+            return;
+        }
+        try {
+            this.tooltipTarget.showPopover();
+        } catch {
+            // Already showing, which is the state this asks for.
+        }
+    }
+
+    hidePopover() {
+        if (!this.hasPopover()) {
+            return;
+        }
+        try {
+            this.tooltipTarget.hidePopover();
+        } catch {
+            // Already hidden, or the element left the document.
+        }
     }
 
     place() {

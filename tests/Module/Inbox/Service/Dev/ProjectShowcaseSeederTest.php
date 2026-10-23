@@ -11,7 +11,6 @@ use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
-use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Inbox\Service\Dev\ProjectShowcaseSeeder;
 use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\Service\InboxSearchIndexer;
@@ -19,6 +18,7 @@ use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
+use App\Module\Workflow\Contract\CardEvaluations;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -60,7 +60,7 @@ final class ProjectShowcaseSeederTest extends KernelTestCase
             $this->service(ForgePullRequestRepository::class),
             $this->service(InboxSearchIndexer::class),
             $this->service(DocumentSearchIndexer::class),
-            $this->service(CardWaitReconciler::class),
+            $this->service(CardEvaluations::class),
             $this->service(InboxCardWatchRepository::class),
             $this->service(InboxAvailability::class),
             $this->service(DocumentTagApplier::class),

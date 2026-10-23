@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -38,6 +39,22 @@ class DocumentVersion
      */
     #[ORM\OneToMany(targetEntity: Highlight::class, mappedBy: 'version', cascade: ['persist'], orphanRemoval: true)]
     public Collection $highlights;
+
+    /**
+     * When the document was published, moved out of Draft, with this version as its newest. Null when the
+     * version was never published, such as a document created in review or a later revision. Kept to the microsecond, because
+     * a rule compares it with the arrival of the card in its column.
+     */
+    #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, nullable: true, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL')]
+    public ?\DateTimeImmutable $publishedAt = null;
+
+    /** The decisions of this version that had no answer when the document was published. Set with publishedAt. */
+    #[ORM\Column(nullable: true)]
+    public ?int $entryUnansweredDecisions = null;
+
+    /** The threads of this version that were not resolved when the document was published. Set with publishedAt. */
+    #[ORM\Column(nullable: true)]
+    public ?int $entryOpenThreads = null;
 
     public function __construct(
         #[ORM\JoinColumn(nullable: false)]

@@ -49,6 +49,14 @@ shared link to a public page. It is a list flag with two values, `hero` and
 change applies to every public page on the next page load. Sites such as X and
 Reddit can keep the old image for a link that they already fetched.
 
+The **site link** flags, `site.link.discord`, `site.link.x` and `site.link.source`,
+hold the outside links of the site footer and the app. Each is a text flag that
+takes a full `http` or `https` address. `site.link.discord` and `site.link.x`
+seed empty, so an admin sets them on the flags page. An empty flag hides the
+Discord and X links. An empty `site.link.source` makes the app use `APP_SOURCE_URL`. Any other
+value that is not a web address counts as empty. A change applies on the next
+page load. The docs pages take it at the next start of the web container.
+
 ## Audit log
 
 **`/admin/audit-log`** lists every recorded audit event on the instance, newest
@@ -106,9 +114,43 @@ Gemini CLI, OpenCode, Aider and Pi. The person can also write a short text under
 "Something else?". The landing page of the hosted instance shows the form behind
 its **Notify me** button.
 
+The confirmation that a person sees after joining shows a card with a link to the
+Discord server, while the `site.link.discord` flag holds a link.
+
 Above the table, the page shows how many entries picked each choice. The
 counts run from the most picked choice to the least. They cover the ten named
 choices. The "Something else" text is not counted.
+
+### Waitlist emails
+
+The **Waitlist notification emails** flag, `waitlist.notification_emails`, holds the
+addresses that get an email about the waitlist. Separate the addresses with
+commas. White space and new lines also work. An empty flag turns the emails off.
+
+The app sends one email to each address in these cases:
+
+- A person joins the waitlist with the form.
+- A person joins the waitlist through a social login while sign-up is full.
+- A person whose account is disabled joins the waitlist again.
+- A person registers with a waitlist invite link, by the form or by a social login.
+
+Each address gets its own email, so no recipient sees the other addresses. The
+email names the person and says how they joined. The join email also lists their
+picks and their "Something else?" text. Both emails give the number of people
+who still wait, and a button to the waitlist or to the new account.
+
+A picks update, a repeated join and a registration with no invite send nothing.
+An email that fails to send never changes what the person sees. The app logs
+`account.waitlist_notification_failed` and goes on.
+
+A fresh install starts with the address of the first administrator in the flag.
+An upgraded instance starts with the addresses of every administrator who can sign
+in. The agent account and a suspended administrator are left out. Empty the flag
+to stop these emails.
+
+The flags page saves any text. **Instance status** shows a warning when an entry is
+not an email address, and the warning names every such entry. The app skips these
+entries and sends to the others.
 
 A person's waitlist entry is deleted with their account. It appears in their
 [data export](data-exports.md) as `waitlist.json`.
@@ -129,6 +171,20 @@ gets the comp. If they are signed out, they select **Continue to sign up** and
 sign in from the sign-up page. The link then opens again for them to claim.
 When registration is switched off, the link creates no account, and it answers
 404 to a signed-out visitor. A signed-in account can still claim it.
+
+After a tester redeems a link, the page that opens shows the welcome page in the
+sign-in frame. It has two cards: **Start using Loupe**, and **Join the beta
+testers** with a Discord button. The second card shows only when
+`site.link.discord` holds a link.
+
+Loupe also sends the tester one welcome email for each redeemed link. The email
+goes out when the address of the tester is verified. A tester who redeems a link
+before verifying gets it at verification, by the emailed link, a social sign-in,
+a social link, the `app:user:verify` command or the admin form. The email
+promises free access, so Loupe sends it only when the comp was granted. A link
+that was redeemed before this release gets no email. If the queue write fails,
+a sweep retries every 15 minutes. You can run that sweep by hand with
+`app:billing:send-due-beta-welcome-emails`. See [Commands](../reference/commands.md).
 
 The list shows each link as unused, used by an account on a date, or revoked on
 a date. Revoke an unused link with its **Revoke** button. A used link cannot be

@@ -7,10 +7,13 @@ namespace App\Module\Inbox\Twig;
 use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Command\ShowInboxOpenTotalCommand;
+use App\Module\Inbox\Command\ShowInboxOpenTotalHandler;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Form\AnswerInboxItemFormType;
 use App\Module\Inbox\Form\AnswerInboxItemRequest;
@@ -29,6 +32,7 @@ use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\InboxActionStatuses;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\InboxReviewTarget;
 use App\Module\Inbox\Service\InboxThreadActionBuilder;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\View\CardWaitLine;
@@ -61,6 +65,7 @@ final class InboxExtension extends AbstractExtension
         private readonly UserTopicBuilder $topics,
         private readonly ProjectTopicBuilder $projectTopics,
         private readonly InboxReviewLookup $inboxReviews,
+        private readonly InboxReviewTarget $reviewTarget,
         private readonly ReviewRepository $reviews,
         private readonly DocumentVersionRepository $documentVersions,
         private readonly InboxCardWatchRepository $inboxCardWatches,
@@ -68,6 +73,7 @@ final class InboxExtension extends AbstractExtension
         private readonly InboxThreadActionBuilder $threadActions,
         private readonly InboxActionStatuses $actionStatuses,
         private readonly InboxActionRepository $inboxActions,
+        private readonly ShowInboxOpenTotalHandler $openTotal,
     ) {
     }
 
@@ -83,15 +89,17 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_actions', $this->actions(...)),
             new TwigFunction('inbox_action_statuses', $this->actionStatusLines(...)),
             new TwigFunction('inbox_review', $this->review(...)),
+            new TwigFunction('inbox_review_target', $this->reviewTargetLine(...)),
             new TwigFunction('inbox_card_watch', $this->cardWatch(...)),
             new TwigFunction('inbox_wait_line', $this->waitLine(...)),
-            new TwigFunction('inbox_wait_folded', CardWaitText::isFolded(...)),
+            new TwigFunction('inbox_wait_folded', $this->cardWaitText->isFolded(...)),
             new TwigFunction('inbox_review_withdrawal', $this->reviewWithdrawal(...)),
             new TwigFunction('inbox_review_version', $this->reviewVersion(...)),
             new TwigFunction('inbox_pull_request_review_form', $this->pullRequestReviewForm(...)),
             new TwigFunction('inbox_document_review_form', $this->documentReviewForm(...)),
             new TwigFunction('inbox_refusals', $this->refusals(...)),
             new TwigFunction('project_inbox_open_count', $this->openCount(...)),
+            new TwigFunction('inbox_open_total', $this->openTotal(...)),
             new TwigFunction('inbox_topic', $this->topic(...)),
             new TwigFunction('inbox_page_topic', $this->pageTopic(...)),
         ];
@@ -162,6 +170,25 @@ final class InboxExtension extends AbstractExtension
     public function review(InboxItem $item): ?InboxReview
     {
         return $this->inboxReviews->forItem($item);
+    }
+
+    /**
+     * The line that names the document or pull request of each review item of an ask, wherever it sits in the ask.
+     * Null when the ask holds no review item.
+     *
+     * @param iterable<InboxItem> $items
+     */
+    public function reviewTargetLine(iterable $items): ?string
+    {
+        $labels = [];
+        foreach ($items as $item) {
+            $review = InboxItemKind::Review === $item->kind ? $this->inboxReviews->forItem($item) : null;
+            if (null !== $review) {
+                $labels[] = $this->reviewTarget->label($review);
+            }
+        }
+
+        return [] === $labels ? null : implode(' · ', array_unique($labels));
     }
 
     /** The card and the waits behind a wait item. */
@@ -304,6 +331,12 @@ final class InboxExtension extends AbstractExtension
     public function openCount(Project $project): int
     {
         return $this->inboxItems->countOpenByProject($project);
+    }
+
+    /** Feeds the tab title: the open items over every project of the user, or zero with nobody signed in. */
+    public function openTotal(?User $user): int
+    {
+        return null === $user ? 0 : ($this->openTotal)(new ShowInboxOpenTotalCommand($user));
     }
 
     /** The topic the pill listens on for the open counts of every project of the user. */

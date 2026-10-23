@@ -20,6 +20,8 @@ final readonly class ActionTraits
         public bool $childChoice = false,
         /** The action publishes the draft documents of the card that carry its `tags`. */
         public bool $publishesDocuments = false,
+        /** The action may share a rule with other actions, because the engine keeps nothing of its own for it, such as a request, an ask or a pause. */
+        public bool $listable = false,
     ) {
     }
 }

@@ -1,7 +1,13 @@
 {# `data-decision-page` names the page the summary is for; decision_controller.js
-   drops the stream on any other page. `answers` comes from the summary route
-   alone; decision_controller.js reads it from the response, not the DOM. #}
-<turbo-stream data-decision-page="{{ page }}" action="update" target="decision-summary-count"{% if answers is defined %} data-decision-answers="{{ answers|json_encode }}"{% endif %}>
+   drops the stream on any other page. `answers` and the data-decision-unanswered
+   figures come from the summary route alone. decision_controller.js and
+   review_finish_verdict_controller.js read them from the response, not the DOM. #}
+<turbo-stream data-decision-page="{{ page }}" action="update" target="decision-summary-count"
+    {%- if answers is defined %} data-decision-answers="{{ answers|json_encode }}"
+    data-decision-unanswered="{{ unansweredCount }}"
+    data-decision-unanswered-hint="{{ 'review.finish.approve_blocked'|trans({'%count%': unansweredCount}) }}"
+    data-decision-first-unanswered="{{ firstUnansweredElementId }}"
+    data-decision-pending-threads="{{ pendingThreadCount }}"{% endif %}>
     <template>{{ 'review.document.panels.decisions_count'|trans({'%answered%': answeredCount, '%total%': rows|length}) }}</template>
 </turbo-stream>
 <turbo-stream data-decision-page="{{ page }}" action="update" target="decision-summary-list">

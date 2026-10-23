@@ -19,6 +19,13 @@ use Symfony\Component\Uid\Uuid;
  */
 class ProjectRepository extends ServiceEntityRepository
 {
+    /**
+     * Blocks another writer of the row and a FOR UPDATE lock, and waits for no key share. An outbox
+     * insert holds a key share on the row until its transaction ends, and an engine pass may hold
+     * one while it waits for a lock that this holder owns. A FOR UPDATE lock would wait for that pass.
+     */
+    public const string WRITE_LOCK = 'FOR NO KEY UPDATE';
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Project::class);
@@ -38,6 +45,16 @@ class ProjectRepository extends ServiceEntityRepository
         );
         $project->agentFirstSeenAt = $now;
         $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($project), 'agentFirstSeenAt', $now);
+    }
+
+    /** Serialises the writers of the project row until the transaction ends, without waiting for a key share. */
+    public function lockForWrite(Project $project): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'SELECT 1 FROM projects WHERE id = :id '.self::WRITE_LOCK,
+            ['id' => $project->id],
+            ['id' => UuidType::NAME],
+        );
     }
 
     /** Waits for a writer that holds the row, and blocks one, until the transaction ends. */

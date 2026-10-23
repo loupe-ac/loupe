@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
+use App\Module\Board\Workflow\Condition\PullRequestBaseIsDefault;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsEpicBranch;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsMergeTarget;
 use App\Module\Board\Workflow\Condition\PullRequestBehind;
+use App\Module\Board\Workflow\Condition\PullRequestCanMerge;
 use App\Module\Board\Workflow\Condition\PullRequestChangesRequested;
 use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
+use App\Module\Board\Workflow\Condition\PullRequestChecksOnHead;
 use App\Module\Board\Workflow\Condition\PullRequestChecksPassed;
 use App\Module\Board\Workflow\Condition\PullRequestChecksPending;
 use App\Module\Board\Workflow\Condition\PullRequestConflicting;
@@ -23,7 +26,6 @@ use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
 use App\Module\Board\Workflow\Condition\PullRequestsAllFinishedOneMerged;
 use App\Module\Board\Workflow\Condition\PullRequestStacked;
 use App\Module\Board\Workflow\Condition\PullRequestStackParent;
-use App\Module\Board\Workflow\Condition\PullRequestWaitsForApproval;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
@@ -78,6 +80,15 @@ final class PullRequestConditionsTest extends TestCase
 
         yield 'base is merge target' => [new PullRequestBaseIsMergeTarget(), [], self::current(baseIsMergeTarget: true), true];
         yield 'base is not merge target' => [new PullRequestBaseIsMergeTarget(), [], self::current(baseIsMergeTarget: false), false];
+
+        yield 'checks on head' => [new PullRequestChecksOnHead(), [], self::current(checksOnHead: true), true];
+        yield 'checks not on head' => [new PullRequestChecksOnHead(), [], self::current(checksOnHead: false), false];
+
+        yield 'can merge' => [new PullRequestCanMerge(), [], self::current(canMerge: true), true];
+        yield 'cannot merge' => [new PullRequestCanMerge(), [], self::current(canMerge: false), false];
+
+        yield 'base is default' => [new PullRequestBaseIsDefault(), [], self::current(baseIsDefault: true), true];
+        yield 'base is not default' => [new PullRequestBaseIsDefault(), [], self::current(baseIsDefault: false), false];
 
         yield 'base is epic branch' => [new PullRequestBaseIsEpicBranch(), [], self::current(baseIsEpicBranch: true), true];
         yield 'base is default branch' => [new PullRequestBaseIsEpicBranch(), [], self::current(baseIsEpicBranch: false), false];
@@ -143,11 +154,13 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 1]];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), []];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), []];
+        yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), []];
+        yield 'pr.can_merge' => [new PullRequestCanMerge(), []];
+        yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), []];
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), []];
         yield 'pr.stacked' => [new PullRequestStacked(), []];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), []];
         yield 'pr.checks_pending' => [new PullRequestChecksPending(), []];
-        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), []];
         yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), []];
         yield 'pr.stack_parent' => [new PullRequestStackParent(), []];
         yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 1]];
@@ -186,11 +199,13 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), [], 'pr_base_is_merge_target', [], $one];
+        yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), [], 'pr_checks_on_head', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
+        yield 'pr.can_merge' => [new PullRequestCanMerge(), [], 'pr_can_merge', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
+        yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), [], 'pr_base_is_default', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), [], 'pr_base_is_epic_branch', [], $one];
         yield 'pr.stacked' => [new PullRequestStacked(), [], 'pr_stacked', [], $one];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), [], 'pr_parent_merged', [], $one];
         yield 'pr.checks_pending' => [new PullRequestChecksPending(), [], 'pr_checks_pending', [], $one];
-        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), [], 'pr_waits_for_approval', [], $one];
         yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), [], 'pr_forge_request_pending', [], $one];
         yield 'pr.stack_parent' => [new PullRequestStackParent(), [], 'pr_stack_parent', [], $one];
         yield 'pr.stack_parent, known' => [new PullRequestStackParent(), ['parent' => 'known'], 'pr_stack_parent_known', [], $one];
@@ -213,6 +228,9 @@ final class PullRequestConditionsTest extends TestCase
         bool $baseIsEpicBranch = false,
         bool $stacked = false,
         bool $parentMerged = false,
+        bool $checksOnHead = false,
+        bool $canMerge = false,
+        bool $baseIsDefault = false,
     ): Facts {
         $pullRequest = FactsMother::pullRequest(
             state: $state,
@@ -226,6 +244,9 @@ final class PullRequestConditionsTest extends TestCase
             baseIsEpicBranch: $baseIsEpicBranch,
             stacked: $stacked,
             parentMerged: $parentMerged,
+            checksOnHead: $checksOnHead,
+            canMerge: $canMerge,
+            baseIsDefault: $baseIsDefault,
         );
 
         return FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], now: new \DateTimeImmutable(self::NOW));

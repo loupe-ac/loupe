@@ -18,6 +18,7 @@ use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Bridge\Workflow\HoldFacts;
 use App\Module\Bridge\Workflow\RunStoppedFacts;
 use App\Module\Bridge\Workflow\SessionFacts;
+use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Inbox\Workflow\OpenQuestion;
 use App\Module\Inbox\Workflow\OpenQuestionFacts;
@@ -36,10 +37,12 @@ use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\StackParent;
+use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
@@ -56,7 +59,7 @@ final class ShippedMarkersTest extends KernelTestCase
     use MarkerScenario;
 
     private const array LIFECYCLE_KEYS = [
-        'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
+        'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
         'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
@@ -127,6 +130,7 @@ final class ShippedMarkersTest extends KernelTestCase
     private static function givesPullRequestEvidence(Expression $expression): bool
     {
         return match (true) {
+            $expression instanceof NamedFact => self::givesPullRequestEvidence($expression->expression),
             $expression instanceof ConditionLeaf => $expression->condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $expression->reads(), true),
             $expression instanceof AllOf, $expression instanceof AnyOf => array_any($expression->children, self::givesPullRequestEvidence(...)),
             default => false,
@@ -174,7 +178,7 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['no-bridge-online'], $this->passKeys($template, $this->takerFacts(WorkTakerState::None, ['implement'])));
         self::assertSame(MarkerKind::Stuck, $this->written('no-bridge-online')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('no-bridge-online')->link);
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 11:00:00'), $this->written('no-bridge-online')->since);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('no-bridge-online')->since, 'the engine saw the marker first at the time of the pass');
     }
 
     #[DataProvider('shippedKeys')]
@@ -225,7 +229,7 @@ final class ShippedMarkersTest extends KernelTestCase
         $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed, number: 12, checksFailedSince: new \DateTimeImmutable('2026-10-01 10:00:00'));
         self::assertSame(['checks-failed'], $this->keys($this->workFacts('implementation', $pullRequest)));
         self::assertSame(['%number%' => 12], $this->written('checks-failed')->params);
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 10:00:00'), $this->written('checks-failed')->since);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('checks-failed')->since);
         self::assertSame(['work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['fix'])));
         self::assertSame(['run-open'], $this->keys($this->workFacts('implementation', $pullRequest, [], ['repair'])));
         self::assertSame(['checks-failed', 'work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['review'])));
@@ -294,7 +298,7 @@ final class ShippedMarkersTest extends KernelTestCase
     }
 
     #[DataProvider('childKinds')]
-    public function test_an_epic_shows_the_state_kind_of_a_child_with_the_child_and_its_start(string $template, string $kind, string $key): void
+    public function test_an_epic_shows_the_state_kind_of_a_child_with_the_child(string $template, string $kind, string $key): void
     {
         $since = new \DateTimeImmutable('2026-10-01 10:00:00');
         $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', childCount: 2, openChildCount: 2), provided: [
@@ -305,7 +309,6 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame([$key], $this->writtenKeys());
         self::assertSame(['%number%' => 31, '%title%' => 'Build it'], $this->written($key)->params);
-        self::assertEquals($since, $this->written($key)->since);
     }
 
     public function test_an_epic_with_children_in_several_states_shows_the_stuck_one_first(): void
@@ -403,18 +406,48 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame(['unmanaged'], $this->keys($facts));
         self::assertSame(MarkerKind::Chip, $this->written('unmanaged')->kind);
-        self::assertEquals(new \DateTimeImmutable('2026-10-01 08:00:00'), $this->written('unmanaged')->since);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('unmanaged')->since);
     }
 
-    public function test_a_document_in_review_needs_the_person_only_in_the_slot_of_its_tag(): void
+    public function test_the_document_marker_needs_the_person_while_a_document_of_the_slot_is_in_review_and_no_agent_review_is_open(): void
     {
-        $review = static fn (string $tag): array => [new DocumentFacts([$tag], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+        $marker = array_find($this->template('lifecycle')->markers, static fn ($marker): bool => 'document-in-review' === $marker->key) ?? throw new \LogicException('Lifecycle ships the marker.');
 
-        self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('tech-design')))));
-        self::assertSame(['%title%' => 'The design'], $this->written('document-in-review')->params);
-        self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'product-design', documents: $review('product-design')))));
-        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('product-design')))));
-        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: $review('tech-design')))));
+        self::assertSame(MarkerKind::NeedsYou, $marker->kind);
+        self::assertSame(['product-design', 'tech-design'], $marker->slots);
+        self::assertSame(['card.in_slot', 'card.document.in_review', 'card.in_slot', 'card.document.in_review', 'card.document.agent_review_open'], array_map(static fn ($leaf): string => $leaf->condition::key(), $marker->when->leaves()));
+        self::assertContains('document-in-review', $this->template('lifecycle')->inbox);
+    }
+
+    #[DataProvider('designsInReview')]
+    public function test_a_design_in_review_shows_the_marker_in_its_slot_also_while_an_open_blocker_holds_the_card(string $slot, string $tag, bool $shows): void
+    {
+        $review = [new DocumentFacts([$tag], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+        $facts = FactsMother::facts(card: FactsMother::card(slot: $slot, hasOpenBlocker: true, documents: $review));
+
+        $keys = $this->keys($facts);
+
+        self::assertSame($shows, \in_array('document-in-review', $keys, true), implode(',', $keys));
+        if ($shows) {
+            self::assertSame(MarkerKind::NeedsYou, $this->written('document-in-review')->kind);
+            self::assertSame(['document-in-review'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []), 'the marker opens an inbox wait');
+        }
+    }
+
+    /** @return iterable<string, array{string, string, bool}> */
+    public static function designsInReview(): iterable
+    {
+        yield 'a tech design in Tech design' => ['tech-design', 'tech-design', true];
+        yield 'a product design in Product design' => ['product-design', 'product-design', true];
+        yield 'a product design in Tech design' => ['tech-design', 'product-design', false];
+        yield 'a tech design in Product design' => ['product-design', 'tech-design', false];
+    }
+
+    public function test_a_document_in_review_shows_no_marker_outside_the_slots_of_the_document_marker(): void
+    {
+        $review = [new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: $review))));
     }
 
     public function test_a_draft_design_in_its_agent_review_shows_the_round_in_its_slot_only(): void
@@ -435,7 +468,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     public function test_a_pull_request_that_waits_for_approval_and_an_open_question_need_the_person(): void
     {
-        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, waitsForApprovalSince: new \DateTimeImmutable('2026-10-01 10:30:00'));
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, checksOnHead: true, canMerge: true, baseIsDefault: true);
         $question = new OpenQuestionFacts([new OpenQuestion(6, 'Which way?', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: true)]);
 
         $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: [OpenQuestionFacts::class => $question]));
@@ -464,7 +497,25 @@ final class ShippedMarkersTest extends KernelTestCase
             provided: [SessionFacts::class => new SessionFacts(new \DateTimeImmutable('2026-10-01 11:00:00'), 'claude')],
         );
 
-        self::assertSame(['session-open', 'run-open', 'work-requested'], $this->keys($facts));
+        self::assertSame(['session-open', 'run-open'], $this->keys($facts), 'a claimed request is no longer waiting');
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_a_second_open_request_behind_a_running_worker_still_waits(string $key): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: ['implement', 'fix'], activeWorkerKinds: ['implement']),
+            provided: [WorkRequestFacts::class => new WorkRequestFacts(['implement', 'fix'], []), WorkTakerFacts::class => $this->openRequests(['fix'])],
+        );
+
+        self::assertSame(['run-open', 'work-requested'], $this->passKeys($this->template($key), $facts));
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_a_claimed_request_with_no_worker_run_yet_shows_no_waiting_marker(string $key): void
+    {
+        self::assertSame([], $this->passKeys($this->template($key), FactsMother::facts(card: FactsMother::card(slot: 'implementation'), run: FactsMother::run(activeWorkKinds: ['implement']))));
     }
 
     public function test_a_pending_request_to_the_forge_is_working(): void
@@ -518,6 +569,7 @@ final class ShippedMarkersTest extends KernelTestCase
             pullRequest: $pullRequest,
             pullRequests: [$pullRequest],
             run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
+            provided: [WorkTakerFacts::class => $this->openRequests($work)],
         );
     }
 
@@ -530,8 +582,17 @@ final class ShippedMarkersTest extends KernelTestCase
         return FactsMother::facts(
             card: FactsMother::card(slot: 'implementation'),
             run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
-            provided: [RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null)],
+            provided: [
+                RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null),
+                WorkTakerFacts::class => $this->openRequests($work),
+            ],
         );
+    }
+
+    /** @param list<string> $work the kinds of the open work requests */
+    private function openRequests(array $work): WorkTakerFacts
+    {
+        return new WorkTakerFacts(array_fill_keys($work, new WorkTakerReading(WorkTakerState::Available, new \DateTimeImmutable('2026-10-01 11:00:00'), null)));
     }
 
     /** @param list<string> $work the kinds of the open work requests */

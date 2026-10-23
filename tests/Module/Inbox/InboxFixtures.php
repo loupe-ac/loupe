@@ -9,12 +9,18 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
 use App\Module\Review\Repository\TagRepository;
+use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
@@ -75,6 +81,31 @@ trait InboxFixtures
         return $card;
     }
 
+    /**
+     * An entry of the inbox set, as the marker pass of the engine stores it.
+     *
+     * @param array<string, string|int> $params
+     */
+    private function inboxEntry(string $key, MarkerSubject $subject, array $params = [], ?\DateTimeImmutable $since = null): StoredMarker
+    {
+        return new StoredMarker($key, MarkerKind::NeedsYou, 'marker.'.str_replace('-', '_', $key), null, $params, $since ?? new \DateTimeImmutable('2026-10-20 09:00:00'), null, $subject);
+    }
+
+    private function documentEntry(Document $document, int $version): StoredMarker
+    {
+        return $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $document->id, 'version' => (string) $version]));
+    }
+
+    /** Stores the inbox set of the card, so the reconcile reads it. A card with no entries stores an empty set. */
+    private function storeInbox(EntityManagerInterface $em, Card $card, StoredMarker ...$entries): void
+    {
+        $em->flush();
+        $store = self::getContainer()->get(CardMarkerStore::class);
+        self::assertInstanceOf(CardMarkerStore::class, $store);
+        $store->write($card->project->requireId(), $card->id ?? throw new \LogicException('A flushed card has an id.'), [], array_values($entries), null);
+        $em->flush();
+    }
+
     private function document(EntityManagerInterface $em, Project $project): Document
     {
         $document = new Document($project->owner, $project, 'The design');
@@ -85,7 +116,7 @@ trait InboxFixtures
 
     private function item(EntityManagerInterface $em, Project $project, int $number = 1, string $title = 'Which column?'): InboxItem
     {
-        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Question, title: $title, blocking: true, options: ['next', 'done']);
+        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Question, title: $title, blocking: true, origin: InboxAskOrigin::Agent, options: ['next', 'done']);
         $em->persist($item);
 
         return $item;

@@ -65,7 +65,7 @@ final readonly class ShowExperimentHandler
         }
         /** @var array<string, non-empty-list<WorkerRun>> $experimentRuns oldest first */
         $experimentRuns = [];
-        /** @var array<string, list<WorkerRun>> $plainRuns */
+        /** @var array<string, list<WorkerRun>> $plainRuns runs of no experiment or of another one */
         $plainRuns = [];
         /** @var array<string, ?string> $models variant => model of its latest run */
         $models = [];
@@ -77,7 +77,7 @@ final readonly class ShowExperimentHandler
                 if (null !== $run->variant) {
                     $models[$run->variant] = $run->requestedModel;
                 }
-            } elseif (null === $run->experiment) {
+            } else {
                 $plainRuns[$id][] = $run;
             }
         }

@@ -11,6 +11,8 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\DocumentVersion;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -108,6 +110,34 @@ final class CardDocumentRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<string> $tagNames
+     *
+     * @return list<string> the ids of the drafts linked to the card that carry one of the tags
+     */
+    public function findDraftDocumentIdsWithTagsForCard(Uuid $cardId, array $tagNames): array
+    {
+        if ([] === $tagNames) {
+            return [];
+        }
+
+        /** @var list<array{documentId: Uuid|string}> $rows */
+        $rows = $this->createQueryBuilder('link')
+            ->select('DISTINCT document.id AS documentId')
+            ->join('link.document', 'document')
+            ->join('document.tags', 'tag')
+            ->where('link.card = :card')
+            ->andWhere('document.status = :status')
+            ->andWhere('tag.name IN (:tags)')
+            ->setParameter('card', $cardId, UuidType::NAME)
+            ->setParameter('status', DocumentStatus::Draft)
+            ->setParameter('tags', $tagNames)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): string => (string) $row['documentId'], $rows);
+    }
+
+    /**
      * The links of the cards to a document in review and not archived, with the
      * number of its current version. The card column and the document tags come
      * loaded, so a caller can apply the stage rule with no query per row.
@@ -139,46 +169,60 @@ final class CardDocumentRepository extends ServiceEntityRepository
         return array_map(static fn (array $row): array => ['link' => $row[0], 'versionNumber' => (int) $row['versionNumber'], 'versionAt' => null === $row['versionAt'] ? null : new \DateTimeImmutable($row['versionAt'])], $rows);
     }
 
-    /** @return list<string> the ids of the cards linked to a document in review and not archived */
-    public function findCardIdsWithDocumentInReview(Project $project): array
-    {
-        /** @var list<array{cardId: Uuid|string}> $rows */
-        $rows = $this->inReview($project)
-            ->select('DISTINCT card.id AS cardId')
-            ->getQuery()
-            ->getArrayResult();
-
-        return array_map(static fn (array $row): string => (string) $row['cardId'], $rows);
-    }
-
     /**
-     * The id, the status, the title, the time of the newest version and the tag names of each unarchived
-     * document linked to the card, as the database holds them now, in link order.
+     * The id, the status, the title, the time and the number of the newest version and the tag names of each unarchived
+     * document linked to the card, as the database holds them now, in link order. Each row also holds the entry check of the
+     * newest version, the id of its newest review, whether any version ever got a change request or a withdrawal, and whether the
+     * newest review of the newest version withdraws an approval.
      *
-     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, tags: list<string>}>
+     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, publishedAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, tags: list<string>}>
      */
     public function findStatusesAndTagsForCard(Card $card): array
     {
-        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+        $connection = $this->getEntityManager()->getConnection();
+        $rows = $connection->fetchAllAssociative(
             'SELECT d.id AS document_id, d.status, d.title, t.name AS tag_name,
-                (SELECT MAX(v.created_at) FROM document_versions v WHERE v.document_id = d.id) AS version_at
+                (SELECT MAX(v.created_at) FROM document_versions v WHERE v.document_id = d.id) AS version_at,
+                (SELECT MAX(v.version_number) FROM document_versions v WHERE v.document_id = d.id) AS version_number,
+                newest.published_at, newest.entry_unanswered_decisions, newest.entry_open_threads,
+                (SELECT r.id FROM reviews r WHERE r.version_id = newest.id ORDER BY r.sequence DESC LIMIT 1) AS newest_review_id,
+                (SELECT r.verdict = \'withdrawn\' AND COALESCE((SELECT p.verdict FROM reviews p WHERE p.version_id = r.version_id AND p.sequence = r.sequence - 1), \'\') = \'approved\'
+                    FROM reviews r WHERE r.version_id = newest.id ORDER BY r.sequence DESC LIMIT 1) AS newest_review_withdrew_approval,
+                EXISTS (
+                    SELECT 1 FROM reviews r JOIN document_versions rv ON rv.id = r.version_id
+                    WHERE rv.document_id = d.id AND r.verdict IN (\'changes-requested\', \'withdrawn\')
+                ) AS rejected_before
              FROM board_card_documents cd
              JOIN documents d ON d.id = cd.document_id
+             LEFT JOIN LATERAL (
+                 SELECT v.id, v.published_at, v.entry_unanswered_decisions, v.entry_open_threads
+                 FROM document_versions v WHERE v.document_id = d.id ORDER BY v.version_number DESC LIMIT 1
+             ) newest ON TRUE
              LEFT JOIN document_tags dt ON dt.document_id = d.id
              LEFT JOIN tags t ON t.id = dt.tag_id
              WHERE cd.card_id = :card AND d.archived_at IS NULL
              ORDER BY cd.linked_at, d.id, t.name',
             ['card' => (string) $card->id],
         );
+        $platform = $connection->getDatabasePlatform();
+        $type = Type::getType(Types::DATETIME_IMMUTABLE);
 
         $documents = [];
         foreach ($rows as $row) {
             $documentId = (string) $row['document_id'];
+            $published = $type->convertToPHPValue($row['published_at'], $platform);
             $documents[$documentId] ??= [
                 'id' => $documentId,
                 'status' => (string) $row['status'],
                 'title' => (string) $row['title'],
                 'versionAt' => null === $row['version_at'] ? null : new \DateTimeImmutable((string) $row['version_at']),
+                'version' => null === $row['version_number'] ? null : (int) $row['version_number'],
+                'publishedAt' => $published instanceof \DateTimeImmutable ? $published : null,
+                'entryUnansweredDecisions' => null === $row['entry_unanswered_decisions'] ? null : (int) $row['entry_unanswered_decisions'],
+                'entryOpenThreads' => null === $row['entry_open_threads'] ? null : (int) $row['entry_open_threads'],
+                'newestReviewId' => null === $row['newest_review_id'] ? null : (string) $row['newest_review_id'],
+                'rejectedBefore' => (bool) $row['rejected_before'],
+                'newestReviewWithdrewApproval' => (bool) $row['newest_review_withdrew_approval'],
                 'tags' => [],
             ];
             if (null !== $row['tag_name']) {

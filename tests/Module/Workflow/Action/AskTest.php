@@ -100,13 +100,13 @@ final class AskTest extends KernelTestCase
     {
         $actions = $this->service(Actions::class);
 
-        return new Rule('unplanned-child', null, new AllOf([]), $actions->call(
+        return new Rule('unplanned-child', null, new AllOf([]), [$actions->call(
             'ask',
             ['question' => 'q'],
             options: [
                 new AskOption('first', [$actions->call('detach', [])]),
                 new AskOption('second', [$actions->call('detach', [])]),
             ],
-        ), RuleOrigin::Template);
+        )], RuleOrigin::Template);
     }
 }

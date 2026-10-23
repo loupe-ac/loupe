@@ -887,10 +887,15 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** @return list<WorkerRun> the card's open runs, newest first */
-    public function findOpenForCard(Project $project, Uuid $cardId, int $limit): array
+    /** @return list<WorkerRun> the card's open runs, less those of the excluded kind, newest first */
+    public function findOpenForCard(Project $project, Uuid $cardId, int $limit, ?WorkerRunKind $excludedKind = null): array
     {
-        return $this->createQueryBuilder('r')
+        $qb = $this->createQueryBuilder('r');
+        if (null !== $excludedKind) {
+            $qb->andWhere('r.kind <> :excludedKind')->setParameter('excludedKind', $excludedKind->value);
+        }
+
+        return $qb
             ->andWhere('r.project = :project')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
             ->andWhere('r.state IN (:openStates)')

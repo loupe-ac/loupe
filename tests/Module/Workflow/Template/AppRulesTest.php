@@ -9,7 +9,9 @@ use App\Module\Workflow\Template\InvalidTemplate;
 use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\WorkFailurePolicy;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -35,19 +37,19 @@ final class AppRulesTest extends KernelTestCase
         self::assertSame(['discovery', 'discovery-revise', 'discovery-approved', 'post-widget-review', 'sync-site-review-check', 'sync-agent-review-check', 'comment-agent-review'], array_map(static fn (Rule $rule): string => $rule->id, $rules));
         self::assertSame(RuleOrigin::App, $rules[0]->origin);
         self::assertSame('@backlog', $rules[0]->slot);
-        self::assertSame(['kind' => 'discovery', 'onTimeout' => 'expire', 'onNoTaker' => 'fail', 'prompt' => 'discovery'], $rules[0]->then->params);
+        self::assertSame(['kind' => 'discovery', 'onTimeout' => 'expire', 'onNoTaker' => 'fail', 'prompt' => 'discovery'], $rules[0]->lead->params);
         self::assertSame('@backlog', $rules[1]->slot);
-        self::assertSame(['kind' => 'discovery-revise', 'onTimeout' => 'expire', 'onNoTaker' => 'fail', 'prompt' => 'discovery-revise'], $rules[1]->then->params);
+        self::assertSame(['kind' => 'discovery-revise', 'onTimeout' => 'expire', 'onNoTaker' => 'fail', 'prompt' => 'discovery-revise'], $rules[1]->lead->params);
         self::assertSame('@backlog', $rules[2]->slot);
-        self::assertSame(['to' => '@terminal'], $rules[2]->then->params);
+        self::assertSame(['to' => '@terminal'], $rules[2]->lead->params);
         self::assertNull($rules[3]->slot);
-        self::assertSame(['write' => 'post-review'], $rules[3]->then->params);
+        self::assertSame(['write' => 'post-review'], $rules[3]->lead->params);
         self::assertNull($rules[4]->slot);
-        self::assertSame(['write' => 'site-review-check'], $rules[4]->then->params);
+        self::assertSame(['write' => 'site-review-check'], $rules[4]->lead->params);
         self::assertNull($rules[5]->slot);
-        self::assertSame(['write' => 'agent-review-check'], $rules[5]->then->params);
+        self::assertSame(['write' => 'agent-review-check'], $rules[5]->lead->params);
         self::assertNull($rules[6]->slot);
-        self::assertSame(['write' => 'comment', 'comment' => 'agent-review'], $rules[6]->then->params);
+        self::assertSame(['write' => 'comment', 'comment' => 'agent-review'], $rules[6]->lead->params);
         self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/discovery.md'), $this->shippedAppRules()->prompt('discovery'));
         self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/discovery-revise.md'), $this->shippedAppRules()->prompt('discovery-revise'));
     }
@@ -144,6 +146,29 @@ final class AppRulesTest extends KernelTestCase
         self::assertSame(['merged', 'teardown', 'app-groom', 'app-tidy'], array_map(static fn (Rule $rule): string => $rule->id, $joined->rules));
         self::assertSame($template->slots, $joined->slots);
         self::assertSame($template->key, $joined->key);
+    }
+
+    public function test_the_app_rules_keep_every_other_field_of_the_template(): void
+    {
+        $parsed = $this->parser()->parse($this->service(ShippedTemplates::class)->source('simple'));
+        $template = new Template(...[
+            ...get_object_vars($parsed),
+            'onWorkFailed' => new WorkFailurePolicy(['timeout'], 1, [5]),
+            'childChoices' => ['inherit' => []],
+            'epicBranch' => 'epic/{number}',
+            'agentReviewFailingSeverities' => ['important', 'nit'],
+            'approvalCoversConflictResolution' => false,
+            'inbox' => ['paused'],
+        ]);
+        foreach (new \ReflectionMethod(Template::class, '__construct')->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                self::assertNotSame($parameter->getDefaultValue(), $template->{$parameter->getName()}, \sprintf('Give "%s" a value that is not its default, so the copy is checked.', $parameter->getName()));
+            }
+        }
+
+        $joined = new AppRules($this->parser(), self::FIXTURE)->appendTo($template);
+
+        self::assertEquals([...get_object_vars($template), 'rules' => $joined->rules], get_object_vars($joined));
     }
 
     public function test_a_named_prompt_with_no_file_is_refused(): void

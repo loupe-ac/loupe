@@ -8,15 +8,17 @@ use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
 use App\Module\Board\Workflow\Condition\PullRequestChecksPending;
 use App\Module\Board\Workflow\Condition\PullRequestConflicting;
 use App\Module\Board\Workflow\Condition\PullRequestForgeRequestPending;
+use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
 use App\Module\Board\Workflow\Condition\PullRequestStackParent;
-use App\Module\Board\Workflow\Condition\PullRequestWaitsForApproval;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\ForgeRequest;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\StackParent;
@@ -24,6 +26,7 @@ use App\Module\Workflow\Contract\TimedCondition;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class PullRequestMarkerConditionsTest extends TestCase
 {
@@ -42,9 +45,6 @@ final class PullRequestMarkerConditionsTest extends TestCase
         yield 'checks pending' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(checks: ChecksState::Pending), true];
         yield 'checks pending, passed' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(checks: ChecksState::Passed), false];
         yield 'checks pending, closed' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(state: PullRequestState::Closed, checks: ChecksState::Pending), false];
-
-        yield 'waits for approval' => [new PullRequestWaitsForApproval(), [], FactsMother::pullRequest(waitsForApproval: true), true];
-        yield 'approved' => [new PullRequestWaitsForApproval(), [], FactsMother::pullRequest(waitsForApproval: false), false];
 
         yield 'forge request pending' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:55', '12:05')]), true];
         yield 'forge request expired' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:50', '12:00')]), false];
@@ -92,7 +92,6 @@ final class PullRequestMarkerConditionsTest extends TestCase
         yield 'pr.checks_failed' => [new PullRequestChecksFailed(), []];
         yield 'pr.checks_pending' => [new PullRequestChecksPending(), []];
         yield 'pr.conflicting' => [new PullRequestConflicting(), []];
-        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), []];
         yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), []];
         yield 'pr.stack_parent' => [new PullRequestStackParent(), []];
         yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 5]];
@@ -100,7 +99,7 @@ final class PullRequestMarkerConditionsTest extends TestCase
 
     /** @param array<string, mixed> $params */
     #[DataProvider('evidence')]
-    public function test_it_gives_the_start_time_and_the_label_values(MarkerEvidence $condition, array $params, PullRequestFacts $pullRequest, Evidence $expected): void
+    public function test_it_gives_the_label_values(MarkerEvidence $condition, array $params, PullRequestFacts $pullRequest, Evidence $expected): void
     {
         self::assertEquals($expected, $condition->evidence(self::facts($pullRequest), $params));
     }
@@ -108,43 +107,44 @@ final class PullRequestMarkerConditionsTest extends TestCase
     /** @return iterable<string, array{MarkerEvidence, array<string, mixed>, PullRequestFacts, Evidence}> */
     public static function evidence(): iterable
     {
-        $at = new \DateTimeImmutable('2026-10-01 09:00:00');
         $number = ['%number%' => 7];
 
-        yield 'checks failed' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(number: 7, checksFailedSince: $at), new Evidence($at, $number)];
-        yield 'checks pending' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(number: 7, checksPendingSince: $at), new Evidence($at, $number)];
-        yield 'conflicting' => [new PullRequestConflicting(), [], FactsMother::pullRequest(number: 7, conflictingSince: $at), new Evidence($at, $number)];
-        yield 'waits for approval' => [new PullRequestWaitsForApproval(), [], FactsMother::pullRequest(number: 7, waitsForApprovalSince: $at), new Evidence($at, $number)];
-        yield 'no stored time' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(number: 7), new Evidence(null, $number)];
-        yield 'no number' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(checksFailedSince: $at), new Evidence($at, [])];
-
-        yield 'forge request, the oldest pending one' => [
-            new PullRequestForgeRequestPending(),
-            [],
-            FactsMother::pullRequest(number: 7, forgeRequests: [self::request('11:40', '11:50'), self::request('11:55', '12:05'), self::request('11:58', '12:08')]),
-            new Evidence(new \DateTimeImmutable('2026-10-01 11:55:00'), $number),
-        ];
+        yield 'checks failed' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
+        yield 'checks pending' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
+        yield 'conflicting' => [new PullRequestConflicting(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
+        yield 'no number' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(), new Evidence()];
+        yield 'forge request pending' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(number: 7, forgeRequests: [self::request('11:55', '12:05')]), new Evidence($number)];
 
         yield 'stack parent, known' => [
             new PullRequestStackParent(),
             ['parent' => 'known'],
             self::ready(stackParent: new StackParent('parent-branch', 40, 12)),
-            new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), [...$number, '%parent_number%' => 12, '%pull_request%' => 40]),
+            new Evidence([...$number, '%parent_number%' => 12, '%pull_request%' => 40]),
         ];
         yield 'stack parent, branch' => [
             new PullRequestStackParent(),
             ['parent' => 'unknown'],
             self::ready(stackParent: new StackParent('parent-branch', 40)),
-            new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), [...$number, '%branch%' => 'parent-branch']),
+            new Evidence([...$number, '%branch%' => 'parent-branch']),
         ];
+        yield 'ready for' => [new PullRequestReadyFor(), ['delay' => 30], self::ready(), new Evidence($number)];
+    }
 
-        yield 'ready for, the ready time' => [
-            new PullRequestReadyFor(),
-            ['delay' => 30],
-            self::ready(),
-            new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), $number),
-        ];
-        yield 'ready for, no ready time' => [new PullRequestReadyFor(), ['delay' => 30], self::ready(readySince: null), new Evidence(null, $number)];
+    public function test_a_pull_request_with_a_row_and_a_head_commit_names_itself_as_the_thing(): void
+    {
+        $id = Uuid::v7();
+        $pullRequest = FactsMother::pullRequest(id: $id, headSha: 'abc123', number: 7);
+
+        self::assertEquals(
+            new Evidence(['%number%' => 7], new MarkerSubject(MarkerSubjectType::PullRequest, ['pullRequest' => $id->toRfc4122(), 'head' => 'abc123'])),
+            new PullRequestOpen()->evidence(self::facts($pullRequest), []),
+        );
+        self::assertSame(MarkerSubjectType::PullRequest, new PullRequestOpen()->subjectType());
+    }
+
+    public function test_a_pull_request_without_a_head_commit_names_no_thing(): void
+    {
+        self::assertNull(new PullRequestOpen()->evidence(self::facts(FactsMother::pullRequest(id: Uuid::v7(), number: 7)), [])?->subject);
     }
 
     /** @param array<string, mixed> $params */

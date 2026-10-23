@@ -44,7 +44,7 @@ final readonly class WriteOutboxEventOnReviewSubmitted
             'projectId' => (string) $document->project->id,
             'verdict' => $event->review->verdict->value,
             'cardIds' => array_values($cardIds),
-            'actor' => Actor::Human->value,
+            'actor' => (null === $event->review->workflowRule ? Actor::Human : Actor::System)->value,
         ]);
     }
 }

@@ -190,9 +190,9 @@ is in a state. The mark says what the card needs now:
 | State | Means |
 |---|---|
 | **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card or on its children for longer than the stuck delay and no other reason applies. An epic never shows it while a child has an open worker run. The remedy line on the card page says what to do |
-| **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
+| **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or a blocking inbox question names the card |
 | **Working** | A worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
-| **Waiting** | Work waits for a free spot on a bridge that could take it, the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
+| **Waiting** | Work waits for a free spot on a bridge that could take it (a request that a bridge already took does not count), the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
 
 When several states apply, the tile shows the first in the order **Stuck**,
 **Needs you**, **Working**, **Waiting**. Inside one state, the marker that comes
@@ -207,7 +207,7 @@ Hover the mark, or focus it, to read the tooltip. The tooltip gives these items:
 
 - The reason the card has the state.
 - The time the reason began.
-- Every other marker of the card, chips included.
+- The other markers that ask you to act: every **Stuck** and **Needs you** marker, and chips. A **Working** or **Waiting** marker shows only when it is the main state.
 - On a board tile, an **Open the Agents page** link when no bridge can take
   the work of the card, or the only bridge that can is paused.
 - On a board tile, an **Open card** link. A list row leaves both links out,
@@ -351,8 +351,8 @@ card id is the UUID, not the number.
 
 At the top of the **Overview** tab, a **Status** box names the state of the card
 and how long it has held, such as **Stuck for 2 h**. It says why the card has
-the state, since when, and what clears it. It lists the other states that apply
-under **Also applies**. A card in no state, and a card in a terminal column, show no
+the state, since when, and what clears it. It lists the other reasons that ask you to act
+under **Also applies**: **Stuck**, **Needs you** and chips. It never lists a **Working** or **Waiting** reason there. A card in no state, and a card in a terminal column, show no
 box. A reason has a start time when Loupe stores one. Otherwise the box leaves
 the time out.
 
@@ -410,7 +410,8 @@ a pull request was ready to merge, when a verdict was sent from the
 live-review widget, and when an approval started or ended the override of a
 failed agent review. A finished agent run shows its
 rule, its duration and its result, and it links to the run while the run is
-kept.
+kept. A run that a workflow rule stopped has one row of its own, with the rule, the
+duration and a **Stopped** chip, in place of the row of its close.
 
 A row names a person by their full name. An agent's change reads **Agent for**
 and the name of the person the agent works for. A change by the app reads
@@ -1013,7 +1014,7 @@ Every card row carries `state`. It is null for a card in no state, for a card
 in a terminal column, and for a card that carries only a chip such as
 **Unmanaged**. Chips are not in `state`. Otherwise it holds `kind` (`stuck`,
 `needs-you`, `working` or `waiting`), `code`, and `since`. `code` is the key of
-the marker that names the reason: `paused`, `run-stopped`, `checks-failed`,
+the marker that names the reason: `paused`, `run-stopped`, `run-needs-you`, `checks-failed`,
 `conflicting`, `ready-not-merged`, `pull-request-idle`, `nothing-happened`,
 `document-in-review`, `waits-for-approval`, `open-question`, `session-open`,
 `run-open`, `work-requested`, `forge-request-pending`, `held-by-blocker`,
@@ -1039,8 +1040,8 @@ same way `card_list` does, with 50 events by default and 100 at most. Each event
 carries `kind`, `occurredAt` and `actor`.
 
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
-`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden` or
-`override-ended`. `actor` carries `kind` and `name`. Its `kind` is `human`,
+`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
+`override-ended`, `document-verdict` or `verdict-failed`. `actor` carries `kind` and `name`. Its `kind` is `human`,
 `agent`, `reviewer` or `system`. `name` is the current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
@@ -1049,7 +1050,8 @@ A `moved` event sets `from` and `to`, and a `created` event sets `to` alone.
 Each is a column with `id`, `slug` and `label`. `cause` says why the app moved
 the card on its own, such as a merged pull request. An action of the
 [automation](#automation) sets `pullRequest`. A `fix-requested` or `stopped`
-event also sets `reason`, such as `conflict`. A `run-finished`
+event of a pull request also sets `reason`, such as `conflict`. A `stopped` event
+of a run that a workflow rule stopped sets neither, and its `run` is null. A `run-finished`
 event carries the stored record of the run in `run`. A key that does not apply
 is null.
 
@@ -1064,6 +1066,13 @@ A `review-overridden` or `override-ended` event sets `pullRequest` and
 `override`. `override` holds the `headSha` of the head that the event names,
 and on a `review-overridden` event the `approver` login. `approver` is null on an
 `override-ended` event.
+
+A `document-verdict` event is a verdict on a design document of the card. A
+`verdict-failed` event means that a workflow rule tried to approve a document and
+the app refused. Both set `document`, with `documentId`, `title` and `rule`. A
+`document-verdict` event also sets `verdict` and, for a withdrawal, `withdrawn`.
+A `verdict-failed` event sets `refusal`, a short code such as `verdict_stale`.
+The `rule` is null when a person wrote the verdict.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.

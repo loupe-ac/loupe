@@ -13,9 +13,8 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -176,7 +175,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
         self::assertTrue($status->answers($watch->waits));
 
         $answered->endedAt = $second;
-        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: Uuid::v7(), startedAt: $second));
+        $watch->waits->add(new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: Uuid::v7(), startedAt: $second));
         $this->em()->flush();
 
         self::assertFalse($status->answers($watch->waits));
@@ -187,7 +186,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
         $item = $this->runItem(WorkerRunState::Blocked);
         $watch = $this->watchOf($item);
         $answered = $watch->waits->first() ?: throw new \LogicException('A run item has a wait.');
-        $review = new InboxCardWait($watch, InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, documentId: Uuid::v7(), versionNumber: 1, startedAt: new \DateTimeImmutable('2026-10-13 09:00:00'));
+        $review = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', documentId: Uuid::v7(), versionNumber: 1, startedAt: new \DateTimeImmutable('2026-10-13 09:00:00'));
         $watch->waits->add($review);
         $this->em()->persist($review);
         $this->em()->flush();
@@ -235,11 +234,11 @@ final class InboxExtensionActionsTest extends KernelTestCase
             sessionId: Uuid::v4(),
         );
         $this->em()->persist($run);
-        $item = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($item);
         $watch = new InboxCardWatch($item, $this->card->id, $this->card->number);
         $this->em()->persist($watch);
-        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id));
+        $watch->waits->add(new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id));
         $this->em()->flush();
 
         return $item;

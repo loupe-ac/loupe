@@ -207,18 +207,18 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertInstanceOf(Profile::class, $profile);
         $collector = $profile->getCollector('db');
         self::assertInstanceOf(DoctrineDataCollector::class, $collector);
-        // The holder also kept the fixture inserts, so only reads count. The
-        // sidebar pill adds one count of open items beside the section's query.
+        // The holder also kept the fixture inserts, so only reads count. The sidebar
+        // pill and the tab title total each add one count beside the section's query.
         // The Status box reads the markers stored on the card, so it asks nothing.
         $inboxReads = array_values(array_map(
             static fn (array $query): string => (string) $query['sql'],
             array_filter(
                 array_merge(...array_values($collector->getQueries())),
-                static fn (array $query): bool => str_starts_with((string) $query['sql'], 'SELECT') && str_contains((string) $query['sql'], 'inbox_'),
+                static fn (array $query): bool => str_starts_with((string) $query['sql'], 'SELECT') && str_contains((string) $query['sql'], 'FROM inbox_'),
             ),
         ));
-        self::assertCount(2, $inboxReads, implode("\n", $inboxReads));
-        self::assertCount(1, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'COUNT(')));
+        self::assertCount(3, $inboxReads, implode("\n", $inboxReads));
+        self::assertCount(2, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'COUNT(')));
         self::assertCount(0, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'FROM inbox_item_cards ic')));
     }
 

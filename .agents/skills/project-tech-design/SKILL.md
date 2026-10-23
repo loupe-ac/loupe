@@ -1,6 +1,6 @@
 ---
 name: project-tech-design
-description: Use when you write or revise a technical design for this project — a document that settles an architecture, an entity model, a module boundary, or a subsystem, before any implementation plan exists. Also use when a review comment reopens such a decision.
+description: "Use when writing or revising a technical design that settles an architecture, an entity model, a module boundary or a subsystem, or when a review comment reopens such a decision."
 ---
 
 # Technical designs
@@ -51,7 +51,7 @@ Give the document a section for the checks the work must satisfy. Gamache, arkit
 
 List the rules that apply, and say what each one forces. A design that ignores them produces a branch that cannot pass `just ci`.
 
-Read the five gamache layers before you claim no rule applies. `AGENTS.md` lists them.
+Read the five gamache layers before you claim no rule applies. `project-backend` lists them, in "Custom static-analysis rules".
 
 ## Order the work around live data
 

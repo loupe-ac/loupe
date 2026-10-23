@@ -30,8 +30,8 @@ use App\Module\Board\Service\CardSearchIndexer;
 use App\Module\Board\Service\DocumentLinkResolver;
 use App\Module\Board\Service\PullRequestTracking;
 use App\Module\Board\Service\PullRequestUrlResolver;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\CardTypeCatalog;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -42,6 +42,7 @@ final readonly class CreateCardHandler
 {
     public function __construct(
         private CardRepository $cards,
+        private ProjectRepository $projects,
         private BoardColumnRepository $boardColumns,
         private PullRequestUrlResolver $pullRequests,
         private PullRequestTracking $pullRequestTracking,
@@ -85,10 +86,10 @@ final readonly class CreateCardHandler
 
         // MAX(position) + 1 and MAX(number) + 1 are both read-then-write: two
         // calls into the same project would otherwise allocate the same rank,
-        // and the same card number. Same PESSIMISTIC_WRITE-on-the-project idiom
-        // App\Module\SiteReview\Command\AddCommentHandler uses.
+        // and the same card number. The lock leaves key shares alone, so a card
+        // created inside a verdict transaction does not wait for an engine pass.
         $card = $this->em->wrapInTransaction(function () use ($command, $title, $documents, $artifacts, $relatedCards, $parent): Card|string|DomainErrors {
-            $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
+            $this->projects->lockForWrite($command->project);
 
             // Read under the lock: a column deleted or given another terminal
             // flag since the request loaded it decides whether the card may go

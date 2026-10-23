@@ -6,6 +6,7 @@ namespace App\Tests\Service;
 
 use App\Service\BuildIdentity;
 use App\Service\UpdateCheck;
+use App\Site\SiteLinks;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -55,7 +56,7 @@ final class UpdateCheckTest extends TestCase
             $client,
             new ArrayAdapter(),
             new NullLogger(),
-            $sourceUrl,
+            new SiteLinks($flags, new NullLogger(), $sourceUrl),
         );
     }
 

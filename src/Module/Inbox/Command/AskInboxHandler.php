@@ -13,6 +13,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -140,6 +141,7 @@ final readonly class AskInboxHandler
                         kind: $draft->kind,
                         title: $draft->title,
                         blocking: $draft->blocking,
+                        origin: InboxAskOrigin::Agent,
                         body: $draft->body,
                         options: $draft->options,
                         multiple: $draft->multiple,
@@ -194,10 +196,7 @@ final readonly class AskInboxHandler
             }
         }
         foreach ($reviewed as $document) {
-            $this->cardWaits->forDocument(
-                $command->project->id ?? throw new \LogicException('Project has no id.'),
-                $document->id ?? throw new \LogicException('Document has no id.'),
-            );
+            $this->cardWaits->forDocument($document->id ?? throw new \LogicException('Document has no id.'));
         }
 
         // After the commit, for the reason in CreateCardHandler. No title and no

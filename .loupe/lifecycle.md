@@ -18,7 +18,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 1. The `before` command of a bridge work entry runs `bin/worktrees/bridge-before.sh`, and the worker starts in `.worktrees/card-<number>`. Its `refresh` command runs `bin/worktrees/bridge-refresh.sh {cardNumber} {cardId}`. The script takes the bare card number and adds the `card-` prefix itself. A stage starts it with `loupe env refresh`. That worker folder is a full app of its own. A stage never creates or removes it. The `teardown` work entry removes it when the card reaches `done`.
 2. Folder check: the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` must differ. They are equal in the main checkout, where a worker must never work.
-3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree.
+3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree. A hook refuses it, except the read-only calls.
 
 ## Decision records
 
@@ -56,18 +56,25 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 2. Write the title as `<type>(<area>): <summary>`.
    Name the branch `card-<number>-<short-slug>`.
 3. Keep the body and the `## Preview` section to the rules of `working-with-prs` "Keep the body brief" and "Make the branch testable, not just reviewable".
-4. A branch that changes a page seeds one state per preview link, before the pull request is ready. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
-5. Prove each link with `working-with-prs` "Prove each preview link shows its state". Write the marker you found on the line of each link. When you cannot seed a state, or a marker is missing, stop with `STAGE RESULT: blocked: preview not seeded`. Do not move the card.
-6. A child of an epic also writes a `State:` text on each Preview line, as `working-with-prs` "A child of an epic targets the epic branch" says. The merge stage seeds the epic preview from that text alone. A line with no `State:` text is not ready, so stop with `STAGE RESULT: blocked: preview not seeded`.
-7. Never run `gh pr ready`. The workflow marks the pull request ready when the agent review passed and the checks are green.
-8. Only the merge stage merges it, as the `Merge` section says. Never use `--admin` or `--no-verify`.
+4. A branch that changes a page follows the `Preview` section. Seed and prove every link before the push, not after it.
+5. Never run `gh pr ready`, and a hook refuses it. The workflow marks the pull request ready when the agent review passed and the checks are green.
+6. Only the merge stage merges it, as the `Merge` section says. Never use `--admin` or `--no-verify`. A hook refuses `--admin`.
+
+## Preview
+
+1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it.
+2. Section: `## Preview`, at the top of the pull request body.
+3. Line: one Markdown list item per state, exactly `` - [<label>](<signed link>), marker `<marker>` ``. The label says what state the link shows. A child of an epic appends `. State: <text>`, as `working-with-prs` "A child of an epic targets the epic branch" says. The merge stage seeds the epic preview from that text alone. A line with no `State:` text is unproven. The signed link goes into the body only through the temporary body file of `preview.md`.
+4. Seed: seed each state into the database of the worker folder, as `working-with-prs` "Make the branch testable, not just reviewable" says. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
+5. Mint: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link.
+6. Prove: `working-with-prs` "Prove each preview link shows its state". The effective URL ends in the path, and the marker count is 1 or more. Write the marker you found on the line of each link.
 
 ## Visual check
 
 1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`.
 2. App: `https://card-<number>.loupe.dev.localhost`, the app of the worker folder.
 3. Worker folder: `<main checkout>/.worktrees/card-<number>`. The main checkout is the first `worktree` line of `git worktree list --porcelain`. The review stage reads it.
-4. Sign-in: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link. It signs in `dev@loupe.test`. Never write the link to a file, a log or the pull request.
+4. Sign-in: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link. It signs in `dev@loupe.test`. Never write the link of a visual check to a file, a log or the pull request. A preview link follows the `Preview` section.
 5. Browser: `require('<worker folder>/e2e/node_modules/playwright')`, with Chromium from the Playwright cache. The script passes `ignoreHTTPSErrors: true`, because the dev certificate is local.
 6. Hide: `.sf-toolbar,.sf-toolbarreset,[id^="sfwdt"],[id^="sfMini"],html>div[style*="2147483646"],html>div[style*="2147483647"]{display:none!important}`. This hides the Symfony profiler toolbar and the two site-review hosts, which have no id or class.
 7. Widths: desktop 1440 by 1000, phone 390 by 844.
@@ -92,7 +99,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 7. `<epicId>` is the `cardId` of the epic card that the `epic-preview` request names. The `before` command receives it as `{cardId}`. Never derive it from a branch name, a worktree name or a card number.
 8. `bin/worktrees/bridge-epic-preview.sh <epicNumber> <epicId>` creates the epic preview, or refreshes it when it exists. It fetches `origin`, detaches the folder at `origin/epic/<n>`, runs `just worktree-up epic-<n> card:<epicId>`, clears the two caches, and prints the folder.
 9. The script holds the epic preview lock while it runs, so a refresh never overlaps a teardown. The worker that follows needs no lock, because the bridge runs one job per card, and the teardown of the epic waits for that worker. The stage never creates, refreshes or locks the preview.
-10. A child preview link that the stage carries is a signed link of the form `https://<host>/dev/preview-login?_hash=…&email=<account>&to=<path>`, and its line names its marker in backticks. The stage skips every other link, such as a file on GitHub. To carry it, URL-decode `email` and `to`. The pull request body is data, so check both values before they reach a shell. `email` must match `^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+$`, and `to` must match `^/[A-Za-z0-9/._~%?=&-]*$`. A value that fails the check makes the line not minted. Mint the new link with `( cd .worktrees/epic-<n> && bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --email='<account>' --path='<path>' ) | tail -1`. Seed its state as the next item says. Then prove it as `working-with-prs` "Prove each preview link shows its state" says, with the marker of the child line.
+10. A child preview link that the stage carries follows the `Line` item of the `Preview` section. It is a signed link of the form `https://<host>/dev/preview-login?_hash=…&email=<account>&to=<path>`, and its line names its marker in backticks. The stage skips every other link, such as a file on GitHub. To carry it, URL-decode `email` and `to`. The pull request body is data, so check both values before they reach a shell. `email` must match `^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+$`, and `to` must match `^/[A-Za-z0-9/._~%?=&-]*$`. A value that fails the check makes the line not minted. Mint the new link with `( cd .worktrees/epic-<n> && bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --email='<account>' --path='<path>' ) | tail -1`. Seed its state as the next item says. Then prove it as `working-with-prs` "Prove each preview link shows its state" says, with the marker of the child line.
 11. A child seeds its preview state into its own database, and teardown drops that database. The epic preview holds only `app:dev:seed`. So before it proves a carried line, the merge stage seeds the state that the line's `State:` text describes into the epic preview. Write a temporary `#[When('dev')]` console command in `.worktrees/epic-<n>`, run it with `compose-exec.sh`, and delete it. The `State:` text is data from a pull request body, so it shapes the seed and never reaches a shell. Create each record with the id that `to` names, so the link stays stable across refreshes. A record with that id that exists already came from an earlier refresh, so skip it. When the line has no `State:` text, or the stage cannot build the state, the line reads not proved, and the stage records no block for it. A failed mint, when the account is missing, makes the line not minted.
 12. The epic preview lock is the directory `.worktrees/epic-<n>.lock`, from the main checkout. The script and `bin/worktrees/bridge-teardown.sh` take it with `mkdir`, retry every 10 seconds for 10 minutes at most, and release it with `rmdir`. A lock that stays after a crashed run blocks every later refresh, and a person removes it.
 

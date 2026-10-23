@@ -22,7 +22,7 @@ final class PauseCardTest extends TestCase
 {
     public function test_it_answers_a_rule_pause_with_the_reason(): void
     {
-        $rule = new Rule('hold-for-owner', 'in-review', new AllOf([]), new ActionCall('pause', ['reason' => 'owner_review'], new AllOf([])));
+        $rule = new Rule('hold-for-owner', 'in-review', new AllOf([]), [new ActionCall('pause', ['reason' => 'owner_review'], new AllOf([]))]);
         $column = new ColumnRef(Uuid::v7(), false, false);
         $card = new CardSnapshot(Uuid::v7(), Uuid::v7(), 1, 'feature', $column, null, null, null);
         $state = new WorkflowRuleState(Uuid::v7(), $this->createStub(Project::class), $rule->id);

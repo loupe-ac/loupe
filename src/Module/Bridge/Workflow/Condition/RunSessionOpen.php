@@ -58,6 +58,6 @@ final readonly class RunSessionOpen implements Condition, MarkerEvidence
             return null;
         }
 
-        return new Evidence($session->openSince, null === $session->kind ? [] : ['%kind%' => $session->kind]);
+        return new Evidence(null === $session->kind ? [] : ['%kind%' => $session->kind]);
     }
 }

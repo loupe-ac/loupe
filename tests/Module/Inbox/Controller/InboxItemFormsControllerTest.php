@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Controller;
 
 use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
@@ -20,6 +21,8 @@ use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Form\AnswerInboxItemRequest;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Command\CreateDocumentCommand;
+use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Command\UndoVerdictCommand;
@@ -61,7 +64,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $this->seedColumns($this->project);
         $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Review card', 'Body', number: 1);
         $target = new CardPullRequest($card, 'https://github.com/example/project/pull/12');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the pull request', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the pull request', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $target);
         foreach ([$card, $target, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -104,7 +107,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $document = new Document($this->owner, $this->project, 'Review design');
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -129,11 +132,38 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorNotExists('#inbox-item-1 form');
     }
 
+    public function test_a_document_review_completed_by_a_rule_names_the_workflow_and_the_rule(): void
+    {
+        $document = new Document($this->owner, $this->project, 'Review design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $document);
+        foreach ([$document, $item, $review] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+        $submit = static::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $submit);
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $submit(new SubmitReviewCommand($users->workflow(), $document, 'approved', 1, workflowRule: 'tech-design-auto-approve'));
+
+        $page = $this->client->request(Request::METHOD_GET, $this->completedUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Approved');
+        $result = $page->filter('[data-inbox-response]');
+        self::assertStringContainsString('Workflow', $result->text());
+        self::assertStringContainsString('tech-design-auto-approve', $result->filter('.lp-tag')->text());
+        self::assertStringContainsString('Approved when it was published: no unanswered decision, no open thread, and the agent review passed.', $result->text());
+    }
+
     public function test_an_inline_document_review_rejects_a_stale_version_then_records_the_current_one(): void
     {
         $document = new Document($this->owner, $this->project, 'Inline design');
         $document->addVersion('# First', '<h1>First</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -192,12 +222,40 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorNotExists('form[name="'.$name.'"]');
     }
 
+    public function test_an_inline_approval_is_refused_while_a_decision_has_no_answer(): void
+    {
+        $create = static::getContainer()->get(CreateDocumentHandler::class);
+        self::assertInstanceOf(CreateDocumentHandler::class, $create);
+        $document = $create(new CreateDocumentCommand($this->project, 'Decision design', "<!-- decision: target -->\n\n- ( ) Staging\n- ( ) Production\n\n<!-- /decision -->"));
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $document);
+        foreach ([$item, $review] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+        $name = 'inbox_document_review_'.$item->id;
+        $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+        $this->client->submit($page->filter('form[name="'.$name.'"]')->form([
+            $name.'[verdict]' => 'approved',
+            $name.'[note]' => 'Keep this note.',
+        ]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-1', '1 decision has no answer. Answer it, or request changes.');
+        self::assertSelectorTextContains('textarea[name="'.$name.'[note]"]', 'Keep this note.');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        self::assertNull($em->find(InboxReview::class, $review->id)?->documentReview);
+        self::assertSame(InboxItemState::Open, $em->find(InboxItem::class, $item->id)?->state);
+    }
+
     public function test_inbox_ownership_does_not_bypass_document_review_permission(): void
     {
         $otherOwner = $this->signedUpUser($this->em, 'document-owner');
         $document = new Document($otherOwner, $this->project, 'Restricted design');
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true);
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         foreach ([$document, $item, $review] as $entity) {
             $this->em->persist($entity);
@@ -235,7 +293,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
     public function test_the_page_form_answers_a_workflow_question_once(): void
     {
-        $item = new InboxItem(project: $this->project, number: 6, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, options: ['Link', 'Design', 'Detach']);
+        $item = new InboxItem(project: $this->project, number: 6, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design', 'Detach']);
         $this->em->persist($item);
         $ask = new InboxAsk(project: $this->project, sessionId: null, bridgeId: null, origin: InboxAskOrigin::Loupe);
         $ask->items->add(new InboxAskItem($ask, $item));

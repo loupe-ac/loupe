@@ -20,6 +20,8 @@ use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\InboxScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +42,7 @@ final class WaitItemPageTest extends WebTestCase
     private Project $project;
     private Card $card;
     private Document $document;
+    private ?WorkerRun $run = null;
 
     protected function setUp(): void
     {
@@ -54,7 +57,7 @@ final class WaitItemPageTest extends WebTestCase
         $this->document = new Document($owner, $this->project, 'Tech design');
         $this->document->addVersion('# One', '<h1>One</h1>');
         $this->card->documents->add(new CardDocument($this->card, $this->document));
-        $this->stageDocument($em, $this->document, $this->card);
+        $this->card->column = $this->stageColumn($em, $this->project, 'tech-design');
         $em->persist($this->card);
         $em->persist($this->document);
         $em->flush();
@@ -72,7 +75,7 @@ final class WaitItemPageTest extends WebTestCase
         // The wait links its card, so the row names the card and the pane names the sender.
         self::assertSelectorTextContains('.lp-list-row__meta [data-inbox-card]', '#4');
         self::assertSelectorNotExists('[data-inbox-source="agent"]');
-        self::assertSelectorExists('.lp-list-row [data-inbox-kind="wait"]');
+        self::assertSelectorExists('.lp-list-row [data-inbox-kind="review"]');
         self::assertSelectorTextSame('.lp-inbox-ask__source', 'From Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));
@@ -100,7 +103,7 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Document version 1 waits for your review');
+        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Review "Tech design", version 1');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
         self::assertCount(1, $crawler->filter('[data-inbox-linked-menu] [data-linked-card="'.$this->card->id.'"]'));
     }
@@ -144,8 +147,6 @@ final class WaitItemPageTest extends WebTestCase
     {
         $this->reconcile();
         $item = $this->onlyWatch()->item;
-        self::assertStringNotContainsString('Tech', $item->title);
-
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?q='.rawurlencode('Tech design'));
 
         self::assertResponseIsSuccessful();
@@ -169,14 +170,14 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $current = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
         self::assertCount(1, $current);
-        self::assertStringContainsString('The document "Tech design", version 2, of card 4 waits for your review.', $current->text());
+        self::assertStringContainsString('The document "Tech design" waits for your review.', $current->text());
         $main = $crawler->filter('#inbox-item-1 .inbox-split__main');
         self::assertCount(1, $main);
         self::assertSame('Review', trim($main->text()));
         self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $main->attr('href'));
         $ended = $crawler->filter('#inbox-item-1 [data-inbox-wait="ended"]');
         self::assertCount(1, $ended);
-        self::assertStringContainsString('version 1', $ended->text());
+        self::assertStringContainsString('waits for your review', $ended->text());
         self::assertStringContainsString('Closed', $ended->text());
 
         self::assertCount(0, $crawler->filter('form[name="inbox_done_'.$item->id.'"]'));
@@ -325,11 +326,21 @@ final class WaitItemPageTest extends WebTestCase
         $run->resultFields = $resultFields;
         $this->em->persist($run);
         $this->em->flush();
+        $this->run = $run;
         $this->reconcile();
     }
 
+    /** Stores the inbox set the engine would store for the document and the blocked run, then reconciles. */
     private function reconcile(): void
     {
+        $entries = [];
+        if (DocumentStatus::InReview === $this->document->status) {
+            $entries[] = $this->inboxEntry('document-in-review', new MarkerSubject(MarkerSubjectType::Document, ['document' => (string) $this->document->id, 'version' => (string) $this->document->currentVersion()->versionNumber]));
+        }
+        if (null !== $this->run) {
+            $entries[] = $this->inboxEntry('run-needs-you', new MarkerSubject(MarkerSubjectType::WorkerRun, ['run' => (string) $this->run->id]));
+        }
+        $this->storeInbox($this->em, $this->card, ...$entries);
         $reconciler = static::getContainer()->get(CardWaitReconciler::class);
         self::assertInstanceOf(CardWaitReconciler::class, $reconciler);
         $reconciler->reconcile($this->project, [(string) $this->card->id]);

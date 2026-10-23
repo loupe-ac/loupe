@@ -51,7 +51,7 @@ abstract class AppController extends AbstractController
     protected function applyDomainErrors(FormInterface $form, DomainErrors $e): void
     {
         foreach ($e->errors as $field => $translationKey) {
-            $form->get($field)->addError(new FormError($this->translator->trans($translationKey)));
+            $form->get($field)->addError(new FormError($this->translator->trans($translationKey, $e->parameters[$field] ?? [])));
         }
     }
 

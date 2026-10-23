@@ -1,6 +1,6 @@
 ---
 name: loupe-design-rebuild
-description: "Use when rebuilding the Design System artifact Loupe Design System from the export, when a pull request changed tokens, components or the catalog, or when the pending-rebuild to-do needs a decision."
+description: "Use when rebuilding the Design System artifact from the export, when a pull request changed tokens, components or the catalog, or for the pending-rebuild to-do."
 ---
 
 # Rebuilding the Design System artifact

@@ -9,6 +9,7 @@ use App\Module\Workflow\Contract\RuleActions;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
+use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -38,8 +39,8 @@ final readonly class WorkflowRuleActions implements RuleActions
 
         $params = [];
         foreach ($template->rules as $rule) {
-            if ($actionKey === $rule->then->key && self::firesOn($rule->when, $conditionKey)) {
-                $params[] = $rule->then->params;
+            if ($actionKey === $rule->lead->key && self::firesOn($rule->when, $conditionKey)) {
+                $params[] = $rule->lead->params;
             }
         }
 
@@ -48,8 +49,18 @@ final readonly class WorkflowRuleActions implements RuleActions
 
     private static function firesOn(Expression $when, string $conditionKey): bool
     {
-        $leaves = $when instanceof AllOf ? $when->children : [$when];
+        $when = self::unnamed($when);
+        $leaves = $when instanceof AllOf ? array_map(self::unnamed(...), $when->children) : [$when];
 
         return array_any($leaves, static fn (Expression $leaf): bool => $leaf instanceof ConditionLeaf && $conditionKey === $leaf->condition::key());
+    }
+
+    private static function unnamed(Expression $expression): Expression
+    {
+        while ($expression instanceof NamedFact) {
+            $expression = $expression->expression;
+        }
+
+        return $expression;
     }
 }

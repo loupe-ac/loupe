@@ -421,6 +421,7 @@ final class FactsBuilderTest extends KernelTestCase
             id: $pullRequest->id,
             headSha: 'abc',
             number: $pullRequest->number,
+            baseIsDefault: true,
         ), $this->facts($card)->pullRequest);
 
         $pullRequest->checks = PullRequestChecks::Pending;
@@ -434,6 +435,11 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertSame(ChecksState::Pending, $facts->checks);
         self::assertFalse($facts->conflicting);
         self::assertTrue($facts->behind);
+        self::assertTrue($facts->canMerge);
+        self::assertFalse($facts->checksOnHead);
+        $pullRequest->checksSha = 'abc';
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest?->checksOnHead);
         self::assertFalse($facts->changesRequested);
         self::assertSame(1, $facts->approvalsCoveringHead);
 
@@ -784,7 +790,6 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->checksFailedSince = new \DateTimeImmutable('2026-10-02 08:01:00');
         $pullRequest->checksPendingSince = new \DateTimeImmutable('2026-10-02 08:02:00');
         $pullRequest->conflictingSince = new \DateTimeImmutable('2026-10-02 08:03:00');
-        $pullRequest->waitsForApprovalSince = new \DateTimeImmutable('2026-10-02 08:04:00');
         $this->em()->flush();
 
         $facts = $this->facts($card)->pullRequest;
@@ -796,7 +801,6 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-02 08:01:00'), $facts->checksFailedSince);
         self::assertEquals(new \DateTimeImmutable('2026-10-02 08:02:00'), $facts->checksPendingSince);
         self::assertEquals(new \DateTimeImmutable('2026-10-02 08:03:00'), $facts->conflictingSince);
-        self::assertEquals(new \DateTimeImmutable('2026-10-02 08:04:00'), $facts->waitsForApprovalSince);
     }
 
     public function test_a_green_pull_request_into_the_default_branch_waits_for_approval_until_one_covers_the_head(): void

@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-tech-design
-description: "Use when a card enters the Tech design column of a Loupe board, or when a prompt names loupe-stage-tech-design."
+description: "Use when a prompt names loupe-stage-tech-design, or when a card enters the Tech design column."
 ---
 
 # Tech design stage
@@ -76,7 +76,7 @@ A dependency is a part that the design needs, that is missing on the base branch
 1. Judge whether one pull request of normal size can build the design. A worker builds a small task with clear limits better than a large one.
 2. When the design needs more than one such pull request, add a Breakdown section. Each entry becomes one child card. Write it in the format of `../loupe-stage-implementation/references/breakdown.md`.
 3. Otherwise add no Breakdown section.
-4. Mark an entry `Follow-up.` when it can start only after the epic ships, such as dropping a column that the epic deploy still reads. Write the marker right after the title, as `../loupe-stage-implementation/references/breakdown.md` "The format" says. A follow-up entry names only other follow-up entries in `Blocked by`, and no child entry names a follow-up entry.
+4. Mark an entry `Follow-up.` when it meets the test of `../loupe-stage-implementation/references/breakdown.md` "Post-epic work", such as dropping a column that the epic deploy still reads. Write in its text that it ships after the epic. Write the marker right after the title, as `../loupe-stage-implementation/references/breakdown.md` "The format" says. A follow-up entry names only other follow-up entries in `Blocked by`, and no child entry names a follow-up entry.
 5. Never write a Breakdown section for a card that has a parent, because epics do not nest. A child with no entry line of `../loupe-stage-implementation/references/breakdown.md` gets a design of its own, like any other card.
 
 Write the final reply, its reason code and the structured result as the contract "Final reply" section says.

@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Mcp;
 
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Mcp\InboxAskTool;
@@ -205,7 +206,7 @@ final class InboxGetToolTest extends KernelTestCase
         ], $read['actions']);
     }
 
-    public function test_a_wait_item_reads_back_with_its_card_its_waits_and_the_loupe_ask(): void
+    public function test_an_automatic_review_item_reads_back_with_its_card_its_waits_and_the_loupe_ask(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-get-wait');
@@ -215,18 +216,20 @@ final class InboxGetToolTest extends KernelTestCase
         $this->reconcileWaits($project, $card);
         $document->addVersion('# Two', '<h1>Two</h1>');
         $this->em->flush();
+        $this->storeInbox($this->em, $card, $this->documentEntry($document, 2));
         $watch = $this->reconcileWaits($project, $card);
         $this->em->clear();
         $this->actAsMcpTokenBoundTo($project);
 
         $item = ($this->tool)((string) $watch->item->id);
 
-        self::assertSame('wait', $item['kind']);
+        self::assertSame('review', $item['kind']);
+        self::assertNull($item['review']);
         self::assertSame('loupe', $item['origin']);
         self::assertSame((string) $card->id, $item['cardId']);
         self::assertCount(2, $item['waits']);
         [$ended, $current] = $item['waits'];
-        self::assertSame('document-in-review', $ended['trigger']);
+        self::assertSame('document-in-review', $ended['marker']);
         self::assertSame((string) $document->id, $ended['documentId']);
         self::assertSame(1, $ended['versionNumber']);
         self::assertNull($ended['runId']);
@@ -237,7 +240,7 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertSame(2, $current['versionNumber']);
         self::assertNull($current['endedAt']);
         self::assertNull($current['endReason']);
-        self::assertSame('waiting-for-review', $current['reason']);
+        self::assertSame('marker.document_in_review', $current['label']);
         self::assertCount(1, $item['asks']);
         self::assertSame('loupe', $item['asks'][0]['origin']);
         self::assertNull($item['asks'][0]['sessionId']);
@@ -296,7 +299,7 @@ final class InboxGetToolTest extends KernelTestCase
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-get-notice');
-        $notice = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A bridge rule races the app sync', blocking: false, body: 'Remove it.');
+        $notice = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A bridge rule races the app sync', blocking: false, origin: InboxAskOrigin::Loupe, body: 'Remove it.');
         $this->em->persist($notice);
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($project);

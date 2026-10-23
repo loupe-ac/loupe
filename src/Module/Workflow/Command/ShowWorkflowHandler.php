@@ -40,13 +40,13 @@ final readonly class ShowWorkflowHandler
         $kinds = [];
         foreach ([RuleOrigin::Template, RuleOrigin::App] as $origin) {
             foreach ($template->rules as $rule) {
-                $kind = $origin === $rule->origin ? $this->actions->get($rule->then->key)->workKind($rule->then->params) : null;
+                $kind = $origin === $rule->origin ? $this->actions->get($rule->lead->key)->workKind($rule->lead->params) : null;
                 if (null === $kind) {
                     continue;
                 }
                 $kinds[$kind] ??= ['origin' => $origin, 'rules' => [], 'checks' => []];
                 $kinds[$kind]['rules'][] = $rule->id;
-                $kinds[$kind]['checks'] = array_values(array_unique([...$kinds[$kind]['checks'], ...$rule->then->checks]));
+                $kinds[$kind]['checks'] = array_values(array_unique([...$kinds[$kind]['checks'], ...$rule->lead->checks]));
             }
         }
 

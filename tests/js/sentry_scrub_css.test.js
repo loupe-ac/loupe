@@ -172,6 +172,15 @@ describe('scrubCss in a built stylesheet', () => {
     });
 });
 
+describe('the declaration count of a test', () => {
+    it('reads an escaped quote in a selector as no string', () => {
+        const css =
+            ".\\[\\&_svg\\:not\\(\\[class\\*\\=\\'size-\\'\\]\\)\\]\\:size-4 { width: 1rem; } a { top: 0; }";
+
+        expect(declarations(css)).toEqual(['width: 1rem', 'top: 0']);
+    });
+});
+
 describe('the word and property lists', () => {
     it('hold lowercase entries only', () => {
         for (const word of [...KEPT_CSS_WORDS, ...KEPT_CSS_PROPERTIES]) {
@@ -196,7 +205,9 @@ function sourceFiles(directory) {
 function normalise(css) {
     return css
         .replace(/\/\*[\s\S]*?\*\//g, ' ')
-        .replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '""')
+        .replace(/\\.|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, (match) =>
+            match.startsWith('\\') ? match : '""',
+        )
         .replace(/url\(\s*(?:""|[^)]*)\s*\)/gi, 'url()');
 }
 

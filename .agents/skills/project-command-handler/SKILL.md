@@ -1,6 +1,6 @@
 ---
 name: project-command-handler
-description: Use when a controller action needs business logic (creating, updating, or deleting anything), or any action beyond rendering a template or redirecting. Documents the command + handler pair pattern, the enforced class shapes, and DomainErrors propagation.
+description: "Use when a controller action needs business logic beyond rendering or redirecting, for the command and handler pair pattern and DomainErrors."
 ---
 
 # Command + Handler Pattern

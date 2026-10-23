@@ -24,6 +24,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, AdminPr
      */
     public const string AGENT_ID = '1073e0a5-9b1c-42f7-8e44-a10a6e57c3d9';
 
+    /**
+     * The account that authors a verdict a workflow rule writes, so a machine
+     * verdict is never attributed to a person. Inserted by a migration with
+     * this literal id, like the agent account.
+     */
+    public const string WORKFLOW_ID = '626ccf14-9fe6-4ea9-a2a2-283445c43e7e';
+
+    /** The accounts that no person can sign into and that every list of people leaves out. */
+    public const array SYSTEM_IDS = [self::AGENT_ID, self::WORKFLOW_ID];
+
     /** The users.full_name column width, and the single source of truth for every check against it. */
     public const int MAX_FULL_NAME_LENGTH = 150;
 
@@ -196,6 +206,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, AdminPr
     public function isAgent(): bool
     {
         return self::AGENT_ID === (string) $this->id;
+    }
+
+    public function isWorkflow(): bool
+    {
+        return self::WORKFLOW_ID === (string) $this->id;
     }
 
     // -------------------------------------------------------------------------

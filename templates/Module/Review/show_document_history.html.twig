@@ -27,7 +27,13 @@
 {% set latestVersion = versions|first.versionNumber %}
 {% set earliestVersion = versions|last.versionNumber %}
 {% set finishReviewAvailable = document.status.value in ['draft', 'in-review'] %}
-<div class="lp-review" data-site-review-quotes="off"{% if finishReviewAvailable %} data-controller="modal" data-action="review:finish@window->modal#open"{% endif %}>
+{% set draftLive = document.status.value == 'draft' %}
+{% if draftLive %}
+{% do mercure_subscribe(documentTopic) %}
+{% endif %}
+<div class="lp-review" data-site-review-quotes="off"{% if finishReviewAvailable %} data-controller="modal{{ draftLive ? ' review-draft-live' : '' }}"{% endif %}
+     {% if draftLive %}data-review-draft-live-url-value="{{ path('app_document_draft_state', routeParameters) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"{% endif %}
+     {% if finishReviewAvailable %}data-action="review:finish@window->modal#open"{% endif %}>
 <div class="lp-review-block">
     {% include '@Review/_document_header.html.twig' with {
         document: document,
@@ -37,6 +43,8 @@
         showDocumentActions: true,
         reviseDocumentForm: reviseDocumentForm,
         showPageMenu: false,
+        showDraftBand: true,
+        draftReviewLoop: draftReviewLoop,
     } only %}
     <div class="lp-history-tools">
         <h2 class="lp-history-title">{{ 'review.document.history.page.title'|trans }}</h2>
@@ -124,9 +132,11 @@
         <div class="lp-history__review" data-review-sequence="{{ entry.review.sequence }}">
             <span class="lp-history__verdict lp-history__verdict--{{ entry.review.verdict.value }}">{{ ('review.document.verdict.' ~ entry.review.verdict.value)|trans }}</span>
             <span>{{ entry.review.reviewer.fullName }}</span>
+            {% if entry.review.workflowRule %}<twig:Ds:Tag tone="neutral">{{ entry.review.workflowRule }}</twig:Ds:Tag>{% endif %}
             <span class="lp-history__version">{{ 'v' ~ entry.versionNumber }}</span>
             <twig:Ds:RelativeTime :datetime="entry.review.submittedAt" class="lp-history__date" />
-            {% if entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
+            {% if entry.review.workflowRule and entry.review.verdict.value == 'approved' %}<p class="lp-history__review-note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
+            {% elseif entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
         </div>
         {% else %}
         <p class="lp-history__empty">{{ 'review.document.history.no_verdicts'|trans }}</p>
@@ -138,6 +148,8 @@
     document: document,
     submitReviewForm: submitReviewForm,
     signals: signals,
+    decisions: decisions,
+    draftReviewLoop: draftReviewLoop,
 } only %}
 {% endif %}
 </div>

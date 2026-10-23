@@ -1,5 +1,6 @@
-<div class="lp-home-ask" data-controller="landing-ask">
-    <button type="button" class="lp-home-ask__toggle" aria-expanded="false" aria-controls="landing-ask-body"
+{% set notifyJoined = notifyJoined|default(false) %}
+<div class="lp-home-ask" data-controller="landing-ask"{% if notifyJoined %} data-landing-ask-open-value="true"{% endif %}>
+    <button type="button" class="lp-home-ask__toggle" aria-expanded="{{ notifyJoined ? 'true' : 'false' }}" aria-controls="landing-ask-body"
             data-landing-ask-target="toggle" data-action="landing-ask#toggle">
         <span class="lp-home-ask__plus"><twig:UX:Icon name="lucide:plus" class="w-4.5 h-4.5" aria-hidden="true" /></span>
         <span class="lp-home-ask__heading">
@@ -11,9 +12,13 @@
             <span class="lp-home-ask__state-open">{{ 'landing.ask.close'|trans }}</span>
         </span>
     </button>
-    <div id="landing-ask-body" class="lp-home-ask__body" data-landing-ask-target="body" hidden>
+    <div id="landing-ask-body" class="lp-home-ask__body" data-landing-ask-target="body"{% if not notifyJoined %} hidden{% endif %}>
         <turbo-frame id="waitlist-notify" data-controller="frame-missing-visit" data-action="turbo:frame-missing->frame-missing-visit#visit">
-            {% include 'waitlist/_notify_form.html.twig' with {notifyForm: notifyForm} only %}
+            {% if notifyJoined %}
+                {% include 'waitlist/_notify_joined.html.twig' with {joinForm: null} only %}
+            {% else %}
+                {% include 'waitlist/_notify_form.html.twig' with {notifyForm: notifyForm} only %}
+            {% endif %}
         </turbo-frame>
     </div>
 </div>

@@ -1138,6 +1138,49 @@
 .lp-review .lp-review-doc__byline-actions {
     @apply relative ml-auto inline-flex items-center gap-0.5;
 }
+
+/* ── Draft band ─────────────────────────────────────────────────── */
+/* Sits under the byline of a draft. The amber variant says that the agent
+   review is paused. */
+.lp-review .lp-draft-band {
+    @apply mt-5 flex flex-wrap items-start gap-x-4 gap-y-3 rounded-lg border border-accent-border bg-accent-faint px-4 py-3.5 text-sm;
+}
+.lp-review .lp-draft-band--paused {
+    @apply border-status-pending-border bg-status-pending-bg;
+}
+.lp-review .lp-draft-band__icon {
+    @apply mt-0.5 shrink-0 text-accent-ink;
+}
+.lp-review .lp-draft-band--paused .lp-draft-band__icon {
+    @apply text-status-pending;
+}
+.lp-review .lp-draft-band__body {
+    @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+.lp-review .lp-draft-band__title {
+    @apply m-0 flex flex-wrap items-center gap-2 text-ink;
+}
+.lp-review .lp-draft-band__text {
+    @apply m-0 text-fg-mute;
+}
+.lp-review .lp-draft-band--paused .lp-draft-band__text {
+    @apply text-status-pending-deep;
+}
+.lp-review .lp-draft-band__reason {
+    @apply block font-semibold;
+}
+.lp-review .lp-draft-band__card {
+    @apply font-semibold text-inherit underline;
+}
+.lp-review .lp-draft-band__action {
+    @apply shrink-0;
+}
+.lp-review .lp-draft-live-status {
+    @apply m-0 mt-2 text-sm font-semibold text-status-pending-deep;
+}
+.lp-review .lp-draft-live-status:empty {
+    @apply hidden;
+}
 .lp-review .lp-review-doc__byline .lp-btn {
     @apply min-h-8 gap-1.5 border-0 bg-transparent px-2.5 py-0 font-medium text-fg-label;
 }
@@ -1898,6 +1941,16 @@
 .lp-review .lp-finish-review textarea {
     @apply min-h-0;
 }
+.lp-review .lp-finish-review .lp-flash {
+    @apply mx-0 mt-0;
+}
+.lp-review .lp-draft-review-warning__line {
+    @apply m-0 text-sm text-fg-dim;
+}
+.lp-review .lp-draft-review-stop__body,
+.lp-review .lp-draft-band__confirm-body {
+    @apply m-0 mb-4 text-sm text-fg-mute;
+}
 .lp-review .lp-finish-review .lp-review-verdict-actions {
     @apply pt-0;
 }
@@ -1926,6 +1979,20 @@
 .lp-review
     :is(.lp-comment-action, .lp-review-verdict-choice, .lp-history__action) {
     @apply cursor-pointer;
+}
+.lp-review .lp-review-verdict-choice--disabled {
+    @apply cursor-not-allowed opacity-60;
+}
+.lp-review
+    .lp-review-verdict-choice--disabled
+    .lp-review-verdict-choice__label {
+    @apply text-fg-dim;
+}
+.lp-review .lp-review-verdict-choice__reason {
+    @apply block text-status-pending-deep;
+}
+.lp-review .lp-review-verdict-choice__reason a {
+    @apply cursor-pointer text-status-pending-deep underline;
 }
 /* A highlight is no element, so the controller marks the pane while the
    pointer is over a passage that opens a thread. */
@@ -3259,6 +3326,16 @@
     }
     .lp-about-item {
         @apply flex flex-col items-start gap-4;
+    }
+    /* Cards that stack in one column, as on the beta welcome page. */
+    .lp-about-cards--stacked {
+        @apply grid-cols-1 lg:grid-cols-1;
+    }
+    .lp-about-item--center {
+        @apply w-full items-center text-center;
+    }
+    .lp-about-item--center .lp-about-card__main {
+        @apply items-center;
     }
     .lp-about-card__glyph {
         @apply inline-flex items-center justify-center shrink-0 w-9.5 h-9.5 rounded-lg bg-accent-soft text-accent-ink;
@@ -4659,6 +4736,10 @@
     }
     .lp-verdict-chip__reviewer {
         @apply font-semibold text-ink;
+    }
+    /* The name of the workflow reviewer, then the id of the rule that wrote the verdict. */
+    .lp-verdict-chip__rule {
+        @apply flex flex-wrap items-center gap-1.5;
     }
     .lp-verdict-chip__action-icon {
         @apply size-3.5 shrink-0;
@@ -7283,6 +7364,9 @@
     }
     .lp-inbox-ask__title {
         @apply m-0 font-display text-xl font-extrabold tracking-tight text-ink;
+    }
+    .lp-inbox-ask__target {
+        @apply m-0 text-sm text-fg-dim;
     }
     /* The anchor around an agent avatar with a bridge dot. Hover or focus shows
        the tooltip. */

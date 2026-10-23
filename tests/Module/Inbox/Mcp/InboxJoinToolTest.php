@@ -7,7 +7,6 @@ namespace App\Tests\Module\Inbox\Mcp;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Mcp\InboxJoinTool;
 use App\Module\Inbox\Mcp\InboxWithdrawTool;
-use App\Module\Review\Entity\DocumentStatus;
 use App\Security\McpBoundProjectVoter;
 use App\Tests\Support\McpTokenScenario;
 use App\Tests\Support\RecordingAuditor;
@@ -85,11 +84,10 @@ final class InboxJoinToolTest extends KernelTestCase
         $result = ($this->tool)((string) $watch->item->id, (string) Uuid::v4());
 
         self::assertFalse($result['closed']);
-        self::assertSame('wait', $result['items'][0]['kind']);
+        self::assertSame('review', $result['items'][0]['kind']);
         self::assertSame('loupe', $result['items'][0]['origin']);
 
-        $document->status = DocumentStatus::Approved;
-        $this->em->flush();
+        $this->storeInbox($this->em, $card);
         $this->reconcileWaits($project, $card);
         $this->em->clear();
 

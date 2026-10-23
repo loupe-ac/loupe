@@ -74,7 +74,7 @@ final readonly class WorkflowChildChoices implements ChildChoices
 
     private static function rule(string $choice, ActionCall $call): Rule
     {
-        return new Rule('child-design-'.$choice, null, new AllOf([]), $call);
+        return new Rule('child-design-'.$choice, null, new AllOf([]), [$call]);
     }
 
     /** @return array<string, list<ActionCall>> */

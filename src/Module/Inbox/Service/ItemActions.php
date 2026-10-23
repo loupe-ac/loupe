@@ -134,13 +134,13 @@ final readonly class ItemActions
             return null;
         }
 
-        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? $watch?->cardId : self::onlyCardOf($item), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null, isset($this->runCommandRuns->itemsAddingEntry([$item])[self::key($item)]));
+        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? $watch?->cardId : self::onlyCardOf($item), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null, isset($this->runCommandRuns->itemsAddingEntry([$item])[self::key($item)]));
     }
 
     /** The card a command run of the item belongs to: the watched card of a wait item, or the only card of a to-do. */
     public function runCommandCardId(InboxItem $item): ?Uuid
     {
-        if (InboxItemKind::Wait === $item->kind) {
+        if ($item->isAutomatic()) {
             return ($this->inboxCardWatches->findForItems([$item])[0] ?? null)?->cardId;
         }
 
@@ -223,7 +223,7 @@ final readonly class ItemActions
             $commandSuggestion = $suggestions[InboxActionKind::RunCommand->value] ?? null;
             $runCommand = null === $commandSuggestion?->command
                 ? null
-                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
+                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand);
             if (self::offersOnlySuggestions($item)) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
@@ -290,7 +290,7 @@ final readonly class ItemActions
     {
         $cards = [];
         foreach ($items as $item) {
-            $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : (self::suggestedCardOf($item, InboxActionKind::SendAgent) ?? self::onlyCardOf($item));
+            $cardId = $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : (self::suggestedCardOf($item, InboxActionKind::SendAgent) ?? self::onlyCardOf($item));
             if (null !== $cardId) {
                 $cards[self::key($item)] = [$item->project, $cardId];
             }
@@ -399,12 +399,12 @@ final readonly class ItemActions
 
     private static function fitsOpen(InboxItem $item): bool
     {
-        return InboxItemKind::Wait === $item->kind || !$item->cards->isEmpty() || !$item->documents->isEmpty();
+        return $item->isAutomatic() || !$item->cards->isEmpty() || !$item->documents->isEmpty();
     }
 
     private static function fitsDismiss(InboxItem $item): bool
     {
-        return InboxItemKind::Wait === $item->kind;
+        return $item->isAutomatic();
     }
 
     /**
@@ -457,7 +457,7 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
-        if (!\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Todo, InboxItemKind::Question], true)) {
+        if (!$item->isAutomatic() && !\in_array($item->kind, [InboxItemKind::Todo, InboxItemKind::Question], true)) {
             return null;
         }
 
@@ -476,6 +476,7 @@ final readonly class ItemActions
             InboxCardWaitType::WorkerRun => InboxActionKind::ResumeRun,
             InboxCardWaitType::CardPause => InboxActionKind::RetryCard,
             InboxCardWaitType::Document, InboxCardWaitType::PullRequest => InboxActionKind::Review,
+            InboxCardWaitType::Card => InboxActionKind::Open,
         };
 
         return \in_array($preferred, $fitting, true) ? $preferred : InboxActionKind::Open;

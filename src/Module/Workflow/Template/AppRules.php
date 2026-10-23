@@ -99,6 +99,7 @@ final class AppRules implements ProposalSlot
             $template->agentReviewFailingSeverities,
             $template->markers,
             $template->approvalCoversConflictResolution,
+            $template->inbox,
         );
     }
 
@@ -106,7 +107,7 @@ final class AppRules implements ProposalSlot
     {
         // Check the name against the rules and requests before it becomes part of a path.
         $names = [
-            ...array_map(static fn (Rule $rule): mixed => $rule->then->params[TemplateParser::PROMPT] ?? null, $this->rules()),
+            ...array_map(static fn (Rule $rule): mixed => $rule->lead->params[TemplateParser::PROMPT] ?? null, $this->rules()),
             ...array_map(static fn (AppRequest $request): string => $request->prompt, $this->requests()),
         ];
         if (!\in_array($name, $names, true)) {
@@ -139,7 +140,7 @@ final class AppRules implements ProposalSlot
             }
         }
         foreach ($rules as $rule) {
-            $name = $rule->then->params[TemplateParser::PROMPT] ?? null;
+            $name = $rule->lead->params[TemplateParser::PROMPT] ?? null;
             if (\is_string($name) && !is_file($this->promptPath($name))) {
                 $errors[] = \sprintf('rules (%s): prompt "%s" has no file prompts/%s.md', $rule->id, $name, $name);
             }

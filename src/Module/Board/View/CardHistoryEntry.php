@@ -29,6 +29,12 @@ final readonly class CardHistoryEntry
         'agent-review' => 'board.card.history.reason.agent_review',
     ];
 
+    private const array REFUSALS = [
+        'verdict_stale' => 'board.card.history.verdict_failed_cause.verdict_stale',
+        'verdict_changed' => 'board.card.history.verdict_failed_cause.verdict_changed',
+        'decisions_unanswered' => 'board.card.history.verdict_failed_cause.decisions_unanswered',
+    ];
+
     private const array RELEASE_REASONS = [
         'facts-changed' => 'board.card.history.release_reason.facts_changed',
         'subject-changed' => 'board.card.history.release_reason.subject_changed',
@@ -62,7 +68,9 @@ final readonly class CardHistoryEntry
             CardEventKind::Created => self::created($event, $actor, $detail),
             CardEventKind::Moved => self::moved($event, $actor, $detail),
             CardEventKind::FixRequested => self::automation($event, $actor, $detail, 'lucide:wrench', 'board.card.history.fix_requested'),
-            CardEventKind::Stopped => self::automation($event, $actor, $detail, 'lucide:ban', 'board.card.history.stopped'),
+            CardEventKind::Stopped => \is_string($detail['runId'] ?? null)
+                ? self::stoppedRun($event, $actor, $detail, $runExists)
+                : self::automation($event, $actor, $detail, 'lucide:ban', 'board.card.history.stopped'),
             CardEventKind::ReadyToMerge => \is_int($detail['pullRequest'] ?? null)
                 ? new self('lucide:git-merge', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.ready_to_merge', ['%pr%' => $detail['pullRequest']]))
                 : null,
@@ -79,6 +87,8 @@ final readonly class CardHistoryEntry
             CardEventKind::ReviewOverrideEnded => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['headSha'] ?? null)
                 ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => $detail['pullRequest'], '%sha%' => mb_substr($detail['headSha'], 0, 7)]))
                 : null,
+            CardEventKind::DocumentVerdict => self::documentVerdict($event, $actor, $detail),
+            CardEventKind::VerdictFailed => self::verdictFailed($event, $actor, $detail),
             CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
                 ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
                 : null,
@@ -87,12 +97,12 @@ final readonly class CardHistoryEntry
         return $entry ?? new self('lucide:history', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.changed', ['%actor%' => $actor]));
     }
 
-    /** The run id of a `run-finished` row, when it is a UUID a query can bind. */
+    /** The run id of a `run-finished` row or of a `stopped` row of a run, when it is a UUID a query can bind. */
     public static function runIdOf(CardEvent $event): ?string
     {
         $runId = $event->detail['runId'] ?? null;
 
-        return CardEventKind::RunFinished === $event->kind && \is_string($runId) && Uuid::isValid($runId) ? $runId : null;
+        return \in_array($event->kind, [CardEventKind::RunFinished, CardEventKind::Stopped], true) && \is_string($runId) && Uuid::isValid($runId) ? $runId : null;
     }
 
     private static function actor(CardEvent $event): string|TranslatableMessage
@@ -203,6 +213,89 @@ final readonly class CardHistoryEntry
                 CardVerdictKind::Comment => 'board.card.history.verdict_kind.comment',
             }),
         ]));
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function documentVerdict(CardEvent $event, string|TranslatableMessage $actor, array $detail): ?self
+    {
+        $document = $detail['document'] ?? null;
+        $rule = $detail['rule'] ?? null;
+        if (!\is_string($document) || '' === $document) {
+            return null;
+        }
+        if ('withdrawn' === ($detail['verdict'] ?? null)) {
+            $key = match ($detail['withdrawn'] ?? null) {
+                'approved' => 'board.card.history.approval_withdrawn',
+                'changes-requested' => 'board.card.history.change_request_withdrawn',
+                default => null,
+            };
+
+            return null === $key ? null : new self('lucide:undo-2', $event->occurredAt, $actor, new TranslatableMessage($key, ['%actor%' => $actor, '%document%' => $document]));
+        }
+        if (!\is_string($rule) || '' === $rule) {
+            return null;
+        }
+
+        return match ($detail['verdict'] ?? null) {
+            'approved' => new self(
+                'lucide:circle-check',
+                $event->occurredAt,
+                $actor,
+                new TranslatableMessage('board.card.history.document_approved_by_rule', ['%rule%' => $rule, '%document%' => $document]),
+                new TranslatableMessage('board.card.history.cause.auto_approval'),
+            ),
+            'changes-requested' => new self(
+                'lucide:circle-alert',
+                $event->occurredAt,
+                $actor,
+                new TranslatableMessage('board.card.history.changes_requested_by_rule', ['%rule%' => $rule, '%document%' => $document]),
+            ),
+            default => null,
+        };
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function verdictFailed(CardEvent $event, string|TranslatableMessage $actor, array $detail): ?self
+    {
+        $document = $detail['document'] ?? null;
+        $rule = $detail['rule'] ?? null;
+        if (!\is_string($document) || '' === $document || !\is_string($rule) || '' === $rule) {
+            return null;
+        }
+        $refusal = \is_string($detail['refusal'] ?? null) ? $detail['refusal'] : '';
+
+        return new self(
+            'lucide:circle-x',
+            $event->occurredAt,
+            $actor,
+            new TranslatableMessage('board.card.history.verdict_failed', ['%rule%' => $rule, '%document%' => $document]),
+            new TranslatableMessage(self::REFUSALS[$refusal] ?? 'board.card.history.verdict_failed_cause.other'),
+        );
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function stoppedRun(CardEvent $event, string|TranslatableMessage $actor, array $detail, bool $runExists): self
+    {
+        $stored = $detail['workKind'] ?? null;
+        $kind = \is_string($stored) && '' !== $stored ? $stored : null;
+        $rule = $detail['rule'] ?? null;
+        $seconds = $detail['durationSeconds'] ?? null;
+
+        return new self(
+            'lucide:circle-stop',
+            $event->occurredAt,
+            $actor,
+            new TranslatableMessage(null === $kind ? 'board.card.history.stopped_work_no_kind' : 'board.card.history.stopped_work', ['%actor%' => $actor, '%kind%' => $kind ?? '']),
+            \is_string($rule) && '' !== $rule ? new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => $rule]) : null,
+            new CardHistoryRun(
+                runId: $runExists ? self::runIdOf($event) : null,
+                duration: \is_int($seconds) && $seconds >= 0 ? WorkerRunListItem::formatDuration($seconds) : null,
+                stateKey: WorkerRunState::Stopped->translationKey(),
+                chipModifier: 'neutral',
+                interactive: false,
+                command: false,
+            ),
+        );
     }
 
     /** @param array<string, mixed> $detail */

@@ -107,10 +107,10 @@ trait ActionScenario
         );
     }
 
-    private function contexts(): ActionContexts
+    private function contexts(?Actions $actions = null): ActionContexts
     {
         return new ActionContexts(
-            $this->service(Actions::class),
+            $actions ?? $this->service(Actions::class),
             $this->service(ProjectRepository::class),
             $this->service(BoardColumns::class),
             $this->service(WorkflowSlotLinkRepository::class),
@@ -135,7 +135,7 @@ trait ActionScenario
      */
     private function rule(string $key, array $params, string $id = 'test-rule', RuleOrigin $origin = RuleOrigin::Template, array $lists = []): Rule
     {
-        return new Rule($id, null, new AllOf([]), $this->service(Actions::class)->call($key, $params, lists: $lists), $origin);
+        return new Rule($id, null, new AllOf([]), [$this->service(Actions::class)->call($key, $params, lists: $lists)], $origin);
     }
 
     private function runAction(Action $action, Rule $rule, CardSnapshot $snapshot, Facts $facts, WorkflowRuleState $state): ActionOutcome

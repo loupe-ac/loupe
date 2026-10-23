@@ -6,6 +6,10 @@ namespace App\Tests\Module\Review\Controller;
 
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Command\CreateDocumentCommand;
+use App\Module\Review\Command\CreateDocumentHandler;
+use App\Module\Review\Command\SaveDecisionAnswerCommand;
+use App\Module\Review\Command\SaveDecisionAnswerHandler;
 use App\Module\Review\Controller\SubmitReviewController;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
@@ -57,6 +61,97 @@ final class SubmitReviewControllerTest extends WebTestCase
         self::assertNotSame('', $page->filter('input[name="submit_review_form[expectedReviewId]"]')->attr('value'));
         $client->submit($page->selectButton('Submit review')->form(['submit_review_form[verdict]' => 'approved']));
         self::assertResponseRedirects($url);
+    }
+
+    private const string DECISIONS = "<!-- decision: target -->\n\n- ( ) Staging\n- ( ) Production\n\n<!-- /decision -->\n\n<!-- decision: region -->\n\n- ( ) Europe\n- ( ) America\n\n<!-- /decision -->";
+
+    public function test_the_dialog_blocks_approval_while_decisions_have_no_answer(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        [$owner, $projectId, $docId] = $this->seedDocumentWithDecisions($em, 'blocked');
+        $client->loginUser($owner);
+
+        $client->request(Request::METHOD_GET, "/projects/$projectId/documents/$docId/review");
+
+        self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="approved"][disabled]');
+        self::assertSelectorNotExists('input[name="submit_review_form[verdict]"][value="changes-requested"][disabled]');
+        self::assertSelectorExists('.lp-review-verdict-choice--disabled');
+        self::assertSelectorTextContains('.lp-review-verdict-choice__reason', '2 decisions have no answer.');
+        self::assertSelectorTextContains('.lp-review-verdict-choice__reason a', 'Go to the first one');
+        self::assertSelectorExists(".lp-review-verdict-choice__reason a[href\$='#decision_block_target']");
+        self::assertSelectorExists('form[data-review-finish-verdict-summary-url-value*="/decisions/summary?versionNumber=1"]');
+    }
+
+    public function test_the_dialog_leaves_approval_open_when_every_decision_has_an_answer(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        [$owner, $projectId, $docId] = $this->seedDocumentWithDecisions($em, 'answered', answered: true);
+        $client->loginUser($owner);
+
+        $client->request(Request::METHOD_GET, "/projects/$projectId/documents/$docId/review");
+
+        self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="approved"]');
+        self::assertSelectorNotExists('input[disabled][name="submit_review_form[verdict]"]');
+        self::assertSelectorNotExists('.lp-review-verdict-choice--disabled');
+        self::assertSelectorExists('.lp-review-verdict-choice__reason[hidden]');
+    }
+
+    public function test_a_stale_approval_is_refused_with_the_error_and_the_document_stays_in_review(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        [$owner, $projectId, $docId] = $this->seedDocumentWithDecisions($em, 'stale-approve', answered: true);
+        $client->loginUser($owner);
+        $url = "/projects/$projectId/documents/$docId/review";
+        $form = $client->request(Request::METHOD_GET, $url)->selectButton('Submit review')->form([
+            'submit_review_form[verdict]' => 'approved',
+            'submit_review_form[note]' => 'Looks good.',
+        ]);
+
+        $save = static::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $document = static::getContainer()->get(EntityManagerInterface::class)->find(Document::class, $docId);
+        self::assertInstanceOf(Document::class, $document);
+        $save(new SaveDecisionAnswerCommand($document, 'target', 1, [], null, true, $owner));
+        $save(new SaveDecisionAnswerCommand($document, 'region', 1, [], null, true, $owner));
+
+        $client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('dialog .lp-field-errors li', '2 decisions have no answer. Answer them, or request changes.');
+        self::assertSelectorExists('[data-modal-reopen-value="true"]');
+        self::assertSelectorTextContains('textarea[name="submit_review_form[note]"]', 'Looks good.');
+        self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="approved"][disabled]');
+        self::assertSelectorTextContains('.lp-review-verdict-choice__reason', '2 decisions have no answer.');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        self::assertSame(DocumentStatus::InReview, $em->find(Document::class, $docId)?->status);
+        self::assertSame(0, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM reviews'));
+    }
+
+    /** @return array{User, string, string} */
+    private function seedDocumentWithDecisions(EntityManagerInterface $em, string $suffix, bool $answered = false): array
+    {
+        $owner = $this->createUser($em, 'gateowner'.$suffix, 'gateowner'.$suffix.'@example.com');
+        $project = new Project($owner, 'p-'.uniqid());
+        $em->persist($project);
+        $em->flush();
+
+        $create = static::getContainer()->get(CreateDocumentHandler::class);
+        self::assertInstanceOf(CreateDocumentHandler::class, $create);
+        $document = $create(new CreateDocumentCommand($project, 'Deploy plan', self::DECISIONS));
+        if ($answered) {
+            $save = static::getContainer()->get(SaveDecisionAnswerHandler::class);
+            self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+            $save(new SaveDecisionAnswerCommand($document, 'target', 1, [1], null, false, $owner));
+            $save(new SaveDecisionAnswerCommand($document, 'region', 1, [], 'Either works.', false, $owner));
+        }
+        $ids = [$owner, (string) $project->id, (string) $document->id];
+        $em->clear();
+
+        return $ids;
     }
 
     public function test_requesting_changes_with_no_note_and_no_open_comment_is_refused_and_preserves_the_verdict(): void

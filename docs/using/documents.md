@@ -21,8 +21,28 @@ Select **Create document**.
 Loupe opens the first version with Draft status.
 A draft stays out of review and the inbox.
 You can edit a draft with **Revise**, and it stays a draft.
-Select **Publish** to send the draft to review.
+A band under the title says what happens to the draft.
+It has three forms:
+
+1. **An agent reviews this draft, round x of y.** A design review loop of a linked card waits to publish the draft. Loupe sends the draft to your review when the agent review ends.
+2. **The agent review of this draft is paused.** The band gives the reason and links to the card. Loupe does not publish the draft until the review goes on.
+3. **This document is not in review yet.** No agent review waits to publish the draft. This is also the form of a draft whose workflow has no round limit.
+
+The y in "round x of y" is the round limit of the project workflow.
+
+On the first form, select **Publish now** to publish at once. Loupe asks "Publish now?" first, because the publish stops the agent review. The paused form asks the same question.
+On the third form, select **Publish** to send the draft to review. It asks nothing.
+
 You can also review a draft with **Finish review**.
+On the first two forms, **Finish review** shows a warning above the verdict. Your verdict stops the agent review. Approve also moves the card to the next stage.
+When you submit, Loupe asks a second time: "Stop the agent review?". Select **Stop the review and approve** or **Stop the review and request changes** to go on. Select **Go back** to return to the dialog. Your verdict and note stay.
+
+The band and the warning follow the draft live. They change when a new round starts, when the review pauses or goes on, when you publish in another tab, and when Loupe publishes the draft.
+The warning in an open **Finish review** dialog changes at once and keeps your verdict and note.
+A dialog for **Publish now** holds the update until you close it.
+When the draft is no longer a draft, the page loads again and shows the In review state.
+When an update fails after several tries, the page says "Live updates stopped. Reload the page to see the current state." under the band and above the warning.
+An instance with no live updates shows the state as of the page load.
 
 New document, Revise, and Finish review keep unsent drafts during in-app navigation in the same tab.
 Closing a dialog keeps its draft. Select **Discard draft** to remove it.
@@ -72,8 +92,35 @@ A request for changes needs a review note only when the version has no open comm
 An open comment is a thread that is pending or addressed. An approval can include a note.
 After a verdict, the top bar shows the verdict as a button.
 Select it to see the reviewer, version, time and note, with **Change verdict** and **Undo**.
+**Undo** on an approval of a design can move the card back to the stage of that design. See [Undoing a design](workflows.md#undoing-a-design).
+A workflow rule can write a verdict. The reviewer then reads **Workflow**, with the id of the rule beside it.
+An approval by a rule carries the note "Approved when it was published: no unanswered decision, no open thread, and the agent review passed."
+When a document is published, which moves it out of Draft, Loupe records how many decisions had no answer and how many threads were not resolved.
+A workflow rule reads that record. The rule approves a design only when both counts are 0, the agent review passed, and nobody rejected the document before.
+A later answer or comment does not change the record. A document created in review, or put back in review by a revision, writes no record, so a rule does not approve it.
+See [Automatic approval of a design](workflows.md#automatic-approval-of-a-design).
+Only the owner of the document can open it, change the verdict or select **Undo**.
 The account export and `document_get_review` result include the note.
 Open threads do not prevent approval.
+
+When you open **Finish review**, Loupe selects a verdict for you.
+It selects **Approve** when every decision has an answer and no thread is pending.
+An addressed thread does not count as pending.
+A note on a decision is not a comment.
+In all other cases, it selects **Request changes**.
+A choice that you made in the dialog and did not send stays selected.
+
+You cannot approve a version while a decision has no answer.
+In this case, **Approve** is dimmed and you cannot select it.
+The dialog shows how many decisions have no answer.
+Select **Go to the first one** to close the dialog and show that decision.
+A decision has an answer when it has a picked option or a note.
+You can still request changes.
+
+If someone clears an answer after you open the dialog, Loupe refuses the approval.
+The dialog stays open with the error and keeps your note.
+The document stays in review.
+A document review in the inbox follows the same rule.
 
 A verdict applies to the version shown when the reviewer opens the page.
 If another verdict or revision arrives first, Loupe rejects the submission and keeps the note visible.
@@ -211,7 +258,7 @@ Three views help across versions:
 
 Select **Version history** in the **⋯** menu to see every version in one table, newest first.
 Each row shows the version, its revision note, its reviews, and **Read** and **Diff** links.
-Each review shows the reviewer, verdict, note and time.
+Each review shows the reviewer, verdict, note and time. A verdict that a workflow rule wrote shows **Workflow** and the id of the rule.
 Withdrawals remain beside the original verdict. Versions without reviews say so.
 History keeps the document header, with Document, Diff and History tabs to move back.
 Use **Revise** or **Finish review** there to act on the current version.
@@ -551,6 +598,7 @@ The summary has three states:
 3. **Agent review skipped.** You published the draft while the loop still ran. This includes a publish before the fix round wrote the question of a passed review into the draft.
 
 A document with no agent review shows no summary. A draft shows none either, also after its loop ends. The summary appears when the draft is published.
+While the loop runs, the draft band shows the round and the pause instead. A **Publish now** that stops the loop gives the skipped state.
 
 The line next to the state counts the rounds, the findings that the fix round fixed, the findings it did not change, and the findings still open.
 A skipped summary says after which round you published.

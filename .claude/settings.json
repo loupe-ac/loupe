@@ -1,4 +1,5 @@
 {
+  "skillListingBudgetFraction": 0.02,
   "hooks": {
     "WorktreeCreate": [
       {
@@ -34,6 +35,11 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/no-full-ci.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/no-unsafe-git.sh",
             "timeout": 10
           }
         ]

@@ -1,0 +1,173 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Module\Board\Workflow\Condition;
+
+use App\Module\Board\Workflow\ColumnArrivalFacts;
+use App\Module\Board\Workflow\Condition\CardDocumentApprovalWithdrawn;
+use App\Module\Board\Workflow\Condition\CardDocumentEntryDecisionsOpen;
+use App\Module\Board\Workflow\Condition\CardDocumentEntryThreadsOpen;
+use App\Module\Board\Workflow\Condition\CardDocumentPublishedInColumn;
+use App\Module\Board\Workflow\Condition\CardDocumentRejectedBefore;
+use App\Module\Board\Workflow\DocumentsFacts;
+use App\Module\Workflow\Contract\Condition;
+use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\ReadsDocumentTag;
+use App\Tests\Module\Workflow\Fact\FactsMother;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+
+final class CardDocumentEntryConditionsTest extends TestCase
+{
+    private const string ARRIVED = '2026-10-22 10:00:00';
+
+    #[DataProvider('cases')]
+    public function test_it_evaluates_the_facts(Condition $condition, Facts $facts, bool $expected): void
+    {
+        self::assertSame($expected, $condition->evaluate($facts, ['tag' => 'design']));
+    }
+
+    /** @return iterable<string, array{Condition, Facts, bool}> */
+    public static function cases(): iterable
+    {
+        $decisions = new CardDocumentEntryDecisionsOpen();
+        $threads = new CardDocumentEntryThreadsOpen();
+        $rejected = new CardDocumentRejectedBefore();
+        $entered = new CardDocumentPublishedInColumn();
+        $withdrawn = new CardDocumentApprovalWithdrawn();
+
+        yield 'decisions, one unanswered at entry' => [$decisions, self::facts(self::document(decisions: 1)), true];
+        yield 'decisions, none unanswered at entry' => [$decisions, self::facts(self::document(decisions: 0)), false];
+        yield 'decisions, no entry check' => [$decisions, self::facts(self::document(check: false)), true];
+        yield 'decisions, one of two documents is open' => [$decisions, self::facts(self::document(decisions: 0), self::document(id: 'two', decisions: 2)), true];
+        yield 'decisions, a document with another tag is open' => [$decisions, self::facts(self::document(decisions: 0), self::document(id: 'two', tags: ['notes'], decisions: 2)), false];
+        yield 'decisions, an approved document is no concern' => [$decisions, self::facts(self::document(status: 'approved', decisions: 3)), false];
+        yield 'decisions, no document' => [$decisions, self::facts(), false];
+
+        yield 'threads, one open at entry' => [$threads, self::facts(self::document(threads: 1)), true];
+        yield 'threads, none open at entry' => [$threads, self::facts(self::document(threads: 0)), false];
+        yield 'threads, no entry check' => [$threads, self::facts(self::document(check: false)), true];
+        yield 'threads, decisions do not count' => [$threads, self::facts(self::document(decisions: 4, threads: 0)), false];
+        yield 'threads, no document' => [$threads, self::facts(), false];
+
+        yield 'rejected, a rejection on record' => [$rejected, self::facts(self::document(rejected: true)), true];
+        yield 'rejected, none on record' => [$rejected, self::facts(self::document(rejected: false)), false];
+        yield 'rejected, a document with another tag' => [$rejected, self::facts(self::document(tags: ['notes'], rejected: true)), false];
+        yield 'rejected, a document in any status' => [$rejected, self::facts(self::document(status: 'approved', rejected: true)), true];
+        yield 'rejected, no document' => [$rejected, self::facts(), false];
+
+        yield 'entered, after the arrival' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 10:05:00')), true];
+        yield 'entered, at the arrival' => [$entered, self::facts(self::document(enteredAt: self::ARRIVED)), false];
+        yield 'entered, later in the second of the arrival' => [$entered, self::factsArrivingAt(new \DateTimeImmutable('2026-10-22 10:00:00.200000'), [self::document(enteredAt: '2026-10-22 10:00:00.700000')]), true];
+        yield 'entered, earlier in the second of the arrival' => [$entered, self::factsArrivingAt(new \DateTimeImmutable('2026-10-22 10:00:00.700000'), [self::document(enteredAt: '2026-10-22 10:00:00.200000')]), false];
+        yield 'entered, before the arrival' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 09:59:59')), false];
+        yield 'entered, no entry check' => [$entered, self::facts(self::document(check: false)), false];
+        yield 'entered, one of two documents is early' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 10:05:00'), self::document(id: 'two', enteredAt: '2026-10-22 09:00:00')), false];
+        yield 'entered, an approved document is no concern' => [$entered, self::facts(self::document(enteredAt: '2026-10-22 10:05:00'), self::document(id: 'two', status: 'approved', enteredAt: '2026-10-22 09:00:00')), true];
+        yield 'entered, no arrival is known' => [$entered, self::factsArrivingAt(null, [self::document(enteredAt: '2026-10-22 10:05:00')]), false];
+        yield 'entered, no document in review' => [$entered, self::facts(), false];
+
+        yield 'withdrawn, the newest review withdrew an approval' => [$withdrawn, self::facts(self::document(withdrawn: true)), true];
+        yield 'withdrawn, no withdrawal' => [$withdrawn, self::facts(self::document()), false];
+        yield 'withdrawn, a document with another tag' => [$withdrawn, self::facts(self::document(tags: ['notes'], withdrawn: true)), false];
+        yield 'withdrawn, one of two documents' => [$withdrawn, self::facts(self::document(), self::document(id: 'two', withdrawn: true)), true];
+        yield 'withdrawn, a rejection is no withdrawal' => [$withdrawn, self::facts(self::document(rejected: true)), false];
+        yield 'withdrawn, no document' => [$withdrawn, self::facts(), false];
+    }
+
+    public function test_the_withdrawal_condition_reads_the_documents_facts_and_names_no_tag_to_the_stage(): void
+    {
+        $condition = new CardDocumentApprovalWithdrawn();
+
+        self::assertSame('card.document.approval_withdrawn', $condition::key());
+        self::assertSame('workflow.source.board', $condition::source());
+        self::assertSame([DocumentsFacts::class], $condition->reads(['tag' => 'design']));
+        self::assertNotContains(ReadsDocumentTag::class, class_implements($condition), 'A rule of every column must not make its tag a tag of the stage.');
+    }
+
+    public function test_a_bound_document_hides_the_others_from_the_conditions_that_read_documents_in_review(): void
+    {
+        $open = self::document(id: 'open', decisions: 2);
+        $clean = self::document(id: 'clean', decisions: 0);
+        $facts = self::facts($open, $clean);
+
+        self::assertTrue(new CardDocumentEntryDecisionsOpen()->evaluate($facts->withDocument($open), ['tag' => 'design']));
+        self::assertFalse(new CardDocumentEntryDecisionsOpen()->evaluate($facts->withDocument($clean), ['tag' => 'design']));
+    }
+
+    #[DataProvider('waiting')]
+    public function test_it_says_what_it_waits_for(Condition $condition, string $expectedKey): void
+    {
+        $message = $condition->waitingFor(['tag' => 'design']);
+
+        self::assertSame($expectedKey, $message->getMessage());
+        self::assertSame(['%tag%' => 'design'], $message->getParameters());
+        self::assertSame(str_replace('workflow.waiting.', 'workflow.waiting.not.', $expectedKey), $condition->waitingFor(['tag' => 'design'], negated: true)->getMessage());
+    }
+
+    /** @return iterable<string, array{Condition, string}> */
+    public static function waiting(): iterable
+    {
+        yield 'card.document.entry_decisions_open' => [new CardDocumentEntryDecisionsOpen(), 'workflow.waiting.card_document_entry_decisions_open'];
+        yield 'card.document.entry_threads_open' => [new CardDocumentEntryThreadsOpen(), 'workflow.waiting.card_document_entry_threads_open'];
+        yield 'card.document.rejected_before' => [new CardDocumentRejectedBefore(), 'workflow.waiting.card_document_rejected_before'];
+        yield 'card.document.published_in_column' => [new CardDocumentPublishedInColumn(), 'workflow.waiting.card_document_published_in_column'];
+        yield 'card.document.approval_withdrawn' => [new CardDocumentApprovalWithdrawn(), 'workflow.waiting.card_document_approval_withdrawn'];
+    }
+
+    public function test_each_condition_names_its_key_the_tag_it_reads_and_the_facts_it_reads(): void
+    {
+        $keys = [];
+        foreach ([new CardDocumentEntryDecisionsOpen(), new CardDocumentEntryThreadsOpen(), new CardDocumentRejectedBefore(), new CardDocumentPublishedInColumn()] as $condition) {
+            $keys[] = $condition::key();
+            self::assertSame('design', $condition->documentTag(['tag' => 'design']));
+            self::assertSame('workflow.source.board', $condition::source());
+            self::assertSame('tag', $condition::parameters()[0]->name);
+        }
+        self::assertSame(['card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'card.document.published_in_column'], $keys);
+        self::assertSame([DocumentsFacts::class], new CardDocumentEntryDecisionsOpen()->reads(['tag' => 'design']));
+        self::assertSame([DocumentsFacts::class], new CardDocumentRejectedBefore()->reads(['tag' => 'design']));
+        self::assertSame([DocumentsFacts::class, ColumnArrivalFacts::class], new CardDocumentPublishedInColumn()->reads(['tag' => 'design']));
+    }
+
+    /** @param list<string> $tags */
+    private static function document(
+        string $id = 'one',
+        array $tags = ['design'],
+        string $status = 'in-review',
+        bool $check = true,
+        int $decisions = 0,
+        int $threads = 0,
+        bool $rejected = false,
+        string $enteredAt = '2026-10-22 10:30:00',
+        bool $withdrawn = false,
+    ): DocumentFacts {
+        return new DocumentFacts(
+            tags: $tags,
+            status: $status,
+            id: $id,
+            version: 1,
+            publishedAt: $check ? new \DateTimeImmutable($enteredAt) : null,
+            entryUnansweredDecisions: $check ? $decisions : null,
+            entryOpenThreads: $check ? $threads : null,
+            rejectedBefore: $rejected,
+            newestReviewWithdrewApproval: $withdrawn,
+        );
+    }
+
+    private static function facts(DocumentFacts ...$documents): Facts
+    {
+        return self::factsArrivingAt(new \DateTimeImmutable(self::ARRIVED), array_values($documents));
+    }
+
+    /** @param list<DocumentFacts> $documents */
+    private static function factsArrivingAt(?\DateTimeImmutable $arrival, array $documents): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(documents: $documents),
+            provided: [ColumnArrivalFacts::class => new ColumnArrivalFacts($arrival)],
+        );
+    }
+}

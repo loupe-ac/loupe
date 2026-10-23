@@ -48,9 +48,8 @@ use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -331,7 +330,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     {
         $item = $this->runItem();
         $action = $this->runAction($item, InboxActionKind::ResumeRun) ?? throw new \LogicException('A resume records a row.');
-        $other = new InboxItem(project: $this->project, number: ++$this->number + 50, kind: InboxItemKind::Wait, title: 'Other', blocking: true);
+        $other = new InboxItem(project: $this->project, number: ++$this->number + 50, kind: InboxItemKind::Wait, title: 'Other', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($other);
         $this->em()->flush();
 
@@ -391,9 +390,9 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     public function test_send_agent_fits_a_question_that_links_one_card_and_no_other(): void
     {
-        $one = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false);
-        $two = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false);
-        $none = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false);
+        $one = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false, origin: InboxAskOrigin::Agent);
+        $two = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false, origin: InboxAskOrigin::Agent);
+        $none = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false, origin: InboxAskOrigin::Agent);
         $other = $this->cardIn('in-progress');
         foreach ([$one, $two, $none] as $item) {
             $this->em()->persist($item);
@@ -416,7 +415,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     public function test_a_todo_acts_on_the_linked_card_that_its_suggestion_names(): void
     {
         $other = $this->cardIn('in-progress');
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export it', blocking: false, origin: InboxAskOrigin::Agent);
         $this->em()->persist($item);
         $item->cards->add(new InboxItemCard($item, $other));
         $item->cards->add(new InboxItemCard($item, $this->card));
@@ -767,7 +766,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     public function test_a_session_is_refused_for_an_item_with_no_card(): void
     {
         $this->sessionBridge();
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: 'No card', blocking: true);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: 'No card', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($item);
         $this->em()->flush();
 
@@ -779,7 +778,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->sessionBridge();
         $first = $this->runItem();
         $this->runAction($first, InboxActionKind::StartSession);
-        $second = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which column?', blocking: true);
+        $second = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which column?', blocking: true, origin: InboxAskOrigin::Agent);
         $second->cards->add(new InboxItemCard($second, $this->card));
         $this->em()->persist($second);
         $this->em()->flush();
@@ -1018,7 +1017,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->persist($newer);
         $this->em()->flush();
         $watch = $this->waitOf($item)->watch;
-        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $newer->id, startedAt: new \DateTimeImmutable('+1 minute')));
+        $watch->waits->add(new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $newer->id, startedAt: new \DateTimeImmutable('+1 minute')));
         $this->em()->flush();
 
         try {
@@ -1326,7 +1325,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null}>|null $suggestions */
     private function commandTodo(int $cards = 1, ?array $suggestions = null): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = $suggestions ?? [[
             'action' => 'run-command',
             'reason' => 'Export it.',
@@ -1349,7 +1348,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     private function todoWithSessionPrompt(?string $prompt): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
         $item->cards->add(new InboxItemCard($item, $this->card));
         $suggestion = ['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => (string) $this->card->id];
         $item->suggestedActions = [null === $prompt ? $suggestion : [...$suggestion, 'prompt' => $prompt]];
@@ -1463,7 +1462,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->persist($run);
         $this->em()->flush();
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id), $card);
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id), $card);
     }
 
     private function pauseItem(PauseKind $kind): InboxItem
@@ -1471,14 +1470,14 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $pause = $this->service(PauseCardHandler::class)(new PauseCardCommand($this->card, 'on-hold', 'review-rule', $kind))
             ?? throw new \LogicException('The card had no pause.');
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::CardPaused, InboxCardWaitType::CardPause, InboxCardWaitReason::forPause($kind), pauseId: $pause->id));
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: $pause->id));
     }
 
     /** @param \Closure(InboxCardWatch): InboxCardWait $wait */
     private function itemWithWait(\Closure $wait, ?Card $card = null): InboxItem
     {
         $card ??= $this->card;
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em()->persist($item);
         $watch = new InboxCardWatch($item, $card->id ?? throw new \LogicException('Stored.'), $card->number);
         $this->em()->persist($watch);

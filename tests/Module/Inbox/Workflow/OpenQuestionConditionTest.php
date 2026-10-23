@@ -20,7 +20,7 @@ final class OpenQuestionConditionTest extends TestCase
         $facts = self::facts(new OpenQuestion(4, 'Which option?', $since, blocking: true));
 
         self::assertTrue(new CardHasOpenQuestion()->evaluate($facts, []));
-        self::assertEquals(new Evidence($since, ['%number%' => 4, '%title%' => 'Which option?']), new CardHasOpenQuestion()->evidence($facts, []));
+        self::assertEquals(new Evidence(['%number%' => 4, '%title%' => 'Which option?']), new CardHasOpenQuestion()->evidence($facts, []));
     }
 
     public function test_a_card_with_no_open_question_needs_nobody(): void
@@ -63,10 +63,10 @@ final class OpenQuestionConditionTest extends TestCase
             new OpenQuestion(929, 'Rebuild the Design System artifact', $todoSince, blocking: false),
             new OpenQuestion(931, 'Which option?', $questionSince, blocking: true),
         );
-        $todo = new Evidence($todoSince, ['%number%' => 929, '%title%' => 'Rebuild the Design System artifact']);
+        $todo = new Evidence(['%number%' => 929, '%title%' => 'Rebuild the Design System artifact']);
 
         self::assertTrue(new CardHasOpenQuestion()->evaluate($facts, ['blocking' => true]));
-        self::assertEquals(new Evidence($questionSince, ['%number%' => 931, '%title%' => 'Which option?']), new CardHasOpenQuestion()->evidence($facts, ['blocking' => true]));
+        self::assertEquals(new Evidence(['%number%' => 931, '%title%' => 'Which option?']), new CardHasOpenQuestion()->evidence($facts, ['blocking' => true]));
         self::assertEquals($todo, new CardHasOpenQuestion()->evidence($facts, ['blocking' => false]));
         self::assertEquals($todo, new CardHasOpenQuestion()->evidence($facts, []));
     }

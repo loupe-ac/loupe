@@ -50,6 +50,10 @@ class ForgePullRequest
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $headBranch = null;
 
+    /** The title at the last read. A row read before this column existed holds null. */
+    #[ORM\Column(length: 1024, nullable: true)]
+    public ?string $title = null;
+
     /** The forge's id of the account that opened the pull request. */
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $authorId = null;
@@ -119,9 +123,6 @@ class ForgePullRequest
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $conflictingSince = null;
-
-    #[ORM\Column(nullable: true)]
-    public ?\DateTimeImmutable $waitsForApprovalSince = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $approvalSha = null;
@@ -264,6 +265,7 @@ class ForgePullRequest
         $this->authorId = $snapshot->authorId;
         $this->authorLogin = $snapshot->authorLogin;
         $this->authorRead = true;
+        $this->title = $snapshot->title;
         $this->baseBranch = $snapshot->baseBranch;
         $this->checks = $snapshot->checks;
         $this->checksSha = $snapshot->checksSha;
@@ -320,17 +322,9 @@ class ForgePullRequest
     public function settleStartTimes(\DateTimeImmutable $now): void
     {
         $open = PullRequestState::Open === $this->state;
-        $waitsForApproval = $open
-            && !$this->draft
-            && PullRequestChecks::Passed === $this->checks
-            && null !== $this->defaultBranch
-            && $this->baseBranch === $this->defaultBranch
-            && (PullRequestReview::Approved !== $this->review || null === $this->approvalId || $this->approvalIsStale());
-
         $this->checksFailedSince = self::edge($open && PullRequestChecks::Failed === $this->checks, $this->checksFailedSince, $now);
         $this->checksPendingSince = self::edge($open && PullRequestChecks::Pending === $this->checks, $this->checksPendingSince, $now);
         $this->conflictingSince = self::edge($open && PullRequestMergeability::Conflicting === $this->mergeability, $this->conflictingSince, $now);
-        $this->waitsForApprovalSince = self::edge($waitsForApproval, $this->waitsForApprovalSince, $now);
     }
 
     private static function edge(bool $holds, ?\DateTimeImmutable $since, \DateTimeImmutable $now): ?\DateTimeImmutable
@@ -394,6 +388,7 @@ class ForgePullRequest
             $this->latestApprovedAt,
             $this->latestApprovalId,
             $this->latestApproverLogin,
+            $this->title,
         );
     }
 }

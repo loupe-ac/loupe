@@ -60,6 +60,17 @@ final class BetaInviteTest extends TestCase
         self::assertFalse($invite->isUsable());
     }
 
+    public function test_redeem_marks_the_welcome_email_due_at_the_redemption_time(): void
+    {
+        [$invite] = BetaInvite::issue(null);
+        self::assertNull($invite->welcomeEmailDueAt);
+
+        $invite->redeem(new User(fullName: 'Tester', email: 'tester@example.com'));
+
+        self::assertNotNull($invite->welcomeEmailDueAt);
+        self::assertEquals($invite->redeemedAt, $invite->welcomeEmailDueAt);
+    }
+
     public function test_a_redeemed_invite_cannot_be_redeemed_again(): void
     {
         [$invite] = BetaInvite::issue(null);

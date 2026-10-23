@@ -37,6 +37,7 @@ use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -46,7 +47,6 @@ use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
-use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
@@ -59,6 +59,7 @@ use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\PauseKind;
 use Doctrine\ORM\EntityManagerInterface;
@@ -90,7 +91,7 @@ final readonly class ProjectShowcaseSeeder
         private ForgePullRequestRepository $forgePullRequests,
         private InboxSearchIndexer $inboxSearch,
         private DocumentSearchIndexer $documentSearch,
-        private CardWaitReconciler $cardWaits,
+        private CardEvaluations $evaluations,
         private InboxCardWatchRepository $inboxCardWatches,
         private InboxAvailability $inbox,
         private DocumentTagApplier $tagApplier,
@@ -105,8 +106,8 @@ final readonly class ProjectShowcaseSeeder
     public const string OUTDATED_APPROVAL_TITLE = 'Retry a declined payment';
 
     /**
-     * A second run writes nothing but asks Loupe for the wait items again, so
-     * a run after inbox.enabled goes on opens them.
+     * A second run writes nothing but asks the engine to evaluate the cards again, so
+     * a run after inbox.enabled goes on opens the wait items. The worker opens them, not this call.
      */
     public function __invoke(Project $project, User $owner, User $reviewer): ShowcaseSeeding
     {
@@ -139,7 +140,7 @@ final readonly class ProjectShowcaseSeeder
             return new ShowcaseSeeding($written, false, $enabled, 0, $outdatedCard);
         }
         $cardId = $waitingCard->id ?? throw new \LogicException('A stored card has an id.');
-        $this->cardWaits->reconcile($project, null);
+        $this->evaluations->forCards(array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A stored card has an id.'), $this->cards->findBy(['project' => $project])));
 
         return new ShowcaseSeeding(
             $written,
@@ -161,13 +162,13 @@ final readonly class ProjectShowcaseSeeder
         $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
         $this->em->persist($bridge);
 
-        $item = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Todo, title: 'Rebuild the Design System artifact', blocking: false, createdAt: $now->modify('-5 minutes'));
+        $item = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Todo, title: 'Rebuild the Design System artifact', blocking: false, origin: InboxAskOrigin::Agent, createdAt: $now->modify('-5 minutes'));
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'The rebuild needs a session on your machine.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the loupe-design-rebuild skill in this checkout. First check that the branch is main, and run git pull --ff-only.']];
         $item->cards->add(new InboxItemCard($item, $card));
         $this->ask($project, [$item], $now->modify('-5 minutes'), 'The rebuild needs a session.', null);
         $this->em->flush();
 
-        $question = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Question, title: 'Which steps does the onboarding checklist keep?', blocking: false, options: ['All five', 'Only the first three'], freeText: true, createdAt: $now->modify('-4 minutes'));
+        $question = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Question, title: 'Which steps does the onboarding checklist keep?', blocking: false, origin: InboxAskOrigin::Agent, options: ['All five', 'Only the first three'], freeText: true, createdAt: $now->modify('-4 minutes'));
         $question->suggestedActions = [['action' => 'start-session', 'reason' => 'Walk through the checklist together.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Read the onboarding checklist card, and go through each step with the owner.']];
         $question->cards->add(new InboxItemCard($question, $card));
         $this->ask($project, [$question], $now->modify('-4 minutes'), 'The checklist needs a choice.', null);
@@ -190,7 +191,7 @@ final readonly class ProjectShowcaseSeeder
             [WorkerRunState::Running, 'Export the design system for the rebuild', 12, 20],
             [WorkerRunState::Succeeded, 'Export the design system again', 40, 14],
         ] as $index => [$state, $title, $lines, $seconds]) {
-            $item = new InboxItem(project: $project, number: $number + $index, kind: InboxItemKind::Todo, title: $title, blocking: false, createdAt: $now->modify('-10 minutes'));
+            $item = new InboxItem(project: $project, number: $number + $index, kind: InboxItemKind::Todo, title: $title, blocking: false, origin: InboxAskOrigin::Agent, createdAt: $now->modify('-10 minutes'));
             $item->suggestedActions = [['action' => 'run-command', 'reason' => 'The canvas needs the new tokens.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'main', 'params' => ['out' => 'var/design-system']], 'proposedEntry' => null]];
             $item->cards->add(new InboxItemCard($item, $card));
             $this->ask($project, [$item], $now->modify('-10 minutes'), 'The export needs a run on your machine.', $bridge->id);
@@ -457,6 +458,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Question,
             title: self::MARKER_TITLE,
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'The new checkout can retry a failed payment automatically, or leave the next attempt to the customer. Which behavior should I implement?',
             options: ['Retry once, then let the customer decide', 'Always let the customer retry'],
             freeText: true,
@@ -470,6 +472,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Review,
             title: 'Worker run history is ready to review',
             blocking: false,
+            origin: InboxAskOrigin::Agent,
             body: 'Two sections changed. One comment needs your confirmation before I carry on.',
             createdAt: $now->modify('-12 minutes'),
         );
@@ -482,6 +485,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Review,
             title: 'Safer column changes',
             blocking: false,
+            origin: InboxAskOrigin::Agent,
             body: 'Tester has a design specification for you. It settles what a rename does to a rule that points at the column.',
             createdAt: $now->modify('-38 minutes'),
         );
@@ -494,6 +498,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Todo,
             title: 'Give the first handoff a quick look',
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'Read the first useful handoff document and confirm that the first five minutes feel clear. Leave a note if a step still needs work.',
             createdAt: $now->modify('-1 hour'),
         );
@@ -505,6 +510,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Review,
             title: 'Review pull request 438',
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'The subscription migration is ready. Approving here records your decision; it posts no review to the code host.',
             createdAt: $now->modify('-2 hours'),
         );
@@ -545,6 +551,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Question,
             title: 'Which database should the export read from?',
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'The replica lags by a few seconds. The primary is always current and costs more.',
             options: ['The read replica', 'The primary'],
             freeText: true,
@@ -561,6 +568,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Todo,
             title: 'Write the release notes for 1.4',
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'A short summary of the export work, for the changelog.',
             createdAt: $now->modify('-2 days'),
         );
@@ -574,6 +582,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Review,
             title: 'Column rules specification is ready',
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'It answers what a rename does to a rule that points at the column.',
             createdAt: $now->modify('-3 days'),
         );
@@ -593,6 +602,7 @@ final readonly class ProjectShowcaseSeeder
             kind: InboxItemKind::Todo,
             title: 'Check the export against a real customer file',
             blocking: false,
+            origin: InboxAskOrigin::Agent,
             body: 'Nobody waits on this one, and it is still worth doing.',
             createdAt: $now->modify('-3 days'),
         );

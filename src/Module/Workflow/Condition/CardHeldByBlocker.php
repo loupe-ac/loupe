@@ -55,6 +55,6 @@ final readonly class CardHeldByBlocker implements Condition, MarkerEvidence
     {
         $hold = $facts->get(BlockerHoldFacts::class)->hold;
 
-        return null === $hold ? null : new Evidence($hold->since, ['%number%' => $hold->blockerNumber, '%title%' => $hold->blockerTitle]);
+        return null === $hold ? null : new Evidence(['%number%' => $hold->blockerNumber, '%title%' => $hold->blockerTitle]);
     }
 }

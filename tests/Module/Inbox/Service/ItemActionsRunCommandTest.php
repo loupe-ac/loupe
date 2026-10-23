@@ -24,9 +24,8 @@ use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
-use App\Module\Inbox\Entity\InboxCardWaitTrigger;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
@@ -400,7 +399,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
 
     public function test_an_item_with_no_run_command_suggestion_has_no_view(): void
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Plain', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Plain', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [['action' => 'open', 'reason' => 'Read it.', 'recommended' => true, 'cardId' => null]];
         $this->em->persist($item);
         $this->em->flush();
@@ -658,7 +657,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
      */
     private function todo(string $branch = 'epic/42', array $params = ['out' => 'var/out'], bool $asked = true, bool $recommended = true, ?string $proposedEntry = null, bool $card = true): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [[
             'action' => 'run-command',
             'reason' => 'Export it.',
@@ -704,11 +703,11 @@ final class ItemActionsRunCommandTest extends KernelTestCase
 
     private function waitItem(WorkerRun $run): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em->persist($item);
         $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('The card is stored.'), $this->card->number);
         $this->em->persist($watch);
-        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id, startedAt: new \DateTimeImmutable('2026-10-13 10:00:00')));
+        $watch->waits->add(new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id, startedAt: new \DateTimeImmutable('2026-10-13 10:00:00')));
         $this->em->flush();
 
         return $item;

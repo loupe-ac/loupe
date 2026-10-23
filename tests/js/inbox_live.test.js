@@ -29,12 +29,14 @@ function row(key, title) {
     return `<a class="lp-list-row" data-inbox-request="${key}" href="/inbox?ask=${key}">${title}</a>`;
 }
 
-function item({ open = true, note = '' } = {}) {
-    const actions = open
-        ? `<div class="lp-inbox-item__actions"><form><textarea name="note">${note}</textarea><button type="submit">Send answer</button></form></div>`
-        : '<div class="lp-inbox-item__response" data-inbox-response>Closed by the agent.</div>';
+function item({ open = true, note = '', number = 1, actions = true } = {}) {
+    const body = !open
+        ? '<div class="lp-inbox-item__response" data-inbox-response>Closed by the agent.</div>'
+        : actions
+          ? `<div class="lp-inbox-item__actions"><form id="inbox_action_${number}"><textarea name="note">${note}</textarea><button type="submit">Send answer</button></form></div>`
+          : '';
 
-    return `<article data-inbox-item="1" class="lp-inbox-item"><h3>Which column?</h3>${actions}</article>`;
+    return `<article data-inbox-item="${number}" data-inbox-item-open="${open}" class="lp-inbox-item"><h3>Which column?</h3>${body}</article>`;
 }
 
 function view({
@@ -43,8 +45,10 @@ function view({
     notice = '',
     status = '',
     note = '',
+    number = 1,
+    actions = true,
 } = {}) {
-    return `<turbo-frame id="inbox-view"><div class="lp-inbox-rows">${rows.join('')}</div><div class="lp-inbox-request-detail">${status}${notice}<section class="lp-inbox-ask" data-inbox-ask-id="${ASK}" data-inbox-ask-open="${open}">${item({ open, note })}</section></div></turbo-frame>`;
+    return `<turbo-frame id="inbox-view"><div class="lp-inbox-rows">${rows.join('')}</div><div class="lp-inbox-request-detail">${status}${notice}<section class="lp-inbox-ask" data-inbox-ask-id="${ASK}" data-inbox-ask-open="${open}">${item({ open, note, number, actions })}</section></div></turbo-frame>`;
 }
 
 function page(html) {
@@ -204,6 +208,29 @@ it('keeps the typed note and leaves the form open when the item is still open', 
     expect(document.querySelector('button[type="submit"]').disabled).toBe(
         false,
     );
+});
+
+it('drops the typed form when the new view shows another item in its place', async () => {
+    await mount();
+    typeNote('Meant for the first item');
+    answer(view({ number: 2 }));
+    changed();
+    await settle();
+
+    expect(document.querySelectorAll('form')).toHaveLength(1);
+    expect(document.querySelector('form').id).toBe('inbox_action_2');
+    expect(document.querySelector('textarea').value).toBe('');
+});
+
+it('drops the typed form when the item stays open and the new view has no actions', async () => {
+    await mount();
+    typeNote('Half an answer');
+    answer(view({ actions: false }));
+    changed();
+    await settle();
+
+    expect(document.querySelector('form')).toBeNull();
+    expect(document.querySelector('.lp-inbox-item__actions')).toBeNull();
 });
 
 it('shows the closed item as read-only when nothing was typed', async () => {

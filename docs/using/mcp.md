@@ -330,10 +330,9 @@ Roughly in the order an agent uses them:
 | `inbox_get` | Read one inbox item, with its answer and its links |
 | `inbox_withdraw` | Withdraw an open item that is no longer needed, with a reason |
 | `inbox_answer` | Answer an inbox question for the owner, after the owner decided in chat. A bridge worker session is refused |
-| `inbox_decline` | Decline an inbox question or to-do, or dismiss a wait item, for the owner. A review stays on the inbox page |
+| `inbox_decline` | Decline an inbox question or to-do, or dismiss an automatic item, for the owner. An agent's review ask stays on the inbox page |
 | `inbox_done` | Mark an inbox to-do done for the owner |
 | `inbox_action_run` | Run a built-in action of an inbox item for the owner. A `run-command` shows a preview first, and runs only with the `runDigest` of that preview. A `start-session` takes `sessionPrompt`, the prompt the owner confirmed |
-| `inbox_settings_update` | Turn the inbox wait switches on or off (off with the inbox) |
 | `worker_run_list` | Read a page of the worker runs, newest first, filtered by state, card, work kind, bridge, harness, account, model, words or the time a run ended. Each row gives the reason the run ended, its harness and account, its usage per model, its model, its experiment and variant, and its metrics. The metrics hold the sums of the run and its timing: the tool time, the model time, the idle gaps, the subagent time, and the count, failures and longest duration of its tool calls. They also hold the host of the run: the mean CPU use, the peak memory and swap, the count of runs that overlapped it on its bridge, and whether its machine ran on battery |
 | `worker_run_get` | Read one worker run in full, with every run of its series, its state changes, its output, its metrics and the commands sent to its bridge |
 | `worker_run_tool_calls` | Read a page of the tool calls of one worker run, in the order the worker made them. Each call gives its tool, its start, its duration, its error flag, whether a subagent made it, and its signatures. `perPage` defaults to 20, with a maximum of 100 |
@@ -357,8 +356,7 @@ Roughly in the order an agent uses them:
 
 `project_update`, `project_origins_set` and `readiness_guide_set` change the
 settings of the bound project, as **Project settings** does.
-`inbox_settings_update` changes the switches of the inbox settings page. An
-argument that a call omits keeps its value. On `project_update`, an empty
+An argument that a call omits keeps its value. On `project_update`, an empty
 `description` or `domain` clears it. A new name also changes the project slug,
 so a bridge rule file that names the old slug stops matching.
 `project_origins_set` replaces the whole list of allowed origins, and an empty
@@ -665,11 +663,12 @@ fact of the project. A notice holds no card and takes no answer.
 
 `inbox_get` also returns `cardId` and `waits`. For a `wait` item, `cardId` names
 the card, and `waits` lists each reason the card waited, current and ended, in
-start order. Each entry holds `trigger`, `type`, `reason`, `documentId`,
+start order. Each entry holds `marker`, `type`, `label`, `documentId`,
 `versionNumber`, `runId`, `pullRequestId`, `headSha`, `pauseId`, `startedAt`, `endedAt`
-and `endReason`. `type` is `document`, `pull-request`, `worker-run` or `card-pause`. `reason` is a
-code, such as `waiting-for-review`, `new-commits-after-approval`, `blocked`, `gave-up`,
-`waits-for-person` or the kind of a pause. It is no sentence. An id, a commit or a date that does not apply is null. `endedAt` and `endReason` are null for a
+and `endReason`. `marker` is the key of the workflow marker that opened the wait, such as
+`waits-for-approval`, `document-in-review`, `run-needs-you` or `paused`. `type` is `document`,
+`pull-request`, `worker-run`, `card-pause` or `card`. `label` is the translation key of the
+marker text. It is no sentence. An id, a commit or a date that does not apply is null. `endedAt` and `endReason` are null for a
 current wait. `endReason` is `resolved`, `card-finished`, `card-deleted`,
 `switched-off` or `dismissed`. For any other kind,
 `cardId` is null and `waits` is empty.

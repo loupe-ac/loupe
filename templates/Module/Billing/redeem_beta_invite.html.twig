@@ -1,20 +1,35 @@
-{% extends 'base.html.twig' %}
+{% extends '@Account/auth_base.html.twig' %}
 
 {% block title %}{{ 'billing.beta_invite.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
-{% block body %}
-<div class="lp-billing">
-    <h1 class="lp-workspace-title">{{ 'billing.beta_invite.redeemed.heading'|trans }}</h1>
-    <p class="lp-workspace-desc">{{ 'billing.beta_invite.redeemed.description'|trans }}</p>
+{% block auth_body %}
+<h1 class="text-2xl font-extrabold tracking-tight text-ink mb-2">{{ 'billing.beta_invite.redeemed.heading'|trans }}</h1>
+<p class="text-fg-mute text-sm leading-normal m-0">{{ 'billing.beta_invite.redeemed.description'|trans }}</p>
 
-    <section class="lp-billing-block">
-        {% if hasLiveSubscription %}
-            <p class="lp-connect-hint" data-beta-stripe-hint>
-                {{ 'billing.beta_invite.redeemed.stripe_hint'|trans }}
-                <a href="{{ path('app_billing_subscribe') }}">{{ 'billing.beta_invite.redeemed.manage_subscription'|trans }}</a>
-            </p>
-        {% endif %}
-        <twig:Ds:Button variant="primary" href="{{ path('app_home') }}">{{ 'billing.beta_invite.redeemed.continue'|trans }}</twig:Ds:Button>
-    </section>
+{% if hasLiveSubscription %}
+    <p class="lp-connect-hint mt-4" data-beta-stripe-hint>
+        {{ 'billing.beta_invite.redeemed.stripe_hint'|trans }}
+        <a href="{{ path('app_billing_subscribe') }}">{{ 'billing.beta_invite.redeemed.manage_subscription'|trans }}</a>
+    </p>
+{% endif %}
+
+<div class="lp-about-cards lp-about-cards--stacked mt-5">
+    <twig:Ds:Panel as="section" class="lp-about-item lp-about-item--center" aria-labelledby="beta-start" data-beta-start-card>
+        <div class="lp-about-card__main">
+            <h2 class="lp-about-card__title" id="beta-start">{{ 'billing.beta_invite.redeemed.start.heading'|trans }}</h2>
+            <p class="lp-about-card__text">{{ 'billing.beta_invite.redeemed.start.body'|trans }}</p>
+            <twig:Ds:Button variant="primary" href="{{ path('app_home') }}" class="lp-about-card__action">
+                {{ 'billing.beta_invite.redeemed.continue'|trans }}
+                <twig:ux:icon name="lucide:arrow-right" class="lp-icon lp-icon--sm" aria-hidden="true" />
+            </twig:Ds:Button>
+        </div>
+    </twig:Ds:Panel>
+
+    {% include '_discord_card.html.twig' with {
+        heading: 'billing.beta_invite.redeemed.community.heading'|trans,
+        body: 'billing.beta_invite.redeemed.community.body'|trans,
+        button: 'billing.beta_invite.redeemed.community.button'|trans,
+        headingId: 'beta-community',
+    } only %}
 </div>
 {% endblock %}

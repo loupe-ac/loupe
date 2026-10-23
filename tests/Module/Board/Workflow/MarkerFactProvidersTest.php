@@ -71,7 +71,7 @@ final class MarkerFactProvidersTest extends KernelTestCase
         self::assertSame(25, $this->provider(StuckDelayFactProvider::class)->fingerprint($facts));
     }
 
-    public function test_a_linked_document_gives_its_title_and_the_time_of_its_newest_version(): void
+    public function test_a_linked_document_gives_its_title_and_the_time_and_number_of_its_newest_version(): void
     {
         $document = $this->reviewDocument($this->card, 'tech-design', '2026-10-02 09:20:00');
 
@@ -80,6 +80,7 @@ final class MarkerFactProvidersTest extends KernelTestCase
         self::assertCount(1, $facts->documents);
         self::assertSame([$document->title, 'in-review', ['tech-design']], [$facts->documents[0]->title, $facts->documents[0]->status, $facts->documents[0]->tags]);
         self::assertEquals(new \DateTimeImmutable('2026-10-02 09:20:00'), $facts->documents[0]->versionAt);
+        self::assertSame(1, $facts->documents[0]->version);
     }
 
     /**

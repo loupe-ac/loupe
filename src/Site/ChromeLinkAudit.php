@@ -23,7 +23,7 @@ final class ChromeLinkAudit
 
     /**
      * Describes each href that is a fragment alone, has no host, or names a host
-     * outside the configured hosts and SiteChrome::OUTSIDE_HOSTS. A path that
+     * outside the configured hosts. A path that
      * starts with a slash passes only when the page and the link share one host.
      *
      * @param list<string> $configuredHosts
@@ -32,7 +32,7 @@ final class ChromeLinkAudit
      */
     public static function problems(string $html, array $configuredHosts, bool $allowRootRelative = false): array
     {
-        $allowed = array_map(strtolower(...), [...$configuredHosts, ...SiteChrome::OUTSIDE_HOSTS]);
+        $allowed = array_map(strtolower(...), $configuredHosts);
         $problems = [];
         foreach (self::hrefs($html) as $href) {
             if (str_starts_with($href, '#')) {

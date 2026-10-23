@@ -4,24 +4,30 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Entity\InboxCardWait;
-use App\Module\Inbox\Entity\InboxCardWaitReason;
 use App\Module\Inbox\Entity\InboxCardWaitType;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\View\CardWaitLine;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Workflow\Contract\PauseKind;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-/** Builds the translation key, the values and the link for one wait. Each type has the keys of the part that owns it. */
+/** Builds the translation key, the values and the link for one wait. The key is the label of the marker, and the values are its params. */
 final readonly class CardWaitText
 {
+    /** The label that has a variant with the headline of the run output. */
+    private const string RUN_LABEL = 'marker.run_needs_you';
+
     public function __construct(
         private DocumentRepository $documents,
         private ForgePullRequestRepository $forgePullRequests,
         private WorkerRunRepository $workerRuns,
+        private CardPauseRepository $cardPauses,
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
 
@@ -31,23 +37,27 @@ final readonly class CardWaitText
     }
 
     /** A stop pause of the card is the action of the run line that caused it, so the page shows it once. */
-    public static function isFolded(InboxCardWait $wait): bool
+    public function isFolded(InboxCardWait $wait): bool
     {
-        return null === $wait->endedAt
-            && InboxCardWaitType::CardPause === $wait->type
-            && \in_array($wait->reason, [InboxCardWaitReason::PauseWorkStopped, InboxCardWaitReason::PauseRetries], true)
+        if (null !== $wait->endedAt || InboxCardWaitType::CardPause !== $wait->type || null === $wait->pauseId) {
+            return false;
+        }
+        $kind = $this->cardPauses->find($wait->pauseId)?->kind;
+
+        return \in_array($kind, [PauseKind::WorkStopped, PauseKind::Retries], true)
             && null !== self::openRunWait(array_values($wait->watch->waits->toArray()));
     }
 
     /**
      * The title of the item: the reason of the wait that matters most, or the card title when no wait is open.
+     * An open review wait matters most, so the title names the review that makes the item a Review.
      * The inbox row and the linked panel name the card, so the title leaves the card out.
      *
      * @param list<InboxCardWait> $open
      */
     public function title(array $open, string $cardTitle, int $maxLength): string
     {
-        $main = self::mainWait($open);
+        $main = $this->mainWait($open);
         $runTitle = null === $main ? null : $this->runTitle($main);
         if (null !== $runTitle) {
             return mb_substr($runTitle, 0, $maxLength);
@@ -78,7 +88,7 @@ final readonly class CardWaitText
     {
         $lines = [];
         foreach ($open as $wait) {
-            if (self::isFolded($wait)) {
+            if ($this->isFolded($wait)) {
                 continue;
             }
             $line = $this->line($wait, false);
@@ -89,11 +99,37 @@ final readonly class CardWaitText
     }
 
     /**
+     * The first open wait about a document or a pull request.
+     *
      * @param list<InboxCardWait> $open
      */
-    private static function mainWait(array $open): ?InboxCardWait
+    public function reviewWait(array $open): ?InboxCardWait
     {
-        return self::openRunWait($open) ?? array_first(array_filter($open, static fn (InboxCardWait $wait): bool => !self::isFolded($wait))) ?? null;
+        foreach ($open as $wait) {
+            if (null === $wait->endedAt && \in_array($wait->type, [InboxCardWaitType::Document, InboxCardWaitType::PullRequest], true)) {
+                return $wait;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The item is a Review while a review wait is open, and Waiting otherwise.
+     *
+     * @param list<InboxCardWait> $open
+     */
+    public function kind(array $open): InboxItemKind
+    {
+        return null === $this->reviewWait($open) ? InboxItemKind::Wait : InboxItemKind::Review;
+    }
+
+    /**
+     * @param list<InboxCardWait> $open
+     */
+    private function mainWait(array $open): ?InboxCardWait
+    {
+        return $this->reviewWait($open) ?? self::openRunWait($open) ?? array_first(array_filter($open, fn (InboxCardWait $wait): bool => !$this->isFolded($wait))) ?? null;
     }
 
     /** @param list<InboxCardWait> $waits */
@@ -114,10 +150,10 @@ final readonly class CardWaitText
         $params = ['%card%' => $wait->watch->cardNumber];
         $href = null;
         $detail = null;
-        $key = null;
+        $key = '' === $wait->label ? 'inbox.wait.fallback.'.self::typePart($wait->type) : $wait->label;
         $titleKey = null;
         $pageKey = null;
-        $action = null;
+        $action = 'inbox.wait.action.'.self::typePart($wait->type);
 
         switch ($wait->type) {
             case InboxCardWaitType::Document:
@@ -126,7 +162,12 @@ final readonly class CardWaitText
                 $params['%version%'] = $wait->versionNumber ?? 0;
                 if (null !== $wait->documentId && null === $document) {
                     $key = 'review.inbox_wait.document_deleted';
+                    $titleKey = $key.'.title';
+                    $action = $key.'.action';
                     break;
+                }
+                if (null !== $wait->documentId) {
+                    $titleKey = 'inbox.wait.review_title.document';
                 }
                 if ($documentLinked && null !== $wait->documentId) {
                     $href = $this->urls->generate('app_document_review', ['projectId' => $projectId, 'documentId' => $wait->documentId]);
@@ -135,57 +176,36 @@ final readonly class CardWaitText
             case InboxCardWaitType::PullRequest:
                 $pullRequest = null === $wait->pullRequestId ? null : $this->forgePullRequests->find($wait->pullRequestId);
                 $params['%number%'] = $pullRequest->number ?? 0;
+                $params['%pr_title%'] = $pullRequest->title ?? '';
                 $href = null === $pullRequest ? null : \sprintf('https://github.com/%s/pull/%d', $pullRequest->repository, $pullRequest->number);
                 break;
             case InboxCardWaitType::WorkerRun:
                 $run = null === $wait->runId ? null : $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $projectId);
                 $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
-                $headline = null === $run ? '' : RunOutputText::headline($run->output);
                 $detail = null === $run ? null : RunOutputText::clean($run->output);
-                $worker = null === $run || null === $run->workKind || '' === $run->workKind ? 'worker' : str_replace('-', ' ', $run->workKind).' worker';
-                $params['%worker%'] = $worker;
-                $params['%Worker%'] = ucfirst($worker);
-                $params['%headline%'] = $headline;
-                if ('' !== $headline) {
-                    $base = 'bridge.inbox_wait.'.$wait->reason->keyPart();
-                    $key = $base.'.headline';
-                    $titleKey = $key.'.title';
-                    $pageKey = $base.'.short';
-                    $action = $base.'.action';
-                }
-                if (self::hasFoldedPause($wait)) {
-                    $action = 'bridge.inbox_wait.folded.action';
-                }
+                $params = [...$params, ...RunOutputText::params($run->workKind ?? null, $run->output ?? '')];
                 break;
             case InboxCardWaitType::CardPause:
+            case InboxCardWaitType::Card:
                 $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
                 break;
         }
-
-        return new CardWaitLine($key ?? self::prefix($wait->type).'.inbox_wait.'.$wait->reason->keyPart(), $params, $href, '' === $detail ? null : $detail, $titleKey, $action, $pageKey);
-    }
-
-    private static function hasFoldedPause(InboxCardWait $run): bool
-    {
-        if (null !== $run->endedAt) {
-            return false;
-        }
-        foreach ($run->watch->waits as $wait) {
-            if (self::isFolded($wait)) {
-                return true;
-            }
+        $params = [...$params, ...$wait->params];
+        if (InboxCardWaitType::PullRequest === $wait->type) {
+            $titleKey = '' === ($params['%pr_title%'] ?? '') ? 'inbox.wait.review_title.pull_request_untitled' : 'inbox.wait.review_title.pull_request';
         }
 
-        return false;
+        if (InboxCardWaitType::WorkerRun === $wait->type && self::RUN_LABEL === $key && '' !== ($params['%headline%'] ?? '')) {
+            $pageKey = $key.'.short';
+            $key .= '.headline';
+            $titleKey = $key.'.title';
+        }
+
+        return new CardWaitLine($key, $params, $href, '' === $detail ? null : $detail, $titleKey ?? $key, $action, $pageKey);
     }
 
-    private static function prefix(InboxCardWaitType $type): string
+    private static function typePart(InboxCardWaitType $type): string
     {
-        return match ($type) {
-            InboxCardWaitType::Document => 'review',
-            InboxCardWaitType::PullRequest => 'forge',
-            InboxCardWaitType::WorkerRun => 'bridge',
-            InboxCardWaitType::CardPause => 'board',
-        };
+        return str_replace('-', '_', $type->value);
     }
 }

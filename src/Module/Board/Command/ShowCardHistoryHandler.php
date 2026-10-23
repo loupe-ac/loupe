@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\CardEvent;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\View\CardHistoryEntry;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ShowCardHistoryHandler
@@ -26,6 +28,13 @@ final readonly class ShowCardHistoryHandler
         $hasOlder = \count($events) > self::PAGE_SIZE;
         $events = \array_slice($events, 0, self::PAGE_SIZE);
         $last = $hasOlder ? array_last($events) : null;
+
+        // A run that a rule stopped has its own row, which stands for the row of its close.
+        // A run that ended another way keeps the row of its close, because that row holds the real end state.
+        $stopped = array_filter(array_map(static fn (CardEvent $event): ?string => CardEventKind::Stopped === $event->kind ? CardHistoryEntry::runIdOf($event) : null, $events));
+        $events = array_values(array_filter($events, static fn (CardEvent $event): bool => CardEventKind::RunFinished !== $event->kind
+            || WorkerRunState::Stopped->value !== ($event->detail['state'] ?? null)
+            || !\in_array(CardHistoryEntry::runIdOf($event), $stopped, true)));
 
         $runIds = array_values(array_filter(array_map(CardHistoryEntry::runIdOf(...), $events)));
         $existing = $this->workerRuns->findExistingIds($command->card->project, array_map(Uuid::fromString(...), $runIds));

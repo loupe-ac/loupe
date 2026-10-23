@@ -60,7 +60,7 @@ final readonly class CardChildMarked implements Condition, MarkerEvidence
     {
         $mark = self::mark($facts, $params);
 
-        return null === $mark ? null : new Evidence($mark->since, ['%number%' => $mark->number, '%title%' => $mark->title]);
+        return null === $mark ? null : new Evidence(['%number%' => $mark->number, '%title%' => $mark->title]);
     }
 
     /** @param array<string, mixed> $params */

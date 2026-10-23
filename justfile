@@ -602,6 +602,51 @@ cli-install dir="":
     install -m 0755 "{{justfile_directory()}}/cli/dist/loupe-$goos-$goarch" "$target/loupe"
     just _cli-verify "$target"
 
+# Build this checkout's CLI into a setup folder, so `loupe -c <dir>` runs only
+# that build. It records the size and hash of the build in <dir>/build.json,
+# and builds the Live review panel on macOS. Rebuild with the same command.
+cli-setup dir:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    x="{{dir}}"
+    x="${x/#\~/$HOME}"
+    mkdir -p "$x"
+    x="$(cd "$x" && pwd)"
+    read -r goos goarch < <(just _cli-platform)
+    if [ "$goos" = darwin ] && ! command -v swift >/dev/null; then
+        echo "swift is missing, and the Live review panel needs it: install the Xcode command line tools, then run just cli-setup $x again" >&2
+        exit 1
+    fi
+    root="{{justfile_directory()}}"
+    build="$x/tmp/build"
+    rm -rf "$build"
+    mkdir -p "$build" "$x/bin"
+    just cli-build "$goos" "$goarch"
+    install -m 0755 "$root/cli/dist/loupe-$goos-$goarch" "$build/loupe"
+    if [ "$goos" = darwin ]; then
+        "$root/cli/macos/LiveReview/Scripts/bundle.sh" "$build/libexec"
+    fi
+    probed="$(LOUPE_CONFIG="$x" "$build/loupe" setup-probe 2>&1 || true)"
+    if [ "$probed" != "$x" ]; then
+        echo "this checkout does not build a loupe that reads -c/--config: setup-probe printed '$probed', not '$x'" >&2
+        exit 1
+    fi
+    commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)"
+    dirty=false
+    [ -z "$(git -C "$root" status --porcelain 2>/dev/null)" ] || dirty=true
+    size="$(wc -c < "$build/loupe" | tr -d ' ')"
+    sha="$(shasum -a 256 "$build/loupe" | cut -d' ' -f1)"
+    esc="$(printf '%s' "$root" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    printf '{"checkout":"%s","commit":"%s","dirty":%s,"size":%s,"sha256":"%s"}\n' "$esc" "$commit" "$dirty" "$size" "$sha" > "$x/build.json.new"
+    if [ -d "$build/libexec" ]; then
+        rm -rf "$x/libexec"
+        mv "$build/libexec" "$x/libexec"
+    fi
+    mv "$build/loupe" "$x/bin/loupe"
+    mv "$x/build.json.new" "$x/build.json"
+    echo "built $x/bin/loupe from $root at $commit"
+    echo "a running bridge keeps the old build: run loupe -c $x bridge stop, then loupe -c $x bridge run -d"
+
 # `just cli-install-release 1.0.0` pins a version; the default is the newest.
 # Download a published CLI release and install it onto your PATH (default ~/bin).
 cli-install-release version="latest" dir="":

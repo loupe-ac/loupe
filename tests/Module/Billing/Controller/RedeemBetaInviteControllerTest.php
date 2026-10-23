@@ -21,6 +21,7 @@ use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\BillingGrants;
 use App\Tests\Support\BillingScenario;
+use App\Tests\Support\DiscordLinkFlag;
 use App\Tests\Support\InstalledInstance;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\SocialLoginScenario;
@@ -29,9 +30,12 @@ use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Client\OAuth2ClientInterface;
 use League\OAuth2\Client\Provider\ResourceOwnerInterface;
 use League\OAuth2\Client\Token\AccessToken;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Mailer\Event\MessageEvent;
+use Symfony\Component\Mime\RawMessage;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
 use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
@@ -43,6 +47,8 @@ use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
  */
 final class RedeemBetaInviteControllerTest extends WebTestCase
 {
+    use DiscordLinkFlag;
+
     use SocialLoginScenario;
 
     private const string GOOGLE_CALLBACK = '/oauth/google/check?code=stub-code&state=stub-state';
@@ -145,6 +151,8 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
 
         self::assertResponseRedirects('/register/check-email');
         $user = $this->userByEmail($client, 'beta-form@example.com');
+        self::assertSame([], $this->welcomeEmails());
+        self::assertNotNull($this->reload($client, $invite)->welcomeEmailDueAt);
         self::assertSame($user->id?->toRfc4122(), $this->reload($client, $invite)->redeemedBy?->id?->toRfc4122());
         $comp = $this->currentComp($client, $user);
         self::assertNotNull($comp);
@@ -166,6 +174,7 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
         // Back to the link, which shows the success page to its redeemer once
         // the terms gate lets the new account through.
         self::assertResponseRedirects('http://localhost/beta/'.$token);
+        self::assertCount(1, $this->welcomeEmails());
         $user = $this->userByEmail($client, 'beta-oauth@example.com');
         AcceptedTerms::stamp($user, $client->getContainer());
         $client->getContainer()->get(EntityManagerInterface::class)->flush();
@@ -322,6 +331,82 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
         self::assertResponseRedirects('/beta/'.$token);
         self::assertSame($tester->id?->toRfc4122(), $this->reload($client, $invite)->redeemedBy?->id?->toRfc4122());
         self::assertNotNull($this->currentComp($client, $tester));
+    }
+
+    public function test_the_success_page_uses_the_sign_in_frame_with_a_start_card_and_a_discord_card(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $tester = new BillingScenario($client->getContainer())->verifiedUser('beta-cards');
+        $this->setDiscordLink($client, 'https://discord.gg/example');
+        [, $token] = $this->seedInvite($client);
+
+        $client->loginUser($tester);
+        $this->claim($client, $token);
+        $client->followRedirect();
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-auth__card');
+        self::assertSelectorNotExists('.lp-sidebar');
+        self::assertSelectorTextContains('h1', 'Welcome to the beta');
+        self::assertSelectorTextContains('[data-beta-start-card]', 'Start using Loupe');
+        self::assertSelectorTextContains('[data-beta-start-card] a', 'Continue to the app');
+        self::assertSame('/', $client->getCrawler()->filter('[data-beta-start-card] a')->attr('href'));
+        self::assertSelectorTextContains('[data-discord-card]', 'Join the beta testers');
+        $link = $client->getCrawler()->filter('[data-discord-card] a');
+        self::assertSame('https://discord.gg/example', $link->attr('href'));
+        self::assertSame('_blank', $link->attr('target'));
+        self::assertSame('noopener noreferrer', $link->attr('rel'));
+        self::assertSelectorNotExists('.lp-about-card__glyph');
+    }
+
+    public function test_the_success_page_has_no_discord_card_when_the_link_is_unset(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $tester = new BillingScenario($client->getContainer())->verifiedUser('beta-no-discord');
+        $this->setDiscordLink($client, '');
+        [, $token] = $this->seedInvite($client);
+
+        $client->loginUser($tester);
+        $this->claim($client, $token);
+        $client->followRedirect();
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-beta-start-card]');
+        self::assertSelectorNotExists('[data-discord-card]');
+    }
+
+    public function test_a_verified_user_who_claims_the_link_gets_one_welcome_email(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $tester = new BillingScenario($client->getContainer())->verifiedUser('beta-welcome');
+        [$invite, $token] = $this->seedInvite($client);
+
+        $client->loginUser($tester);
+        $this->claim($client, $token);
+
+        self::assertCount(1, $this->welcomeEmails());
+        self::assertNull($this->reload($client, $invite)->welcomeEmailDueAt);
+    }
+
+    public function test_an_unverified_user_who_claims_the_link_gets_no_welcome_email_yet(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $tester = new User(fullName: 'Unverified', email: 'beta-unverified-welcome@example.com', password: 'x');
+        AcceptedTerms::stamp($tester, $client->getContainer());
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($tester);
+        $em->flush();
+        [$invite, $token] = $this->seedInvite($client);
+
+        $client->loginUser($tester);
+        $this->claim($client, $token);
+
+        self::assertSame([], $this->welcomeEmails());
+        self::assertNotNull($this->reload($client, $invite)->welcomeEmailDueAt);
     }
 
     public function test_a_reload_by_the_user_who_redeemed_the_link_shows_the_success_page_and_grants_nothing_more(): void
@@ -597,6 +682,21 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
 
         $em->persist(new FeatureFlag(name: RegistrationGate::CAP_FLAG, type: FeatureFlagType::Int, value: $container->get(UserRepository::class)->countActive()));
         $em->flush();
+    }
+
+    /** @return list<TemplatedEmail> */
+    private function welcomeEmails(): array
+    {
+        $queued = array_map(
+            static fn (MessageEvent $event): RawMessage => $event->getMessage(),
+            array_filter(self::getMailerEvents(), static fn (MessageEvent $event): bool => $event->isQueued()),
+        );
+
+        return array_values(array_filter(
+            $queued,
+            static fn (RawMessage $message): bool => $message instanceof TemplatedEmail
+                && 'Welcome to the Loupe beta' === $message->getSubject(),
+        ));
     }
 
     private function reload(KernelBrowser $client, BetaInvite $invite): BetaInvite

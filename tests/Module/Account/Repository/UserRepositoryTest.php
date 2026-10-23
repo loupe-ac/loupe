@@ -46,7 +46,21 @@ final class UserRepositoryTest extends KernelTestCase
         $this->repository->loadUserByIdentifier($agent->email);
     }
 
-    public function test_the_agent_is_not_counted_as_a_user(): void
+    public function test_the_workflow_user_exists_and_cannot_be_signed_into(): void
+    {
+        $workflow = $this->repository->workflow();
+
+        self::assertTrue($workflow->isWorkflow());
+        self::assertFalse($workflow->isAgent());
+        self::assertSame('Workflow', $workflow->fullName);
+        self::assertFalse($workflow->hasUsablePassword());
+        self::assertSame(['ROLE_USER'], $workflow->getRoles());
+
+        $this->expectException(UserNotFoundException::class);
+        $this->repository->loadUserByIdentifier($workflow->email);
+    }
+
+    public function test_the_agent_and_workflow_accounts_are_not_counted_as_users(): void
     {
         // Guard: without a populated table both counts could be zero for
         // reasons unrelated to the exclusion.
@@ -55,7 +69,7 @@ final class UserRepositoryTest extends KernelTestCase
 
         $humans = $this->repository->countHumans();
         self::assertGreaterThan(0, $humans);
-        self::assertSame($humans + 1, $this->repository->count([]));
+        self::assertSame($humans + 2, $this->repository->count([]));
         self::assertSame($humans, $this->repository->countActive());
     }
 }

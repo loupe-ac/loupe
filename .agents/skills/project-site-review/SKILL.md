@@ -1,6 +1,6 @@
 ---
 name: project-site-review
-description: Use when working on the site-review widget or its backend, `public/live-review/widget.js`, anything under `src/Module/SiteReview/`, the site-review API routes, the dev harness, or `e2e/tests/site-review/`.
+description: "Use when working on the site-review widget, `public/live-review/widget.js`, `src/Module/SiteReview/`, its API routes, the dev harness or `e2e/tests/site-review/`."
 ---
 
 # Site review (working on it)

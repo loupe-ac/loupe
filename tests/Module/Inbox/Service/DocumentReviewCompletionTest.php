@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -37,7 +39,7 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         $project = $this->project($em, $owner, 'rollback-review');
         $document = $this->document($em, $project);
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         $ask = $this->ask($em, $project);
         $link = new InboxAskItem($ask, $item);
@@ -84,8 +86,8 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         $otherDocument->addVersion('# Other', '<h1>Other</h1>');
         $question = $this->item($em, $project, 1);
         $question->documents->add(new InboxItemDocument($question, $document));
-        $item = new InboxItem($project, 2, InboxItemKind::Review, 'Review this design', true);
-        $otherItem = new InboxItem($project, 3, InboxItemKind::Review, 'Review another design', true);
+        $item = new InboxItem($project, 2, InboxItemKind::Review, 'Review this design', true, origin: InboxAskOrigin::Agent);
+        $otherItem = new InboxItem($project, 3, InboxItemKind::Review, 'Review another design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         $otherReview = new InboxReview($otherItem, $otherDocument);
         $ask = $this->ask($em, $project);
@@ -125,5 +127,43 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         );
         self::assertCount(1, $payloads);
         self::assertSame('human', json_decode($payloads[0], true, flags: \JSON_THROW_ON_ERROR)['actor']);
+    }
+
+    public function test_a_verdict_of_a_rule_completes_the_review_and_names_the_system(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $owner = $this->owner($em, 'rule-completion');
+        $project = $this->project($em, $owner, 'rule-completion');
+        $document = $this->document($em, $project);
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $document);
+        $ask = $this->ask($em, $project);
+        $link = new InboxAskItem($ask, $item);
+        $ask->items->add($link);
+        foreach ([$item, $review, $link] as $entity) {
+            $em->persist($entity);
+        }
+        $em->flush();
+        $users = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $submit);
+
+        $result = $submit(new SubmitReviewCommand($users->workflow(), $document, 'approved', 1, null, null, 'tech-design-auto-approve'));
+        $em->clear();
+
+        $stored = $em->find(InboxReview::class, $review->id);
+        self::assertInstanceOf(InboxReview::class, $stored);
+        self::assertSame(InboxItemState::Done, $stored->item->state);
+        self::assertSame((string) $result->id, (string) $stored->documentReview?->id);
+        $payloads = $em->getConnection()->fetchFirstColumn(
+            'SELECT payload FROM outbox_events WHERE project_id = ? AND type = ?',
+            [(string) $project->id, 'inbox.ask_closed'],
+        );
+        self::assertCount(1, $payloads);
+        self::assertSame('system', json_decode($payloads[0], true, flags: \JSON_THROW_ON_ERROR)['actor']);
     }
 }

@@ -31,7 +31,7 @@ final class LifecycleRevisionDocumentMigrationTest extends KernelTestCase
         $connection = $this->em()->getConnection();
         $connection->executeStatement(
             "UPDATE workflow_bindings SET definition = (
-                SELECT jsonb_set(definition, '{rules}', jsonb_agg(rule #- '{then,request,document}' ORDER BY position))
+                SELECT jsonb_set(definition, '{rules}', jsonb_agg(CASE WHEN jsonb_typeof(rule->'then') = 'object' THEN rule #- '{then,request,document}' ELSE rule END ORDER BY position))
                 FROM jsonb_array_elements(definition->'rules') WITH ORDINALITY AS rules(rule, position)
             ) WHERE project_id = ?",
             [$lifecycleId],

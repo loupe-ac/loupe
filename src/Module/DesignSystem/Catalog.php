@@ -538,7 +538,7 @@ readonly class Catalog
                 states: ['hover', 'current'],
                 enforced: true,
                 group: 'layout',
-                summary: 'One row of a list: an icon, a title and a meta line. The current row is highlighted.',
+                summary: 'One row of a list: an icon, a title, an optional subtitle and a meta line. The current row is highlighted.',
                 element: 'a',
                 export: 'ListRow',
                 viewport: '700x200',

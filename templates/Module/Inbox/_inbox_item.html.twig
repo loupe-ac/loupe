@@ -1,10 +1,10 @@
 {% set home = inbox.isHome(item, ask) %}
 {% set open = item.state.value == 'open' %}
-{% set review = item.kind.value == 'review' ? inbox_review(item) : null %}
+{% set review = item.kind.value == 'review' and not item.isAutomatic() ? inbox_review(item) : null %}
 {% set reviewFormShown = false %}
 {% set actionParams = {projectId: item.project.id, itemId: item.id}|merge(inbox.actionQuery) %}
 {% set responseFrame = app.request.headers.get('Turbo-Frame') == 'card-drawer-frame' ? 'card-drawer-frame' : '_top' %}
-<article data-controller="inbox-decline" class="lp-inbox-item"{% if home %} id="inbox-item-{{ item.number }}"{% endif %} data-inbox-item="{{ item.number }}">
+<article data-controller="inbox-decline" class="lp-inbox-item"{% if home %} id="inbox-item-{{ item.number }}"{% endif %} data-inbox-item="{{ item.number }}" data-inbox-item-open="{{ open ? 'true' : 'false' }}">
     {# A request with one item wears its state on the list row beside it. #}
     {% if showHead ?? true %}
     <div class="lp-inbox-item__head">
@@ -16,10 +16,10 @@
     </div>
     {% endif %}
     {# The waits below say what the body of a wait item says, with links. #}
-    {% if item.kind.value != 'wait' and item.body|trim is not empty %}
+    {% if not item.isAutomatic() and item.body|trim is not empty %}
         <div class="prose lp-prose lp-inbox-item__body">{{ item.body|inbox_markdown }}</div>
     {% endif %}
-    {% set watch = item.kind.value == 'wait' ? inbox_card_watch(item) : null %}
+    {% set watch = item.isAutomatic() ? inbox_card_watch(item) : null %}
     {% if watch %}
         {% set threadReply = home and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: watch, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: threadReply} only %}
@@ -30,8 +30,10 @@
         {% if review and review.verdict %}
             <p class="lp-inbox-item__note">{{ review.targetLabel }}</p>
             <p data-inbox-review-verdict>{{ ('inbox.review.verdict.' ~ review.verdict.value)|trans }}</p>
-            {% if review.note %}<p class="lp-inbox-item__answer-text">{{ review.note }}</p>{% endif %}
-            <p class="lp-inbox-item__note">{{ review.reviewer.fullName }} · {{ review.submittedAt|date('j M Y, H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
+            {% set workflowRule = review.documentReview.workflowRule ?? null %}
+            {% if workflowRule and review.verdict.value == 'approved' %}<p class="lp-inbox-item__answer-text">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
+            {% elseif review.note %}<p class="lp-inbox-item__answer-text">{{ review.note }}</p>{% endif %}
+            <p class="lp-inbox-item__note">{{ review.reviewer.fullName }}{% if workflowRule %} <twig:Ds:Tag tone="neutral">{{ workflowRule }}</twig:Ds:Tag>{% endif %} · {{ review.submittedAt|date('j M Y, H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
             {% set withdrawal = inbox_review_withdrawal(review) %}
             {% if withdrawal %}
                 <p class="lp-inbox-item__note" data-inbox-review-withdrawal>{{ 'inbox.review.withdrawn'|trans({'%name%': withdrawal.reviewer.fullName, '%time%': withdrawal.submittedAt|date('j M Y, H:i')}) }}</p>
@@ -82,7 +84,7 @@
        still takes a response. #}
     {% if not home %}
         <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, item: item.number}) }}" data-turbo-frame="_top">{{ (inbox.acceptsResponse(item) ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
-    {% elseif item.kind.value != 'wait' and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
+    {% elseif not item.isAutomatic() and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
         {# A to-do with suggested actions puts Decline and Mark done beside its split button, in one reply card. #}
@@ -98,7 +100,7 @@
                 {% set answerForm = inbox_answer_form(item, refusedForm) %}
                 {% set selectedErrorsId = answerForm.selectedOptions.vars.id ~ '_errors' %}
                 {% set textErrorsId = answerForm.answerText.vars.id ~ '_errors' %}
-                {{ form_start(answerForm, {action: path('app_inbox_item_answer', actionParams), attr: {class: 'lp-form lp-inbox-answer', 'data-controller': 'form-draft', 'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': item.id, 'data-action': 'submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared', 'data-turbo-frame': responseFrame}}) }}
+                {{ form_start(answerForm, {action: path('app_inbox_item_answer', actionParams), attr: {id: answerForm.vars.id, class: 'lp-form lp-inbox-answer', 'data-controller': 'form-draft', 'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': item.id, 'data-action': 'submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared', 'data-turbo-frame': responseFrame}}) }}
                     {% set noteAttr = {class: 'lp-decision__note-field', rows: 2, placeholder: 'inbox.answer.placeholder'|trans, 'aria-label': 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'} %}
                     {% if answerForm.answerText.vars.errors|length > 0 %}{% set noteAttr = noteAttr|merge({'aria-describedby': textErrorsId}) %}{% endif %}
                     {% set written = item.options|length == 0 %}
@@ -143,7 +145,7 @@
                         </twig:Ds:Button>
                     </div>
                 {{ form_end(answerForm, {render_rest: false}) }}
-            {% elseif item.kind.value == 'review' %}
+            {% elseif item.kind.value == 'review' and not item.isAutomatic() %}
                 {% if review and review.targetKind.value == 'pull-request' and review.pullRequest and safe_pull_request_url(review.pullRequest.url) %}
                     {% set reviewFormShown = true %}
                     {% include '@Inbox/_pull_request_review_form.html.twig' with {review: review, refusedForm: refusedForm, actionParams: actionParams, responseFrame: responseFrame, declineFormId: declineForm.vars.id, declineLabel: declineLabel} only %}
@@ -192,7 +194,7 @@
         {% endif %}
     {% endif %}
     {% if home %}
-        {% if item.kind.value == 'review' and not reviewFormShown %}
+        {% if item.kind.value == 'review' and not item.isAutomatic() and not reviewFormShown %}
             {% include '@Inbox/_response_draft.html.twig' with {
                 kind: 'review', key: item.id ~ ':review', options: [], title: 'inbox.review.unsent', hint: 'inbox.review.unsent_unavailable',
                 labels: {approved: 'inbox.review.verdict.approved'|trans, 'changes-requested': 'inbox.review.verdict.changes-requested'|trans},

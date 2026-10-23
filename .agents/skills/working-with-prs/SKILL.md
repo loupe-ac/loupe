@@ -1,6 +1,6 @@
 ---
 name: working-with-prs
-description: Use when opening, gating, reviewing or merging a pull request in this repository, running the pre-PR gate, writing the body, making a branch testable, handling agent review findings, or sequencing several branches at once.
+description: "Use when opening, gating, reviewing or merging a pull request, writing its body, making a branch testable, handling agent review findings, or sequencing several branches at once."
 ---
 
 # Working with pull requests
@@ -278,7 +278,9 @@ later. The signature covers the whole URL, host included, so a link works
 against that worktree only, and the host resolves on your own machine. The route
 is `#[When('dev')]`, so it does not exist in production.
 
-Open the link yourself before you write it down.
+Open the link yourself before you write it down. Seed and prove every link
+before the push, not after it: a branch that cannot show its marker is not
+pushed as ready.
 
 ### Prove each preview link shows its state
 
@@ -304,8 +306,17 @@ Read two results. The effective URL must end in the `--path` you minted, or the
 sign-in failed. The count must be 1 or more, or the state is not seeded. Fetch
 the bare page URL once without the link, and confirm that the count is 0.
 
-Write one line per link in the Preview section, naming the marker that you
-found. A branch that changes a page and cannot show its marker is not ready.
+Write one Markdown list item per link in the Preview section, naming the
+marker that you found:
+
+```markdown
+- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
+```
+
+A child of an epic appends `. State: <text>` to the line. A link to a file,
+an artifact or a CI run takes the same shape with no marker, and so does the
+card line: `- [Card 42: <title>](<card URL>)`.
+A branch that changes a page and cannot show its marker is not ready.
 "The tests cover it", "the seed holds no X" and "it shows after a bridge
 reports data" do not replace a seeded state.
 

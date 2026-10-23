@@ -124,6 +124,7 @@ final class PublishDocumentsTest extends KernelTestCase
     private function document(Card $card, string $tagName, DocumentStatus $status): Document
     {
         $document = new Document($card->project->owner, $card->project, 'Design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
         $document->status = $status;
         $tag = $this->tags[$card->project->id.'/'.$tagName] ??= new Tag($card->project, $tagName);
         $this->em()->persist($tag);

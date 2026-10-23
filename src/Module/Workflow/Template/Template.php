@@ -37,6 +37,7 @@ final readonly class Template
      * @param list<string>                    $agentReviewFailingSeverities     the severities of a finding that fail an agent review
      * @param list<TemplateMarker>            $markers                          the card markers, in template order
      * @param bool                            $approvalCoversConflictResolution whether an approval still covers a merge from the base that holds a conflict resolution
+     * @param list<string>                    $inbox                            the keys of the markers that store one inbox entry per thing, in template order
      */
     public function __construct(
         public string $key,
@@ -54,6 +55,7 @@ final readonly class Template
         public array $agentReviewFailingSeverities = self::DEFAULT_AGENT_REVIEW_FAILING_SEVERITIES,
         public array $markers = [],
         public bool $approvalCoversConflictResolution = true,
+        public array $inbox = [],
     ) {
     }
 
@@ -65,10 +67,26 @@ final readonly class Template
     /** @return list<string> the document tag of each rule whose request has the design review role, each once */
     public function designReviewTags(): array
     {
+        return self::designReviewTagsOf($this->rules);
+    }
+
+    /** @return list<string> the document tag of each design review request rule that can act in the slot, each once */
+    public function designReviewTagsIn(?string $slot): array
+    {
+        return self::designReviewTagsOf($this->rulesFor($slot));
+    }
+
+    /**
+     * @param list<Rule> $rules
+     *
+     * @return list<string>
+     */
+    private static function designReviewTagsOf(array $rules): array
+    {
         $tags = [];
-        foreach ($this->rules as $rule) {
-            $tag = $rule->then->params[ParameterNames::DOCUMENT_TAG] ?? null;
-            if (self::REQUEST_ACTION === $rule->then->key && self::DESIGN_REVIEW_ROLE === ($rule->then->params['role'] ?? null) && \is_string($tag)) {
+        foreach ($rules as $rule) {
+            $tag = $rule->lead->params[ParameterNames::DOCUMENT_TAG] ?? null;
+            if (self::REQUEST_ACTION === $rule->lead->key && self::DESIGN_REVIEW_ROLE === ($rule->lead->params['role'] ?? null) && \is_string($tag)) {
                 $tags[] = $tag;
             }
         }
@@ -104,7 +122,7 @@ final readonly class Template
         return array_values(array_filter(
             $this->rules,
             static fn (Rule $rule): bool => (null === $rule->slot || $rule->slot === $slot)
-                && (null === $rule->then->from || $rule->then->from === $slot),
+                && array_all($rule->then, static fn (ActionCall $call): bool => null === $call->from || $call->from === $slot),
         ));
     }
 
@@ -133,10 +151,10 @@ final readonly class Template
     {
         $limits = [];
         foreach ($this->rules as $rule) {
-            if (!$rule->then->traits->publishesDocuments) {
+            if (!$rule->lead->traits->publishesDocuments) {
                 continue;
             }
-            $published = $rule->then->lists['tags'] ?? [];
+            $published = $rule->lead->lists['tags'] ?? [];
             foreach ($rule->when->requiredLeaves() as $leaf) {
                 $condition = $leaf->condition;
                 if (!$condition instanceof EndsReviewLoop || !$condition instanceof ReadsDocumentTag) {

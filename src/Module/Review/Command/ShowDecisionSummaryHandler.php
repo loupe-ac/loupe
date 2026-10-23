@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Command;
 
+use App\Module\Review\Repository\CommentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Service\DecisionSummaryReader;
+use App\Module\Review\ValueObject\CommentSignals;
 
 /**
  * The decision blocks of the version the reviewer is looking at, together with
@@ -20,6 +22,7 @@ final readonly class ShowDecisionSummaryHandler
 {
     public function __construct(
         private DocumentVersionRepository $documentVersions,
+        private CommentRepository $comments,
         private DecisionSummaryReader $decisionSummary,
     ) {
     }
@@ -32,11 +35,17 @@ final readonly class ShowDecisionSummaryHandler
             ? null
             : $this->documentVersions->findByNumber($command->document, $command->displayedVersionNumber);
 
-        $summary = ($this->decisionSummary)(
-            $command->document,
-            $displayed ?? $this->documentVersions->findLatest($command->document),
-        );
+        $version = $displayed ?? $this->documentVersions->findLatest($command->document);
+        $summary = ($this->decisionSummary)($command->document, $version);
+        $versionId = (string) $version->id;
 
-        return new ShowDecisionSummaryView($summary->rows(), $summary->answeredCount(), $summary->answers());
+        return new ShowDecisionSummaryView(
+            $summary->rows(),
+            $summary->answeredCount(),
+            $summary->answers(),
+            $summary->unansweredCount(),
+            $summary->firstUnansweredElementId(),
+            ($this->comments->signalsByVersions([$versionId])[$versionId] ?? new CommentSignals())->pendingThreadCount,
+        );
     }
 }

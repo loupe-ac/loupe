@@ -9,9 +9,12 @@ use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\MarkerSubject;
+use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\NamesMarkerSubject;
 use Symfony\Component\Translation\TranslatableMessage;
 
-final readonly class CardPaused implements Condition, MarkerEvidence
+final readonly class CardPaused implements Condition, MarkerEvidence, NamesMarkerSubject
 {
     #[\Override]
     public static function key(): string
@@ -54,6 +57,12 @@ final readonly class CardPaused implements Condition, MarkerEvidence
     {
         $pause = $facts->get(PauseFacts::class)->active;
 
-        return null === $pause ? null : new Evidence($pause->createdAt, ['%reason%' => $pause->reason]);
+        return null === $pause ? null : new Evidence(['%reason%' => $pause->reason], new MarkerSubject(MarkerSubjectType::CardPause, ['pause' => $pause->id->toRfc4122()]));
+    }
+
+    #[\Override]
+    public function subjectType(): MarkerSubjectType
+    {
+        return MarkerSubjectType::CardPause;
     }
 }

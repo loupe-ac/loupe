@@ -20,6 +20,7 @@ use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\ListsDocuments;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestList;
 use App\Module\Workflow\Contract\PullRequestState;
@@ -57,6 +58,27 @@ final class FactFingerprintTest extends TestCase
 
         self::assertSame($fingerprint->of($before, [EngineFact::PullRequest]), $fingerprint->of($after, [EngineFact::PullRequest]));
         self::assertNotSame($fingerprint->of($before, [EngineFact::PullRequestHead]), $fingerprint->of($after, [EngineFact::PullRequestHead]));
+    }
+
+    public function test_each_merge_gate_fact_changes_its_own_group_and_leaves_the_shared_pull_request_group_as_it_was(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $plain = FactsMother::facts(pullRequest: FactsMother::pullRequest());
+        foreach (['checksOnHead', 'canMerge', 'baseIsDefault'] as $field) {
+            $changed = FactsMother::facts(pullRequest: FactsMother::pullRequest(...[$field => true]));
+
+            self::assertNotSame($fingerprint->of($plain, [EngineFact::PullRequestMergeGate]), $fingerprint->of($changed, [EngineFact::PullRequestMergeGate]), $field);
+            self::assertSame($fingerprint->of($plain, [EngineFact::PullRequest]), $fingerprint->of($changed, [EngineFact::PullRequest]), $field);
+        }
+    }
+
+    public function test_a_contract_interface_reads_the_fingerprint_of_the_class_that_implements_it(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $before = FactsMother::facts(card: FactsMother::card(documents: [new DocumentFacts(['design'], 'in_review', '01a10beb-ba65-736b-8626-a6e3fa59dfc5')]));
+        $after = FactsMother::facts(card: FactsMother::card(documents: [new DocumentFacts(['design'], 'approved', '01a10beb-ba65-736b-8626-a6e3fa59dfc5')]));
+
+        self::assertNotSame($fingerprint->of($before, [ListsDocuments::class]), $fingerprint->of($after, [ListsDocuments::class]));
     }
 
     public function test_the_time_and_the_order_of_lists_do_not_count(): void
@@ -101,6 +123,7 @@ final class FactFingerprintTest extends TestCase
         yield 'parent documents' => [ParentDocumentsFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents(), parentDocuments: [new DocumentFacts(['tech-design'], 'approved', '01a10beb-ba65-736b-8626-a6e3fa59dfc5')]), pullRequest: self::primary(), pullRequests: self::all(), run: self::workRun())];
         yield 'pull request' => [EngineFact::PullRequest, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed), pullRequests: self::all(), run: self::workRun())];
         yield 'pull request head' => [EngineFact::PullRequestHead, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, headSha: 'new-head'), pullRequests: self::all(), run: self::workRun())];
+        yield 'pull request merge gate' => [EngineFact::PullRequestMergeGate, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, canMerge: true), pullRequests: self::all(), run: self::workRun())];
         yield 'pull requests' => [PullRequestList::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: [self::primary()], run: self::workRun())];
         yield 'work requests' => [WorkRequestFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: self::all(), run: FactsMother::run(['implement'], 'no-capacity', self::WORKER_KINDS, self::PARENT_KINDS))];
         yield 'refusal' => [RefusalFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: self::all(), run: FactsMother::run(['implement', 'review'], 'no-bridge', self::WORKER_KINDS, self::PARENT_KINDS))];
@@ -253,10 +276,26 @@ final class FactFingerprintTest extends TestCase
         return hash('sha256', json_encode($groups, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE));
     }
 
-    /** @return array{string, list<string>} */
+    /**
+     * The document groups changed on purpose when the entry check facts joined them, so a stored hash of these two groups
+     * compares as changed once. The other groups keep the old value.
+     *
+     * @return list<mixed>
+     */
     private static function oldDocument(DocumentFacts $document): array
     {
-        return [$document->status, self::oldSorted($document->tags)];
+        return [
+            $document->status,
+            self::oldSorted($document->tags),
+            $document->version,
+            $document->cleanCheckVersion,
+            $document->newestReviewId,
+            $document->publishedAt?->format(\DATE_ATOM),
+            $document->entryUnansweredDecisions,
+            $document->entryOpenThreads,
+            $document->rejectedBefore,
+            $document->newestReviewWithdrewApproval,
+        ];
     }
 
     /** @return list<mixed> */

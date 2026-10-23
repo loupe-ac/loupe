@@ -65,7 +65,7 @@ trait InboxToolScenario
         );
     }
 
-    /** Links a document in review to the card, so Loupe opens a wait item for it. */
+    /** Links a document in review to the card and stores the inbox entry the engine would store, so Loupe opens a wait item for it. */
     private function documentInReview(Project $project, Card $card): Document
     {
         $document = new Document($project->owner, $project, 'The design');
@@ -74,6 +74,7 @@ trait InboxToolScenario
         $card->documents->add(new CardDocument($card, $document));
         $this->stageDocument($this->em, $document, $card);
         $this->em->flush();
+        $this->storeInbox($this->em, $card, $this->documentEntry($document, 1));
 
         return $document;
     }

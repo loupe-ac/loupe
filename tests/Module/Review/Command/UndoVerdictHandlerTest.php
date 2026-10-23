@@ -18,6 +18,7 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\DocumentStatusChanged;
+use App\Module\Review\Event\VerdictWithdrawn;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -240,5 +241,26 @@ final class UndoVerdictHandlerTest extends KernelTestCase
         }
 
         self::assertSame(DocumentStatus::InReview, $doc->status);
+    }
+
+    public function test_a_withdrawal_dispatches_the_event_inside_its_transaction(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$reviewer, $doc] = $this->createUserAndDocument($em, 'withdrawn-event');
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $submit);
+        $approval = $submit(new SubmitReviewCommand($reviewer, $doc, Verdict::Approved->value, 1));
+        $withdrawn = DispatchedEvents::of(self::getContainer(), VerdictWithdrawn::class);
+        $depth = $em->getConnection()->getTransactionNestingLevel();
+
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+        self::assertInstanceOf(UndoVerdictHandler::class, $undo);
+        $withdrawal = $undo(new UndoVerdictCommand(document: $doc, actor: $reviewer, reviewId: (string) $approval->id));
+
+        self::assertCount(1, $withdrawn->events());
+        self::assertSame($withdrawal, $withdrawn->events()[0]->withdrawal);
+        self::assertSame($approval, $withdrawn->events()[0]->withdrawn);
+        self::assertSame([$depth + 1], $withdrawn->transactionDepths());
     }
 }

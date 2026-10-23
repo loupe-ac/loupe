@@ -46,6 +46,18 @@ final class AdminUserGuardTest extends KernelTestCase
         $this->assertDomainError('user', $key, fn () => $this->guard->assertRolesAssignable($agent, $actor, ['ROLE_ADMIN']));
     }
 
+    public function test_every_mutation_refuses_the_workflow_account(): void
+    {
+        $workflow = $this->users->workflow();
+        $actor = $this->seedUser('actor-workflow@example.com', ['ROLE_ADMIN']);
+
+        $key = 'account.admin.users.error.workflow_account';
+        $this->assertDomainError('user', $key, fn () => $this->guard->assertMutable($workflow));
+        $this->assertDomainError('user', $key, fn () => $this->guard->assertDeletable($workflow, $actor));
+        $this->assertDomainError('user', $key, fn () => $this->guard->assertSuspendable($workflow, $actor));
+        $this->assertDomainError('user', $key, fn () => $this->guard->assertRolesAssignable($workflow, $actor, ['ROLE_ADMIN']));
+    }
+
     public function test_deleting_or_suspending_yourself_throws(): void
     {
         $actor = $this->seedUser('self@example.com', ['ROLE_ADMIN']);

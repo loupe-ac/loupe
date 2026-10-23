@@ -19,10 +19,12 @@ use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
+use App\Module\Workflow\Template\MarkerSubjectClassifier;
 use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
@@ -67,6 +69,33 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
     }
 
+    public function test_each_template_lists_its_inbox_markers_and_each_one_names_one_thing(): void
+    {
+        $expected = [
+            'lifecycle' => [
+                'waits-for-approval' => MarkerSubjectType::PullRequest,
+                'document-in-review' => MarkerSubjectType::Document,
+                'run-needs-you' => MarkerSubjectType::WorkerRun,
+                'paused' => MarkerSubjectType::CardPause,
+            ],
+            'simple' => [
+                'waits-for-approval' => MarkerSubjectType::PullRequest,
+                'run-needs-you' => MarkerSubjectType::WorkerRun,
+                'paused' => MarkerSubjectType::CardPause,
+            ],
+        ];
+
+        foreach ($expected as $key => $subjects) {
+            $template = $this->template($key);
+            self::assertSame(array_keys($subjects), $template->inbox, $key);
+            foreach ($template->markers as $marker) {
+                if (isset($subjects[$marker->key])) {
+                    self::assertSame($subjects[$marker->key], MarkerSubjectClassifier::of($marker->when), $key.' '.$marker->key);
+                }
+            }
+        }
+    }
+
     public function test_both_templates_declare_the_card_types_and_only_an_epic_has_children_and_a_lane(): void
     {
         foreach ($this->shipped()->keys() as $key) {
@@ -97,8 +126,8 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach (['lifecycle', 'simple'] as $key) {
             $rule = array_find($this->template($key)->rules, static fn ($rule): bool => 'merged' === $rule->id) ?? throw new \LogicException($key);
 
-            self::assertSame('move', $rule->then->key);
-            self::assertSame(['to' => '@terminal', 'outcome' => 'merged'], $rule->then->params, $key);
+            self::assertSame('move', $rule->lead->key);
+            self::assertSame(['to' => '@terminal', 'outcome' => 'merged'], $rule->lead->params, $key);
         }
     }
 
@@ -255,13 +284,13 @@ final class ShippedTemplatesTest extends KernelTestCase
         $rule = $this->ruleOf($slot, $slot.'-review');
 
         self::assertTrue($rule->when->evaluate($facts));
-        self::assertSame(['kind' => 'design-review', 'role' => 'design-review'], \array_slice($rule->then->params, 0, 2));
-        self::assertSame('retry', $rule->then->params['stillTrue']);
-        self::assertSame($tag, $rule->then->params['document.tag']);
-        self::assertSame('draft', $rule->then->params['document.status']);
-        self::assertNotNull($rule->then->cancelWhen);
-        self::assertFalse($rule->then->cancelWhen->evaluate($facts));
-        self::assertTrue($rule->then->cancelWhen->evaluate(FactsMother::facts(card: FactsMother::card(slot: $slot, documents: [new DocumentFacts([$tag], 'in-review', 'doc')]))));
+        self::assertSame(['kind' => 'design-review', 'role' => 'design-review'], \array_slice($rule->lead->params, 0, 2));
+        self::assertSame('retry', $rule->lead->params['stillTrue']);
+        self::assertSame($tag, $rule->lead->params['document.tag']);
+        self::assertSame('draft', $rule->lead->params['document.status']);
+        self::assertNotNull($rule->lead->cancelWhen);
+        self::assertFalse($rule->lead->cancelWhen->evaluate($facts));
+        self::assertTrue($rule->lead->cancelWhen->evaluate(FactsMother::facts(card: FactsMother::card(slot: $slot, documents: [new DocumentFacts([$tag], 'in-review', 'doc')]))));
     }
 
     /** @return iterable<string, array{string, string, list<string>, bool}> */
@@ -297,8 +326,8 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertTrue($rule->when->evaluate($facts));
         self::assertFalse($this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
-        self::assertSame(['kind' => $tag.'-revise', 'role' => 'design-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->then->params, 0, 4));
-        self::assertNotNull($rule->then->cancelWhen);
+        self::assertSame(['kind' => $tag.'-revise', 'role' => 'design-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->lead->params, 0, 4));
+        self::assertNotNull($rule->lead->cancelWhen);
     }
 
     /** @param list<string> $tags */
@@ -311,8 +340,8 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertTrue($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished)));
         self::assertFalse($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished, ['fix'])));
         self::assertFalse($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished, [], ['fix'])));
-        self::assertSame('publish-documents', $rule->then->key);
-        self::assertSame(['tags' => $tags], $rule->then->lists);
+        self::assertSame('publish-documents', $rule->lead->key);
+        self::assertSame(['tags' => $tags], $rule->lead->lists);
     }
 
     public function test_the_design_review_rules_come_before_the_move_of_their_slot(): void
@@ -324,6 +353,22 @@ final class ShippedTemplatesTest extends KernelTestCase
                 self::assertLessThan(array_search($next, $ids, true), array_search($slot.$suffix, $ids, true));
             }
         }
+    }
+
+    #[DataProvider('designSlots')]
+    public function test_the_auto_approve_rule_follows_the_publish_rule_and_precedes_the_rules_that_move_the_card(string $slot, string $tag): void
+    {
+        $ids = array_map(static fn ($rule): string => $rule->id, $this->lifecycle()->rulesFor($slot));
+        $position = array_search($slot.'-auto-approve', $ids, true);
+
+        self::assertSame(array_search($slot.'-review-publish', $ids, true) + 1, $position);
+        self::assertLessThan(array_search($slot.'-approved', $ids, true), $position);
+        $rule = $this->ruleOf($slot, $slot.'-auto-approve');
+        self::assertSame('approve-document', $rule->lead->key);
+        self::assertSame(['tag' => $tag], $rule->lead->params);
+        $keys = array_map(static fn ($leaf): string => $leaf->condition::key(), $rule->when->leaves());
+        self::assertSame(['card.document.in_review', 'card.document.published_in_column', 'card.document.entry_decisions_open', 'card.document.entry_threads_open', 'card.document.rejected_before', 'design_review.passed'], array_values(array_diff($keys, ['card.type'])));
+        self::assertSame('tech-design' === $slot, \in_array('card.type', $keys, true), 'Only the tech design rule limits the card types.');
     }
 
     /**
@@ -384,7 +429,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $roles = [];
         foreach ($this->lifecycle()->rules as $rule) {
-            $role = $rule->then->params['role'] ?? null;
+            $role = $rule->lead->params['role'] ?? null;
             if (null !== $role) {
                 $roles[$rule->id] = $role;
             }
@@ -427,7 +472,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertNotNull($rule);
         self::assertTrue($rule->when->evaluate($facts));
-        self::assertSame(['kind' => 'fix', 'role' => 'fix', 'reason' => 'agent-review', 'limit' => 10], \array_slice($rule->then->params, 0, 4));
+        self::assertSame(['kind' => 'fix', 'role' => 'fix', 'reason' => 'agent-review', 'limit' => 10], \array_slice($rule->lead->params, 0, 4));
         self::assertNotContains('agent-review'.$suffix, $this->firingRuleIds($facts));
     }
 
@@ -642,15 +687,15 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertCount(1, $rules);
         self::assertSame('@terminal', $rules[0]->slot);
         self::assertTrue($rules[0]->when->evaluate(FactsMother::facts(card: FactsMother::card(slot: '@terminal'))));
-        self::assertSame('request', $rules[0]->then->key);
-        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $rules[0]->then->params);
+        self::assertSame('request', $rules[0]->lead->key);
+        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $rules[0]->lead->params);
     }
 
     #[DataProvider('shippedKeys')]
     public function test_every_request_but_the_teardown_names_what_its_work_needs_from_the_project(string $key): void
     {
-        $requests = array_values(array_filter($this->template($key)->rules, static fn ($rule): bool => 'request' === $rule->then->key));
-        $withoutChecks = array_values(array_map(static fn ($rule): string => $rule->id, array_filter($requests, static fn ($rule): bool => [] === $rule->then->checks)));
+        $requests = array_values(array_filter($this->template($key)->rules, static fn ($rule): bool => 'request' === $rule->lead->key));
+        $withoutChecks = array_values(array_map(static fn ($rule): string => $rule->id, array_filter($requests, static fn ($rule): bool => [] === $rule->lead->checks)));
 
         self::assertNotEmpty($requests);
         self::assertSame(['teardown'], $withoutChecks);
@@ -676,7 +721,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach ([['@terminal', $merged], ['@backlog', $closed]] as [$slot, $pullRequest]) {
             $facts = FactsMother::facts(card: FactsMother::card(slot: $slot), pullRequest: $pullRequest, pullRequests: [$pullRequest]);
             foreach ($template->rulesFor(null) as $rule) {
-                self::assertFalse($rule->when->evaluate($facts) && $slot === ($rule->then->params['to'] ?? null), $key.' '.$rule->id.' in '.$slot);
+                self::assertFalse($rule->when->evaluate($facts) && $slot === ($rule->lead->params['to'] ?? null), $key.' '.$rule->id.' in '.$slot);
             }
         }
     }
@@ -955,7 +1000,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $sync = $this->call('forge-write', ['write' => 'merge-main-into-epic', 'fallback' => 'sync-epic']);
         $rules = array_column($this->lifecycle()->rulesFor('next'), null, 'id');
-        self::assertEquals($sync, $rules['epic-branch-sync']->then);
+        self::assertEquals($sync, $rules['epic-branch-sync']->lead);
         $ids = array_map(static fn ($rule): string => $rule->id, $this->lifecycle()->rulesFor('next'));
         self::assertLessThan(array_search('child-unblocked', $ids, true), array_search('epic-branch-sync', $ids, true));
 
@@ -1042,7 +1087,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         $params = [];
         foreach ($this->lifecycle()->rules as $rule) {
             if (\in_array($rule->id, ['product-design-revise', 'tech-design-revise'], true)) {
-                $params[$rule->id] = [$rule->then->params[TemplateParser::DOCUMENT_TAG] ?? null, $rule->then->params[TemplateParser::DOCUMENT_STATUS] ?? null];
+                $params[$rule->id] = [$rule->lead->params[TemplateParser::DOCUMENT_TAG] ?? null, $rule->lead->params[TemplateParser::DOCUMENT_STATUS] ?? null];
             }
         }
 
@@ -1092,7 +1137,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         $actions = [];
         foreach ($this->lifecycle()->rulesFor($facts->slot) as $rule) {
             if ($rule->when->evaluate($facts)) {
-                $actions[] = $rule->then;
+                array_push($actions, ...$rule->then);
             }
         }
 
