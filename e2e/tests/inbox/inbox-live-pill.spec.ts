@@ -125,7 +125,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     await watcher.context().close();
 });
 
-test('the full-screen artifact page keeps the count in its tab title', async ({
+test('the full-screen artifact page updates the count in its tab title', async ({
     browser,
     request,
 }) => {
@@ -142,7 +142,7 @@ test('the full-screen artifact page keeps the count in its tab title', async ({
     const page = await signedInPage(browser, email, PASSWORD);
     const seeded = await page.request.post('/dev/seed/inbox');
     expect(seeded.status()).toBe(201);
-    const { projectId } = await seeded.json();
+    const { projectId, todoNumber } = await seeded.json();
 
     const token = await agentAccessToken(page);
     const stored = await request.post(`/api/projects/${projectId}/artifacts`, {
@@ -164,6 +164,22 @@ test('the full-screen artifact page keeps the count in its tab title', async ({
         `/projects/${projectId}/artifacts/${artifactId}/full-screen`,
     );
     await expect(page).toHaveTitle(/^\(2\) /);
+    // The hub keeps no history, so a change made before this connects is lost.
+    await expect(
+        page.locator('[data-live-pill-url-value$="/inbox/open-total"]'),
+    ).toHaveAttribute('data-live-pill-connected', '');
 
+    const editor = await signedInPage(browser, email, PASSWORD);
+    await editor.goto(`/projects/${projectId}/inbox`);
+    const todo = editor.locator(`#inbox-item-${todoNumber}`);
+    await todo.getByRole('button', { name: 'Mark complete' }).click();
+    await expect(editor.locator('[data-inbox-status]')).toContainText(
+        'Marked done.',
+        { timeout: 15_000 },
+    );
+
+    await expect(page).toHaveTitle(/^\(1\) /);
+
+    await editor.context().close();
     await page.context().close();
 });
