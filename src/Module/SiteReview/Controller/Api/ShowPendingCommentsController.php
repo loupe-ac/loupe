@@ -92,18 +92,11 @@ final class ShowPendingCommentsController extends AppController
             'comments' => array_values(array_map(
                 static function (SiteReviewComment $c) use ($links): array {
                     $anchors = array_values($c->anchors->toArray());
-                    $first = $anchors[0] ?? null;
                     $link = $links[(string) $c->id] ?? null;
 
-                    // selector/text repeat the first anchor for a widget copy that
-                    // predates anchors[]. The script URL carries no version, so a
-                    // browser can hold one for a long time, and a widget that reads
-                    // no selector renders every comment as an unanchored note.
                     return [
                         'id' => (string) $c->id,
                         'body' => $c->body,
-                        'selector' => null === $first ? '' : $first->selector,
-                        'text' => null === $first ? '' : $first->text,
                         'url' => $c->url,
                         'surface' => $c->surface->value,
                         'native' => $c->native,

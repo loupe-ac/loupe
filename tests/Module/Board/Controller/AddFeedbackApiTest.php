@@ -301,13 +301,13 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertNull($listed['url']);
         self::assertSame('ios-simulator', $listed['surface']);
         self::assertSame('com.example.treadmatic', $listed['native']['app']['bundleId']);
-        self::assertSame(['selector' => '', 'text' => ''], ['selector' => $listed['selector'], 'text' => $listed['text']]);
+        self::assertSame([], $listed['anchors']);
 
         $this->get($client, $raw, '/api/live-review/review?surface=android');
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function test_the_review_response_keeps_the_selector_and_text_of_anchor_zero(): void
+    public function test_the_review_response_carries_the_anchors_and_no_scalar_selector_or_text(): void
     {
         $client = static::createClient();
         [$raw] = $this->projectWithToken($client, 'feedback-api-list-legacy@example.com');
@@ -315,8 +315,10 @@ final class AddFeedbackApiTest extends WebTestCase
 
         $listed = $this->get($client, $raw, '/api/live-review/review')['comments'][0];
 
-        self::assertSame('.footer', $listed['selector']);
-        self::assertSame('Footer', $listed['text']);
+        self::assertArrayNotHasKey('selector', $listed);
+        self::assertArrayNotHasKey('text', $listed);
+        self::assertSame('.footer', $listed['anchors'][0]['selector']);
+        self::assertSame('Footer', $listed['anchors'][0]['text']);
         self::assertSame('web', $listed['surface']);
     }
 
