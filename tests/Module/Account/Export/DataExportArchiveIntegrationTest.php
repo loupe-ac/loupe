@@ -7,6 +7,7 @@ namespace App\Tests\Module\Account\Export;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Export\DataExportArchiveBuilder;
 use App\Module\GitHub\Entity\GitHubHook;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
@@ -67,7 +68,7 @@ final class DataExportArchiveIntegrationTest extends WebTestCase
         $review = new Review($version1, Verdict::Approved, $user);
         $em->persist($review);
 
-        $inboxItem = new InboxItem($project, 1, InboxItemKind::Review, 'Review my doc', true);
+        $inboxItem = new InboxItem($project, 1, InboxItemKind::Review, 'Review my doc', true, origin: InboxAskOrigin::Agent);
         $inboxReview = new InboxReview($inboxItem, $document);
         $em->persist($inboxItem);
         $em->persist($inboxReview);

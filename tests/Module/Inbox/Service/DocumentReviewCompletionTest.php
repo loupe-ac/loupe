@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -37,7 +38,7 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         $project = $this->project($em, $owner, 'rollback-review');
         $document = $this->document($em, $project);
         $document->addVersion('# Design', '<h1>Design</h1>');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         $ask = $this->ask($em, $project);
         $link = new InboxAskItem($ask, $item);
@@ -84,8 +85,8 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         $otherDocument->addVersion('# Other', '<h1>Other</h1>');
         $question = $this->item($em, $project, 1);
         $question->documents->add(new InboxItemDocument($question, $document));
-        $item = new InboxItem($project, 2, InboxItemKind::Review, 'Review this design', true);
-        $otherItem = new InboxItem($project, 3, InboxItemKind::Review, 'Review another design', true);
+        $item = new InboxItem($project, 2, InboxItemKind::Review, 'Review this design', true, origin: InboxAskOrigin::Agent);
+        $otherItem = new InboxItem($project, 3, InboxItemKind::Review, 'Review another design', true, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $document);
         $otherReview = new InboxReview($otherItem, $otherDocument);
         $ask = $this->ask($em, $project);

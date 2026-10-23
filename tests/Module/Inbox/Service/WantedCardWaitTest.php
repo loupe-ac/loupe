@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -100,7 +101,7 @@ final class WantedCardWaitTest extends TestCase
     public function test_the_key_of_a_row_of_the_previous_release_equals_the_key_of_the_new_entry(string $markerKey, string $trigger, MarkerSubject $subject, array $legacy): void
     {
         $project = new Project(new User(fullName: 'Riley', email: 'riley@example.com', password: 'hashed'), 'Widgets');
-        $watch = new InboxCardWatch(new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true), Uuid::v7(), 1);
+        $watch = new InboxCardWatch(new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe), Uuid::v7(), 1);
         $row = new InboxCardWait($watch, $markerKey, $legacy['type'], '', $legacy['documentId'] ?? null, $legacy['versionNumber'] ?? null, $legacy['runId'] ?? null, $legacy['pullRequestId'] ?? null, $legacy['headSha'] ?? null, pauseId: $legacy['pauseId'] ?? null);
         $entry = new StoredMarker($markerKey, MarkerKind::NeedsYou, 'marker.'.str_replace('-', '_', $markerKey), null, [], new \DateTimeImmutable(), subject: $subject);
 

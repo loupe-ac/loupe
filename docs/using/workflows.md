@@ -263,6 +263,9 @@ pull request, a document version, a run or a pause. Two pull requests that wait
 for approval give two waits in one inbox item. The card has one item. A dismiss
 hides one wait, and the wait comes back only for a new thing.
 
+A marker about a document or a pull request makes the item a Review while its
+wait is open. Any other open wait leaves the item Waiting.
+
 A marker that the list does not name opens no item. The
 [inbox page](inbox.md#automatic-items) describes the items.
 

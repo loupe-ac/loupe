@@ -39,6 +39,15 @@ final class ListRowParityTest extends KernelTestCase
         self::assertStringNotContainsString('icon:', $html);
     }
 
+    public function test_the_subtitle_draws_a_line_under_the_title_and_no_line_without_one(): void
+    {
+        $with = $this->render('<twig:Ds:ListRow href="#" title="A" subtitle="Pull request #7: Fix it" />');
+        $without = $this->render('<twig:Ds:ListRow href="#" title="A" />');
+
+        self::assertStringContainsString('<span class="lp-list-row__subtitle">Pull request #7: Fix it</span>', $with);
+        self::assertStringNotContainsString('lp-list-row__subtitle', $without);
+    }
+
     public function test_the_current_row_carries_the_aria_current_mark(): void
     {
         $html = $this->render('<twig:Ds:ListRow href="#" title="A" :current="true" />');
@@ -49,7 +58,7 @@ final class ListRowParityTest extends KernelTestCase
 
     public function test_the_exported_wrapper_uses_the_same_class_names_as_the_twig_component(): void
     {
-        $html = $this->render('<twig:Ds:ListRow href="#" title="A"><twig:block name="icon">i</twig:block><twig:block name="meta">m</twig:block></twig:Ds:ListRow>');
+        $html = $this->render('<twig:Ds:ListRow href="#" title="A" subtitle="s"><twig:block name="icon">i</twig:block><twig:block name="meta">m</twig:block></twig:Ds:ListRow>');
 
         $jsx = self::componentJsx('ListRow');
 

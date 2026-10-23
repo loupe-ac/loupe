@@ -91,7 +91,7 @@ final readonly class InboxItemPayload
     {
         $this->inboxItems->loadCards($items);
         $reviews = [];
-        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind));
+        $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind && !$item->isAutomatic()));
         foreach ($this->inboxReviews->findForItems($reviewItems) as $review) {
             $reviews[(string) $review->item->id] = $this->forReview($review);
         }
@@ -114,8 +114,8 @@ final readonly class InboxItemPayload
      */
     public function forItem(InboxItem $item, array $asks): array
     {
-        $review = InboxItemKind::Review === $item->kind ? $this->inboxReviews->findOneBy(['item' => $item]) : null;
-        $watch = InboxItemKind::Wait === $item->kind ? $this->inboxCardWatches->findOneForItem($item) : null;
+        $review = InboxItemKind::Review === $item->kind && !$item->isAutomatic() ? $this->inboxReviews->findOneBy(['item' => $item]) : null;
+        $watch = $item->isAutomatic() ? $this->inboxCardWatches->findOneForItem($item) : null;
         $waits = null === $watch ? [] : array_values($watch->waits->toArray());
         // A start time holds whole seconds, so on a tie an ended wait comes before the open one that replaced it.
         usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, null === $a->endedAt, $a->key()] <=> [$b->startedAt, null === $b->endedAt, $b->key()]);
@@ -147,9 +147,9 @@ final readonly class InboxItemPayload
                 array_values($item->documents->toArray()),
             ),
             'asks' => array_map(
-                static fn (InboxAsk $ask): array => [
+                fn (InboxAsk $ask): array => [
                     'askId' => (string) $ask->id,
-                    'origin' => $ask->origin->value,
+                    'origin' => $item->origin->value,
                     'sessionId' => $ask->sessionId?->toRfc4122(),
                     'closedAt' => $ask->closedAt?->format(\DATE_ATOM),
                 ],

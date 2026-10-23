@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -26,7 +27,7 @@ final class InboxWorkshopAttentionProviderTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $project = $this->project($em, $this->owner($em, 'workshop-attention'), 'workshop-attention');
         $this->item($em, $project, 1, 'Closed')->state = InboxItemState::Done;
-        $wait = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: 'Waits for your review', blocking: true);
+        $wait = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: 'Waits for your review', blocking: true, origin: InboxAskOrigin::Loupe);
         $em->persist($wait);
         $em->persist(new InboxItemCard($wait, $this->card($em, $project, 4)));
         foreach (range(3, 8) as $number) {

@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWaitType;
@@ -50,6 +51,7 @@ final class InboxExporterTest extends KernelTestCase
             kind: InboxItemKind::Question,
             title: 'Which column?',
             blocking: true,
+            origin: InboxAskOrigin::Agent,
             body: 'The card is ready.',
             options: ['next', 'done'],
             multiple: true,
@@ -103,7 +105,7 @@ final class InboxExporterTest extends KernelTestCase
         $card = $this->card($this->em, $project, 7);
         $document = $this->document($this->em, $project);
         $this->em->flush();
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $watch = new InboxCardWatch($item, $card->id ?? throw new \LogicException('A stored card has an id.'), 7);
         $ended = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', $document->id, 1, startedAt: new \DateTimeImmutable('2026-09-01 09:00:00'));
         $ended->endedAt = new \DateTimeImmutable('2026-09-02 09:00:00');

@@ -10,6 +10,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -96,7 +97,7 @@ final class WaitingAskFactProviderTest extends KernelTestCase
 
     private function askOfStoppedSession(WorkerRunState $state, ?Card $card = null, bool $blocking = true): InboxAsk
     {
-        $item = new InboxItem($this->card->project, $this->itemNumber++, InboxItemKind::Question, 'Which option?', $blocking);
+        $item = new InboxItem($this->card->project, $this->itemNumber++, InboxItemKind::Question, 'Which option?', $blocking, origin: InboxAskOrigin::Agent);
         $ask = new InboxAsk(project: $this->card->project, sessionId: Uuid::v4(), bridgeId: $this->bridgeId);
         $ask->items->add(new InboxAskItem($ask, $item));
         $this->em()->persist($item);

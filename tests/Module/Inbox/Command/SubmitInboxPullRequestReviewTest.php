@@ -9,8 +9,11 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Inbox\Command\DeclineInboxItemCommand;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
+use App\Module\Inbox\Command\SubmitInboxDocumentReviewCommand;
+use App\Module\Inbox\Command\SubmitInboxDocumentReviewHandler;
 use App\Module\Inbox\Command\SubmitInboxPullRequestReviewCommand;
 use App\Module\Inbox\Command\SubmitInboxPullRequestReviewHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -38,7 +41,7 @@ final class SubmitInboxPullRequestReviewTest extends KernelTestCase
         $owner = $this->owner($em, 'pr-review');
         $project = $this->project($em, $owner, 'pr-review');
         $target = new CardPullRequest($this->card($em, $project), 'https://github.com/example/project/pull/12');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $target);
         foreach ([$target, $item, $review] as $entity) {
             $em->persist($entity);
@@ -84,7 +87,7 @@ final class SubmitInboxPullRequestReviewTest extends KernelTestCase
         $owner = $this->owner($em, 'pr-stale');
         $project = $this->project($em, $owner, 'pr-stale');
         $target = new CardPullRequest($this->card($em, $project), 'https://github.com/example/project/pull/12');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $target);
         foreach ([$target, $item, $review] as $entity) {
             $em->persist($entity);
@@ -118,7 +121,7 @@ final class SubmitInboxPullRequestReviewTest extends KernelTestCase
         $owner = $this->owner($em, 'pr-feedback');
         $project = $this->project($em, $owner, 'pr-feedback');
         $target = new CardPullRequest($this->card($em, $project), 'https://github.com/example/project/pull/12');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review this PR', false, origin: InboxAskOrigin::Agent);
         $review = new InboxReview($item, $target);
         foreach ([$target, $item, $review] as $entity) {
             $em->persist($entity);
@@ -133,6 +136,33 @@ final class SubmitInboxPullRequestReviewTest extends KernelTestCase
         $em->clear();
         self::assertSame(InboxItemState::Open, $em->find(InboxItem::class, $item->id)?->state);
         self::assertNull($em->find(InboxReview::class, $review->id)?->verdict);
+    }
+
+    public function test_an_automatic_review_item_takes_no_verdict(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $owner = $this->owner($em, 'pr-auto');
+        $project = $this->project($em, $owner, 'pr-auto');
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review pull request #12', true, origin: InboxAskOrigin::Loupe);
+        $em->persist($item);
+        $em->flush();
+        $documents = self::getContainer()->get(SubmitInboxDocumentReviewHandler::class);
+        self::assertInstanceOf(SubmitInboxDocumentReviewHandler::class, $documents);
+
+        foreach ([
+            fn () => ($this->handler())(new SubmitInboxPullRequestReviewCommand($item, $owner, 'approved', 'https://github.com/example/project/pull/12')),
+            fn () => $documents(new SubmitInboxDocumentReviewCommand($item, $owner, 'approved', 1)),
+        ] as $submit) {
+            try {
+                $submit();
+                self::fail('An automatic item has no verdict form.');
+            } catch (DomainErrors $error) {
+                self::assertSame(['verdict' => 'inbox.review.error.not_a_review'], $error->errors);
+            }
+        }
+        self::assertSame(InboxItemState::Open, $item->state);
     }
 
     private function handler(): SubmitInboxPullRequestReviewHandler
