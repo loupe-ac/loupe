@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -85,7 +86,7 @@ final class InboxWithdrawToolTest extends KernelTestCase
         $this->enableInbox();
         $project = $this->makeProject('inbox-withdraw-wait');
         $this->actAsMcpTokenBoundTo($project);
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em->persist($item);
         $this->em->flush();
 

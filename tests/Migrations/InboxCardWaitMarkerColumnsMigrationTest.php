@@ -8,6 +8,7 @@ use App\Module\Board\Entity\CardPause;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -47,7 +48,7 @@ final class InboxCardWaitMarkerColumnsMigrationTest extends KernelTestCase
 
         $project = $this->project($em, $this->owner($em, 'wait-columns'), 'wait-columns');
         $this->project = $project;
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $em->persist($item);
         $watch = new InboxCardWatch($item, Uuid::v7(), 1);
         $em->persist($watch);

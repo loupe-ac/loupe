@@ -82,11 +82,6 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\OrderBy(['linkedAt' => 'ASC'])]
     public Collection $documents;
 
-    /** Who wrote the item. Loupe opens every wait, notice and workflow item, and an agent every other kind. */
-    public InboxAskOrigin $origin {
-        get => \in_array($this->kind, [InboxItemKind::Wait, InboxItemKind::Notice, InboxItemKind::Workflow], true) ? InboxAskOrigin::Loupe : InboxAskOrigin::Agent;
-    }
-
     /**
      * @param list<string> $options empty for a to-do
      */
@@ -99,14 +94,19 @@ class InboxItem implements ProjectScopedSubject
         #[ORM\Column]
         public readonly int $number,
 
+        /** An automatic item is a Review while a document or pull request wait of its card is open, and Waiting otherwise. Any other item keeps the kind it was made with. */
         #[ORM\Column(length: 20, enumType: InboxItemKind::class)]
-        public readonly InboxItemKind $kind,
+        public InboxItemKind $kind,
 
         #[ORM\Column(length: self::MAX_TITLE_LENGTH)]
         public string $title,
 
         #[ORM\Column]
         public bool $blocking,
+
+        /** Who wrote the item. Loupe writes every wait, notice and workflow item, and an agent every item it asks. */
+        #[ORM\Column(length: 20, enumType: InboxAskOrigin::class)]
+        public readonly InboxAskOrigin $origin,
 
         #[ORM\Column(type: Types::TEXT, nullable: true)]
         public ?string $body = null,
@@ -130,6 +130,12 @@ class InboxItem implements ProjectScopedSubject
         $this->cards = new ArrayCollection();
         $this->documents = new ArrayCollection();
         $this->updatedAt = $this->createdAt;
+    }
+
+    /** Loupe opened it for a waiting card, as opposed to an agent's ask or a notice. */
+    public function isAutomatic(): bool
+    {
+        return InboxAskOrigin::Loupe === $this->origin && \in_array($this->kind, [InboxItemKind::Wait, InboxItemKind::Review], true);
     }
 
     #[\Override]

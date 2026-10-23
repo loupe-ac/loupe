@@ -141,7 +141,7 @@ final readonly class InboxItemCloser
         if (InboxItemKind::Notice === $item->kind) {
             return self::ERROR_NOTICE;
         }
-        if (\in_array($item->kind, [InboxItemKind::Review, InboxItemKind::Workflow], true) && InboxItemState::Open !== $item->state) {
+        if ((InboxItemKind::Workflow === $item->kind || (InboxItemKind::Review === $item->kind && !$item->isAutomatic())) && InboxItemState::Open !== $item->state) {
             return self::ERROR_FINAL;
         }
         if (InboxAskOrigin::Loupe === $item->origin && \in_array($item->state, [InboxItemState::Done, InboxItemState::Obsolete], true)) {

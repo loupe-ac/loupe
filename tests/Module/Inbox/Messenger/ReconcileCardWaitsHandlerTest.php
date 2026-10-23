@@ -82,6 +82,6 @@ final class ReconcileCardWaitsHandlerTest extends KernelTestCase
 
     private function openWaitItems(string $projectId): int
     {
-        return (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM inbox_items WHERE project_id = :id AND kind = 'wait' AND state = 'open'", ['id' => $projectId]);
+        return (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM inbox_items WHERE project_id = :id AND origin = 'loupe' AND state = 'open'", ['id' => $projectId]);
     }
 }

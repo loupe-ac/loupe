@@ -7,6 +7,7 @@ namespace App\Module\Inbox\Command;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -57,6 +58,7 @@ final readonly class SeedInboxFixtureHandler
                 kind: InboxItemKind::Question,
                 title: 'Which format should the export use?',
                 blocking: true,
+                origin: InboxAskOrigin::Agent,
                 body: 'Both formats work with the importer.',
                 options: ['JSON', 'CSV'],
                 freeText: true,
@@ -67,6 +69,7 @@ final readonly class SeedInboxFixtureHandler
                 kind: InboxItemKind::Todo,
                 title: 'Review pull request 482',
                 blocking: true,
+                origin: InboxAskOrigin::Agent,
             );
             $ask->items->add(new InboxAskItem($ask, $question));
             $ask->items->add(new InboxAskItem($ask, $todo));

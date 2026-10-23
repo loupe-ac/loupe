@@ -87,7 +87,12 @@ icon of the first item of a closed ask. The title of the first item follows.
 A grey line below the title shows the first linked card and the age, such as
 "#1 Checkout · 2h". An ask with more cards shows "+2" after the first. An ask
 with no card shows its source, **Agent** or **Loupe**, instead. An ask that
-holds an open blocking item ends the line with **Blocking**. A closed ask shows
+holds an open blocking item ends the line with **Blocking**. A review request
+from an agent adds a line under its title that names the target: `Document
+"Tech design"`, or `Pull request #812: Fix the board filter`. The ask page
+shows the same line under its heading. The pull request title is the one that
+Loupe read from GitHub at its last check, so a renamed pull request shows its
+new title after the next check. A closed ask shows
 how it ended: answered, approved, changes requested, done, dismissed, declined,
 withdrawn or no longer needed.
 
@@ -315,7 +320,14 @@ publish or review yourself opens it at once. See
 Other linked documents, such as a plan, open no wait. A change to the tags of
 a document makes Loupe check each card that links it again.
 
-The item has the kind **Waiting**, and it is always blocking.
+The item is always blocking. It is a **Review**, with the eye icon, while a
+document or a pull request of the card waits for your review, and its title
+names the target, such as `Review "Tech design", version 2` or `Review pull
+request #812: Fix the board filter`. Another open wait, such as a stopped
+worker, does not change the kind. The item becomes **Waiting** when its last
+review wait ends and another wait stays open. A closed item keeps the kind it
+had. The **Review** filter finds these items, and **Dismiss** works on them as
+on a waiting item.
 
 A card has at most one open automatic item. Its title is the card number, the
 reason of the main wait, and the card title, such as "#686 Review worker

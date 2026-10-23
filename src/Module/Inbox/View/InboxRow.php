@@ -77,7 +77,7 @@ final readonly class InboxRow
 
     public function origin(): InboxAskOrigin
     {
-        return $this->ask->origin ?? $this->items[0]->origin;
+        return $this->items[0]->origin;
     }
 
     public function createdAt(): \DateTimeImmutable

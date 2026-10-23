@@ -45,6 +45,8 @@ final readonly class PullRequestSnapshot
         public ?\DateTimeImmutable $latestApprovedAt = null,
         public ?string $latestApprovalId = null,
         public ?string $latestApproverLogin = null,
+        /** The title as the forge showed it at this read. equals() leaves it out, so a rename announces no change. */
+        public ?string $title = null,
     ) {
     }
 
@@ -57,7 +59,7 @@ final readonly class PullRequestSnapshot
 
     /**
      * Strict, because a loose `==` holds two numeric-looking commit hashes equal.
-     * The times and the approval, branch and author facts are left out, the newest approval with them, so a fact read first on a stored row announces no change.
+     * The times and the approval, branch, author and title facts are left out, the newest approval with them, so a fact read first on a stored row announces no change.
      * A default branch that both reads know and that differs counts, because it decides whether the pull request waits for an approval.
      */
     public function equals(self $other): bool

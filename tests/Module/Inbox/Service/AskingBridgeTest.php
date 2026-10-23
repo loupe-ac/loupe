@@ -12,6 +12,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Service\AskingBridge;
@@ -148,7 +149,7 @@ final class AskingBridgeTest extends KernelTestCase
 
     private function todoHeldBy(InboxAsk ...$asks): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: random_int(1, 100000), kind: InboxItemKind::Todo, title: 'Export it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: random_int(1, 100000), kind: InboxItemKind::Todo, title: 'Export it', blocking: false, origin: InboxAskOrigin::Agent);
         $this->em->persist($item);
         foreach ($asks as $ask) {
             $this->em->persist($ask);

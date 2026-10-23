@@ -46,7 +46,7 @@ final readonly class DeclineInboxItemHandler
             $item->answerText = null;
             $item->closeNote = '' === $note ? null : $note;
             $item->respondedThroughAgent = $command->throughAgent;
-            if (InboxItemKind::Wait === $item->kind) {
+            if ($item->isAutomatic()) {
                 $dismissedCardId = $this->dismiss($item);
             }
 

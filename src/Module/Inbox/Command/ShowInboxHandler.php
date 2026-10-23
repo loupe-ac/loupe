@@ -8,7 +8,6 @@ use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxAskRepository;
@@ -217,7 +216,7 @@ final readonly class ShowInboxHandler
                 null => 'answered',
             },
             InboxItemState::Done => 'done',
-            InboxItemState::Declined => InboxItemKind::Wait === $item->kind ? 'dismissed' : 'declined',
+            InboxItemState::Declined => $item->isAutomatic() ? 'dismissed' : 'declined',
             InboxItemState::Withdrawn => 'withdrawn',
             InboxItemState::Obsolete => 'obsolete',
         };
