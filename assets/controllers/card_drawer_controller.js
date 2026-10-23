@@ -28,6 +28,7 @@ export default class extends ModalController {
         this.focusFrameOnLoad = false;
         this.onBeforeCache = () => this.#reset();
         document.addEventListener('turbo:before-cache', this.onBeforeCache);
+        document.addEventListener('click', this.#onOpenerClick);
         this.stopLive = on('board.card_changed', (change) =>
             this.cardChanged(change),
         );
@@ -36,6 +37,7 @@ export default class extends ModalController {
     disconnect() {
         super.disconnect();
         document.removeEventListener('turbo:before-cache', this.onBeforeCache);
+        document.removeEventListener('click', this.#onOpenerClick);
         this.stopLive?.();
     }
 
@@ -210,6 +212,14 @@ export default class extends ModalController {
             ].find((link) => link.getAttribute('href') === href);
         }
     }
+
+    // The top bar sits outside the controller element, so its opener is heard at the document.
+    #onOpenerClick = (event) => {
+        const opener = event.target.closest?.('[data-card-drawer-opener]');
+        if (!opener || event.defaultPrevented) return;
+        if (event.button !== 0 || event.metaKey || event.ctrlKey) return;
+        this.prepare({ currentTarget: opener });
+    };
 
     #onClosed = () => {
         this.focusFrameOnLoad = false;

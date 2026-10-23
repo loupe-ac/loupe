@@ -365,3 +365,18 @@ it('closes a modeless drawer on Escape, which reports no cancel event', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(controller.closeRequest).not.toBeNull();
 });
+
+it('opens the drawer from a top bar opener outside its element', () => {
+    dialog.open = false;
+    const opener = document.createElement('a');
+    opener.href = '/projects/1/board/cards/new';
+    opener.dataset.cardDrawerOpener = '';
+    document.body.append(opener);
+    opener.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true }),
+    );
+    expect(
+        dialog.showModal.mock.calls.length + dialog.show.mock.calls.length,
+    ).toBe(1);
+    expect(controller.invoker).toBe(opener);
+});

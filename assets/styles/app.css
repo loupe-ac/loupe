@@ -211,6 +211,17 @@
         color: var(--ink);
     }
 
+    @media (hover: hover) {
+        .lp-core-board .lp-board__add-card {
+            opacity: 0;
+        }
+
+        .lp-core-board .lp-board__column:hover .lp-board__add-card,
+        .lp-core-board .lp-board__column:focus-within .lp-board__add-card {
+            opacity: 1;
+        }
+    }
+
     .lp-core-board .lp-board__column-count {
         border: 0;
         background: var(--border);

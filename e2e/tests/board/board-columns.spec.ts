@@ -601,26 +601,32 @@ test('the board header holds the title and actions on one row, and columns offer
 }) => {
     const toolbar = page.locator('.lp-board-toolbar');
     const title = toolbar.getByRole('heading', { level: 1 });
-    const addCard = toolbar.getByRole('link', {
-        name: 'Add card',
+    const settings = toolbar.getByRole('link', {
+        name: 'Board settings',
         exact: true,
     });
     await expect(title).toBeVisible();
     const titleBox = await title.boundingBox();
-    const addCardBox = await addCard.boundingBox();
+    const settingsBox = await settings.boundingBox();
     expect(titleBox).not.toBeNull();
-    expect(addCardBox).not.toBeNull();
-    // One row: the title and Add card share a vertical band.
+    expect(settingsBox).not.toBeNull();
+    // One row: the title and the settings link share a vertical band.
     expect(
         Math.abs(
             titleBox!.y +
                 titleBox!.height / 2 -
-                (addCardBox!.y + addCardBox!.height / 2),
+                (settingsBox!.y + settingsBox!.height / 2),
         ),
     ).toBeLessThanOrEqual(8);
+    await expect(settings).toHaveAttribute('title', 'Board settings');
     await expect(
-        toolbar.getByRole('link', { name: 'Board settings', exact: true }),
-    ).toHaveAttribute('title', 'Board settings');
+        toolbar.getByRole('link', { name: 'Add card', exact: true }),
+    ).toHaveCount(0);
+    // Settings sits left of the Board and List switch.
+    const modeBox = await toolbar
+        .locator('.lp-board-toolbar__mode')
+        .boundingBox();
+    expect(settingsBox!.x).toBeLessThan(modeBox!.x);
 
     const heads = page.locator(`${COLUMN} .lp-board__column-head`);
     await expect(heads).toHaveCount(3);
