@@ -8,7 +8,7 @@
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`.
 3. Pick the forge adapter as the next section says.
 
-The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold an optional `Forge` section with one value, the forge name, such as `github`, an optional `Decision records` section that `loupe-recommendations` reads, and an optional `Visual check` section that `visual-check.md` reads, and an optional `Preview` section that `preview.md` reads. A missing optional section blocks nothing. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write a plan, and run the plan task by task.
+The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold an optional `Forge` section with one value, the forge name, such as `github`, an optional `Decision records` section that `loupe-recommendations` reads, and an optional `Visual check` section that `visual-check.md` reads, and an optional `Preview` section that `preview.md` reads. A missing optional section blocks nothing. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write the build notes, and run the build notes task by task.
 
 ## Pick the forge adapter
 
@@ -71,7 +71,7 @@ git branch --show-current
 
 ## Reruns
 
-1. A linked document tagged `plan` whose `references` hold the tech design id is the plan. Reuse it, and create no second plan.
+1. A linked document tagged `build-notes` whose `references` hold the tech design id is the build notes. Reuse it, and create no second one.
 2. An open pull request on a branch that starts `<prefix>` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request. Run `git branch --show-current`. When HEAD is detached, or on another `<prefix>` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.

@@ -54,8 +54,8 @@ result as the check `loupe/agent-review`, with each finding beside its line.
 - Review the diff against `origin/<base>`, never `main`. A worktree's local
   `main` is often stale, so a review against it reports findings for
   already-merged code.
-- A reviewer inside an implementation run, such as the per-task reviewer of a
-  plan, still runs. Those reviews are part of the build.
+- A reviewer inside an implementation run, such as the per-task reviewer of the
+  build notes, still runs. Those reviews are part of the build.
 
 ### The Design System artifact rebuild
 

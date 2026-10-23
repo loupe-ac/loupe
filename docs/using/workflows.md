@@ -609,7 +609,7 @@ mechanical breaks.
 
 The review checks the code, and it also checks the whole pull request against
 the designs that the card links. The reviewer reads the product document, the
-tech design, the answers to their decisions, and the plan. A finding of the
+tech design, the answers to their decisions, and the build notes. A finding of the
 category `spec` reports a gap between the pull request and a design: a
 requirement that nothing builds, a decision that the change makes differently,
 a behaviour that no requirement asks for, or a deliverable that a design names
@@ -629,10 +629,19 @@ place that the finding names. It adds a test that checks the rule. Before it
 pushes, it reviews its own fix with the same checklist as the reviewer.
 
 The fix worker fixes a failed `spec` finding as any other finding. When the
-implementer chose on purpose to depart from a design, the plan document records
+implementer chose on purpose to depart from a design, the build notes record
 the departure under a "Departures" section, with the reason. The review then
 shows it as a nit, which never fails the review, and the fix worker leaves it
 alone. A departure with no record fails the review.
+
+The fix worker answers a finding that needs evidence instead of code, and a
+finding that it judges wrong, in the build notes. It writes one subsection per
+finding under a "Review answers" section, named after the finding. The
+subsection opens with the result in one sentence, then says what the finding
+asked, what the worker did, and the raw evidence. The worker adds one line to
+the pull request body that links the section. The reviewer reads each answer as
+a claim, as it reads a departure. Evidence that is missing, hard to follow, or
+that states no result is an `important` finding.
 
 The reviewer marks a `spec` finding with `needsPerson` when a worker cannot
 settle it from the design and the code alone. The design may be unclear,
@@ -950,7 +959,7 @@ child and the epic, and it has three options:
    child waits until the epic design is approved again. When the epic has no
    tech design, nothing is linked and the card history records the refusal.
    The implementation worker then builds the card body against the epic
-   design. The plan covers only the work that the card body describes.
+   design. The build notes cover only the work that the card body describes.
 2. **Move the card to Tech design.** The child gets a tech design of its own.
 3. **Detach the card.** The card stops being a child of the epic.
 

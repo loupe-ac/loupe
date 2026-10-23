@@ -46,10 +46,11 @@ Loupe does both itself, and no worker runs.
 
 The implementation worker reads the saved decision answers of the tech design.
 An answer wins over the text of the design. The worker lists those decisions at
-the top of its plan.
+the top of its build notes. The build notes are a document titled
+"Build notes: <card title>" and tagged `build-notes`.
 
 When the card, its parent card or a design links a prototype, the worker reads
-every page of it before it plans. The plan gets a "Prototype map" that names the
+every page of it before it builds. The build notes get a "Prototype map" that names the
 code for each part of the prototype. Each UI sub-agent reads the pages of its
 own task. The review stage fails a part of the prototype that the build leaves
 out with no recorded reason, or with a reason that the card, its designs and the
@@ -129,7 +130,7 @@ design:
    has no entry line, for example a card moved under an epic by hand. The
    worker builds its own approved tech design as a normal card. A standalone
    child that links only the approved tech design of its epic builds its card
-   body against that design, and the plan covers only the work that the card
+   body against that design, and the build notes cover only the work that the card
    body describes. With no approved design linked, the worker stops with
    `STAGE RESULT: blocked: needs its own tech design: move the card to Tech design`.
 2. Breakdown: the card is an epic, or its tech design has a `Breakdown`
@@ -418,7 +419,7 @@ that change from one setup to the next.
    the discovery run proposes a card for each marked value that is wrong.
 2. A harness adapter maps the steps of a worker to the tools of one agent
    harness: connect to Loupe, load an instruction, run a long command,
-   dispatch a sub-agent, and write and run a plan. The generic adapter is
+   dispatch a sub-agent, and write and run the build notes. The generic adapter is
    `.agents/skills/loupe-stage-implementation/references/harnesses/generic.md`.
    The compatibility adapter for Claude Code is
    `.agents/skills/loupe-stage-implementation/references/harnesses/claude-code.md`.
