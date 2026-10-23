@@ -303,8 +303,9 @@ cookie jar, the redirect lands on `/login`. The macOS `/usr/bin/curl` trusts the
 local certificate authority through the keychain, so it needs no `-k`.
 
 Read two results. The effective URL must end in the `--path` you minted, or the
-sign-in failed. The count must be 1 or more, or the state is not seeded. Fetch
-the bare page URL once without the link, and confirm that the count is 0.
+sign-in failed. The count must be 1 or more, or the state is not seeded. For a
+signed link, fetch the bare page URL once without the link, and confirm that
+the count is 0.
 
 Write one Markdown list item per link in the Preview section, naming the
 marker that you found:
@@ -316,7 +317,9 @@ marker that you found:
 A page that only a signed-out visitor sees, such as the landing page at `/`,
 takes a plain link. A signed link signs the reader in, and the page then
 redirects. Prove the plain link with the same `curl`, with no cookie jar, and
-end the line with `. Signed out.`:
+end the line with `. Signed out.`. The plain link is the bare page URL, so skip
+the zero-count fetch. The effective URL must end in the path, and the count
+must be 1 or more. The marker must not be on `main`:
 
 ```markdown
 - [Landing page](https://card-42.loupe.dev.localhost/), marker `rel="help"`. Signed out.
