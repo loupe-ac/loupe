@@ -351,6 +351,10 @@
         padding-bottom: calc(var(--spacing) * 2.5);
     }
 
+    .lp-core-inbox .lp-inbox-list-head .lp-tabs--segmented {
+        @apply w-full;
+    }
+
     .lp-core-inbox .lp-inbox-list-head .lp-filter-search {
         width: 100%;
     }
@@ -2531,21 +2535,6 @@
 }
 
 @layer components {
-    /* The links of the inbox page sit in the top bar, and only their icons stay on a phone. */
-    .lp-inbox-topbar-actions {
-        @apply flex items-center gap-1 ml-auto;
-    }
-    .lp-topbar > .lp-inbox-topbar-actions + .lp-topbar__global-actions {
-        @apply ml-0;
-    }
-    @media (width < 40rem) {
-        .lp-inbox-topbar-actions .lp-btn {
-            @apply w-9 px-0;
-        }
-        .lp-inbox-topbar-actions__label {
-            @apply sr-only;
-        }
-    }
     .lp-inbox-section {
         scroll-margin-top: calc(var(--spacing) * 20);
     }

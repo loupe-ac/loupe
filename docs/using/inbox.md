@@ -36,8 +36,8 @@ many items are still open. The link is absent while the flag is off.
 The browser tab title starts with the number of open items over all your
 projects, such as `(3) Board`. The title has no number at zero.
 
-The page has no header of its own. Its **View activity** and **Settings** links
-sit in the top bar, and on a phone they show as icons.
+The page has no header of its own. The activity page stays in the project
+sidebar.
 
 The count changes without a reload when an agent asks, when you or an agent
 close an item, and when a finished card makes an item obsolete. It goes away at

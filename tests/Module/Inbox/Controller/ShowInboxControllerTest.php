@@ -95,7 +95,8 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.lp-empty-state', 'Nothing needs you');
-        self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"] a[href="/projects/'.$project->id.'/inbox?side=closed"]', 'See what you already answered');
+        self::assertSelectorExists('[data-inbox-queue-empty="open-asks"] .lp-empty-state__icon');
+        self::assertSelectorNotExists('[data-inbox-queue-empty="open-asks"] a');
         self::assertSelectorNotExists('[data-inbox-open-count]');
         // The frame stays, so a live reload has somewhere to put a count.
         self::assertSelectorExists('a[data-controller="live-pill"] turbo-frame#inbox-open-count-'.$project->id);
