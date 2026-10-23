@@ -32,11 +32,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * the lock of any work request, the order of a claim, so a pass and a claim cannot wait for each other.
  * An interactive session stays: the move that follows closes its row. A request that a person started stays too,
  * because no rule owns it. A run that is stopping already, or has a stop pending, is skipped, so a retry of the rule
- * writes no second row.
+ * writes no second row. Any other refused stop, or more open runs than one pass reads, refuses the action, so the
+ * move that follows waits for a retry.
  */
 final readonly class StopWork implements Action
 {
     public const string KEY = 'stop-work';
+
+    public const string STOP_REFUSED = 'stop-run-refused';
 
     private const int MAX_RUNS = 100;
 
@@ -95,15 +98,21 @@ final readonly class StopWork implements Action
 
         $reason = $this->translator->trans('workflow.stop_work.reason', ['%rule%' => $context->ruleId]);
         $now = $this->clock->now();
+        $open = $this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS + 1);
+        $refused = \count($open) > self::MAX_RUNS;
         $runs = array_filter(
-            $this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS),
+            \array_slice($open, 0, self::MAX_RUNS),
             static fn (WorkerRun $run): bool => WorkerRunKind::Interactive !== $run->kind,
         );
         usort($runs, static fn (WorkerRun $a, WorkerRun $b): int => strcmp((string) $a->bridgeId, (string) $b->bridgeId));
         foreach ($runs as $run) {
             try {
                 ($this->requestCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::StopRun, null, $reason));
-            } catch (DomainErrors) {
+            } catch (DomainErrors $e) {
+                $refusal = $e->errors['run'] ?? null;
+                if (RequestBridgeCommandHandler::PENDING !== $refusal && RequestBridgeCommandHandler::NOT_STOPPABLE !== $refusal) {
+                    $refused = true;
+                }
                 continue;
             }
             $this->cardEvents->record($card, CardEventKind::Stopped, Actor::System, null, [
@@ -120,6 +129,6 @@ final readonly class StopWork implements Action
             }
         }
 
-        return ActionOutcome::done();
+        return $refused ? ActionOutcome::refused(self::STOP_REFUSED) : ActionOutcome::done();
     }
 }

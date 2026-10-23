@@ -11,6 +11,7 @@ use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Workflow\StopWork;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
@@ -115,7 +116,7 @@ final class StopWorkTest extends KernelTestCase
         $this->seedRun($this->em(), $card->project, workKind: 'implement', bridgeId: $bridge->id, cardId: $card->id, state: WorkerRunState::Running);
 
         $this->stop($card);
-        $this->stop($card);
+        self::assertEquals(ActionOutcome::done(), $this->stop($card), 'A stop that is pending already is no refusal.');
         $this->em()->flush();
 
         self::assertSame(1, $this->countCommands($this->em()));
@@ -125,6 +126,43 @@ final class StopWorkTest extends KernelTestCase
         self::assertEquals(ActionOutcome::done(), $this->stop($quiet));
         $this->em()->flush();
         self::assertSame([], $this->stoppedRows($quiet));
+    }
+
+    public function test_it_refuses_when_a_bridge_refuses_a_stop_after_it_stops_the_other_runs_and_cancels_the_requests(): void
+    {
+        [$card, $bridge] = $this->card('stop-work-refused');
+        $project = $card->project;
+        $outdated = $this->seedBridge($this->em(), $project->owner);
+        $outdated->capabilities = [];
+        $this->em()->flush();
+        $fix = $this->seedWorkRequest($this->em(), $project, $card->id, 'fix');
+        $this->seedRun($this->em(), $project, workKind: 'implement', bridgeId: $outdated->id, cardId: $card->id, state: WorkerRunState::Running);
+        $worker = $this->seedRun($this->em(), $project, workKind: 'implement', bridgeId: $bridge->id, cardId: $card->id, state: WorkerRunState::Running);
+        $this->startLater($worker, 1);
+        $this->seedRun($this->em(), $project, workKind: 'implement', bridgeId: $bridge->id, cardId: $card->id, state: WorkerRunState::Stopping);
+
+        self::assertEquals(ActionOutcome::refused(StopWork::STOP_REFUSED), $this->stop($card));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $commands = $this->service(BridgeCommandRepository::class)->findAll();
+        self::assertCount(1, $commands);
+        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun->id);
+        self::assertSame(WorkRequestState::Cancelled, $this->em()->find(WorkRequest::class, $fix->id)?->state);
+    }
+
+    public function test_it_refuses_when_the_card_has_more_open_runs_than_one_pass_reads(): void
+    {
+        [$card, $bridge] = $this->card('stop-work-many');
+        for ($i = 1; $i <= 101; ++$i) {
+            $run = $this->seedRun($this->em(), $card->project, workKind: 'implement', bridgeId: $bridge->id, cardId: $card->id, state: WorkerRunState::Running);
+            $this->startLater($run, $i);
+        }
+
+        self::assertEquals(ActionOutcome::refused(StopWork::STOP_REFUSED), $this->stop($card));
+        $this->em()->flush();
+
+        self::assertSame(100, $this->countCommands($this->em()));
     }
 
     /**
@@ -140,6 +178,13 @@ final class StopWorkTest extends KernelTestCase
         self::assertInstanceOf($class, $service);
 
         return $service;
+    }
+
+    /** Two runs of one bridge and card need distinct start times, which the seed fixes. */
+    private function startLater(WorkerRun $run, int $seconds): void
+    {
+        $run->startedAt = new \DateTimeImmutable(\sprintf('2026-01-01 10:00:00 +%d seconds', $seconds));
+        $this->em()->flush();
     }
 
     /** @return array{Card, Bridge} */

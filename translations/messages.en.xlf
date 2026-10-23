@@ -8885,6 +8885,7 @@
             <trans-unit id="workflow.refusal.document-link-refused"><source>workflow.refusal.document-link-refused</source><target>The board refused the document link.</target></trans-unit>
             <trans-unit id="workflow.refusal.document-verdict-refused"><source>workflow.refusal.document-verdict-refused</source><target>The app refused a change request on a document of the card.</target></trans-unit>
             <trans-unit id="workflow.refusal.document-publish-refused"><source>workflow.refusal.document-publish-refused</source><target>The app refused to publish a draft document of the card.</target></trans-unit>
+            <trans-unit id="workflow.refusal.stop-run-refused"><source>workflow.refusal.stop-run-refused</source><target>The app could not ask the bridge to stop every open run of the card.</target></trans-unit>
             <trans-unit id="workflow.refusal.detach-refused"><source>workflow.refusal.detach-refused</source><target>The board refused to remove the parent of the card.</target></trans-unit>
             <trans-unit id="project.edit.nav.readiness"><source>project.edit.nav.readiness</source><target>Agent readiness</target></trans-unit>
             <trans-unit id="readiness.guide.title"><source>readiness.guide.title</source><target>Ready for agents</target></trans-unit>
