@@ -5657,6 +5657,30 @@
                 <source>review.inbox_wait.document_deleted.title</source>
                 <target>Deleted document version %version%</target>
             </trans-unit>
+            <trans-unit id="inbox.wait.review_title.document">
+                <source>inbox.wait.review_title.document</source>
+                <target>Review "%title%", version %version%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.review_title.pull_request">
+                <source>inbox.wait.review_title.pull_request</source>
+                <target>Review pull request #%number%: %pr_title%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.review_title.pull_request_untitled">
+                <source>inbox.wait.review_title.pull_request_untitled</source>
+                <target>Review pull request #%number%</target>
+            </trans-unit>
+            <trans-unit id="inbox.review.target.document">
+                <source>inbox.review.target.document</source>
+                <target>Document "%title%"</target>
+            </trans-unit>
+            <trans-unit id="inbox.review.target.pull_request">
+                <source>inbox.review.target.pull_request</source>
+                <target>Pull request #%number%: %title%</target>
+            </trans-unit>
+            <trans-unit id="inbox.review.target.pull_request_untitled">
+                <source>inbox.review.target.pull_request_untitled</source>
+                <target>Pull request #%number%</target>
+            </trans-unit>
             <trans-unit id="inbox.wait.fallback.document">
                 <source>inbox.wait.fallback.document</source>
                 <target>A document of card %card% waits for your review.</target>

@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxBridgeOutage;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
@@ -118,7 +119,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $ask->items->add($askItem);
         $this->em->flush();
         // The watch names its project too, so its foreign key must not block the project delete.
-        $waitItem = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $waitItem = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $watch = new InboxCardWatch($waitItem, $card->id ?? throw new \LogicException('A stored card has an id.'), $card->number);
         $wait = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', $document->id, 1);
         $watch->waits->add($wait);
@@ -126,7 +127,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($watch);
         $action = new InboxAction($item, InboxActionKind::Dismiss, $owner);
         $this->em->persist($action);
-        $notice = new InboxItem(project: $project, number: 3, kind: InboxItemKind::Notice, title: 'No bridge can take work', blocking: false);
+        $notice = new InboxItem(project: $project, number: 3, kind: InboxItemKind::Notice, title: 'No bridge can take work', blocking: false, origin: InboxAskOrigin::Loupe);
         $this->em->persist($notice);
         $outage = new InboxBridgeOutage($project, $notice, new \DateTimeImmutable('2026-10-16 11:00:00'));
         $this->em->persist($outage);

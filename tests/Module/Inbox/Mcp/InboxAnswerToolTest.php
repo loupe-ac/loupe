@@ -125,7 +125,7 @@ final class InboxAnswerToolTest extends KernelTestCase
         $this->enableInbox();
         $project = $this->makeProject('inbox-answer-workflow');
         $this->actAsMcpTokenBoundTo($project);
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, options: ['Link', 'Design', 'Detach']);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design', 'Detach']);
         $this->em->persist($item);
         $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, origin: InboxAskOrigin::Loupe);
         $ask->items->add(new InboxAskItem($ask, $item));

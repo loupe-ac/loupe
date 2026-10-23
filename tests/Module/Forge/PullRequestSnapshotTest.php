@@ -44,9 +44,24 @@ final class PullRequestSnapshotTest extends TestCase
         self::assertNull($pullRequest->syncRequestedAt);
         self::assertNull($pullRequest->syncedSha);
         self::assertNull($pullRequest->headBranch);
+        self::assertNull($pullRequest->title);
         self::assertNull($pullRequest->mergeRequestedSha);
         self::assertNull($pullRequest->baseChangeRequestedTo);
         self::assertTrue($pullRequest->snapshot()->equals(new PullRequestSnapshot()));
+    }
+
+    public function test_apply_stores_the_title_and_snapshot_reads_it_back(): void
+    {
+        $pullRequest = $this->pullRequest();
+
+        $pullRequest->apply(new PullRequestSnapshot(title: 'Fix the board filter'));
+
+        self::assertSame('Fix the board filter', $pullRequest->title);
+        self::assertSame('Fix the board filter', $pullRequest->snapshot()->title);
+
+        $pullRequest->apply(new PullRequestSnapshot());
+
+        self::assertNull($pullRequest->title);
     }
 
     public function test_apply_copies_every_field_and_snapshot_reads_them_back(): void
@@ -577,7 +592,7 @@ final class PullRequestSnapshotTest extends TestCase
 
     public function test_the_approval_and_branch_facts_do_not_break_equality(): void
     {
-        $arguments = [...self::changedArguments(), 'approvedAt' => null, 'approvalSha' => null, 'defaultBranch' => null, 'headParents' => [], 'approvalId' => null, 'coveredSha' => 'other1', 'headBranch' => 'other/branch', 'authorId' => '99', 'authorLogin' => 'other'];
+        $arguments = [...self::changedArguments(), 'approvedAt' => null, 'approvalSha' => null, 'defaultBranch' => null, 'headParents' => [], 'approvalId' => null, 'coveredSha' => 'other1', 'headBranch' => 'other/branch', 'authorId' => '99', 'authorLogin' => 'other', 'title' => 'Renamed'];
 
         self::assertTrue($this->changed()->equals(new PullRequestSnapshot(...$arguments)));
     }

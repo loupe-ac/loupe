@@ -10,7 +10,6 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
-use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 
@@ -37,7 +36,7 @@ final readonly class InboxItemExporter implements UserDataExporterInterface
     {
         $items = $this->inboxItems->findByOwner($user);
         $waits = [];
-        $waitItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Wait === $item->kind));
+        $waitItems = array_values(array_filter($items, static fn (InboxItem $item): bool => $item->isAutomatic()));
         foreach ($this->inboxCardWatches->findForItems($waitItems) as $watch) {
             $waits[(string) $watch->item->id] = $watch->waits->toArray();
         }

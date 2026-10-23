@@ -53,7 +53,7 @@ final readonly class InboxPageView implements InboxItemsView
     #[\Override]
     public function acceptsResponse(InboxItem $item): bool
     {
-        if (InboxItemKind::Notice === $item->kind || (\in_array($item->kind, [InboxItemKind::Review, InboxItemKind::Workflow], true) && InboxItemState::Open !== $item->state)) {
+        if (InboxItemKind::Notice === $item->kind || ((InboxItemKind::Workflow === $item->kind || (InboxItemKind::Review === $item->kind && !$item->isAutomatic())) && InboxItemState::Open !== $item->state)) {
             return false;
         }
 

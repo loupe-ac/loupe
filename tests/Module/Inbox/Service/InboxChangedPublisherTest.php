@@ -27,6 +27,7 @@ use App\Module\Inbox\Command\MarkInboxItemDoneCommand;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -107,7 +108,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
     public function test_an_answer_a_done_and_a_decline_each_signal(): void
     {
         $question = $this->item($this->em, $this->project, 1);
-        $todo = new InboxItem(project: $this->project, number: 2, kind: InboxItemKind::Todo, title: 'Review', blocking: false);
+        $todo = new InboxItem(project: $this->project, number: 2, kind: InboxItemKind::Todo, title: 'Review', blocking: false, origin: InboxAskOrigin::Agent);
         $this->em->persist($todo);
         $declined = $this->item($this->em, $this->project, 3);
         $this->em->flush();

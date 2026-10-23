@@ -57,8 +57,8 @@ class InboxCardWatch
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
     ) {
-        if (InboxItemKind::Wait !== $item->kind) {
-            throw new \InvalidArgumentException('A card watch belongs to a wait inbox item.');
+        if (!\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Review], true)) {
+            throw new \InvalidArgumentException('A card watch belongs to a wait or review inbox item.');
         }
 
         $this->project = $item->project;

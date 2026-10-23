@@ -24,6 +24,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -501,7 +502,7 @@ final class ItemActionsTest extends KernelTestCase
     /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}>|null $suggestions */
     private function todo(?array $suggestions): InboxItem
     {
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = $suggestions;
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em->persist($item);
@@ -527,7 +528,7 @@ final class ItemActionsTest extends KernelTestCase
     private function watchOf(): InboxCardWatch
     {
         if (null === $this->watch) {
-            $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true);
+            $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#7 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
             $this->em->persist($item);
             $this->watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('The card is stored.'), $this->card->number);
             $this->em->persist($this->watch);

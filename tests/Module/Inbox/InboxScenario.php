@@ -7,6 +7,7 @@ namespace App\Tests\Module\Inbox;
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -53,7 +54,7 @@ trait InboxScenario
      */
     private function question(EntityManagerInterface $em, Project $project, int $number, array $options = ['JSON', 'CSV'], bool $multiple = false, bool $freeText = false, string $title = 'Which format?'): InboxItem
     {
-        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Question, title: $title, blocking: true, options: $options, multiple: $multiple, freeText: $freeText);
+        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Question, title: $title, blocking: true, origin: InboxAskOrigin::Agent, options: $options, multiple: $multiple, freeText: $freeText);
         $em->persist($item);
         $em->flush();
 
@@ -62,7 +63,7 @@ trait InboxScenario
 
     private function todo(EntityManagerInterface $em, Project $project, int $number, string $title = 'Review pull request 482'): InboxItem
     {
-        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Todo, title: $title, blocking: false);
+        $item = new InboxItem(project: $project, number: $number, kind: InboxItemKind::Todo, title: $title, blocking: false, origin: InboxAskOrigin::Agent);
         $em->persist($item);
         $em->flush();
 
