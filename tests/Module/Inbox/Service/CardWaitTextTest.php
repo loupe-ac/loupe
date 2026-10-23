@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -11,6 +13,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\RunOutputText;
+use App\Module\Review\Entity\Document;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -34,7 +37,7 @@ final class CardWaitTextTest extends KernelTestCase
         $this->text = $text;
 
         $project = $this->project($em, $this->owner($em, 'wait-text'), 'wait-text');
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#4 Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#4 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $watch = new InboxCardWatch($item, Uuid::v7(), 4);
         $this->wait = new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', documentId: Uuid::v7(), versionNumber: 1);
         $watch->waits->add($this->wait);
@@ -58,7 +61,36 @@ final class CardWaitTextTest extends KernelTestCase
         $wait = new InboxCardWait($this->wait->watch, 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: Uuid::v7(), headSha: 'abc123', params: ['%number%' => 7]);
 
         self::assertSame('Pull request #7 waits for your approval. Review pull request #7.', $this->text->body([$wait]));
-        self::assertSame('Pull request #7 waits for your approval.', $this->text->title([$wait], 'Ship it', 200));
+        self::assertSame('Review pull request #7', $this->text->title([$wait], 'Ship it', 200));
+    }
+
+    public function test_the_title_of_a_pull_request_wait_names_the_stored_title(): void
+    {
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $pullRequest = new ForgePullRequest($this->wait->watch->project, 'github', 'acme/widgets', 812);
+        $pullRequest->title = 'Fix the board filter';
+        $em->persist($pullRequest);
+        $em->flush();
+        $wait = new InboxCardWait($this->wait->watch, 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: $pullRequest->id, headSha: 'abc123', params: ['%number%' => 812]);
+
+        self::assertSame('Review pull request #812: Fix the board filter', $this->text->title([$wait], 'Ship it', 200));
+        self::assertSame('Pull request #812 waits for your approval. Review pull request #812.', $this->text->body([$wait]));
+        self::assertSame('Review pull request #812: Fix th', $this->text->title([$wait], 'Ship it', 32));
+    }
+
+    public function test_the_title_of_a_document_wait_names_its_document_and_version(): void
+    {
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $project = $this->wait->watch->project;
+        $document = new Document($project->owner, $project, 'Tech design: Inbox asks');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $em->persist($document);
+        $em->flush();
+        $wait = new InboxCardWait($this->wait->watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', documentId: $document->id, versionNumber: 2);
+
+        self::assertSame('Review "Tech design: Inbox asks", version 2', $this->text->title([$wait], 'Ship it', 200));
     }
 
     public function test_a_wait_with_no_label_reads_the_fallback_of_its_type(): void
@@ -91,5 +123,52 @@ final class CardWaitTextTest extends KernelTestCase
             RunOutputText::params('implement', 'STAGE RESULT: blocked: Needs the API key. Second line'),
         );
         self::assertSame(['%worker%' => 'worker', '%Worker%' => 'Worker', '%headline%' => ''], RunOutputText::params(null, ''));
+    }
+
+    public function test_a_document_wait_beside_a_run_wait_makes_a_review_titled_with_the_document(): void
+    {
+        $run = $this->runWait();
+
+        self::assertSame(InboxItemKind::Review, $this->text->kind([$run, $this->wait]));
+        self::assertSame($this->wait, $this->text->reviewWait([$run, $this->wait]));
+        self::assertSame('Deleted document version 1', $this->text->title([$run, $this->wait], 'Ship it', 200));
+    }
+
+    public function test_a_run_wait_alone_makes_a_waiting_item_titled_with_the_run(): void
+    {
+        $run = $this->runWait();
+
+        self::assertSame(InboxItemKind::Wait, $this->text->kind([$run]));
+        self::assertNull($this->text->reviewWait([$run]));
+        self::assertSame('Implement worker needs you: Needs the API key', $this->text->title([$run], 'Ship it', 200));
+    }
+
+    public function test_a_pull_request_wait_makes_a_review(): void
+    {
+        $wait = new InboxCardWait($this->wait->watch, 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: Uuid::v7(), headSha: 'abc123', params: ['%number%' => 7]);
+
+        self::assertSame(InboxItemKind::Review, $this->text->kind([$wait]));
+        self::assertSame('Review pull request #7', $this->text->title([$this->runWait(), $wait], 'Ship it', 200));
+    }
+
+    public function test_the_item_is_waiting_again_when_the_last_review_wait_ends_beside_another_wait(): void
+    {
+        $run = $this->runWait();
+        $this->wait->endedAt = new \DateTimeImmutable();
+
+        self::assertSame(InboxItemKind::Wait, $this->text->kind([$run, $this->wait]));
+        self::assertSame('Implement worker needs you: Needs the API key', $this->text->title([$run, $this->wait], 'Ship it', 200));
+    }
+
+    public function test_an_empty_set_of_waits_makes_a_waiting_item(): void
+    {
+        self::assertSame(InboxItemKind::Wait, $this->text->kind([]));
+    }
+
+    private function runWait(): InboxCardWait
+    {
+        $params = ['%worker%' => 'implement worker', '%Worker%' => 'Implement worker', '%headline%' => 'Needs the API key'];
+
+        return new InboxCardWait($this->wait->watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: Uuid::v7(), params: $params);
     }
 }

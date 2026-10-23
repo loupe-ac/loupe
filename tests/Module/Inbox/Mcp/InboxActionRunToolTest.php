@@ -19,6 +19,7 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
@@ -144,7 +145,7 @@ final class InboxActionRunToolTest extends KernelTestCase
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
         $this->bridge->projects = [(string) $this->project->id];
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
         $item->cards->add(new InboxItemCard($item, $this->card));
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => (string) $this->card->id, 'prompt' => 'Use the skill.']];
         $this->em->persist($item);
@@ -196,7 +197,7 @@ final class InboxActionRunToolTest extends KernelTestCase
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
         $this->bridge->projects = [(string) $this->project->id];
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
         $item->cards->add(new InboxItemCard($item, $this->card));
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => (string) $this->card->id, 'prompt' => 'Use the skill.']];
         $this->em->persist($item);
@@ -519,7 +520,7 @@ final class InboxActionRunToolTest extends KernelTestCase
     private function watch(): InboxCardWatch
     {
         if (null === $this->watch) {
-            $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+            $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
             $this->em->persist($item);
             $this->watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
             $this->em->persist($this->watch);
@@ -558,7 +559,7 @@ final class InboxActionRunToolTest extends KernelTestCase
             ['projectId' => (string) $this->project->id, 'branch' => 'main', 'path' => '/work/loupe'],
             ['projectId' => (string) $this->project->id, 'branch' => 'epic/42', 'path' => '/work/loupe/.worktrees/card-42'],
         ];
-        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false, origin: InboxAskOrigin::Agent);
         $item->suggestedActions = [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => $proposedEntry]];
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em->persist($item);

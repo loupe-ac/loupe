@@ -30,7 +30,7 @@ final readonly class SubmitInboxPullRequestReviewHandler
     public function __invoke(SubmitInboxPullRequestReviewCommand $command): InboxItem
     {
         $item = $command->item;
-        if (InboxItemKind::Review !== $item->kind) {
+        if (InboxItemKind::Review !== $item->kind || $item->isAutomatic()) {
             throw new DomainErrors(['verdict' => 'inbox.review.error.not_a_review']);
         }
         $verdict = InboxReviewVerdict::tryFrom($command->verdict)

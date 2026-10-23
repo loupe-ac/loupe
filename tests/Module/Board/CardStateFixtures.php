@@ -19,6 +19,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\PullRequestSnapshot;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -135,7 +136,7 @@ trait CardStateFixtures
 
     private function askOwner(Card $card, InboxItemKind $kind = InboxItemKind::Question, string $at = '2026-10-02 09:15:00'): InboxItem
     {
-        $item = new InboxItem($card->project, $this->nextInboxNumber++, $kind, 'Which option?', true, createdAt: new \DateTimeImmutable($at));
+        $item = new InboxItem($card->project, $this->nextInboxNumber++, $kind, 'Which option?', true, origin: \in_array($kind, [InboxItemKind::Wait, InboxItemKind::Notice, InboxItemKind::Workflow], true) ? InboxAskOrigin::Loupe : InboxAskOrigin::Agent, createdAt: new \DateTimeImmutable($at));
         $item->cards->add($link = new InboxItemCard($item, $card));
         $this->em()->persist($item);
         $this->em()->persist($link);

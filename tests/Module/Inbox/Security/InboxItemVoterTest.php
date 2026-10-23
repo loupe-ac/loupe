@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Security;
 
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
@@ -29,7 +30,7 @@ final class InboxItemVoterTest extends TestCase
         $owner = self::user('reviewer');
         $project = new Project($owner, 'review');
         $document = new Document($owner, $project, 'Design');
-        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review', true);
+        $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review', true, origin: InboxAskOrigin::Agent);
         $reviews = $this->createStub(InboxReviewRepository::class);
         $reviews->method('findOneBy')->willReturn(new InboxReview($item, $document));
         $authorization = $this->createMock(AuthorizationCheckerInterface::class);
@@ -73,7 +74,7 @@ final class InboxItemVoterTest extends TestCase
 
     private static function item(User $owner): InboxItem
     {
-        return new InboxItem(project: new Project($owner, 'inbox'), number: 1, kind: InboxItemKind::Todo, title: 'Review', blocking: false);
+        return new InboxItem(project: new Project($owner, 'inbox'), number: 1, kind: InboxItemKind::Todo, title: 'Review', blocking: false, origin: InboxAskOrigin::Agent);
     }
 
     private static function token(User $user): UsernamePasswordToken

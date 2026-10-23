@@ -84,7 +84,7 @@ final class InboxDeclineToolTest extends KernelTestCase
         $project = $this->makeProject('inbox-decline-wait');
         $this->actAsMcpTokenBoundTo($project);
         $card = $this->card($this->em, $project);
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
         $this->em->persist($item);
         $this->em->persist(new InboxCardWatch($item, $card->id ?? throw new \LogicException('Stored.'), $card->number));
         $this->em->flush();
@@ -99,6 +99,23 @@ final class InboxDeclineToolTest extends KernelTestCase
         self::assertTrue($this->stored((string) $item->id)->respondedThroughAgent);
     }
 
+    public function test_an_automatic_review_item_is_dismissed(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-decline-auto-review');
+        $this->actAsMcpTokenBoundTo($project);
+        $card = $this->card($this->em, $project);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Review, title: 'Review the design', blocking: true, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($item);
+        $this->em->persist(new InboxCardWatch($item, $card->id ?? throw new \LogicException('Stored.'), $card->number));
+        $this->em->flush();
+
+        $result = ($this->tool)((string) $item->id);
+
+        self::assertSame('declined', $result['state']);
+        self::assertSame(InboxItemState::Declined, $this->stored((string) $item->id)->state);
+    }
+
     public function test_a_review_is_refused_before_the_handler_and_stays_open(): void
     {
         $this->enableInbox();
@@ -106,7 +123,7 @@ final class InboxDeclineToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
         $document = $this->document($this->em, $project);
         $document->addVersion('# One', '<h1>One</h1>');
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Review, title: 'Review the design', blocking: true);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Review, title: 'Review the design', blocking: true, origin: InboxAskOrigin::Agent);
         $this->em->persist($item);
         $this->em->persist(new InboxReview($item, $document));
         $ask = new InboxAsk(project: $project, sessionId: Uuid::v4(), bridgeId: null, origin: InboxAskOrigin::Agent);
@@ -129,7 +146,7 @@ final class InboxDeclineToolTest extends KernelTestCase
         $this->enableInbox();
         $project = $this->makeProject('inbox-decline-workflow');
         $this->actAsMcpTokenBoundTo($project);
-        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, options: ['Link', 'Design']);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design']);
         $this->em->persist($item);
         $this->em->flush();
 
