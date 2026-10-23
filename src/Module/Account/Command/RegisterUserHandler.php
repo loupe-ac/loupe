@@ -128,7 +128,7 @@ final readonly class RegisterUserHandler
         // account failed, and the retry dead-ends on "email already taken". Trial
         // provisioning self-heals via PaywallGate, so record it and move on.
         try {
-            $this->eventDispatcher->dispatch(new UserRegistered($user));
+            $this->eventDispatcher->dispatch(new UserRegistered($user, null));
         } catch (\Throwable $e) {
             $this->auditor->record(
                 'account.registration_listener_failed',

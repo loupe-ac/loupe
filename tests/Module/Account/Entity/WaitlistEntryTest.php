@@ -114,4 +114,49 @@ final class WaitlistEntryTest extends TestCase
         $entry->mergePicks([], 'Sapling');
         self::assertSame('Sapling', $entry->otherPick);
     }
+
+    public function test_claim_invite_stamps_the_claim_and_converts_the_entry(): void
+    {
+        $entry = new WaitlistEntry('claim@example.com');
+        $entry->issueInviteToken();
+
+        $entry->claimInvite();
+
+        self::assertNotNull($entry->inviteClaimedAt);
+        self::assertNotNull($entry->convertedAt);
+    }
+
+    public function test_claim_invite_keeps_the_first_claim_time(): void
+    {
+        $entry = new WaitlistEntry('claim@example.com');
+        $first = new \DateTimeImmutable('-3 days');
+        $entry->inviteClaimedAt = $first;
+        $entry->convertedAt = $first;
+
+        $entry->claimInvite();
+
+        self::assertSame($first, $entry->inviteClaimedAt);
+        self::assertSame($first, $entry->convertedAt);
+    }
+
+    public function test_a_plain_conversion_leaves_no_claim_stamp(): void
+    {
+        $entry = new WaitlistEntry('plain@example.com');
+
+        $entry->markConverted();
+
+        self::assertNull($entry->inviteClaimedAt);
+    }
+
+    public function test_reopen_clears_the_claim_stamp(): void
+    {
+        $entry = new WaitlistEntry('reopen@example.com');
+        $entry->issueInviteToken();
+        $entry->claimInvite();
+
+        $entry->reopen();
+
+        self::assertNull($entry->inviteClaimedAt);
+        self::assertNull($entry->convertedAt);
+    }
 }

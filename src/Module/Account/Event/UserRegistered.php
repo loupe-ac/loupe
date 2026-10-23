@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Event;
 
+use App\Module\Account\Entity\SocialProvider;
 use App\Module\Account\Entity\User;
 
 /**
@@ -16,6 +17,8 @@ final readonly class UserRegistered
 {
     public function __construct(
         public User $user,
+        /** The social login that created the account, or null for the registration form. */
+        public ?SocialProvider $provider,
     ) {
     }
 }

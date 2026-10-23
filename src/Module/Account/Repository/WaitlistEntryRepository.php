@@ -25,6 +25,27 @@ class WaitlistEntryRepository extends ServiceEntityRepository
         return $this->findOneBy(['email' => strtolower($email)]);
     }
 
+    public function findOneClaimedByEmail(string $email): ?WaitlistEntry
+    {
+        return $this->createQueryBuilder('w')
+            ->andWhere('w.email = :email')
+            ->andWhere('w.inviteClaimedAt IS NOT NULL')
+            ->setParameter('email', strtolower($email))
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /** Counts the entries the admin waitlist page shows as Waiting. */
+    public function countWaiting(): int
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->andWhere('w.convertedAt IS NULL')
+            ->andWhere('w.invitedAt IS NULL')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function findOneByValidInviteToken(string $token): ?WaitlistEntry
     {
         $entry = $this->findOneBy(['inviteTokenHash' => hash('sha256', $token)]);
