@@ -313,6 +313,15 @@ marker that you found:
 - [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
 ```
 
+A page that only a signed-out visitor sees, such as the landing page at `/`,
+takes a plain link. A signed link signs the reader in, and the page then
+redirects. Prove the plain link with the same `curl`, with no cookie jar, and
+end the line with `. Signed out.`:
+
+```markdown
+- [Landing page](https://card-42.loupe.dev.localhost/), marker `rel="help"`. Signed out.
+```
+
 A child of an epic appends `. State: <text>` to the line. A link to a file,
 an artifact or a CI run takes the same shape with no marker, and so does the
 card line: `- [Card 42: <title>](<card URL>)`.

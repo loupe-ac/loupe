@@ -64,10 +64,11 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it.
 2. Section: `## Preview`, at the top of the pull request body.
-3. Line: one Markdown list item per state, exactly `` - [<label>](<signed link>), marker `<marker>` ``. The label says what state the link shows. A child of an epic appends `. State: <text>`, as `working-with-prs` "A child of an epic targets the epic branch" says. The merge stage seeds the epic preview from that text alone. A line with no `State:` text is unproven. The signed link goes into the body only through the temporary body file of `preview.md`.
+3. Line: one Markdown list item per state, exactly `` - [<label>](<signed link>), marker `<marker>` ``. A signed-out page, as item 7 says, takes `` - [<label>](<plain link>), marker `<marker>`. Signed out. `` instead. The label says what state the link shows. A child of an epic appends `. State: <text>`, as `working-with-prs` "A child of an epic targets the epic branch" says. The merge stage seeds the epic preview from that text alone. A line with no `State:` text is unproven. The signed link goes into the body only through the temporary body file of `preview.md`.
 4. Seed: seed each state into the database of the worker folder, as `working-with-prs` "Make the branch testable, not just reviewable" says. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
 5. Mint: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link.
 6. Prove: `working-with-prs` "Prove each preview link shows its state". The effective URL ends in the path, and the marker count is 1 or more. Write the marker you found on the line of each link.
+7. Signed-out page: a page that only a signed-out visitor sees, such as the landing page at `/`, takes a plain link to the app of the worker folder. A signed link signs the reader in, and the page then redirects. Prove the plain link as item 6 says, with no cookie jar. The marker must not be on `main`.
 
 ## Visual check
 
