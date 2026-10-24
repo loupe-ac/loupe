@@ -7,7 +7,7 @@
  * so nothing here touches Mailpit.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import {
     hubStubbedTest as base,
     suppressToolbar,
@@ -19,6 +19,19 @@ const RUN = Date.now();
 const PASSWORD = 'E2eMobileShell1!';
 
 const PHONE = { width: 375, height: 812 };
+
+// The 40rem breakpoint where the filter bar stacks the search above the filters.
+const PHONE_BREAKPOINT = 640;
+
+// On a phone the primary group has no box, so no scroll container can clip the ring.
+async function expectPhoneFilterFocusRingVisible(
+    field: Locator,
+    group: Locator,
+): Promise<void> {
+    await expect(field).toBeFocused();
+    await expect(field).toHaveCSS('box-shadow', /0px 0px 0px 2px/);
+    await expect(group).toHaveCSS('display', 'contents');
+}
 
 const SIDEBAR = '[data-drawer-target="panel"]';
 const SCRIM = '[data-drawer-target="scrim"]';
@@ -504,9 +517,14 @@ test('search and status stay aligned across workspace widths', async ({
             const statusBox = await status.boundingBox();
             expect(searchBox).not.toBeNull();
             expect(statusBox).not.toBeNull();
-            expect(statusBox!.y).toBe(searchBox!.y);
             expect(statusBox!.height).toBe(searchBox!.height);
-            expect(statusBox!.x - searchBox!.x - searchBox!.width).toBe(8);
+            if (width < PHONE_BREAKPOINT) {
+                expect(statusBox!.y - searchBox!.y - searchBox!.height).toBe(8);
+                expect(statusBox!.x).toBe(searchBox!.x);
+            } else {
+                expect(statusBox!.y).toBe(searchBox!.y);
+                expect(statusBox!.x - searchBox!.x - searchBox!.width).toBe(8);
+            }
             expect(statusBox!.x + statusBox!.width).toBeLessThanOrEqual(width);
             expect(searchBox!.width).toBeGreaterThan(80);
         }
@@ -554,22 +572,33 @@ test('enlarged workspace filters remain reachable', async ({
             const statusBounds = await status.boundingBox();
             expect(searchBounds).not.toBeNull();
             expect(statusBounds).not.toBeNull();
-            expect(statusBounds!.y).toBe(searchBounds!.y);
             expect(statusBounds!.height).toBe(searchBounds!.height);
-            expect(
-                statusBounds!.x - searchBounds!.x - searchBounds!.width,
-            ).toBe(16);
+            if (width < PHONE_BREAKPOINT) {
+                expect(
+                    statusBounds!.y - searchBounds!.y - searchBounds!.height,
+                ).toBe(16);
+                expect(statusBounds!.x).toBe(searchBounds!.x);
+            } else {
+                expect(statusBounds!.y).toBe(searchBounds!.y);
+                expect(
+                    statusBounds!.x - searchBounds!.x - searchBounds!.width,
+                ).toBe(16);
+            }
+            const ringVisible = (field: Locator) =>
+                width < PHONE_BREAKPOINT
+                    ? expectPhoneFilterFocusRingVisible(field, filters)
+                    : expectFilterFocusRingVisible(field, filters);
             await search.focus();
             await expect(search).toBeInViewport({ ratio: 1 });
-            await expectFilterFocusRingVisible(search, filters);
+            await ringVisible(search);
             await search.press('Tab');
             await expect(status).toBeFocused();
             await expect(status).toBeInViewport({ ratio: 1 });
-            await expectFilterFocusRingVisible(status, filters);
+            await ringVisible(status);
             await status.press('Shift+Tab');
             await expect(search).toBeFocused();
             await expect(search).toBeInViewport({ ratio: 1 });
-            await expectFilterFocusRingVisible(search, filters);
+            await ringVisible(search);
         }
     }
 });
