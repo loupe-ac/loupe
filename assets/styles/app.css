@@ -7799,12 +7799,12 @@
     .lp-auth__footer-link,
     .lp-home-footer__link,
     .lp-home-footer__icon {
-        @apply inline-flex items-center justify-center min-h-11 min-w-11;
+        @apply inline-flex items-center justify-center min-h-tap min-w-tap;
     }
 
     .lp-input,
     .lp-list-filters .lp-input {
-        @apply min-h-11;
+        @apply min-h-tap;
     }
 
     /* Size only. Both are `lg:hidden`, and a `display` here comes later in the
@@ -7812,7 +7812,7 @@
        drawer controls beside a sidebar that is already in the flow. */
     .lp-topbar__menu,
     .lp-sidebar__close {
-        @apply min-h-11 min-w-11;
+        @apply min-h-tap min-w-tap;
     }
 
     /* iOS Safari zooms the page in when it focuses a control under 16px. */

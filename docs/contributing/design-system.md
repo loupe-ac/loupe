@@ -19,7 +19,7 @@ All tokens live in `assets/styles/tokens.css`. `assets/styles/app.css` imports i
 |---|---|
 | colour | The raw colour values, and the Tailwind names for them |
 | type | The font stacks. The Tailwind text sizes carry the scale |
-| spacing | One step of the spacing scale. Every gap and size is a multiple of it |
+| spacing | One step of the spacing scale, which every gap and size is a multiple of, and the px touch target |
 | radius | The corner radii |
 | shadow | The shadows of surfaces that float above the page |
 | motion | The durations and the easing curves |
@@ -292,7 +292,7 @@ These are the documented shell classes.
 | `lp-topbar__menu` | The button that opens the drawer |
 | `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
 | `lp-topbar__global-actions` | The tools at the right end of the bar |
-| `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
+| `lp-topbar__new-work` and its `__label` part | The New work button. It is a `Ds:Button` with this class added. Below 1024 px the label stays for screen readers only |
 | `lp-main` | The main column. It is the only scroll container of the page. `--paper` gives it a white ground, and `--fill` makes it a column that clips its overflow |
 ## The marketing shell
 
