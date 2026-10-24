@@ -58,6 +58,9 @@ export default class extends Controller {
     }
 
     #keepArrowFocus() {
+        if (!this.hasPrevTarget || !this.hasNextTarget) {
+            return;
+        }
         const focused = document.activeElement;
         if (focused !== this.prevTarget && focused !== this.nextTarget) {
             return;

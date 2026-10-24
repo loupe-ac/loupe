@@ -257,3 +257,16 @@ it('stops observing and listening on disconnect', async () => {
     element.dispatchEvent(new Event('scroll'));
     expect(scrolled).not.toHaveBeenCalled();
 });
+
+it('marks the edges of a strip with no arrows', async () => {
+    await start(`
+        <div data-controller="overflow-cue">
+            <nav data-overflow-cue-target="viewport">
+                <a href="#">First</a>
+                <a href="#" aria-current="page">Current</a>
+            </nav>
+        </div>`);
+    geometry(viewport(), { scrollWidth: 600, clientWidth: 300, scrollLeft: 0 });
+    expect(() => resizeCallback()).not.toThrow();
+    expect(root().hasAttribute('data-overflow-end')).toBe(true);
+});
