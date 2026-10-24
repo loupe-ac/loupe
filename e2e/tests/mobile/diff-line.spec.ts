@@ -107,12 +107,22 @@ for (const { name, viewport } of VIEWPORTS) {
             await expect(
                 bar.getByRole('link', { name: 'Return to document' }),
             ).toBeHidden();
-            await expect(page.locator('.lp-diff-nav__count')).toBeHidden();
 
+            // The count gives way to the position on screen, and stays the
+            // live region a screen reader hears after each jump.
+            const counter = page.locator('.lp-diff-nav__count');
+            await expect(counter).toHaveCSS('position', 'absolute');
+            await expect(counter).toHaveAttribute('aria-live', 'polite');
             const position = page.locator('.lp-diff-nav__position');
             await expect(position).toHaveText('0/3');
             await bar.getByRole('button', { name: 'Next change' }).click();
             await expect(position).toHaveText('1/3');
+            await expect(counter).toHaveText('1 of 3 changes');
+            await expect(
+                bar
+                    .getByRole('paragraph')
+                    .filter({ hasText: '1 of 3 changes' }),
+            ).toHaveCount(1);
             await bar.getByRole('button', { name: 'Next change' }).click();
             await expect(position).toHaveText('2/3');
             await bar.getByRole('button', { name: 'Previous change' }).click();
