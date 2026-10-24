@@ -41,6 +41,7 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
 @plugin "@tailwindcss/typography";
@@ -7791,51 +7792,70 @@
 }
 
 /* Touch pointers cannot hit a 36px control accurately. Desktop density is
-   deliberately unchanged, so this is scoped to coarse pointers only. */
-@media (pointer: coarse) {
-    .lp-btn,
-    .lp-copy-button__chip,
-    .lp-flash__dismiss,
-    .lp-anchor-toolbar__btn,
-    .auth-forgot,
-    .lp-auth__footer-link,
-    .lp-home-footer__link,
-    .lp-home-footer__icon {
-        @apply inline-flex items-center justify-center min-h-tap min-w-tap;
-    }
+   deliberately unchanged, so this is scoped to coarse pointers only. The block
+   sits in the components layer: an unlayered rule beats every layer, and its
+   `inline-flex` would beat `hidden` and `lg:hidden`. */
+@layer components {
+    @media (pointer: coarse) {
+        .lp-btn,
+        .lp-copy-button__chip,
+        .lp-flash__dismiss,
+        .lp-anchor-toolbar__btn,
+        .auth-forgot,
+        .lp-auth__footer-link,
+        .lp-home-footer__link,
+        .lp-home-footer__icon {
+            @apply inline-flex items-center justify-center min-h-tap min-w-tap;
+        }
 
-    .lp-input,
-    .lp-list-filters .lp-input {
-        @apply min-h-tap;
-    }
+        .lp-input,
+        .lp-list-filters .lp-input {
+            @apply min-h-tap;
+        }
 
-    /* Size only. Both are `lg:hidden`, and a `display` here comes later in the
-       sheet than that variant, so a touch screen at desktop width showed both
-       drawer controls beside a sidebar that is already in the flow. */
-    .lp-topbar__menu,
-    .lp-sidebar__close {
-        @apply min-h-tap min-w-tap;
-    }
+        /* A text link outside a sentence, a check box and a sort header need a
+           24px hit area, the WCAG 2.2 minimum. */
+        .lp-workshop-text-link,
+        .lp-history__action,
+        .lp-backlog-sort-link,
+        .lp-auth__remember {
+            @apply min-h-6 min-w-6;
+        }
+        /* `lp-touch-check` and `lp-touch-text` are hooks for a raw check box or field
+           that no component draws. */
+        .lp-touch-check {
+            @apply size-6;
+        }
 
-    /* iOS Safari zooms the page in when it focuses a control under 16px. */
-    .lp-comment-composer textarea,
-    .lp-comment-reply-form textarea,
-    .lp-input--compact,
-    .lp-select--compact,
-    .lp-list-filters .lp-input {
-        @apply text-base;
-    }
+        .lp-topbar__menu,
+        .lp-sidebar__close {
+            @apply min-h-tap min-w-tap;
+        }
 
-    /* No keyboard to press it, and the width it costs is the width the three
-       buttons need on a phone. */
-    .lp-anchor-toolbar__key {
-        @apply hidden;
-    }
+        /* iOS Safari zooms the page in when it focuses a control under 16px. */
+        .lp-input,
+        .lp-select,
+        .lp-textarea,
+        .lp-comment-composer textarea,
+        .lp-comment-reply-form textarea,
+        .lp-input--compact,
+        .lp-select--compact,
+        .lp-list-filters .lp-input,
+        .lp-touch-text {
+            @apply text-base;
+        }
 
-    /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
-       display would reveal it below sm: and min-width never applies to inline. */
-    .lp-home-nav__link {
-        @apply px-2 py-3;
+        /* No keyboard to press it, and the width it costs is the width the three
+           buttons need on a phone. */
+        .lp-anchor-toolbar__key {
+            @apply hidden;
+        }
+
+        /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
+           display would reveal it below sm: and min-width never applies to inline. */
+        .lp-home-nav__link {
+            @apply px-2 py-3;
+        }
     }
 }
 
@@ -8294,6 +8314,9 @@
     }
     .lp-styleguide__specimen .lp-drawer {
         @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
+    }
+    .lp-styleguide__specimen .lp-sheet:not(:modal) {
+        @apply static m-0 h-fit w-full max-w-none rounded-xl border border-line shadow-none;
     }
     /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
     .lp-styleguide__specimen .lp-auth {

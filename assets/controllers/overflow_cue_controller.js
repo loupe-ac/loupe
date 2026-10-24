@@ -68,25 +68,17 @@ export default class extends Controller {
         if (focused !== this.prevTarget && focused !== this.nextTarget) {
             return;
         }
-        const hidden =
-            focused === this.prevTarget
-                ? !this.element.hasAttribute('data-overflow-start')
-                : !this.element.hasAttribute('data-overflow-end');
-        if (!hidden || 'scroll' !== this.modeValue) {
+        const start = this.element.hasAttribute('data-overflow-start');
+        const end = this.element.hasAttribute('data-overflow-end');
+        const onPrev = focused === this.prevTarget;
+        if ((onPrev ? start : end) || 'scroll' !== this.modeValue) {
             return;
         }
-        const other =
-            focused === this.prevTarget ? this.nextTarget : this.prevTarget;
-        const otherShown =
-            other === this.prevTarget
-                ? this.element.hasAttribute('data-overflow-start')
-                : this.element.hasAttribute('data-overflow-end');
-        if (otherShown) {
-            other.focus();
-
-            return;
-        }
-        (this.#active() ?? other).focus({ preventScroll: true });
+        const other = onPrev ? this.nextTarget : this.prevTarget;
+        const otherShown = onPrev ? end : start;
+        (otherShown ? other : (this.#active() ?? other)).focus({
+            preventScroll: true,
+        });
     }
 
     #active() {
