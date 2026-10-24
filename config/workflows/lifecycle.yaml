@@ -1,5 +1,5 @@
 key: lifecycle
-version: 19
+version: 20
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -80,11 +80,16 @@ rules:
 
     - id: product-design-session
       slot: product-design
-      when: { not: { card.document.linked: { tag: product-design } } }
+      when:
+          all:
+              - not: { card.document.linked: { tag: product-design } }
+              - not: { card.run.session_open: {} }
       then:
           request:
               kind: product-design
               capability: interactive
+              cancelWhen: { card.run.session_open: {} }
+              cancelOnly: open
               checks:
                   - An interactive session that the owner can join
                   - The Loupe plugin skills are installed for the agent

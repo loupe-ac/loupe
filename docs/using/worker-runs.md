@@ -332,8 +332,9 @@ the run has no usage, each later `card_run_close` call from the session asks
 again. A run with no bridge that holds its transcript keeps no usage.
 
 No timeout closes the run. A session that stops with no call leaves its run open
-until the owner closes it or the card moves. While the run is open, a bridge
-rule with `card: { interactiveRun: false }` skips the card. See
+until the owner closes it or the card moves. An agent can close it with
+`worker_run_stop`, which marks the run closed in Loupe. The terminal of the
+session stays open, because no bridge holds it. See
 [the command-line bridge](../extending/cli-bridge.md#events-endpoint).
 
 ## A missing record means unknown

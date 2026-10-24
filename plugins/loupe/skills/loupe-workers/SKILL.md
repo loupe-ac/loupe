@@ -15,7 +15,7 @@ A bridge runs the workers of a project, and each worker is a run on one card. A 
 | `worker_run_get` | read one run with its series, output, state changes and commands |
 | `bridge_list` | check that each bridge is live and takes commands |
 | `worker_run_resume` | resume up to 50 ended runs by `runIds` |
-| `worker_run_stop` | stop one queued, resumed, preparing or running run |
+| `worker_run_stop` | stop one queued, resumed, preparing or running run, or close an interactive session |
 | `card_hold` | hold one card, by `cardId` or `number`, so no agent starts on it |
 | `card_release` | end the hold of one card |
 | `card_pause_release` | end the workflow pause of one card, so the paused rule runs again |
@@ -44,7 +44,7 @@ Pass `runId` values from `worker_run_list`, never a card number. Only `card_hold
 | `no-bridge`, `unknown-bridge` | the run has no connected bridge, so tell a person |
 | `bridge-outdated` | the bridge cannot take commands, so ask a person to update it |
 | `pending` | a command already waits on the run, so wait or cancel it |
-| `not-controllable` | the run is an interactive session |
+| `not-controllable` | the run is an interactive session, and the tool cannot resume it |
 | `no-session` | the run has no session to resume |
 | `not-resumable` | the run did not end, or it succeeded |
 | `card-left` | the card left the column of the run, so leave the run |
@@ -61,7 +61,7 @@ Pass `runId` values from `worker_run_list`, never a card number. Only `card_hold
 
 ## Stop a run
 
-Call `worker_run_stop` with the `runId` and a `reason` that a person reads. A stop ends this run only. A rule can still start new work on the card, because a stop does not hold the card.
+Call `worker_run_stop` with the `runId` and a `reason` that a person reads. A stop ends this run only. On an interactive session, `worker_run_stop` closes the run in Loupe with the outcome `closed`. The terminal of the session stays open. A rule can still start new work on the card, because a stop does not hold the card.
 
 ## Hold a card
 

@@ -156,13 +156,16 @@ final class WorkerRunWriteToolsTest extends KernelTestCase
         self::assertSame(1, $this->countCommands($this->em()));
     }
 
-    public function test_a_stop_of_an_interactive_session_is_refused(): void
+    public function test_a_stop_of_an_interactive_session_closes_it_in_loupe(): void
     {
         $run = $this->seedRun($this->em(), $this->project, bridgeId: $this->bridge->id, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
 
         $row = $this->stop()((string) $run->id)['results'][0];
 
-        self::assertSame(['refused', 'not-controllable'], [$row['outcome'], $row['code'] ?? null]);
+        self::assertSame(['runId' => (string) $run->id, 'outcome' => 'closed'], $row);
+        $id = $run->id;
+        $this->em()->clear();
+        self::assertSame(WorkerRunState::Closed, $this->em()->find(WorkerRun::class, $id)?->state);
         self::assertSame(0, $this->countCommands($this->em()));
     }
 

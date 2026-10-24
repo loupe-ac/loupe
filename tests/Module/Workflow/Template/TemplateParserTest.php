@@ -1144,6 +1144,17 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[0] (start) then.request: parameter "refill" needs a "limit"'];
+        yield 'cancel only without a cancel when' => [static function (array $t): array {
+            $t['rules'][0]['then']['request']['cancelOnly'] = 'open';
+
+            return $t;
+        }, 'rules[0] (start) then.request: parameter "cancelOnly" needs a "cancelWhen"'];
+        yield 'cancel only with another value' => [static function (array $t): array {
+            $t['rules'][0]['then']['request']['cancelWhen'] = ['pr.open' => []];
+            $t['rules'][0]['then']['request']['cancelOnly'] = 'claimed';
+
+            return $t;
+        }, 'rules[0] (start) then.request: parameter "cancelOnly" must be one of open'];
         yield 'zero request limit' => [static function (array $t): array {
             $t['rules'][0]['then']['request']['limit'] = 0;
 

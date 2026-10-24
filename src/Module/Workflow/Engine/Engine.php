@@ -502,7 +502,7 @@ final readonly class Engine
     }
 
     /**
-     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds, and expires the open ones no bridge took in time.
+     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`), and expires the open ones no bridge took in time.
      * An expiry pauses the card, unless the rule expires its work with no pause.
      * A rule with `onNoTaker: fail` expires an open request at once when no online bridge could take it, with no pause.
      * A baseline pauses nothing, so it leaves an overdue request to the next pass.
@@ -522,8 +522,12 @@ final readonly class Engine
                 continue;
             }
             if (null !== $rule->lead->cancelWhen && $this->ruleSubject->bindWhen($rule->lead->cancelWhen, $run->facts)->truth) {
-                $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled) || $withdrawn;
-                continue;
+                // `cancelOnly: open` leaves a request that a bridge claimed alone, because that claim serves a live launch.
+                $openOnly = 'open' === ActionParams::optionalString($rule, 'cancelOnly');
+                if (!$openOnly || WorkState::Open === $request->state) {
+                    $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled, onlyIfOpen: $openOnly) || $withdrawn;
+                    continue;
+                }
             }
 
             // The template decides that a request no bridge could take fails at once, with no pause.
