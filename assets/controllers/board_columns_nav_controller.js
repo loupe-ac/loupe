@@ -160,8 +160,7 @@ export default class extends Controller {
         const shown = this.#shown(id);
         const column = shown.reduce(
             (best, candidate) =>
-                (this.ratios.get(candidate) ?? 0) >
-                (this.ratios.get(best) ?? 0)
+                (this.ratios.get(candidate) ?? 0) > (this.ratios.get(best) ?? 0)
                     ? candidate
                     : best,
             shown[0],

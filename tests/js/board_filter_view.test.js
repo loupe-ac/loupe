@@ -152,9 +152,9 @@ it('keeps both copies of the view switch in step', async () => {
     await settle();
     viewController().showList();
     const pressed = (target) =>
-        [
-            ...board.querySelectorAll(`[data-board-view-target="${target}"]`),
-        ].map((button) => button.getAttribute('aria-pressed'));
+        [...board.querySelectorAll(`[data-board-view-target="${target}"]`)].map(
+            (button) => button.getAttribute('aria-pressed'),
+        );
     expect(pressed('listButton')).toEqual(['true', 'true']);
     expect(pressed('boardButton')).toEqual(['false', 'false']);
 });

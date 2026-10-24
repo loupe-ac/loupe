@@ -268,9 +268,7 @@ test('the arrows step the shown lane when the first epic lane is collapsed', asy
     await page.reload();
     const epicLane = page.locator(`.lp-board-lane[data-lane="${epic}"]`);
     await expect(epicLane).toHaveClass(/lp-board-lane--collapsed/);
-    const shown = page.locator(
-        `.lp-board-lane[data-lane="other"] ${COLUMN}`,
-    );
+    const shown = page.locator(`.lp-board-lane[data-lane="other"] ${COLUMN}`);
 
     await page.getByRole('button', { name: 'Scroll forward' }).tap();
     await expectInView(page, 1, shown);
