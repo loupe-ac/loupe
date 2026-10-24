@@ -16,6 +16,9 @@ const RUN = Date.now();
 const PASSWORD = 'E2eMobilePolish1!';
 
 const PHONE = { width: 390, height: 844 };
+// Exactly 60 characters, the longest ask title the workshop row must fit in two lines.
+const LONG_TITLE =
+    'Which export format should the nightly analytics report use?';
 
 interface Seeded {
     projectId: string;
@@ -61,7 +64,9 @@ const test = base.extend<{ seeded: Seeded }>({
             await expect(page).toHaveURL('/welcome', { timeout: 20000 });
 
             await setInbox(page, 1);
-            const seeded = await page.request.post('/dev/seed/inbox');
+            const seeded = await page.request.post('/dev/seed/inbox', {
+                form: { questionTitle: LONG_TITLE },
+            });
             expect(seeded.status()).toBe(201);
             await use({ projectId: (await seeded.json()).projectId as string });
             await setInbox(page, 0);
@@ -74,6 +79,7 @@ test.use({
     storageState: { cookies: [], origins: [] },
     viewport: PHONE,
     hasTouch: true,
+    isMobile: true,
 });
 
 test('each board column settings row keeps its name and its icons on one line', async ({
@@ -124,18 +130,24 @@ test('the inbox list keeps the same margin on the right as on the left', async (
     expect(Math.abs(right - left)).toBeLessThanOrEqual(1);
 });
 
-test('a workshop ask puts its chip under the title', async ({
+test('a workshop ask puts its chip and its age under a long title', async ({
     page,
     seeded,
 }) => {
     test.slow();
+    expect(LONG_TITLE).toHaveLength(60);
     await page.goto(`/projects/${seeded.projectId}`);
-    const row = page.locator('[data-workshop-attention]').first();
+    const row = page
+        .locator('[data-workshop-attention]')
+        .filter({ hasText: LONG_TITLE });
     await expect(row).toBeVisible();
     const title = await box(row.locator('strong'));
     const chip = await box(row.locator('.lp-workshop-attention__badge'));
+    const age = await box(row.locator('time'));
     expect(chip.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
     expect(chip.x).toBeLessThan(PHONE.width / 2);
+    expect(age.x).toBeGreaterThan(chip.x + chip.width);
+    expect(age.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
     const lineHeight = await row
         .locator('strong')
         .evaluate((element) =>

@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const root = new URL('../../', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const config = readFileSync(join(root, 'e2e/playwright.config.ts'), 'utf8');
 
 function project(name) {
