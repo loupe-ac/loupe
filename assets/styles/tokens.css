@@ -282,8 +282,11 @@
 /* The `static` keyword keeps a token in the output when no class uses it, so
    the styleguide can read every token from the page. */
 @theme static {
-    /* One step of the spacing scale. Every gap, padding and size is a multiple. */
+    /* One step of the spacing scale. Every gap, padding and size is a
+       multiple, except the touch target below. */
     --spacing: 0.25rem;
+    /* In px, so a phone top bar at 200% text still fits four targets. */
+    --spacing-tap: 44px;
 }
 
 /* @group radius */

@@ -1,5 +1,5 @@
 {#- One row of the split button menu. A link goes to its address, a disabled row says why, and any other row posts the reply form to its action.
-   Params: row (ThreadAction; a run-command row opens its dialog), actionParams, declineFormId (the form Dismiss submits, or null), cardDrawer. -#}
+   Params: row (ThreadAction; a run-command row opens its dialog), actionParams, declineFormId (the form Dismiss submits, or null), cardDrawer, drawerTitle (the ask title the card drawer shows while it loads). -#}
 {% set kind = row.action.kind.value %}
 {% set command = row.action.runCommand %}
 {% set off = row.action.disabledReasonKey and not (command and (command.canOpenDialog or command.canAddEntry)) %}
@@ -16,7 +16,7 @@
     {% if row.external %}
         <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" target="_blank" rel="noopener noreferrer">{{ label }}</twig:Ds:MenuItem>
     {% elseif row.card and cardDrawer %}
-        <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare">{{ label }}</twig:Ds:MenuItem>
+        <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" data-turbo-frame="card-drawer-frame" :data-drawer-title="drawerTitle" data-action="click->card-drawer#prepare">{{ label }}</twig:Ds:MenuItem>
     {% else %}
         <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" data-turbo-frame="_top">{{ label }}</twig:Ds:MenuItem>
     {% endif %}

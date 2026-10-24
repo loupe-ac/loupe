@@ -433,7 +433,9 @@ and you can answer them there. See
 
 On the board, the Workshop and a document, a card opens
 in a drawer that slides in from the right. The drawer shows the same content as
-the card page.
+the card page. The drawer opens at once with a header and a close button. The
+header names what you opened, such as the card number or **New work**, and a
+loading line shows below it until the content arrives.
 
 **Edit** opens the card for a change to its title, body, type, column and
 links. In the drawer, the form replaces the card. The button reads **Saving…**

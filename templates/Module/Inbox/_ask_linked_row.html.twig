@@ -1,7 +1,7 @@
 {# One row of the linked menu of an ask. Params: kind (card, document or pull_request), entry (a card entry, a document entry or a pull request), reviewDocumentId (string or null). #}
 {% if kind == 'card' %}
     {% set card = entry.card %}
-    <twig:Ds:MenuItem data-linked-card="{{ card.id }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare click->popover#close"
+    <twig:Ds:MenuItem data-linked-card="{{ card.id }}" data-turbo-frame="card-drawer-frame" data-drawer-title="{{ entry.item.title }}" data-action="click->card-drawer#prepare click->popover#close"
             :href="path('app_board_card', {projectId: card.project.id, cardId: card.id, tab: 'conversation', inboxItem: entry.item.number, _fragment: 'inbox-item-' ~ entry.item.number})">
         <twig:ux:icon name="lucide:square-kanban" />
         <span class="lp-menu__text">
