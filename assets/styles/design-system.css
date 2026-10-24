@@ -38,6 +38,7 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
 

@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+Loupe's sheet. {{ entry.summary }}
+
+```jsx
+<{{ entry.name }} open title="More">
+  <p>The body.</p>
+</{{ entry.name }}>
+```
+
+Pass `open` to show it. The app opens the real sheet with the `sheet` controller, which slides it up from the bottom edge at every width. Pass `back` for the second view of a drill-down. The component draws the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}
