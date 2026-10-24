@@ -2553,7 +2553,8 @@
     }
 
     /* A phone shows one column per screen and a swipe stops on a column. The
-       header is one row: the title, Find, Backlog and the "…" menu. */
+       header row holds the title, Backlog and the "…" menu, and Find takes
+       the row below it, because the header row has no room for a field. */
     @media (width < 40rem) {
         .lp-board-header {
             @apply flex-wrap gap-x-2;
@@ -2562,10 +2563,10 @@
             display: contents;
         }
         .lp-board-toolbar__title {
-            @apply order-1 text-xl;
+            @apply order-1 mr-auto text-xl;
         }
         .lp-board-toolbar__filters {
-            @apply order-2 flex-1;
+            @apply order-5 basis-full;
         }
         .lp-board-backlog {
             @apply order-3;
@@ -2574,7 +2575,17 @@
             @apply hidden;
         }
         .lp-board-toolbar__menu {
-            @apply order-4 block;
+            @apply order-4 ml-auto block;
+        }
+        /* The panel minimum outgrows a phone at large text sizes. */
+        .lp-board-toolbar__menu .lp-menu__panel {
+            min-width: min(
+                calc(var(--spacing) * 46),
+                calc(100vw - var(--spacing) * 8)
+            );
+        }
+        .lp-board-toolbar__menu .lp-board-toolbar__mode {
+            @apply flex-wrap;
         }
         .lp-board-toolbar__search {
             @apply w-full;
@@ -2583,7 +2594,7 @@
             @apply hidden;
         }
         .lp-board-toolbar__paused:not(:empty) {
-            @apply order-5 basis-full;
+            @apply order-6 basis-full;
         }
         .lp-board-tabs {
             @apply block;

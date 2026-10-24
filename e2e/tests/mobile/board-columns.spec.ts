@@ -230,6 +230,28 @@ test('the last tab shows the last column and hides the next arrow', async ({
     );
 });
 
+test('Find takes its own full row below the header row', async ({
+    page,
+    boardUrl,
+}) => {
+    await page.goto(boardUrl);
+    const field = page.getByRole('searchbox', {
+        name: 'Search cards',
+        exact: true,
+    });
+    const more = page.locator('.lp-board-toolbar__more');
+    await expect(field).toBeInViewport({ ratio: 1 });
+    const fieldBox = (await field.boundingBox())!;
+    const moreBox = (await more.boundingBox())!;
+    expect(fieldBox.y).toBeGreaterThanOrEqual(moreBox.y + moreBox.height);
+    expect(fieldBox.width).toBeGreaterThan(300);
+
+    await field.focus();
+    expect(await more.boundingBox()).toEqual(moreBox);
+    await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+});
+
 test('a swipe stops on a column and the tab follows it', async ({
     page,
     boardUrl,

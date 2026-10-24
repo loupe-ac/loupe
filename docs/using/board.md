@@ -285,9 +285,9 @@ is selected, and the strip follows a swipe.
 - A board with epic lanes swipes the same way. The lanes stay stacked top to
   bottom, so a swipe moves every lane to the next column.
 
-The board header is one row with the title, Find, **Backlog** and a **…**
-button. The **…** menu holds Board settings and the **Board** and **List**
-switch. A touch no longer drags a card on a phone, because a swipe moves the
+The board header is one row with the title, **Backlog** and a **…** button.
+The search field takes the full row below it. The **…** menu holds Board
+settings and the **Board** and **List** switch. A touch no longer drags a card on a phone, because a swipe moves the
 board. A mouse still drags at any width.
 
 ### The Backlog page

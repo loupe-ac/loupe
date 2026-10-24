@@ -248,7 +248,7 @@ test('board controls remain usable at enlarged text sizes without page overflow'
     ).toBeHidden();
     await openToolbarActions(page);
     await page.getByRole('button', { name: 'List', exact: true }).click();
-    await expect(page.locator('.lp-board-list')).toBeVisible();
+    await expect(page.locator('.lp-board-list')).toBeVisible(ROUND_TRIP);
     await expect(page.locator('.lp-board-list__row:not([hidden])')).toHaveCount(
         1,
     );
@@ -649,9 +649,9 @@ test('the board header holds the title and actions on one row, and columns offer
     await expect(
         toolbar.getByRole('link', { name: 'Add card', exact: true }),
     ).toHaveCount(0);
-    // Settings sits left of the Board and List switch.
+    // Settings sits left of the Board and List switch of the row; the phone menu holds a hidden copy.
     const modeBox = await toolbar
-        .locator('.lp-board-toolbar__mode')
+        .locator('.lp-board-toolbar__actions .lp-board-toolbar__mode')
         .boundingBox();
     expect(settingsBox!.x).toBeLessThan(modeBox!.x);
 
