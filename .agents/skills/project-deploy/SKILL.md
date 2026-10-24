@@ -58,7 +58,7 @@ Do these steps before every deploy, and do not skip them for a small release. Ne
 3. Count the gap with `git log --oneline --first-parent <live sha>..origin/main`.
 4. Do "Check the release diff" and "Read the deploy notes of the release".
 5. Show the owner the summary below.
-6. Wait for the owner to say go. Do not deploy before that.
+6. Wait for the owner to say go. Do not deploy before that, also when the owner already asked for the deploy. The owner decided that this summary is a required approval gate on every deploy.
 
 ```text
 Live:     <live sha> (deployed <date>)
@@ -66,7 +66,8 @@ Target:   <origin/main sha>, <N> commits, <M> pull requests
 Changes:  <one line per pull request, or grouped by theme when there are many>
 Migrations: <names and risk, or "none">
 Deploy notes: <each step and value to set, in order, or "none">
-Unnoted:  <release diff files with no deploy note, or "none">
+Risky:    <every file that "Check the release diff" lists, or "none">
+Unnoted:  <the risky files with no deploy note, or "none">
 After:    <the checks the deploy notes ask for>
 ```
 
@@ -82,7 +83,7 @@ git diff --name-only <last deployed sha>..origin/main -- migrations/ .env terraf
   config/packages/messenger.yaml config/packages/nelmio_security.yaml docker/compose/prod.yaml
 ```
 
-Read each file in this list that no deploy note covers. Say whether the release ships a migration.
+Put every file of this list on the `Risky:` line of the summary, also a file that a deploy note covers. Read each file that no deploy note covers, and put it on the `Unnoted:` line too. Say whether the release ships a migration.
 
 ### Read the deploy notes of the release
 
@@ -221,8 +222,19 @@ doctl apps logs "$APP" migrate --type deploy --tail 20                  # the ve
 doctl apps logs "$APP" --type run --tail 300 | grep -iE 'error|critical|" 5[0-9]{2} '
 ```
 
+Run the two console checks in the `web` component. `doctl apps console` needs a TTY, so give it one with `script`. The console prompt takes the commands after a short wait:
+
+```bash
+(sleep 8; printf 'bin/console doctrine:migrations:status --no-ansi | tail -15; bin/console health-check:status --no-ansi; echo HC_EXIT=$?; exit\n'; sleep 40) \
+  | script -q /dev/null doctl apps console "$APP" web 2>&1 | tail -50
+```
+
+- `doctrine:migrations:status` must show `New` as 0 and `Next` as `Already at latest version`. `Current` must be the newest file in `migrations/` on the target sha.
+- `health-check:status` exits 0 on a warning. Report each row that is not `OK`. An `UNKNOWN` row is not a pass.
+- When the console does not connect or prints no table, report both checks as not checked, with the error line.
+
 - Read the newest deployment, as "Which deployment is running, and why" shows. It must be `ACTIVE` with cause `manual`.
-- Compare the version in the `migrate` log with the newest file in `migrations/` on the target sha. A release with no migration logs that it is already at the latest version.
+- Compare the version in the `migrate` log with the newest file in `migrations/` on the target sha. A release with no migration logs that it is already at the latest version. This log shows the pre-deploy job ran. The console check above shows that no migration is pending.
 - Read the run log matches. Ignore lines from before the new deployment started.
 - Call `search_issues` through the Sentry MCP with `is:unresolved firstSeen:-1h environment:prod` on the `loupe` project. Read each new issue.
 - Run each check that the deploy notes ask for and that an agent can run.
@@ -231,7 +243,7 @@ An agent cannot run the checks below. Give them to the owner:
 
 - Open `/admin/status` with an admin session. Read the failed checks and the Trusted proxies row.
 - Start a data export, then follow the download link in the email to a ZIP. That proves the worker and the archive path.
-- Do each deploy-note check that needs a browser, a session or a console. `doctl apps console` needs a TTY.
+- Do each deploy-note check that needs a browser or a session.
 
 Report in this shape:
 
