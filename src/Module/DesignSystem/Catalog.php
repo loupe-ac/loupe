@@ -225,7 +225,7 @@ readonly class Catalog
                 states: ['hover', 'selected'],
                 enforced: true,
                 group: 'core',
-                summary: 'A row of tabs that switches between views of one page, or a pill group that switches a view or a setting.',
+                summary: 'A row of tabs that switches between views of one page, or a pill group that switches a view or a setting. A strip that overflows draws arrows at its edges, and the arrows prop picks scroll or step.',
                 element: 'nav',
                 viewport: '700x170',
             ),

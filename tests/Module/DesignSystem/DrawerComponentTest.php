@@ -47,6 +47,22 @@ final class DrawerComponentTest extends KernelTestCase
         self::assertStringNotContainsString('lp-drawer__body', $html);
     }
 
+    public function test_a_loading_drawer_keeps_the_header_and_swaps_the_body_and_footer(): void
+    {
+        $html = $this->render(<<<'TWIG'
+            <twig:Ds:Drawer loading="Loading card…">
+                <twig:block name="header"><h2>Title</h2></twig:block>
+                <twig:block name="body"><p>Body text</p></twig:block>
+                <twig:block name="footer"><span>Action</span></twig:block>
+            </twig:Ds:Drawer>
+            TWIG);
+
+        self::assertStringContainsString('<h2>Title</h2>', $html);
+        self::assertMatchesRegularExpression('~<p class="lp-drawer__loading" role="status">.*Loading card…</p>~s', $html);
+        self::assertStringNotContainsString('Body text', $html);
+        self::assertStringNotContainsString('lp-drawer__footer', $html);
+    }
+
     public function test_a_caller_class_joins_the_root_class(): void
     {
         self::assertStringContainsString('class="lp-drawer lp-run-drawer"', $this->render('<twig:Ds:Drawer class="lp-run-drawer" />'));

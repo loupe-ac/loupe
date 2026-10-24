@@ -133,6 +133,7 @@ export default defineConfig({
                 /review\/decision-live\.spec\.ts/,
                 /review\/draft-band-live\.spec\.ts/,
                 /mobile\/page-polish\.spec\.ts/,
+                /mobile\/drawer-loading\.spec\.ts/,
             ],
             use: {
                 ...devices['Desktop Chrome'],
@@ -164,6 +165,7 @@ export default defineConfig({
                 /review\/decision-live\.spec\.ts/,
                 /review\/draft-band-live\.spec\.ts/,
                 /mobile\/page-polish\.spec\.ts/,
+                /mobile\/drawer-loading\.spec\.ts/,
             ],
             workers: 1,
             use: {

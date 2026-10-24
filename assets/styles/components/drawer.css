@@ -29,6 +29,13 @@
     .lp-drawer__body {
         @apply min-h-0 flex-1 overflow-y-auto p-6;
     }
+    /* What the body shows while the drawer loads its content. The header and its close button stay. */
+    .lp-drawer__loading {
+        @apply m-0 flex items-center gap-2 text-sm font-semibold text-fg-mute;
+    }
+    .lp-drawer__loading svg {
+        @apply shrink-0 animate-spin;
+    }
     .lp-drawer__footer {
         @apply flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-line bg-field px-6 py-4;
     }
