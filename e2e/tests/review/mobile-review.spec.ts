@@ -28,7 +28,7 @@ const COMPOSER_BODY = '[data-comment-anchor-target="composerBody"]';
 const THREAD = '.lp-comment-thread';
 const OPEN_THREAD = '.lp-comment-thread:popover-open';
 const ROW = '#comment-rows .lp-comment-row';
-const RESOLVED_ROW = '.lp-comment-row--resolved';
+const RESOLVED_ROW = '#comment-rows .lp-comment-row--resolved';
 const MARGIN = '.lp-review-margin';
 const BAR = '.lp-review-bar';
 

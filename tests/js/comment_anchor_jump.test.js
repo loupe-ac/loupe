@@ -51,6 +51,7 @@ beforeEach(() => {
         order.push('scroll');
         scrolled.push(this);
     };
+    Element.prototype.scrollBy = () => {};
     Range.prototype.getClientRects = () => [
         { top: 100, bottom: 120, left: 50, right: 90 },
     ];
@@ -83,6 +84,7 @@ afterEach(async () => {
     delete Range.prototype.getClientRects;
     delete Range.prototype.getBoundingClientRect;
     delete Element.prototype.scrollIntoView;
+    delete Element.prototype.scrollBy;
 });
 
 function sheetRow(id) {
@@ -192,4 +194,38 @@ it('flashes nothing for a thread with no passage', async () => {
     await settle();
 
     expect(flash().size).toBe(0);
+});
+
+it('centres a visible quote near the bottom edge of a long paragraph', async () => {
+    await mount();
+    const pane = document.querySelector('.lp-main');
+    const scrolledBy = [];
+    pane.scrollBy = (options) => scrolledBy.push(options.top);
+    const top = window.innerHeight - 30;
+    Range.prototype.getClientRects = () => [
+        { top, bottom: top + 20, left: 50, right: 90 },
+    ];
+    rowOf('early').click();
+    await Promise.resolve();
+    finishClose();
+    await settle();
+
+    expect(scrolledBy).toEqual([top - (window.innerHeight - 20) / 2]);
+});
+
+it('leaves the page still when the quote is already at the centre', async () => {
+    await mount();
+    const pane = document.querySelector('.lp-main');
+    const scrolledBy = [];
+    pane.scrollBy = (options) => scrolledBy.push(options.top);
+    const top = (window.innerHeight - 20) / 2;
+    Range.prototype.getClientRects = () => [
+        { top, bottom: top + 20, left: 50, right: 90 },
+    ];
+    rowOf('early').click();
+    await Promise.resolve();
+    finishClose();
+    await settle();
+
+    expect(scrolledBy).toEqual([]);
 });

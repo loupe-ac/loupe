@@ -486,7 +486,7 @@ export default class extends Controller {
         if (card === null) {
             return;
         }
-        if (this.#scrollToPassage(card)) {
+        if (this.#scrollToPassage(card, { centre: true })) {
             this.#flashPassage(card);
 
             return;
@@ -1897,8 +1897,11 @@ export default class extends Controller {
         this.#openThread(card);
     }
 
-    /** Returns false when the thread has no passage to scroll to. */
-    #scrollToPassage(card) {
+    /**
+     * Returns false when the thread has no passage to scroll to. With centre,
+     * the quote's first line goes to the middle even when it is in view.
+     */
+    #scrollToPassage(card, { centre = false } = {}) {
         const passage = this.anchorRanges?.get(card)?.startContainer;
         if (passage === undefined) {
             return false;
@@ -1911,9 +1914,14 @@ export default class extends Controller {
         // A paragraph taller than the viewport can still hide the quote. The
         // app shell scrolls .lp-main.
         const line = this.anchorRanges.get(card).getClientRects?.()[0];
-        if (line && (line.top < 0 || line.bottom > window.innerHeight)) {
+        const offset = line
+            ? line.top - (window.innerHeight - (line.bottom - line.top)) / 2
+            : 0;
+        const outside =
+            line && (line.top < 0 || line.bottom > window.innerHeight);
+        if (outside || (centre && Math.abs(offset) >= 1)) {
             (element?.closest('.lp-main') ?? window).scrollBy({
-                top: line.top - (window.innerHeight - line.height) / 2,
+                top: offset,
                 behavior: 'auto',
             });
         }
