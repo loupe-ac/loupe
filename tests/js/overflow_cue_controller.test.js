@@ -203,7 +203,7 @@ it('reveals the new current tab when the markup switches it', async () => {
     expect(viewport().scrollLeft).toBe(124);
 });
 
-it('moves focus off an arrow that the end of the strip hides', async () => {
+it('moves focus to the other arrow, with no scroll, when the end of the strip hides an arrow', async () => {
     await start(markup());
     geometry(viewport(), { scrollWidth: 600, clientWidth: 300, scrollLeft: 0 });
     resizeCallback();
@@ -214,8 +214,27 @@ it('moves focus off an arrow that the end of the strip hides', async () => {
         clientWidth: 300,
         scrollLeft: 300,
     });
+    const focus = vi.spyOn(
+        document.querySelector('[data-overflow-cue-target="prev"]'),
+        'focus',
+    );
     viewport().dispatchEvent(new Event('scroll'));
+    expect(document.activeElement).toBe(
+        document.querySelector('[data-overflow-cue-target="prev"]'),
+    );
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+});
+
+it('moves focus to the current item when no arrow shows', async () => {
+    await start(markup());
+    geometry(viewport(), { scrollWidth: 600, clientWidth: 300, scrollLeft: 0 });
+    resizeCallback();
+    document.querySelector('[data-overflow-cue-target="next"]').focus();
+    const focus = vi.spyOn(document.getElementById('current'), 'focus');
+    geometry(viewport(), { scrollWidth: 300, clientWidth: 300, scrollLeft: 0 });
+    resizeCallback();
     expect(document.activeElement).toBe(document.getElementById('current'));
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
 });
 
 it('scrolls by 90 percent of the width in scroll mode', async () => {
