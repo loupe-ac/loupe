@@ -684,9 +684,9 @@ final class ShowDocumentControllerTest extends WebTestCase
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$documentId.'/review');
         self::assertSelectorNotExists('.lp-verdict-chip');
-        // The top bar carries the pair above lg and the review menu below it.
+        // The top bar carries the pair above lg and the review bar below it.
         self::assertCount(2, $crawler->filter('dialog input[name="submit_review_form[verdict]"]'));
-        self::assertCount(1, $crawler->filter('.lp-review-menu__verdict'));
+        self::assertCount(1, $crawler->filter('.lp-review-bar__finish'));
     }
 
     public function test_a_comment_card_shows_its_age_and_an_undated_one_shows_none(): void
@@ -748,10 +748,10 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertSelectorTextContains('.lp-verdict-chip__title', 'Approved');
         self::assertSelectorNotExists('input[name="undo_verdict_form[reviewId]"]');
         self::assertSelectorTextSame('.lp-verdict-chip button[data-action="click->review-finish#open"]', 'Change verdict');
-        self::assertSelectorExists('.lp-review[data-controller~="modal"] dialog[data-modal-target="dialog"]');
+        self::assertSelectorExists('.lp-review[data-controller~="sheet"] dialog.lp-finish-review[data-sheet-target="dialog"]');
         self::assertSelectorExists('dialog input[name="submit_review_form[verdict]"][value="approved"]');
         // The verdict chip is the one entry point once a verdict stands.
-        self::assertSelectorNotExists('.lp-review-menu__verdict');
+        self::assertSelectorNotExists('.lp-review-bar__finish');
         self::assertSelectorNotExists('.lp-review-topbar-actions button.lp-btn--primary');
     }
 
@@ -891,7 +891,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertCount(2, $latest->filter('.lp-comment-composer'));
         self::assertCount(1, $latest->filter('form[name="strike_passage_form"]'));
         self::assertCount(2, $latest->filter('dialog input[name="submit_review_form[verdict]"]'));
-        self::assertCount(1, $latest->filter('.lp-review-menu__verdict'));
+        self::assertCount(1, $latest->filter('.lp-review-bar__finish'));
         self::assertGreaterThan(0, $latest->filter('.lp-comment-thread form')->count());
         self::assertCount(1, $latest->filter('.lp-comment-thread__footer .lp-comment-action--delete'));
         self::assertCount(1, $latest->filter('.lp-comment-thread__footer [data-comment-reply-target="form"][hidden]'));

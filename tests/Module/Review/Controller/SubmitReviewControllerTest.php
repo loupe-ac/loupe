@@ -46,7 +46,7 @@ final class SubmitReviewControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('dialog .lp-field-errors li', 'The review changed after this page loaded.');
         self::assertSelectorTextContains('textarea[name="submit_review_form[note]"]', 'Keep my unfinished feedback.');
-        self::assertSelectorExists('[data-modal-reopen-value="true"]');
+        self::assertSelectorExists('[data-sheet-reopen-value="true"]');
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $em->clear();
         $document = $em->find(Document::class, $docId);
@@ -121,7 +121,7 @@ final class SubmitReviewControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('dialog .lp-field-errors li', '2 decisions have no answer. Answer them, or request changes.');
-        self::assertSelectorExists('[data-modal-reopen-value="true"]');
+        self::assertSelectorExists('[data-sheet-reopen-value="true"]');
         self::assertSelectorTextContains('textarea[name="submit_review_form[note]"]', 'Looks good.');
         self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="approved"][disabled]');
         self::assertSelectorTextContains('.lp-review-verdict-choice__reason', '2 decisions have no answer.');
@@ -169,7 +169,7 @@ final class SubmitReviewControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('dialog .lp-field-errors li', 'Write a review note, or leave a comment on the passage to change.');
         self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="changes-requested"]:checked');
-        self::assertSelectorExists('[data-modal-reopen-value="true"]');
+        self::assertSelectorExists('[data-sheet-reopen-value="true"]');
 
         $fresh = static::getContainer()->get(EntityManagerInterface::class)->find(Document::class, $docId);
         self::assertInstanceOf(Document::class, $fresh);

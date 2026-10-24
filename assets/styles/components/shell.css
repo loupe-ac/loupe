@@ -224,7 +224,7 @@
     .lp-topbar__meta {
         @apply text-fg-dim truncate text-xs lg:text-sm lg:whitespace-nowrap;
     }
-    /* Below lg the verdict actions move into the review menu. */
+    /* Below lg the verdict actions move into the review bar. */
     .lp-topbar__actions {
         @apply hidden items-center gap-2.5 ml-auto lg:flex lg:flex-wrap;
     }
