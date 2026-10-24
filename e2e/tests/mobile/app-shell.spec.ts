@@ -188,9 +188,10 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
         }
         await expect(newWork.locator('span')).not.toBeInViewport();
         await expect(newWork).toHaveAccessibleName('New work');
-        expect(await horizontalOverflow(page), `${width}px`).toBeLessThanOrEqual(
-            0,
-        );
+        expect(
+            await horizontalOverflow(page),
+            `${width}px`,
+        ).toBeLessThanOrEqual(0);
     }
 
     await page.setViewportSize({ width: 1024, height: 900 });
