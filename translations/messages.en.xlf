@@ -4636,6 +4636,14 @@
                 <source>review.document.diff.nav.position</source>
                 <target>{0}No changes|{1}%current% of 1 change|]1,Inf[%current% of %total% changes</target>
             </trans-unit>
+            <trans-unit id="review.document.diff.line.versions">
+                <source>review.document.diff.line.versions</source>
+                <target>Comparing v%from% to v%to%. Change the versions or the view.</target>
+            </trans-unit>
+            <trans-unit id="review.document.diff.line.position">
+                <source>review.document.diff.line.position</source>
+                <target>%current%/%total%</target>
+            </trans-unit>
             <trans-unit id="review.document.diff.nav.previous">
                 <source>review.document.diff.nav.previous</source>
                 <target>Previous change</target>
