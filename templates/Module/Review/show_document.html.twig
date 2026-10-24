@@ -118,7 +118,7 @@
         data-controller="{{ (reviewControllers|merge(['review-panels']))|join(' ') }}"
         data-review-panels-mode-value="{{ panelsMode }}"
         data-action="review-panels:filter->comment-anchor#filterThreads comment-anchor:resolved-filter->review-panels#resolvedFilter comment-anchor:reveal->review-panels#reveal"
-        {%- if diffNavigation %} data-diff-navigation-position-value="{{ 'review.document.diff.nav.position'|trans({'%total%': diffChangeCount, '%count%': diffChangeCount}) }}"{% endif %}
+        {%- if diffNavigation %} data-diff-navigation-position-value="{{ 'review.document.diff.nav.position'|trans({'%total%': diffChangeCount, '%count%': diffChangeCount}) }}" data-diff-navigation-total-value="{{ diffChangeCount }}"{% endif %}
         data-comment-anchor-marker-label-value="{{ 'review.document.comment.marker'|trans }}"
         {%- if diffCommenting %} data-comment-anchor-diff-value="true"
             data-comment-anchor-deleted-message-value="{{ 'review.document.diff.comment.deleted_refused'|trans }}"
@@ -185,12 +185,23 @@
                    setext underline, hence the Markdown one. #}
                 {% if diffMode %}
                 {% set viewParams = {projectId: document.project.id, documentId: document.id, fromVersionNumber: diffFromVersion, toVersionNumber: version.versionNumber} %}
-                <div class="lp-diff-bar">
+                <div class="lp-diff-bar" data-controller="diff-bar" data-action="keydown.esc->diff-bar#close">
+                    {# Below lg this line stands in for the bar. A tap opens the
+                       back link, the pickers and the views under it. #}
+                    <button type="button" class="lp-diff-bar__line" id="diff-bar-line" aria-expanded="false" aria-controls="diff-bar-main"
+                            data-diff-bar-target="trigger" data-action="diff-bar#toggle">
+                        <span class="lp-diff-bar__versions" aria-hidden="true">{{ 'v' ~ diffFromVersion }}<twig:ux:icon name="lucide:arrow-right" />{{ 'v' ~ version.versionNumber }}</span>
+                        <span class="sr-only">{{ 'review.document.diff.line.versions'|trans({'%from%': diffFromVersion, '%to%': version.versionNumber}) }}</span>
+                        {% if diffNavigation %}
+                        <span class="lp-diff-bar__changes"><span aria-hidden="true">·</span> {{ 'review.document.diff.nav.count'|trans({'%count%': diffChangeCount}) }}</span>
+                        {% endif %}
+                        <twig:ux:icon name="lucide:chevron-down" class="lp-diff-bar__chevron" aria-hidden="true" />
+                    </button>
                     {# Two real columns, so the pickers and the switch keep the
                        document's width and the change count keeps the comment
                        column. One flex row put the switch in a different place
                        in each view, and wrapped the count below a narrow one. #}
-                    <div class="lp-diff-bar__main">
+                    <div class="lp-diff-bar__main" id="diff-bar-main">
                     <twig:Ds:Button variant="ghost" class="lp-diff-bar__back" href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}"
                        aria-label="{{ 'review.document.diff.return'|trans }}" title="{{ 'review.document.diff.return'|trans }}">
                         <twig:ux:icon name="lucide:chevron-left" />
