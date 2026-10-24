@@ -1,7 +1,8 @@
 {# The review bar below lg. Each button opens a sheet, and Finish review opens the sheet of the review block.
    Params: document, version, versions, showVersions, showContents, sectionRows,
    referenceCount, decisionRows, decisionsUrl, answeredDecisions,
-   showResolvedToggle, showVerdict, diffMode, diffFromVersion, diffViewValue. #}
+   showResolvedToggle, showVerdict, diffMode, diffFromVersion, diffViewValue,
+   showComments, canComment, comments, openCommentCount. #}
 <div class="lp-review-bar" role="group" aria-label="{{ 'review.bar.label'|trans }}" data-controller="review-jump">
     {% if showContents %}
     <div class="lp-review-bar__group" data-controller="sheet">
@@ -12,6 +13,40 @@
         </twig:Ds:Button>
         <twig:Ds:Sheet title="{{ 'review.document.contents.label'|trans }}">
             {% include '@Review/_sheet_section_rows.html.twig' with {rows: sectionRows} only %}
+        </twig:Ds:Sheet>
+    </div>
+    {% endif %}
+
+    {% if showComments %}
+    <div class="lp-review-bar__group" data-controller="sheet comments-sheet">
+        {# Streams update the count and the label by id, so the bar never goes stale. #}
+        <twig:Ds:Button variant="icon" type="button" class="lp-review-bar__button"
+                aria-haspopup="dialog" data-action="click->sheet#open">
+            <twig:ux:icon name="lucide:message-square" class="lp-icon lp-icon--lg" />
+            <span class="lp-review-bar__count" id="review-bar-comments-count" aria-hidden="true">{{ openCommentCount }}</span>
+            <span class="sr-only" id="review-bar-comments-label">{{ 'review.bar.comments_label'|trans({'%count%': openCommentCount}) }}</span>
+        </twig:Ds:Button>
+        <twig:Ds:Sheet title="{{ 'review.document.panels.comments'|trans }}">
+            <div class="lp-review-sheet__comments-view" data-comments-sheet-target="view" data-status="open">
+                <twig:Ds:Tabs tag="div" role="tablist" variant="segmented" aria-label="{{ 'review.document.panels.comments'|trans }}">
+                    <button type="button" role="tab" class="lp-tabs__tab" aria-selected="true"
+                            data-comments-sheet-target="tab"
+                            data-comments-sheet-status-param="open"
+                            data-action="click->comments-sheet#choose">{{ 'review.document.margin.filter_open'|trans }}</button>
+                    <button type="button" role="tab" class="lp-tabs__tab" aria-selected="false"
+                            data-comments-sheet-target="tab"
+                            data-comments-sheet-status-param="resolved"
+                            data-action="click->comments-sheet#choose">{{ 'review.document.margin.filter_resolved'|trans }}</button>
+                </twig:Ds:Tabs>
+                {% include '@Review/_comment_sheet_rows.html.twig' with {comments: comments} only %}
+            </div>
+            {% if canComment %}
+            <twig:Ds:Button variant="ghost" type="button" class="lp-review-sheet__whole-document" data-action="click->comment-anchor#commentWholeDocument">
+                <twig:ux:icon name="lucide:message-square-plus" class="lp-icon lp-icon--md" />
+                {{ 'review.document.comment.whole_document'|trans }}
+            </twig:Ds:Button>
+            <p class="lp-review-sheet__hint">{{ 'review.bar.comment_hint'|trans }}</p>
+            {% endif %}
         </twig:Ds:Sheet>
     </div>
     {% endif %}

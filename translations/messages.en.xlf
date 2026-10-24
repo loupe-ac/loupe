@@ -2169,6 +2169,14 @@
                 <source>review.bar.decisions_label</source>
                 <target>Decisions, %answered% of %total% answered</target>
             </trans-unit>
+            <trans-unit id="review.bar.comments_label">
+                <source>review.bar.comments_label</source>
+                <target>Comments, %count% open</target>
+            </trans-unit>
+            <trans-unit id="review.bar.comment_hint">
+                <source>review.bar.comment_hint</source>
+                <target>To comment on a passage, select the text in the document.</target>
+            </trans-unit>
             <trans-unit id="comment.error.not_owner">
                 <source>comment.error.not_owner</source>
                 <target>You can only comment on your own documents.</target>

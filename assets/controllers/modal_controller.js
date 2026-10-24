@@ -149,14 +149,15 @@ export default class extends Controller {
         };
     }
 
+    // Returns a promise that settles once the dialog has closed.
     close(event) {
         event?.preventDefault();
         const dialog = this.dialogTarget;
-        if (!dialog.open) return;
+        if (!dialog.open) return Promise.resolve();
         document.removeEventListener('keydown', this.onEscapeKey);
         const request = {};
         this.closeRequest = request;
-        this.#animateOutAsync().then(() => {
+        return this.#animateOutAsync().then(() => {
             if (this.closeRequest === request && dialog.isConnected) {
                 this.closeRequest = null;
                 dialog.close();

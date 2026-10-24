@@ -1476,6 +1476,21 @@
 .lp-review .lp-comment-row--resolved {
     @apply opacity-50;
 }
+/* The Comments sheet shows one status at a time. The tab sets data-status on the
+   box, and these rules hide the other rows. They are unlayered so they outrank
+   the display set on the row above. A faded row has no meaning on the Resolved
+   tab, so the sheet keeps its rows at full strength. */
+.lp-review
+    .lp-review-sheet__comments-view[data-status='open']
+    .lp-comment-row[data-anchor-status='resolved'],
+.lp-review
+    .lp-review-sheet__comments-view[data-status='resolved']
+    .lp-comment-row:not([data-anchor-status='resolved']) {
+    @apply hidden;
+}
+.lp-review .lp-review-sheet__comments-view .lp-comment-row--resolved {
+    @apply opacity-100;
+}
 .lp-review .lp-comment-whole-document {
     @apply mt-2.5 h-8.5 min-h-8.5 w-full rounded-lg border-0 bg-surface-3 text-sm font-normal text-fg-label hover:bg-tint-strong hover:text-ink;
 }
@@ -3923,6 +3938,26 @@
     }
     .lp-review-sheet__mark svg {
         @apply size-2.5 shrink-0;
+    }
+
+    /* The Comments sheet: the tabs, the list, then the whole-document action. */
+    .lp-review-sheet__comments-view {
+        @apply flex flex-col gap-3;
+    }
+    .lp-review-sheet__comments {
+        @apply flex flex-col gap-0.5;
+    }
+    .lp-comment-row__meta {
+        @apply flex flex-wrap items-center gap-x-2 text-xs text-fg-dim;
+    }
+    .lp-comment-row__author {
+        @apply font-semibold text-fg-label;
+    }
+    .lp-btn.lp-review-sheet__whole-document {
+        @apply mt-3 min-h-tap w-full justify-center;
+    }
+    .lp-review-sheet__hint {
+        @apply mx-0 mb-0 mt-2 text-center text-sm text-fg-dim;
     }
 
     /* ── General comments group ─────────────────────────────────────────
@@ -7808,6 +7843,11 @@
    box-shadow, so the card carries the ring and the passage carries this. */
 ::highlight(lp-anchor-hover) {
     background-color: var(--accent-soft);
+}
+/* The passage a Comments sheet row led to, for 1.2 seconds. A stronger fill and
+   no motion, so it also shows when the reader asks for reduced motion. */
+::highlight(lp-anchor-flash) {
+    background-color: var(--accent);
 }
 
 /* The agent's own marks. The wavy underline carries the rung: under tritanopia

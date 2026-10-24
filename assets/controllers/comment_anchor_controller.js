@@ -100,6 +100,12 @@ export default class extends Controller {
     // at, so the pair can be told apart in a crowded margin.
     static HOVER_HIGHLIGHT = 'lp-anchor-hover';
 
+    // Painted for a moment on the passage a Comments sheet row led to, so the
+    // reader sees where the tap landed. A change of colour with no motion.
+    static FLASH_HIGHLIGHT = 'lp-anchor-flash';
+
+    static FLASH_MS = 1200;
+
     // Resolution order for a span several rungs cover; without explicit values
     // it is whichever Highlight registered last. Backgrounds stack in priority
     // order and only replace by being opaque, so a higher-priority
@@ -113,6 +119,7 @@ export default class extends Controller {
         struck: 4,
         hover: 5,
         active: 6,
+        flash: 7,
     };
 
     // Clearance between one comment card and the next when a passage carries
@@ -347,6 +354,8 @@ export default class extends Controller {
         this.agentHighlight?.clear();
         this.newTextHighlight?.clear();
         this.hoverHighlight?.clear();
+        clearTimeout(this.flashTimer);
+        this.flashHighlight?.clear();
         this.suggestionHighlight?.clear();
         for (const highlight of Object.values(this.statusHighlights ?? {})) {
             highlight.clear();
@@ -463,6 +472,39 @@ export default class extends Controller {
         this.#openThread(card);
     }
 
+    /**
+     * Sheet row action: close the Comments sheet, bring the passage to the
+     * centre of the screen and flash it. A thread with no passage opens its
+     * popover instead, as a link to the thread does.
+     */
+    async jumpToRow(event) {
+        event?.preventDefault();
+        const threadId = event.currentTarget.dataset.threadId ?? '';
+        await this.#closeSheetOf(event.currentTarget);
+        // A stream may have replaced the card while the sheet closed.
+        const card = this.#cardById(threadId);
+        if (card === null) {
+            return;
+        }
+        if (this.#scrollToPassage(card, { centre: true })) {
+            this.#flashPassage(card);
+
+            return;
+        }
+        this.#revealThread(card);
+        this.#openThread(card);
+    }
+
+    /**
+     * Comments sheet action: close the sheet, then open the composer for a
+     * comment on the whole document.
+     */
+    async commentWholeDocument(event) {
+        event?.preventDefault();
+        await this.#closeSheetOf(event.currentTarget);
+        this.startUntargeted();
+    }
+
     /** Row action: light the passage the row's thread points at. */
     focusRow(event) {
         const card = this.#cardFor(event.currentTarget);
@@ -479,9 +521,38 @@ export default class extends Controller {
     }
 
     #cardFor(row) {
-        const id = row?.dataset.threadId ?? '';
+        return this.#cardById(row?.dataset.threadId ?? '');
+    }
 
+    #cardById(id) {
         return this.threadTargets.find((thread) => thread.id === id) ?? null;
+    }
+
+    /** Resolves once the sheet that holds the element has closed. */
+    async #closeSheetOf(element) {
+        const holder = element.closest('[data-controller~="sheet"]');
+        const sheet =
+            holder === null
+                ? null
+                : this.application.getControllerForElementAndIdentifier(
+                      holder,
+                      'sheet',
+                  );
+        await sheet?.close();
+    }
+
+    #flashPassage(card) {
+        const range = this.anchorRanges?.get(card);
+        if (range === undefined || this.flashHighlight === undefined) {
+            return;
+        }
+        clearTimeout(this.flashTimer);
+        this.flashHighlight.clear();
+        this.flashHighlight.add(range);
+        this.flashTimer = setTimeout(() => {
+            this.flashTimer = null;
+            this.flashHighlight.clear();
+        }, this.constructor.FLASH_MS);
     }
 
     #rowFor(card) {
@@ -1458,6 +1529,13 @@ export default class extends Controller {
             this.constructor.HOVER_HIGHLIGHT,
             this.hoverHighlight,
         );
+
+        this.flashHighlight = new window.Highlight();
+        this.flashHighlight.priority = priority.flash;
+        window.CSS.highlights.set(
+            this.constructor.FLASH_HIGHLIGHT,
+            this.flashHighlight,
+        );
     }
 
     /**
@@ -1819,8 +1897,11 @@ export default class extends Controller {
         this.#openThread(card);
     }
 
-    /** Returns false when the thread has no passage to scroll to. */
-    #scrollToPassage(card) {
+    /**
+     * Returns false when the thread has no passage to scroll to. With centre,
+     * the quote's first line goes to the middle even when it is in view.
+     */
+    #scrollToPassage(card, { centre = false } = {}) {
         const passage = this.anchorRanges?.get(card)?.startContainer;
         if (passage === undefined) {
             return false;
@@ -1833,9 +1914,14 @@ export default class extends Controller {
         // A paragraph taller than the viewport can still hide the quote. The
         // app shell scrolls .lp-main.
         const line = this.anchorRanges.get(card).getClientRects?.()[0];
-        if (line && (line.top < 0 || line.bottom > window.innerHeight)) {
+        const offset = line
+            ? line.top - (window.innerHeight - (line.bottom - line.top)) / 2
+            : 0;
+        const outside =
+            line && (line.top < 0 || line.bottom > window.innerHeight);
+        if (outside || (centre && Math.abs(offset) >= 1)) {
             (element?.closest('.lp-main') ?? window).scrollBy({
-                top: line.top - (window.innerHeight - line.height) / 2,
+                top: offset,
                 behavior: 'auto',
             });
         }
