@@ -691,12 +691,24 @@ test('a button beside the Agents heading keeps its label on one line', async ({
             );
         });
         expect(textHeight, `${width}px`).toBeLessThanOrEqual(lineHeight + 1);
+        // The icon box sits a few pixels lower than the text, so only text lines count as rows.
         const rows = await button.evaluate((element) => {
-            const range = document.createRange();
-            range.selectNodeContents(element);
-            return new Set(
-                Array.from(range.getClientRects()).map((r) => Math.round(r.y)),
-            ).size;
+            const tops = new Set<number>();
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+            );
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                if (!node.textContent?.trim()) {
+                    continue;
+                }
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                for (const rect of Array.from(range.getClientRects())) {
+                    tops.add(Math.round(rect.y));
+                }
+            }
+            return tops.size;
         });
         expect(rows, `${width}px`).toBe(1);
     }
