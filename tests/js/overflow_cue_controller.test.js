@@ -159,6 +159,23 @@ it('leaves a visible active target where it is', async () => {
     expect(viewport().scrollLeft).toBe(0);
 });
 
+it('reveals the active tab once the strip gets layout', async () => {
+    document.body.innerHTML = markup('scroll', true);
+    stripBox(0, 0);
+    place('current', 0, 0);
+    application = Application.start();
+    application.register('overflow-cue', OverflowCueController);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(viewport().scrollLeft).toBe(0);
+    stripBox(0, 300);
+    place('current', 340, 420);
+    resizeCallback();
+    expect(viewport().scrollLeft).toBe(164);
+    viewport().scrollLeft = 0;
+    resizeCallback();
+    expect(viewport().scrollLeft).toBe(0);
+});
+
 it('re-resolves the active tab on reveal', async () => {
     await start(markup());
     document.getElementById('current').removeAttribute('aria-current');

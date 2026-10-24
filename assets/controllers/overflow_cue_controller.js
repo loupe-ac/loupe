@@ -21,7 +21,10 @@ export default class extends Controller {
         this.viewportTarget.addEventListener('scroll', this.onScroll, {
             passive: true,
         });
-        this.resizeObserver = new ResizeObserver(this.update);
+        this.revealPending = true;
+        this.resizeObserver = new ResizeObserver(() =>
+            this.revealPending ? this.reveal() : this.update(),
+        );
         this.resizeObserver.observe(this.viewportTarget);
         for (const child of this.viewportTarget.children) {
             this.resizeObserver.observe(child);
@@ -86,10 +89,19 @@ export default class extends Controller {
     reveal() {
         const active = this.#active();
         if (!active) {
+            this.revealPending = false;
+            this.update();
+
             return;
         }
         const strip = this.viewportTarget;
         const stripBox = strip.getBoundingClientRect();
+        this.revealPending = stripBox.right <= stripBox.left;
+        if (this.revealPending) {
+            this.update();
+
+            return;
+        }
         const box = active.getBoundingClientRect();
         const room = this.#arrowWidth();
         if (box.left < stripBox.left + room) {
