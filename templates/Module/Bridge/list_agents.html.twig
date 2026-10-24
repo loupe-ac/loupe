@@ -10,16 +10,14 @@
 
 {% block body %}
 <twig:Ds:Workspace class="lp-orchestration-page lp-redesign-secondary lp-redesign-agents">
-    <header class="lp-orchestration-header">
-        <div>
-            <h1 class="lp-workspace-title">{{ 'bridge.agents.page_heading'|trans }}</h1>
-            <p class="lp-workspace-desc">{{ 'bridge.agents.description'|trans }}</p>
-        </div>
-        <twig:Ds:Button href="{{ path('app_project_connect', {id: project.id}) }}">
-            <twig:ux:icon name="lucide:cable" />
-            {{ 'bridge.agents.connection'|trans }}
-        </twig:Ds:Button>
-    </header>
+    <twig:Ds:PageHeader :title="'bridge.agents.page_heading'|trans" :description="'bridge.agents.description'|trans">
+        <twig:block name="actions">
+            <twig:Ds:Button href="{{ path('app_project_connect', {id: project.id}) }}">
+                <twig:ux:icon name="lucide:cable" />
+                {{ 'bridge.agents.connection'|trans }}
+            </twig:Ds:Button>
+        </twig:block>
+    </twig:Ds:PageHeader>
 
     {% set pauseFlashes = app.flashes('bridge-pause') %}
     {% if pauseFlashes is not empty %}

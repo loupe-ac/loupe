@@ -59,6 +59,15 @@
     .lp-list-filters .lp-select {
         @apply w-auto shrink-0 pl-2.5 text-fg-mute;
     }
+    /* On a phone the search takes a full row, and the filters and Clear flow together under it. */
+    @media (width < 40rem) {
+        .lp-filter-primary {
+            display: contents;
+        }
+        .lp-list-filters .lp-filter-search {
+            @apply w-full basis-full;
+        }
+    }
 
     /* Page contexts. */
     .lp-core-prototype-page .lp-list-filters {

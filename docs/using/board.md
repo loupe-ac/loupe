@@ -272,6 +272,24 @@ lists every card in the column, newest completion first, 25 to a page. The
 older address **`/projects/<project>/board/done`** still works. It opens the
 history page of the board's first terminal column.
 
+### On a phone
+
+On a screen narrower than 640 px, the board shows one column at a time. A swipe
+moves the board to the next column and stops on it. A tab strip above the
+columns names each column and its card count. The tab of the column on screen
+is selected, and the strip follows a swipe.
+
+- Tap a tab to go to its column.
+- Tap **›** to move one column to the right, or **‹** to move one column to the
+  left. **‹** is hidden on the first column and **›** is hidden on the last.
+- A board with epic lanes swipes the same way. The lanes stay stacked top to
+  bottom, so a swipe moves every lane to the next column.
+
+The board header is one row with the title, **Backlog** and a **…** button.
+The search field takes the full row below it. The **…** menu holds Board
+settings and the **Board** and **List** switch. A touch no longer drags a card on a phone, because a swipe moves the
+board. A mouse still drags at any width.
+
 ### The Backlog page
 
 The Backlog page is at **`/projects/<project>/board/backlog`**. It lists the

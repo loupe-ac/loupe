@@ -757,3 +757,44 @@ describe('a drop refused because the card is managed', () => {
         );
     });
 });
+
+describe('a press on a phone', () => {
+    const press = (pointerType) => {
+        const target = document.getElementById('board-card-a');
+        controller.press({
+            pointerType,
+            button: 0,
+            pointerId: 1,
+            clientX: 5,
+            clientY: 5,
+            target,
+        });
+
+        return controller.pressedCard;
+    };
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('does not start a drag from a touch below 640px', () => {
+        vi.stubGlobal('matchMedia', (query) => ({
+            matches: '(width < 40rem)' === query,
+        }));
+        expect(press('touch')).toBeNull();
+    });
+
+    it('keeps a mouse press below 640px', () => {
+        vi.stubGlobal('matchMedia', (query) => ({
+            matches: '(width < 40rem)' === query,
+        }));
+        expect(press('mouse')).not.toBeNull();
+        controller.abandon();
+    });
+
+    it('keeps a touch press from 640px', () => {
+        vi.stubGlobal('matchMedia', () => ({ matches: false }));
+        expect(press('touch')).not.toBeNull();
+        controller.abandon();
+    });
+});

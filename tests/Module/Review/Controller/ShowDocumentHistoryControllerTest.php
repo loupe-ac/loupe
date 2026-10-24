@@ -77,6 +77,15 @@ final class ShowDocumentHistoryControllerTest extends WebTestCase
         self::assertSelectorExists('.lp-review-topbar-actions--compact button[aria-label="Finish review"]');
         self::assertSelectorExists('input[name="submit_review_form[versionNumber]"][value="3"]');
 
+        self::assertSelectorExists('.lp-overflow-cue > .lp-data-table--history[role="table"][aria-label="Versions"][data-overflow-cue-target="viewport"]');
+        self::assertSame(
+            ['Version', 'Revision', 'Discussion', 'Open'],
+            $crawler->filter('.lp-data-table--history .lp-data-table__header [role="columnheader"]')->each(
+                static fn (Crawler $node): string => trim($node->text()),
+            ),
+        );
+        self::assertCount(3, $crawler->filter('.lp-data-table--history > .lp-data-table__row[role="row"]'));
+        self::assertCount(1, $crawler->filter('.lp-history__row--current[data-version-number="3"]'));
         self::assertSame(
             ['3', '2', '1'],
             $crawler->filter('.lp-history__row')->each(

@@ -56,6 +56,8 @@ final class BucketRuleControllersTest extends WebTestCase
         self::assertSame('/projects/'.$projectId.'/analytics/time-buckets', $form->attr('action'));
         self::assertSame('ninety-days', $form->filter('select[name="range"] option[selected]')->attr('value'));
         self::assertCount(1, $form->filter('noscript'));
+        self::assertCount(1, $summary->filter('.lp-metric-table__cue[data-controller="overflow-cue"] > .lp-metric-table__scroll[data-overflow-cue-target="viewport"] > table'));
+        self::assertCount(1, $summary->filter('.lp-metric-table__cue > .lp-overflow-cue__arrow--next'));
         self::assertSame(['other'], $summary->filter('[data-bucket-summary-row]')->each(static fn ($row): string => (string) $row->attr('data-bucket-summary-row')));
         self::assertSame('No time yet', trim($summary->filter('[data-bucket-summary-no-time]')->text()));
         self::assertCount(0, $summary->filter('a[data-bucket-summary-open]'));

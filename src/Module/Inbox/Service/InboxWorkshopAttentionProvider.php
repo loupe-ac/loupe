@@ -45,6 +45,7 @@ final readonly class InboxWorkshopAttentionProvider implements WorkshopAttention
                 $item->blocking,
                 InboxAskOrigin::Loupe === $item->origin ? InboxAskOrigin::Loupe->value : $subjects[(string) $item->id] ?? 'agent',
                 ($item->cards->first() ?: null)?->card->number,
+                $item->createdAt,
             );
         }
 

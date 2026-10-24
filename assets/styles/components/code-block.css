@@ -14,4 +14,8 @@
         @apply bg-code-dark-bg text-code-dark-text font-mono overflow-x-auto m-0 pt-0 px-4 pb-4 text-xs leading-relaxed;
         white-space: pre;
     }
+    .lp-code-dark__scroll[data-overflow-end] > .lp-code-dark__body {
+        -webkit-mask-image: linear-gradient(to right, black 85%, transparent);
+        mask-image: linear-gradient(to right, black 85%, transparent);
+    }
 }
