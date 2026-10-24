@@ -2741,7 +2741,9 @@
         .lp-card-drawer__identity {
             @apply min-w-0 flex-1 gap-2 overflow-hidden whitespace-nowrap;
         }
-        .lp-card-drawer__icon,
+        .lp-card-drawer__icon {
+            @apply hidden;
+        }
         .lp-card-drawer__source {
             @apply hidden;
         }
@@ -7930,7 +7932,7 @@
         @apply text-xs text-fg-dim;
     }
     .lp-workshop-attention__meta {
-        @apply ml-auto inline-flex items-center gap-2 text-xs text-fg-dim;
+        @apply ml-auto inline-flex flex-wrap items-center gap-2 text-xs text-fg-dim;
     }
     .lp-workshop-attention__badge {
         @apply rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
