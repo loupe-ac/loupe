@@ -14,6 +14,13 @@
         <twig:ux:icon name="lucide:chevron-right" class="lp-board-lane__chevron" />
     </button>
     {% include '@Board/_card_lane_form.html.twig' with {card: epic, returnTo: 'board', compact: true} only %}
+    <twig:Ds:Button variant="ghost icon"
+            class="lp-board-lane__move"
+            aria-label="{{ 'board.card.move.label'|trans({'%number%': epic.number}) }}"
+            data-action="click->card-move#open"
+            data-card-move-id-param="{{ epic.id }}"
+            data-card-move-number-param="{{ epic.number }}"
+            data-card-move-column-param="{{ epic.column.id }}"><twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" /></twig:Ds:Button>
     <div class="lp-board-lane__heading">
         <span class="lp-board-card__number lp-board-lane__number" data-board-lane-target="glide">#{{ epic.number }}</span>
         <span class="lp-board-lane__status" data-lane-status data-board-lane-target="glide">

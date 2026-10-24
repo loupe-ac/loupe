@@ -6241,6 +6241,42 @@
                 <source>board.drag.failed</source>
                 <target>The card went back. The move did not reach the server.</target>
             </trans-unit>
+            <trans-unit id="board.card.move.label">
+                <source>board.card.move.label</source>
+                <target>Move #%number%</target>
+            </trans-unit>
+            <trans-unit id="board.move.title">
+                <source>board.move.title</source>
+                <target>Move #%number% to</target>
+            </trans-unit>
+            <trans-unit id="board.move.current">
+                <source>board.move.current</source>
+                <target>Current</target>
+            </trans-unit>
+            <trans-unit id="board.move.keep">
+                <source>board.move.keep</source>
+                <target>Keep it here</target>
+            </trans-unit>
+            <trans-unit id="board.move.unmanage">
+                <source>board.move.unmanage</source>
+                <target>Make unmanaged and move</target>
+            </trans-unit>
+            <trans-unit id="board.move.managed_question">
+                <source>board.move.managed_question</source>
+                <target>This card is managed. Make it unmanaged and move it to %column%?</target>
+            </trans-unit>
+            <trans-unit id="board.move.done">
+                <source>board.move.done</source>
+                <target>Moved #%number% to %column%</target>
+            </trans-unit>
+            <trans-unit id="board.move.show">
+                <source>board.move.show</source>
+                <target>Show</target>
+            </trans-unit>
+            <trans-unit id="board.move.failed">
+                <source>board.move.failed</source>
+                <target>The card did not move. Try again.</target>
+            </trans-unit>
             <trans-unit id="board.card.move.submit">
                 <source>board.card.move.submit</source>
                 <target>Move card</target>

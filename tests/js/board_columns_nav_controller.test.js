@@ -304,3 +304,18 @@ it('reads a collapsed lane that a search reveals', async () => {
     laneInView('epic', 2);
     expect(selected()).toBe('c3');
 });
+
+it('reveals the column with an id, and ignores an id it has no column for', async () => {
+    await start();
+    const nav = application.getControllerForElementAndIdentifier(
+        document.getElementById('board'),
+        'board-columns-nav',
+    );
+
+    nav.reveal('missing');
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    nav.reveal('c3');
+    expect(scrollIntoView.mock.contexts[0]).toBe(columns()[2]);
+    expect(selected()).toBe('c3');
+});

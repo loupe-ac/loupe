@@ -132,7 +132,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(1, $wontDo->filter('.lp-board__column-link'));
     }
 
-    public function test_a_card_face_carries_the_move_fields_and_no_move_control(): void
+    public function test_a_card_face_carries_the_move_fields_and_the_move_button(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -147,8 +147,8 @@ final class ShowBoardControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
 
         self::assertResponseIsSuccessful();
-        // Dragging is the only interaction the face offers, so nothing renders a
-        // control. The drop submits the board's one hidden move form.
+        // A drop submits the board's one hidden move form. The face holds no
+        // form of its own, and its one button opens the Move sheet.
         $face = $crawler->filter('[data-card-id="'.$cardId.'"]');
         self::assertStringContainsString('pointerdown->board-drag#press', (string) $face->attr('data-action'));
         // Hovering the whole card hands the prefetch to the title link.
@@ -158,7 +158,11 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(0, $face->filter('form'));
         self::assertCount(1, $crawler->filter('#board > form[hidden][data-board-drag-target="moveForm"] select[name$="[column]"]'));
         self::assertCount(0, $face->filter('details'));
-        self::assertCount(0, $face->filter('button'));
+        $move = $face->filter('button.lp-board-card__move');
+        self::assertCount(1, $move);
+        self::assertSame('Move #'.$card->number, $move->attr('aria-label'));
+        self::assertSame('click->card-move#open', $move->attr('data-action'));
+        self::assertCount(1, $face->filter('button'));
     }
 
     public function test_a_card_shows_its_type_and_a_pull_request_indicator(): void

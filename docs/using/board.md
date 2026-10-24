@@ -290,6 +290,30 @@ The search field takes the full row below it. The **…** menu holds Board
 settings and the **Board** and **List** switch. A touch no longer drags a card on a phone, because a swipe moves the
 board. A mouse still drags at any width.
 
+#### Move a card from a menu
+
+Each card has a **…** button at the right of its top row. The button is 44 px
+square and shows at every width. Its label names the card, for example
+**Move #991**. An epic that shows as a lane has its **…** button in the lane
+head, beside the lane button.
+
+1. Tap **…**. A sheet slides up with the title **Move #991 to**, and the
+   title of the card under it.
+2. The sheet lists the Backlog and every column, one row each. The column that
+   holds the card is marked **Current**.
+3. Tap a column. The card moves to the end of that column and keeps its epic.
+   The sheet closes.
+4. A message says **Moved #991 to Tech design**. Tap **Show** in the message to
+   bring that column into view. A move to the Backlog shows no **Show**,
+   because the Backlog is a page of its own.
+
+A move that the workflow does not allow for a managed card shows a question in
+the sheet, which names the column, for example **This card is managed. Make it
+unmanaged and move it to Done?** Tap **Make unmanaged and move** to hold the card and move it. Tap
+**Keep it here** to close the sheet and leave the card where it is. Only a
+person who can manage the project gets this choice. Any other refusal keeps the
+sheet open and shows a message in it.
+
 ### The Backlog page
 
 The Backlog page is at **`/projects/<project>/board/backlog`**. It lists the

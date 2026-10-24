@@ -56,6 +56,7 @@ final class BoardLanesTest extends WebTestCase
         [$epicId, $epicNumber, $openId, $doneId, $looseId] = [(string) $epic->id, $epic->number, (string) $open->id, (string) $done->id, (string) $loose->id];
         $triageId = (string) $this->column($project, 'triage')->id;
         $doneColumnId = (string) $this->column($project, 'done')->id;
+        $nextId = (string) $this->column($project, 'next')->id;
         $em->clear();
 
         $client->loginUser($owner);
@@ -73,6 +74,13 @@ final class BoardLanesTest extends WebTestCase
         self::assertSame('1/2 done', trim($head->filter('[data-lane-progress]')->text()));
         self::assertCount(1, $head->filter('button[data-action="board-lane#toggle"][aria-expanded="true"]'));
         self::assertCount(1, $head->filter('form[name="'.SetCardLaneFormType::PREFIX.$epicId.'"] input[name$="[returnTo]"][value="board"]'));
+        // The epic has no card face, so its head carries the Move button, with the column it sits in.
+        $move = $head->filter('button.lp-board-lane__move');
+        self::assertCount(1, $move);
+        self::assertSame('Move #'.$epicNumber, $move->attr('aria-label'));
+        self::assertSame('click->card-move#open', $move->attr('data-action'));
+        self::assertSame($epicId, $move->attr('data-card-move-id-param'));
+        self::assertSame($nextId, $move->attr('data-card-move-column-param'));
 
         // The epic is its lane header, not a card.
         self::assertCount(0, $crawler->filter('[data-board-drag-target="card"][data-card-id="'.$epicId.'"]'));
@@ -209,7 +217,8 @@ final class BoardLanesTest extends WebTestCase
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/board');
         self::assertResponseIsSuccessful();
-        self::assertCount(0, $crawler->filter('.lp-flash'));
+        // The Move sheet keeps a flash in a template, which draws nothing.
+        self::assertCount(0, $crawler->filterXPath('//*[contains(@class, "lp-flash") and not(ancestor::template)]'));
     }
 
     public function test_a_done_epic_shows_as_one_card_and_its_children_leave_the_board(): void

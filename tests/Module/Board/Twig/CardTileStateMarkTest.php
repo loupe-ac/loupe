@@ -49,7 +49,7 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertSame($mark->filter('[role="img"]')->attr('aria-describedby'), $tooltip->attr('id'));
         self::assertStringContainsString($sentence, $tooltip->text());
         self::assertStringContainsString($label, trim($tooltip->filter('.lp-tooltip__title')->text()));
-        self::assertSame('lp-state-mark', $tile->filter('.lp-board-card__identity > *')->last()->attr('class') |> (static fn (?string $class): string => explode(' ', (string) $class)[0]));
+        self::assertSame('lp-state-mark', $tile->filter('.lp-board-card__identity > :not(.lp-board-card__move)')->last()->attr('class') |> (static fn (?string $class): string => explode(' ', (string) $class)[0]));
         $link = $tooltip->filter('a');
         self::assertSame('Open card', trim($link->text()));
         self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
