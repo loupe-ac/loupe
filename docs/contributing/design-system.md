@@ -57,7 +57,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
-| Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
+| Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting. A strip that overflows draws arrows, set by the `arrows` prop | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
@@ -131,7 +131,7 @@ The ListRow takes `title`, `subtitle`, `tag` and `current`, and the named blocks
 </twig:Ds:ListRow>
 ```
 
-The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a Panel inside the block.
+The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Below the `lg` width the navigation is a sideways strip with the same arrows as the tabs. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a Panel inside the block.
 
 `@Account/_settings_layout.html.twig` and `@Project/_settings_layout.html.twig` build the items of the account and the project settings and render the component. A settings page extends one of them and fills the `settings_section` and `settings_content` blocks. The icon names of the items are plain strings, so `bin/console ux:icons:lock` cannot read them. Import a new one with `bin/console ux:icons:import`.
 
@@ -180,7 +180,7 @@ Write a dialog, tabs, pagination and a tooltip like this:
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A strip that is not segmented draws an arrow at each hidden edge. `arrows="scroll"` is the default and scrolls the strip. `arrows="step"` draws both arrows and leaves them to the page, which toggles their `hidden` state and listens for the `overflow-cue:step` event. The segmented pill group never scrolls and draws no arrows. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
 
 Write a menu like this:
 
