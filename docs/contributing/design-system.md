@@ -57,6 +57,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
+| Sheet | A panel that slides up from the bottom of the screen at every width, with a grab handle, a title, a back button and a close button. From the `lg` width it is a centred panel. The `sheet` controller opens it | none |
 | Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting. A strip that overflows draws arrows, set by the `arrows` prop | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
@@ -88,6 +89,8 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Drawer | A panel that slides in from the right edge. The `modal` controller opens it | none |
 
 The Drawer takes the named blocks `header`, `body` and `footer`, and draws a band only for a block that holds content. The prop `loading` takes a translated text. Set, the header stays, a loading line replaces the body and the footer is left out. The block `content` replaces all three, for a drawer that fills the dialog itself, such as the card drawer. The card drawer draws its own loading state with the `lp-drawer__header`, `lp-drawer__title` and `lp-drawer__loading` classes, so the drawer keeps a header and a close button before the card arrives. The opener names the title in `data-drawer-title`. Pass the target attribute of the controller that opens it, such as `data-modal-target="dialog"`. A drawer that loads a Turbo frame on opening pairs the `modal` controller with `lazy-frame`, which shows the loading and error states around the frame. A controller with more states than that calls `LazyFrame` from `assets/lib/lazy_frame.js`. Its CSS is `assets/styles/components/drawer.css`.
+
+The Sheet takes the props `title`, `backLabel` and `closeLabel`, and its content is the body. Wrap the trigger and the sheet in `data-controller="sheet"`, and open it with `click->sheet#open`. The `sheet` controller extends `modal`, so it keeps the Escape, backdrop, focus and stream-hold behaviour of a dialog. A sheet that drills down holds one element per view with `data-sheet-view="name"`. A button with `data-action="click->sheet#show"` and `data-sheet-view-param="name"` shows a view, and the back button in the header returns. Its CSS is `assets/styles/components/sheet.css`.
 
 A `Ds:NavItem` icon is a prop, so `bin/console ux:icons:lock` cannot read it. Import a new sidebar icon by hand with `bin/console ux:icons:import lucide:<name>`.
 
@@ -393,4 +396,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-code-dark`, `lp-copy-button`, `lp-tooltip`, `lp-menu`, `lp-brand` or `lp-drawer` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-code-dark`, `lp-copy-button`, `lp-tooltip`, `lp-menu`, `lp-brand`, `lp-drawer` or `lp-sheet` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.

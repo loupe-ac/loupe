@@ -1,0 +1,22 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ title, back, children, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <dialog {...rest} aria-label={title} className={classes.join(' ')}>
+            <div className="lp-sheet__handle" aria-hidden="true"></div>
+            <header className="lp-sheet__header">
+                {back ? <button type="button" className="lp-btn lp-btn--icon" aria-label="Back">‹</button> : null}
+                <h2 className="lp-sheet__title">{title}</h2>
+                <button type="button" className="lp-btn lp-btn--icon" aria-label="Close">×</button>
+            </header>
+            <div className="lp-sheet__body">{children}</div>
+        </dialog>
+    );
+}
+{% endautoescape %}

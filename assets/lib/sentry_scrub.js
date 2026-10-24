@@ -394,6 +394,7 @@ export const KEPT_CSS_WORDS = new Set([
     'right',
     'rotate',
     'row',
+    'safe-area-inset-bottom',
     'sans-serif',
     'scale',
     'sfmono-regular',

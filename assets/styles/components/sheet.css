@@ -1,0 +1,38 @@
+/* The sheet: a bottom sheet below `lg`, a centred panel from `lg`. `templates/components/Ds/Sheet.html.twig` renders it,
+   and the `sheet` controller slides it up with WAAPI at every width. Only ::backdrop gets a CSS animation. */
+@layer components {
+    .lp-sheet {
+        @apply fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none overflow-hidden rounded-t-xl rounded-b-none border-0 bg-surface-1 p-0 shadow-2xl;
+        max-height: 90dvh;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    .lp-sheet[open] {
+        @apply flex flex-col;
+    }
+    .lp-sheet::backdrop {
+        @apply bg-ink/40 backdrop-blur-xs;
+        animation: lp-dialog-backdrop-in 220ms ease-out;
+    }
+    .lp-sheet__handle {
+        @apply mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line;
+    }
+    .lp-sheet__header {
+        @apply flex shrink-0 items-center gap-2 border-b border-line px-4 py-2;
+    }
+    .lp-sheet__title {
+        @apply m-0 min-w-0 flex-1 truncate font-sans text-base font-bold text-ink;
+    }
+    .lp-sheet__body {
+        @apply min-h-0 flex-1 overflow-y-auto p-4;
+    }
+    .lp-sheet__header .lp-btn {
+        @apply min-h-tap min-w-tap;
+    }
+    /* The panel is centred with auto margins, because a transform would be replaced by the slide-up animation. */
+    @media (width >= 64rem) {
+        .lp-sheet {
+            @apply inset-y-0 m-auto h-fit max-w-xl rounded-xl;
+            padding-bottom: 0;
+        }
+    }
+}

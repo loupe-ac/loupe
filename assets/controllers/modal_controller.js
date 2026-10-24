@@ -115,17 +115,38 @@ export default class extends Controller {
             dialog.classList.remove('is-opening');
             return;
         }
-        const keyframes = this.drawerValue
-            ? OPEN_KEYFRAMES_DRAWER
-            : isMobile()
-              ? OPEN_KEYFRAMES_MOBILE
-              : OPEN_KEYFRAMES;
-        dialog.animate(
-            keyframes,
-            this.drawerValue
-                ? DRAWER_TIMING
-                : { duration: 220, easing: 'ease-out' },
-        );
+        const { keyframes, timing } = this.motion('open');
+        dialog.animate(keyframes, timing);
+    }
+
+    // A subclass overrides this to change how the dialog enters and leaves.
+    // The reduced-motion check stays in open() and #animateOutAsync().
+    motion(phase) {
+        const opening = phase === 'open';
+        if (this.drawerValue) {
+            return {
+                keyframes: opening
+                    ? OPEN_KEYFRAMES_DRAWER
+                    : CLOSE_KEYFRAMES_DRAWER,
+                timing: DRAWER_TIMING,
+            };
+        }
+        if (isMobile()) {
+            return {
+                keyframes: opening
+                    ? OPEN_KEYFRAMES_MOBILE
+                    : CLOSE_KEYFRAMES_MOBILE,
+                timing: opening
+                    ? { duration: 220, easing: 'ease-out' }
+                    : { duration: 180, easing: 'ease-in' },
+            };
+        }
+        return {
+            keyframes: opening ? OPEN_KEYFRAMES : CLOSE_KEYFRAMES,
+            timing: opening
+                ? { duration: 220, easing: 'ease-out' }
+                : { duration: 180, easing: 'ease-in' },
+        };
     }
 
     close(event) {
@@ -184,15 +205,9 @@ export default class extends Controller {
             return Promise.resolve();
         }
 
-        const keyframes = this.drawerValue
-            ? CLOSE_KEYFRAMES_DRAWER
-            : isMobile()
-              ? CLOSE_KEYFRAMES_MOBILE
-              : CLOSE_KEYFRAMES;
+        const { keyframes, timing } = this.motion('close');
         const anim = dialog.animate(keyframes, {
-            ...(this.drawerValue
-                ? DRAWER_TIMING
-                : { duration: 180, easing: 'ease-in' }),
+            ...timing,
             fill: 'forwards',
         });
         this.closingAnimation = anim;

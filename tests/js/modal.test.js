@@ -121,3 +121,61 @@ it('suppresses drawer motion when reduced motion is requested', () => {
     controller.close();
     expect(dialog.animate).not.toHaveBeenCalled();
 });
+
+const DROP_FROM_ABOVE = [
+    { opacity: 0, transform: 'translateY(-16px)' },
+    { opacity: 1, transform: 'translateY(0)' },
+];
+const SLIDE_UP = [
+    { transform: 'translateY(100%)' },
+    { transform: 'translateY(0)' },
+];
+
+function setWidth(pixels) {
+    vi.stubGlobal('matchMedia', (query) => {
+        const edge = /width < ([\d.]+)rem/.exec(query);
+        return { matches: edge ? pixels < Number(edge[1]) * 16 : false };
+    });
+}
+
+it.each([
+    [820, DROP_FROM_ABOVE],
+    [1440, DROP_FROM_ABOVE],
+    [390, SLIDE_UP],
+])('opens a plain dialog at %ipx with its own keyframes', (width, expected) => {
+    setWidth(width);
+    controller.open();
+    expect(dialog.animate.mock.calls[0][0]).toEqual(expected);
+    expect(dialog.animate.mock.calls[0][1]).toEqual({
+        duration: 220,
+        easing: 'ease-out',
+    });
+});
+
+it('closes a plain dialog at 820px by dropping it upward over 180ms', () => {
+    setWidth(820);
+    controller.open();
+    controller.close();
+    expect(dialog.animate.mock.calls[1][0]).toEqual([
+        { opacity: 1, transform: 'translateY(0)' },
+        { opacity: 0, transform: 'translateY(-16px)' },
+    ]);
+    expect(dialog.animate.mock.calls[1][1]).toEqual({
+        duration: 180,
+        easing: 'ease-in',
+        fill: 'forwards',
+    });
+});
+
+it('slides a drawer sideways at 390px and 820px alike', () => {
+    controller.drawerValue = true;
+    for (const width of [390, 820]) {
+        setWidth(width);
+        dialog.open = false;
+        controller.open();
+        expect(dialog.animate.mock.lastCall[0]).toEqual([
+            { transform: 'translateX(100%)' },
+            { transform: 'translateX(0)' },
+        ]);
+    }
+});
