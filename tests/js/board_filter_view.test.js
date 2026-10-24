@@ -141,3 +141,20 @@ it('keeps a loaded list when a frame renders', () => {
     expect(list.getAttribute('src')).toBe(`https://loupe.test${LIST_URL}`);
     expect(list.childElementCount).toBe(1);
 });
+
+it('keeps both copies of the view switch in step', async () => {
+    const board = document.getElementById('board');
+    board.insertAdjacentHTML(
+        'afterbegin',
+        `<button data-board-view-target="boardButton" aria-pressed="true"></button>
+        <button data-board-view-target="listButton" aria-pressed="false"></button>`,
+    );
+    await settle();
+    viewController().showList();
+    const pressed = (target) =>
+        [...board.querySelectorAll(`[data-board-view-target="${target}"]`)].map(
+            (button) => button.getAttribute('aria-pressed'),
+        );
+    expect(pressed('listButton')).toEqual(['true', 'true']);
+    expect(pressed('boardButton')).toEqual(['false', 'false']);
+});

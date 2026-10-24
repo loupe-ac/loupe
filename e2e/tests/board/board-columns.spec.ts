@@ -21,6 +21,20 @@ const COLUMN = 'section.lp-board__column';
 // Under a loaded run, the POST and the redirected GET take longer than the 5 s default.
 const ROUND_TRIP = { timeout: process.env.COVERAGE ? 20_000 : 15_000 };
 
+/** Below 640px the toolbar actions sit in the "…" menu, so this opens it when the button shows. */
+async function openToolbarActions(page: Page): Promise<boolean> {
+    const more = page.locator('.lp-board-toolbar__more');
+    if (!(await more.isVisible())) {
+        return false;
+    }
+    if ('true' !== (await more.getAttribute('aria-expanded'))) {
+        await more.click();
+    }
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+
+    return true;
+}
+
 async function registerAndLogin(page: Page, email: string): Promise<void> {
     const response = await page.request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Columns User', email, password: PASSWORD },
@@ -179,9 +193,14 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                     ),
                 )
                 .toBeLessThanOrEqual(1);
-            for (const link of await page
-                .locator('.lp-board-toolbar__actions a')
-                .all()) {
+            const inMenu = await openToolbarActions(page);
+            const links = page.locator(
+                inMenu
+                    ? '.lp-board-toolbar__menu a'
+                    : '.lp-board-toolbar__actions a',
+            );
+            await expect(links).toHaveCount(1);
+            for (const link of await links.all()) {
                 await expect(link).toBeInViewport({ ratio: 1 });
                 expect(
                     await link.evaluate((element) => {
@@ -195,6 +214,12 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                         );
                     }),
                 ).toBeLessThanOrEqual(1);
+            }
+            if (inMenu) {
+                await page.keyboard.press('Escape');
+                await expect(
+                    page.locator('.lp-board-toolbar__more'),
+                ).toHaveAttribute('aria-expanded', 'false');
             }
             await expect(page.locator('a.lp-board-backlog')).toBeInViewport({
                 ratio: 1,
@@ -221,11 +246,13 @@ test('board controls remain usable at enlarged text sizes without page overflow'
     await expect(
         page.locator('[data-board-filter-target="empty"]'),
     ).toBeHidden();
+    await openToolbarActions(page);
     await page.getByRole('button', { name: 'List', exact: true }).click();
-    await expect(page.locator('.lp-board-list')).toBeVisible();
+    await expect(page.locator('.lp-board-list')).toBeVisible(ROUND_TRIP);
     await expect(page.locator('.lp-board-list__row:not([hidden])')).toHaveCount(
         1,
     );
+    await openToolbarActions(page);
     await page.getByRole('button', { name: 'Board', exact: true }).click();
     await expect(page.locator('.lp-board__columns')).toBeVisible();
     await expect
@@ -622,9 +649,9 @@ test('the board header holds the title and actions on one row, and columns offer
     await expect(
         toolbar.getByRole('link', { name: 'Add card', exact: true }),
     ).toHaveCount(0);
-    // Settings sits left of the Board and List switch.
+    // Settings sits left of the Board and List switch of the row; the phone menu holds a hidden copy.
     const modeBox = await toolbar
-        .locator('.lp-board-toolbar__mode')
+        .locator('.lp-board-toolbar__actions .lp-board-toolbar__mode')
         .boundingBox();
     expect(settingsBox!.x).toBeLessThan(modeBox!.x);
 

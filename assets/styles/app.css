@@ -2566,13 +2566,87 @@
         @apply min-h-8;
     }
 
+    /* The tabs and the "…" menu exist on a phone only, where the menu takes
+       the place of the row of actions. */
+    .lp-board-tabs,
+    .lp-board-toolbar__menu {
+        @apply hidden;
+    }
+
+    /* A phone shows one column per screen and a swipe stops on a column. The
+       header row holds the title, Backlog and the "…" menu, and Find takes
+       the row below it, because the header row has no room for a field. */
     @media (width < 40rem) {
-        .lp-board-toolbar__filters,
-        .lp-board-toolbar__search {
-            @apply flex-1;
+        .lp-board-header {
+            @apply flex-wrap gap-x-2;
+        }
+        .lp-board-toolbar {
+            display: contents;
+        }
+        .lp-board-toolbar__title {
+            @apply order-1 mr-auto text-xl;
+        }
+        .lp-board-toolbar__filters {
+            @apply order-5 basis-full;
+        }
+        .lp-board-backlog {
+            @apply order-3;
         }
         .lp-board-toolbar__actions {
-            @apply ml-0;
+            @apply hidden;
+        }
+        .lp-board-toolbar__menu {
+            @apply order-4 ml-auto block;
+        }
+        /* The panel minimum outgrows a phone at large text sizes. */
+        .lp-board-toolbar__menu .lp-menu__panel {
+            min-width: min(
+                calc(var(--spacing) * 46),
+                calc(100vw - var(--spacing) * 8)
+            );
+        }
+        .lp-board-toolbar__menu .lp-board-toolbar__mode {
+            @apply flex-wrap;
+        }
+        .lp-board-toolbar__search {
+            @apply w-full;
+        }
+        .lp-board-toolbar__count {
+            @apply hidden;
+        }
+        .lp-board-toolbar__paused:not(:empty) {
+            @apply order-6 basis-full;
+        }
+        .lp-board-tabs {
+            @apply block;
+        }
+        .lp-board-tabs .lp-tabs {
+            @apply mb-0;
+        }
+        .lp-board:has(> [data-board-view-target='board'][hidden])
+            > .lp-board-tabs {
+            @apply hidden;
+        }
+        .lp-board .lp-board__columns {
+            @apply gap-3;
+            container-type: inline-size;
+            grid-auto-columns: 100cqw;
+            scroll-padding-inline: 0;
+            scroll-snap-type: x mandatory;
+        }
+        .lp-board .lp-board__column {
+            @apply w-full;
+            flex: 0 0 100cqw;
+            width: 100cqw;
+            min-width: 100cqw;
+            scroll-snap-align: start;
+        }
+        .lp-board .lp-board-lane__cells {
+            @apply gap-3;
+        }
+        .lp-board .lp-board-lane__head {
+            @apply sticky left-0;
+            width: 100cqw;
         }
     }
 }

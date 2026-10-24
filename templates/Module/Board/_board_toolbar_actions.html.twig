@@ -1,0 +1,26 @@
+{# The board settings link and the Board or List switch. Props: projectId (string), inMenu (bool): true in the phone "…" menu, where a switch also closes the menu. #}
+{% set close = inMenu ? ' popover#close' : '' %}
+<twig:Ds:Button variant="ghost icon"
+   href="{{ path('app_board_settings', {id: projectId}) }}"
+   aria-label="{{ 'board.settings.action'|trans }}"
+   title="{{ 'board.settings.action'|trans }}">
+    <twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" />
+</twig:Ds:Button>
+<div class="lp-board-toolbar__mode" aria-label="{{ 'board.view.label'|trans }}">
+    <button type="button"
+            class="lp-board-toolbar__mode-button"
+            aria-pressed="true"
+            data-board-view-target="boardButton"
+            data-action="board-view#showBoard{{ close }}">
+        <twig:ux:icon name="lucide:square-kanban" class="lp-icon lp-icon--md" />
+        {{ 'board.view.board'|trans }}
+    </button>
+    <button type="button"
+            class="lp-board-toolbar__mode-button"
+            aria-pressed="false"
+            data-board-view-target="listButton"
+            data-action="board-view#showList{{ close }}">
+        <twig:ux:icon name="lucide:list" class="lp-icon lp-icon--md" />
+        {{ 'board.view.list'|trans }}
+    </button>
+</div>
