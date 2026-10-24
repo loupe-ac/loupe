@@ -52,6 +52,7 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkTakers;
+use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -1607,6 +1608,63 @@ final class EngineTest extends KernelTestCase
 
         self::assertSame([$request], $this->liveRequests($card));
         self::assertSame(WorkRequestState::Open, $request->state);
+    }
+
+    public function test_an_open_request_is_cancelled_when_a_session_opens_and_its_rule_cancels_only_open_work(): void
+    {
+        $card = $this->boundCard([$this->sessionRule(true)]);
+        $this->evaluate($card);
+        $request = $this->liveRequestOfKind($card, 'work');
+
+        $this->interactiveRun($card);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_a_claimed_request_stays_when_a_session_opens_and_its_rule_cancels_only_open_work(): void
+    {
+        $card = $this->boundCard([$this->sessionRule(true)]);
+        $this->evaluate($card);
+        $request = $this->liveRequestOfKind($card, 'work');
+        $request->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+
+        $this->interactiveRun($card);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(WorkRequestState::Claimed, $request->state);
+        self::assertSame([$request], $this->liveRequests($card));
+    }
+
+    public function test_a_claimed_request_is_cancelled_when_a_session_opens_and_its_rule_cancels_all_work(): void
+    {
+        $card = $this->boundCard([$this->sessionRule(false)]);
+        $this->evaluate($card);
+        $request = $this->liveRequestOfKind($card, 'work');
+        $request->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+
+        $this->interactiveRun($card);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_a_rule_that_waits_for_a_session_makes_no_request_while_one_is_open(): void
+    {
+        $card = $this->boundCard([$this->sessionRule(true)]);
+        $run = $this->interactiveRun($card);
+
+        $this->evaluate($card);
+
+        self::assertSame([], $this->requestRuleIds($card));
+
+        $run->state = WorkerRunState::Stopped;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(['work'], $this->requestRuleIds($card));
     }
 
     public function test_a_repair_that_no_bridge_takes_expires_and_pauses_the_card(): void
@@ -4815,6 +4873,42 @@ final class EngineTest extends KernelTestCase
     private function resumedRun(Card $card, WorkerRunState $state, ?\DateTimeImmutable $receivedAt = null, ?string $ruleId = null): WorkerRun
     {
         return $this->workerRun($card, 'work', $state, $this->workerRun($card, 'work', WorkerRunState::Blocked), $receivedAt, $ruleId);
+    }
+
+    /**
+     * A request rule that waits while a session is open, and withdraws its request when one opens.
+     *
+     * @return array<string, mixed>
+     */
+    private function sessionRule(bool $openOnly): array
+    {
+        $rule = self::requestRule('work', ['not' => ['card.run.session_open' => []]]);
+        $rule['then']['request']['cancelWhen'] = ['card.run.session_open' => []];
+        if ($openOnly) {
+            $rule['then']['request']['cancelOnly'] = 'open';
+        }
+
+        return $rule;
+    }
+
+    private function interactiveRun(Card $card): WorkerRun
+    {
+        $run = new WorkerRun(
+            project: $card->project,
+            bridgeId: null,
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A flushed card has an id.'),
+            cardNumber: $card->number,
+            workKind: 'product-design',
+            state: WorkerRunState::Running,
+            sessionId: Uuid::v7(),
+            startedAt: new \DateTimeImmutable('2026-10-02 12:01:00'),
+            kind: WorkerRunKind::Interactive,
+        );
+        $this->em()->persist($run);
+        $this->em()->flush();
+
+        return $run;
     }
 
     private function workerRun(Card $card, string $workKind, WorkerRunState $state, ?WorkerRun $continues = null, ?\DateTimeImmutable $receivedAt = null, ?string $ruleId = null, ?string $role = null): WorkerRun

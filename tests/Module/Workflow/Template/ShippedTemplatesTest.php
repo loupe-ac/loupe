@@ -198,6 +198,21 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame([], $this->firingRuleIds($facts));
     }
 
+    public function test_the_product_design_session_waits_for_an_open_session_and_withdraws_only_an_open_request(): void
+    {
+        $rule = $this->ruleOf('product-design', 'product-design-session');
+        $card = FactsMother::card(slot: 'product-design');
+        $idle = FactsMother::facts(card: $card, provided: [SessionFacts::class => new SessionFacts(null, null)]);
+        $open = FactsMother::facts(card: $card, provided: [SessionFacts::class => new SessionFacts(new \DateTimeImmutable('2026-10-01 11:00:00'), null)]);
+
+        self::assertTrue($rule->when->evaluate($idle));
+        self::assertFalse($rule->when->evaluate($open));
+        self::assertNotNull($rule->lead->cancelWhen);
+        self::assertFalse($rule->lead->cancelWhen->evaluate($idle));
+        self::assertTrue($rule->lead->cancelWhen->evaluate($open));
+        self::assertSame('open', $rule->lead->params['cancelOnly'] ?? null);
+    }
+
     public function test_an_approved_product_design_asks_for_a_tech_design_and_does_not_move(): void
     {
         $facts = FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: [self::approved('product-design')]));

@@ -49,9 +49,33 @@ That is the one exception to the rule above. The worker container runs two consu
 
 `docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact, so it must keep working alongside `terraform/`. It is driven by `docker/compose/prod.env`, which is gitignored, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
 
-## Check the release diff
+## Before you deploy
 
-Do this check together with the deploy notes. It finds a deploy item that has no note. Get the last deployed sha from `/healthz`, as "Verify what is actually live" shows.
+Do these steps before every deploy, and do not skip them for a small release. Never print the probe token or a `terraform.tfvars` value.
+
+1. Run `git fetch -q origin main`.
+2. Read the live version from `/healthz`, as "Verify what is actually live" shows.
+3. Count the gap with `git log --oneline --first-parent <live sha>..origin/main`.
+4. Do "Check the release diff" and "Read the deploy notes of the release".
+5. Show the owner the summary below.
+6. Wait for the owner to say go. Do not deploy before that, also when the owner already asked for the deploy. The owner decided that this summary is a required approval gate on every deploy.
+
+```text
+Live:     <live sha> (deployed <date>)
+Target:   <origin/main sha>, <N> commits, <M> pull requests
+Changes:  <one line per pull request, or grouped by theme when there are many>
+Migrations: <names and risk, or "none">
+Deploy notes: <each step and value to set, in order, or "none">
+Risky:    <every file that "Check the release diff" lists, or "none">
+Unnoted:  <the risky files with no deploy note, or "none">
+After:    <the checks the deploy notes ask for>
+```
+
+An empty gap means that production already runs `origin/main`. Say so, and do not deploy.
+
+### Check the release diff
+
+Do this check together with the deploy notes. It finds a deploy item that has no note.
 
 ```bash
 git fetch -q origin main
@@ -59,9 +83,9 @@ git diff --name-only <last deployed sha>..origin/main -- migrations/ .env terraf
   config/packages/messenger.yaml config/packages/nelmio_security.yaml docker/compose/prod.yaml
 ```
 
-Read each file in this list that no deploy note covers. Say whether the release ships a migration.
+Put every file of this list on the `Risky:` line of the summary, also a file that a deploy note covers. Read each file that no deploy note covers, and put it on the `Unnoted:` line too. Say whether the release ships a migration.
 
-## Read the deploy notes of the release
+### Read the deploy notes of the release
 
 1. Run `bin/agents/release-cards`. With no argument, it reads the live version from `/healthz`. Otherwise, give it the deployed sha.
 2. Read the output. Each line is `<pr number>`, `<card ids>` and `<subject>`, separated by tabs. A card column can hold several ids, separated by commas.
@@ -186,7 +210,49 @@ you the list has gone stale.
 
 ## After a deploy
 
-`docs/operating/post-deploy-checks.md` is the operator-facing list. Follow it.
+`docs/operating/post-deploy-checks.md` is the operator-facing list. Run every check below that an agent can run, then report. Do not stop at the first pass.
+
+```bash
+APP=$(cd terraform && terraform output -raw app_id)
+TOKEN=$(grep -E "^health_probe_token" terraform/terraform.tfvars | sed -E 's/.*= *"([^"]*)".*/\1/')
+curl -sS -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz       # version is the target sha
+curl -sS -o /dev/null -w '%{http_code}\n' https://app.loupe.ac/livez    # 200
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://app.loupe.ac/mcp  # 401, not 404 or 403
+doctl apps logs "$APP" migrate --type deploy --tail 20                  # the version it migrated to
+doctl apps logs "$APP" --type run --tail 300 | grep -iE 'error|critical|" 5[0-9]{2} '
+```
+
+Run the two console checks in the `web` component. `doctl apps console` needs a TTY, so give it one with `script`. The console prompt takes the commands after a short wait:
+
+```bash
+(sleep 8; printf 'bin/console doctrine:migrations:status --no-ansi | tail -15; bin/console health-check:status --no-ansi; echo HC_EXIT=$?; exit\n'; sleep 40) \
+  | script -q /dev/null doctl apps console "$APP" web 2>&1 | tail -50
+```
+
+- `doctrine:migrations:status` must show `New` as 0 and `Next` as `Already at latest version`. `Current` must be the newest file in `migrations/` on the target sha.
+- `health-check:status` exits 0 on a warning. Report each row that is not `OK`. An `UNKNOWN` row is not a pass.
+- When the console does not connect or prints no table, report both checks as not checked, with the error line.
+
+- Read the newest deployment, as "Which deployment is running, and why" shows. It must be `ACTIVE` with cause `manual`.
+- Compare the version in the `migrate` log with the newest file in `migrations/` on the target sha. A release with no migration logs that it is already at the latest version. This log shows the pre-deploy job ran. The console check above shows that no migration is pending.
+- Read the run log matches. Ignore lines from before the new deployment started.
+- Call `search_issues` through the Sentry MCP with `is:unresolved firstSeen:-1h environment:prod` on the `loupe` project. Read each new issue.
+- Run each check that the deploy notes ask for and that an agent can run.
+
+An agent cannot run the checks below. Give them to the owner:
+
+- Open `/admin/status` with an admin session. Read the failed checks and the Trusted proxies row.
+- Start a data export, then follow the download link in the email to a ZIP. That proves the worker and the archive path.
+- Do each deploy-note check that needs a browser or a session.
+
+Report in this shape:
+
+```text
+Live:      <sha> (<matches target | DOES NOT match target>)
+Checked:   <each check, with ok or FAILED and one line of evidence>
+Not checked: <each check that you could not run, and why>
+For you:   <each step the owner must do, in order>
+```
 
 ## Symptoms and causes
 

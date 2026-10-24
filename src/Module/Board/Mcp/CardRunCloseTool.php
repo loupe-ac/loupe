@@ -11,7 +11,7 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 
-#[McpTool(name: self::NAME, description: 'Close the interactive run that card_run_open recorded on a card. Call it when the interactive session ends. Pass your sessionId, the first set value of $LOUPE_SESSION_ID, $CLAUDE_CODE_SESSION_ID and $CODEX_THREAD_ID. Pass one of cardId or number to name the card, never both. A bridge rule with card: { interactiveRun: false } then acts on the card again. A second call changes nothing and returns the closed run. run is null when the session has no run on the card.')]
+#[McpTool(name: self::NAME, description: 'Close the interactive run that card_run_open recorded on a card. Call it when the interactive session ends. Pass your sessionId, the first set value of $LOUPE_SESSION_ID, $CLAUDE_CODE_SESSION_ID and $CODEX_THREAD_ID. Pass one of cardId or number to name the card, never both. A second call changes nothing and returns the closed run. run is null when the session has no run on the card.')]
 final readonly class CardRunCloseTool
 {
     public const string NAME = 'card_run_close';
