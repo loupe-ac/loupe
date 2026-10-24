@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Mcp;
 
 use App\Exception\DomainErrors;
+use App\Module\Bridge\Command\CloseInteractiveRunCommand;
+use App\Module\Bridge\Command\CloseInteractiveRunHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
@@ -17,7 +20,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type Refusal from BridgeCommandRefusals
  */
-#[McpTool(name: self::NAME, description: 'Ask the bridge of a worker run to stop it. Only a queued, resumed, preparing or running run can stop. A stop ends this run only. It does not make the card unmanaged, so a bridge rule can still start new work on it. Call card_hold for that. Pass runId, from worker_run_list, and an optional reason of at most 1000 characters. results has one row. A row with outcome stopped carries commandId: the command waits for the bridge, which stops the run when it reads the command. A row with outcome refused carries code and message. The codes are: not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated (the bridge is too old to take commands), pending (a command already waits on the run), not-controllable (an interactive session), not-stoppable (the run is not queued, resumed, preparing or running) and reason-too-long.')]
+#[McpTool(name: self::NAME, description: 'Stop one worker run, or close an interactive session in Loupe. For a worker run, ask its bridge to stop it. Only a queued, resumed, preparing or running run can stop. A stop ends this run only. It does not make the card unmanaged, so a bridge rule can still start new work on it. Call card_hold for that. Pass runId, from worker_run_list, and an optional reason of at most 1000 characters. results has one row. A row with outcome stopped carries commandId: the command waits for the bridge, which stops the run when it reads the command. A row with outcome closed answers an interactive session: Loupe marks the session closed, and the terminal of the person stays open, because no bridge holds it. A row with outcome refused carries code and message. The codes are: not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated (the bridge is too old to take commands), pending (a command already waits on the run), not-stoppable (the run is not queued, resumed, preparing or running) and reason-too-long.')]
 final readonly class WorkerRunStopTool
 {
     public const string NAME = 'worker_run_stop';
@@ -25,6 +28,7 @@ final readonly class WorkerRunStopTool
     public function __construct(
         private BridgeSubjectResolver $subjects,
         private RequestBridgeCommandHandler $requestCommand,
+        private CloseInteractiveRunHandler $closeInteractiveRun,
         private BridgeCommandRefusals $refusals,
     ) {
     }
@@ -33,7 +37,7 @@ final readonly class WorkerRunStopTool
      * @param string      $runId  the id of the worker run to stop, from worker_run_list
      * @param string|null $reason why the run must stop, which a person reads on the run
      *
-     * @return array{results: list<array{runId: string, outcome: 'stopped', commandId: string}|Refusal>}
+     * @return array{results: list<array{runId: string, outcome: 'stopped', commandId: string}|array{runId: string, outcome: 'closed'}|Refusal>}
      */
     public function __invoke(string $runId, ?string $reason = null): array
     {
@@ -41,6 +45,12 @@ final readonly class WorkerRunStopTool
             $run = $this->subjects->findRun($this->subjects->parseRunId($runId), McpBoundProjectVoter::WORKER_RUN_WRITE);
             if (null === $run) {
                 return ['results' => [$this->refusals->notFound($runId)]];
+            }
+
+            if (WorkerRunKind::Interactive === $run->kind) {
+                $closed = ($this->closeInteractiveRun)(new CloseInteractiveRunCommand($run->project, $run->id ?? throw new \LogicException('A stored run has an id.')));
+
+                return ['results' => [null === $closed ? $this->refusals->notFound($runId) : ['runId' => $runId, 'outcome' => 'closed']]];
             }
 
             try {

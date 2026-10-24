@@ -987,6 +987,10 @@ final readonly class TemplateParser
                 default:
                     break;
             }
+            if (null !== $parameter->needs && !\array_key_exists($parameter->needs, $value)) {
+                $errors[] = \sprintf('%s: parameter "%s" needs a "%s"', $where, $param, $parameter->needs);
+                continue;
+            }
             $error = self::parameterError($parameter, $given);
             if (null !== $error) {
                 $errors[] = $where.': '.$error;

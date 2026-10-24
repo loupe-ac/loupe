@@ -59,6 +59,7 @@ final readonly class RequestWork implements Action, RetriesWhileTrue
             new Parameter('limit', ParameterType::Int, required: false, min: 1),
             new Parameter('refill', ParameterType::Expression, required: false, needs: 'limit'),
             new Parameter('cancelWhen', ParameterType::Expression, required: false),
+            new Parameter('cancelOnly', ParameterType::String, required: false, choices: ['open'], needs: 'cancelWhen'),
             new Parameter('onTimeout', ParameterType::String, required: false, choices: ['pause', 'expire']),
             new Parameter('onNoTaker', ParameterType::String, required: false, choices: ['fail']),
             new Parameter('stillTrue', ParameterType::String, required: false, choices: ['retry']),
