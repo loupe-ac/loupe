@@ -10,5 +10,5 @@ Loupe's drawer. {{ entry.summary }}
 </{{ entry.name }}>
 ```
 
-Pass `open` to show it. The app opens the real drawer with the `modal` controller, which slides it in from the right edge. Give the header and the footer only when the drawer needs them. The component draws the real `{{ entry.rootClass }}` classes of the app.
+Pass `open` to show it. The app opens the real drawer with the `modal` controller, which slides it in from the right edge. Give the header and the footer only when the drawer needs them. Pass `loading` with a text while the content loads: the header stays, the body shows the text and the footer is left out. The component draws the real `{{ entry.rootClass }}` classes of the app.
 {% endautoescape %}

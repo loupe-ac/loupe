@@ -39,15 +39,34 @@ final class OverlayNavigationComponentsTest extends KernelTestCase
     {
         $html = $this->render('<twig:Ds:Tabs class="lp-analytics-tabs" aria-label="Sections"><a class="lp-tabs__tab" href="#">One</a></twig:Ds:Tabs>');
 
-        self::assertStringContainsString('<nav class="lp-tabs lp-analytics-tabs" aria-label="Sections">', $html);
+        self::assertStringContainsString('<nav class="lp-tabs lp-analytics-tabs" aria-label="Sections" data-overflow-cue-target="viewport">', $html);
         self::assertStringContainsString('<a class="lp-tabs__tab" href="#">One</a></nav>', $html);
+    }
+
+    public function test_a_scrolling_strip_sits_in_an_overflow_cue_with_two_arrows(): void
+    {
+        $html = $this->render('<twig:Ds:Tabs aria-label="Sections">x</twig:Ds:Tabs>');
+
+        self::assertStringContainsString('<div class="lp-overflow-cue lp-overflow-cue--scroll" data-controller="overflow-cue" data-overflow-cue-mode-value="scroll">', $html);
+        self::assertSame(2, substr_count($html, 'type="button"'));
+        self::assertStringContainsString('aria-label="Scroll back"', $html);
+        self::assertStringContainsString('aria-label="Scroll forward"', $html);
+        self::assertStringContainsString('data-action="overflow-cue#scrollNext"', $html);
+    }
+
+    public function test_the_step_value_sets_the_mode_of_the_controller(): void
+    {
+        $html = $this->render('<twig:Ds:Tabs arrows="step">x</twig:Ds:Tabs>');
+
+        self::assertStringContainsString('lp-overflow-cue--step', $html);
+        self::assertStringContainsString('data-overflow-cue-mode-value="step"', $html);
     }
 
     public function test_tabs_can_render_a_div_for_a_tablist(): void
     {
         $html = $this->render('<twig:Ds:Tabs tag="div" role="tablist">x</twig:Ds:Tabs>');
 
-        self::assertStringContainsString('<div class="lp-tabs" role="tablist">x</div>', $html);
+        self::assertStringContainsString('<div class="lp-tabs" role="tablist" data-overflow-cue-target="viewport">x</div>', $html);
         self::assertStringNotContainsString('<nav', $html);
     }
 
@@ -56,6 +75,7 @@ final class OverlayNavigationComponentsTest extends KernelTestCase
         $html = $this->render('<twig:Ds:Tabs variant="segmented" class="extra" aria-label="View">x</twig:Ds:Tabs>');
 
         self::assertStringContainsString('<nav class="lp-tabs lp-tabs--segmented extra" aria-label="View">x</nav>', $html);
+        self::assertStringNotContainsString('overflow-cue', $html);
     }
 
     public function test_a_tooltip_carries_its_role_id_and_caller_class(): void

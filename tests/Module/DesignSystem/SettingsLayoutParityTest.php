@@ -35,7 +35,7 @@ final class SettingsLayoutParityTest extends KernelTestCase
 
         self::assertStringContainsString('<div class="lp-settings extra">', $html);
         self::assertStringContainsString('<h1 class="lp-workspace-title">Settings</h1>', $html);
-        self::assertStringContainsString('<nav class="lp-settings-nav" aria-label="Sections">', $html);
+        self::assertStringContainsString('<nav class="lp-settings-nav" aria-label="Sections" data-overflow-cue-target="viewport">', $html);
         self::assertStringContainsString('<div class="lp-settings-content">', $html);
         self::assertLessThan(strpos($html, 'lp-settings-nav'), strpos($html, 'lp-page-header'));
         self::assertLessThan(strpos($html, 'id="body"'), strpos($html, 'lp-settings-nav'));
