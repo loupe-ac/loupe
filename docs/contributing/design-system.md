@@ -19,7 +19,7 @@ All tokens live in `assets/styles/tokens.css`. `assets/styles/app.css` imports i
 |---|---|
 | colour | The raw colour values, and the Tailwind names for them |
 | type | The font stacks. The Tailwind text sizes carry the scale |
-| spacing | One step of the spacing scale. Every gap and size is a multiple of it |
+| spacing | One step of the spacing scale, which every gap and size is a multiple of, and the px touch target |
 | radius | The corner radii |
 | shadow | The shadows of surfaces that float above the page |
 | motion | The durations and the easing curves |

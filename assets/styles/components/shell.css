@@ -207,7 +207,7 @@
     }
     /* Opens the sidebar drawer. Present only where the sidebar is off-canvas. */
     .lp-topbar__menu {
-        @apply inline-flex items-center justify-center shrink-0 w-11 h-11 rounded-lg text-fg-dim cursor-pointer transition-colors lg:hidden;
+        @apply inline-flex items-center justify-center shrink-0 size-tap rounded-lg text-fg-dim cursor-pointer transition-colors lg:hidden;
     }
     .lp-topbar__menu:hover {
         @apply bg-surface-3 text-ink;
@@ -232,7 +232,7 @@
         @apply flex items-center gap-2 ml-auto;
     }
     .lp-topbar__global-action {
-        @apply inline-flex items-center justify-center w-11 h-11 rounded-lg text-fg-dim no-underline transition-colors lg:w-9 lg:h-9;
+        @apply inline-flex items-center justify-center size-tap rounded-lg text-fg-dim no-underline transition-colors lg:size-9;
     }
     .lp-topbar__global-action:hover {
         @apply bg-surface-3 text-ink;
@@ -252,10 +252,10 @@
     .lp-kbd {
         @apply hidden lg:inline-block rounded border border-b-2 border-line bg-app px-1 font-mono text-xs leading-5 text-fg-dim;
     }
-    /* The one primary create action of the top bar. Below lg it is a 44px
-       icon button and its label stays for screen readers. */
+    /* The one primary create action of the top bar. Below lg it is a
+       tap-sized icon button and its label stays for screen readers. */
     .lp-topbar__new-work {
-        @apply inline-flex shrink-0 w-11 h-11 p-0 lg:w-auto lg:h-auto lg:px-3 lg:py-1.5;
+        @apply inline-flex shrink-0 size-tap p-0 lg:size-auto lg:px-3 lg:py-1.5;
     }
     .lp-topbar__new-work-label {
         @apply sr-only lg:not-sr-only;

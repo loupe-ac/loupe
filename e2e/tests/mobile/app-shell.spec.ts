@@ -199,6 +199,20 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
         ).toBeLessThanOrEqual(0);
     }
 
+    await page.setViewportSize({ width: 375, height: 900 });
+    await page.evaluate(() => {
+        document.documentElement.style.fontSize = '200%';
+    });
+    for (const control of [menu, bell, newWork]) {
+        const box = (await control.boundingBox())!;
+        expect(box.width, '200% text').toBe(44);
+        expect(box.height, '200% text').toBe(44);
+    }
+    expect(await horizontalOverflow(page), '200% text').toBeLessThanOrEqual(0);
+    await page.evaluate(() => {
+        document.documentElement.style.fontSize = '';
+    });
+
     await page.setViewportSize({ width: 1024, height: 900 });
     await expect(page.locator(SIDEBAR)).toBeVisible();
     await expect(menu).toBeHidden();
