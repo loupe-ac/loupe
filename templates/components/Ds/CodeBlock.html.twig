@@ -8,6 +8,7 @@
     testid       string   A data-testid for the code element. Optional.
   The meta block adds a marker to the header after the label. The tail block adds markup after the code, such as a cursor. Both are optional.
   Any other attribute, class included, is passed to the block.
+  The code sits in an overflow-cue wrapper with no arrows. The right edge fades while more text lies past it.
 #}
 {%- props label, text, copy = true, copyLabel = null, copiedLabel = null, testid = null -%}
 <div{{ attributes.defaults({class: 'lp-code-dark'}) }}>
@@ -18,5 +19,7 @@
             <twig:Ds:CopyButton :text="text" :label="copyLabel" :copiedLabel="copiedLabel" tone="chrome" />
         {%- endif %}
     </div>
-    <pre class="lp-code-dark__body"><code{% if testid is not null %} data-testid="{{ testid }}"{% endif %}>{{ text }}</code>{% block tail %}{% endblock %}</pre>
+    <div class="lp-overflow-cue lp-code-dark__scroll" data-controller="overflow-cue">
+        <pre class="lp-code-dark__body" data-overflow-cue-target="viewport"><code{% if testid is not null %} data-testid="{{ testid }}"{% endif %}>{{ text }}</code>{% block tail %}{% endblock %}</pre>
+    </div>
 </div>

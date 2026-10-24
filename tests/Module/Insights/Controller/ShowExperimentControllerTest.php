@@ -47,6 +47,8 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('Experiments', trim($crawler->filter('.lp-analytics-tabs [aria-current="page"]')->text()));
         self::assertSame('Comparison', trim($crawler->filter('.lp-experiment-tabs [aria-current="page"]')->text()));
+        self::assertCount(2, $crawler->filter('.lp-experiment-table.lp-table-cue[data-controller="overflow-cue"] > .lp-experiment-table__scroll[data-overflow-cue-target="viewport"] > table'));
+        self::assertCount(4, $crawler->filter('.lp-experiment-table > .lp-overflow-cue__arrow'));
         self::assertSame(['a', 'model-a', '3', '5', '5', '5', '$10.00'], $this->cells($crawler->filter('[data-experiment-variant="a"]')));
         self::assertSame(['b', 'model-b', '1', '5', '5', '5', '$5.00'], $this->cells($crawler->filter('[data-experiment-variant="b"]')));
 

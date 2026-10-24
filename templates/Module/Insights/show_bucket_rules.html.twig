@@ -82,7 +82,9 @@
             </twig:block>
         </twig:Ds:FilterBar>
         <div class="lp-metric-table">
-            <table class="lp-metric-table__table">
+            <div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-metric-table__cue" data-controller="overflow-cue">
+<div class="lp-metric-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-metric-table__table">
                 <thead>
                     <tr>
                         <th scope="col">{{ 'insights.bucket_rules.summary.column.bucket'|trans }}</th>
@@ -111,6 +113,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
         </div>
     </section>
 </twig:Ds:Workspace>

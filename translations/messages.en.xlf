@@ -1901,6 +1901,10 @@
                 <source>review.document.history.column.open</source>
                 <target>Open</target>
             </trans-unit>
+            <trans-unit id="review.document.history.table.label">
+                <source>review.document.history.table.label</source>
+                <target>Versions</target>
+            </trans-unit>
             <trans-unit id="review.document.history.read">
                 <source>review.document.history.read</source>
                 <target>Read</target>
@@ -2318,6 +2322,14 @@
             <trans-unit id="nav.drawer.open">
                 <source>nav.drawer.open</source>
                 <target>Open navigation</target>
+            </trans-unit>
+            <trans-unit id="sheet.back">
+                <source>sheet.back</source>
+                <target>Back</target>
+            </trans-unit>
+            <trans-unit id="sheet.close">
+                <source>sheet.close</source>
+                <target>Close</target>
             </trans-unit>
             <trans-unit id="nav.drawer.close">
                 <source>nav.drawer.close</source>

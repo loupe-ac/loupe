@@ -260,6 +260,7 @@ Three views help across versions:
 
 Select **Version history** in the **⋯** menu to see every version in one table, newest first.
 Each row shows the version, its revision note, its reviews, and **Read** and **Diff** links.
+On a phone, the table scrolls sideways. A **‹** or **›** button shows over the header, and a fade shows at the edge with more columns.
 Each review shows the reviewer, verdict, note and time. A verdict that a workflow rule wrote shows **Workflow** and the id of the rule.
 Withdrawals remain beside the original verdict. Versions without reviews say so.
 History keeps the document header, with Document, Diff and History tabs to move back.

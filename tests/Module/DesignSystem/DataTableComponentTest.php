@@ -34,6 +34,21 @@ final class DataTableComponentTest extends KernelTestCase
         self::assertStringContainsString('lp-data-table__cell--end', (string) $cells->eq(1)->attr('class'));
     }
 
+    public function test_the_table_sits_in_an_overflow_cue_wrapper_with_arrows_after_it(): void
+    {
+        $crawler = $this->render('<twig:Ds:DataTable id="runs-table" :columns="[{label: \'Work\'}]"></twig:Ds:DataTable>');
+
+        $wrapper = $crawler->filter('div[data-controller="overflow-cue"].lp-overflow-cue.lp-table-cue');
+        self::assertCount(1, $wrapper);
+        $table = $wrapper->children('.lp-data-table');
+        self::assertCount(1, $table);
+        self::assertSame('viewport', $table->attr('data-overflow-cue-target'));
+        self::assertSame('runs-table', $table->attr('id'));
+        self::assertCount(1, $wrapper->children('.lp-overflow-cue__arrow--prev[data-overflow-cue-target="prev"]'));
+        self::assertCount(1, $wrapper->children('.lp-overflow-cue__arrow--next[data-overflow-cue-target="next"]'));
+        self::assertCount(0, $table->filter('.lp-overflow-cue__arrow'));
+    }
+
     public function test_a_table_with_no_label_has_no_empty_name(): void
     {
         $table = $this->render('<twig:Ds:DataTable :columns="[{label: \'Work\'}]"></twig:Ds:DataTable>')->filter('.lp-data-table');

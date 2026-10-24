@@ -41,6 +41,7 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
 @plugin "@tailwindcss/typography";
@@ -882,6 +883,9 @@
     @media (max-width: 42.5rem) {
         .lp-core-inbox .lp-inbox-request-list {
             overflow-y: auto;
+            padding-right: calc(
+                var(--app-frame-inset, 0px) + var(--inbox-gutter)
+            );
         }
 
         /* A picked view shows the pane alone, and any other shows the list alone. */
@@ -1126,6 +1130,23 @@
     /* Holds an absent row action's place, so each action keeps its column. */
     .lp-settings-column__slot {
         @apply w-9 h-9 shrink-0;
+    }
+    .lp-settings-columns__add {
+        @apply mb-6;
+    }
+    /* On a phone the name gives up its basis, so the actions share its row at the right end and
+       still wrap under enlarged text. The terminal flag drops to a line of its own under the name. */
+    @media (width < 40rem) {
+        .lp-settings-column__name {
+            @apply basis-0;
+        }
+        .lp-settings-column:has(> .lp-board__column-flag)::after {
+            @apply order-1 basis-full;
+            content: '';
+        }
+        .lp-settings-column > .lp-board__column-flag {
+            @apply order-2 ml-4;
+        }
     }
 }
 
@@ -2786,6 +2807,25 @@
     .lp-card-drawer__icon {
         @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
     }
+    /* On a phone the card page keeps one 36 px bar under the 64 px top bar, so the two take 100 px.
+       The buttons keep their 44 px tap size and reach past the bar. The icon and the source tag leave. */
+    @media (width < 40rem) {
+        .lp-card-drawer__header {
+            @apply h-9 gap-2 px-4 py-0;
+        }
+        .lp-card-drawer__identity {
+            @apply min-w-0 flex-1 gap-2 overflow-hidden whitespace-nowrap;
+        }
+        .lp-card-drawer__icon {
+            @apply hidden;
+        }
+        .lp-card-drawer__source {
+            @apply hidden;
+        }
+        .lp-card-drawer__header-actions .lp-btn {
+            @apply -my-1;
+        }
+    }
     .lp-card-drawer__body {
         @apply px-6 py-2.5;
     }
@@ -3882,7 +3922,7 @@
        Every version in one table, newest first, with the reviews it received
        and the ways to read it or compare it with the one before. */
     .lp-history-tools {
-        @apply flex flex-wrap items-center justify-between gap-4 mt-7 mb-4.5;
+        @apply flex flex-wrap items-center justify-between gap-4 mt-7;
     }
     .lp-history-title {
         @apply m-0 font-display text-lg font-bold text-ink;
@@ -3890,17 +3930,13 @@
     .lp-history-surface {
         @apply overflow-x-auto rounded-xl border border-line bg-surface-1;
     }
-    .lp-history {
-        @apply w-full border-collapse text-left;
+    /* Version, Revision, Discussion, Open. */
+    .lp-data-table--history {
+        --lp-data-table-columns: calc(var(--spacing) * 16) minmax(0, 1fr)
+            calc(var(--spacing) * 28) calc(var(--spacing) * 44);
     }
-    .lp-history th {
-        @apply bg-surface-2 px-4.5 py-3.25 text-xs font-semibold text-fg-dim;
-    }
-    .lp-history td {
-        @apply border-t border-line px-4.5 py-4.5 align-middle text-sm text-fg-mute;
-    }
-    .lp-history td:last-child {
-        @apply whitespace-nowrap;
+    .lp-data-table--history .lp-data-table__row {
+        @apply min-h-18 py-4.5;
     }
     .lp-history__version {
         @apply inline-flex rounded-md bg-surface-3 px-1.75 py-0.75 text-xs leading-4 font-semibold text-fg-dim;
@@ -3915,7 +3951,7 @@
         @apply font-medium text-fg-mute;
     }
     .lp-history__date {
-        @apply text-xs text-fg-dim;
+        @apply block text-xs text-fg-dim;
     }
     .lp-history__reviews {
         @apply m-0 flex list-none flex-col gap-3 p-0;
@@ -3943,12 +3979,6 @@
     }
     .lp-history__action svg {
         @apply size-4 shrink-0;
-    }
-    @media (width < 43.75rem) {
-        .lp-history th,
-        .lp-history td {
-            @apply px-3.5;
-        }
     }
 
     /* ── Version diff ───────────────────────────────────────────────────
@@ -7326,8 +7356,18 @@
     .lp-metric-table__note {
         @apply m-0 mt-2 text-xs text-fg-dim;
     }
+    .lp-metric-table__cue {
+        @apply mt-2;
+        --lp-table-cue-inset: 0px;
+        --lp-table-cue-radius: 0px;
+        --lp-table-cue-body: var(--color-app);
+        --lp-table-cue-header: calc(var(--spacing) * 7 + 1px);
+    }
+    .lp-metric-table__scroll {
+        @apply overflow-x-auto;
+    }
     .lp-metric-table__table {
-        @apply w-full mt-2 text-sm text-fg border-collapse;
+        @apply w-full text-sm text-fg border-collapse;
     }
     .lp-metric-table__table th {
         @apply py-1.5 pr-3 border-b border-line text-left text-xs font-semibold text-fg-label;
@@ -7383,7 +7423,10 @@
     }
     /* The panel of a data table, for a real table with a header row. */
     .lp-experiment-table {
-        @apply mt-3 overflow-x-auto rounded-xl border border-line bg-white;
+        @apply mt-3 rounded-xl border border-line bg-white;
+    }
+    .lp-experiment-table__scroll {
+        @apply overflow-x-auto rounded-xl;
     }
     .lp-experiment-table__table {
         @apply w-full text-sm text-fg-mute border-collapse;
@@ -7865,51 +7908,70 @@
 }
 
 /* Touch pointers cannot hit a 36px control accurately. Desktop density is
-   deliberately unchanged, so this is scoped to coarse pointers only. */
-@media (pointer: coarse) {
-    .lp-btn,
-    .lp-copy-button__chip,
-    .lp-flash__dismiss,
-    .lp-anchor-toolbar__btn,
-    .auth-forgot,
-    .lp-auth__footer-link,
-    .lp-home-footer__link,
-    .lp-home-footer__icon {
-        @apply inline-flex items-center justify-center min-h-tap min-w-tap;
-    }
+   deliberately unchanged, so this is scoped to coarse pointers only. The block
+   sits in the components layer: an unlayered rule beats every layer, and its
+   `inline-flex` would beat `hidden` and `lg:hidden`. */
+@layer components {
+    @media (pointer: coarse) {
+        .lp-btn,
+        .lp-copy-button__chip,
+        .lp-flash__dismiss,
+        .lp-anchor-toolbar__btn,
+        .auth-forgot,
+        .lp-auth__footer-link,
+        .lp-home-footer__link,
+        .lp-home-footer__icon {
+            @apply inline-flex items-center justify-center min-h-tap min-w-tap;
+        }
 
-    .lp-input,
-    .lp-list-filters .lp-input {
-        @apply min-h-tap;
-    }
+        .lp-input,
+        .lp-list-filters .lp-input {
+            @apply min-h-tap;
+        }
 
-    /* Size only. Both are `lg:hidden`, and a `display` here comes later in the
-       sheet than that variant, so a touch screen at desktop width showed both
-       drawer controls beside a sidebar that is already in the flow. */
-    .lp-topbar__menu,
-    .lp-sidebar__close {
-        @apply min-h-tap min-w-tap;
-    }
+        /* A text link outside a sentence, a check box and a sort header need a
+           24px hit area, the WCAG 2.2 minimum. */
+        .lp-workshop-text-link,
+        .lp-history__action,
+        .lp-backlog-sort-link,
+        .lp-auth__remember {
+            @apply min-h-6 min-w-6;
+        }
+        /* `lp-touch-check` and `lp-touch-text` are hooks for a raw check box or field
+           that no component draws. */
+        .lp-touch-check {
+            @apply size-6;
+        }
 
-    /* iOS Safari zooms the page in when it focuses a control under 16px. */
-    .lp-comment-composer textarea,
-    .lp-comment-reply-form textarea,
-    .lp-input--compact,
-    .lp-select--compact,
-    .lp-list-filters .lp-input {
-        @apply text-base;
-    }
+        .lp-topbar__menu,
+        .lp-sidebar__close {
+            @apply min-h-tap min-w-tap;
+        }
 
-    /* No keyboard to press it, and the width it costs is the width the three
-       buttons need on a phone. */
-    .lp-anchor-toolbar__key {
-        @apply hidden;
-    }
+        /* iOS Safari zooms the page in when it focuses a control under 16px. */
+        .lp-input,
+        .lp-select,
+        .lp-textarea,
+        .lp-comment-composer textarea,
+        .lp-comment-reply-form textarea,
+        .lp-input--compact,
+        .lp-select--compact,
+        .lp-list-filters .lp-input,
+        .lp-touch-text {
+            @apply text-base;
+        }
 
-    /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
-       display would reveal it below sm: and min-width never applies to inline. */
-    .lp-home-nav__link {
-        @apply px-2 py-3;
+        /* No keyboard to press it, and the width it costs is the width the three
+           buttons need on a phone. */
+        .lp-anchor-toolbar__key {
+            @apply hidden;
+        }
+
+        /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
+           display would reveal it below sm: and min-width never applies to inline. */
+        .lp-home-nav__link {
+            @apply px-2 py-3;
+        }
     }
 }
 
@@ -7966,11 +8028,30 @@
     .lp-workshop-attention small {
         @apply text-xs text-fg-dim;
     }
+    .lp-workshop-attention__meta {
+        @apply ml-auto inline-flex flex-wrap items-center gap-2 text-xs text-fg-dim;
+    }
     .lp-workshop-attention__badge {
-        @apply ml-auto rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
+        @apply rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
     }
     .lp-workshop-attention__chevron {
         @apply w-4 h-4 shrink-0 ml-auto text-fg-dim;
+    }
+    /* On a phone the chip and the age sit under the title, so a long title keeps the row width. */
+    @media (width < 40rem) {
+        .lp-workshop-attention {
+            @apply grid items-center gap-x-3 gap-y-1.5;
+            grid-template-columns: calc(var(--spacing) * 8) minmax(0, 1fr) auto;
+        }
+        .lp-workshop-attention__meta {
+            @apply ml-0 justify-self-start;
+            grid-column: 2;
+            grid-row: 2;
+        }
+        .lp-workshop-attention__chevron {
+            grid-column: 3;
+            grid-row: 1;
+        }
     }
     .lp-workshop-work-grid {
         @apply grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2;
@@ -8368,6 +8449,9 @@
     }
     .lp-styleguide__specimen .lp-drawer {
         @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
+    }
+    .lp-styleguide__specimen .lp-sheet:not(:modal) {
+        @apply static m-0 h-fit w-full max-w-none rounded-xl border border-line shadow-none;
     }
     /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
     .lp-styleguide__specimen .lp-auth {

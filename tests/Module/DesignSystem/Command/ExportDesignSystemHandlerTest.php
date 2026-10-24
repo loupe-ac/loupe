@@ -552,6 +552,20 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<Drawer open', $card);
     }
 
+    public function test_the_sheet_export_draws_the_handle_the_header_and_the_body(): void
+    {
+        $this->assertComponentFiles('Sheet');
+
+        $jsx = $this->jsx('Sheet');
+        self::assertStringContainsString('<dialog {...rest} aria-label={title} className={classes.join(\' \')}>', $jsx);
+        foreach (['lp-sheet__handle', 'lp-sheet__header', 'lp-sheet__title', 'lp-sheet__body'] as $class) {
+            self::assertStringContainsString($class, $jsx);
+        }
+
+        $card = $this->read('components/Sheet/preview.html');
+        self::assertStringContainsString('<Sheet open', $card);
+    }
+
     public function test_the_auth_shell_export_draws_the_page_frame_with_the_brand_name(): void
     {
         $this->assertComponentFiles('AuthShell');

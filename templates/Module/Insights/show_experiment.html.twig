@@ -33,8 +33,9 @@
     </p>
 
     <h3 class="lp-experiment-section">{{ 'bridge.experiments.variants.heading'|trans }}</h3>
-    <div class="lp-experiment-table">
-        <table class="lp-experiment-table__table" data-experiment-variants>
+    <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
+<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-experiment-table__table" data-experiment-variants>
             <thead>
                 <tr>
                     <th scope="col">{{ 'bridge.experiments.variants.variant'|trans }}</th>
@@ -60,11 +61,14 @@
                 {% endfor %}
             </tbody>
         </table>
-    </div>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
 
     <h3 class="lp-experiment-section">{{ 'bridge.experiments.metrics.heading'|trans }}</h3>
-    <div class="lp-experiment-table">
-        <table class="lp-experiment-table__table" data-experiment-metrics>
+    <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
+<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-experiment-table__table" data-experiment-metrics>
             <thead>
                 <tr>
                     <th scope="col">{{ 'bridge.experiments.metrics.metric'|trans }}</th>
@@ -84,7 +88,9 @@
                 {% endfor %}
             </tbody>
         </table>
-    </div>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
     {% if report.unknownMetrics is not empty %}
         <p class="lp-experiment-note" data-experiment-unknown-metrics>{{ 'bridge.experiments.metrics.unknown'|trans({'%metrics%': report.unknownMetrics|join(', ')}) }}</p>
     {% endif %}

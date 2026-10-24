@@ -15,6 +15,8 @@ final readonly class WorkshopAttentionItem
         public string $subject,
         /** The number of the first card the item links, so two items with the same title stay apart. */
         public ?int $cardNumber,
+        /** When the item opened. The row shows its age beside the chip. */
+        public \DateTimeImmutable $createdAt,
     ) {
     }
 }
