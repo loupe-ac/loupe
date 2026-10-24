@@ -1,12 +1,7 @@
 {#
-  Props:  @comment-budget-ignore
-    title        string   Translated title in the header. It also names the dialog.
-    backLabel    string   Translated label of the back button. Optional, defaults to sheet.back.
-    closeLabel   string   Translated label of the close button. Optional, defaults to sheet.close.
-  The content is the body. Wrap the sheet and its trigger in data-controller="sheet".
-  A body that drills down holds one element per view with data-sheet-view="name". The first is shown at the start.
-  A button with data-action="click->sheet#show" and data-sheet-view-param="name" shows a view.
-  Any other attribute, class included, is passed to the dialog.
+  Props: title, backLabel and closeLabel (default: the sheet.back and sheet.close translations). Other attributes go to the dialog.
+  Wrap the sheet and its trigger in data-controller="sheet". A drill-down body holds one data-sheet-view="name" element per view.
+  A button with click->sheet#show and data-sheet-view-param="name" shows a view.
 #}
 {%- props title, backLabel = null, closeLabel = null -%}
 <dialog{{ attributes.defaults({class: 'lp-sheet', 'aria-label': title, 'data-sheet-target': 'dialog', 'data-action': 'cancel->sheet#close'}) }}>
