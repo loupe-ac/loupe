@@ -7814,7 +7814,8 @@
            24px hit area, the WCAG 2.2 minimum. */
         .lp-workshop-text-link,
         .lp-history__action,
-        .lp-backlog-sort-link {
+        .lp-backlog-sort-link,
+        .lp-auth__remember {
             @apply min-h-6 min-w-6;
         }
         .lp-backlog-check {

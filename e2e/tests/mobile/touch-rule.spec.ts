@@ -34,6 +34,12 @@ test('a sign-in field has 16px text', async ({ page }) => {
     expect(await fontSizeOf(page, '.lp-input')).toBe('16px');
 });
 
+test('the Remember me label is a 24px target', async ({ page }) => {
+    await page.goto('/login');
+    const box = await page.locator('.lp-auth__remember').boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(24);
+});
+
 test('a select and a text area of the design system have 16px text', async ({
     page,
 }) => {
@@ -42,7 +48,7 @@ test('a select and a text area of the design system have 16px text', async ({
     expect(await fontSizeOf(page, 'textarea.lp-textarea')).toBe('16px');
 });
 
-test('the backlog filter field and the board Find field have 16px text', async ({
+test('the backlog filter field and the board Find field have 16px text, and a Backlog check box is 24px', async ({
     page,
 }) => {
     test.slow();
@@ -74,6 +80,9 @@ test('the backlog filter field and the board Find field have 16px text', async (
 
     await page.goto(`/projects/${projectId}/board/backlog`);
     expect(await fontSizeOf(page, '.lp-list-filters .lp-input')).toBe('16px');
+    const check = await page.locator('.lp-backlog-check').first().boundingBox();
+    expect(check?.height).toBeGreaterThanOrEqual(24);
+    expect(check?.width).toBeGreaterThanOrEqual(24);
 
     await page.goto(`/projects/${projectId}/board`);
     expect(await fontSizeOf(page, '.lp-board-toolbar__input')).toBe('16px');
