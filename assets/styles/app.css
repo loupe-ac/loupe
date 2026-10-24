@@ -883,6 +883,9 @@
     @media (max-width: 42.5rem) {
         .lp-core-inbox .lp-inbox-request-list {
             overflow-y: auto;
+            padding-right: calc(
+                var(--app-frame-inset, 0px) + var(--inbox-gutter)
+            );
         }
 
         /* A picked view shows the pane alone, and any other shows the list alone. */
@@ -1127,6 +1130,23 @@
     /* Holds an absent row action's place, so each action keeps its column. */
     .lp-settings-column__slot {
         @apply w-9 h-9 shrink-0;
+    }
+    .lp-settings-columns__add {
+        @apply mb-6;
+    }
+    /* On a phone the name gives up its basis, so the actions share its row at the right end and
+       still wrap under enlarged text. The terminal flag drops to a line of its own under the name. */
+    @media (width < 40rem) {
+        .lp-settings-column__name {
+            @apply basis-0;
+        }
+        .lp-settings-column:has(> .lp-board__column-flag)::after {
+            @apply order-1 basis-full;
+            content: '';
+        }
+        .lp-settings-column > .lp-board__column-flag {
+            @apply order-2 ml-4;
+        }
     }
 }
 
@@ -2712,6 +2732,25 @@
     }
     .lp-card-drawer__icon {
         @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
+    }
+    /* On a phone the card page keeps one 36 px bar under the 64 px top bar, so the two take 100 px.
+       The buttons keep their 44 px tap size and reach past the bar. The icon and the source tag leave. */
+    @media (width < 40rem) {
+        .lp-card-drawer__header {
+            @apply h-9 gap-2 px-4 py-0;
+        }
+        .lp-card-drawer__identity {
+            @apply min-w-0 flex-1 gap-2 overflow-hidden whitespace-nowrap;
+        }
+        .lp-card-drawer__icon {
+            @apply hidden;
+        }
+        .lp-card-drawer__source {
+            @apply hidden;
+        }
+        .lp-card-drawer__header-actions .lp-btn {
+            @apply -my-1;
+        }
     }
     .lp-card-drawer__body {
         @apply px-6 py-2.5;
@@ -7912,11 +7951,30 @@
     .lp-workshop-attention small {
         @apply text-xs text-fg-dim;
     }
+    .lp-workshop-attention__meta {
+        @apply ml-auto inline-flex flex-wrap items-center gap-2 text-xs text-fg-dim;
+    }
     .lp-workshop-attention__badge {
-        @apply ml-auto rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
+        @apply rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
     }
     .lp-workshop-attention__chevron {
         @apply w-4 h-4 shrink-0 ml-auto text-fg-dim;
+    }
+    /* On a phone the chip and the age sit under the title, so a long title keeps the row width. */
+    @media (width < 40rem) {
+        .lp-workshop-attention {
+            @apply grid items-center gap-x-3 gap-y-1.5;
+            grid-template-columns: calc(var(--spacing) * 8) minmax(0, 1fr) auto;
+        }
+        .lp-workshop-attention__meta {
+            @apply ml-0 justify-self-start;
+            grid-column: 2;
+            grid-row: 2;
+        }
+        .lp-workshop-attention__chevron {
+            grid-column: 3;
+            grid-row: 1;
+        }
     }
     .lp-workshop-work-grid {
         @apply grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2;

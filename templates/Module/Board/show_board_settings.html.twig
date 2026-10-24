@@ -103,7 +103,7 @@
     </ol>
     {% if canManage %}
         {% set addForm = board_column_add_form(board.project, addColumnForm) %}
-        <div data-controller="modal"{% if addForm.vars.submitted %} data-modal-reopen-value="true"{% endif %}>
+        <div class="lp-settings-columns__add" data-controller="modal"{% if addForm.vars.submitted %} data-modal-reopen-value="true"{% endif %}>
             <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open">
                 <twig:ux:icon name="lucide:plus" />{{ 'board.column.add.title'|trans }}
             </twig:Ds:Button>

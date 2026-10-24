@@ -32,7 +32,7 @@
             <span class="lp-card-drawer__icon"><twig:ux:icon name="lucide:layout-list" class="lp-icon lp-icon--md" /></span>
             <span class="lp-card-number">#{{ card.number }}</span>
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
-            {% include '@Board/_card_source_tag.html.twig' with {card: card} only %}
+            {% include '@Board/_card_source_tag.html.twig' with {card: card, class: 'lp-card-drawer__source'} only %}
             {% include '@Board/_column_tag.html.twig' with {column: card.column} only %}
         </div>
         <div class="lp-card-drawer__header-actions">
