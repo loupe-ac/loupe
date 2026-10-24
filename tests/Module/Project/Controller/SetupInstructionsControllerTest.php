@@ -67,6 +67,20 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertStringNotContainsString('Codex only', $body);
     }
 
+    public function test_the_instance_check_reads_sources_that_name_an_instance(): void
+    {
+        $client = static::createClient();
+        $client->request(Request::METHOD_GET, '/setup.md');
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('Its `Instance:` line names the instance of the CLI login.', $body);
+        self::assertStringContainsString('`claude mcp get loupe`', $body);
+        self::assertStringContainsString('an instance other than http://localhost', $body);
+        self::assertStringNotContainsString('If either names another instance', $body);
+    }
+
     public function test_a_valid_project_id_fills_the_commands(): void
     {
         $client = static::createClient();

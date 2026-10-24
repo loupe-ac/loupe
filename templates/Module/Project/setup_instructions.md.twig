@@ -6,7 +6,12 @@
 
 These steps set up Loupe at {{ instance }} for the current repository. Do the steps in order. Stop and ask the user when a step needs them. Never invent or write a token, a password or a URL that the user did not give you.
 
-These steps name the Loupe instance at {{ instance }}. The repository or the machine can already use another instance, for example a self-hosted one. Look for a `.loupe.yaml` file and for an existing `loupe` MCP server. If either names another instance, ask the user which instance to use before you continue.
+These steps name the Loupe instance at {{ instance }}. The machine can already use another instance, for example a self-hosted one. Check two sources before you continue:
+
+- If `loupe version` prints a version, run `loupe status`. Its `Instance:` line names the instance of the CLI login. With no login, it prints no such line.
+- Read how your agent declares the `loupe` MCP server, for example with `claude mcp get loupe`. An old HTTP server has a URL that ends in `/mcp`, and that URL names its instance.
+
+If either source names an instance other than {{ instance }}, ask the user which instance to use before you continue. `.loupe.yaml` holds only a project id, and a `loupe mcp` command names no instance, so neither tells you the instance.
 
 ## 1. Check the operating system
 
