@@ -60,7 +60,7 @@ export default class extends Controller {
         if (this.pending || this.#busy()) {
             return;
         }
-        const { id, number } = event.params;
+        const { id, number, column } = event.params;
         const group = event.currentTarget.closest(
             '[data-board-drag-target="group"]',
         );
@@ -74,7 +74,8 @@ export default class extends Controller {
         this.cardId = String(id);
         this.cardNumber = String(number);
         this.cardTitle = title;
-        this.currentColumnId = group?.dataset.column ?? '';
+        // A lane head sits in no column group, so it names its column itself.
+        this.currentColumnId = String(column ?? group?.dataset.column ?? '');
         this.#fill();
         sheet.open();
     }

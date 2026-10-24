@@ -21,6 +21,9 @@ const MARKUP = `
 <div id="page" data-controller="card-move">
     <div id="board" data-controller="board-columns-nav">
         <form data-board-drag-target="moveForm"></form>
+        <header class="lp-board-lane__head" data-card-title="Phones and tablets">
+            <button id="open-epic" data-action="click->card-move#open" data-card-move-id-param="epic-1" data-card-move-number-param="990" data-card-move-column-param="tech">Move</button>
+        </header>
         <section class="lp-board__column" data-column-id="next"><h2 class="lp-board__column-title">Next</h2>
             <div data-board-drag-target="group" data-column="next"><article data-card-id="card-1" data-card-title="Fix the login page">
                 <button id="open" data-action="click->card-move#open" data-card-move-id-param="card-1" data-card-move-number-param="991">Move</button>
@@ -130,6 +133,21 @@ it('marks the column the card is in, and only that one', async () => {
     expect(row('next').querySelector('.lp-move-sheet__current')).not.toBeNull();
     expect(row('tech').hasAttribute('aria-current')).toBe(false);
     expect(row('tech').querySelector('.lp-move-sheet__check')).toBeNull();
+});
+
+it('opens for a lane epic with its title, and marks the column its button names', async () => {
+    document.getElementById('open-epic').click();
+    await settle();
+
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector('.lp-sheet__title').textContent).toBe(
+        'Move #990 to',
+    );
+    expect(
+        dialog.querySelector('[data-card-move-target="cardTitle"]').textContent,
+    ).toBe('Phones and tablets');
+    expect(row('tech').getAttribute('aria-current')).toBe('true');
+    expect(row('next').hasAttribute('aria-current')).toBe(false);
 });
 
 it('closes with no request when the current column is picked', async () => {

@@ -294,7 +294,8 @@ board. A mouse still drags at any width.
 
 Each card has a **…** button at the right of its top row. The button is 44 px
 square and shows at every width. Its label names the card, for example
-**Move #991**.
+**Move #991**. An epic that shows as a lane has its **…** button in the lane
+head, beside the lane button.
 
 1. Tap **…**. A sheet slides up with the title **Move #991 to**, and the
    title of the card under it.

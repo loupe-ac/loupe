@@ -6432,6 +6432,10 @@
     .lp-board-lane__tool {
         @apply text-fg-dim cursor-pointer;
     }
+    /* The Move button of a lane epic, 44 px like the one on a card face. */
+    .lp-board-lane__move {
+        @apply size-11 shrink-0 cursor-pointer text-fg-dim;
+    }
     .lp-board-lane__chevron {
         @apply w-4 h-4 rotate-90 transition-transform;
     }
