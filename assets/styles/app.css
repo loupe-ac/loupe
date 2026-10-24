@@ -2061,7 +2061,7 @@
     @apply border-t border-line-faint pt-4;
 }
 .lp-review .lp-history__version {
-    @apply text-sm font-semibold;
+    @apply font-mono text-xs text-fg-dim;
 }
 .lp-review .lp-history__empty {
     @apply m-0 text-sm text-fg-dim;
@@ -4918,7 +4918,7 @@
         @apply truncate text-sm font-medium text-ink;
     }
     .lp-preview-token-row__meta {
-        @apply text-sm font-semibold;
+        @apply font-mono text-xs text-fg-dim;
     }
     /* The line under the preview sign-in panel of a card that points to the full list. */
     .lp-preview-sign-in__note {
@@ -7035,7 +7035,7 @@
         @apply bg-accent-faint text-accent-ink;
     }
     .lp-artifact-revision__when {
-        @apply text-sm font-semibold;
+        @apply font-mono text-xs text-fg-dim;
     }
     .lp-artifact-revision__notes {
         @apply col-start-2 text-sm/snug text-pretty whitespace-normal text-fg;
