@@ -54,7 +54,11 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-board-card a[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
         self::assertCount(3, $crawler->filter('a.lp-board__add-card[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
         self::assertCount(0, $crawler->filter('.lp-board-toolbar a[href$="/board/cards/new"]'));
-        self::assertCount(1, $crawler->filter('.lp-topbar__new-work[href$="/board/cards/new"][data-card-drawer-opener]:not([data-turbo-frame])'));
+        self::assertCount(1, $crawler->filter('.lp-topbar__new-work[href$="/board/cards/new"][data-card-drawer-opener][data-drawer-title="New work"]:not([data-turbo-frame])'));
+        self::assertCount(3, $crawler->filter('a.lp-board__add-card[data-drawer-title="New work"]'));
+        self::assertCount(1, $crawler->filter('.lp-board-card a[data-drawer-title^="#"]'));
+        self::assertCount(1, $crawler->filter('dialog[data-card-drawer-target="dialog"] [data-card-drawer-target="loading"] .lp-drawer__header [data-card-drawer-target="title"]'));
+        self::assertCount(1, $crawler->filter('dialog[data-card-drawer-target="dialog"] [data-card-drawer-target="loading"] .lp-drawer__header button[data-action="card-drawer#close"]'));
         $actions = $crawler->filter('.lp-board-toolbar__actions')->html();
         self::assertLessThan(
             (int) strpos($actions, 'lp-board-toolbar__mode'),

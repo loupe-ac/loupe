@@ -368,6 +368,20 @@ it('closes a modeless drawer on Escape, which reports no cancel event', () => {
     expect(controller.closeRequest).not.toBeNull();
 });
 
+it('shows the title the opener names in the loading header', () => {
+    const title = document.createElement('h2');
+    title.dataset.cardDrawerTarget = 'title';
+    controller.loadingTarget.append(title);
+    const invoker = document.getElementById('invoker');
+    invoker.dataset.drawerTitle = '#1056';
+    controller.prepare({ currentTarget: invoker });
+    expect(title.textContent).toBe('#1056');
+    expect(controller.loadingTarget.hidden).toBe(false);
+    invoker.removeAttribute('data-drawer-title');
+    controller.prepare({ currentTarget: invoker });
+    expect(title.textContent).toBe('');
+});
+
 it('opens the drawer from a top bar opener outside its element', () => {
     dialog.open = false;
     const opener = document.createElement('a');

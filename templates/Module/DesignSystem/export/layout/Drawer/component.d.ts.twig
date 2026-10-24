@@ -13,6 +13,8 @@ export interface {{ entry.name }}Props {
     children?: ReactNode;
     /** The footer band, such as the main action. Left out, no band is drawn. */
     footer?: ReactNode;
+    /** Loading text. Set, the header stays, a loading line replaces the body and the footer is left out. */
+    loading?: string;
     /** Pass `open` to show the dialog. */
     open?: boolean;
     className?: string;

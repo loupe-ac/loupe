@@ -2670,7 +2670,7 @@
         @apply flex-1 min-h-0 overflow-y-auto;
     }
     .lp-card-drawer-overlay__loading {
-        @apply absolute inset-0 z-10 flex items-center justify-center gap-2 bg-surface-1 text-sm font-semibold text-fg-mute;
+        @apply flex flex-1 min-h-0 flex-col bg-surface-1;
     }
     .lp-card-drawer-overlay__loading[hidden],
     .lp-card-drawer-overlay__error[hidden],
@@ -2692,9 +2692,6 @@
     }
     .lp-card-clash__message {
         @apply mr-auto;
-    }
-    .lp-card-drawer-overlay__loading svg {
-        @apply animate-spin;
     }
     .lp-card-drawer__header,
     .lp-card-drawer__footer {
@@ -7783,7 +7780,7 @@
 
     /* A spinner is the only sign that work is in flight, so it slows down
        rather than stopping. */
-    .lp-card-drawer-overlay__loading svg {
+    .lp-drawer__loading svg {
         animation-duration: 3s;
     }
 }
