@@ -80,12 +80,17 @@ test('the backlog filter field and the board Find field have 16px text, and a Ba
 
     await page.goto(`/projects/${projectId}/board/backlog`);
     expect(await fontSizeOf(page, '.lp-list-filters .lp-input')).toBe('16px');
-    const check = await page.locator('.lp-backlog-check').first().boundingBox();
+    const check = await page
+        .locator('.lp-backlog-check.lp-touch-check')
+        .first()
+        .boundingBox();
     expect(check?.height).toBeGreaterThanOrEqual(24);
     expect(check?.width).toBeGreaterThanOrEqual(24);
 
     await page.goto(`/projects/${projectId}/board`);
-    expect(await fontSizeOf(page, '.lp-board-toolbar__input')).toBe('16px');
+    expect(
+        await fontSizeOf(page, '.lp-board-toolbar__input.lp-touch-text'),
+    ).toBe('16px');
 });
 
 test('a utility beats the touch rule on display', async ({ page }) => {

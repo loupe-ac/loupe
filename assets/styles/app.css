@@ -7823,7 +7823,9 @@
         .lp-auth__remember {
             @apply min-h-6 min-w-6;
         }
-        .lp-backlog-check {
+        /* `lp-touch-check` and `lp-touch-text` are hooks for a raw check box or field
+           that no component draws. */
+        .lp-touch-check {
             @apply size-6;
         }
 
@@ -7841,7 +7843,7 @@
         .lp-input--compact,
         .lp-select--compact,
         .lp-list-filters .lp-input,
-        .lp-board-toolbar__input {
+        .lp-touch-text {
             @apply text-base;
         }
 
