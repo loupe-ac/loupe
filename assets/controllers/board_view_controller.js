@@ -55,7 +55,11 @@ export default class extends Controller {
         } else if (!this.listTarget.hasAttribute('src')) {
             this.listTarget.setAttribute('src', this.listUrlValue);
         }
-        this.boardButtonTarget.setAttribute('aria-pressed', String(board));
-        this.listButtonTarget.setAttribute('aria-pressed', String(!board));
+        for (const button of this.boardButtonTargets) {
+            button.setAttribute('aria-pressed', String(board));
+        }
+        for (const button of this.listButtonTargets) {
+            button.setAttribute('aria-pressed', String(!board));
+        }
     }
 }

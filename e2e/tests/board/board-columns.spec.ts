@@ -194,9 +194,13 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                 )
                 .toBeLessThanOrEqual(1);
             const inMenu = await openToolbarActions(page);
-            for (const link of await page
-                .locator('.lp-board-toolbar__actions a')
-                .all()) {
+            const links = page.locator(
+                inMenu
+                    ? '.lp-board-toolbar__menu a'
+                    : '.lp-board-toolbar__actions a',
+            );
+            await expect(links).toHaveCount(1);
+            for (const link of await links.all()) {
                 await expect(link).toBeInViewport({ ratio: 1 });
                 expect(
                     await link.evaluate((element) => {

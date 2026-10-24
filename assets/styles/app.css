@@ -2545,20 +2545,11 @@
         @apply min-h-8;
     }
 
-    /* The tabs and the "…" button exist on a phone only. From 640px the menu
-       panel is the row of actions the toolbar always had. */
+    /* The tabs and the "…" menu exist on a phone only, where the menu takes
+       the place of the row of actions. */
     .lp-board-tabs,
-    .lp-board-toolbar__actions .lp-board-toolbar__more {
+    .lp-board-toolbar__menu {
         @apply hidden;
-    }
-    @media (width >= 40rem) {
-        .lp-board-toolbar__actions > .lp-menu__panel {
-            @apply static mt-0 min-w-0 flex-row items-center gap-2 border-0 bg-transparent p-0 shadow-none;
-            animation: none;
-        }
-        .lp-board-toolbar__actions > .lp-menu__panel[hidden] {
-            @apply flex;
-        }
     }
 
     /* A phone shows one column per screen and a swipe stops on a column. The
@@ -2580,10 +2571,10 @@
             @apply order-3;
         }
         .lp-board-toolbar__actions {
-            @apply order-4 ml-0;
+            @apply hidden;
         }
-        .lp-board-toolbar__actions .lp-board-toolbar__more {
-            @apply inline-flex;
+        .lp-board-toolbar__menu {
+            @apply order-4 block;
         }
         .lp-board-toolbar__search {
             @apply w-full;

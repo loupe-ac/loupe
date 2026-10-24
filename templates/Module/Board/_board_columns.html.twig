@@ -28,8 +28,11 @@
               data-one="{{ 'board.card.count'|trans({'%count%': 1}) }}"
               data-many="{{ 'board.card.count'|trans({'%count%': 2})|replace({'2': '%count%'}) }}">{{ 'board.card.count'|trans({'%count%': cardCount}) }}</span>
         <p class="lp-board-toolbar__paused" role="status" data-board-live-target="paused" data-message="{{ 'board.live.paused'|trans }}" data-failed-message="{{ 'board.live.catch_up_failed'|trans }}"></p>
-        {# From 640px the panel is the row of actions it always was. Below it, the "…" button opens the panel as a menu. #}
-        <twig:Ds:Menu id="board-toolbar-menu-{{ board.project.id }}" class="lp-board-toolbar__actions">
+        <div class="lp-board-toolbar__actions">
+            {% include '@Board/_board_toolbar_actions.html.twig' with {projectId: board.project.id ~ '', inMenu: false} only %}
+        </div>
+        {# A phone shows the same actions in this "…" menu instead of the row above. #}
+        <twig:Ds:Menu id="board-toolbar-menu-{{ board.project.id }}" class="lp-board-toolbar__menu">
             <twig:block name="trigger">
                 <twig:Ds:Button variant="ghost icon"
                         class="lp-board-toolbar__more"
@@ -43,30 +46,7 @@
                 </twig:Ds:Button>
             </twig:block>
             <twig:block name="content">
-                <twig:Ds:Button variant="ghost icon"
-                   href="{{ path('app_board_settings', {id: board.project.id}) }}"
-                   aria-label="{{ 'board.settings.action'|trans }}"
-                   title="{{ 'board.settings.action'|trans }}">
-                    <twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" />
-                </twig:Ds:Button>
-                <div class="lp-board-toolbar__mode" aria-label="{{ 'board.view.label'|trans }}">
-                    <button type="button"
-                            class="lp-board-toolbar__mode-button"
-                            aria-pressed="true"
-                            data-board-view-target="boardButton"
-                            data-action="board-view#showBoard popover#close">
-                        <twig:ux:icon name="lucide:square-kanban" class="lp-icon lp-icon--md" />
-                        {{ 'board.view.board'|trans }}
-                    </button>
-                    <button type="button"
-                            class="lp-board-toolbar__mode-button"
-                            aria-pressed="false"
-                            data-board-view-target="listButton"
-                            data-action="board-view#showList popover#close">
-                        <twig:ux:icon name="lucide:list" class="lp-icon lp-icon--md" />
-                        {{ 'board.view.list'|trans }}
-                    </button>
-                </div>
+                {% include '@Board/_board_toolbar_actions.html.twig' with {projectId: board.project.id ~ '', inMenu: true} only %}
             </twig:block>
         </twig:Ds:Menu>
     </div>
