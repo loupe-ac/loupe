@@ -7,9 +7,11 @@ namespace App\Tests\Module\Workflow\Messenger;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Mcp\CardRunCloseTool;
 use App\Module\Board\Mcp\CardRunOpenTool;
+use App\Module\Board\Mcp\CardUpdateTool;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Review\Mcp\DocumentCreateTool;
 use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -50,6 +52,21 @@ final class ProductDesignSessionMoveTest extends KernelTestCase
         $this->evaluate($card, '2026-10-02 12:05:00');
 
         self::assertCount(1, $this->sessionRequests($card));
+    }
+
+    public function test_a_draft_linked_before_the_session_closes_gets_no_session(): void
+    {
+        $card = $this->lifecycleCard('session-move-draft');
+        $sessionId = (string) Uuid::v7();
+        $this->service(CardRunOpenTool::class)($sessionId, self::SKILL, (string) $card->id, status: 'product-design');
+        $this->evaluate($card, '2026-10-02 12:00:00');
+
+        $draft = $this->service(DocumentCreateTool::class)('Product design: session move', '# Product design', tags: ['product-design'], draft: true);
+        $this->service(CardUpdateTool::class)((string) $card->id, documentIds: [$draft['documentId']]);
+        $this->service(CardRunCloseTool::class)($sessionId, (string) $card->id);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame([], $this->sessionRequests($card));
     }
 
     private function lifecycleCard(string $name): Card
