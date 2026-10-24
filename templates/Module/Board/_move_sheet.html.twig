@@ -1,0 +1,40 @@
+{# The Move sheet of the board, one for the page. It sits outside #board, so no board stream replaces it while it is open.
+   The card-move controller of the page fills the title and the rows when a card face opens it.
+   Props: board (BoardView). #}
+<div data-card-move-target="sheet"
+     data-controller="sheet"
+     data-title-format="{{ 'board.move.title'|trans({'%number%': '%number%'}) }}"
+     data-done-format="{{ 'board.move.done'|trans({'%number%': '%number%', '%column%': '%column%'}) }}"
+     data-backlog-id="{{ board.backlog.id }}"
+     data-backlog-label="{{ 'board.backlog.button'|trans }}">
+    <twig:Ds:Sheet :title="'board.move.title'|trans({'%number%': '%number%'})">
+        <div data-sheet-view="columns">
+            <div class="lp-move-sheet__rows" data-card-move-target="rows"></div>
+        </div>
+        <div data-sheet-view="managed">
+            <p class="lp-dialog-desc" data-card-move-target="question"></p>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button type="button" data-action="card-move#keep">{{ 'board.move.keep'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" type="button" data-action="card-move#unmanage">{{ 'board.move.unmanage'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        </div>
+        <p class="lp-move-sheet__error" role="alert" data-card-move-target="error" hidden>{{ 'board.move.failed'|trans }}</p>
+    </twig:Ds:Sheet>
+    <template data-card-move-target="row">
+        <button type="button" class="lp-move-sheet__row" data-action="card-move#choose">
+            <span class="lp-move-sheet__label"></span>
+            <span class="lp-move-sheet__current">{{ 'board.move.current'|trans }}</span>
+            <twig:ux:icon name="lucide:check" class="lp-icon lp-icon--md lp-move-sheet__check" aria-hidden="true" />
+        </button>
+    </template>
+</div>
+{# The message of a finished move shows here, so it stays in view while the board scrolls. #}
+<div class="lp-move-flashes" data-card-move-target="flashes"></div>
+<template data-card-move-target="done">
+    <twig:Ds:Flash severity="success" :dismissLabel="'flash.dismiss'|trans">
+        <span data-card-move-message></span>
+        <twig:block name="actions">
+            <twig:Ds:Button type="button" size="sm" data-action="card-move#show" data-card-move-show>{{ 'board.move.show'|trans }}</twig:Ds:Button>
+        </twig:block>
+    </twig:Ds:Flash>
+</template>

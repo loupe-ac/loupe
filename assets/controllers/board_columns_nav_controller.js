@@ -39,10 +39,13 @@ export default class extends Controller {
     }
 
     select(event) {
+        this.reveal(event.currentTarget.dataset.columnId);
+    }
+
+    /** Scrolls the board to the column with this id, and does nothing for an id it has no column for. */
+    reveal(columnId) {
         const index = this.#columns().findIndex(
-            (column) =>
-                column.dataset.columnId ===
-                event.currentTarget.dataset.columnId,
+            (column) => column.dataset.columnId === columnId,
         );
         if (index >= 0) {
             this.#goTo(index);

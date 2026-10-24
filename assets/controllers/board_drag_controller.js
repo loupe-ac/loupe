@@ -2,6 +2,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { PHONE_QUERY } from '../lib/breakpoints.js';
 import { emit } from '../lib/live.js';
+import { moveCard, whenPlaced } from '../lib/card_move.js';
 
 /**
  * Drag and drop for the board.
@@ -29,10 +30,6 @@ const DRAG_THRESHOLD = 5;
 /** How close to a column's edge the pointer scrolls its cards, and how fast. */
 const EDGE_BAND = 56;
 const EDGE_STEP = 14;
-
-const STREAM_TYPE = 'text/vnd.turbo-stream.html';
-const MANAGED_OFFER_HEADER = 'X-Card-Managed-Offer';
-const REFUSAL_HEADER = 'X-Card-Move-Refusal';
 
 /** A group that takes a card and shows none, such as the Backlog button. */
 const isBucket = (group) => group?.dataset.boardBucket !== undefined;
@@ -161,6 +158,10 @@ export default class extends Controller {
         }
         // A press in an interactive tooltip selects its text or follows its link.
         if (event.target.closest('.lp-tooltip--interactive') !== null) {
+            return;
+        }
+        // The Move button opens the Move sheet, so a press on it drags nothing.
+        if (event.target.closest('.lp-board-card__move') !== null) {
             return;
         }
 
@@ -512,142 +513,56 @@ export default class extends Controller {
     }
 
     /**
-     * Names the board's one hidden move form after the card, fills it and
-     * submits it, which lets Turbo carry the request and the eager CSRF
-     * controller stamp the token. A hand-rolled fetch would have to
-     * re-implement both.
+     * Moves the card through the shared move helper, which names, fills and
+     * submits the board's hidden move form.
      *
-     * The card has already moved in the page. Any answer but a 2xx stream is
-     * kept from rendering, so no error page replaces the board, and the card
-     * goes back. A success is a board-place stream for this card, which
-     * renders after `turbo:submit-end`, so the next drag waits for it.
-     * A refusal that asks to make the card unmanaged keeps the card where it
-     * landed while the person answers, and a yes sends the move once more.
+     * The card has already moved in the page. A refusal puts it back. A success
+     * is a board-place stream for this card, which renders after
+     * `turbo:submit-end`, so the next drag waits for it. A refusal that asks to
+     * make the card unmanaged keeps the card where it landed while the person
+     * answers.
      */
     submitMove(card, group, position, origin, lanePayload) {
         if (!this.hasMoveFormTarget) {
             return;
         }
         const form = this.moveFormTarget;
-        this.nameMoveForm(form, card.dataset.cardId);
-
-        const column = form.querySelector('select[name$="[column]"]');
-        const rank = form.querySelector('input[name$="[position]"]');
-        if (column === null || rank === null) {
-            return;
-        }
-
-        const rankable = '1' === group.dataset.rankable;
-
-        // A column added live is missing from a select rendered before it.
-        // The server still checks the column against the project.
-        const columnId = group.dataset.column;
-        if (![...column.options].some((option) => option.value === columnId)) {
-            const label =
-                group
-                    .closest('.lp-board__column')
-                    ?.getAttribute('aria-label') ?? columnId;
-            column.add(new Option(label, columnId));
-        }
-        column.value = columnId;
         // A terminal column keeps no rank, so it takes none. Every other column
         // lands the card where the marker stood.
-        rank.value =
-            lanePayload === null && rankable && position >= 0
+        const rank =
+            lanePayload === null &&
+            '1' === group.dataset.rankable &&
+            position >= 0
                 ? String(position)
                 : '';
-        // Written on every drop, so a refused drop leaves no stale value behind.
-        for (const name of ['parent', 'beforeCardId', 'afterCardId']) {
-            const field = form.querySelector(`input[name$="[${name}]"]`);
-            if (field !== null) {
-                field.value = lanePayload?.[name] ?? '';
-            }
-        }
-        const unmanage = form.querySelector('input[name$="[unmanage]"]');
-        if (unmanage !== null) {
-            unmanage.checked = false;
-        }
 
-        let refused = false;
-        let offer = null;
-        let refusal = null;
-        const answered = (event) => {
-            const response = event.detail.fetchResponse;
-            if (
-                !response.succeeded ||
-                !(response.contentType ?? '').startsWith(STREAM_TYPE)
-            ) {
-                refused = true;
-                offer = response.header?.(MANAGED_OFFER_HEADER) ?? null;
-                refusal = response.header?.(REFUSAL_HEADER) ?? null;
-                event.preventDefault();
-            }
-        };
-        const finished = (event) => {
-            form.removeEventListener('turbo:before-fetch-response', answered);
-            form.removeEventListener('turbo:submit-end', finished);
-            if (event.detail.success && !refused) {
+        this.pendingForm = form;
+        card.setAttribute('aria-busy', 'true');
+        moveCard(form, {
+            cardId: card.dataset.cardId,
+            columnId: group.dataset.column,
+            columnLabel: group
+                .closest('.lp-board__column')
+                ?.getAttribute('aria-label'),
+            position: rank,
+            parent: lanePayload?.parent,
+            beforeCardId: lanePayload?.beforeCardId,
+            afterCardId: lanePayload?.afterCardId,
+            ask: (question) => Promise.resolve(window.confirm(question)),
+        }).then((result) => {
+            if ('ok' === result.status) {
                 this.awaitPlacement(card);
                 this.redrawLaneHeads(group, origin.group);
 
                 return;
             }
-            if (offer !== null && unmanage !== null && !unmanage.checked) {
-                // After Turbo ends this submission, which it does once this event returns.
-                const question = offer;
-                const answer = refusal;
-                setTimeout(() => {
-                    if (window.confirm(question)) {
-                        unmanage.checked = true;
-                        send();
-
-                        return;
-                    }
-                    this.release(card);
-                    this.restore(card, origin, answer);
-                });
-
-                return;
-            }
             this.release(card);
-            this.restore(card, origin);
-        };
-        const send = () => {
-            refused = false;
-            offer = null;
-            refusal = null;
-            form.addEventListener('turbo:before-fetch-response', answered);
-            form.addEventListener('turbo:submit-end', finished);
-            form.requestSubmit();
-        };
-
-        this.pendingForm = form;
-        card.setAttribute('aria-busy', 'true');
-        send();
-    }
-
-    /**
-     * The form renders under a placeholder card id, in its action, its field
-     * names and its field ids. Each drop swaps the last id for this card's.
-     */
-    nameMoveForm(form, cardId) {
-        const previous = form.dataset.moveCardId;
-        const swap = (value, before, after) =>
-            value.replace(
-                `${before}${previous}${after}`,
-                `${before}${cardId}${after}`,
+            this.restore(
+                card,
+                origin,
+                'cancelled' === result.status ? result.message : null,
             );
-        form.setAttribute(
-            'action',
-            swap(form.getAttribute('action'), '/', '/'),
-        );
-        for (const field of form.elements) {
-            field.name = swap(field.name, '_', '[');
-            if (field.id !== '') {
-                field.id = swap(field.id, '_', '_');
-            }
-        }
-        form.dataset.moveCardId = cardId;
+        });
     }
 
     /**
@@ -672,20 +587,11 @@ export default class extends Controller {
      */
     awaitPlacement(card) {
         // A deck card has an id of its own, so the id of the card comes from its data.
-        const cardId = card.dataset.cardId;
+        const stop = whenPlaced(card.dataset.cardId, () => this.release(card));
         this.stopAwaitingPlacement = () => {
-            document.removeEventListener('board:placed', placed);
-            document.removeEventListener('board:place-missed', placed);
+            stop();
             this.stopAwaitingPlacement = null;
         };
-        const placed = (event) => {
-            if (event.detail?.cardId !== cardId) {
-                return;
-            }
-            this.release(card);
-        };
-        document.addEventListener('board:placed', placed);
-        document.addEventListener('board:place-missed', placed);
     }
 
     release(card) {

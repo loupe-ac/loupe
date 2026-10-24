@@ -91,7 +91,7 @@ function titles(column) {
     ).map((element) => element.id.replace('board-card-', ''));
 }
 
-it('keeps a refused answer from rendering, and puts the card back', () => {
+it('keeps a refused answer from rendering, and puts the card back', async () => {
     const form = drop();
 
     expect(
@@ -101,6 +101,7 @@ it('keeps a refused answer from rendering, and puts the card back', () => {
         }),
     ).toBe(true);
     finish(form, false);
+    await settle();
 
     expect(titles('backlog')).toEqual(['a', 'b']);
     expect(titles('next')).toEqual([]);
@@ -116,7 +117,7 @@ it('cancels the default handling of a refused stream too', () => {
     expect(respond(form, { succeeded: false, contentType: STREAM })).toBe(true);
 });
 
-it('keeps a success that is not a stream from rendering, and puts the card back', () => {
+it('keeps a success that is not a stream from rendering, and puts the card back', async () => {
     const form = drop();
 
     expect(
@@ -127,16 +128,18 @@ it('keeps a success that is not a stream from rendering, and puts the card back'
     ).toBe(true);
     // Turbo reports a prevented answer with the status alone, so a 200 says success.
     finish(form, true);
+    await settle();
 
     expect(titles('backlog')).toEqual(['a', 'b']);
 });
 
-it('lets a successful stream render, and refuses a new drag until the card is placed', () => {
+it('lets a successful stream render, and refuses a new drag until the card is placed', async () => {
     const form = drop();
     const moved = document.getElementById('board-card-a');
 
     expect(respond(form, { succeeded: true, contentType: STREAM })).toBe(false);
     finish(form, true);
+    await settle();
 
     expect(titles('next')).toEqual(['a']);
     expect(controller.pendingForm).not.toBeNull();
@@ -189,7 +192,7 @@ it('adds no option for a column the select already has', () => {
     expect(form.querySelector('select').value).toBe('next');
 });
 
-it('names the one move form after each card it submits', () => {
+it('names the one move form after each card it submits', async () => {
     const form = drop();
     const fields = () =>
         [...form.elements].map((field) => [field.name, field.id]);
@@ -202,6 +205,7 @@ it('names the one move form after each card it submits', () => {
     ]);
 
     finish(form, false);
+    await settle();
     const second = document.getElementById('board-card-b');
     const next = document.getElementById('board-group-next');
     next.append(second);
@@ -219,11 +223,12 @@ it('names the one move form after each card it submits', () => {
     expect(form.requestSubmit).toHaveBeenCalledTimes(2);
 });
 
-it('releases the drag when the page cannot place the card', () => {
+it('releases the drag when the page cannot place the card', async () => {
     const form = drop();
 
     respond(form, { succeeded: true, contentType: STREAM });
     finish(form, true);
+    await settle();
     document.dispatchEvent(
         new CustomEvent('board:place-missed', { detail: { cardId: 'a' } }),
     );
@@ -247,6 +252,21 @@ it('starts no drag from a press inside an interactive tooltip', () => {
     expect(controller.pressedCard).toBeNull();
 });
 
+it('starts no drag from a press on the Move button', () => {
+    const moved = document.getElementById('board-card-a');
+    moved.innerHTML = '<button id="move" class="lp-board-card__move"></button>';
+    controller.press({
+        pointerId: 1,
+        pointerType: 'mouse',
+        button: 0,
+        target: document.getElementById('move'),
+        clientX: 250,
+        clientY: 100,
+    });
+
+    expect(controller.pressedCard).toBeNull();
+});
+
 describe('the lane heads a drop changes', () => {
     /** The epics this page asks to redraw, in the order it asks. */
     function watchLanes() {
@@ -256,7 +276,7 @@ describe('the lane heads a drop changes', () => {
         return epics;
     }
 
-    it('asks the lane the card left and the lane it joined to redraw', () => {
+    it('asks the lane the card left and the lane it joined to redraw', async () => {
         document.getElementById('board-group-backlog').dataset.lane = 'epic-a';
         document.getElementById('board-group-next').dataset.lane = 'epic-b';
         const epics = watchLanes();
@@ -264,28 +284,31 @@ describe('the lane heads a drop changes', () => {
         const form = drop();
         respond(form, { succeeded: true, contentType: STREAM });
         finish(form, true);
+        await settle();
 
         expect(epics).toEqual(['epic-b', 'epic-a']);
     });
 
-    it('asks nothing of "Other cards" or of a board with no lanes', () => {
+    it('asks nothing of "Other cards" or of a board with no lanes', async () => {
         document.getElementById('board-group-backlog').dataset.lane = 'other';
         const epics = watchLanes();
 
         const form = drop();
         respond(form, { succeeded: true, contentType: STREAM });
         finish(form, true);
+        await settle();
 
         expect(epics).toEqual([]);
     });
 
-    it('asks nothing when the move is refused', () => {
+    it('asks nothing when the move is refused', async () => {
         document.getElementById('board-group-next').dataset.lane = 'epic-b';
         const epics = watchLanes();
 
         const form = drop();
         respond(form, { succeeded: false, contentType: 'text/html' });
         finish(form, false);
+        await settle();
 
         expect(epics).toEqual([]);
     });
@@ -357,7 +380,7 @@ describe('a drop on the bucket', () => {
         expect(controller.groupUnder(50, 50)?.id).toBe('board-group-backlog');
     });
 
-    it('sends the card to the end of the column it names, and hides it until the answer', () => {
+    it('sends the card to the end of the column it names, and hides it until the answer', async () => {
         const moved = dragTo(50, 20);
         const form = moveForm();
         form.requestSubmit = vi.fn();
@@ -389,6 +412,7 @@ describe('a drop on the bucket', () => {
             contentType: 'text/html; charset=UTF-8',
         });
         finish(form, false);
+        await settle();
 
         expect(moved.classList.contains('lp-board-card--sent')).toBe(false);
         expect(titles('backlog')).toEqual(['a', 'b']);
@@ -532,7 +556,7 @@ describe('a card of an Up next deck', () => {
         expect(document.querySelector('.lp-board__placeholder')).toBeNull();
     });
 
-    it('waits for the placement of the card it names, whatever its element id', () => {
+    it('waits for the placement of the card it names, whatever its element id', async () => {
         document.getElementById('board-group-next').getBoundingClientRect =
             () => ({ left: 400, top: 60, right: 500, bottom: 400 });
         const moved = dragDeckCard(450, 100);
@@ -542,6 +566,7 @@ describe('a card of an Up next deck', () => {
         expect(form.querySelector('select').value).toBe('next');
         respond(form, { succeeded: true, contentType: STREAM });
         finish(form, true);
+        await settle();
         expect(controller.pendingForm).not.toBeNull();
 
         document.dispatchEvent(
@@ -693,6 +718,7 @@ describe('a drop refused because the card is managed', () => {
             false,
         );
         finish(form, true);
+        await settle();
         expect(titles('next')).toEqual(['a']);
     });
 

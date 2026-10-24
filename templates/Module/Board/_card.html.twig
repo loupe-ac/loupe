@@ -1,4 +1,4 @@
-{# One card face. The whole card is the drag handle.
+{# One card face. The whole card is the drag handle, and the Move button opens the Move sheet.
    Props: card (Card), pendingComments (int), documentCount (int), static (bool, optional): a card shown outside the board,
    which does not drag, skips the prefetch and names its column. progress (CardProgress, optional) shows on an epic.
    inLane (bool, optional) hides the parent tag its lane gives. markers (?StoredCardMarkers, optional) draws the one state mark.
@@ -37,6 +37,14 @@
         {% endif %}
         {% if markers is not null %}
         {% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, link: true} only %}
+        {% endif %}
+        {% if not static %}
+        <twig:Ds:Button variant="ghost icon"
+                class="lp-board-card__move"
+                aria-label="{{ 'board.card.move.label'|trans({'%number%': card.number}) }}"
+                data-action="click->card-move#open"
+                data-card-move-id-param="{{ card.id }}"
+                data-card-move-number-param="{{ card.number }}"><twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" /></twig:Ds:Button>
         {% endif %}
     </div>
     {# draggable="false" stops the browser's own link drag taking the gesture. #}

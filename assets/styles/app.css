@@ -6829,6 +6829,47 @@
     .lp-board-card__documents {
         @apply inline-flex items-center gap-1 text-xs font-semibold text-fg-mute;
     }
+    /* The Move button: 44 px at every width, at the right of the identity row. Its margin
+       lets it reach past the card padding, so the row keeps its height. */
+    .lp-board-card__move {
+        @apply -mt-2 -mr-2 -mb-1 ml-auto size-11 shrink-0 cursor-pointer text-fg-dim;
+    }
+
+    /* The Move sheet: one 48 px row for the Backlog and for each column. */
+    .lp-move-sheet__row {
+        @apply flex min-h-12 w-full cursor-pointer items-center gap-2.5 border-0 border-b border-line bg-transparent px-1 text-left font-sans text-base font-medium text-ink transition-colors;
+    }
+    .lp-move-sheet__row:last-child {
+        @apply border-b-0;
+    }
+    .lp-move-sheet__row:active:not(:disabled) {
+        @apply bg-sunken;
+    }
+    .lp-move-sheet__row:disabled {
+        @apply cursor-default opacity-60;
+    }
+    .lp-move-sheet__label {
+        @apply min-w-0 flex-1 truncate;
+    }
+    .lp-move-sheet__row[aria-current='true'] {
+        @apply font-bold;
+    }
+    .lp-move-sheet__current {
+        @apply text-xs font-semibold text-fg-mute;
+    }
+    .lp-move-sheet__check {
+        @apply shrink-0 text-accent-ink;
+    }
+    .lp-move-sheet__error {
+        @apply mt-3 mb-0 text-sm font-semibold text-danger;
+    }
+    /* The message of a finished move floats above the board, and the flash inside is its own panel. */
+    .lp-move-flashes {
+        @apply pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4;
+    }
+    .lp-move-flashes .lp-flash {
+        @apply pointer-events-auto m-0 w-full max-w-md border border-line bg-surface-1 shadow-lg;
+    }
 
     /* The move controls, on the card's own page. The board carries one hidden
        copy of the form, because dragging is its one interaction. */
