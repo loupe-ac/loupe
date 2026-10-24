@@ -1930,6 +1930,53 @@
 .lp-review .lp-diff-nav .lp-btn--icon {
     @apply size-8 min-h-8 rounded-lg border-transparent bg-transparent text-fg-label hover:bg-surface-3;
 }
+.lp-review .lp-diff-bar__line,
+.lp-review .lp-diff-nav__position {
+    @apply hidden;
+}
+/* Below lg the bar is one line: the versions and the change count, the
+   position, and the two jumps. A tap on the line opens the rest under it. */
+@media (width < 64rem) {
+    .lp-review .lp-diff-bar {
+        @apply gap-x-1 gap-y-1 py-1 pr-1.5 pl-3;
+    }
+    .lp-review .lp-diff-bar__line {
+        @apply flex min-h-tap min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-transparent p-0 text-left text-sm font-semibold whitespace-nowrap text-ink;
+    }
+    .lp-diff-bar__line svg {
+        @apply size-4;
+    }
+    .lp-diff-bar__versions {
+        @apply inline-flex items-center gap-1;
+    }
+    .lp-diff-bar__changes {
+        @apply truncate font-normal text-fg-label;
+    }
+    .lp-diff-bar__chevron {
+        @apply shrink-0 text-fg-dim transition-transform;
+    }
+    .lp-diff-bar[data-open] .lp-diff-bar__chevron {
+        @apply rotate-180;
+    }
+    .lp-review .lp-diff-nav {
+        @apply flex-none;
+    }
+    .lp-review .lp-diff-nav__count {
+        @apply sr-only;
+    }
+    .lp-review .lp-diff-nav__position {
+        @apply m-0 block font-sans text-sm text-fg-label tabular-nums;
+    }
+    .lp-review .lp-diff-nav .lp-btn--icon {
+        @apply size-tap min-h-tap;
+    }
+    .lp-review .lp-diff-bar__main {
+        @apply hidden;
+    }
+    .lp-review .lp-diff-bar[data-open] .lp-diff-bar__main {
+        @apply order-last flex basis-full flex-wrap items-center gap-2 border-t border-line-faint pt-2 pb-1;
+    }
+}
 /* The newer version's note hangs under the compare bar as its last row. */
 .lp-review .lp-diff-bar:has(+ .lp-diff-notes) {
     @apply rounded-b-none;

@@ -302,6 +302,12 @@ side**, with a check on the current one. A change of version compares the new pa
 counter reads "2 of 42 changes" after a jump. `j` and `k` move between changes
 as well. **Document** goes back to the current version.
 
+Below 1024 pixels, the compare bar is one line that stays in view. It shows the
+two versions and the change count, such as "v1 → v3 · 3 changes", then the
+position of the current change, such as 1/3, and the two jump buttons. Select
+the line to open **Document**, the version pickers and the **Diff view**
+settings button under it. Press Escape to close them again.
+
 The Outline panel opens while you compare, and shows how many changes each
 section holds. A change before the first heading counts under no section. The
 **Markdown** view shows no counts. When you leave the comparison, the panels

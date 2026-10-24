@@ -1,4 +1,6 @@
-{# The change count and the two jumps through the comparison.
+{# The change count and the two jumps through the comparison. Below lg the
+   count gives way to the position, such as 1/3, because the line above it
+   already names the count.
    Params: changeCount. #}
 <div class="lp-diff-nav">
     <p class="lp-diff-nav__count" aria-live="polite" data-diff-navigation-target="counter">{{ 'review.document.diff.nav.count'|trans({'%count%': changeCount}) }}</p>
@@ -7,6 +9,7 @@
             title="{{ 'review.document.diff.nav.previous'|trans }}">
         <twig:ux:icon name="lucide:chevron-up" class="lp-icon lp-icon--md" />
     </twig:Ds:Button>
+    <p class="lp-diff-nav__position" aria-hidden="true" data-diff-navigation-target="position">{{ 'review.document.diff.line.position'|trans({'%current%': 0, '%total%': changeCount}) }}</p>
     <twig:Ds:Button variant="icon" type="button" data-diff-navigation-target="nextButton" data-action="diff-navigation#next" :disabled="changeCount == 0"
             aria-label="{{ 'review.document.diff.nav.next'|trans }}"
             title="{{ 'review.document.diff.nav.next'|trans }}">

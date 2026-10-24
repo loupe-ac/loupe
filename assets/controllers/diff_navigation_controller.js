@@ -19,8 +19,14 @@ import { smoothScrollTo } from '../lib/smooth_scroll.js';
  *     <del data-diff-navigation-target="hunk" tabindex="-1"> … </del>
  */
 export default class extends Controller {
-    static targets = ['hunk', 'counter', 'previousButton', 'nextButton'];
-    static values = { position: String };
+    static targets = [
+        'hunk',
+        'counter',
+        'position',
+        'previousButton',
+        'nextButton',
+    ];
+    static values = { position: String, total: Number };
 
     /** How long a key press keeps its button lit, in milliseconds. */
     static PRESS_FLASH_MS = 160;
@@ -142,6 +148,10 @@ export default class extends Controller {
                 '%current%',
                 String(this.currentIndex + 1),
             );
+        }
+
+        if (this.hasPositionTarget) {
+            this.positionTarget.textContent = `${this.currentIndex + 1}/${this.totalValue}`;
         }
     }
 
