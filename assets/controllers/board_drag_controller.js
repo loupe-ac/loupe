@@ -1,5 +1,6 @@
 /* stimulusFetch: 'eager' */
 import { Controller } from '@hotwired/stimulus';
+import { PHONE_QUERY } from '../lib/breakpoints.js';
 import { emit } from '../lib/live.js';
 
 /**
@@ -149,6 +150,13 @@ export default class extends Controller {
             return;
         }
         if (event.pointerType === 'mouse' && 0 !== event.button) {
+            return;
+        }
+        // A touch on a phone swipes the board, one column at a time.
+        if (
+            event.pointerType === 'touch' &&
+            window.matchMedia(PHONE_QUERY).matches
+        ) {
             return;
         }
         // A press in an interactive tooltip selects its text or follows its link.

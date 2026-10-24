@@ -362,6 +362,7 @@ export const KEPT_CSS_WORDS = new Set([
     'lp-arrived',
     'lp-board-card-changed',
     'lp-dialog-backdrop-in',
+    'mandatory',
     'max-content',
     'max-width',
     'menlo',
@@ -437,6 +438,7 @@ export const KEPT_CSS_WORDS = new Set([
     'wait',
     'wavy',
     'wrap',
+    'x',
     'zoom-in',
     'zoom-out',
 ]);
