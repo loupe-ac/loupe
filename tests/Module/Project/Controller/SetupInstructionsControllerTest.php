@@ -24,7 +24,9 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertStringContainsString('curl -fsSL http://localhost/install.sh | LOUPE_INSTALL_NO_TTY=1 sh', $body);
         self::assertStringContainsString('<project id>', $body);
         // Shell redirections in the steps prove the text is not HTML-escaped.
-        self::assertStringContainsString('> /tmp/loupe-init.log 2>&1 < /dev/null &', $body);
+        self::assertStringContainsString('log=$(mktemp "${TMPDIR:-/tmp}/loupe-init.XXXXXX")', $body);
+        self::assertStringContainsString('> "$log" 2>&1 < /dev/null &', $body);
+        self::assertStringNotContainsString('/tmp/loupe-init.log', $body);
         self::assertStringNotContainsString('&gt;', $body);
         self::assertStringNotContainsString('&amp;', $body);
         self::assertStringNotContainsString('&lt;', $body);
@@ -63,6 +65,20 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertStringNotContainsString('codex mcp add', $body);
         self::assertStringNotContainsString('Claude Code only', $body);
         self::assertStringNotContainsString('Codex only', $body);
+    }
+
+    public function test_the_instance_check_reads_sources_that_name_an_instance(): void
+    {
+        $client = static::createClient();
+        $client->request(Request::METHOD_GET, '/setup.md');
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('Its `Instance:` line names the instance of the CLI login.', $body);
+        self::assertStringContainsString('`claude mcp get loupe`', $body);
+        self::assertStringContainsString('an instance other than http://localhost', $body);
+        self::assertStringNotContainsString('If either names another instance', $body);
     }
 
     public function test_a_valid_project_id_fills_the_commands(): void

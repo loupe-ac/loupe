@@ -166,6 +166,28 @@ final class SiteHostRolesTest extends WebTestCase
         self::assertResponseHeaderSame('Location', 'https://'.self::SITE.$path);
     }
 
+    public function test_the_site_host_redirects_the_setup_instructions_to_the_app_host(): void
+    {
+        $client = $this->split();
+
+        $this->get($client, self::SITE, '/setup.md?project=01a007cc-5419-7085-a0a2-23a0875be12c');
+
+        self::assertResponseStatusCodeSame(301);
+        $location = (string) $client->getResponse()->headers->get('Location');
+        self::assertStringNotContainsString(self::SITE, $location);
+        self::assertStringEndsWith('/setup.md?project=01a007cc-5419-7085-a0a2-23a0875be12c', $location);
+    }
+
+    public function test_the_app_host_serves_the_setup_instructions(): void
+    {
+        $client = $this->split();
+
+        $this->get($client, 'localhost', '/setup.md');
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'text/markdown; charset=utf-8');
+    }
+
     public function test_the_sitemap_names_the_site_origin(): void
     {
         $client = $this->split();

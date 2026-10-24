@@ -259,11 +259,7 @@ func finishSignIn(ctx context.Context) (bool, error) {
 func newReviewProjectsCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "projects", Short: "List the projects of the login", Hidden: true}
 	cmd.RunE = reviewRun(func(cmd *cobra.Command) error {
-		cfg, err := config.Load()
-		if err != nil {
-			return err
-		}
-		sites, err := apiClient(cfg).Sites(cmd.Context())
+		sites, err := loginSites(cmd.Context())
 		if err != nil {
 			return err
 		}

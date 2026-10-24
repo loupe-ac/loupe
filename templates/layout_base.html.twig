@@ -10,6 +10,7 @@
         <meta name="description" content="{{ pageDescription }}">
         {% include '_open_graph.html.twig' with {title: block('title')|trim, description: pageDescription} only %}
         {% endif %}
+        {% block head_links %}{% endblock %}
         {# A plain <link>, not an `import` in app.js: AssetMapper turns a CSS
            import into a `data:application/javascript,` entry in the import map,
            which an enforcing script-src blocks outright. #}

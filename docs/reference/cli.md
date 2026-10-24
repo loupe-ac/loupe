@@ -1,6 +1,6 @@
 ---
 title: "CLI commands"
-description: "The commands of the loupe binary that set up a repository and run the bridge: setups, init, project link, bridge run and stop, status, credential and agent-account."
+description: "The commands of the loupe binary that set up a repository and run the bridge: setups, init, project link, project list, bridge run and stop, status, credential and agent-account."
 ---
 
 The `loupe` binary runs on your machine. [Installing the CLI](../getting-started/cli.md)
@@ -166,6 +166,25 @@ old `loupe init`.
 | `--mcp` | Declare `loupe mcp` to Claude Code without asking |
 | `--no-mcp` | Leave the MCP server alone without asking |
 | `--mcp-json` | Write `.mcp.json` instead, to commit the server to the repository |
+
+## `loupe project list`
+
+Lists the projects that your login covers. Each row gives the id, the slug and
+the name of one project. Give the id to `loupe init --project <id>` or to
+`loupe project link --project <id>`.
+
+```text
+  ID                                    SLUG  NAME
+* 01a0c0d9-905c-7922-a586-ccc8ce043704  dev   Dev Project
+  01a0c0e1-1111-7922-a586-ccc8ce043705  -     Beta
+
+* marks the project that .loupe.yaml names.
+```
+
+A star marks the project of the current directory. In a setup other than the
+default, the link of the setup names that project first, then `.loupe.yaml`. A
+dash shows a project with no slug. When your login covers no project, the
+command says so and exits with status 0. The command has no flags.
 
 ## `loupe bridge run` and `loupe bridge stop`
 

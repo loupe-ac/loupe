@@ -4,6 +4,8 @@
 
 {% block description %}{{ 'landing.meta.description'|trans }}{% endblock %}
 
+{% block head_links %}<link rel="help" type="text/markdown" href="{{ app_url('app_setup_instructions') }}">{% endblock %}
+
 {% set waitlistJoined = waitlistJoined|default(null) %}
 {% set marketingAttributes = {'data-controller': 'modal analytics'}|merge('modal' == waitlistJoined ? {'data-modal-reopen-value': 'true'} : {}) %}
 

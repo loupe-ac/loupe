@@ -53,6 +53,18 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorNotExists('a[href="/register"]');
     }
 
+    public function test_home_page_head_links_the_agent_setup_instructions(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        $link = $client->getCrawler()->filter('head link[rel="help"][type="text/markdown"]');
+        self::assertCount(1, $link);
+        self::assertStringEndsWith('/setup.md', (string) $link->attr('href'));
+    }
+
     public function test_each_waitlist_button_names_its_click_event_and_still_opens_the_dialog(): void
     {
         $client = static::createClient();
