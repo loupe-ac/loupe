@@ -30,6 +30,10 @@ skills, writes the rule file and starts the bridge. The agent asks you when a
 step needs you, such as the browser approval of the sign-in. It never writes a
 token or a password.
 
+An agent that reads the public site also finds these steps. The home page
+shows the full `/setup.md` address in its text, and `/llms.txt` on the site
+host links it.
+
 The `project` parameter fills the project id into the `loupe init` command. The
 page accepts only a UUID and ignores any other value. With no valid id, `loupe init`
 asks you which project to use.

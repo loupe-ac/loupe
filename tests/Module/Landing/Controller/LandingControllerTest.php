@@ -6,6 +6,7 @@ namespace App\Tests\Module\Landing\Controller;
 
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
+use App\Routing\PinnedUrlGenerator;
 use App\Site\SiteHost;
 use App\Site\SiteLinks;
 use App\Tests\Support\AcceptedTerms;
@@ -63,6 +64,22 @@ final class LandingControllerTest extends WebTestCase
         $link = $client->getCrawler()->filter('head link[rel="help"][type="text/markdown"]');
         self::assertCount(1, $link);
         self::assertStringEndsWith('/setup.md', (string) $link->attr('href'));
+    }
+
+    public function test_home_page_body_shows_the_full_setup_address_as_link_text(): void
+    {
+        $client = static::createClient();
+        $setupUrl = static::getContainer()->get(PinnedUrlGenerator::class)->generate('app_setup_instructions');
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        $line = $client->getCrawler()->filter('body [data-agent-setup]');
+        self::assertCount(1, $line);
+        self::assertStringContainsString('Using a coding agent? Ask it to read '.$setupUrl, $line->text());
+        $link = $line->filter('a');
+        self::assertSame($setupUrl, $link->attr('href'));
+        self::assertSame($setupUrl, $link->text());
     }
 
     public function test_each_waitlist_button_names_its_click_event_and_still_opens_the_dialog(): void

@@ -5948,6 +5948,10 @@
     .lp-home-card__lead {
         @apply m-0 leading-relaxed text-fg-mute;
     }
+    /* A link inside a card lead. Its text may be a long URL, so it wraps anywhere. */
+    .lp-home-card__link {
+        @apply font-medium text-ink underline break-all;
+    }
     .lp-home-card__action {
         @apply mt-auto self-stretch whitespace-normal py-2.5 text-center sm:self-center;
     }

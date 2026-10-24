@@ -54,6 +54,7 @@ final class SiteHostRolesTest extends WebTestCase
         yield 'ai policy' => ['/ai-policy'];
         yield 'sitemap' => ['/sitemap.xml'];
         yield 'robots' => ['/robots.txt'];
+        yield 'llms' => ['/llms.txt'];
         yield 'liveness' => ['/livez'];
     }
 
