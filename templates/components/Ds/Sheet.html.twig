@@ -1,0 +1,20 @@
+{#
+  Props:  @comment-budget-ignore
+    title        string   Translated title in the header. It also names the dialog.
+    backLabel    string   Translated label of the back button. Optional, defaults to sheet.back.
+    closeLabel   string   Translated label of the close button. Optional, defaults to sheet.close.
+  The content is the body. Wrap the sheet and its trigger in data-controller="sheet".
+  A body that drills down holds one element per view with data-sheet-view="name". The first is shown at the start.
+  A button with data-action="click->sheet#show" and data-sheet-view-param="name" shows a view.
+  Any other attribute, class included, is passed to the dialog.
+#}
+{%- props title, backLabel = null, closeLabel = null -%}
+<dialog{{ attributes.defaults({class: 'lp-sheet', 'aria-label': title, 'data-sheet-target': 'dialog', 'data-action': 'cancel->sheet#close'}) }}>
+    <div class="lp-sheet__handle" aria-hidden="true"></div>
+    <header class="lp-sheet__header">
+        <twig:Ds:Button variant="icon" type="button" hidden data-sheet-target="back" data-action="click->sheet#back" aria-label="{{ backLabel ?? 'sheet.back'|trans }}"><twig:ux:icon name="lucide:chevron-left" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+        <h2 class="lp-sheet__title">{{ title }}</h2>
+        <twig:Ds:Button variant="icon" type="button" data-action="click->sheet#close" aria-label="{{ closeLabel ?? 'sheet.close'|trans }}" autofocus><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+    </header>
+    <div class="lp-sheet__body">{% block content %}{% endblock %}</div>
+</dialog>

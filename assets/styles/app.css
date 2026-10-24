@@ -40,6 +40,7 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
 @plugin "@tailwindcss/typography";
@@ -8292,6 +8293,9 @@
     }
     .lp-styleguide__specimen .lp-drawer {
         @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
+    }
+    .lp-styleguide__specimen .lp-sheet {
+        @apply static m-0 h-fit w-full max-w-none rounded-xl border border-line shadow-none;
     }
     /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
     .lp-styleguide__specimen .lp-auth {
