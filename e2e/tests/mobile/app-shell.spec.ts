@@ -612,3 +612,63 @@ test('no touch control renders below the 16px iOS zoom threshold', async ({
         expect(size).toBeGreaterThanOrEqual(16);
     }
 });
+
+test('the documents search takes a full row and Clear sits with the filters', async ({
+    page,
+    seeded,
+}) => {
+    await page.goto(`/projects/${seeded.projectId}/documents`);
+    const form = page.locator('.lp-filter-form');
+    const search = page.locator('.lp-filter-search');
+    const status = page.locator('#document-status');
+    const clear = page.locator('.lp-filter-clear');
+
+    const formBox = (await form.boundingBox())!;
+    const searchBox = (await search.boundingBox())!;
+    expect(searchBox.width).toBeGreaterThanOrEqual(formBox.width - 1);
+
+    const statusBox = (await status.boundingBox())!;
+    const clearBox = (await clear.boundingBox())!;
+    expect(statusBox.y).toBeGreaterThan(searchBox.y + searchBox.height - 1);
+    expect(clearBox.y).toBeGreaterThan(searchBox.y + searchBox.height - 1);
+
+    // A placeholder that fits shows whole, with no clipped text.
+    const placeholder = page.locator('#document-search');
+    expect(
+        await placeholder.evaluate(
+            (element) => element.scrollWidth - element.clientWidth,
+        ),
+    ).toBeLessThanOrEqual(0);
+});
+
+test('a button beside the Agents heading keeps its label on one line', async ({
+    page,
+    seeded,
+}) => {
+    test.slow();
+    for (const width of [390, 820]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.goto(`/projects/${seeded.projectId}/agents`);
+        const button = page.locator('.lp-page-header > .lp-btn');
+        await expect(button, `${width}px`).toBeVisible();
+        const lineHeight = await button.evaluate((element) =>
+            parseFloat(getComputedStyle(element).lineHeight),
+        );
+        const textHeight = await button.evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return Math.max(
+                ...Array.from(range.getClientRects()).map((r) => r.height),
+            );
+        });
+        expect(textHeight, `${width}px`).toBeLessThanOrEqual(lineHeight + 1);
+        const rows = await button.evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return new Set(
+                Array.from(range.getClientRects()).map((r) => Math.round(r.y)),
+            ).size;
+        });
+        expect(rows, `${width}px`).toBe(1);
+    }
+});
