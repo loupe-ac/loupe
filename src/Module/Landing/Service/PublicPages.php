@@ -34,6 +34,7 @@ final readonly class PublicPages
         'app_waitlist_modal',
         'app_sitemap',
         'app_robots',
+        'app_llms',
         'app_site_docs_script',
         'ubermuda_health_check',
         'app_livez',

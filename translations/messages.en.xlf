@@ -5294,6 +5294,26 @@
                 <source>landing.requirements.need.lead</source>
                 <target>Loupe brings the workflow. You bring the agents.</target>
             </trans-unit>
+            <trans-unit id="landing.requirements.need.agent_setup">
+                <source>landing.requirements.need.agent_setup</source>
+                <target>Using a coding agent? Ask it to read</target>
+            </trans-unit>
+            <trans-unit id="landing.llms.setup_label">
+                <source>landing.llms.setup_label</source>
+                <target>Setup instructions for a coding agent</target>
+            </trans-unit>
+            <trans-unit id="landing.llms.setup_note">
+                <source>landing.llms.setup_note</source>
+                <target>Markdown steps that install the CLI and connect the agent to a project.</target>
+            </trans-unit>
+            <trans-unit id="landing.llms.docs_label">
+                <source>landing.llms.docs_label</source>
+                <target>Documentation</target>
+            </trans-unit>
+            <trans-unit id="landing.llms.docs_note">
+                <source>landing.llms.docs_note</source>
+                <target>How to use, operate and extend the product.</target>
+            </trans-unit>
             <trans-unit id="landing.requirements.need.agent.name">
                 <source>landing.requirements.need.agent.name</source>
                 <target>Claude Code or Codex</target>
