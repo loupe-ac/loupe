@@ -331,8 +331,9 @@ test('the dragged card stays under the pointer on a scrolled board, and a ghost 
 }) => {
     // Narrow and short, so a column scrolls its cards and the columns scroll
     // sideways. The dragged card is fixed to the viewport, so both offsets
-    // must drop out of its position.
-    await page.setViewportSize({ width: 560, height: 400 });
+    // must drop out of its position. Below 640px a phone shows one column per
+    // screen, so the width stays at that edge.
+    await page.setViewportSize({ width: 640, height: 400 });
     // Below lg the sidebar turns into a drawer, which stays over the board
     // until its slide-out ends.
     await expect(page.locator('.lp-sidebar')).toBeHidden();
