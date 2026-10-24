@@ -30,8 +30,7 @@ const OPEN_THREAD = '.lp-comment-thread:popover-open';
 const ROW = '#comment-rows .lp-comment-row';
 const RESOLVED_ROW = '.lp-comment-row--resolved';
 const MARGIN = '.lp-review-margin';
-const MENU_TRIGGER = '.lp-review-menu__trigger';
-const MENU_ROW = '.lp-review-menu__row';
+const BAR = '.lp-review-bar';
 
 const PHONE = { width: 375, height: 812 };
 const DESKTOP = { width: 1440, height: 900 };
@@ -626,14 +625,19 @@ test('hiding resolved cards leaves the document text unchanged', async ({
     await expect(page.locator(MARGIN)).toBeVisible();
     const proseBefore = await page.locator(DOC).textContent();
 
-    // Below lg the review menu carries the resolved toggle. Open is the
+    // Below lg the More sheet carries the resolved toggle. Open is the
     // default view, so the row offers to show the resolved card, and hiding it
     // again must leave the prose exactly as it was.
-    await page.locator(MENU_TRIGGER).click();
-    await page.locator(MENU_ROW, { hasText: 'Show resolved' }).click();
+    const more = page
+        .locator(BAR)
+        .getByRole('button', { name: 'More', exact: true });
+    const sheet = page.getByRole('dialog', { name: 'More', exact: true });
+    await more.click();
+    await sheet.getByRole('button', { name: 'Show resolved' }).click();
+    await expect(sheet).toBeHidden();
     await expect(page.locator(RESOLVED_ROW)).toBeVisible();
-    await page.locator(MENU_TRIGGER).click();
-    await page.locator(MENU_ROW, { hasText: 'Hide resolved' }).click();
+    await more.click();
+    await sheet.getByRole('button', { name: 'Hide resolved' }).click();
 
     await expect(page.locator(RESOLVED_ROW)).toBeHidden();
     await expect(page.locator(DOC)).toHaveText(proseBefore!);
@@ -650,10 +654,10 @@ test('the comment filter still hides resolved threads above lg', async ({
     const resolved = page.locator(RESOLVED_ROW);
     await expect(resolved).toHaveCount(1, { timeout: coverageScaled(10000) });
 
-    // The review menu is the phone copy of this control, so the desktop one
+    // The review bar is the phone copy of this control, so the desktop one
     // has to keep working on its own. Open is the default, so the row is
     // already out of the column.
-    await expect(page.locator(MENU_TRIGGER)).toBeHidden();
+    await expect(page.locator(BAR)).toBeHidden();
     await expect(resolved).toBeHidden();
     const filter = page.locator('[data-review-panels-target="filter"]');
     await filter.locator('summary').click();

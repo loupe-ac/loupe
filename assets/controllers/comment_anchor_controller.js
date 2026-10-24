@@ -2067,7 +2067,7 @@ export default class extends Controller {
         )) {
             toggle.hidden = !hasResolved;
             toggle.dataset.resolvedHidden = this.hideResolvedValue ? '1' : '0';
-            // The review-menu copy is a bare button and carries no span, so the
+            // The review bar copy is a bare button and carries no span, so the
             // label falls back to the button itself. Writing textContent on a
             // button that holds icons would delete them.
             const label =
