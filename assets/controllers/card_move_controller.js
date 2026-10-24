@@ -1,8 +1,10 @@
 import { Controller } from '@hotwired/stimulus';
-import { moveCard, whenPlaced } from '../lib/card_move.js';
-
-/** How long the sheet waits for the board to place the card before it closes anyway. */
-const PLACEMENT_WAIT = 3000;
+import {
+    moveBusy,
+    moveCard,
+    PLACEMENT_WAIT,
+    whenPlaced,
+} from '../lib/card_move.js';
 
 const SHEET_WAIT_STEP = 50;
 const SHEET_WAIT_STEPS = 40;
@@ -20,6 +22,7 @@ export default class extends Controller {
         'rows',
         'row',
         'question',
+        'cardTitle',
         'error',
         'done',
         'flashes',
@@ -31,6 +34,7 @@ export default class extends Controller {
     connect() {
         this.cardId = null;
         this.cardNumber = '';
+        this.cardTitle = '';
         this.currentColumnId = '';
         this.pending = false;
         this.answer = null;
@@ -53,19 +57,23 @@ export default class extends Controller {
     }
 
     async open(event) {
-        if (this.pending) {
+        if (this.pending || this.#busy()) {
             return;
         }
         const { id, number } = event.params;
         const group = event.currentTarget.closest(
             '[data-board-drag-target="group"]',
         );
+        const title =
+            event.currentTarget.closest('[data-card-title]')?.dataset
+                .cardTitle ?? '';
         const sheet = await this.#sheet();
         if (sheet === null) {
             return;
         }
         this.cardId = String(id);
         this.cardNumber = String(number);
+        this.cardTitle = title;
         this.currentColumnId = group?.dataset.column ?? '';
         this.#fill();
         sheet.open();
@@ -83,9 +91,7 @@ export default class extends Controller {
 
             return;
         }
-        const form = this.element.querySelector(
-            'form[data-board-drag-target="moveForm"]',
-        );
+        const form = this.#form();
         if (form === null) {
             this.#fail(null);
 
@@ -101,7 +107,13 @@ export default class extends Controller {
             cardId,
             columnId,
             columnLabel: label,
-            ask: (question) => this.#ask(question),
+            ask: () =>
+                this.#ask(
+                    this.sheetTarget.dataset.questionFormat.replace(
+                        '%column%',
+                        () => label,
+                    ),
+                ),
         });
 
         if ('ok' === result.status) {
@@ -139,6 +151,19 @@ export default class extends Controller {
         this.application
             .getControllerForElementAndIdentifier(board, 'board-columns-nav')
             ?.reveal(columnId);
+    }
+
+    #form() {
+        return this.element.querySelector(
+            'form[data-board-drag-target="moveForm"]',
+        );
+    }
+
+    /** A drag holds the shared move form until its card is placed. */
+    #busy() {
+        const form = this.#form();
+
+        return form !== null && moveBusy(form);
     }
 
     /** The sheet controller is lazy, so a tap that comes first waits for it to load. */
@@ -192,6 +217,7 @@ export default class extends Controller {
         const dialog = this.sheetTarget.querySelector('dialog');
         dialog.querySelector('.lp-sheet__title').textContent = title;
         dialog.setAttribute('aria-label', title);
+        this.cardTitleTarget.textContent = this.cardTitle;
 
         const rows = [];
         for (const [id, label] of this.#columns()) {

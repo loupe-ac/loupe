@@ -6829,7 +6829,10 @@
         @apply -mt-2 -mr-2 -mb-1 ml-auto size-11 shrink-0 cursor-pointer text-fg-dim;
     }
 
-    /* The Move sheet: one 48 px row for the Backlog and for each column. */
+    /* The Move sheet: the title of the card, then one 48 px row for the Backlog and for each column. */
+    .lp-move-sheet__card-title {
+        @apply mt-0 mb-2 line-clamp-2 text-sm text-fg-mute;
+    }
     .lp-move-sheet__row {
         @apply flex min-h-12 w-full cursor-pointer items-center gap-2.5 border-0 border-b border-line bg-transparent px-1 text-left font-sans text-base font-medium text-ink transition-colors;
     }

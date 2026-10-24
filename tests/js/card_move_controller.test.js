@@ -7,8 +7,9 @@ import SheetController from '../../assets/controllers/sheet_controller.js';
 vi.mock('../../assets/lib/card_move.js', async (importOriginal) => ({
     ...(await importOriginal()),
     moveCard: vi.fn(),
+    moveBusy: vi.fn(() => false),
 }));
-const { moveCard } = await import('../../assets/lib/card_move.js');
+const { moveBusy, moveCard } = await import('../../assets/lib/card_move.js');
 
 let application;
 let dialog;
@@ -21,18 +22,19 @@ const MARKUP = `
     <div id="board" data-controller="board-columns-nav">
         <form data-board-drag-target="moveForm"></form>
         <section class="lp-board__column" data-column-id="next"><h2 class="lp-board__column-title">Next</h2>
-            <div data-board-drag-target="group" data-column="next">
+            <div data-board-drag-target="group" data-column="next"><article data-card-id="card-1" data-card-title="Fix the login page">
                 <button id="open" data-action="click->card-move#open" data-card-move-id-param="card-1" data-card-move-number-param="991">Move</button>
-            </div>
+            </article></div>
         </section>
         <section class="lp-board__column" data-column-id="tech"><h2 class="lp-board__column-title">Tech design</h2></section>
     </div>
     <div data-card-move-target="sheet" data-controller="sheet"
-         data-title-format="Move #%number% to" data-done-format="Moved #%number% to %column%"
+         data-title-format="Move #%number% to" data-question-format="Move it to %column%?" data-done-format="Moved #%number% to %column%"
          data-backlog-id="backlog" data-backlog-label="Backlog">
         <dialog aria-label="Move" data-sheet-target="dialog">
             <button data-sheet-target="back" data-action="click->sheet#back" hidden>Back</button>
             <h2 class="lp-sheet__title"></h2>
+            <p data-card-move-target="cardTitle"></p>
             <div data-sheet-view="columns"><div data-card-move-target="rows"></div></div>
             <div data-sheet-view="managed">
                 <p data-card-move-target="question"></p>
@@ -77,6 +79,8 @@ beforeEach(async () => {
     }));
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
     moveCard.mockReset();
+    moveBusy.mockReset();
+    moveBusy.mockReturnValue(false);
     reveal = vi.fn();
     application = Application.start();
     application.register('card-move', CardMoveController);
@@ -106,6 +110,9 @@ it('opens with the title of the card and a row for the Backlog and each column',
     expect(dialog.querySelector('.lp-sheet__title').textContent).toBe(
         'Move #991 to',
     );
+    expect(
+        dialog.querySelector('[data-card-move-target="cardTitle"]').textContent,
+    ).toBe('Fix the login page');
     expect(rows().map((r) => r.dataset.columnId)).toEqual([
         'backlog',
         'next',
@@ -176,6 +183,26 @@ it('shows a flash with no Show action for the Backlog', async () => {
     expect(flash().querySelector('button')).toBeNull();
 });
 
+it('opens no sheet while a drag holds the move form', async () => {
+    moveBusy.mockReturnValue(true);
+    await open();
+
+    expect(moveBusy).toHaveBeenCalledWith(document.querySelector('form'));
+    expect(dialog.open).not.toBe(true);
+});
+
+it('shows the default text when a drag took the form after the sheet opened', async () => {
+    moveCard.mockResolvedValue({ status: 'busy' });
+    await open();
+    row('tech').click();
+    await settle();
+
+    const error = dialog.querySelector('[data-card-move-target="error"]');
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe('Did not move.');
+    expect(row('tech').disabled).toBe(false);
+});
+
 it('takes no second row while a move is in flight', async () => {
     moveCard.mockReturnValue(new Promise(() => {}));
     await open();
@@ -202,7 +229,7 @@ it('shows the question in the sheet, and moves on after Make unmanaged', async (
     expect(view()).toBe('managed');
     expect(
         dialog.querySelector('[data-card-move-target="question"]').textContent,
-    ).toBe('Make it unmanaged?');
+    ).toBe('Move it to Tech design?');
     expect(dialog.querySelector('[data-sheet-target="back"]').hidden).toBe(
         true,
     );

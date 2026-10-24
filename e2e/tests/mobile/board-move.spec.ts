@@ -145,6 +145,9 @@ test('the Move button lists the Backlog and every column, and marks the current 
 
     await expect(sheet(page)).toBeVisible();
     await expect(sheet(page)).toHaveAccessibleName(`Move #${cardNumber} to`);
+    await expect(sheet(page).locator('.lp-move-sheet__card-title')).toHaveText(
+        'Move me',
+    );
     const rows = sheet(page).locator('.lp-move-sheet__row');
     await expect(rows).toHaveCount(COLUMNS.length + 1);
     await expect(rows.first()).toContainText('Backlog');
@@ -213,7 +216,7 @@ test('a managed card asks first, and Make unmanaged and move moves it', async ({
 
     await expect(
         sheet(page).getByText(
-            'This card is managed. Make it unmanaged and move it?',
+            'This card is managed. Make it unmanaged and move it to Implementation?',
         ),
     ).toBeVisible(ROUND_TRIP);
     await expect(

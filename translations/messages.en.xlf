@@ -6245,6 +6245,10 @@
                 <source>board.move.unmanage</source>
                 <target>Make unmanaged and move</target>
             </trans-unit>
+            <trans-unit id="board.move.managed_question">
+                <source>board.move.managed_question</source>
+                <target>This card is managed. Make it unmanaged and move it to %column%?</target>
+            </trans-unit>
             <trans-unit id="board.move.done">
                 <source>board.move.done</source>
                 <target>Moved #%number% to %column%</target>

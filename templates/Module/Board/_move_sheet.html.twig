@@ -4,10 +4,12 @@
 <div data-card-move-target="sheet"
      data-controller="sheet"
      data-title-format="{{ 'board.move.title'|trans({'%number%': '%number%'}) }}"
+     data-question-format="{{ 'board.move.managed_question'|trans({'%column%': '%column%'}) }}"
      data-done-format="{{ 'board.move.done'|trans({'%number%': '%number%', '%column%': '%column%'}) }}"
      data-backlog-id="{{ board.backlog.id }}"
      data-backlog-label="{{ 'board.backlog.button'|trans }}">
     <twig:Ds:Sheet :title="'board.move.title'|trans({'%number%': '%number%'})">
+        <p class="lp-move-sheet__card-title" data-card-move-target="cardTitle"></p>
         <div data-sheet-view="columns">
             <div class="lp-move-sheet__rows" data-card-move-target="rows"></div>
         </div>
