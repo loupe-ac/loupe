@@ -77,7 +77,16 @@ export default class extends Controller {
         }
         const other =
             focused === this.prevTarget ? this.nextTarget : this.prevTarget;
-        (this.#active() ?? other).focus();
+        const otherShown =
+            other === this.prevTarget
+                ? this.element.hasAttribute('data-overflow-start')
+                : this.element.hasAttribute('data-overflow-end');
+        if (otherShown) {
+            other.focus();
+
+            return;
+        }
+        (this.#active() ?? other).focus({ preventScroll: true });
     }
 
     #active() {

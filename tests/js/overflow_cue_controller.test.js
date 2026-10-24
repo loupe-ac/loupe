@@ -215,7 +215,22 @@ it('moves focus off an arrow that the end of the strip hides', async () => {
         scrollLeft: 300,
     });
     viewport().dispatchEvent(new Event('scroll'));
-    expect(document.activeElement).toBe(document.getElementById('current'));
+    expect(document.activeElement).toBe(
+        document.querySelector('[data-overflow-cue-target="prev"]'),
+    );
+});
+
+it('moves focus to the current tab without a scroll when no arrow shows', async () => {
+    await start(markup());
+    geometry(viewport(), { scrollWidth: 600, clientWidth: 300, scrollLeft: 0 });
+    resizeCallback();
+    document.querySelector('[data-overflow-cue-target="next"]').focus();
+    const current = document.getElementById('current');
+    const focus = vi.spyOn(current, 'focus');
+    geometry(viewport(), { scrollWidth: 300, clientWidth: 300, scrollLeft: 0 });
+    resizeCallback();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.activeElement).toBe(current);
 });
 
 it('scrolls by 90 percent of the width in scroll mode', async () => {
