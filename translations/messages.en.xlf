@@ -1901,6 +1901,10 @@
                 <source>review.document.history.column.open</source>
                 <target>Open</target>
             </trans-unit>
+            <trans-unit id="review.document.history.table.label">
+                <source>review.document.history.table.label</source>
+                <target>Versions</target>
+            </trans-unit>
             <trans-unit id="review.document.history.read">
                 <source>review.document.history.read</source>
                 <target>Read</target>

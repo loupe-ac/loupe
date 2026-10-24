@@ -3848,7 +3848,7 @@
        Every version in one table, newest first, with the reviews it received
        and the ways to read it or compare it with the one before. */
     .lp-history-tools {
-        @apply flex flex-wrap items-center justify-between gap-4 mt-7 mb-4.5;
+        @apply flex flex-wrap items-center justify-between gap-4 mt-7;
     }
     .lp-history-title {
         @apply m-0 font-display text-lg font-bold text-ink;
@@ -3856,17 +3856,13 @@
     .lp-history-surface {
         @apply overflow-x-auto rounded-xl border border-line bg-surface-1;
     }
-    .lp-history {
-        @apply w-full border-collapse text-left;
+    /* Version, Revision, Discussion, Open. */
+    .lp-data-table--history {
+        --lp-data-table-columns: calc(var(--spacing) * 16) minmax(0, 1fr)
+            calc(var(--spacing) * 28) calc(var(--spacing) * 44);
     }
-    .lp-history th {
-        @apply bg-surface-2 px-4.5 py-3.25 text-xs font-semibold text-fg-dim;
-    }
-    .lp-history td {
-        @apply border-t border-line px-4.5 py-4.5 align-middle text-sm text-fg-mute;
-    }
-    .lp-history td:last-child {
-        @apply whitespace-nowrap;
+    .lp-data-table--history .lp-data-table__row {
+        @apply min-h-18 py-4.5;
     }
     .lp-history__version {
         @apply inline-flex rounded-md bg-surface-3 px-1.75 py-0.75 text-xs leading-4 font-semibold text-fg-dim;
@@ -3881,7 +3877,7 @@
         @apply font-medium text-fg-mute;
     }
     .lp-history__date {
-        @apply text-xs text-fg-dim;
+        @apply block text-xs text-fg-dim;
     }
     .lp-history__reviews {
         @apply m-0 flex list-none flex-col gap-3 p-0;
@@ -3909,12 +3905,6 @@
     }
     .lp-history__action svg {
         @apply size-4 shrink-0;
-    }
-    @media (width < 43.75rem) {
-        .lp-history th,
-        .lp-history td {
-            @apply px-3.5;
-        }
     }
 
     /* ── Version diff ───────────────────────────────────────────────────
@@ -7292,8 +7282,18 @@
     .lp-metric-table__note {
         @apply m-0 mt-2 text-xs text-fg-dim;
     }
+    .lp-metric-table__cue {
+        @apply mt-2;
+        --lp-table-cue-inset: 0px;
+        --lp-table-cue-radius: 0px;
+        --lp-table-cue-body: var(--color-app);
+        --lp-table-cue-header: calc(var(--spacing) * 7 + 1px);
+    }
+    .lp-metric-table__scroll {
+        @apply overflow-x-auto;
+    }
     .lp-metric-table__table {
-        @apply w-full mt-2 text-sm text-fg border-collapse;
+        @apply w-full text-sm text-fg border-collapse;
     }
     .lp-metric-table__table th {
         @apply py-1.5 pr-3 border-b border-line text-left text-xs font-semibold text-fg-label;
@@ -7349,7 +7349,10 @@
     }
     /* The panel of a data table, for a real table with a header row. */
     .lp-experiment-table {
-        @apply mt-3 overflow-x-auto rounded-xl border border-line bg-white;
+        @apply mt-3 rounded-xl border border-line bg-white;
+    }
+    .lp-experiment-table__scroll {
+        @apply overflow-x-auto rounded-xl;
     }
     .lp-experiment-table__table {
         @apply w-full text-sm text-fg-mute border-collapse;

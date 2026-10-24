@@ -23,10 +23,18 @@ final class CodeBlockComponentTest extends KernelTestCase
 
         self::assertStringContainsString('class="lp-code-dark"', $html);
         self::assertStringContainsString('<span class="lp-code-dark__label">Terminal</span>', $html);
-        self::assertStringContainsString('<pre class="lp-code-dark__body"><code data-testid="snippet">a &amp; b</code></pre>', $html);
+        self::assertStringContainsString('<pre class="lp-code-dark__body" data-overflow-cue-target="viewport"><code data-testid="snippet">a &amp; b</code></pre>', $html);
         self::assertStringContainsString('data-clipboard-text-value="a &amp; b"', $html);
         self::assertStringContainsString('lp-copy-button__chip', $html);
         self::assertStringContainsString('>Copy</button>', $html);
+    }
+
+    public function test_the_code_sits_in_an_overflow_cue_wrapper_with_no_arrows(): void
+    {
+        $html = $this->render('<twig:Ds:CodeBlock label="Terminal" text="x" copyLabel="Copy" />');
+
+        self::assertStringContainsString('<div class="lp-overflow-cue lp-code-dark__scroll" data-controller="overflow-cue">', $html);
+        self::assertStringNotContainsString('lp-overflow-cue__arrow', $html);
     }
 
     public function test_copy_false_draws_no_button_and_no_controller(): void
@@ -36,7 +44,7 @@ final class CodeBlockComponentTest extends KernelTestCase
         self::assertStringNotContainsString('clipboard', $html);
         self::assertStringNotContainsString('<button', $html);
         self::assertStringContainsString('class="lp-code-dark extra"', $html);
-        self::assertStringContainsString('<pre class="lp-code-dark__body"><code>x</code></pre>', $html);
+        self::assertStringContainsString('<pre class="lp-code-dark__body" data-overflow-cue-target="viewport"><code>x</code></pre>', $html);
     }
 
     public function test_the_body_keeps_line_breaks_of_the_text(): void

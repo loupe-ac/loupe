@@ -1,0 +1,23 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A command with a copy button, and a read only block" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The title in the header bar, such as the file name or what the text is. */
+    label: string;
+    /** The text of the block. Long lines scroll sideways. */
+    text?: string;
+    /** The words on the copy button. Leave it out for a block with no button. */
+    copyLabel?: string;
+    className?: string;
+    /** The text, when you do not pass `text`. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

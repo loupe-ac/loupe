@@ -141,6 +141,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         $ticks = $crawler->filter('[data-metrics-chart] .lp-metric-chart__tick[text-anchor="end"]')->each(static fn (Crawler $tick): string => trim($tick->text()));
         self::assertSame(['0', '1', '2', '3', '4'], $ticks);
         self::assertStringEndsWith(', 2, 2 runs', (string) $crawler->filter('[data-metrics-bar]')->attr('aria-label'));
+        self::assertCount(1, $crawler->filter('[data-metrics-table] .lp-metric-table__cue[data-controller="overflow-cue"] > .lp-metric-table__scroll[data-overflow-cue-target="viewport"] > table'));
         // A row keeps the value of its own metric, a stop as 100% and a success as 0%.
         $values = $crawler->filter('[data-metrics-table] tbody tr td.lp-metric-table__number')->each(static fn (Crawler $cell): string => trim($cell->text()));
         sort($values);
