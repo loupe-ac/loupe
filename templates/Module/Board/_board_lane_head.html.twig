@@ -31,6 +31,7 @@
            href="{{ path('app_board_card', {projectId: epic.project.id, cardId: epic.id}) }}"
            data-board-lane-target="glide"
            data-turbo-frame="card-drawer-frame"
+           data-drawer-title="#{{ epic.number }}"
            data-action="click->card-drawer#prepare">{{ epic.title }}</a>
     </div>
     {% if deck %}

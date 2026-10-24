@@ -6,7 +6,8 @@
 <div{{ attributes.defaults({class: 'lp-settings' ~ (columns ? ' lp-settings--columns' : '')}) }}>
     <twig:Ds:PageHeader :title="title" :description="description" />
     <div class="lp-settings-layout{{ columns ? ' lp-settings-layout--columns' }}">
-        <nav class="lp-settings-nav" aria-label="{{ navLabel }}">
+        <div class="lp-overflow-cue lp-overflow-cue--scroll" data-controller="overflow-cue">
+        <nav class="lp-settings-nav" aria-label="{{ navLabel }}" data-overflow-cue-target="viewport">
             {% for item in items %}
             <a class="lp-settings-nav__item{{ item.active ? ' lp-settings-nav__item--active' }}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>
                 {{ ux_icon(item.icon) }}
@@ -14,6 +15,8 @@
             </a>
             {% endfor %}
         </nav>
+        {% include '_overflow_arrows.html.twig' only %}
+        </div>
         <div class="lp-settings-content">
             {% block content %}{% endblock %}
         </div>

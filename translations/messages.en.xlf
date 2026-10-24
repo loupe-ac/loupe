@@ -9237,6 +9237,8 @@
             <trans-unit id="marker.child_waiting.remedy"><source>marker.child_waiting.remedy</source><target>Nothing. The child moves on when its wait ends.</target></trans-unit>
             <trans-unit id="marker.unmanaged"><source>marker.unmanaged</source><target>Unmanaged: the workflow does not act on this card.</target></trans-unit>
             <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>
+            <trans-unit id="tabs.scroll_prev"><source>tabs.scroll_prev</source><target>Scroll back</target></trans-unit>
+            <trans-unit id="tabs.scroll_next"><source>tabs.scroll_next</source><target>Scroll forward</target></trans-unit>
         </body>
     </file>
 </xliff>
