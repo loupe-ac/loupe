@@ -16,6 +16,7 @@
 @import './components/filter-bar.css';
 @import './components/code-block.css';
 @import './components/copy-button.css';
+@import './components/overflow-cue.css';
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
@@ -2659,6 +2660,7 @@
     }
     .lp-card-drawer {
         @apply flex flex-col max-w-5xl min-h-screen mx-auto bg-surface-1 border-x border-line shadow-xl;
+        --lp-overflow-cue-fade: var(--color-surface-1);
     }
     .lp-card-drawer-overlay > turbo-frame {
         @apply block h-full;
@@ -4107,6 +4109,9 @@
     }
     .lp-review-workspace-nav .lp-tabs {
         @apply mb-0 min-w-0 flex-1;
+    }
+    .lp-review-workspace-nav .lp-overflow-cue {
+        @apply min-w-0 flex-1 self-stretch;
     }
     /* The comment filter in the Comments panel head. */
     .lp-review-filter {
