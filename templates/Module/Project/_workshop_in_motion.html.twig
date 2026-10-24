@@ -2,7 +2,7 @@
 <turbo-frame id="workshop-in-motion" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
     <div class="lp-workshop-work-grid">
         {% for card in inMotion.cards %}
-        <a class="lp-workshop-work-card" href="{{ card.url }}" data-workshop-card="{{ card.number }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare">
+        <a class="lp-workshop-work-card" href="{{ card.url }}" data-workshop-card="{{ card.number }}" data-turbo-frame="card-drawer-frame" data-drawer-title="#{{ card.number }}" data-action="click->card-drawer#prepare">
             <header><span>#{{ card.number }}</span>{% include '_tone_tag.html.twig' with {label: card.column|trans, tone: card.columnTone, class: 'lp-workshop-work-card__badge'} only %}</header>
             <h3>{{ card.title }}</h3>
             <footer class="lp-workshop-work-card__run">
