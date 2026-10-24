@@ -2,6 +2,19 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 const MANAGED_OFFER_HEADER = 'X-Card-Managed-Offer';
 const REFUSAL_HEADER = 'X-Card-Move-Refusal';
 
+/** How long a move holds the form for its placement when the board never reports one. */
+export const PLACEMENT_WAIT = 3000;
+
+const busyForms = new WeakSet();
+
+/**
+ * Whether a move holds the form. A drag and the Move sheet share the one form,
+ * so a second move waits until the first is answered and placed.
+ */
+export function moveBusy(form) {
+    return busyForms.has(form);
+}
+
 /**
  * The form renders under a placeholder card id, in its action, its field
  * names and its field ids. Each move swaps the last id for this card's.
@@ -58,11 +71,40 @@ export function whenPlaced(cardId, callback) {
  * string, which appends. An empty `parent` keeps the epic of the card.
  *
  * Resolves with `{status: 'ok'}` once the server accepted the move,
- * `{status: 'refused', message}` when it did not, and
- * `{status: 'cancelled', message}` when the person declined the offer. A
- * message is the refusal text of the server, or null.
+ * `{status: 'refused', message}` when it did not,
+ * `{status: 'cancelled', message}` when the person declined the offer, and
+ * `{status: 'busy'}` when another move holds the form. A message is the
+ * refusal text of the server, or null. The form stays held until the board
+ * places an accepted card, or for `PLACEMENT_WAIT` at most.
  */
-export function moveCard(
+export function moveCard(form, options) {
+    if (moveBusy(form)) {
+        return Promise.resolve({ status: 'busy' });
+    }
+    busyForms.add(form);
+
+    return submitMove(form, options).then((result) => {
+        if ('ok' === result.status) {
+            holdUntilPlaced(form, options.cardId);
+        } else {
+            busyForms.delete(form);
+        }
+
+        return result;
+    });
+}
+
+function holdUntilPlaced(form, cardId) {
+    const free = () => {
+        clearTimeout(timer);
+        stop();
+        busyForms.delete(form);
+    };
+    const timer = setTimeout(free, PLACEMENT_WAIT);
+    const stop = whenPlaced(cardId, free);
+}
+
+function submitMove(
     form,
     {
         cardId,

@@ -2,6 +2,7 @@
 import { Application } from '@hotwired/stimulus';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import BoardDragController from '../../assets/controllers/board_drag_controller.js';
+import { moveCard } from '../../assets/lib/card_move.js';
 import { on, reset as resetLive } from '../../assets/lib/live.js';
 
 const STREAM = 'text/vnd.turbo-stream.html; charset=UTF-8';
@@ -265,6 +266,41 @@ it('starts no drag from a press on the Move button', () => {
     });
 
     expect(controller.pressedCard).toBeNull();
+});
+
+it('starts no drag while a move of the Move sheet holds the form, and starts one once it is placed', async () => {
+    const form = moveForm();
+    form.requestSubmit = vi.fn();
+    const moved = document.getElementById('board-card-a');
+    const press = () =>
+        controller.press({
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            target: moved,
+            clientX: 250,
+            clientY: 100,
+        });
+
+    const sheetMove = moveCard(form, {
+        cardId: 'b',
+        columnId: 'next',
+        ask: vi.fn(),
+    });
+    press();
+    expect(controller.pressedCard).toBeNull();
+
+    respond(form, { succeeded: true, contentType: STREAM });
+    finish(form, true);
+    await sheetMove;
+    press();
+    expect(controller.pressedCard).toBeNull();
+
+    document.dispatchEvent(
+        new CustomEvent('board:placed', { detail: { cardId: 'b' } }),
+    );
+    press();
+    expect(controller.pressedCard).toBe(moved);
 });
 
 describe('the lane heads a drop changes', () => {

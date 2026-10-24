@@ -1,6 +1,11 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { moveCard, whenPlaced } from '../../assets/lib/card_move.js';
+import {
+    moveBusy,
+    moveCard,
+    PLACEMENT_WAIT,
+    whenPlaced,
+} from '../../assets/lib/card_move.js';
 
 const STREAM = 'text/vnd.turbo-stream.html; charset=UTF-8';
 const PROTOTYPE = '00000000-0000-4000-8000-000000000000';
@@ -26,6 +31,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
 });
 
 function respond(fetchResponse) {
@@ -211,11 +217,14 @@ it('asks nothing when the refusal carries no question', async () => {
 
 it('clears unmanage on the next move', async () => {
     const ask = vi.fn().mockResolvedValue(true);
-    moveCard(form, { cardId: 'a', columnId: 'next', ask });
+    const first = moveCard(form, { cardId: 'a', columnId: 'next', ask });
     respond(managed);
     finish(false);
     await settle();
     expect(field('unmanage').checked).toBe(true);
+    respond({ succeeded: false, contentType: 'text/html' });
+    finish(false);
+    await first;
 
     moveCard(form, { cardId: 'b', columnId: 'next', ask });
 
@@ -258,4 +267,78 @@ it('stops waiting for a placement when told to', () => {
     );
 
     expect(callback).not.toHaveBeenCalled();
+});
+
+it('holds the form from the submit until the board places the card', async () => {
+    const first = moveCard(form, {
+        cardId: 'a',
+        columnId: 'next',
+        ask: vi.fn(),
+    });
+
+    await expect(
+        moveCard(form, { cardId: 'b', columnId: 'next', ask: vi.fn() }),
+    ).resolves.toEqual({ status: 'busy' });
+    expect(form.requestSubmit).toHaveBeenCalledOnce();
+
+    respond({ succeeded: true, contentType: STREAM });
+    finish(true);
+    await first;
+    expect(moveBusy(form)).toBe(true);
+
+    document.dispatchEvent(
+        new CustomEvent('board:placed', { detail: { cardId: 'b' } }),
+    );
+    expect(moveBusy(form)).toBe(true);
+    document.dispatchEvent(
+        new CustomEvent('board:placed', { detail: { cardId: 'a' } }),
+    );
+    expect(moveBusy(form)).toBe(false);
+});
+
+it('holds the form while the person answers the managed question', async () => {
+    let answer;
+    const result = moveCard(form, {
+        cardId: 'a',
+        columnId: 'next',
+        ask: () => new Promise((resolve) => (answer = resolve)),
+    });
+    respond(managed);
+    finish(false);
+    await settle();
+
+    expect(moveBusy(form)).toBe(true);
+    answer(false);
+    await result;
+    expect(moveBusy(form)).toBe(false);
+});
+
+it('frees the form at once after a refusal', async () => {
+    const result = moveCard(form, {
+        cardId: 'a',
+        columnId: 'next',
+        ask: vi.fn(),
+    });
+    respond({ succeeded: false, contentType: 'text/html' });
+    finish(false);
+    await result;
+
+    expect(moveBusy(form)).toBe(false);
+});
+
+it('frees the form after the placement wait when the board never reports', async () => {
+    vi.useFakeTimers();
+    const result = moveCard(form, {
+        cardId: 'a',
+        columnId: 'next',
+        ask: vi.fn(),
+    });
+    respond({ succeeded: true, contentType: STREAM });
+    finish(true);
+    await result;
+
+    vi.advanceTimersByTime(PLACEMENT_WAIT - 1);
+    expect(moveBusy(form)).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(moveBusy(form)).toBe(false);
 });

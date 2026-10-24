@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { PHONE_QUERY } from '../lib/breakpoints.js';
 import { emit } from '../lib/live.js';
-import { moveCard, whenPlaced } from '../lib/card_move.js';
+import { moveBusy, moveCard, whenPlaced } from '../lib/card_move.js';
 
 /**
  * Drag and drop for the board.
@@ -143,7 +143,10 @@ export default class extends Controller {
         }
         // One move at a time. A second drag started before the first answer
         // would rank a card against a position the server has not accepted.
-        if (this.pendingForm !== null) {
+        if (
+            this.pendingForm !== null ||
+            (this.hasMoveFormTarget && moveBusy(this.moveFormTarget))
+        ) {
             return;
         }
         if (event.pointerType === 'mouse' && 0 !== event.button) {
