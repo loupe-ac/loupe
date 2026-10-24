@@ -87,14 +87,17 @@ async function expectInView(page: Page, index: number): Promise<void> {
     await expect
         .poll(
             () =>
-                page.locator(COLUMN).nth(index).evaluate((column) => {
-                    const box = column.getBoundingClientRect();
+                page
+                    .locator(COLUMN)
+                    .nth(index)
+                    .evaluate((column) => {
+                        const box = column.getBoundingClientRect();
 
-                    return (
-                        Math.abs(box.left) < 4 &&
-                        Math.abs(box.width - window.innerWidth) < 40
-                    );
-                }),
+                        return (
+                            Math.abs(box.left) < 4 &&
+                            Math.abs(box.width - window.innerWidth) < 40
+                        );
+                    }),
             { timeout: 10_000 },
         )
         .toBe(true);

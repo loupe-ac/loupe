@@ -39,7 +39,8 @@ export default class extends Controller {
     select(event) {
         const index = this.#columns().findIndex(
             (column) =>
-                column.dataset.columnId === event.currentTarget.dataset.columnId,
+                column.dataset.columnId ===
+                event.currentTarget.dataset.columnId,
         );
         if (index >= 0) {
             this.#goTo(index);
@@ -167,7 +168,10 @@ export default class extends Controller {
         const columns = this.#columns();
         const id = columns[this.current]?.dataset.columnId;
         for (const tab of this.#tabs()) {
-            tab.setAttribute('aria-selected', String(tab.dataset.columnId === id));
+            tab.setAttribute(
+                'aria-selected',
+                String(tab.dataset.columnId === id),
+            );
         }
         const prev = this.#arrow('prev');
         const next = this.#arrow('next');
@@ -178,7 +182,10 @@ export default class extends Controller {
         if (next) {
             next.hidden = this.current >= columns.length - 1;
         }
-        if ((prev?.hidden && focused === prev) || (next?.hidden && focused === next)) {
+        if (
+            (prev?.hidden && focused === prev) ||
+            (next?.hidden && focused === next)
+        ) {
             this.#tabs()
                 .find((tab) => 'true' === tab.getAttribute('aria-selected'))
                 ?.focus();
@@ -205,8 +212,7 @@ export default class extends Controller {
         const strip = this.tabsTarget.querySelector('.lp-tabs');
         const columns = this.#columns();
         const wanted = columns.map(
-            (column) =>
-                `${column.dataset.columnId}|${this.#label(column)}`,
+            (column) => `${column.dataset.columnId}|${this.#label(column)}`,
         );
         const have = this.#tabs().map(
             (tab) =>
@@ -241,8 +247,9 @@ export default class extends Controller {
 
     #label(column) {
         return (
-            column.querySelector('.lp-board__column-title')?.textContent.trim() ??
-            ''
+            column
+                .querySelector('.lp-board__column-title')
+                ?.textContent.trim() ?? ''
         );
     }
 

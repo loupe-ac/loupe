@@ -45,8 +45,8 @@ const tabs = () => [...document.querySelectorAll('.lp-tabs__tab')];
 const prev = () => document.querySelector('.lp-overflow-cue__arrow--prev');
 const next = () => document.querySelector('.lp-overflow-cue__arrow--next');
 const selected = () =>
-    tabs().find((tab) => 'true' === tab.getAttribute('aria-selected'))
-        ?.dataset.columnId;
+    tabs().find((tab) => 'true' === tab.getAttribute('aria-selected'))?.dataset
+        .columnId;
 
 function inView(index) {
     observed(
@@ -111,14 +111,12 @@ it('follows a swipe: the column most in view becomes the current tab', async () 
 
 it('steps one column to the right on a step event', async () => {
     await start();
-    document
-        .getElementById('board')
-        .dispatchEvent(
-            new CustomEvent('overflow-cue:step', {
-                bubbles: true,
-                detail: { direction: 1 },
-            }),
-        );
+    document.getElementById('board').dispatchEvent(
+        new CustomEvent('overflow-cue:step', {
+            bubbles: true,
+            detail: { direction: 1 },
+        }),
+    );
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView.mock.contexts[0]).toBe(columns()[1]);
     expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ inline: 'start' });
