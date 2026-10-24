@@ -16,6 +16,7 @@
 @import './components/filter-bar.css';
 @import './components/code-block.css';
 @import './components/copy-button.css';
+@import './components/overflow-cue.css';
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
@@ -40,6 +41,7 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
 @plugin "@tailwindcss/typography";
@@ -881,6 +883,9 @@
     @media (max-width: 42.5rem) {
         .lp-core-inbox .lp-inbox-request-list {
             overflow-y: auto;
+            padding-right: calc(
+                var(--app-frame-inset, 0px) + var(--inbox-gutter)
+            );
         }
 
         /* A picked view shows the pane alone, and any other shows the list alone. */
@@ -1125,6 +1130,23 @@
     /* Holds an absent row action's place, so each action keeps its column. */
     .lp-settings-column__slot {
         @apply w-9 h-9 shrink-0;
+    }
+    .lp-settings-columns__add {
+        @apply mb-6;
+    }
+    /* On a phone the name gives up its basis, so the actions share its row at the right end and
+       still wrap under enlarged text. The terminal flag drops to a line of its own under the name. */
+    @media (width < 40rem) {
+        .lp-settings-column__name {
+            @apply basis-0;
+        }
+        .lp-settings-column:has(> .lp-board__column-flag)::after {
+            @apply order-1 basis-full;
+            content: '';
+        }
+        .lp-settings-column > .lp-board__column-flag {
+            @apply order-2 ml-4;
+        }
     }
 }
 
@@ -1453,6 +1475,21 @@
 }
 .lp-review .lp-comment-row--resolved {
     @apply opacity-50;
+}
+/* The Comments sheet shows one status at a time. The tab sets data-status on the
+   box, and these rules hide the other rows. They are unlayered so they outrank
+   the display set on the row above. A faded row has no meaning on the Resolved
+   tab, so the sheet keeps its rows at full strength. */
+.lp-review
+    .lp-review-sheet__comments-view[data-status='open']
+    .lp-comment-row[data-anchor-status='resolved'],
+.lp-review
+    .lp-review-sheet__comments-view[data-status='resolved']
+    .lp-comment-row:not([data-anchor-status='resolved']) {
+    @apply hidden;
+}
+.lp-review .lp-review-sheet__comments-view .lp-comment-row--resolved {
+    @apply opacity-100;
 }
 .lp-review .lp-comment-whole-document {
     @apply mt-2.5 h-8.5 min-h-8.5 w-full rounded-lg border-0 bg-surface-3 text-sm font-normal text-fg-label hover:bg-tint-strong hover:text-ink;
@@ -1908,6 +1945,53 @@
 .lp-review .lp-diff-nav .lp-btn--icon {
     @apply size-8 min-h-8 rounded-lg border-transparent bg-transparent text-fg-label hover:bg-surface-3;
 }
+.lp-review .lp-diff-bar__line,
+.lp-review .lp-diff-nav__position {
+    @apply hidden;
+}
+/* Below lg the bar is one line: the versions and the change count, the
+   position, and the two jumps. A tap on the line opens the rest under it. */
+@media (width < 64rem) {
+    .lp-review .lp-diff-bar {
+        @apply gap-x-1 gap-y-1 py-1 pr-1.5 pl-3;
+    }
+    .lp-review .lp-diff-bar__line {
+        @apply flex min-h-tap min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-transparent p-0 text-left text-sm font-semibold whitespace-nowrap text-ink;
+    }
+    .lp-diff-bar__line svg {
+        @apply size-4;
+    }
+    .lp-diff-bar__versions {
+        @apply inline-flex items-center gap-1;
+    }
+    .lp-diff-bar__changes {
+        @apply truncate font-normal text-fg-label;
+    }
+    .lp-diff-bar__chevron {
+        @apply shrink-0 text-fg-dim transition-transform;
+    }
+    .lp-diff-bar[data-open] .lp-diff-bar__chevron {
+        @apply rotate-180;
+    }
+    .lp-review .lp-diff-nav {
+        @apply flex-none;
+    }
+    .lp-review .lp-diff-nav__count {
+        @apply sr-only;
+    }
+    .lp-review .lp-diff-nav__position {
+        @apply m-0 block font-sans text-sm text-fg-label tabular-nums;
+    }
+    .lp-review .lp-diff-nav .lp-btn--icon {
+        @apply size-tap min-h-tap;
+    }
+    .lp-review .lp-diff-bar__main {
+        @apply hidden;
+    }
+    .lp-review .lp-diff-bar[data-open] .lp-diff-bar__main {
+        @apply order-last flex basis-full flex-wrap items-center gap-2 border-t border-line-faint pt-2 pb-1;
+    }
+}
 /* The newer version's note hangs under the compare bar as its last row. */
 .lp-review .lp-diff-bar:has(+ .lp-diff-notes) {
     @apply rounded-b-none;
@@ -1923,15 +2007,8 @@
     @apply mt-3;
 }
 
-/* ── Finish review dialog ───────────────────────────────────────── */
-/* A compact dialog of 27.5rem: the title, one line of context, the two
-   verdicts and the note. */
-.lp-review .lp-finish-review {
-    @apply max-w-110 rounded-2xl border border-line p-5 text-sm;
-}
-.lp-review .lp-finish-review .lp-dialog-title {
-    @apply text-xl tracking-normal;
-}
+/* ── Finish review sheet ────────────────────────────────────────── */
+/* The sheet holds the one line of context, the two verdicts and the note. */
 .lp-review .lp-finish-review .lp-dialog-desc {
     @apply mt-0.5 mb-3.5 text-xs text-fg-dim;
 }
@@ -2544,13 +2621,87 @@
         @apply min-h-8;
     }
 
+    /* The tabs and the "…" menu exist on a phone only, where the menu takes
+       the place of the row of actions. */
+    .lp-board-tabs,
+    .lp-board-toolbar__menu {
+        @apply hidden;
+    }
+
+    /* A phone shows one column per screen and a swipe stops on a column. The
+       header row holds the title, Backlog and the "…" menu, and Find takes
+       the row below it, because the header row has no room for a field. */
     @media (width < 40rem) {
-        .lp-board-toolbar__filters,
-        .lp-board-toolbar__search {
-            @apply flex-1;
+        .lp-board-header {
+            @apply flex-wrap gap-x-2;
+        }
+        .lp-board-toolbar {
+            display: contents;
+        }
+        .lp-board-toolbar__title {
+            @apply order-1 mr-auto text-xl;
+        }
+        .lp-board-toolbar__filters {
+            @apply order-5 basis-full;
+        }
+        .lp-board-backlog {
+            @apply order-3;
         }
         .lp-board-toolbar__actions {
-            @apply ml-0;
+            @apply hidden;
+        }
+        .lp-board-toolbar__menu {
+            @apply order-4 ml-auto block;
+        }
+        /* The panel minimum outgrows a phone at large text sizes. */
+        .lp-board-toolbar__menu .lp-menu__panel {
+            min-width: min(
+                calc(var(--spacing) * 46),
+                calc(100vw - var(--spacing) * 8)
+            );
+        }
+        .lp-board-toolbar__menu .lp-board-toolbar__mode {
+            @apply flex-wrap;
+        }
+        .lp-board-toolbar__search {
+            @apply w-full;
+        }
+        .lp-board-toolbar__count {
+            @apply hidden;
+        }
+        .lp-board-toolbar__paused:not(:empty) {
+            @apply order-6 basis-full;
+        }
+        .lp-board-tabs {
+            @apply block;
+        }
+        .lp-board-tabs .lp-tabs {
+            @apply mb-0;
+        }
+        .lp-board:has(> [data-board-view-target='board'][hidden])
+            > .lp-board-tabs {
+            @apply hidden;
+        }
+        .lp-board .lp-board__columns {
+            @apply gap-3;
+            container-type: inline-size;
+            grid-auto-columns: 100cqw;
+            scroll-padding-inline: 0;
+            scroll-snap-type: x mandatory;
+        }
+        .lp-board .lp-board__column {
+            @apply w-full;
+            flex: 0 0 100cqw;
+            width: 100cqw;
+            min-width: 100cqw;
+            scroll-snap-align: start;
+        }
+        .lp-board .lp-board-lane__cells {
+            @apply gap-3;
+        }
+        .lp-board .lp-board-lane__head {
+            @apply sticky left-0;
+            width: 100cqw;
         }
     }
 }
@@ -2659,6 +2810,7 @@
     }
     .lp-card-drawer {
         @apply flex flex-col max-w-5xl min-h-screen mx-auto bg-surface-1 border-x border-line shadow-xl;
+        --lp-overflow-cue-fade: var(--color-surface-1);
     }
     .lp-card-drawer-overlay > turbo-frame {
         @apply block h-full;
@@ -2670,7 +2822,7 @@
         @apply flex-1 min-h-0 overflow-y-auto;
     }
     .lp-card-drawer-overlay__loading {
-        @apply absolute inset-0 z-10 flex items-center justify-center gap-2 bg-surface-1 text-sm font-semibold text-fg-mute;
+        @apply flex flex-1 min-h-0 flex-col bg-surface-1;
     }
     .lp-card-drawer-overlay__loading[hidden],
     .lp-card-drawer-overlay__error[hidden],
@@ -2693,9 +2845,6 @@
     .lp-card-clash__message {
         @apply mr-auto;
     }
-    .lp-card-drawer-overlay__loading svg {
-        @apply animate-spin;
-    }
     .lp-card-drawer__header,
     .lp-card-drawer__footer {
         @apply flex items-center justify-between gap-4 px-6 border-b border-line bg-surface-1;
@@ -2712,6 +2861,25 @@
     }
     .lp-card-drawer__icon {
         @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
+    }
+    /* On a phone the card page keeps one 36 px bar under the 64 px top bar, so the two take 100 px.
+       The buttons keep their 44 px tap size and reach past the bar. The icon and the source tag leave. */
+    @media (width < 40rem) {
+        .lp-card-drawer__header {
+            @apply h-9 gap-2 px-4 py-0;
+        }
+        .lp-card-drawer__identity {
+            @apply min-w-0 flex-1 gap-2 overflow-hidden whitespace-nowrap;
+        }
+        .lp-card-drawer__icon {
+            @apply hidden;
+        }
+        .lp-card-drawer__source {
+            @apply hidden;
+        }
+        .lp-card-drawer__header-actions .lp-btn {
+            @apply -my-1;
+        }
     }
     .lp-card-drawer__body {
         @apply px-6 py-2.5;
@@ -3523,6 +3691,7 @@
        scrolls on its own; the page itself never scrolls. */
     .lp-review {
         @apply min-w-0;
+        --review-bar-height: calc(var(--spacing-tap) + var(--spacing) * 4);
     }
 
     /* The undo notice that replaces a thread the moment it is deleted. */
@@ -3534,7 +3703,7 @@
         @apply relative w-full px-5 pt-6 pb-19;
         max-width: 73rem;
     }
-    @media (width >= 59.375rem) {
+    @media (width >= 64rem) {
         .lp-review-block {
             @apply mx-7 w-auto px-0 pt-7 pb-30;
         }
@@ -3636,11 +3805,11 @@
         @apply inline-flex items-center gap-2 shrink-0 h-7 px-2.75 rounded-full no-underline bg-accent-faint-2 border border-accent-border text-accent-ink text-xs font-semibold transition-colors hover:bg-accent-faint;
     }
     /* Chips in the bar itself below lg, where the tab that holds them is
-       display:none and the review menu carries no tags row. */
+       display:none and the review bar carries no tags row. */
     .lp-doc-meta__tags {
         @apply flex items-center gap-1.5 ml-auto;
     }
-    @media (width >= 59.375rem) {
+    @media (width >= 64rem) {
         .lp-doc-meta__tags {
             @apply hidden;
         }
@@ -3648,8 +3817,8 @@
     .lp-doc-tags__list {
         @apply flex flex-wrap items-center gap-1.5;
     }
-    /* Below lg the tabs are rows of the review menu instead. */
-    @media (width < 59.375rem) {
+    /* Below lg the tabs are rows of the review bar's sheets instead. */
+    @media (width < 64rem) {
         .lp-doc-meta__tab {
             @apply hidden;
         }
@@ -3669,106 +3838,126 @@
         @apply order-20;
     }
 
-    /* ── Review menu ────────────────────────────────────────────────────
-       Everything the top bar and the metadata tabs carry on desktop, reached
-       from one round button in the bottom right where a thumb rests. The panel
-       opens upward from the button and drills down in place. */
-    .lp-review-menu {
-        @apply block;
+    /* ── Review bar ─────────────────────────────────────────────────────
+       Below lg, what the top bar and the metadata tabs carry on desktop sits in
+       a bar at the foot of the page, where a thumb rests. Each button opens a
+       Ds:Sheet. */
+    .lp-review-bar {
+        @apply fixed inset-x-0 bottom-0 z-30 flex items-center gap-0.5 border-t border-line bg-surface-1 px-2.5 pt-2 lg:hidden;
+        padding-bottom: calc(var(--spacing) * 2 + env(safe-area-inset-bottom));
     }
-    @media (width >= 59.375rem) {
-        .lp-review-menu {
+    .lp-review:has(.lp-comment-composer:not([hidden])) .lp-review-bar,
+    .lp-review-bar:not(:has(> :not(.lp-review-bar__more))):not(
+            :has(> .lp-review-bar__more .lp-review-sheet__row:not([hidden]))
+        ) {
+        @apply hidden;
+    }
+    @media (width < 64rem) {
+        .lp-review:has(.lp-review-bar) .lp-review-block {
+            padding-bottom: calc(
+                var(--review-bar-height) + env(safe-area-inset-bottom) +
+                    var(--spacing) * 4
+            );
+        }
+    }
+    .lp-review-bar__group,
+    .lp-review-bar__more {
+        @apply contents;
+    }
+    /* A More sheet whose rows are all hidden has nothing to open. */
+    .lp-review-bar__more:not(:has(.lp-review-sheet__row:not([hidden]))) {
+        @apply hidden;
+    }
+    .lp-btn.lp-review-bar__button {
+        @apply h-auto min-h-tap w-auto min-w-tap gap-1 px-2 text-ink;
+    }
+    .lp-review-bar__count {
+        @apply text-sm font-semibold;
+    }
+    .lp-btn.lp-review-bar__finish {
+        @apply ml-auto min-h-tap;
+    }
+
+    /* A phone draws no Revise action, because the editor needs a wider screen. */
+    @media (width < 40rem) {
+        .lp-btn.lp-revise-document__open {
             @apply hidden;
         }
     }
-    .lp-review-menu[hidden],
-    .lp-review:has(.lp-comment-composer:not([hidden])) .lp-review-menu {
+
+    /* The rows and lists inside the bar's sheets. */
+    .lp-review-sheet__row {
+        @apply flex min-h-tap w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-3 py-2 text-left text-sm text-ink transition-colors;
+    }
+    .lp-review-sheet__row:hover {
+        @apply bg-surface-3;
+    }
+    /* A display utility in a layered class outranks the UA [hidden] rule. */
+    .lp-review-sheet__row[hidden] {
         @apply hidden;
     }
-    .lp-review-menu__trigger {
-        @apply fixed bottom-5 right-5 z-30 inline-flex items-center justify-center w-14 h-14 rounded-full bg-chrome-raised border border-chrome-line text-chrome-fg shadow-card cursor-pointer transition-colors;
+    .lp-review-sheet__row svg {
+        @apply shrink-0 text-fg-mute;
     }
-    .lp-review-menu__trigger:hover {
-        @apply bg-chrome-line;
-    }
-    .lp-review-menu__trigger svg {
-        @apply w-5 h-5 shrink-0;
-    }
-    /* Stops short of the top bar, which keeps reporting where the reader is. */
-    .lp-review-menu__scrim {
-        @apply fixed inset-x-0 bottom-0 top-16 z-20 bg-ink/60;
-    }
-    .lp-review-menu__panel {
-        @apply fixed bottom-21 right-5 z-30 w-63 flex flex-col p-1.5 rounded-xl bg-chrome-raised border border-chrome-line shadow-composer overflow-y-auto;
-        max-height: calc(100dvh - calc(var(--spacing) * 48));
-    }
-    .lp-review-menu__view {
-        @apply flex flex-col;
-    }
-    /* A display utility in a layered class outranks the UA [hidden] rule, so
-       each of these has to restate it. */
-    .lp-review-menu__panel[hidden],
-    .lp-review-menu__scrim[hidden],
-    .lp-review-menu__view[hidden] {
-        @apply hidden;
-    }
-    .lp-review-menu__row {
-        @apply flex items-center gap-2.5 w-full min-h-11 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer text-left text-sm text-chrome-fg transition-colors;
-    }
-    .lp-review-menu__row:hover {
-        @apply bg-chrome-line;
-    }
-    .lp-review-menu__row svg {
-        @apply w-4.5 h-4.5 shrink-0 text-chrome-mute;
-    }
-    .lp-review-menu__label {
+    .lp-review-sheet__label {
         @apply min-w-0 truncate;
     }
-    .lp-review-menu__count {
-        @apply ml-auto shrink-0 font-mono text-chrome-dim text-xs;
+    .lp-review-sheet__count {
+        @apply ml-auto shrink-0 font-mono text-xs text-fg-dim;
     }
-    .lp-review-menu__rule {
-        @apply border-0 border-t border-chrome-line my-1.5;
+    /* Names the list the reader drilled into, so the sheet never loses its place. */
+    .lp-review-sheet__head {
+        @apply flex items-center gap-2.5 px-3 py-2 font-mono text-xs uppercase tracking-widest text-fg-dim;
     }
-    .lp-review-menu__verdict {
-        @apply w-full min-h-11;
-    }
-    .lp-review-menu__verdict + .lp-review-menu__verdict {
-        @apply mt-1.5;
-    }
-    /* Names the list the reader drilled into, so the panel never loses its place. */
-    .lp-review-menu__head {
-        @apply flex items-center gap-2.5 px-3 py-2 font-mono uppercase tracking-widest text-chrome-dim text-xs;
-    }
-    .lp-review-menu__head-count {
+    .lp-review-sheet__head-count {
         @apply ml-auto shrink-0 normal-case tracking-normal;
     }
-    .lp-review-menu__section {
-        @apply flex items-center gap-2.5 min-h-11 px-3 py-2 rounded-lg no-underline text-sm text-chrome-fg transition-colors hover:bg-chrome-line;
+    .lp-review-sheet__section {
+        @apply flex min-h-tap items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink no-underline transition-colors hover:bg-surface-3;
     }
-    .lp-review-menu__section[data-level='3'] {
+    .lp-review-sheet__section[data-level='3'] {
         @apply pl-6;
     }
-    .lp-review-menu__section[data-level='4'] {
+    .lp-review-sheet__section[data-level='4'] {
         @apply pl-9;
     }
-    .lp-review-menu__section[data-level='5'] {
+    .lp-review-sheet__section[data-level='5'] {
         @apply pl-12;
     }
-    .lp-review-menu__section[data-level='6'] {
+    .lp-review-sheet__section[data-level='6'] {
         @apply pl-15;
     }
-    .lp-review-menu__section--sub {
-        @apply pl-9 text-chrome-mute;
+    .lp-review-sheet__section--sub {
+        @apply pl-9 text-fg-mute;
     }
-    .lp-review-menu__mark {
-        @apply inline-flex items-center justify-center shrink-0 w-3.75 h-3.75 rounded-full border border-chrome-line;
+    .lp-review-sheet__mark {
+        @apply inline-flex size-3.75 shrink-0 items-center justify-center rounded-full border border-line;
     }
-    .lp-review-menu__mark--approved {
-        @apply bg-accent border-accent text-ink;
+    .lp-review-sheet__mark--approved {
+        @apply border-accent bg-accent text-ink;
     }
-    .lp-review-menu__mark svg {
-        @apply w-2.5 h-2.5 shrink-0;
+    .lp-review-sheet__mark svg {
+        @apply size-2.5 shrink-0;
+    }
+
+    /* The Comments sheet: the tabs, the list, then the whole-document action. */
+    .lp-review-sheet__comments-view {
+        @apply flex flex-col gap-3;
+    }
+    .lp-review-sheet__comments {
+        @apply flex flex-col gap-0.5;
+    }
+    .lp-comment-row__meta {
+        @apply flex flex-wrap items-center gap-x-2 text-xs text-fg-dim;
+    }
+    .lp-comment-row__author {
+        @apply font-semibold text-fg-label;
+    }
+    .lp-btn.lp-review-sheet__whole-document {
+        @apply mt-3 min-h-tap w-full justify-center;
+    }
+    .lp-review-sheet__hint {
+        @apply mx-0 mb-0 mt-2 text-center text-sm text-fg-dim;
     }
 
     /* ── General comments group ─────────────────────────────────────────
@@ -3797,7 +3986,7 @@
     .lp-general-comments__list.open {
         @apply flex;
     }
-    /** Version selection shared by the diff toolbar, history and review menu. */
+    /** Version selection shared by the diff toolbar, history and review bar. */
     .lp-version-compare {
         @apply flex flex-wrap items-center gap-2 w-full;
     }
@@ -3809,7 +3998,7 @@
        Every version in one table, newest first, with the reviews it received
        and the ways to read it or compare it with the one before. */
     .lp-history-tools {
-        @apply flex flex-wrap items-center justify-between gap-4 mt-7 mb-4.5;
+        @apply flex flex-wrap items-center justify-between gap-4 mt-7;
     }
     .lp-history-title {
         @apply m-0 font-display text-lg font-bold text-ink;
@@ -3817,17 +4006,13 @@
     .lp-history-surface {
         @apply overflow-x-auto rounded-xl border border-line bg-surface-1;
     }
-    .lp-history {
-        @apply w-full border-collapse text-left;
+    /* Version, Revision, Discussion, Open. */
+    .lp-data-table--history {
+        --lp-data-table-columns: calc(var(--spacing) * 16) minmax(0, 1fr)
+            calc(var(--spacing) * 28) calc(var(--spacing) * 44);
     }
-    .lp-history th {
-        @apply bg-surface-2 px-4.5 py-3.25 text-xs font-semibold text-fg-dim;
-    }
-    .lp-history td {
-        @apply border-t border-line px-4.5 py-4.5 align-middle text-sm text-fg-mute;
-    }
-    .lp-history td:last-child {
-        @apply whitespace-nowrap;
+    .lp-data-table--history .lp-data-table__row {
+        @apply min-h-18 py-4.5;
     }
     .lp-history__version {
         @apply inline-flex rounded-md bg-surface-3 px-1.75 py-0.75 text-xs leading-4 font-semibold text-fg-dim;
@@ -3842,7 +4027,7 @@
         @apply font-medium text-fg-mute;
     }
     .lp-history__date {
-        @apply text-xs text-fg-dim;
+        @apply block text-xs text-fg-dim;
     }
     .lp-history__reviews {
         @apply m-0 flex list-none flex-col gap-3 p-0;
@@ -3870,12 +4055,6 @@
     }
     .lp-history__action svg {
         @apply size-4 shrink-0;
-    }
-    @media (width < 43.75rem) {
-        .lp-history th,
-        .lp-history td {
-            @apply px-3.5;
-        }
     }
 
     /* ── Version diff ───────────────────────────────────────────────────
@@ -4107,6 +4286,9 @@
     }
     .lp-review-workspace-nav .lp-tabs {
         @apply mb-0 min-w-0 flex-1;
+    }
+    .lp-review-workspace-nav .lp-overflow-cue {
+        @apply min-w-0 flex-1 self-stretch;
     }
     /* The comment filter in the Comments panel head. */
     .lp-review-filter {
@@ -4678,12 +4860,12 @@
     .lp-review-topbar-actions {
         @apply ml-auto flex items-center gap-2.5;
     }
-    /* Below lg the review menu holds Finish review, so only the verdict chip stays
+    /* Below lg the review bar holds Finish review, so only the verdict chip stays
        in the bar. The wrapper hides, because the touch rule gives `.lp-btn` a display. */
     .lp-review-topbar-actions--finish {
         @apply hidden lg:flex;
     }
-    /* A page with no review menu keeps the button below lg as an icon, so the title keeps its room. */
+    /* A page with no review bar keeps the button below lg as an icon, so the title keeps its room. */
     .lp-review-topbar-actions--compact .lp-btn > span {
         @apply hidden lg:inline;
     }
@@ -6289,6 +6471,10 @@
     .lp-board-lane__tool {
         @apply text-fg-dim cursor-pointer;
     }
+    /* The Move button of a lane epic, 44 px like the one on a card face. */
+    .lp-board-lane__move {
+        @apply size-11 shrink-0 cursor-pointer text-fg-dim;
+    }
     .lp-board-lane__chevron {
         @apply w-4 h-4 rotate-90 transition-transform;
     }
@@ -6323,12 +6509,10 @@
     }
     /* An epic title wraps to two lines and stops short of the pinned deck.
        The width left out covers the lane buttons, the deck and its label.
-       The floor meets that width where the deck stops pinning, at 36rem. */
+       Below 36rem the deck stops pinning, and the title keeps a fixed width. */
     .lp-board-lane--epic .lp-board-lane__heading {
-        max-width: max(
-            calc(100cqi - var(--spacing) * 106),
-            calc(var(--spacing) * 38)
-        );
+        max-width: calc(100cqi - var(--spacing) * 120);
+        @apply @max-xl:max-w-38;
     }
     .lp-board-lane--epic .lp-board-lane__title {
         @apply whitespace-normal leading-tight line-clamp-2;
@@ -6726,6 +6910,50 @@
     .lp-board-card__reviews,
     .lp-board-card__documents {
         @apply inline-flex items-center gap-1 text-xs font-semibold text-fg-mute;
+    }
+    /* The Move button: 44 px at every width, at the right of the identity row. Its margin
+       lets it reach past the card padding, so the row keeps its height. */
+    .lp-board-card__move {
+        @apply -mt-2 -mr-2 -mb-1 ml-auto size-11 shrink-0 cursor-pointer text-fg-dim;
+    }
+
+    /* The Move sheet: the title of the card, then one 48 px row for the Backlog and for each column. */
+    .lp-move-sheet__card-title {
+        @apply mt-0 mb-2 line-clamp-2 text-sm text-fg-mute;
+    }
+    .lp-move-sheet__row {
+        @apply flex min-h-12 w-full cursor-pointer items-center gap-2.5 border-0 border-b border-line bg-transparent px-1 text-left font-sans text-base font-medium text-ink transition-colors;
+    }
+    .lp-move-sheet__row:last-child {
+        @apply border-b-0;
+    }
+    .lp-move-sheet__row:active:not(:disabled) {
+        @apply bg-sunken;
+    }
+    .lp-move-sheet__row:disabled {
+        @apply cursor-default opacity-60;
+    }
+    .lp-move-sheet__label {
+        @apply min-w-0 flex-1 truncate;
+    }
+    .lp-move-sheet__row[aria-current='true'] {
+        @apply font-bold;
+    }
+    .lp-move-sheet__current {
+        @apply text-xs font-semibold text-fg-mute;
+    }
+    .lp-move-sheet__check {
+        @apply shrink-0 text-accent-ink;
+    }
+    .lp-move-sheet__error {
+        @apply mt-3 mb-0 text-sm font-semibold text-danger;
+    }
+    /* The message of a finished move floats above the board, and the flash inside is its own panel. */
+    .lp-move-flashes {
+        @apply pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4;
+    }
+    .lp-move-flashes .lp-flash {
+        @apply pointer-events-auto m-0 w-full max-w-md border border-line bg-surface-1 shadow-lg;
     }
 
     /* The move controls, on the card's own page. The board carries one hidden
@@ -7254,8 +7482,18 @@
     .lp-metric-table__note {
         @apply m-0 mt-2 text-xs text-fg-dim;
     }
+    .lp-metric-table__cue {
+        @apply mt-2;
+        --lp-table-cue-inset: 0px;
+        --lp-table-cue-radius: 0px;
+        --lp-table-cue-body: var(--color-app);
+        --lp-table-cue-header: calc(var(--spacing) * 7 + 1px);
+    }
+    .lp-metric-table__scroll {
+        @apply overflow-x-auto;
+    }
     .lp-metric-table__table {
-        @apply w-full mt-2 text-sm text-fg border-collapse;
+        @apply w-full text-sm text-fg border-collapse;
     }
     .lp-metric-table__table th {
         @apply py-1.5 pr-3 border-b border-line text-left text-xs font-semibold text-fg-label;
@@ -7311,7 +7549,10 @@
     }
     /* The panel of a data table, for a real table with a header row. */
     .lp-experiment-table {
-        @apply mt-3 overflow-x-auto rounded-xl border border-line bg-white;
+        @apply mt-3 rounded-xl border border-line bg-white;
+    }
+    .lp-experiment-table__scroll {
+        @apply overflow-x-auto rounded-xl;
     }
     .lp-experiment-table__table {
         @apply w-full text-sm text-fg-mute border-collapse;
@@ -7653,6 +7894,11 @@
 ::highlight(lp-anchor-hover) {
     background-color: var(--accent-soft);
 }
+/* The passage a Comments sheet row led to, for 1.2 seconds. A stronger fill and
+   no motion, so it also shows when the reader asks for reduced motion. */
+::highlight(lp-anchor-flash) {
+    background-color: var(--accent);
+}
 
 /* The agent's own marks. The wavy underline carries the rung: under tritanopia
    the tint is indistinguishable from pending, and ::highlight() grants no
@@ -7787,57 +8033,76 @@
 
     /* A spinner is the only sign that work is in flight, so it slows down
        rather than stopping. */
-    .lp-card-drawer-overlay__loading svg {
+    .lp-drawer__loading svg {
         animation-duration: 3s;
     }
 }
 
 /* Touch pointers cannot hit a 36px control accurately. Desktop density is
-   deliberately unchanged, so this is scoped to coarse pointers only. */
-@media (pointer: coarse) {
-    .lp-btn,
-    .lp-copy-button__chip,
-    .lp-flash__dismiss,
-    .lp-anchor-toolbar__btn,
-    .auth-forgot,
-    .lp-auth__footer-link,
-    .lp-home-footer__link,
-    .lp-home-footer__icon {
-        @apply inline-flex items-center justify-center min-h-11 min-w-11;
-    }
+   deliberately unchanged, so this is scoped to coarse pointers only. The block
+   sits in the components layer: an unlayered rule beats every layer, and its
+   `inline-flex` would beat `hidden` and `lg:hidden`. */
+@layer components {
+    @media (pointer: coarse) {
+        .lp-btn,
+        .lp-copy-button__chip,
+        .lp-flash__dismiss,
+        .lp-anchor-toolbar__btn,
+        .auth-forgot,
+        .lp-auth__footer-link,
+        .lp-home-footer__link,
+        .lp-home-footer__icon {
+            @apply inline-flex items-center justify-center min-h-tap min-w-tap;
+        }
 
-    .lp-input,
-    .lp-list-filters .lp-input {
-        @apply min-h-11;
-    }
+        .lp-input,
+        .lp-list-filters .lp-input {
+            @apply min-h-tap;
+        }
 
-    /* Size only. Both are `lg:hidden`, and a `display` here comes later in the
-       sheet than that variant, so a touch screen at desktop width showed both
-       drawer controls beside a sidebar that is already in the flow. */
-    .lp-topbar__menu,
-    .lp-sidebar__close {
-        @apply min-h-11 min-w-11;
-    }
+        /* A text link outside a sentence, a check box and a sort header need a
+           24px hit area, the WCAG 2.2 minimum. */
+        .lp-workshop-text-link,
+        .lp-history__action,
+        .lp-backlog-sort-link,
+        .lp-auth__remember {
+            @apply min-h-6 min-w-6;
+        }
+        /* `lp-touch-check` and `lp-touch-text` are hooks for a raw check box or field
+           that no component draws. */
+        .lp-touch-check {
+            @apply size-6;
+        }
 
-    /* iOS Safari zooms the page in when it focuses a control under 16px. */
-    .lp-comment-composer textarea,
-    .lp-comment-reply-form textarea,
-    .lp-input--compact,
-    .lp-select--compact,
-    .lp-list-filters .lp-input {
-        @apply text-base;
-    }
+        .lp-topbar__menu,
+        .lp-sidebar__close {
+            @apply min-h-tap min-w-tap;
+        }
 
-    /* No keyboard to press it, and the width it costs is the width the three
-       buttons need on a phone. */
-    .lp-anchor-toolbar__key {
-        @apply hidden;
-    }
+        /* iOS Safari zooms the page in when it focuses a control under 16px. */
+        .lp-input,
+        .lp-select,
+        .lp-textarea,
+        .lp-comment-composer textarea,
+        .lp-comment-reply-form textarea,
+        .lp-input--compact,
+        .lp-select--compact,
+        .lp-list-filters .lp-input,
+        .lp-touch-text {
+            @apply text-base;
+        }
 
-    /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
-       display would reveal it below sm: and min-width never applies to inline. */
-    .lp-home-nav__link {
-        @apply px-2 py-3;
+        /* No keyboard to press it, and the width it costs is the width the three
+           buttons need on a phone. */
+        .lp-anchor-toolbar__key {
+            @apply hidden;
+        }
+
+        /* Padding, not display or min-width: this link is `hidden sm:inline`, so a
+           display would reveal it below sm: and min-width never applies to inline. */
+        .lp-home-nav__link {
+            @apply px-2 py-3;
+        }
     }
 }
 
@@ -7894,11 +8159,30 @@
     .lp-workshop-attention small {
         @apply text-xs text-fg-dim;
     }
+    .lp-workshop-attention__meta {
+        @apply ml-auto inline-flex flex-wrap items-center gap-2 text-xs text-fg-dim;
+    }
     .lp-workshop-attention__badge {
-        @apply ml-auto rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
+        @apply rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
     }
     .lp-workshop-attention__chevron {
         @apply w-4 h-4 shrink-0 ml-auto text-fg-dim;
+    }
+    /* On a phone the chip and the age sit under the title, so a long title keeps the row width. */
+    @media (width < 40rem) {
+        .lp-workshop-attention {
+            @apply grid items-center gap-x-3 gap-y-1.5;
+            grid-template-columns: calc(var(--spacing) * 8) minmax(0, 1fr) auto;
+        }
+        .lp-workshop-attention__meta {
+            @apply ml-0 justify-self-start;
+            grid-column: 2;
+            grid-row: 2;
+        }
+        .lp-workshop-attention__chevron {
+            grid-column: 3;
+            grid-row: 1;
+        }
     }
     .lp-workshop-work-grid {
         @apply grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2;
@@ -8296,6 +8580,9 @@
     }
     .lp-styleguide__specimen .lp-drawer {
         @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
+    }
+    .lp-styleguide__specimen .lp-sheet:not(:modal) {
+        @apply static m-0 h-fit w-full max-w-none rounded-xl border border-line shadow-none;
     }
     /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
     .lp-styleguide__specimen .lp-auth {

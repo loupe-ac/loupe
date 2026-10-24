@@ -18,7 +18,7 @@
 
 {% block topbar_actions %}
 {% if document.status.value in ['draft', 'in-review'] %}
-{% include '@Review/_finish_review_button.html.twig' with {inReviewMenu: false} only %}
+{% include '@Review/_finish_review_button.html.twig' with {inReviewBar: false} only %}
 {% endif %}
 {% endblock %}
 
@@ -31,9 +31,9 @@
 {% if draftLive %}
 {% do mercure_subscribe(documentTopic) %}
 {% endif %}
-<div class="lp-review" data-site-review-quotes="off"{% if finishReviewAvailable %} data-controller="modal{{ draftLive ? ' review-draft-live' : '' }}"{% endif %}
+<div class="lp-review" data-site-review-quotes="off"{% if finishReviewAvailable %} data-controller="sheet{{ draftLive ? ' review-draft-live' : '' }}"{% endif %}
      {% if draftLive %}data-review-draft-live-url-value="{{ path('app_document_draft_state', routeParameters) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"{% endif %}
-     {% if finishReviewAvailable %}data-action="review:finish@window->modal#open"{% endif %}>
+     {% if finishReviewAvailable %}data-action="review:finish@window->sheet#open"{% endif %}>
 <div class="lp-review-block">
     {% include '@Review/_document_header.html.twig' with {
         document: document,
@@ -74,35 +74,30 @@
         {% endif %}
     </div>
 
-    <div class="lp-history-surface">
-    <table class="lp-history">
-        <thead>
-            <tr>
-                <th scope="col">{{ 'review.document.history.column.version'|trans }}</th>
-                <th scope="col">{{ 'review.document.history.column.revision'|trans }}</th>
-                <th scope="col">{{ 'review.document.history.column.discussion'|trans }}</th>
-                <th scope="col">{{ 'review.document.history.column.open'|trans }}</th>
-            </tr>
-        </thead>
-        <tbody>
+    <twig:Ds:DataTable modifier="history" :label="'review.document.history.table.label'|trans" :columns="[
+        {label: 'review.document.history.column.version'|trans},
+        {label: 'review.document.history.column.revision'|trans},
+        {label: 'review.document.history.column.discussion'|trans},
+        {label: 'review.document.history.column.open'|trans},
+    ]">
         {% for meta in versions %}
         {% set isLatest = meta.versionNumber == latestVersion %}
         {% set readPath = isLatest
             ? path('app_document_review', routeParameters)
             : path('app_document_review_version', routeParameters|merge({versionNumber: meta.versionNumber})) %}
-        <tr class="lp-history__row{{ isLatest ? ' lp-history__row--current' : '' }}"
+        <div class="lp-data-table__row lp-history__row{{ isLatest ? ' lp-history__row--current' : '' }}" role="row"
             data-version-number="{{ meta.versionNumber }}">
-            <td><span class="lp-history__version">{{ 'v' ~ meta.versionNumber }}</span></td>
-            <td>
+            <div class="lp-data-table__cell" role="cell"><span class="lp-history__version">{{ 'v' ~ meta.versionNumber }}</span></div>
+            <div class="lp-data-table__cell" role="cell">
                 {% if meta.description %}
                 <strong class="lp-history__note">{{ meta.description }}</strong>
                 {% else %}
                 <strong class="lp-history__note lp-history__note--empty">{{ (isLatest ? 'review.document.history.current' : 'review.document.history.no_note')|trans }}</strong>
                 {% endif %}
                 <twig:Ds:RelativeTime :datetime="meta.createdAt" class="lp-history__date" />
-            </td>
-            <td>{{ 'review.document.history.threads'|trans({'%count%': meta.threadCount}) }}</td>
-            <td>
+            </div>
+            <div class="lp-data-table__cell" role="cell">{{ 'review.document.history.threads'|trans({'%count%': meta.threadCount}) }}</div>
+            <div class="lp-data-table__cell" role="cell">
                 <div class="lp-history__actions">
                     <a class="lp-history__action" href="{{ readPath }}">
                         <twig:ux:icon name="lucide:file-text" />
@@ -118,12 +113,10 @@
                     </a>
                     {% endif %}
                 </div>
-            </td>
-        </tr>
+            </div>
+        </div>
         {% endfor %}
-        </tbody>
-    </table>
-    </div>
+    </twig:Ds:DataTable>
 
     <h2 class="lp-history-title lp-history-title--log">{{ 'review.document.history.reviews'|trans }}</h2>
     <div class="lp-history-surface lp-history-log">

@@ -7,10 +7,12 @@
   The frame and header of a list table. The caller renders each .lp-data-table__row in the content block.
   A header block replaces the generated header cells, for a header that holds a checkbox or sort links.
   Give each row role="row" and each cell role="cell". Any other attribute is passed to the table.
+  The table sits in an overflow-cue wrapper that draws the scroll arrows and fades below md. A stream that replaces the table replaces the wrapper with it.
 #}
 {% props columns = [], modifier = null, label = null %}
-{%- set tableDefaults = {class: 'lp-data-table' ~ (modifier ? ' lp-data-table--' ~ modifier), role: 'table'} -%}
+{%- set tableDefaults = {class: 'lp-data-table' ~ (modifier ? ' lp-data-table--' ~ modifier), role: 'table', 'data-overflow-cue-target': 'viewport'} -%}
 {%- if label %}{% set tableDefaults = tableDefaults|merge({'aria-label': label}) %}{% endif -%}
+<div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-table-cue--data" data-controller="overflow-cue">
 <div{{ attributes.defaults(tableDefaults) }}>
     <div class="lp-data-table__header" role="row">
         {%- block header %}
@@ -20,4 +22,6 @@
         {% endblock -%}
     </div>
     {% block content %}{% endblock %}
+</div>
+{% include '_overflow_arrows.html.twig' only %}
 </div>

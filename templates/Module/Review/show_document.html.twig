@@ -19,7 +19,7 @@
 {% block topbar_actions %}
 {% if verdictAvailable %}
 {% if document.status.value in ['draft', 'in-review'] %}
-{% include '@Review/_finish_review_button.html.twig' with {inReviewMenu: true} only %}
+{% include '@Review/_finish_review_button.html.twig' with {inReviewBar: true} only %}
 {% elseif document.status.value in ['approved', 'changes-requested'] %}
 {% set verdictLabel = ('review.document.verdict.' ~ document.status.value)|trans %}
 <div class="lp-review-topbar-actions">
@@ -73,10 +73,10 @@
 {% block body %}
 {% set finishReviewAvailable = verdictAvailable %}
 {% set draftLive = document.status.value == 'draft' and (not diffMode or finishReviewAvailable) %}
-<div class="lp-review" data-site-review-quotes="off" data-controller="card-drawer{{ finishReviewAvailable ? ' modal' : '' }}{{ draftLive ? ' review-draft-live' : '' }}"
+<div class="lp-review" data-site-review-quotes="off" data-controller="card-drawer{{ finishReviewAvailable ? ' sheet' : '' }}{{ draftLive ? ' review-draft-live' : '' }}"
      {% if draftLive %}data-review-draft-live-url-value="{{ path('app_document_draft_state', {projectId: document.project.id, documentId: document.id}|merge(readOnly ? {publish: 0} : {})) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"{% endif %}
-     {% if finishReviewAvailable %}data-action="review:finish@window->modal#open"{% endif %}
-     {% if finishReviewAvailable %}data-modal-reopen-value="{{ submitReviewForm.vars.submitted ? 'true' : 'false' }}"{% endif %}>
+     {% if finishReviewAvailable %}data-action="review:finish@window->sheet#open"{% endif %}
+     {% if finishReviewAvailable %}data-sheet-reopen-value="{{ submitReviewForm.vars.submitted ? 'true' : 'false' }}"{% endif %}>
     {# Both controllers pass diffMode explicitly: Twig's `default` filter fires
        on any falsy value, so `|default(true)` would send every show-page render
        down the diff branch. A comparison names itself with the chip in the
@@ -118,7 +118,7 @@
         data-controller="{{ (reviewControllers|merge(['review-panels']))|join(' ') }}"
         data-review-panels-mode-value="{{ panelsMode }}"
         data-action="review-panels:filter->comment-anchor#filterThreads comment-anchor:resolved-filter->review-panels#resolvedFilter comment-anchor:reveal->review-panels#reveal"
-        {%- if diffNavigation %} data-diff-navigation-position-value="{{ 'review.document.diff.nav.position'|trans({'%total%': diffChangeCount, '%count%': diffChangeCount}) }}"{% endif %}
+        {%- if diffNavigation %} data-diff-navigation-position-value="{{ 'review.document.diff.nav.position'|trans({'%total%': diffChangeCount, '%count%': diffChangeCount}) }}" data-diff-navigation-total-value="{{ diffChangeCount }}"{% endif %}
         data-comment-anchor-marker-label-value="{{ 'review.document.comment.marker'|trans }}"
         {%- if diffCommenting %} data-comment-anchor-diff-value="true"
             data-comment-anchor-deleted-message-value="{{ 'review.document.diff.comment.deleted_refused'|trans }}"
@@ -185,12 +185,23 @@
                    setext underline, hence the Markdown one. #}
                 {% if diffMode %}
                 {% set viewParams = {projectId: document.project.id, documentId: document.id, fromVersionNumber: diffFromVersion, toVersionNumber: version.versionNumber} %}
-                <div class="lp-diff-bar">
+                <div class="lp-diff-bar" data-controller="diff-bar" data-action="keydown.esc->diff-bar#close">
+                    {# Below lg this line stands in for the bar. A tap opens the
+                       back link, the pickers and the views under it. #}
+                    <button type="button" class="lp-diff-bar__line" id="diff-bar-line" aria-expanded="false" aria-controls="diff-bar-main"
+                            data-diff-bar-target="trigger" data-action="diff-bar#toggle">
+                        <span class="lp-diff-bar__versions" aria-hidden="true">{{ 'v' ~ diffFromVersion }}<twig:ux:icon name="lucide:arrow-right" />{{ 'v' ~ version.versionNumber }}</span>
+                        <span class="sr-only">{{ 'review.document.diff.line.versions'|trans({'%from%': diffFromVersion, '%to%': version.versionNumber}) }}</span>
+                        {% if diffNavigation %}
+                        <span class="lp-diff-bar__changes"><span aria-hidden="true">·</span> {{ 'review.document.diff.nav.count'|trans({'%count%': diffChangeCount}) }}</span>
+                        {% endif %}
+                        <twig:ux:icon name="lucide:chevron-down" class="lp-diff-bar__chevron" aria-hidden="true" />
+                    </button>
                     {# Two real columns, so the pickers and the switch keep the
                        document's width and the change count keeps the comment
                        column. One flex row put the switch in a different place
                        in each view, and wrapped the count below a narrow one. #}
-                    <div class="lp-diff-bar__main">
+                    <div class="lp-diff-bar__main" id="diff-bar-main">
                     <twig:Ds:Button variant="ghost" class="lp-diff-bar__back" href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}"
                        aria-label="{{ 'review.document.diff.return'|trans }}" title="{{ 'review.document.diff.return'|trans }}">
                         <twig:ux:icon name="lucide:chevron-left" />
@@ -491,8 +502,10 @@
            still inside the comment-anchor controller that drives it. #}
         {% set showVerdict = verdictAvailable and document.status.value in ['draft', 'in-review'] %}
         {% set showResolvedToggle = not diffMode or diffCommenting %}
+        {# A read-only version with no comment has nothing for the sheet to list or to start. #}
+        {% set showCommentsSheet = (not diffMode or diffCommenting) and not diffColumns and (canComment or comments|length > 0) %}
         {% if showContents or showVersions or referenceCount > 0 or decisionRows|length > 0 or showResolvedToggle or showVerdict %}
-        {% include '@Review/_review_menu.html.twig' with {
+        {% include '@Review/_review_bar.html.twig' with {
             document: document,
             version: version,
             versions: versions,
@@ -508,6 +521,10 @@
             diffMode: diffMode,
             diffFromVersion: diffFromVersion,
             diffViewValue: diffView is null ? null : diffView.value,
+            showComments: showCommentsSheet,
+            canComment: canComment,
+            comments: comments,
+            openCommentCount: signals.openThreadCount,
         } only %}
         {% endif %}
     </div>

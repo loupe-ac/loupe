@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's code block. {{ entry.summary }}
+
+```jsx
+<{{ name }} label="Terminal" text="npm install" copyLabel="Copy" />
+<{{ name }} label="Read only" text="No copy button here" />
+```
+
+Pass `label` for the header and `text` for the code. Pass `copyLabel` to draw the copy button. A long line scrolls sideways, and the right edge fades while more text lies past it. Labels are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

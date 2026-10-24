@@ -1,0 +1,15 @@
+{#
+  Props: title, backLabel and closeLabel (default: the sheet.back and sheet.close translations). Other attributes go to the dialog.
+  Wrap the sheet and its trigger in data-controller="sheet". A drill-down body holds one data-sheet-view="name" element per view.
+  A button with click->sheet#show and data-sheet-view-param="name" shows a view.
+#}
+{%- props title, backLabel = null, closeLabel = null -%}
+<dialog{{ attributes.defaults({class: 'lp-sheet', 'aria-label': title, 'data-sheet-target': 'dialog', 'data-action': 'cancel->sheet#close'}) }}>
+    <div class="lp-sheet__handle" aria-hidden="true"></div>
+    <header class="lp-sheet__header">
+        <twig:Ds:Button variant="icon" type="button" hidden data-sheet-target="back" data-action="click->sheet#back" aria-label="{{ backLabel ?? 'sheet.back'|trans }}"><twig:ux:icon name="lucide:chevron-left" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+        <h2 class="lp-sheet__title">{{ title }}</h2>
+        <twig:Ds:Button variant="icon" type="button" data-action="click->sheet#close" aria-label="{{ closeLabel ?? 'sheet.close'|trans }}" autofocus><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+    </header>
+    <div class="lp-sheet__body">{% block content %}{% endblock %}</div>
+</dialog>

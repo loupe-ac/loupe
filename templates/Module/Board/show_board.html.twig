@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block body %}
-<twig:Ds:SplitView width="full" class="lp-core-prototype-page lp-core-board" data-controller="card-drawer">
+<twig:Ds:SplitView width="full" class="lp-core-prototype-page lp-core-board" data-controller="card-drawer card-move">
     {# A column change updates the board skeleton in place, and a card change places that card. #}
     {% do mercure_subscribe(boardTopic) %}
     {% do mercure_subscribe(worker_runs_topic(board.project)) %}
@@ -27,5 +27,6 @@
     </div>
 
     {% include '@Board/_card_drawer.html.twig' with {project: board.project} only %}
+    {% include '@Board/_move_sheet.html.twig' with {board: board} only %}
 </twig:Ds:SplitView>
 {% endblock %}

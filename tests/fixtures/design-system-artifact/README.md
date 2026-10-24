@@ -18,7 +18,7 @@ All tokens live in `assets/styles/tokens.css`. `assets/styles/app.css` imports i
 |---|---|
 | colour | The raw colour values, and the Tailwind names for them |
 | type | The font stacks. The Tailwind text sizes carry the scale |
-| spacing | One step of the spacing scale. Every gap and size is a multiple of it |
+| spacing | One step of the spacing scale, which every gap and size is a multiple of, and the px touch target |
 | radius | The corner radii |
 | shadow | The shadows of surfaces that float above the page |
 | motion | The durations and the easing curves |
@@ -195,7 +195,7 @@ Write a menu like this:
 </twig:Ds:Menu>
 ```
 
-The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
+The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. The mobile review bar and the review filter stay outside the component, because one opens sheets and the other is a `<details>` element.
 
 Write the state of a card like this:
 
@@ -272,7 +272,7 @@ These are the documented shell classes.
 | `lp-topbar__menu` | The button that opens the drawer |
 | `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
 | `lp-topbar__global-actions` | The tools at the right end of the bar |
-| `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
+| `lp-topbar__new-work` and its `__label` part | The New work button. It is a `Ds:Button` with this class added. Below 1024 px the label stays for screen readers only |
 | `lp-main` | The main column. It is the only scroll container of the page. `--paper` gives it a white ground, and `--fill` makes it a column that clips its overflow |
 ## The marketing shell
 

@@ -442,7 +442,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         );
         // The picker keeps the view, so comparing another pair does not silently
         // send the reader back to the rendered one. Two pickers, because the
-        // review menu carries one below lg where the panel is display:none.
+        // review bar carries one below lg where the panel is display:none.
         self::assertCount(2, $source->filter('.lp-version-compare input[name="view"][value="source"]'));
         self::assertCount(0, $rendered->filter('.lp-version-compare input[name="view"]'));
     }
@@ -555,7 +555,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         self::assertCount(1, $latest->filter('[data-comment-anchor-target="doc"]'));
         self::assertCount(1, $latest->filter('#comment-threads'));
         self::assertCount(2, $latest->filter('dialog input[name="submit_review_form[verdict]"]'));
-        self::assertCount(1, $latest->filter('.lp-review-menu__verdict'));
+        self::assertCount(1, $latest->filter('.lp-review-bar__finish'));
         // Not an exact count: how many composers the review page offers is the
         // business of whatever review actions exist, and it has already grown from
         // one to two. What this control has to establish is that the selector
@@ -812,9 +812,8 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
 
         self::assertCount(0, $diff->filter('.lp-review-contents__tick'));
 
-        // Both counts below lg say how many headings there are.
-        self::assertSame('5', trim($diff->filter('#review-menu-sections-count')->text()));
-        self::assertSame('5', trim($diff->filter('#review-menu-sections-head-count')->text()));
+        // The Contents sheet below lg lists every heading.
+        self::assertCount(5, $diff->filter('.lp-review-bar .lp-review-sheet__section[data-level]'));
 
         // The Markdown view lists headings too. Its ids are minted from the
         // source lines, because it renders no heading element to read one from.
@@ -822,13 +821,13 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         self::assertCount(1, $source->filter('[data-review-panel="outline"]'));
         $this->assertContentsRowsResolve($source);
 
-        // The columns take the margin's width, so the review menu lists their
+        // The columns take the margin's width, so the review bar lists their
         // headings. They pair by position, so Gone shares a row with Arrived,
         // and reading only the newer cell would drop Gone from the list.
         $columns = $client->request(Request::METHOD_GET, $base.'?view=side-by-side');
         self::assertSame(
             ['First', 'Gone', 'Arrived', 'Renamed', 'Second', 'Second!'],
-            $columns->filter('.lp-review-menu__section[href^="#"]')->each(
+            $columns->filter('.lp-review-sheet__section[href^="#"]')->each(
                 static fn (Crawler $link): string => $link->text(),
             ),
         );
@@ -846,7 +845,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
                 'diff-old-heading-second',
                 'heading-second',
             ],
-            $columns->filter('.lp-review-menu__section[href^="#"]')->each(
+            $columns->filter('.lp-review-sheet__section[href^="#"]')->each(
                 static fn (Crawler $link): string => substr((string) $link->attr('href'), 1),
             ),
         );
@@ -948,7 +947,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(
             ['heading-alpha', 'diff-old-heading-second', 'heading-second-2'],
-            $columns->filter('.lp-review-menu__section[href^="#"]')->each(
+            $columns->filter('.lp-review-sheet__section[href^="#"]')->each(
                 static fn (Crawler $link): string => substr((string) $link->attr('href'), 1),
             ),
         );
@@ -1028,7 +1027,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
      */
     private function assertContentsRowsResolve(Crawler $page): void
     {
-        $targets = $page->filter('.lp-review-contents__link, .lp-review-menu__section[href^="#"]')->each(
+        $targets = $page->filter('.lp-review-contents__link, .lp-review-sheet__section[href^="#"]')->each(
             static fn (Crawler $link): string => substr((string) $link->attr('href'), 1),
         );
 
@@ -1143,7 +1142,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, $base.'3/4');
 
         self::assertResponseIsSuccessful();
-        // The desktop panel and the review menu each carry one, so the count is
+        // The desktop panel and the review bar each carry one, so the count is
         // two and the ids differ.
         $picker = $crawler->filter('.lp-version-compare');
         self::assertCount(2, $picker);
@@ -1162,7 +1161,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         ));
         self::assertSame('3', $crawler->filter('#diff-from option[selected]')->attr('value'));
         self::assertSame('4', $crawler->filter('#diff-to option[selected]')->attr('value'));
-        self::assertCount(1, $crawler->filter('#menu-diff-from'));
+        self::assertCount(1, $crawler->filter('#bar-diff-from'));
 
         // The non-adjacent pair the picker exists to reach.
         $spanning = $client->request(Request::METHOD_GET, $base.'1/4');
@@ -1283,10 +1282,10 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
             $panel->filter('.lp-decision-summary__link')->attr('href'),
         );
         self::assertNull($panel->filter('.lp-decision-summary__link')->attr('data-action'));
-        // The phone menu lists the same rows, with the same links.
+        // The phone bar lists the same rows, with the same links.
         self::assertSame(
             $base.'#'.DecisionBlockService::blockElementId('deploy-target'),
-            $diff->filter('#review-menu-decisions-list .lp-review-menu__section')->attr('href'),
+            $diff->filter('#review-bar-decisions-list .lp-review-sheet__section')->attr('href'),
         );
 
         // The block in the pane stays inert, and no answer can be posted.

@@ -19,6 +19,7 @@ export function {{ entry.name }}({ title, description, items = [], navLabel, col
                 </div>
             </header>
             <div className={'lp-settings-layout' + (columns ? ' lp-settings-layout--columns' : '')}>
+                <div className="lp-overflow-cue lp-overflow-cue--scroll">
                 <nav className="lp-settings-nav" aria-label={navLabel}>
                     {items.map((item) => (
                         <a
@@ -32,6 +33,13 @@ export function {{ entry.name }}({ title, description, items = [], navLabel, col
                         </a>
                     ))}
                 </nav>
+                <button type="button" className="lp-overflow-cue__arrow lp-overflow-cue__arrow--prev" aria-label="Scroll back">
+                    <span className="lp-icon lp-icon--md" aria-hidden="true">&lsaquo;</span>
+                </button>
+                <button type="button" className="lp-overflow-cue__arrow lp-overflow-cue__arrow--next" aria-label="Scroll forward">
+                    <span className="lp-icon lp-icon--md" aria-hidden="true">&rsaquo;</span>
+                </button>
+                </div>
                 <div className="lp-settings-content">{children}</div>
             </div>
         </div>

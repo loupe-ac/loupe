@@ -559,7 +559,7 @@ for (const width of [1440, 390]) {
                 '[data-comment-anchor-target="suggestBody"]',
             );
             await expect(composer).toBeVisible();
-            await expect(page.locator('.lp-review-menu__trigger')).toBeHidden();
+            await expect(page.locator('.lp-review-bar')).toBeHidden();
             await expect(replacement).toBeFocused();
             await expect(replacement).toHaveValue(KNOWN_PHRASE);
             await expect(reason).toHaveValue('');
@@ -599,9 +599,7 @@ for (const width of [1440, 390]) {
                 '[data-comment-anchor-target="thread"]',
             );
             await expect
-                .poll(() =>
-                    page.locator('.lp-review-menu__trigger').isVisible(),
-                )
+                .poll(() => page.locator('.lp-review-bar').isVisible())
                 .toBe(width < 1024);
             await expect(thread).toHaveCount(1);
             await expect(thread).toContainText('precise replacement wording');

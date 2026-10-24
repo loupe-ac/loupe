@@ -1,0 +1,26 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ label, text, copyLabel, className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <div {...rest} className={classes.join(' ')}>
+            <div className="{{ entry.rootClass }}__header">
+                <span className="{{ entry.rootClass }}__label">{label}</span>
+                {copyLabel && (
+                    <span className="lp-copy-button lp-copy-button--text">
+                        <button type="button" className="lp-copy-button__chip">{copyLabel}</button>
+                    </span>
+                )}
+            </div>
+            <div className="lp-overflow-cue {{ entry.rootClass }}__scroll">
+                <pre className="{{ entry.rootClass }}__body"><code>{text ?? children}</code></pre>
+            </div>
+        </div>
+    );
+}
+{% endautoescape %}

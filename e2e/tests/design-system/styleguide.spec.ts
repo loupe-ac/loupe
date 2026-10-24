@@ -115,3 +115,14 @@ test('the catalog draws the app shell inside its frame', async ({ page }) => {
     const shell = await section.locator('.lp-app').boundingBox();
     expect(shell!.height).toBeLessThanOrEqual(frame!.height);
 });
+
+test('the sheet hides its back button in the root view', async ({ page }) => {
+    await page.goto('/styleguide');
+    const sheet = page.locator('[data-component="Sheet"] .lp-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('[data-sheet-target="back"]')).toBeHidden();
+    await expect(sheet.locator('[data-sheet-target="back"]')).toHaveCSS(
+        'display',
+        'none',
+    );
+});

@@ -1,13 +1,13 @@
 /**
  * The authenticated shell at a 375px phone viewport with a touch pointer.
  *
- * The sidebar is off-canvas at 780px and below, and the topbar carries the
+ * The sidebar is off-canvas below 1024px, and the topbar carries the
  * hamburger that slides it in. Every test drives its own user and document
  * through the dev-only endpoints (/dev/register-and-verify, /dev/seed/document),
  * so nothing here touches Mailpit.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import {
     hubStubbedTest as base,
     suppressToolbar,
@@ -19,6 +19,19 @@ const RUN = Date.now();
 const PASSWORD = 'E2eMobileShell1!';
 
 const PHONE = { width: 375, height: 812 };
+
+// The 40rem breakpoint where the filter bar stacks the search above the filters.
+const PHONE_BREAKPOINT = 640;
+
+// On a phone the primary group has no box, so no scroll container can clip the ring.
+async function expectPhoneFilterFocusRingVisible(
+    field: Locator,
+    group: Locator,
+): Promise<void> {
+    await expect(field).toBeFocused();
+    await expect(field).toHaveCSS('box-shadow', /0px 0px 0px 2px/);
+    await expect(group).toHaveCSS('display', 'contents');
+}
 
 const SIDEBAR = '[data-drawer-target="panel"]';
 const SCRIM = '[data-drawer-target="scrim"]';
@@ -168,15 +181,56 @@ test('no authenticated page scrolls sideways at 375px', async ({
     }
 });
 
-test('the sidebar stays in flow above the 780px shell breakpoint', async ({
+test('the compact shell holds up to 1023px and the desktop shell starts at 1024px', async ({
     page,
     seeded,
 }) => {
-    await page.setViewportSize({ width: 950, height: 900 });
     await page.goto(`/projects/${seeded.projectId}/documents`);
+    const menu = page.locator('.lp-topbar__menu');
+    const newWork = page.locator('.lp-topbar__new-work');
+    const bell = page.locator('.lp-topbar__global-action[aria-haspopup]');
+    const label = page.locator('.lp-topbar__new-work-label');
 
+    for (const width of [639, 640, 820, 1023]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.locator(SIDEBAR), `${width}px`).toBeHidden();
+        await expect(menu, `${width}px`).toBeVisible();
+        for (const control of [menu, bell, newWork]) {
+            const box = (await control.boundingBox())!;
+            expect(box.width, `${width}px`).toBeGreaterThanOrEqual(44);
+            expect(box.height, `${width}px`).toBeGreaterThanOrEqual(44);
+        }
+        await expect(label, `${width}px`).toHaveCSS('clip-path', 'inset(50%)');
+        expect(
+            (await label.boundingBox())!.width,
+            `${width}px`,
+        ).toBeLessThanOrEqual(1);
+        await expect(newWork).toHaveAccessibleName('New work');
+        expect(
+            await horizontalOverflow(page),
+            `${width}px`,
+        ).toBeLessThanOrEqual(0);
+    }
+
+    await page.setViewportSize({ width: 375, height: 900 });
+    await page.evaluate(() => {
+        document.documentElement.style.fontSize = '200%';
+    });
+    for (const control of [menu, bell, newWork]) {
+        const box = (await control.boundingBox())!;
+        expect(box.width, '200% text').toBe(44);
+        expect(box.height, '200% text').toBe(44);
+    }
+    expect(await horizontalOverflow(page), '200% text').toBeLessThanOrEqual(0);
+    await page.evaluate(() => {
+        document.documentElement.style.fontSize = '';
+    });
+
+    await page.setViewportSize({ width: 1024, height: 900 });
     await expect(page.locator(SIDEBAR)).toBeVisible();
-    await expect(page.locator('.lp-topbar__menu')).toBeHidden();
+    await expect(menu).toBeHidden();
+    await expect(label).toHaveCSS('clip-path', 'none');
+    expect((await label.boundingBox())!.width).toBeGreaterThan(1);
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
 
@@ -463,9 +517,14 @@ test('search and status stay aligned across workspace widths', async ({
             const statusBox = await status.boundingBox();
             expect(searchBox).not.toBeNull();
             expect(statusBox).not.toBeNull();
-            expect(statusBox!.y).toBe(searchBox!.y);
             expect(statusBox!.height).toBe(searchBox!.height);
-            expect(statusBox!.x - searchBox!.x - searchBox!.width).toBe(8);
+            if (width < PHONE_BREAKPOINT) {
+                expect(statusBox!.y - searchBox!.y - searchBox!.height).toBe(8);
+                expect(statusBox!.x).toBe(searchBox!.x);
+            } else {
+                expect(statusBox!.y).toBe(searchBox!.y);
+                expect(statusBox!.x - searchBox!.x - searchBox!.width).toBe(8);
+            }
             expect(statusBox!.x + statusBox!.width).toBeLessThanOrEqual(width);
             expect(searchBox!.width).toBeGreaterThan(80);
         }
@@ -513,22 +572,33 @@ test('enlarged workspace filters remain reachable', async ({
             const statusBounds = await status.boundingBox();
             expect(searchBounds).not.toBeNull();
             expect(statusBounds).not.toBeNull();
-            expect(statusBounds!.y).toBe(searchBounds!.y);
             expect(statusBounds!.height).toBe(searchBounds!.height);
-            expect(
-                statusBounds!.x - searchBounds!.x - searchBounds!.width,
-            ).toBe(16);
+            if (width < PHONE_BREAKPOINT) {
+                expect(
+                    statusBounds!.y - searchBounds!.y - searchBounds!.height,
+                ).toBe(16);
+                expect(statusBounds!.x).toBe(searchBounds!.x);
+            } else {
+                expect(statusBounds!.y).toBe(searchBounds!.y);
+                expect(
+                    statusBounds!.x - searchBounds!.x - searchBounds!.width,
+                ).toBe(16);
+            }
+            const ringVisible = (field: Locator) =>
+                width < PHONE_BREAKPOINT
+                    ? expectPhoneFilterFocusRingVisible(field, filters)
+                    : expectFilterFocusRingVisible(field, filters);
             await search.focus();
             await expect(search).toBeInViewport({ ratio: 1 });
-            await expectFilterFocusRingVisible(search, filters);
+            await ringVisible(search);
             await search.press('Tab');
             await expect(status).toBeFocused();
             await expect(status).toBeInViewport({ ratio: 1 });
-            await expectFilterFocusRingVisible(status, filters);
+            await ringVisible(status);
             await status.press('Shift+Tab');
             await expect(search).toBeFocused();
             await expect(search).toBeInViewport({ ratio: 1 });
-            await expectFilterFocusRingVisible(search, filters);
+            await ringVisible(search);
         }
     }
 });
@@ -569,5 +639,77 @@ test('no touch control renders below the 16px iOS zoom threshold', async ({
     expect(sizes).toHaveLength(2);
     for (const size of sizes) {
         expect(size).toBeGreaterThanOrEqual(16);
+    }
+});
+
+test('the documents search takes a full row and Clear sits with the filters', async ({
+    page,
+    seeded,
+}) => {
+    await page.goto(`/projects/${seeded.projectId}/documents`);
+    const form = page.locator('.lp-filter-form');
+    const search = page.locator('.lp-filter-search');
+    const status = page.locator('#document-status');
+    const clear = page.locator('.lp-filter-clear');
+
+    const formBox = (await form.boundingBox())!;
+    const searchBox = (await search.boundingBox())!;
+    expect(searchBox.width).toBeGreaterThanOrEqual(formBox.width - 1);
+
+    const statusBox = (await status.boundingBox())!;
+    const clearBox = (await clear.boundingBox())!;
+    expect(statusBox.y).toBeGreaterThan(searchBox.y + searchBox.height - 1);
+    expect(clearBox.y).toBeGreaterThan(searchBox.y + searchBox.height - 1);
+
+    // A placeholder that fits shows whole, with no clipped text.
+    const placeholder = page.locator('#document-search');
+    expect(
+        await placeholder.evaluate(
+            (element) => element.scrollWidth - element.clientWidth,
+        ),
+    ).toBeLessThanOrEqual(0);
+});
+
+test('a button beside the Agents heading keeps its label on one line', async ({
+    page,
+    seeded,
+}) => {
+    test.slow();
+    for (const width of [390, 820]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.goto(`/projects/${seeded.projectId}/agents`);
+        const button = page.locator('.lp-page-header > .lp-btn');
+        await expect(button, `${width}px`).toBeVisible();
+        const lineHeight = await button.evaluate((element) =>
+            parseFloat(getComputedStyle(element).lineHeight),
+        );
+        const textHeight = await button.evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return Math.max(
+                ...Array.from(range.getClientRects()).map((r) => r.height),
+            );
+        });
+        expect(textHeight, `${width}px`).toBeLessThanOrEqual(lineHeight + 1);
+        // The icon box sits a few pixels lower than the text, so only text lines count as rows.
+        const rows = await button.evaluate((element) => {
+            const tops = new Set<number>();
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+            );
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                if (!node.textContent?.trim()) {
+                    continue;
+                }
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                for (const rect of Array.from(range.getClientRects())) {
+                    tops.add(Math.round(rect.y));
+                }
+            }
+            return tops.size;
+        });
+        expect(rows, `${width}px`).toBe(1);
     }
 });

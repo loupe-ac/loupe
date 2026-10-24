@@ -19,7 +19,7 @@ All tokens live in `assets/styles/tokens.css`. `assets/styles/app.css` imports i
 |---|---|
 | colour | The raw colour values, and the Tailwind names for them |
 | type | The font stacks. The Tailwind text sizes carry the scale |
-| spacing | One step of the spacing scale. Every gap and size is a multiple of it |
+| spacing | One step of the spacing scale, which every gap and size is a multiple of, and the px touch target |
 | radius | The corner radii |
 | shadow | The shadows of surfaces that float above the page |
 | motion | The durations and the easing curves |
@@ -57,21 +57,22 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
-| Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
+| Sheet | A panel that slides up from the bottom of the screen at every width, with a grab handle, a title, a back button and a close button. From the `lg` width it is a centred panel. The `sheet` controller opens it | none |
+| Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting. A strip that overflows draws arrows, set by the `arrows` prop | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 | Panel | A bordered tinted card that holds one block of a page | none. Takes `as` for the element |
 | SectionHeading | The title of a section, with an optional sentence and optional actions | none. The content is the title. Takes `level`, `description`, `titleId` and an `actions` block, and no `title` prop |
 | FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
-| CodeBlock | A dark block of code or a command, with a header label and a copy button | none. Takes a `meta` block for a header marker and a `tail` block for markup after the code |
+| CodeBlock | A dark block of code or a command, with a header label and a copy button | none. Takes a `meta` block for a header marker and a `tail` block for markup after the code. A long line scrolls sideways and the right edge fades while more text lies past it, with no arrows |
 | CopyButton | A button that copies a text and shows that it did. It owns the `clipboard` controller | text, icon. Tones light, chrome |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 | Switch | An on/off toggle on a native checkbox, with an optional label and help line | none. Takes `name`, `id`, `checked`, `disabled`, `label` and `help`. `fieldView` draws a Symfony checkbox field |
 | Stepper | The progress strip of a short flow. Props `steps` (translated labels), `current` (from 1) and `complete`. It carries `data-wizard-step`, and the current step has `aria-current="step"` | done, current, upcoming |
 | RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |
 | Icon | The size of a `ux:icon` tag. A class scale, with no component to render | xs (3), sm (3.5), md (4), lg (5), and xl (8) and 2xl (12) for an empty-state icon. Write `class="lp-icon lp-icon--sm"` |
-| DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
+| DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells. A table that scrolls sideways draws arrows over the header and a fade at each hidden edge |
 | Menu | A panel of links or actions that opens under a trigger, with headings, groups and dividers | light, chrome |
 | SplitButton | A button whose main part acts and whose chevron opens a menu of the other actions. Takes `id`, `toggleLabel`, `variant`, `size`, `menuSize` and `align`, a `main` block and a `content` block. Without a main button the toggle is a whole button with its label. Without rows the main button stands alone | none |
 | ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |
@@ -87,7 +88,9 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | SettingsLayout | A settings page: the page header, a section navigation and the content column | none. The state active marks the open section |
 | Drawer | A panel that slides in from the right edge. The `modal` controller opens it | none |
 
-The Drawer takes the named blocks `header`, `body` and `footer`, and draws a band only for a block that holds content. The block `content` replaces all three, for a drawer that fills the dialog itself, such as the card drawer. Pass the target attribute of the controller that opens it, such as `data-modal-target="dialog"`. A drawer that loads a Turbo frame on opening pairs the `modal` controller with `lazy-frame`, which shows the loading and error states around the frame. A controller with more states than that calls `LazyFrame` from `assets/lib/lazy_frame.js`. Its CSS is `assets/styles/components/drawer.css`.
+The Drawer takes the named blocks `header`, `body` and `footer`, and draws a band only for a block that holds content. The prop `loading` takes a translated text. Set, the header stays, a loading line replaces the body and the footer is left out. The block `content` replaces all three, for a drawer that fills the dialog itself, such as the card drawer. The card drawer draws its own loading state with the `lp-drawer__header`, `lp-drawer__title` and `lp-drawer__loading` classes, so the drawer keeps a header and a close button before the card arrives. The opener names the title in `data-drawer-title`. Pass the target attribute of the controller that opens it, such as `data-modal-target="dialog"`. A drawer that loads a Turbo frame on opening pairs the `modal` controller with `lazy-frame`, which shows the loading and error states around the frame. A controller with more states than that calls `LazyFrame` from `assets/lib/lazy_frame.js`. Its CSS is `assets/styles/components/drawer.css`.
+
+The Sheet takes the props `title`, `backLabel` and `closeLabel`, and its content is the body. Wrap the trigger and the sheet in `data-controller="sheet"`, and open it with `click->sheet#open`. The `sheet` controller extends `modal`, so it keeps the Escape, backdrop, focus and stream-hold behaviour of a dialog. A sheet that drills down holds one element per view with `data-sheet-view="name"`. A button with `data-action="click->sheet#show"` and `data-sheet-view-param="name"` shows a view, and the back button in the header returns. Its CSS is `assets/styles/components/sheet.css`.
 
 A `Ds:NavItem` icon is a prop, so `bin/console ux:icons:lock` cannot read it. Import a new sidebar icon by hand with `bin/console ux:icons:import lucide:<name>`.
 
@@ -131,7 +134,7 @@ The ListRow takes `title`, `subtitle`, `tag` and `current`, and the named blocks
 </twig:Ds:ListRow>
 ```
 
-The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a Panel inside the block.
+The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Below the `lg` width the navigation is a sideways strip with the same arrows as the tabs. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a Panel inside the block.
 
 `@Account/_settings_layout.html.twig` and `@Project/_settings_layout.html.twig` build the items of the account and the project settings and render the component. A settings page extends one of them and fills the `settings_section` and `settings_content` blocks. The icon names of the items are plain strings, so `bin/console ux:icons:lock` cannot read them. Import a new one with `bin/console ux:icons:import`.
 
@@ -180,7 +183,7 @@ Write a dialog, tabs, pagination and a tooltip like this:
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A strip that is not segmented draws an arrow at each hidden edge. `arrows="scroll"` is the default and scrolls the strip. `arrows="step"` draws both arrows and leaves them to the page, which toggles their `hidden` state and listens for the `overflow-cue:step` event. The segmented pill group never scrolls and draws no arrows. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A line that is wider than the block scrolls sideways, and the right edge fades while more text lies past it. A table that scrolls sideways draws "‹" and "›" over its header and a fade at each hidden edge. The Analytics tables use the `lp-table-cue` classes for the same look. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
 
 Write a menu like this:
 
@@ -199,7 +202,7 @@ Write a menu like this:
 </twig:Ds:Menu>
 ```
 
-The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. A MenuGroup holds a run of related rows. Its `heading` prop draws a MenuHeading, and its `moreLabel` prop puts the rows of the `more` block behind a "show more" row. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
+The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. A MenuGroup holds a run of related rows. Its `heading` prop draws a MenuHeading, and its `moreLabel` prop puts the rows of the `more` block behind a "show more" row. The mobile review bar and the review filter stay outside the component, because one opens sheets and the other is a `<details>` element.
 
 Write a split button like this:
 
@@ -292,7 +295,7 @@ These are the documented shell classes.
 | `lp-topbar__menu` | The button that opens the drawer |
 | `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
 | `lp-topbar__global-actions` | The tools at the right end of the bar |
-| `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
+| `lp-topbar__new-work` and its `__label` part | The New work button. It is a `Ds:Button` with this class added. Below 1024 px the label stays for screen readers only |
 | `lp-main` | The main column. It is the only scroll container of the page. `--paper` gives it a white ground, and `--fill` makes it a column that clips its overflow |
 ## The marketing shell
 
@@ -360,7 +363,7 @@ The command builds `components/bundle.js` with esbuild. Node and esbuild are in 
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
-A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tooltip, Textarea, Flash, EmptyState, Pagination, StatusChip, StateMark and StatusBox are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` (the component README) and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
+A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tooltip, Textarea, Flash, CodeBlock, EmptyState, Pagination, StatusChip, StateMark and StatusBox are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` (the component README) and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
 
 The generic wrapper names its modifier prop after the Twig prop. The `modifierProp` field of the entry holds that name, `variant` by default: Badge uses `status`, Tag uses `tone`, Dialog uses `size`, and StatusChip uses `modifier`. The old `variant` name does not work on those components. An entry with `takesAs` set also takes an `as` prop, as the Twig component does. Flash takes `severity` the same way. `SimpleComponentParityTest` compares each of these wrappers with its Twig component.
 
@@ -393,4 +396,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-code-dark`, `lp-copy-button`, `lp-tooltip`, `lp-menu`, `lp-brand` or `lp-drawer` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-code-dark`, `lp-copy-button`, `lp-tooltip`, `lp-menu`, `lp-brand`, `lp-drawer` or `lp-sheet` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.

@@ -78,8 +78,8 @@ export default class extends Controller {
         event.preventDefault();
         this.application
             .getControllerForElementAndIdentifier(
-                this.element.closest('[data-controller~="modal"]'),
-                'modal',
+                this.element.closest('[data-controller~="sheet"]'),
+                'sheet',
             )
             ?.close();
         smoothScrollTo(target, { align: 'start' });

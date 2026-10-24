@@ -1,17 +1,20 @@
 {# One thread in the Comments panel: the quoted text, then the comment. A click
-   opens the thread's card as a popover. Vars: comment, a root Comment. #}
+   opens the thread's card as a popover.
+   Vars: comment, a root Comment. variant, `side` (default) or `sheet`: the sheet
+   copy has its own id, no margin targets, and adds the author, the age and
+   replyCount, the number of replies, which the caller counts. #}
+{% set variant = variant ?? 'side' %}
+{% set replyCount = replyCount ?? 0 %}
+{% set sheet = variant == 'sheet' %}
 {% set status = comment.threadStatus.value %}
 {% set kind = comment.isStrike ? 'strike' : (comment.isSuggestion ? 'suggestion' : 'comment') %}
-<button type="button" id="comment-row-{{ comment.id }}"
+<button type="button" id="{{ sheet ? 'sheet-' }}comment-row-{{ comment.id }}"
         class="lp-comment-row{{ status == 'resolved' ? ' lp-comment-row--resolved' }}{{ comment.orphaned ? ' lp-comment-row--orphaned' }}"
         data-thread-id="comment-thread-{{ comment.id }}"
-        data-comment-anchor-target="row"
-        data-review-panels-target="thread"
+        {% if not sheet %}data-comment-anchor-target="row" data-review-panels-target="thread" aria-controls="comment-thread-{{ comment.id }}" aria-expanded="false"{% endif %}
         data-anchor-status="{{ status }}"
         {% if comment.orphaned %}data-comment-orphaned="true"{% endif %}
-        aria-controls="comment-thread-{{ comment.id }}"
-        aria-expanded="false"
-        data-action="pointerdown->comment-anchor#pressRow click->comment-anchor#openRow mouseenter->comment-anchor#focusRow mouseleave->comment-anchor#blurRow focusin->comment-anchor#focusRow focusout->comment-anchor#blurRow">
+        data-action="{{ sheet ? 'click->comment-anchor#jumpToRow' : 'pointerdown->comment-anchor#pressRow click->comment-anchor#openRow mouseenter->comment-anchor#focusRow mouseleave->comment-anchor#blurRow focusin->comment-anchor#focusRow focusout->comment-anchor#blurRow' }}">
     {# `== ''`, not `is empty`, which would call a quote of "0" general. #}
     {% if comment.anchor.quote == '' %}
     <span class="lp-comment-row__quote">{{ 'review.document.comment.row_general'|trans }}</span>
@@ -26,5 +29,16 @@
     <span class="lp-comment-row__body"><ins>{{ comment.replacement }}</ins></span>
     {% else %}
     <span class="lp-comment-row__body">{{ comment.body }}</span>
+    {% endif %}
+    {% if sheet %}
+    <span class="lp-comment-row__meta">
+        <span class="lp-comment-row__author">{{ comment.author.fullName }}</span>
+        {% if comment.createdAt is not null %}
+        <span class="lp-comment-row__age"><twig:Ds:RelativeTime :datetime="comment.createdAt" /></span>
+        {% endif %}
+        {% if replyCount > 0 %}
+        <span class="lp-comment-row__replies">{{ 'review.document.comment.reply_count'|trans({'%count%': replyCount}) }}</span>
+        {% endif %}
+    </span>
     {% endif %}
 </button>

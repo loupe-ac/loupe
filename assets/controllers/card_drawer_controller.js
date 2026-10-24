@@ -11,6 +11,7 @@ export default class extends ModalController {
         'dialog',
         'frame',
         'loading',
+        'title',
         'error',
         'deleted',
         'clash',
@@ -85,6 +86,11 @@ export default class extends ModalController {
     /** A card link keeps its own click, which Turbo turns into the frame load. */
     prepare(event) {
         this.invoker = event.currentTarget;
+        // The opener names what it opens, so the header draws before the frame loads.
+        if (this.hasTitleTarget) {
+            this.titleTarget.textContent =
+                this.invoker.dataset.drawerTitle ?? '';
+        }
         this.#startLoading();
         if (!this.dialogTarget.open) {
             this.open();

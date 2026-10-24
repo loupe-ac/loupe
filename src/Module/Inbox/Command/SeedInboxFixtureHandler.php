@@ -56,7 +56,7 @@ final readonly class SeedInboxFixtureHandler
                 project: $project,
                 number: $number,
                 kind: InboxItemKind::Question,
-                title: 'Which format should the export use?',
+                title: $command->questionTitle ?? 'Which format should the export use?',
                 blocking: true,
                 origin: InboxAskOrigin::Agent,
                 body: 'Both formats work with the importer.',

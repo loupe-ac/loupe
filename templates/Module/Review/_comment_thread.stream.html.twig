@@ -1,6 +1,6 @@
 {#
-  Turbo Stream that replaces one thread's card and its Comments panel row
-  after a reply. Rendered by ReplyToCommentController.
+  Turbo Stream that replaces one thread's card and its Comments panel row,
+  in the side list and in the sheet, after a reply. Rendered by ReplyToCommentController.
 
   Vars:  @comment-budget-ignore
     comment    Comment            The root comment of the thread to replace.
@@ -15,5 +15,10 @@
 <turbo-stream action="replace" target="comment-row-{{ comment.id }}">
     <template>
         {% include '@Review/_comment_row.html.twig' with {comment: comment} only %}
+    </template>
+</turbo-stream>
+<turbo-stream action="replace" target="sheet-comment-row-{{ comment.id }}">
+    <template>
+        {% include '@Review/_comment_row.html.twig' with {comment: comment, variant: 'sheet', replyCount: replies|length} only %}
     </template>
 </turbo-stream>

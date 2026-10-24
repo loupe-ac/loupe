@@ -34,7 +34,7 @@ const summary = ({
 });
 
 const markup = ({ blocked = false, checked = '' } = {}) => `
-<div data-controller="modal">
+<div data-controller="sheet">
 <dialog>
 <form data-controller="review-finish-verdict"
       data-action="review:finish@window->review-finish-verdict#refresh"
@@ -276,15 +276,14 @@ it('keeps a Request changes pick that the server rendered next to a disabled App
     expect(approve().checked).toBe(false);
 });
 
-it('scrolls to the first unanswered block and closes the dialog when the link is used', async () => {
+it('scrolls to the first unanswered block and closes the sheet when the link is used', async () => {
     await mount();
     const close = vi.fn();
-    vi.spyOn(
-        application,
-        'getControllerForElementAndIdentifier',
-    ).mockReturnValue({
-        close,
-    });
+    const lookup = vi
+        .spyOn(application, 'getControllerForElementAndIdentifier')
+        .mockReturnValue({
+            close,
+        });
     const target = document.createElement('div');
     target.id = 'decision_block_a';
     document.body.append(target);
@@ -294,6 +293,7 @@ it('scrolls to the first unanswered block and closes the dialog when the link is
     reason().querySelector('a').dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
+    expect(lookup).toHaveBeenCalledWith(expect.anything(), 'sheet');
     expect(close).toHaveBeenCalled();
     expect(smoothScrollTo).toHaveBeenCalledWith(target, { align: 'start' });
 });

@@ -1,0 +1,9 @@
+{# The open thread count on the Comments button of the review bar. It uses ids
+   that only the bar carries. Vars: comments, every comment on the version. #}
+{% set openThreads = comments|filter(c => c.parent is null and c.threadStatus.value != 'resolved')|length %}
+<turbo-stream action="update" target="review-bar-comments-count">
+    <template>{{ openThreads }}</template>
+</turbo-stream>
+<turbo-stream action="update" target="review-bar-comments-label">
+    <template>{{ 'review.bar.comments_label'|trans({'%count%': openThreads}) }}</template>
+</turbo-stream>

@@ -552,6 +552,20 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<Drawer open', $card);
     }
 
+    public function test_the_sheet_export_draws_the_handle_the_header_and_the_body(): void
+    {
+        $this->assertComponentFiles('Sheet');
+
+        $jsx = $this->jsx('Sheet');
+        self::assertStringContainsString('<dialog {...rest} aria-label={title} className={classes.join(\' \')}>', $jsx);
+        foreach (['lp-sheet__handle', 'lp-sheet__header', 'lp-sheet__title', 'lp-sheet__body'] as $class) {
+            self::assertStringContainsString($class, $jsx);
+        }
+
+        $card = $this->read('components/Sheet/preview.html');
+        self::assertStringContainsString('<Sheet open', $card);
+    }
+
     public function test_the_auth_shell_export_draws_the_page_frame_with_the_brand_name(): void
     {
         $this->assertComponentFiles('AuthShell');
@@ -774,7 +788,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $topbarOnly = $projectOnly($topbarGated);
 
         self::assertContains('lp-sidebar__switcher', $sidebarOnly);
-        self::assertSame(['lp-topbar__new-work'], array_values($topbarOnly));
+        self::assertSame(['lp-topbar__new-work', 'lp-topbar__new-work-label'], array_values($topbarOnly));
         foreach (['hasProject' => [$sidebarOnly, $sidebarGuarded], 'onProjectPage' => [$topbarOnly, $topbarGuarded]] as $guard => [$classes, $guarded]) {
             foreach ($classes as $class) {
                 self::assertStringContainsString($class, implode("\n", $guarded), sprintf('base.html.twig shows %s only with a project, and the wrapper does not guard it with %s.', $class, $guard));

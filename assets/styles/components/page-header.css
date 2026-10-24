@@ -8,6 +8,10 @@
             @apply gap-3;
         }
     }
+    /* A button beside the heading keeps its label on one line and wraps under the heading instead. */
+    .lp-page-header > .lp-btn {
+        @apply shrink-0 whitespace-nowrap;
+    }
     .lp-page-header__copy {
         @apply flex-1 basis-80 min-w-0;
     }

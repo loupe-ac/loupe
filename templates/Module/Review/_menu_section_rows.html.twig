@@ -1,7 +1,0 @@
-{# Section rows of the review menu. Params: rows, each with level, headingId and label. #}
-{% for row in rows %}
-<a class="lp-review-menu__section" data-level="{{ row.level }}" href="#{{ row.headingId }}"
-   data-action="click->review-menu#jump" title="{{ row.label }}">
-    <span class="lp-review-menu__label">{{ row.label }}</span>
-</a>
-{% endfor %}

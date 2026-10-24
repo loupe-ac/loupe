@@ -13,3 +13,9 @@
         {% include '@Review/_comment_rows.html.twig' with {comments: comments} only %}
     </template>
 </turbo-stream>
+<turbo-stream action="replace" target="sheet-comment-rows">
+    <template>
+        {% include '@Review/_comment_sheet_rows.html.twig' with {comments: comments} only %}
+    </template>
+</turbo-stream>
+{% include '@Review/_review_bar_comments.stream.html.twig' with {comments: comments} only %}

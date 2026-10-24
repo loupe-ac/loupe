@@ -1901,6 +1901,10 @@
                 <source>review.document.history.column.open</source>
                 <target>Open</target>
             </trans-unit>
+            <trans-unit id="review.document.history.table.label">
+                <source>review.document.history.table.label</source>
+                <target>Versions</target>
+            </trans-unit>
             <trans-unit id="review.document.history.read">
                 <source>review.document.history.read</source>
                 <target>Read</target>
@@ -2153,21 +2157,25 @@
                 <source>review.document.comment.error.stale_version</source>
                 <target>A newer version exists. Copy your draft, reload the document, and select the passage again before submitting.</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.label">
-                <source>review.document.menu.label</source>
+            <trans-unit id="review.bar.label">
+                <source>review.bar.label</source>
                 <target>Review actions</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.open">
-                <source>review.document.menu.open</source>
-                <target>Open review actions</target>
+            <trans-unit id="review.bar.more">
+                <source>review.bar.more</source>
+                <target>More</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.close">
-                <source>review.document.menu.close</source>
-                <target>Close review actions</target>
+            <trans-unit id="review.bar.decisions_label">
+                <source>review.bar.decisions_label</source>
+                <target>Decisions, %answered% of %total% answered</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.back">
-                <source>review.document.menu.back</source>
-                <target>Back</target>
+            <trans-unit id="review.bar.comments_label">
+                <source>review.bar.comments_label</source>
+                <target>Comments, %count% open</target>
+            </trans-unit>
+            <trans-unit id="review.bar.comment_hint">
+                <source>review.bar.comment_hint</source>
+                <target>To comment on a passage, select the text in the document.</target>
             </trans-unit>
             <trans-unit id="comment.error.not_owner">
                 <source>comment.error.not_owner</source>
@@ -2318,6 +2326,14 @@
             <trans-unit id="nav.drawer.open">
                 <source>nav.drawer.open</source>
                 <target>Open navigation</target>
+            </trans-unit>
+            <trans-unit id="sheet.back">
+                <source>sheet.back</source>
+                <target>Back</target>
+            </trans-unit>
+            <trans-unit id="sheet.close">
+                <source>sheet.close</source>
+                <target>Close</target>
             </trans-unit>
             <trans-unit id="nav.drawer.close">
                 <source>nav.drawer.close</source>
@@ -4620,6 +4636,14 @@
                 <source>review.document.diff.nav.position</source>
                 <target>{0}No changes|{1}%current% of 1 change|]1,Inf[%current% of %total% changes</target>
             </trans-unit>
+            <trans-unit id="review.document.diff.line.versions">
+                <source>review.document.diff.line.versions</source>
+                <target>Comparing v%from% to v%to%. Change the versions or the view.</target>
+            </trans-unit>
+            <trans-unit id="review.document.diff.line.position">
+                <source>review.document.diff.line.position</source>
+                <target>%current%/%total%</target>
+            </trans-unit>
             <trans-unit id="review.document.diff.nav.previous">
                 <source>review.document.diff.nav.previous</source>
                 <target>Previous change</target>
@@ -6236,6 +6260,42 @@
             <trans-unit id="board.drag.failed">
                 <source>board.drag.failed</source>
                 <target>The card went back. The move did not reach the server.</target>
+            </trans-unit>
+            <trans-unit id="board.card.move.label">
+                <source>board.card.move.label</source>
+                <target>Move #%number%</target>
+            </trans-unit>
+            <trans-unit id="board.move.title">
+                <source>board.move.title</source>
+                <target>Move #%number% to</target>
+            </trans-unit>
+            <trans-unit id="board.move.current">
+                <source>board.move.current</source>
+                <target>Current</target>
+            </trans-unit>
+            <trans-unit id="board.move.keep">
+                <source>board.move.keep</source>
+                <target>Keep it here</target>
+            </trans-unit>
+            <trans-unit id="board.move.unmanage">
+                <source>board.move.unmanage</source>
+                <target>Make unmanaged and move</target>
+            </trans-unit>
+            <trans-unit id="board.move.managed_question">
+                <source>board.move.managed_question</source>
+                <target>This card is managed. Make it unmanaged and move it to %column%?</target>
+            </trans-unit>
+            <trans-unit id="board.move.done">
+                <source>board.move.done</source>
+                <target>Moved #%number% to %column%</target>
+            </trans-unit>
+            <trans-unit id="board.move.show">
+                <source>board.move.show</source>
+                <target>Show</target>
+            </trans-unit>
+            <trans-unit id="board.move.failed">
+                <source>board.move.failed</source>
+                <target>The card did not move. Try again.</target>
             </trans-unit>
             <trans-unit id="board.card.move.submit">
                 <source>board.card.move.submit</source>
@@ -7994,6 +8054,8 @@
                 <target>Board</target>
             </trans-unit>
             <trans-unit id="board.view.list"><source>board.view.list</source><target>List</target></trans-unit>
+            <trans-unit id="board.toolbar.more"><source>board.toolbar.more</source><target>More board options</target></trans-unit>
+            <trans-unit id="board.columns.tabs"><source>board.columns.tabs</source><target>Board columns</target></trans-unit>
             <trans-unit id="board.list.work"><source>board.list.work</source><target>Work</target></trans-unit>
             <trans-unit id="board.list.status"><source>board.list.status</source><target>Status</target></trans-unit>
             <trans-unit id="board.list.agent"><source>board.list.agent</source><target>Agent</target></trans-unit>
@@ -9249,6 +9311,8 @@
             <trans-unit id="marker.child_waiting.remedy"><source>marker.child_waiting.remedy</source><target>Nothing. The child moves on when its wait ends.</target></trans-unit>
             <trans-unit id="marker.unmanaged"><source>marker.unmanaged</source><target>Unmanaged: the workflow does not act on this card.</target></trans-unit>
             <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>
+            <trans-unit id="tabs.scroll_prev"><source>tabs.scroll_prev</source><target>Scroll back</target></trans-unit>
+            <trans-unit id="tabs.scroll_next"><source>tabs.scroll_next</source><target>Scroll forward</target></trans-unit>
         </body>
     </file>
 </xliff>

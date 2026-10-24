@@ -14,6 +14,7 @@
 @import './components/filter-bar.css';
 @import './components/code-block.css';
 @import './components/copy-button.css';
+@import './components/overflow-cue.css';
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
@@ -38,6 +39,7 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
 

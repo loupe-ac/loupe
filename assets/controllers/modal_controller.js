@@ -5,6 +5,7 @@
 // Only the ::backdrop animations remain as CSS (WAAPI cannot animate the backdrop).
 import { Controller } from '@hotwired/stimulus';
 import { prefersReducedMotion } from '../lib/smooth_scroll.js';
+import { COMPACT_QUERY, PHONE_QUERY } from '../lib/breakpoints.js';
 
 const OPEN_KEYFRAMES = [
     { opacity: 0, transform: 'translateY(-16px)' },
@@ -34,10 +35,7 @@ const CLOSE_KEYFRAMES_DRAWER = [
 // A drawer slides for 200ms on the ease curve, in and out.
 const DRAWER_TIMING = { duration: 200, easing: 'ease' };
 
-const isMobile = () => window.innerWidth < 640;
-
-/** A modeless drawer only pays off where the page beside it is still usable. */
-const MODELESS_MIN_WIDTH = 1024;
+const isMobile = () => window.matchMedia(PHONE_QUERY).matches;
 
 export default class extends Controller {
     static targets = ['dialog'];
@@ -98,7 +96,7 @@ export default class extends Controller {
         // A modeless dialog leaves the rest of the page live. It reports no
         // cancel event, so Escape is handled here instead.
         this.modeless =
-            this.modelessValue && window.innerWidth >= MODELESS_MIN_WIDTH;
+            this.modelessValue && !window.matchMedia(COMPACT_QUERY).matches;
         if (!dialog.open) {
             if (this.modeless) {
                 dialog.show();
@@ -117,27 +115,49 @@ export default class extends Controller {
             dialog.classList.remove('is-opening');
             return;
         }
-        const keyframes = this.drawerValue
-            ? OPEN_KEYFRAMES_DRAWER
-            : isMobile()
-              ? OPEN_KEYFRAMES_MOBILE
-              : OPEN_KEYFRAMES;
-        dialog.animate(
-            keyframes,
-            this.drawerValue
-                ? DRAWER_TIMING
-                : { duration: 220, easing: 'ease-out' },
-        );
+        const { keyframes, timing } = this.motion('open');
+        dialog.animate(keyframes, timing);
     }
 
+    // A subclass overrides this to change how the dialog enters and leaves.
+    // The reduced-motion check stays in open() and #animateOutAsync().
+    motion(phase) {
+        const opening = phase === 'open';
+        if (this.drawerValue) {
+            return {
+                keyframes: opening
+                    ? OPEN_KEYFRAMES_DRAWER
+                    : CLOSE_KEYFRAMES_DRAWER,
+                timing: DRAWER_TIMING,
+            };
+        }
+        if (isMobile()) {
+            return {
+                keyframes: opening
+                    ? OPEN_KEYFRAMES_MOBILE
+                    : CLOSE_KEYFRAMES_MOBILE,
+                timing: opening
+                    ? { duration: 220, easing: 'ease-out' }
+                    : { duration: 180, easing: 'ease-in' },
+            };
+        }
+        return {
+            keyframes: opening ? OPEN_KEYFRAMES : CLOSE_KEYFRAMES,
+            timing: opening
+                ? { duration: 220, easing: 'ease-out' }
+                : { duration: 180, easing: 'ease-in' },
+        };
+    }
+
+    // Returns a promise that settles once the dialog has closed.
     close(event) {
         event?.preventDefault();
         const dialog = this.dialogTarget;
-        if (!dialog.open) return;
+        if (!dialog.open) return Promise.resolve();
         document.removeEventListener('keydown', this.onEscapeKey);
         const request = {};
         this.closeRequest = request;
-        this.#animateOutAsync().then(() => {
+        return this.#animateOutAsync().then(() => {
             if (this.closeRequest === request && dialog.isConnected) {
                 this.closeRequest = null;
                 dialog.close();
@@ -186,15 +206,9 @@ export default class extends Controller {
             return Promise.resolve();
         }
 
-        const keyframes = this.drawerValue
-            ? CLOSE_KEYFRAMES_DRAWER
-            : isMobile()
-              ? CLOSE_KEYFRAMES_MOBILE
-              : CLOSE_KEYFRAMES;
+        const { keyframes, timing } = this.motion('close');
         const anim = dialog.animate(keyframes, {
-            ...(this.drawerValue
-                ? DRAWER_TIMING
-                : { duration: 180, easing: 'ease-in' }),
+            ...timing,
             fill: 'forwards',
         });
         this.closingAnimation = anim;

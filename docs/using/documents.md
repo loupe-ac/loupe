@@ -40,7 +40,7 @@ On the first two forms, **Finish review** shows a warning above the verdict. You
 When you submit, Loupe asks a second time: "Stop the agent review?". Select **Stop the review and approve** or **Stop the review and request changes** to go on. Select **Go back** to return to the dialog. Your verdict and note stay.
 
 The band and the warning follow the draft live. They change when a new round starts, when the review pauses or goes on, when you publish in another tab, and when Loupe publishes the draft.
-The warning in an open **Finish review** dialog changes at once and keeps your verdict and note.
+The warning in an open **Finish review** sheet changes at once and keeps your verdict and note.
 A dialog for **Publish now** holds the update until you close it.
 When the draft is no longer a draft, the page loads again and shows the In review state.
 When an update fails after several tries, the page says "Live updates stopped. Reload the page to see the current state." under the band and above the warning.
@@ -86,10 +86,15 @@ Copy the draft before reloading, then select the passage in the current version.
 
 Select Dismiss selection in the selection toolbar to clear the selection without posting an annotation.
 Focus returns to the document. Select a passage again to annotate it.
-On narrow screens, the floating review menu hides while an annotation composer is open so it cannot cover the form controls.
+Below 1024 pixels, a review bar at the foot of the page holds Contents, Comments, Decisions, More and **Finish review**. Each button opens a sheet. The bar hides while an annotation composer is open, so it cannot cover the form controls.
+Below 640 pixels, the page draws no **Revise** action.
+
+The **Comments** button in the review bar shows the number of open threads. Its sheet lists every thread with the quoted passage, the comment, the author, the age and the number of replies. Select **Open** or **Resolved** to choose which threads the list shows.
+Select a row to close the sheet. The page scrolls the passage to the centre of the screen and flashes it for a moment. A thread with no passage opens its card instead.
+Select **Comment on the whole document** at the end of the sheet to write a comment that has no passage. To comment on a passage, select the text in the document.
 
 Threads carry a status: pending, addressed, or resolved.
-Select **Finish review** in the top bar to approve the version or request changes.
+Select **Finish review** in the top bar, or in the review bar on a narrow screen, to approve the version or request changes.
 A request for changes needs a review note only when the version has no open comment.
 An open comment is a thread that is pending or addressed. An approval can include a note.
 After a verdict, the top bar shows the verdict as a button.
@@ -260,6 +265,7 @@ Three views help across versions:
 
 Select **Version history** in the **⋯** menu to see every version in one table, newest first.
 Each row shows the version, its revision note, its reviews, and **Read** and **Diff** links.
+On a phone, the table scrolls sideways. A **‹** or **›** button shows over the header, and a fade shows at the edge with more columns.
 Each review shows the reviewer, verdict, note and time. A verdict that a workflow rule wrote shows **Workflow** and the id of the rule.
 Withdrawals remain beside the original verdict. Versions without reviews say so.
 History keeps the document header, with Document, Diff and History tabs to move back.
@@ -299,6 +305,12 @@ The settings button opens the views **Rendered**, **Markdown** and **Side by
 side**, with a check on the current one. A change of version compares the new pair at once. The
 counter reads "2 of 42 changes" after a jump. `j` and `k` move between changes
 as well. **Document** goes back to the current version.
+
+Below 1024 pixels, the compare bar is one line that stays in view. It shows the
+two versions and the change count, such as "v1 → v3 · 3 changes", then the
+position of the current change, such as 1/3, and the two jump buttons. Select
+the line to open **Document**, the version pickers and the **Diff view**
+settings button under it. Press Escape to close them again.
 
 The Outline panel opens while you compare, and shows how many changes each
 section holds. A change before the first heading counts under no section. The

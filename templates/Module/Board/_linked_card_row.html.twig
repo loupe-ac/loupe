@@ -3,5 +3,5 @@
     {%- if kind is defined and kind is not null %}<td><twig:Ds:Tag>{{ kind.translationKey()|trans }}</twig:Ds:Tag></td>{% endif %}
     <td><span class="lp-inbox-linked-table__type"><twig:ux:icon name="lucide:layout-list" class="lp-icon lp-icon--md" />{{ 'inbox.linked_items.card'|trans }}</span><strong>#{{ card.number }} {{ card.title }}</strong></td>
     <td>{% include '@Board/_column_tag.html.twig' with {column: card.column} only %}</td>
-    <td><twig:Ds:Button variant="ghost open" href="{{ href }}" :data-turbo-frame="drawer ? 'card-drawer-frame' : null" :data-action="drawer ? 'click->card-drawer#prepare' : null" aria-label="{{ 'inbox.linked_items.open_card'|trans({'%title%': card.title}) }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span><twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--md" /></twig:Ds:Button></td>
+    <td><twig:Ds:Button variant="ghost open" href="{{ href }}" :data-turbo-frame="drawer ? 'card-drawer-frame' : null" :data-drawer-title="drawer ? '#' ~ card.number : null" :data-action="drawer ? 'click->card-drawer#prepare' : null" aria-label="{{ 'inbox.linked_items.open_card'|trans({'%title%': card.title}) }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span><twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--md" /></twig:Ds:Button></td>
 </tr>
