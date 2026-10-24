@@ -310,7 +310,7 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
         self::assertStringContainsString(' action="update" target="decision-summary-list">', $body);
         self::assertStringNotContainsString('lp-review-doc__prose', $body);
         self::assertStringNotContainsString('data-comment-anchor-target', $body);
-        self::assertSame(6, substr_count($body, '<turbo-stream'), 'the status line, and the running total and list of each of the two copies');
+        self::assertSame(7, substr_count($body, '<turbo-stream'), 'the status line, the running total and list, and the count, label, head count and list of the bar');
     }
 
     /** A save can answer after a visit, so the client renders a stream only on the page that sent it. */
@@ -332,8 +332,8 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
 
         $this->answer($client, $document, ['versionNumber' => '2', 'optionIndexes' => [0]], self::TURBO);
         $body = (string) $client->getResponse()->getContent();
-        self::assertSame(6, substr_count($body, '<turbo-stream '));
-        self::assertSame(6, preg_match_all('~<turbo-stream data-decision-page="'.preg_quote($page, '~').'" ~', $body));
+        self::assertSame(7, substr_count($body, '<turbo-stream '));
+        self::assertSame(7, preg_match_all('~<turbo-stream data-decision-page="'.preg_quote($page, '~').'" ~', $body));
     }
 
     public function test_a_note_with_no_option_counts_as_answered_in_the_stream_and_on_reload(): void
@@ -346,18 +346,18 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
 
         $body = (string) $client->getResponse()->getContent();
         self::assertMatchesRegularExpression('~target="decision-summary-count">\s*<template>1 of 1 answered</template>~', $body);
-        self::assertMatchesRegularExpression('~target="review-menu-decisions-count">\s*<template>1/1</template>~', $body);
+        self::assertMatchesRegularExpression('~target="review-bar-decisions-count">\s*<template>1/1</template>~', $body);
         self::assertStringContainsString('Note: Neither target yet.', $body);
         self::assertStringNotContainsString('Not chosen yet', $body);
 
         $client->request(Request::METHOD_GET, $this->reviewPath($document));
         self::assertSelectorTextSame('#decision-summary-count', '1 of 1 answered');
-        self::assertSelectorTextSame('#review-menu-decisions-count', '1/1');
+        self::assertSelectorTextSame('#review-bar-decisions-count', '1/1');
         self::assertSelectorTextSame('#decision-summary-list .lp-decision-summary__note', 'Note: Neither target yet.');
         self::assertSelectorExists('#decision-summary-list .lp-decision-summary__tag--answered');
         self::assertSelectorNotExists('#decision-summary-list .lp-decision-summary__answer');
         self::assertSelectorNotExists('#decision-summary-list .lp-decision-summary__pending');
-        self::assertSelectorExists('#review-menu-decisions-list .lp-review-menu__mark--approved');
+        self::assertSelectorExists('#review-bar-decisions-list .lp-review-sheet__mark--approved');
     }
 
     /** The count is what tells the reviewer how much is left, so it must follow the write. */

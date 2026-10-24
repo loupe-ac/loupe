@@ -18,7 +18,7 @@
 
 {% block topbar_actions %}
 {% if document.status.value in ['draft', 'in-review'] %}
-{% include '@Review/_finish_review_button.html.twig' with {inReviewMenu: false} only %}
+{% include '@Review/_finish_review_button.html.twig' with {inReviewBar: false} only %}
 {% endif %}
 {% endblock %}
 
@@ -31,9 +31,9 @@
 {% if draftLive %}
 {% do mercure_subscribe(documentTopic) %}
 {% endif %}
-<div class="lp-review" data-site-review-quotes="off"{% if finishReviewAvailable %} data-controller="modal{{ draftLive ? ' review-draft-live' : '' }}"{% endif %}
+<div class="lp-review" data-site-review-quotes="off"{% if finishReviewAvailable %} data-controller="sheet{{ draftLive ? ' review-draft-live' : '' }}"{% endif %}
      {% if draftLive %}data-review-draft-live-url-value="{{ path('app_document_draft_state', routeParameters) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"{% endif %}
-     {% if finishReviewAvailable %}data-action="review:finish@window->modal#open"{% endif %}>
+     {% if finishReviewAvailable %}data-action="review:finish@window->sheet#open"{% endif %}>
 <div class="lp-review-block">
     {% include '@Review/_document_header.html.twig' with {
         document: document,

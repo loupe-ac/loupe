@@ -40,7 +40,7 @@ On the first two forms, **Finish review** shows a warning above the verdict. You
 When you submit, Loupe asks a second time: "Stop the agent review?". Select **Stop the review and approve** or **Stop the review and request changes** to go on. Select **Go back** to return to the dialog. Your verdict and note stay.
 
 The band and the warning follow the draft live. They change when a new round starts, when the review pauses or goes on, when you publish in another tab, and when Loupe publishes the draft.
-The warning in an open **Finish review** dialog changes at once and keeps your verdict and note.
+The warning in an open **Finish review** sheet changes at once and keeps your verdict and note.
 A dialog for **Publish now** holds the update until you close it.
 When the draft is no longer a draft, the page loads again and shows the In review state.
 When an update fails after several tries, the page says "Live updates stopped. Reload the page to see the current state." under the band and above the warning.
@@ -86,10 +86,11 @@ Copy the draft before reloading, then select the passage in the current version.
 
 Select Dismiss selection in the selection toolbar to clear the selection without posting an annotation.
 Focus returns to the document. Select a passage again to annotate it.
-On narrow screens, the floating review menu hides while an annotation composer is open so it cannot cover the form controls.
+Below 1024 pixels, a review bar at the foot of the page holds Contents, Decisions, More and **Finish review**. Each button opens a sheet. The bar hides while an annotation composer is open, so it cannot cover the form controls.
+Below 640 pixels, the page draws no **Revise** action.
 
 Threads carry a status: pending, addressed, or resolved.
-Select **Finish review** in the top bar to approve the version or request changes.
+Select **Finish review** in the top bar, or in the review bar on a narrow screen, to approve the version or request changes.
 A request for changes needs a review note only when the version has no open comment.
 An open comment is a thread that is pending or addressed. An approval can include a note.
 After a verdict, the top bar shows the verdict as a button.

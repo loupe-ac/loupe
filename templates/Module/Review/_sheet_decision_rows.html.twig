@@ -1,0 +1,13 @@
+{# Decision rows of the review bar's Decisions sheet. Rendered by the page and again by the stream
+   that follows an answer, so both must be given `rows` in the same shape. A
+   `documentUrl` makes each row a plain link to the block on that page. #}
+{% set documentUrl = documentUrl|default(null) %}
+{% for row in rows %}
+<a class="lp-review-sheet__section" href="{{ documentUrl }}#{{ row.elementId }}"
+   {%- if documentUrl is null %} data-action="click->sheet#close click->review-jump#go"{% endif %} title="{{ row.label }}">
+    <span class="lp-review-sheet__mark{{ row.answered ? ' lp-review-sheet__mark--approved' }}">
+        {% if row.answered %}<twig:ux:icon name="lucide:check" />{% endif %}
+    </span>
+    <span class="lp-review-sheet__label">{{ row.label }}</span>
+</a>
+{% endfor %}

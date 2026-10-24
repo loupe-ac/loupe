@@ -1925,15 +1925,8 @@
     @apply mt-3;
 }
 
-/* ── Finish review dialog ───────────────────────────────────────── */
-/* A compact dialog of 27.5rem: the title, one line of context, the two
-   verdicts and the note. */
-.lp-review .lp-finish-review {
-    @apply max-w-110 rounded-2xl border border-line p-5 text-sm;
-}
-.lp-review .lp-finish-review .lp-dialog-title {
-    @apply text-xl tracking-normal;
-}
+/* ── Finish review sheet ────────────────────────────────────────── */
+/* The sheet holds the one line of context, the two verdicts and the note. */
 .lp-review .lp-finish-review .lp-dialog-desc {
     @apply mt-0.5 mb-3.5 text-xs text-fg-dim;
 }
@@ -2068,7 +2061,7 @@
     @apply border-t border-line-faint pt-4;
 }
 .lp-review .lp-history__version {
-    @apply font-mono text-xs text-fg-dim;
+    @apply text-sm font-semibold;
 }
 .lp-review .lp-history__empty {
     @apply m-0 text-sm text-fg-dim;
@@ -3523,6 +3516,7 @@
        scrolls on its own; the page itself never scrolls. */
     .lp-review {
         @apply min-w-0;
+        --review-bar-height: calc(var(--spacing-tap) + var(--spacing) * 4);
     }
 
     /* The undo notice that replaces a thread the moment it is deleted. */
@@ -3534,7 +3528,7 @@
         @apply relative w-full px-5 pt-6 pb-19;
         max-width: 73rem;
     }
-    @media (width >= 59.375rem) {
+    @media (width >= 64rem) {
         .lp-review-block {
             @apply mx-7 w-auto px-0 pt-7 pb-30;
         }
@@ -3636,11 +3630,11 @@
         @apply inline-flex items-center gap-2 shrink-0 h-7 px-2.75 rounded-full no-underline bg-accent-faint-2 border border-accent-border text-accent-ink text-xs font-semibold transition-colors hover:bg-accent-faint;
     }
     /* Chips in the bar itself below lg, where the tab that holds them is
-       display:none and the review menu carries no tags row. */
+       display:none and the review bar carries no tags row. */
     .lp-doc-meta__tags {
         @apply flex items-center gap-1.5 ml-auto;
     }
-    @media (width >= 59.375rem) {
+    @media (width >= 64rem) {
         .lp-doc-meta__tags {
             @apply hidden;
         }
@@ -3648,8 +3642,8 @@
     .lp-doc-tags__list {
         @apply flex flex-wrap items-center gap-1.5;
     }
-    /* Below lg the tabs are rows of the review menu instead. */
-    @media (width < 59.375rem) {
+    /* Below lg the tabs are rows of the review bar's sheets instead. */
+    @media (width < 64rem) {
         .lp-doc-meta__tab {
             @apply hidden;
         }
@@ -3669,106 +3663,106 @@
         @apply order-20;
     }
 
-    /* ── Review menu ────────────────────────────────────────────────────
-       Everything the top bar and the metadata tabs carry on desktop, reached
-       from one round button in the bottom right where a thumb rests. The panel
-       opens upward from the button and drills down in place. */
-    .lp-review-menu {
-        @apply block;
+    /* ── Review bar ─────────────────────────────────────────────────────
+       Below lg, what the top bar and the metadata tabs carry on desktop sits in
+       a bar at the foot of the page, where a thumb rests. Each button opens a
+       Ds:Sheet. */
+    .lp-review-bar {
+        @apply fixed inset-x-0 bottom-0 z-30 flex items-center gap-0.5 border-t border-line bg-surface-1 px-2.5 pt-2 lg:hidden;
+        padding-bottom: calc(var(--spacing) * 2 + env(safe-area-inset-bottom));
     }
-    @media (width >= 59.375rem) {
-        .lp-review-menu {
+    .lp-review:has(.lp-comment-composer:not([hidden])) .lp-review-bar,
+    .lp-review-bar:not(:has(> :not(.lp-review-bar__more))):not(
+            :has(> .lp-review-bar__more .lp-review-sheet__row:not([hidden]))
+        ) {
+        @apply hidden;
+    }
+    @media (width < 64rem) {
+        .lp-review:has(.lp-review-bar) .lp-review-block {
+            padding-bottom: calc(
+                var(--review-bar-height) + env(safe-area-inset-bottom) +
+                    var(--spacing) * 4
+            );
+        }
+    }
+    .lp-review-bar__group,
+    .lp-review-bar__more {
+        @apply contents;
+    }
+    /* A More sheet whose rows are all hidden has nothing to open. */
+    .lp-review-bar__more:not(:has(.lp-review-sheet__row:not([hidden]))) {
+        @apply hidden;
+    }
+    .lp-btn.lp-review-bar__button {
+        @apply h-auto min-h-tap w-auto min-w-tap gap-1 px-2 text-ink;
+    }
+    .lp-review-bar__count {
+        @apply text-sm font-semibold;
+    }
+    .lp-btn.lp-review-bar__finish {
+        @apply ml-auto min-h-tap;
+    }
+
+    /* A phone draws no Revise action, because the editor needs a wider screen. */
+    @media (width < 40rem) {
+        .lp-btn.lp-revise-document__open {
             @apply hidden;
         }
     }
-    .lp-review-menu[hidden],
-    .lp-review:has(.lp-comment-composer:not([hidden])) .lp-review-menu {
+
+    /* The rows and lists inside the bar's sheets. */
+    .lp-review-sheet__row {
+        @apply flex min-h-tap w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-3 py-2 text-left text-sm text-ink transition-colors;
+    }
+    .lp-review-sheet__row:hover {
+        @apply bg-surface-3;
+    }
+    /* A display utility in a layered class outranks the UA [hidden] rule. */
+    .lp-review-sheet__row[hidden] {
         @apply hidden;
     }
-    .lp-review-menu__trigger {
-        @apply fixed bottom-5 right-5 z-30 inline-flex items-center justify-center w-14 h-14 rounded-full bg-chrome-raised border border-chrome-line text-chrome-fg shadow-card cursor-pointer transition-colors;
+    .lp-review-sheet__row svg {
+        @apply shrink-0 text-fg-mute;
     }
-    .lp-review-menu__trigger:hover {
-        @apply bg-chrome-line;
-    }
-    .lp-review-menu__trigger svg {
-        @apply w-5 h-5 shrink-0;
-    }
-    /* Stops short of the top bar, which keeps reporting where the reader is. */
-    .lp-review-menu__scrim {
-        @apply fixed inset-x-0 bottom-0 top-16 z-20 bg-ink/60;
-    }
-    .lp-review-menu__panel {
-        @apply fixed bottom-21 right-5 z-30 w-63 flex flex-col p-1.5 rounded-xl bg-chrome-raised border border-chrome-line shadow-composer overflow-y-auto;
-        max-height: calc(100dvh - calc(var(--spacing) * 48));
-    }
-    .lp-review-menu__view {
-        @apply flex flex-col;
-    }
-    /* A display utility in a layered class outranks the UA [hidden] rule, so
-       each of these has to restate it. */
-    .lp-review-menu__panel[hidden],
-    .lp-review-menu__scrim[hidden],
-    .lp-review-menu__view[hidden] {
-        @apply hidden;
-    }
-    .lp-review-menu__row {
-        @apply flex items-center gap-2.5 w-full min-h-11 px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer text-left text-sm text-chrome-fg transition-colors;
-    }
-    .lp-review-menu__row:hover {
-        @apply bg-chrome-line;
-    }
-    .lp-review-menu__row svg {
-        @apply w-4.5 h-4.5 shrink-0 text-chrome-mute;
-    }
-    .lp-review-menu__label {
+    .lp-review-sheet__label {
         @apply min-w-0 truncate;
     }
-    .lp-review-menu__count {
-        @apply ml-auto shrink-0 font-mono text-chrome-dim text-xs;
+    .lp-review-sheet__count {
+        @apply ml-auto shrink-0 font-mono text-xs text-fg-dim;
     }
-    .lp-review-menu__rule {
-        @apply border-0 border-t border-chrome-line my-1.5;
+    /* Names the list the reader drilled into, so the sheet never loses its place. */
+    .lp-review-sheet__head {
+        @apply flex items-center gap-2.5 px-3 py-2 font-mono text-xs uppercase tracking-widest text-fg-dim;
     }
-    .lp-review-menu__verdict {
-        @apply w-full min-h-11;
-    }
-    .lp-review-menu__verdict + .lp-review-menu__verdict {
-        @apply mt-1.5;
-    }
-    /* Names the list the reader drilled into, so the panel never loses its place. */
-    .lp-review-menu__head {
-        @apply flex items-center gap-2.5 px-3 py-2 font-mono uppercase tracking-widest text-chrome-dim text-xs;
-    }
-    .lp-review-menu__head-count {
+    .lp-review-sheet__head-count {
         @apply ml-auto shrink-0 normal-case tracking-normal;
     }
-    .lp-review-menu__section {
-        @apply flex items-center gap-2.5 min-h-11 px-3 py-2 rounded-lg no-underline text-sm text-chrome-fg transition-colors hover:bg-chrome-line;
+    .lp-review-sheet__section {
+        @apply flex min-h-tap items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink no-underline transition-colors hover:bg-surface-3;
     }
-    .lp-review-menu__section[data-level='3'] {
+    .lp-review-sheet__section[data-level='3'] {
         @apply pl-6;
     }
-    .lp-review-menu__section[data-level='4'] {
+    .lp-review-sheet__section[data-level='4'] {
         @apply pl-9;
     }
-    .lp-review-menu__section[data-level='5'] {
+    .lp-review-sheet__section[data-level='5'] {
         @apply pl-12;
     }
-    .lp-review-menu__section[data-level='6'] {
+    .lp-review-sheet__section[data-level='6'] {
         @apply pl-15;
     }
-    .lp-review-menu__section--sub {
-        @apply pl-9 text-chrome-mute;
+    .lp-review-sheet__section--sub {
+        @apply pl-9 text-fg-mute;
     }
-    .lp-review-menu__mark {
-        @apply inline-flex items-center justify-center shrink-0 w-3.75 h-3.75 rounded-full border border-chrome-line;
+    .lp-review-sheet__mark {
+        @apply inline-flex size-3.75 shrink-0 items-center justify-center rounded-full border border-line;
     }
-    .lp-review-menu__mark--approved {
-        @apply bg-accent border-accent text-ink;
+    .lp-review-sheet__mark--approved {
+        @apply border-accent bg-accent text-ink;
     }
-    .lp-review-menu__mark svg {
-        @apply w-2.5 h-2.5 shrink-0;
+    .lp-review-sheet__mark svg {
+        @apply size-2.5 shrink-0;
     }
 
     /* ── General comments group ─────────────────────────────────────────
@@ -3797,7 +3791,7 @@
     .lp-general-comments__list.open {
         @apply flex;
     }
-    /** Version selection shared by the diff toolbar, history and review menu. */
+    /** Version selection shared by the diff toolbar, history and review bar. */
     .lp-version-compare {
         @apply flex flex-wrap items-center gap-2 w-full;
     }
@@ -4681,12 +4675,12 @@
     .lp-review-topbar-actions {
         @apply ml-auto flex items-center gap-2.5;
     }
-    /* Below lg the review menu holds Finish review, so only the verdict chip stays
+    /* Below lg the review bar holds Finish review, so only the verdict chip stays
        in the bar. The wrapper hides, because the touch rule gives `.lp-btn` a display. */
     .lp-review-topbar-actions--finish {
         @apply hidden lg:flex;
     }
-    /* A page with no review menu keeps the button below lg as an icon, so the title keeps its room. */
+    /* A page with no review bar keeps the button below lg as an icon, so the title keeps its room. */
     .lp-review-topbar-actions--compact .lp-btn > span {
         @apply hidden lg:inline;
     }
@@ -4924,7 +4918,7 @@
         @apply truncate text-sm font-medium text-ink;
     }
     .lp-preview-token-row__meta {
-        @apply font-mono text-xs text-fg-dim;
+        @apply text-sm font-semibold;
     }
     /* The line under the preview sign-in panel of a card that points to the full list. */
     .lp-preview-sign-in__note {
@@ -7041,7 +7035,7 @@
         @apply bg-accent-faint text-accent-ink;
     }
     .lp-artifact-revision__when {
-        @apply font-mono text-xs text-fg-dim;
+        @apply text-sm font-semibold;
     }
     .lp-artifact-revision__notes {
         @apply col-start-2 text-sm/snug text-pretty whitespace-normal text-fg;

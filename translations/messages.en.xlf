@@ -2153,21 +2153,17 @@
                 <source>review.document.comment.error.stale_version</source>
                 <target>A newer version exists. Copy your draft, reload the document, and select the passage again before submitting.</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.label">
-                <source>review.document.menu.label</source>
+            <trans-unit id="review.bar.label">
+                <source>review.bar.label</source>
                 <target>Review actions</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.open">
-                <source>review.document.menu.open</source>
-                <target>Open review actions</target>
+            <trans-unit id="review.bar.more">
+                <source>review.bar.more</source>
+                <target>More</target>
             </trans-unit>
-            <trans-unit id="review.document.menu.close">
-                <source>review.document.menu.close</source>
-                <target>Close review actions</target>
-            </trans-unit>
-            <trans-unit id="review.document.menu.back">
-                <source>review.document.menu.back</source>
-                <target>Back</target>
+            <trans-unit id="review.bar.decisions_label">
+                <source>review.bar.decisions_label</source>
+                <target>Decisions, %answered% of %total% answered</target>
             </trans-unit>
             <trans-unit id="comment.error.not_owner">
                 <source>comment.error.not_owner</source>

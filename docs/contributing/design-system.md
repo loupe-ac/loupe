@@ -202,7 +202,7 @@ Write a menu like this:
 </twig:Ds:Menu>
 ```
 
-The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. A MenuGroup holds a run of related rows. Its `heading` prop draws a MenuHeading, and its `moreLabel` prop puts the rows of the `more` block behind a "show more" row. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
+The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. A MenuGroup holds a run of related rows. Its `heading` prop draws a MenuHeading, and its `moreLabel` prop puts the rows of the `more` block behind a "show more" row. The mobile review bar and the review filter stay outside the component, because one opens sheets and the other is a `<details>` element.
 
 Write a split button like this:
 

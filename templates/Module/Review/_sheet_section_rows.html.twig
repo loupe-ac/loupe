@@ -1,0 +1,7 @@
+{# Section rows of the review bar's Contents sheet. Params: rows, each with level, headingId and label. #}
+{% for row in rows %}
+<a class="lp-review-sheet__section" data-level="{{ row.level }}" href="#{{ row.headingId }}"
+   data-action="click->sheet#close click->review-jump#go" title="{{ row.label }}">
+    <span class="lp-review-sheet__label">{{ row.label }}</span>
+</a>
+{% endfor %}
