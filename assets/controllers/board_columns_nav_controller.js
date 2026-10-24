@@ -3,13 +3,15 @@ import { prefersReducedMotion } from '../lib/smooth_scroll.js';
 
 const RATIO_STEPS = [0, 0.25, 0.5, 0.75, 1];
 const SETTLE_MILLISECONDS = 700;
+const HIDDEN_LANE = '.lp-board-lane--collapsed:not(.lp-board-lane--revealed)';
 
 /**
  * The column tabs of the phone board. The element holds the tab strip (the
  * `tabs` target) and the column strip, and the strip scrolls one column per
  * swipe. The column most in view is the current column: its tab is selected,
  * and the arrows of the tab strip step the board one column. A board with epic
- * lanes reads its columns from the first lane.
+ * lanes names its tabs from the first lane, and reads and scrolls the columns
+ * of the lanes that show their cells.
  */
 export default class extends Controller {
     static targets = ['tabs'];
@@ -75,6 +77,19 @@ export default class extends Controller {
         ];
     }
 
+    /** The columns with this id whose cells show, so a collapsed lane is never the one read or scrolled. */
+    #shown(id) {
+        if (undefined === id || !this.strip) {
+            return [];
+        }
+
+        return [
+            ...this.strip.querySelectorAll(
+                `.lp-board__column[data-column-id="${CSS.escape(id)}"]`,
+            ),
+        ].filter((column) => !column.closest(HIDDEN_LANE));
+    }
+
     #bind() {
         this.#unbind();
         const strip = this.#strip();
@@ -88,7 +103,7 @@ export default class extends Controller {
             (entries) => this.#observed(entries),
             { root: strip, threshold: RATIO_STEPS },
         );
-        for (const column of this.#columns()) {
+        for (const column of strip.querySelectorAll('.lp-board__column')) {
             this.intersections.observe(column);
         }
         this.counts = new MutationObserver(() => this.#syncCounts());
@@ -124,7 +139,12 @@ export default class extends Controller {
         let best = -1;
         let bestRatio = 0;
         this.#columns().forEach((column, index) => {
-            const ratio = this.ratios.get(column) ?? 0;
+            const ratio = Math.max(
+                0,
+                ...this.#shown(column.dataset.columnId).map(
+                    (shown) => this.ratios.get(shown) ?? 0,
+                ),
+            );
             if (ratio > bestRatio) {
                 best = index;
                 bestRatio = ratio;
@@ -136,7 +156,16 @@ export default class extends Controller {
     }
 
     #goTo(index) {
-        const column = this.#columns()[index];
+        const id = this.#columns()[index]?.dataset.columnId;
+        const shown = this.#shown(id);
+        const column = shown.reduce(
+            (best, candidate) =>
+                (this.ratios.get(candidate) ?? 0) >
+                (this.ratios.get(best) ?? 0)
+                    ? candidate
+                    : best,
+            shown[0],
+        );
         if (!column) {
             return;
         }

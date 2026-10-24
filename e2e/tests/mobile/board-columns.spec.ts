@@ -6,6 +6,7 @@
 
 import { expect, type Locator, type Page } from '@playwright/test';
 import {
+    accessToken,
     hubStubbedTest as base,
     suppressToolbar,
     suppressWidget,
@@ -35,6 +36,67 @@ async function addColumn(
     await expect(
         settings.getByRole('heading', { name: label, exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+}
+
+/** Creates cards through the MCP card_create tool, which sets the type and the parent in one call. */
+async function createCards(
+    page: Page,
+    projectId: string,
+    cards: { title: string; type: string; parent?: number }[],
+): Promise<string[]> {
+    const token = await accessToken(page, 'mcp', projectId);
+    const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+    const initialize = await page.request.post('/mcp', {
+        headers,
+        data: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: {
+                protocolVersion: '2024-11-05',
+                capabilities: {},
+                clientInfo: { name: 'e2e', version: '1' },
+            },
+        },
+    });
+    expect(initialize.ok()).toBeTruthy();
+    headers['Mcp-Session-Id'] = initialize.headers()['mcp-session-id'] ?? '';
+    await page.request.post('/mcp', {
+        headers,
+        data: { jsonrpc: '2.0', method: 'notifications/initialized' },
+    });
+
+    const ids: string[] = [];
+    for (const [index, card] of cards.entries()) {
+        const response = await page.request.post('/mcp', {
+            headers,
+            data: {
+                jsonrpc: '2.0',
+                id: index + 2,
+                method: 'tools/call',
+                params: {
+                    name: 'card_create',
+                    arguments: {
+                        title: card.title,
+                        body: '',
+                        type: card.type,
+                        status: 'next',
+                        ...(undefined === card.parent
+                            ? {}
+                            : { parentCardId: ids[card.parent] }),
+                    },
+                },
+            },
+        });
+        const answer = await response.json();
+        expect(answer.result?.isError, JSON.stringify(answer)).toBeFalsy();
+        ids.push(answer.result.structuredContent.cardId as string);
+    }
+
+    return ids;
 }
 
 const test = base.extend<{ boardUrl: string }>({
@@ -83,21 +145,26 @@ test.use({
 const tab = (page: Page, name: string): Locator =>
     page.getByRole('tab', { name: new RegExp(`^${name}`) });
 
-async function expectInView(page: Page, index: number): Promise<void> {
+/** The column fills the strip: the page keeps its side padding, so the strip is the screen the column fills. */
+async function expectInView(
+    page: Page,
+    index: number,
+    columns: Locator = page.locator(COLUMN),
+): Promise<void> {
     await expect
         .poll(
             () =>
-                page
-                    .locator(COLUMN)
-                    .nth(index)
-                    .evaluate((column) => {
-                        const box = column.getBoundingClientRect();
+                columns.nth(index).evaluate((column) => {
+                    const box = column.getBoundingClientRect();
+                    const strip = column
+                        .closest('.lp-board__columns')!
+                        .getBoundingClientRect();
 
-                        return (
-                            Math.abs(box.left) < 4 &&
-                            Math.abs(box.width - window.innerWidth) < 40
-                        );
-                    }),
+                    return (
+                        Math.abs(box.left - strip.left) < 2 &&
+                        Math.abs(box.width - strip.width) < 2
+                    );
+                }),
             { timeout: 10_000 },
         )
         .toBe(true);
@@ -178,4 +245,42 @@ test('a swipe stops on a column and the tab follows it', async ({
         'aria-selected',
         'true',
     );
+});
+
+test('the arrows step the shown lane when the first epic lane is collapsed', async ({
+    page,
+    boardUrl,
+}) => {
+    const projectId = boardUrl.split('/')[2];
+    const [epic] = await createCards(page, projectId, [
+        { title: 'Phone epic', type: 'epic' },
+        { title: 'Phone child', type: 'feature', parent: 0 },
+    ]);
+    await page.goto(boardUrl);
+    await page.evaluate(
+        ([project, epicId]) =>
+            window.localStorage.setItem(
+                `loupe.board.collapsed-lanes.${project}`,
+                JSON.stringify([epicId]),
+            ),
+        [projectId, epic],
+    );
+    await page.reload();
+    const epicLane = page.locator(`.lp-board-lane[data-lane="${epic}"]`);
+    await expect(epicLane).toHaveClass(/lp-board-lane--collapsed/);
+    const shown = page.locator(
+        `.lp-board-lane[data-lane="other"] ${COLUMN}`,
+    );
+
+    await page.getByRole('button', { name: 'Scroll forward' }).tap();
+    await expectInView(page, 1, shown);
+    await expect(page.getByRole('tab').nth(1)).toHaveAttribute(
+        'aria-selected',
+        'true',
+    );
+    await tab(page, 'Shipped').tap();
+    await expectInView(page, 5, shown);
+    await expect(
+        page.getByRole('button', { name: 'Scroll forward' }),
+    ).toBeHidden();
 });

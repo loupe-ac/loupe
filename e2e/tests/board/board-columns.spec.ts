@@ -21,6 +21,20 @@ const COLUMN = 'section.lp-board__column';
 // Under a loaded run, the POST and the redirected GET take longer than the 5 s default.
 const ROUND_TRIP = { timeout: process.env.COVERAGE ? 20_000 : 15_000 };
 
+/** Below 640px the toolbar actions sit in the "…" menu, so this opens it when the button shows. */
+async function openToolbarActions(page: Page): Promise<boolean> {
+    const more = page.locator('.lp-board-toolbar__more');
+    if (!(await more.isVisible())) {
+        return false;
+    }
+    if ('true' !== (await more.getAttribute('aria-expanded'))) {
+        await more.click();
+    }
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+
+    return true;
+}
+
 async function registerAndLogin(page: Page, email: string): Promise<void> {
     const response = await page.request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Columns User', email, password: PASSWORD },
@@ -179,6 +193,7 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                     ),
                 )
                 .toBeLessThanOrEqual(1);
+            const inMenu = await openToolbarActions(page);
             for (const link of await page
                 .locator('.lp-board-toolbar__actions a')
                 .all()) {
@@ -195,6 +210,12 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                         );
                     }),
                 ).toBeLessThanOrEqual(1);
+            }
+            if (inMenu) {
+                await page.keyboard.press('Escape');
+                await expect(
+                    page.locator('.lp-board-toolbar__more'),
+                ).toHaveAttribute('aria-expanded', 'false');
             }
             await expect(page.locator('a.lp-board-backlog')).toBeInViewport({
                 ratio: 1,
@@ -221,11 +242,13 @@ test('board controls remain usable at enlarged text sizes without page overflow'
     await expect(
         page.locator('[data-board-filter-target="empty"]'),
     ).toBeHidden();
+    await openToolbarActions(page);
     await page.getByRole('button', { name: 'List', exact: true }).click();
     await expect(page.locator('.lp-board-list')).toBeVisible();
     await expect(page.locator('.lp-board-list__row:not([hidden])')).toHaveCount(
         1,
     );
+    await openToolbarActions(page);
     await page.getByRole('button', { name: 'Board', exact: true }).click();
     await expect(page.locator('.lp-board__columns')).toBeVisible();
     await expect

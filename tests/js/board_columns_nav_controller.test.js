@@ -228,3 +228,79 @@ it('reads the columns of the first lane on a board with lanes', async () => {
     expect(tabs().map((tab) => tab.dataset.columnId)).toEqual(['c1', 'c2']);
     expect(tabs()[0].textContent).toBe('Next4');
 });
+
+async function startLanes() {
+    document.body.innerHTML = `
+        <div id="board" data-controller="board-columns-nav">
+            <div data-board-columns-nav-target="tabs">
+                <div class="lp-tabs"></div>
+                <button class="lp-overflow-cue__arrow--prev lp-overflow-cue__arrow"></button>
+                <button class="lp-overflow-cue__arrow--next lp-overflow-cue__arrow"></button>
+            </div>
+            <div class="lp-board__columns lp-board__columns--lanes" data-board-view-target="board">
+                <div class="lp-board-lanes">
+                    <section class="lp-board-lane lp-board-lane--collapsed" data-lane="epic"><div class="lp-board-lane__cells">
+                        ${COLUMNS.map(column).join('')}
+                    </div></section>
+                    <section class="lp-board-lane" data-lane="other"><div class="lp-board-lane__cells">
+                        ${COLUMNS.map(column).join('')}
+                    </div></section>
+                </div>
+            </div>
+        </div>`;
+    application = Application.start();
+    application.register('board-columns-nav', BoardColumnsNavController);
+    await vi.advanceTimersByTimeAsync(0);
+}
+
+const laneColumns = (lane) => [
+    ...document.querySelectorAll(
+        `.lp-board-lane[data-lane="${lane}"] .lp-board__column`,
+    ),
+];
+
+function laneInView(lane, index) {
+    observed(
+        columns().map((target) => ({
+            target,
+            intersectionRatio: target === laneColumns(lane)[index] ? 1 : 0,
+        })),
+    );
+}
+
+it('follows the columns of a shown lane when the first lane is collapsed', async () => {
+    await startLanes();
+    laneInView('other', 1);
+    expect(selected()).toBe('c2');
+    laneInView('other', 2);
+    expect(selected()).toBe('c3');
+    expect(next().hidden).toBe(true);
+});
+
+it('never reads a collapsed lane as the column in view', async () => {
+    await startLanes();
+    laneInView('epic', 2);
+    expect(selected()).toBe('c1');
+});
+
+it('scrolls a column of a shown lane when the first lane is collapsed', async () => {
+    await startLanes();
+    tabs()[2].click();
+    expect(scrollIntoView.mock.contexts[0]).toBe(laneColumns('other')[2]);
+    document.getElementById('board').dispatchEvent(
+        new CustomEvent('overflow-cue:step', {
+            bubbles: true,
+            detail: { direction: -1 },
+        }),
+    );
+    expect(scrollIntoView.mock.contexts[1]).toBe(laneColumns('other')[1]);
+});
+
+it('reads a collapsed lane that a search reveals', async () => {
+    await startLanes();
+    document
+        .querySelector('[data-lane="epic"]')
+        .classList.add('lp-board-lane--revealed');
+    laneInView('epic', 2);
+    expect(selected()).toBe('c3');
+});
