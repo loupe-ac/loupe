@@ -282,6 +282,7 @@ export const KEPT_CSS_WORDS = new Set([
     'background-color',
     'balance',
     'baseline',
+    'black',
     'blinkmacsystemfont',
     'block',
     'bold',
