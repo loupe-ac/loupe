@@ -176,6 +176,7 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
     const menu = page.locator('.lp-topbar__menu');
     const newWork = page.locator('.lp-topbar__new-work');
     const bell = page.locator('.lp-topbar__global-action[aria-haspopup]');
+    const label = page.locator('.lp-topbar__new-work-label');
 
     for (const width of [639, 640, 820, 1023]) {
         await page.setViewportSize({ width, height: 900 });
@@ -186,7 +187,11 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
             expect(box.width, `${width}px`).toBeGreaterThanOrEqual(44);
             expect(box.height, `${width}px`).toBeGreaterThanOrEqual(44);
         }
-        await expect(newWork.locator('span')).not.toBeInViewport();
+        await expect(label, `${width}px`).toHaveCSS('clip-path', 'inset(50%)');
+        expect(
+            (await label.boundingBox())!.width,
+            `${width}px`,
+        ).toBeLessThanOrEqual(1);
         await expect(newWork).toHaveAccessibleName('New work');
         expect(
             await horizontalOverflow(page),
@@ -197,7 +202,8 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
     await page.setViewportSize({ width: 1024, height: 900 });
     await expect(page.locator(SIDEBAR)).toBeVisible();
     await expect(menu).toBeHidden();
-    await expect(newWork.locator('span')).toBeVisible();
+    await expect(label).toHaveCSS('clip-path', 'none');
+    expect((await label.boundingBox())!.width).toBeGreaterThan(1);
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
 
