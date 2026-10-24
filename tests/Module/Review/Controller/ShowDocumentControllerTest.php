@@ -846,7 +846,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         $versionUrl = '/projects/'.$projectId.'/documents/'.$id.'/review/versions/1';
         $history = $client->request(Request::METHOD_GET, $historyUrl);
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $history->filter('.lp-history a[href="'.$versionUrl.'"]'));
+        self::assertCount(1, $history->filter('.lp-data-table--history a[href="'.$versionUrl.'"]'));
 
         $earlier = $client->request(Request::METHOD_GET, $versionUrl);
         self::assertResponseIsSuccessful();

@@ -131,7 +131,9 @@
         {% for series in view.series %}
         <section class="lp-metric-table__series" data-metrics-series="{{ series.group ?? 'none' }}">
             <h3 class="lp-metric-table__title">{{ labels[loop.index0] }}</h3>
-            <table class="lp-metric-table__table">
+            <div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-metric-table__cue" data-controller="overflow-cue">
+<div class="lp-metric-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-metric-table__table">
                 <thead>
                     <tr>
                         <th scope="col">{{ ('analytics.metrics.table.' ~ query.unit.value)|trans }}</th>
@@ -157,6 +159,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
             {% if series.rows|length > rowLimit %}
             <p class="lp-metric-table__note" data-metrics-hidden-rows>{{ ('analytics.metrics.table.hidden.' ~ query.unit.value)|trans({'%count%': series.rows|length - rowLimit}) }}</p>
             {% endif %}

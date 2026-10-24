@@ -5,7 +5,7 @@
        No overflow clip on the box, or the last row's tooltip is cut off.
        Narrow screens trade that for a horizontal scroll. */
     .lp-data-table {
-        @apply mt-6 rounded-xl border border-line bg-surface-1 max-md:overflow-x-auto;
+        @apply rounded-xl border border-line bg-surface-1 max-md:overflow-x-auto;
     }
     .lp-data-table__header,
     .lp-data-table__row {
@@ -65,5 +65,59 @@
         .lp-data-table__row
         > .lp-data-table__cell:has(> .lp-status-chip) {
         @apply overflow-visible;
+    }
+
+    /* The box around a table that scrolls sideways. Arrows sit over the header
+       strip and a fade over the body at each hidden edge. The wrapper holds the
+       margin, because the arrows cannot sit inside the scroll box. */
+    .lp-table-cue {
+        --lp-table-cue-header: calc(var(--spacing) * 10);
+        --lp-table-cue-inset: 1px;
+        --lp-table-cue-radius: calc(var(--radius-xl) - 1px);
+    }
+    .lp-table-cue > .lp-overflow-cue__arrow {
+        @apply bottom-auto border-b border-line;
+        top: var(--lp-table-cue-inset);
+        height: var(--lp-table-cue-header);
+    }
+    .lp-table-cue > .lp-overflow-cue__arrow--prev {
+        left: var(--lp-table-cue-inset);
+        border-top-left-radius: var(--lp-table-cue-radius);
+    }
+    .lp-table-cue > .lp-overflow-cue__arrow--next {
+        right: var(--lp-table-cue-inset);
+        border-top-right-radius: var(--lp-table-cue-radius);
+    }
+    .lp-table-cue::before,
+    .lp-table-cue::after {
+        content: '';
+        @apply pointer-events-none absolute z-10 hidden w-6;
+        top: calc(var(--lp-table-cue-header) + var(--lp-table-cue-inset));
+        bottom: var(--lp-table-cue-inset);
+    }
+    .lp-table-cue::before {
+        left: var(--lp-table-cue-inset);
+        background: linear-gradient(
+            to right,
+            var(--lp-table-cue-body, var(--color-white)),
+            transparent
+        );
+        border-bottom-left-radius: var(--lp-table-cue-radius);
+    }
+    .lp-table-cue::after {
+        right: var(--lp-table-cue-inset);
+        background: linear-gradient(
+            to left,
+            var(--lp-table-cue-body, var(--color-white)),
+            transparent
+        );
+        border-bottom-right-radius: var(--lp-table-cue-radius);
+    }
+    .lp-table-cue[data-overflow-start]::before,
+    .lp-table-cue[data-overflow-end]::after {
+        @apply block;
+    }
+    .lp-table-cue--data {
+        @apply mt-6;
     }
 }
