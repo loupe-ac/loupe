@@ -1,6 +1,17 @@
 {#
-  Props: tag (nav by default, or div), variant (segmented for a pill group).
-  Other attributes go to the element. Each tab keeps its lp-tabs__tab class.
+  Props: tag (nav by default, or div), variant (segmented for a pill group), arrows (scroll by default, or step).
+  Other attributes go to the strip element. Each tab keeps its lp-tabs__tab class.
+  A strip that is not segmented sits in an overflow-cue wrapper that draws the arrows. The step value leaves the arrows visible, so the page toggles their hidden state.
 #}
-{%- props tag = 'nav', variant = null -%}
-<{{ tag }}{{ attributes.defaults({class: 'lp-tabs' ~ (variant ? ' lp-tabs--' ~ variant : '')}) }}>{% block content %}{% endblock %}</{{ tag }}>
+{%- props tag = 'nav', variant = null, arrows = 'scroll' -%}
+{%- set strip -%}
+<{{ tag }}{{ attributes.defaults({class: 'lp-tabs' ~ (variant ? ' lp-tabs--' ~ variant : '')}) }}{% if 'segmented' != variant %} data-overflow-cue-target="viewport"{% endif %}>{% block content %}{% endblock %}</{{ tag }}>
+{%- endset -%}
+{%- if 'segmented' == variant -%}
+{{ strip }}
+{%- else -%}
+<div class="lp-overflow-cue lp-overflow-cue--{{ arrows }}" data-controller="overflow-cue" data-overflow-cue-mode-value="{{ arrows }}">
+    {{ strip }}
+    {% include '_overflow_arrows.html.twig' only %}
+</div>
+{%- endif -%}

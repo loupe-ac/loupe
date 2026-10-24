@@ -26,6 +26,11 @@
         @apply max-w-none;
     }
     @media (width >= 64rem) {
+        .lp-settings:not(.lp-settings--columns)
+            .lp-overflow-cue
+            > .lp-overflow-cue__arrow {
+            @apply hidden;
+        }
         .lp-settings-layout {
             grid-template-columns:
                 calc(var(--spacing) * 45)
@@ -55,6 +60,11 @@
         @apply shrink-0;
     }
     @container (min-width: 48rem) {
+        .lp-settings-layout--columns
+            .lp-overflow-cue
+            > .lp-overflow-cue__arrow {
+            @apply hidden;
+        }
         .lp-settings-layout--columns {
             grid-template-columns: calc(var(--spacing) * 44) minmax(0, 1fr);
         }

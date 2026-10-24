@@ -1,0 +1,35 @@
+/* A strip that scrolls sideways, with an arrow over a fade at each hidden edge. The overflow-cue controller sets the data-overflow attributes. */
+@layer components {
+    .lp-overflow-cue {
+        @apply relative min-w-0;
+    }
+    .lp-overflow-cue__arrow {
+        @apply absolute inset-y-0 hidden w-11 items-center border-0 p-0 text-fg-mute cursor-pointer transition-colors hover:text-ink;
+    }
+    .lp-overflow-cue__arrow[hidden] {
+        @apply hidden;
+    }
+    .lp-overflow-cue__arrow--prev {
+        @apply left-0 justify-start;
+        background: linear-gradient(
+            to right,
+            var(--lp-overflow-cue-fade, var(--color-app)) 60%,
+            transparent
+        );
+    }
+    .lp-overflow-cue__arrow--next {
+        @apply right-0 justify-end;
+        background: linear-gradient(
+            to left,
+            var(--lp-overflow-cue-fade, var(--color-app)) 60%,
+            transparent
+        );
+    }
+    .lp-overflow-cue--scroll:where([data-overflow-start])
+        > .lp-overflow-cue__arrow--prev,
+    .lp-overflow-cue--scroll:where([data-overflow-end])
+        > .lp-overflow-cue__arrow--next,
+    .lp-overflow-cue--step > .lp-overflow-cue__arrow:not([hidden]) {
+        @apply flex;
+    }
+}
