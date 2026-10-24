@@ -86,8 +86,12 @@ Copy the draft before reloading, then select the passage in the current version.
 
 Select Dismiss selection in the selection toolbar to clear the selection without posting an annotation.
 Focus returns to the document. Select a passage again to annotate it.
-Below 1024 pixels, a review bar at the foot of the page holds Contents, Decisions, More and **Finish review**. Each button opens a sheet. The bar hides while an annotation composer is open, so it cannot cover the form controls.
+Below 1024 pixels, a review bar at the foot of the page holds Contents, Comments, Decisions, More and **Finish review**. Each button opens a sheet. The bar hides while an annotation composer is open, so it cannot cover the form controls.
 Below 640 pixels, the page draws no **Revise** action.
+
+The **Comments** button in the review bar shows the number of open threads. Its sheet lists every thread with the quoted passage, the comment, the author, the age and the number of replies. Select **Open** or **Resolved** to choose which threads the list shows.
+Select a row to close the sheet. The page scrolls the passage to the centre of the screen and flashes it for a moment. A thread with no passage opens its card instead.
+Select **Comment on the whole document** at the end of the sheet to write a comment that has no passage. To comment on a passage, select the text in the document.
 
 Threads carry a status: pending, addressed, or resolved.
 Select **Finish review** in the top bar, or in the review bar on a narrow screen, to approve the version or request changes.

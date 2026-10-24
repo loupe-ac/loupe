@@ -174,7 +174,7 @@ for (const { name, viewport } of VIEWPORTS) {
         const barButton = (page: Page, label: string | RegExp) =>
             bar(page).getByRole('button', { name: label });
 
-        test('the bar is fixed at the foot with its four controls', async ({
+        test('the bar is fixed at the foot with its five controls', async ({
             page,
             seeded,
         }) => {
@@ -186,6 +186,7 @@ for (const { name, viewport } of VIEWPORTS) {
             expect(box!.width).toBeCloseTo(viewport.width, 0);
 
             await expect(barButton(page, 'Contents')).toBeVisible();
+            await expect(barButton(page, 'Comments, 0 open')).toBeVisible();
             await expect(barButton(page, /^Decisions/)).toBeVisible();
             await expect(
                 bar(page).locator('#review-bar-decisions-count'),
@@ -201,7 +202,7 @@ for (const { name, viewport } of VIEWPORTS) {
                         .map((element) => element.getBoundingClientRect())
                         .map((rect) => Math.min(rect.width, rect.height)),
                 );
-            expect(sizes.length).toBe(4);
+            expect(sizes.length).toBe(5);
             for (const size of sizes) {
                 expect(
                     size,
@@ -388,7 +389,7 @@ for (const { name, viewport } of VIEWPORTS) {
             }
         });
 
-        test('a finished review leaves no bar that opens nothing', async ({
+        test('a finished review leaves the Comments button and no bar that opens nothing', async ({
             page,
         }) => {
             const plain = await seedDocument(page, 'Plain', PLAIN_MARKDOWN);
@@ -400,7 +401,9 @@ for (const { name, viewport } of VIEWPORTS) {
             await expect(page.locator('.lp-verdict-chip')).toBeVisible({
                 timeout: coverageScaled(20000),
             });
-            await expect(bar(page)).toBeHidden();
+            await expect(barButton(page, 'Finish review')).toBeHidden();
+            await expect(barButton(page, 'Comments, 0 open')).toBeVisible();
+            await expect(bar(page).getByRole('button')).toHaveCount(1);
         });
 
         test('the bar hides while the annotation composer is open', async ({

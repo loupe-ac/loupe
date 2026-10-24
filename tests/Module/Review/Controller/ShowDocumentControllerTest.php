@@ -315,7 +315,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         // Both anchored threads sit in the same list, in no status order.
         self::assertCount(2, $crawler->filter('.lp-review-margin .lp-comment-row'));
-        self::assertCount(1, $crawler->filter('.lp-comment-row--resolved'));
+        self::assertCount(1, $crawler->filter('.lp-review-margin .lp-comment-row--resolved'));
         // Each thread carries its derived anchor status and says it in words.
         self::assertSelectorExists('[data-anchor-status="pending"]');
         self::assertSelectorExists('[data-anchor-status="resolved"]');

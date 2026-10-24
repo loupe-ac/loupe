@@ -1,0 +1,13 @@
+{# The Comments sheet list: one flat row per thread. Every comment stream
+   replaces #sheet-comment-rows beside #comment-rows. The box sits inside the
+   sheet body, so a replace never removes the open dialog.
+   Vars: comments, every comment on the version. #}
+<div id="sheet-comment-rows" class="lp-review-sheet__comments">
+    {% for comment in comments|filter(c => c.parent is null) %}
+        {% include '@Review/_comment_row.html.twig' with {
+            comment: comment,
+            variant: 'sheet',
+            replyCount: comments|filter(c => c.parent is not null and c.parent.id == comment.id)|length,
+        } only %}
+    {% endfor %}
+</div>

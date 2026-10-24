@@ -491,6 +491,8 @@
            still inside the comment-anchor controller that drives it. #}
         {% set showVerdict = verdictAvailable and document.status.value in ['draft', 'in-review'] %}
         {% set showResolvedToggle = not diffMode or diffCommenting %}
+        {# A read-only version with no comment has nothing for the sheet to list or to start. #}
+        {% set showCommentsSheet = (not diffMode or diffCommenting) and not diffColumns and (canComment or comments|length > 0) %}
         {% if showContents or showVersions or referenceCount > 0 or decisionRows|length > 0 or showResolvedToggle or showVerdict %}
         {% include '@Review/_review_bar.html.twig' with {
             document: document,
@@ -508,6 +510,10 @@
             diffMode: diffMode,
             diffFromVersion: diffFromVersion,
             diffViewValue: diffView is null ? null : diffView.value,
+            showComments: showCommentsSheet,
+            canComment: canComment,
+            comments: comments,
+            openCommentCount: signals.openThreadCount,
         } only %}
         {% endif %}
     </div>
