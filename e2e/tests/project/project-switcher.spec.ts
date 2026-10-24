@@ -137,7 +137,7 @@ test('project switching marks context, clears search, and returns keyboard focus
     await expect(panel).toBeHidden();
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
-    for (const width of [1440, 1150, 950]) {
+    for (const width of [1440, 1150, 1024]) {
         await page.setViewportSize({ width, height: 1000 });
         await trigger.click();
         await expect(
@@ -162,7 +162,7 @@ test('project switching marks context, clears search, and returns keyboard focus
         exact: true,
     });
     const sidebar = page.locator('#lp-sidebar');
-    for (const width of [780, 390]) {
+    for (const width of [950, 780, 390]) {
         await page.setViewportSize({ width, height: 844 });
         await navigation.click();
         await trigger.click();
