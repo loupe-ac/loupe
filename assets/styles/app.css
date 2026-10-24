@@ -6470,12 +6470,10 @@
     }
     /* An epic title wraps to two lines and stops short of the pinned deck.
        The width left out covers the lane buttons, the deck and its label.
-       The floor meets that width where the deck stops pinning, at 36rem. */
+       Below 36rem the deck stops pinning, and the title keeps a fixed width. */
     .lp-board-lane--epic .lp-board-lane__heading {
-        max-width: max(
-            calc(100cqi - var(--spacing) * 106),
-            calc(var(--spacing) * 38)
-        );
+        max-width: calc(100cqi - var(--spacing) * 120);
+        @apply @max-xl:max-w-38;
     }
     .lp-board-lane--epic .lp-board-lane__title {
         @apply whitespace-normal leading-tight line-clamp-2;

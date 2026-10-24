@@ -296,6 +296,36 @@ it('answers no when the sheet is closed with the question open', async () => {
     expect(answer).toBe(false);
 });
 
+it('answers no to an offer that arrives after the sheet closed, and frees the next move', async () => {
+    let offer;
+    let answer;
+    moveCard.mockImplementationOnce(async (form, { ask }) => {
+        await new Promise((resolve) => {
+            offer = resolve;
+        });
+        answer = await ask('Make it unmanaged?');
+
+        return { status: 'cancelled', message: null };
+    });
+    await open();
+    row('tech').click();
+    await settle();
+
+    dialog.close();
+    await settle();
+    offer();
+    await settle();
+
+    expect(answer).toBe(false);
+    expect(view()).not.toBe('managed');
+    moveCard.mockResolvedValue({ status: 'refused', message: null });
+    await open();
+    expect(dialog.open).toBe(true);
+    row('tech').click();
+    await settle();
+    expect(moveCard).toHaveBeenCalledTimes(2);
+});
+
 it('shows the default text for a refusal with no message, and the first view again', async () => {
     moveCard.mockResolvedValue({ status: 'refused', message: null });
     await open();

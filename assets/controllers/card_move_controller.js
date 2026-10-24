@@ -249,6 +249,11 @@ export default class extends Controller {
 
     /** Shows the managed-card question in the sheet, and resolves with the answer. */
     #ask(question) {
+        // A sheet closed while the move was in flight has nobody to answer, so the offer reads as declined.
+        if (!this.sheetTarget.querySelector('dialog')?.open) {
+            return Promise.resolve(false);
+        }
+
         return new Promise((resolve) => {
             this.answer = resolve;
             this.questionTarget.textContent = question;
