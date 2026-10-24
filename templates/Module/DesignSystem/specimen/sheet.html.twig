@@ -1,7 +1,14 @@
 {# twig-cs-fixer-disable #}
-{# Dev-only specimen of the Sheet for the styleguide, so it is intentionally untranslated. The styleguide draws the dialog in place. #}
-<twig:Ds:Sheet title="More" open backLabel="Back" closeLabel="Close">
-    <div data-sheet-view="menu">
-        <p class="lp-dialog-desc">The body scrolls when its content is taller than the sheet.</p>
-    </div>
-</twig:Ds:Sheet>
+{# Dev-only specimen of the Sheet for the styleguide, so it is intentionally untranslated. The styleguide draws the dialog in place, and the button opens it as a real sheet. #}
+<div data-controller="sheet">
+    <twig:Ds:Button type="button" data-action="sheet#open">Open the sheet</twig:Ds:Button>
+    <twig:Ds:Sheet title="More" open backLabel="Back" closeLabel="Close">
+        <div data-sheet-view="menu">
+            <p class="lp-dialog-desc">The body scrolls when its content is taller than the sheet.</p>
+            <twig:Ds:Button type="button" data-action="sheet#show" data-sheet-view-param="versions">Versions</twig:Ds:Button>
+        </div>
+        <div data-sheet-view="versions">
+            <p class="lp-dialog-desc">A drill-down view. The back button returns to the menu.</p>
+        </div>
+    </twig:Ds:Sheet>
+</div>

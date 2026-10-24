@@ -8294,7 +8294,7 @@
     .lp-styleguide__specimen .lp-drawer {
         @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
     }
-    .lp-styleguide__specimen .lp-sheet {
+    .lp-styleguide__specimen .lp-sheet:not(:modal) {
         @apply static m-0 h-fit w-full max-w-none rounded-xl border border-line shadow-none;
     }
     /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
