@@ -2,11 +2,16 @@
 {% if project is defined and project %}{% do mercure_subscribe(worker_runs_topic(project)) %}{% do mercure_subscribe(board_topic(project)) %}{% endif %}
 <twig:Ds:Drawer class="lp-card-drawer-overlay" aria-label="{{ 'board.card.drawer.label'|trans }}" data-card-drawer-target="dialog" data-action="cancel->card-drawer#close">
     <twig:block name="content">
-    {# Escape and the backdrop close a drawer that is still loading. The error
-       state below keeps its buttons, where a reader needs a way out. #}
-    <div class="lp-card-drawer-overlay__loading" data-card-drawer-target="loading" role="status" tabindex="-1">
-        <twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--lg" />
-        {{ 'board.card.drawer.loading'|trans }}
+    {# Escape and the backdrop close a drawer that is still loading. The header keeps the title the opener passed and the close
+       button. The error state below keeps its buttons, where a reader needs a way out. #}
+    <div class="lp-card-drawer-overlay__loading" data-card-drawer-target="loading" tabindex="-1">
+        <header class="lp-drawer__header">
+            <h2 class="lp-drawer__title" data-card-drawer-target="title"></h2>
+            <twig:Ds:Button variant="ghost icon" type="button" aria-label="{{ 'board.card.drawer.close'|trans }}" data-action="card-drawer#close"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+        </header>
+        <div class="lp-drawer__body">
+            <p class="lp-drawer__loading" role="status"><twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--lg" />{{ 'board.card.drawer.loading'|trans }}</p>
+        </div>
     </div>
     <div class="lp-card-drawer-overlay__error" data-card-drawer-target="error" hidden>
         <p class="lp-dialog-desc" role="alert">{{ 'board.card.drawer.failed'|trans }}</p>
