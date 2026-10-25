@@ -83,9 +83,10 @@ test('S9: the band goes away and the page shows In review when the draft is publ
 
     await expect(watcher.locator('#draft-band')).toHaveCount(0, LIVE);
     await expect(watcher.locator('#draft-review-warning')).toHaveCount(0, LIVE);
+    // A published page stays live, so it follows a later verdict.
     await expect(
         watcher.locator('[data-controller~="review-draft-live"]'),
-    ).toHaveCount(0, LIVE);
+    ).toHaveCount(1);
 });
 
 test('an open Finish review dialog drops its warning live and keeps the verdict and the note', async ({
