@@ -196,9 +196,6 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertSame(1, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
     }
 
-    /**
-     * @param array{publicKey: string, authToken: string} $keys
-     */
     public function test_a_second_request_that_loses_the_race_for_an_endpoint_gets_a_form_error(): void
     {
         $user = $this->makeUser(static::getContainer(), 'register-race@example.com');
@@ -231,6 +228,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertSame(['endpoint' => 'notification.device.error.endpoint_taken'], $errors);
     }
 
+    /** @param array<string, string> $keys */
     private function register(
         \App\Module\Account\Entity\User $user,
         array $keys,
