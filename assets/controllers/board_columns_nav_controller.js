@@ -100,6 +100,7 @@ export default class extends Controller {
     }
 
     #bind() {
+        const previous = this.strip;
         this.#unbind();
         const strip = this.#strip();
         if (!strip) {
@@ -121,7 +122,27 @@ export default class extends Controller {
         strip.addEventListener('touchcancel', this.onTouchCancel, {
             passive: true,
         });
-        this.#show(Math.min(this.current, this.#columns().length - 1));
+        if (previous && previous !== strip) {
+            this.#restore();
+        } else {
+            this.#pick();
+        }
+    }
+
+    /** A live layout switch replaces the strip, and the new one starts at the left: bring back the column that was on screen. */
+    #restore() {
+        clearTimeout(this.settleTimer);
+        this.settling = null;
+        const index = this.#columns().findIndex(
+            (column) => column.dataset.columnId === this.currentId,
+        );
+        if (index < 0) {
+            this.#pick();
+
+            return;
+        }
+        this.strip.scrollLeft = this.#offsets()[index];
+        this.#show(index);
     }
 
     #unbind() {
@@ -177,9 +198,7 @@ export default class extends Controller {
                 bestDistance = distance;
             }
         });
-        if (best >= 0) {
-            this.#show(best);
-        }
+        this.#show(best);
     }
 
     #goTo(index) {
@@ -213,6 +232,7 @@ export default class extends Controller {
         this.current = Math.max(index, 0);
         const columns = this.#columns();
         const id = columns[this.current]?.dataset.columnId;
+        this.currentId = id;
         for (const tab of this.#tabs()) {
             tab.setAttribute(
                 'aria-selected',

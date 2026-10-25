@@ -215,3 +215,21 @@ test('the lane sheet opens the Move sheet of the epic', async ({
         page.getByRole('dialog', { name: /^Move #\d+ to$/ }),
     ).toBeVisible();
 });
+
+test('the lane sheet shows no Up next row for an epic with no deck', async ({
+    page,
+    projectId,
+}) => {
+    const [bare] = await createCards(page, projectId, [
+        { title: 'Phone epic with no deck', type: 'epic' },
+        { title: 'Already chosen', type: 'feature', parent: 0 },
+    ]);
+    await page.goto(`/projects/${projectId}/board`);
+
+    await lane(page, bare).locator('.lp-board-lane__menu').tap();
+    const sheet = page.getByRole('dialog');
+    await expect(sheet).toContainText('Phone epic with no deck');
+    await expect(
+        sheet.locator('[data-lane-sheet-target="upNextRow"]'),
+    ).toBeHidden();
+});

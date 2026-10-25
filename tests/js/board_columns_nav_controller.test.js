@@ -345,3 +345,39 @@ it('reveals the column with an id, and ignores an id it has no column for', asyn
     expect(scrollTo.mock.calls[0][0]).toMatchObject({ left: 200 });
     expect(selected()).toBe('c3');
 });
+
+it('keeps the column on screen when a live layout switch replaces the strip', async () => {
+    await start();
+    tabs()[1].click();
+    scrolledTo(100);
+    expect(selected()).toBe('c2');
+
+    strip().outerHTML = `
+        <div class="lp-board__columns lp-board__columns--lanes" data-board-view-target="board">
+            <div class="lp-board-lanes">
+                <section class="lp-board-lane"><div class="lp-board-lane__cells">
+                    ${COLUMNS.map(column).join('')}
+                </div></section>
+            </div>
+        </div>`;
+    document.dispatchEvent(new CustomEvent('board:structure-changed'));
+
+    expect(strip().scrollLeft).toBe(100);
+    expect(selected()).toBe('c2');
+    expect(prev().hidden).toBe(false);
+});
+
+it('selects the column at the scroll position when a live switch drops the column on screen', async () => {
+    await start();
+    tabs()[2].click();
+    scrolledTo(200);
+
+    strip().outerHTML = `
+        <div class="lp-board__columns" data-board-view-target="board">
+            ${COLUMNS.slice(0, 2).map(column).join('')}
+        </div>`;
+    document.dispatchEvent(new CustomEvent('board:structure-changed'));
+
+    expect(selected()).toBe('c1');
+    expect(prev().hidden).toBe(true);
+});
