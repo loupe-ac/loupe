@@ -114,12 +114,18 @@ final class NotificationPreferencesControllerTest extends WebTestCase
         $client = $this->client();
         $user = $this->makeUser(static::getContainer(), 'save-mine@example.com');
         $other = $this->makeUser(static::getContainer(), 'save-theirs@example.com');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->persist(new NotificationPreference($other, NotificationEvent::BlockingInboxItem, NotificationChannel::WebPush, false));
+        $em->flush();
         $client->loginUser($user);
 
-        $this->save($client, ['other-inbox-item__web-push' => '1']);
+        $this->save($client, ['other-inbox-item__web-push' => '1', 'blocking-inbox-item__web-push' => '1']);
 
         $repository = static::getContainer()->get(NotificationPreferenceRepository::class);
-        self::assertSame([], $repository->findByOwner($other));
+        $theirs = $repository->findByOwner($other);
+        self::assertCount(1, $theirs);
+        self::assertFalse($theirs[0]->enabled);
+        self::assertCount(1, $repository->findByOwner($user));
     }
 
     public function test_a_submission_without_a_csrf_token_changes_nothing(): void
