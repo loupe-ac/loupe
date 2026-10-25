@@ -5089,6 +5089,41 @@
     .lp-device-row__actions {
         @apply flex items-center gap-2;
     }
+    .lp-device-live {
+        display: contents;
+    }
+    .lp-device-frame:not(:has(.lp-device-list)) {
+        @apply hidden;
+    }
+    /* A device that stopped working: the row takes the danger tint and its second line the danger ink. */
+    .lp-device-row--stopped {
+        @apply bg-status-danger-bg;
+    }
+    .lp-device-row--stopped .lp-identity-row__meta {
+        @apply text-status-danger-deep;
+    }
+    .lp-device-row--stopped > .lp-status-chip {
+        @apply ml-0;
+    }
+    /* The line that says the device list or the warning stopped updating. */
+    .lp-live-stopped {
+        @apply m-0 text-sm font-semibold text-status-pending-deep;
+    }
+    .lp-live-stopped:empty {
+        @apply hidden;
+    }
+    /* The stopped device warning above an inbox page. It draws nothing while no device stopped. */
+    .lp-stopped-warning:has(.lp-flash),
+    .lp-stopped-warning:has(.lp-live-stopped:not(:empty)) {
+        @apply mb-4 flex flex-col gap-2;
+    }
+    .lp-stopped-warning .lp-flash {
+        @apply m-0;
+    }
+    .lp-core-inbox .lp-stopped-warning:has(.lp-flash) {
+        @apply mb-0 pt-4;
+        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+    }
     .lp-device-row--blocked,
     .lp-device-row:has(> .lp-device-row__blocked:not([hidden])) {
         @apply border border-status-pending-border bg-status-pending-bg;

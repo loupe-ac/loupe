@@ -9327,6 +9327,7 @@
             <trans-unit id="notification.device.error.required"><source>notification.device.error.required</source><target>This field is required.</target></trans-unit>
             <trans-unit id="notification.device.error.key_invalid"><source>notification.device.error.key_invalid</source><target>The browser sent a key that Loupe cannot use.</target></trans-unit>
             <trans-unit id="notification.device.error.encoding_invalid"><source>notification.device.error.encoding_invalid</source><target>The browser uses a message format that Loupe does not support.</target></trans-unit>
+            <trans-unit id="notification.device.error.endpoint_stopped"><source>notification.device.error.endpoint_stopped</source><target>This browser kept the subscription that stopped working. Turn notifications off for Loupe in the browser settings, then turn them on here again.</target></trans-unit>
             <trans-unit id="notification.device.error.stopped"><source>notification.device.error.stopped</source><target>This device stopped receiving notifications. Turn them on again on the device.</target></trans-unit>
             <trans-unit id="notification.device.flash.test_sent"><source>notification.device.flash.test_sent</source><target>The test notification is on its way.</target></trans-unit>
             <trans-unit id="notification.device.flash.removed"><source>notification.device.flash.removed</source><target>The device no longer receives notifications.</target></trans-unit>
@@ -9334,12 +9335,18 @@
             <trans-unit id="notification.push.test.title"><source>notification.push.test.title</source><target>Loupe</target></trans-unit>
             <trans-unit id="notification.push.test.body"><source>notification.push.test.body</source><target>This is a test notification. Notifications work on this device.</target></trans-unit>
             <trans-unit id="account.settings.nav.notifications"><source>account.settings.nav.notifications</source><target>Notifications</target></trans-unit>
+            <trans-unit id="notification.live_stopped"><source>notification.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
             <trans-unit id="notification.devices.heading"><source>notification.devices.heading</source><target>Web push devices</target></trans-unit>
             <trans-unit id="notification.devices.description"><source>notification.devices.description</source><target>Each browser or Home Screen app that gets your pushes. Signing out of a device removes it.</target></trans-unit>
             <trans-unit id="notification.devices.this_device"><source>notification.devices.this_device</source><target>this device</target></trans-unit>
             <trans-unit id="notification.devices.added"><source>notification.devices.added</source><target>Added %date%</target></trans-unit>
             <trans-unit id="notification.devices.test"><source>notification.devices.test</source><target>Send test</target></trans-unit>
             <trans-unit id="notification.devices.remove"><source>notification.devices.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="notification.devices.stopped_chip"><source>notification.devices.stopped_chip</source><target>Stopped working</target></trans-unit>
+            <trans-unit id="notification.devices.stopped_meta"><source>notification.devices.stopped_meta</source><target>Stopped working since %date%. Open Loupe on that device. Turn on push again.</target></trans-unit>
+            <trans-unit id="notification.warning.message"><source>notification.warning.message</source><target>Your push device %device% stopped working on %date%, so it gets no pushes.</target></trans-unit>
+            <trans-unit id="notification.warning.settings_link"><source>notification.warning.settings_link</source><target>Open notification settings</target></trans-unit>
+            <trans-unit id="notification.warning.dismiss"><source>notification.warning.dismiss</source><target>Dismiss</target></trans-unit>
             <trans-unit id="notification.devices.hint"><source>notification.devices.hint</source><target>To add your phone, open this page in the Loupe Home Screen app on it.</target></trans-unit>
             <trans-unit id="notification.push.unavailable.user"><source>notification.push.unavailable.user</source><target>Push is not set up on this server. Ask your administrator.</target></trans-unit>
             <trans-unit id="notification.push.unavailable.admin"><source>notification.push.unavailable.admin</source><target>Push is off on this server.</target></trans-unit>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Notification\Command;
 
 use App\Module\Notification\Repository\PushDeviceRepository;
+use App\Module\Notification\Service\DeviceChangedPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -17,6 +18,7 @@ final readonly class ForgetPushDeviceHandler
         private PushDeviceRepository $pushDevices,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private DeviceChangedPublisher $devicesChanged,
     ) {
     }
 
@@ -37,5 +39,6 @@ final readonly class ForgetPushDeviceHandler
             ['deviceId' => $deviceId],
             new AuditSubject('push_device', $deviceId),
         );
+        $this->devicesChanged->changed($command->user);
     }
 }

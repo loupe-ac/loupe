@@ -11,6 +11,7 @@ use App\Module\Notification\Messenger\DeliverWebPushHandler;
 use App\Module\Notification\Repository\PushDeviceRepository;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushEndpointPolicy;
+use App\Tests\Module\Notification\RecordedDeviceSignals;
 use Doctrine\ORM\EntityManagerInterface;
 use Minishlink\WebPush\VAPID;
 use PHPUnit\Framework\TestCase;
@@ -30,6 +31,8 @@ final class DeliverWebPushHandlerTest extends TestCase
     private array $sent = [];
 
     private \DateTimeImmutable $now;
+
+    private RecordedDeviceSignals $signals;
 
     public function test_it_sends_a_declarative_payload_with_no_topic(): void
     {
@@ -66,6 +69,7 @@ final class DeliverWebPushHandlerTest extends TestCase
 
         self::assertEquals($this->now, $device->lastDeliveredAt);
         self::assertNull($device->stoppedAt);
+        $this->signals->assertNothingSignalled();
     }
 
     public function test_a_404_or_a_410_stops_the_device(): void
@@ -77,6 +81,7 @@ final class DeliverWebPushHandlerTest extends TestCase
 
             self::assertEquals($this->now, $device->stoppedAt, (string) $status);
             self::assertNull($device->lastDeliveredAt);
+            $this->signals->assertSignalled($device->owner->id);
         }
     }
 
@@ -91,6 +96,7 @@ final class DeliverWebPushHandlerTest extends TestCase
             } catch (RecoverableMessageHandlingException) {
                 self::assertNull($device->stoppedAt);
                 self::assertNull($device->lastDeliveredAt);
+                $this->signals->assertNothingSignalled();
             }
         }
     }
@@ -201,6 +207,7 @@ final class DeliverWebPushHandlerTest extends TestCase
     private function handle(?PushDevice $device, MockResponse $response, bool $flag = true, string $urgency = 'high', int $ttl = 604800, string $payload = '{"web_push":8030}'): void
     {
         $this->now = new \DateTimeImmutable('2026-10-24 12:00:00');
+        $this->signals = new RecordedDeviceSignals();
         $keys = VAPID::createVapidKeys();
         $flags = $this->createStub(FeatureFlagService::class);
         $flags->method('isEnabled')->willReturn($flag);
@@ -225,6 +232,7 @@ final class DeliverWebPushHandlerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
             new MockClock($this->now),
+            $this->signals->publisher,
             $client,
             'https://loupe.example',
         );
@@ -240,8 +248,10 @@ final class DeliverWebPushHandlerTest extends TestCase
         self::assertIsArray($details);
         $point = "\x04".str_pad($details['ec']['x'], 32, "\0", \STR_PAD_LEFT).str_pad($details['ec']['y'], 32, "\0", \STR_PAD_LEFT);
 
+        $owner = new User(fullName: 'Riley Chen', email: 'riley@example.com', password: 'x');
+        new \ReflectionProperty(User::class, 'id')->setValue($owner, Uuid::v7());
         $device = new PushDevice(
-            new User(fullName: 'Riley Chen', email: 'riley@example.com', password: 'x'),
+            $owner,
             $endpoint,
             rtrim(strtr(base64_encode($point), '+/', '-_'), '='),
             rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '='),

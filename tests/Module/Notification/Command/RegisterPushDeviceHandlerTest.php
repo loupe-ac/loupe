@@ -12,6 +12,7 @@ use App\Module\Notification\Repository\PushDeviceRepository;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushEndpointPolicy;
 use App\Tests\Module\Notification\NotificationScenario;
+use App\Tests\Module\Notification\RecordedDeviceSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,8 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
     use NotificationScenario;
 
     private RecordingAuditor $audit;
+
+    private RecordedDeviceSignals $signals;
 
     public function test_it_stores_a_new_device_with_the_label_the_user_typed(): void
     {
@@ -40,6 +43,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertSame('Kitchen iPad', $device->label);
         self::assertSame('hash-1', $device->deviceTokenHash);
         $this->audit->record('notification.device_registered');
+        $this->signals->assertSignalled($user->id);
     }
 
     public function test_a_blank_label_comes_from_the_user_agent(): void
@@ -135,7 +139,6 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         $container = static::getContainer();
         $user = $this->makeUser($container, 'register-same-endpoint@example.com');
         $existing = $this->makeDevice($container, $user, hash: 'old-hash');
-        $existing->stoppedAt = new \DateTimeImmutable('2026-01-01');
         $keys = self::subscriptionKeys();
 
         $device = $this->register($user, $keys, label: 'Renamed');
@@ -144,8 +147,41 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertSame($keys['publicKey'], $device->publicKey);
         self::assertSame('hash-1', $device->deviceTokenHash);
         self::assertSame('Renamed', $device->label);
-        self::assertNull($device->stoppedAt);
         self::assertSame(1, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
+    }
+
+    public function test_a_stopped_device_does_not_come_back_with_its_refused_endpoint(): void
+    {
+        $container = static::getContainer();
+        $user = $this->makeUser($container, 'register-refused-endpoint@example.com');
+        $stopped = $this->makeDevice($container, $user, hash: 'hash-1');
+        $stoppedAt = new \DateTimeImmutable('2026-01-01');
+        $stopped->stoppedAt = $stoppedAt;
+        $container->get(EntityManagerInterface::class)->flush();
+
+        $errors = $this->errorsOf(fn () => $this->register($user, self::subscriptionKeys()));
+
+        self::assertSame(['endpoint' => 'notification.device.error.endpoint_stopped'], $errors);
+        $em = $container->get(EntityManagerInterface::class);
+        $em->clear();
+        $stored = $em->find(PushDevice::class, $stopped->id);
+        self::assertNotNull($stored);
+        self::assertEquals($stoppedAt, $stored->stoppedAt);
+        $this->signals->assertNothingSignalled();
+    }
+
+    public function test_a_cookie_row_cannot_take_the_refused_endpoint_of_another_stopped_row(): void
+    {
+        $container = static::getContainer();
+        $user = $this->makeUser($container, 'register-refused-other-row@example.com');
+        $stopped = $this->makeDevice($container, $user, endpoint: self::ENDPOINT, hash: 'stale-hash');
+        $stopped->stoppedAt = new \DateTimeImmutable('2026-01-01');
+        $this->makeDevice($container, $user, endpoint: 'https://web.push.apple.com/OTHER', hash: 'hash-1');
+
+        $errors = $this->errorsOf(fn () => $this->register($user, self::subscriptionKeys()));
+
+        self::assertSame(['endpoint' => 'notification.device.error.endpoint_stopped'], $errors);
+        self::assertSame(2, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
     }
 
     public function test_a_cookie_hash_that_matches_a_stopped_row_reuses_it(): void
@@ -166,6 +202,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertNull($device->warningDismissedAt);
         self::assertSame('Chrome on macOS', $device->label, 'a blank label keeps the old one');
         self::assertSame(1, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
+        $this->signals->assertSignalled($user->id);
     }
 
     public function test_a_cookie_hash_of_another_user_is_not_reused(): void
@@ -206,12 +243,14 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
             null,
         ));
 
+        $signals = new RecordedDeviceSignals();
         $handler = new RegisterPushDeviceHandler(
             static::getContainer()->get(PushDeviceRepository::class),
             self::availability(),
             new PushEndpointPolicy(),
             $em,
             new RecordingAuditor(static::getContainer()->get(AuditActorProviderInterface::class))->auditor,
+            $signals->publisher,
         );
 
         $errors = $this->errorsOf(fn () => $handler(new RegisterPushDeviceCommand(
@@ -226,6 +265,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         )));
 
         self::assertSame(['endpoint' => 'notification.device.error.endpoint_taken'], $errors);
+        $signals->assertNothingSignalled();
     }
 
     /** @param array<string, string> $keys */
@@ -241,6 +281,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         $container = static::getContainer();
         $actors = $container->get(AuditActorProviderInterface::class);
         $this->audit = new RecordingAuditor($actors);
+        $this->signals = new RecordedDeviceSignals();
 
         $handler = new RegisterPushDeviceHandler(
             $container->get(PushDeviceRepository::class),
@@ -248,6 +289,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
             new PushEndpointPolicy(),
             $container->get(EntityManagerInterface::class),
             $this->audit->auditor,
+            $this->signals->publisher,
         );
 
         return $handler(new RegisterPushDeviceCommand(

@@ -60,62 +60,31 @@
 <twig:Ds:Panel as="section" class="lp-connect-block" data-testid="push-devices-section">
     <twig:Ds:SectionHeading :description="'notification.devices.description'|trans">{{ 'notification.devices.heading'|trans }}</twig:Ds:SectionHeading>
 
-    {% set currentDeviceListed = view.devices|filter(device => device.id.toRfc4122 == view.currentDeviceId) is not empty %}
+    {% set currentDevice = view.devices|filter(device => device.id.toRfc4122 == view.currentDeviceId)|first %}
+    {% do mercure_subscribe(notifications_topic(app.user)) %}
 
     <div class="lp-connect-block"
         {% if vapidPublicKey %}
          data-controller="push-device"
+         data-action="turbo:frame-load->push-device#frameLoaded"
          data-push-device-public-key-value="{{ vapidPublicKey }}"
          data-push-device-create-url-value="{{ path('app_account_notifications_device_create') }}"
          data-push-device-service-worker-url-value="/sw.js"
-         data-push-device-device-known-value="{{ view.currentDeviceId ? 'true' : 'false' }}"
+         data-push-device-device-known-value="{{ currentDevice ? 'true' : 'false' }}"
+         data-push-device-device-stopped-value="{{ currentDevice and currentDevice.stoppedAt ? 'true' : 'false' }}"
          data-push-device-denied-message-value="{{ 'notification.push.error.denied'|trans }}"
          data-push-device-failed-message-value="{{ 'notification.push.error.failed'|trans }}"
          data-push-device-throttled-message-value="{{ 'notification.push.error.throttled'|trans }}"
          {% if previewState %}data-push-device-preview-state-value="{{ previewState }}"{% endif %}
         {% endif %}>
-    {% if view.devices is not empty or vapidPublicKey %}
-    <div class="lp-device-list">
-        {% if vapidPublicKey and not currentDeviceListed %}
-        <div class="lp-identity-row lp-device-row lp-device-row--blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>
-            <span class="lp-identity-row__text">
-                <span class="lp-identity-row__name">
-                    {{ thisBrowserLabel }}
-                    <span class="lp-device-row__this">· {{ 'notification.devices.this_device'|trans }}</span>
-                </span>
-            </span>
-            <div class="lp-device-row__blocked">{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
-        </div>
-        {% endif %}
-        {% for device in view.devices %}
-        {% set isCurrent = device.id.toRfc4122 == view.currentDeviceId %}
-        <div class="lp-identity-row lp-device-row" data-device-id="{{ device.id }}">
-            <span class="lp-identity-row__text">
-                <span class="lp-identity-row__name">
-                    {{ device.label }}
-                    {% if isCurrent %}<span class="lp-device-row__this" data-this-device>· {{ 'notification.devices.this_device'|trans }}</span>{% endif %}
-                </span>
-                <span class="lp-identity-row__meta lp-identity-row__meta--plain">{{ 'notification.devices.added'|trans({'%date%': device.createdAt|date('j M Y')}) }}</span>
-            </span>
-            <div class="lp-device-row__actions">
-                {% if view.available %}
-                <form method="post" action="{{ path('app_account_notifications_device_test', {id: device.id}) }}">
-                    <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
-                    <twig:Ds:Button variant="outline" size="sm" type="submit">{{ 'notification.devices.test'|trans }}</twig:Ds:Button>
-                </form>
-                {% endif %}
-                <form method="post" action="{{ path('app_account_notifications_device_remove', {id: device.id}) }}">
-                    <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
-                    <twig:Ds:Button variant="danger-ghost" size="sm" type="submit">{{ 'notification.devices.remove'|trans }}</twig:Ds:Button>
-                </form>
-            </div>
-            {% if isCurrent and vapidPublicKey %}
-            <div class="lp-device-row__blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
-            {% endif %}
-        </div>
-        {% endfor %}
+    <div class="lp-device-live"
+         data-controller="live-pill"
+         data-live-pill-events-value="{{ ['notifications.devices_changed']|json_encode }}"
+         data-live-pill-url-value="{{ path('app_account_notifications_device_list') }}"
+         data-live-pill-stopped-value="{{ 'notification.live_stopped'|trans }}">
+        {% include '@Notification/_push_device_list.html.twig' with {view: view, pushControls: vapidPublicKey is not empty, previewState: previewState, thisBrowserLabel: thisBrowserLabel} only %}
+        <p class="lp-live-stopped" role="status" data-live-pill-target="status"></p>
     </div>
-    {% endif %}
 
     {% if vapidPublicKey %}
     <div class="lp-connect-block">

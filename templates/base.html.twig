@@ -70,7 +70,6 @@
                     {% do mercure_subscribe(inbox_topic(app.user)) %}
                     <twig:Ds:NavItem :url="path('app_project_inbox', {id: project.id})" icon="lucide:inbox" :label="'nav.link.inbox'|trans" :active="route == 'app_project_inbox'"
                         data-controller="live-pill" data-live-pill-project-value="{{ project.id }}"
-                        data-action="turbo:frame-missing->live-pill#keepPill"
                         data-live-pill-events-value="{{ ['inbox.open_count_changed']|json_encode }}"
                         data-live-pill-url-value="{{ path('app_project_inbox_open_count', {id: project.id}) }}">
                         {# Shown only while something waits on the owner, and amber then. #}
@@ -86,7 +85,6 @@
                     <span class="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">{{ 'bridge.agents.heading'|trans }}</span>
                     <twig:Ds:NavItem :url="path('app_project_agents', {id: project.id})" icon="lucide:bot" :label="'nav.link.agents'|trans" :active="route == 'app_project_agents'"
                         data-controller="live-pill" data-live-pill-project-value="{{ project.id }}"
-                        data-action="turbo:frame-missing->live-pill#keepPill"
                         data-live-pill-events-value="{{ ['worker_run.changed']|json_encode }}"
                         data-live-pill-url-value="{{ path('app_project_agents_count', {id: project.id}) }}">
                         {% include '@Bridge/_agents_count.html.twig' with {project: project, figures: project_agents_figures(project)} only %}
@@ -96,7 +94,6 @@
                     {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(worker_runs_topic(project)) %}{% endif %}
                     <twig:Ds:NavItem :url="path('app_project_worker_runs', {id: project.id, outcome: 'open'})" icon="lucide:activity" :label="'nav.link.activity'|trans" :active="route in ['app_project_worker_runs', 'app_project_activity']"
                         data-controller="live-pill" data-live-pill-project-value="{{ project.id }}"
-                        data-action="turbo:frame-missing->live-pill#keepPill"
                         data-live-pill-events-value="{{ ['worker_run.changed']|json_encode }}"
                         data-live-pill-url-value="{{ path('app_project_activity_open_count', {id: project.id}) }}">
                         {% include '@Bridge/_activity_open_count.html.twig' with {project: project, openCount: project_open_run_count(project)} only %}

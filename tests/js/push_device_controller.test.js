@@ -14,11 +14,13 @@ const flush = async () => {
     }
 };
 
-const MARKUP = (deviceKnown = false) => `
+const MARKUP = (deviceKnown = false, deviceStopped = false) => `
 <section id="root" data-controller="push-device"
     data-push-device-public-key-value="${PUBLIC_KEY}"
     data-push-device-create-url-value="/account/notifications/devices"
     data-push-device-device-known-value="${deviceKnown}"
+    data-push-device-device-stopped-value="${deviceStopped}"
+    data-action="turbo:frame-load->push-device#frameLoaded"
     data-push-device-denied-message-value="Notifications are off for Loupe."
     data-push-device-failed-message-value="Push did not turn on."
     data-push-device-throttled-message-value="Wait a little."
@@ -36,6 +38,7 @@ const MARKUP = (deviceKnown = false) => `
         <button id="turn-on" data-push-device-target="button" data-action="push-device#turnOn">Turn on</button>
     </div>
     <div data-push-device-target="panel" data-panel="on" hidden></div>
+    <turbo-frame id="push-devices"><span data-this-device${deviceKnown ? '' : ' hidden'}></span></turbo-frame>
     <p id="error" data-push-device-target="error" role="alert" hidden></p>
 </section>`;
 
@@ -402,4 +405,139 @@ it('shows the preview state and ignores the browser when one is set', async () =
     document.getElementById('retry').click();
     await flush();
     expect(visiblePanels()).toEqual(['ios-tab']);
+});
+
+it('shows the off panel for a stopped device although the browser holds a subscription', async () => {
+    stubBrowser({ subscription: { endpoint: 'https://push.example/dead' } });
+    await start(MARKUP(true, true));
+    expect(visiblePanels()).toEqual(['off']);
+});
+
+it('drops the dead subscription before it subscribes again for a stopped device', async () => {
+    const dead = {
+        endpoint: 'https://push.example/dead',
+        getKey: () => new Uint8Array([9]).buffer,
+        unsubscribe: vi.fn().mockResolvedValue(true),
+    };
+    const browser = stubBrowser({ subscription: dead });
+    const fetchMock = vi.fn().mockResolvedValue({
+        status: 201,
+        ok: true,
+        json: async () => ({}),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await start(MARKUP(true, true));
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(dead.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(browser.subscribe).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].body.get('endpoint')).toBe(
+        'https://push.example/abc',
+    );
+    expect(visit).toHaveBeenCalledTimes(1);
+});
+
+it('subscribes for a stopped device when the browser holds no subscription', async () => {
+    const browser = stubBrowser();
+    vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+            status: 201,
+            ok: true,
+            json: async () => ({}),
+        }),
+    );
+    await start(MARKUP(true, true));
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(browser.subscribe).toHaveBeenCalledTimes(1);
+    expect(visit).toHaveBeenCalledTimes(1);
+});
+
+it('follows the current row when the device list reloads', async () => {
+    stubBrowser({ subscription: { endpoint: 'https://push.example/abc' } });
+    await start(MARKUP(true, false));
+    expect(visiblePanels()).toEqual(['on']);
+
+    const frame = document.getElementById('push-devices');
+    frame.innerHTML = '<span data-this-device data-device-stopped></span>';
+    frame.dispatchEvent(new CustomEvent('turbo:frame-load', { bubbles: true }));
+    await flush();
+    expect(visiblePanels()).toEqual(['off']);
+
+    frame.innerHTML = '<span data-this-device></span>';
+    frame.dispatchEvent(new CustomEvent('turbo:frame-load', { bubbles: true }));
+    await flush();
+    expect(visiblePanels()).toEqual(['on']);
+
+    frame.innerHTML = '';
+    frame.dispatchEvent(new CustomEvent('turbo:frame-load', { bubbles: true }));
+    await flush();
+    expect(visiblePanels()).toEqual(['off']);
+});
+
+it('goes on when the dead subscription cannot be dropped', async () => {
+    const dead = {
+        endpoint: 'https://push.example/dead',
+        getKey: () => new Uint8Array([9]).buffer,
+        unsubscribe: vi.fn().mockRejectedValue(new Error('refused')),
+    };
+    const browser = stubBrowser({ subscription: dead });
+    vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+            status: 201,
+            ok: true,
+            json: async () => ({}),
+        }),
+    );
+    await start(MARKUP(true, true));
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(browser.subscribe).toHaveBeenCalledTimes(1);
+    expect(visit).toHaveBeenCalledTimes(1);
+});
+
+it('keeps an error on screen when the device list reloads', async () => {
+    stubBrowser({ subscription: { endpoint: 'https://push.example/abc' } });
+    await start(MARKUP(true, false));
+    const error = document.getElementById('error');
+    error.textContent = 'Push failed';
+    error.hidden = false;
+
+    const frame = document.getElementById('push-devices');
+    frame.dispatchEvent(new CustomEvent('turbo:frame-load', { bubbles: true }));
+    await flush();
+
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe('Push failed');
+});
+
+it('shows an error and registers nothing when the browser keeps the dead endpoint', async () => {
+    const dead = {
+        endpoint: 'https://push.example/dead',
+        getKey: () => new Uint8Array([9]).buffer,
+        unsubscribe: vi.fn().mockResolvedValue(false),
+    };
+    const browser = stubBrowser({ subscription: dead, created: dead });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await start(MARKUP(true, true));
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(browser.subscribe).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(visit).not.toHaveBeenCalled();
+    const error = document.getElementById('error');
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe('Push did not turn on.');
 });

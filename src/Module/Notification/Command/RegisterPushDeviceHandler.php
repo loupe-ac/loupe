@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\Notification\Entity\PushDevice;
 use App\Module\Notification\Repository\PushDeviceRepository;
+use App\Module\Notification\Service\DeviceChangedPublisher;
 use App\Module\Notification\Service\DeviceLabel;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushEndpointPolicy;
@@ -32,6 +33,7 @@ final readonly class RegisterPushDeviceHandler
         private PushEndpointPolicy $endpointPolicy,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private DeviceChangedPublisher $devicesChanged,
     ) {
     }
 
@@ -42,6 +44,11 @@ final readonly class RegisterPushDeviceHandler
         $byEndpoint = $this->pushDevices->findOneByEndpoint($command->endpoint);
         if (null !== $byEndpoint && !$this->sameUser($byEndpoint->owner, $command->user)) {
             throw new DomainErrors(['endpoint' => 'notification.device.error.endpoint_taken']);
+        }
+
+        if (null !== $byEndpoint?->stoppedAt) {
+            // The push service refused this endpoint, so only a new subscription can bring the device back.
+            throw new DomainErrors(['endpoint' => 'notification.device.error.endpoint_stopped']);
         }
 
         $byCookie = '' === $command->deviceTokenHash ? null : $this->pushDevices->findOneByOwnerAndTokenHash($command->user, $command->deviceTokenHash);
@@ -91,6 +98,7 @@ final readonly class RegisterPushDeviceHandler
             ['deviceId' => $deviceId, 'reused' => $reused],
             new AuditSubject('push_device', $deviceId),
         );
+        $this->devicesChanged->changed($command->user);
 
         return $device;
     }
