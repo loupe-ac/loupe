@@ -355,6 +355,33 @@ for (const { name, viewport } of VIEWPORTS) {
             await expect(sheet).toBeHidden();
         });
 
+        test('Finish review unblocks Approve once the decision is answered', async ({
+            page,
+            seeded,
+        }) => {
+            await page.goto(reviewPath(seeded));
+            const saved = page.waitForResponse(
+                (each) =>
+                    each.url().endsWith('/decisions/answer') &&
+                    each.request().method() === 'POST',
+                { timeout: coverageScaled(15000) },
+            );
+            await page
+                .getByRole('radio', {
+                    name: 'Ship the migration first',
+                    exact: true,
+                })
+                .check();
+            expect((await saved).status()).toBe(200);
+
+            await barButton(page, 'Finish review').tap();
+            const sheet = page.getByRole('dialog', { name: 'Finish review' });
+            await expect(sheet).toBeVisible();
+            const approve = sheet.locator('input[value="approved"]');
+            await expect(approve).toBeEnabled();
+            await expect(approve).toBeChecked();
+        });
+
         test('the last paragraph scrolls clear of the bar', async ({
             page,
             seeded,
