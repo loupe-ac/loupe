@@ -1267,7 +1267,9 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         // Finish review and its dialog, as on the document.
-        self::assertCount(1, $diff->filter('[data-action="click->review-finish#open"]'));
+        // The top bar and the phone review bar each open it.
+        self::assertCount(1, $diff->filter('.lp-review-topbar-actions [data-action="click->review-finish#open"]'));
+        self::assertCount(1, $diff->filter('.lp-review-bar__finish[data-action="click->review-finish#open"]'));
         self::assertCount(2, $diff->filter('dialog input[name="submit_review_form[verdict]"]'));
 
         // The Decisions panel lists the answer, says why it cannot change here,
