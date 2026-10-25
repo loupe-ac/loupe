@@ -19,6 +19,7 @@ use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Insights\Service\AnalysisSettings;
+use App\Module\Notification\Service\PushAvailability;
 use App\Module\Review\Install\ReviewInstallFlags;
 use App\Module\Review\Mcp\DocumentHighlightTool;
 use App\Module\SiteReview\SiteReviewDrawing;
@@ -71,7 +72,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(37, $flags);
+        self::assertCount(38, $flags);
         self::assertSame('', $flags['waitlist.notification_emails']->value);
         foreach (['site.link.discord', 'site.link.x', 'site.link.source'] as $linkFlag) {
             self::assertSame('', $flags[$linkFlag]->value);
@@ -106,6 +107,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         // Same reasoning as the update check: an install sends nothing to a
         // third party until someone decides it should.
         self::assertFalse($flags[AnalyticsScript::ENABLED_FLAG]->value);
+        self::assertFalse($flags[PushAvailability::FLAG]->value);
     }
 
     public function test_seeding_the_flags_is_recorded(): void

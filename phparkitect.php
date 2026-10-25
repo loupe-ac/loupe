@@ -52,6 +52,13 @@ return static function (Config $config): void {
 
     $config->add($src,
         Rule::allClasses()
+            ->that(new ResideInOneOfTheseNamespaces('App\Module\Notification'))
+            ->should(new NotDependsOnTheseNamespaces(['App\Module\Inbox']))
+            ->because('Inbox calls Notification to send a push, so an import back closes a cycle. Notification reaches the user through Account alone'),
+    );
+
+    $config->add($src,
+        Rule::allClasses()
             ->that(new ResideInOneOfTheseNamespaces('App\Module\Board', 'App\Module\Bridge', 'App\Module\Forge', 'App\Module\GitHub', 'App\Module\AgentReview'))
             ->should(new NotDependsOnTheseNamespaces(['App\Module\Workflow'], ['App\Module\Workflow\Contract']))
             ->because('Board, Bridge, Forge, GitHub and AgentReview plug their facts, conditions and actions into the engine through Workflow\Contract. They import nothing else from Workflow, and Workflow imports none of them, so the contract is the only link between the two sides'),
