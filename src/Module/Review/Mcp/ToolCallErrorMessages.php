@@ -32,7 +32,7 @@ final readonly class ToolCallErrorMessages
     {
         $lines = [];
         foreach ($errors->errors as $argument => $key) {
-            $lines[] = \sprintf('%s: %s', $argument, self::sentence($key));
+            $lines[] = \sprintf('%s: %s', $argument, self::sentence($key, $errors->parameters[$argument] ?? []));
         }
 
         return new ToolCallException(implode("\n", $lines), previous: $errors);
@@ -47,7 +47,10 @@ final readonly class ToolCallErrorMessages
         return new ToolCallException(\sprintf('%s: %s', $argument, $message));
     }
 
-    private static function sentence(string $key): string
+    /**
+     * @param array<string, int|string> $parameters
+     */
+    private static function sentence(string $key, array $parameters = []): string
     {
         return match ($key) {
             'review.create.error.blank', 'review.rename.error.blank' => 'A document title must not be blank.',
@@ -76,7 +79,8 @@ final readonly class ToolCallErrorMessages
             'review.document.flash.verdict_already_withdrawn' => 'You already withdrew your verdict on this document.',
             'review.document.flash.verdict_invalid' => 'That verdict is not one this document accepts.',
             'review.document.flash.verdict_stale' => 'The document has a newer version. Review it before you submit a verdict.',
-            'review.document.flash.verdict_changed' => 'The review changed. Read the current verdict before changing it.',
+            'review.document.flash.verdict_changed' => 'The review changed since you read it. Call document_get_review again and show the owner the newer verdict. Then call again with its verdictId.',
+            'review.document.flash.decisions_unanswered' => self::unansweredSentence((int) ($parameters['%count%'] ?? 0)),
             'review.document.flash.note_required' => 'Explain the changes you request in a review note.',
             'review.document.flash.note_or_comment_required' => 'Write a review note, or leave a comment on the passage to change.',
             'review.revise.error.stale_version' => 'The document has a newer version. Compare it with your draft before you save a revision.',
@@ -93,5 +97,12 @@ final readonly class ToolCallErrorMessages
             'comment.error.reopen_not_resolved' => 'That comment is not resolved, so it cannot be reopened.',
             default => self::UNMAPPED,
         };
+    }
+
+    private static function unansweredSentence(int $count): string
+    {
+        return 1 === $count
+            ? '1 decision has no answer yet. Answer it with document_decision_answer first, or request changes.'
+            : \sprintf('%d decisions have no answer yet. Answer them with document_decision_answer first, or request changes.', $count);
     }
 }

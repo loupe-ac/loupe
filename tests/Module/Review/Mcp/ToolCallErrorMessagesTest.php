@@ -47,6 +47,28 @@ final class ToolCallErrorMessagesTest extends TestCase
         self::assertStringNotContainsString('review.some.future.error', $exception->getMessage());
     }
 
+    public function test_unanswered_decisions_are_reported_with_their_count(): void
+    {
+        $messages = new ToolCallErrorMessages();
+
+        self::assertSame(
+            'verdict: 2 decisions have no answer yet. Answer them with document_decision_answer first, or request changes.',
+            $messages->forAgent(new DomainErrors(['verdict' => 'review.document.flash.decisions_unanswered'], ['verdict' => ['%count%' => 2]]))->getMessage(),
+        );
+        self::assertSame(
+            'verdict: 1 decision has no answer yet. Answer it with document_decision_answer first, or request changes.',
+            $messages->forAgent(new DomainErrors(['verdict' => 'review.document.flash.decisions_unanswered'], ['verdict' => ['%count%' => 1]]))->getMessage(),
+        );
+    }
+
+    public function test_a_changed_verdict_sends_the_agent_back_to_the_review(): void
+    {
+        $message = new ToolCallErrorMessages()->forAgent(new DomainErrors(['expectedVerdictId' => 'review.document.flash.verdict_changed']))->getMessage();
+
+        self::assertStringContainsString('document_get_review', $message);
+        self::assertStringContainsString('show the owner the newer verdict', $message);
+    }
+
     public function test_a_boundary_rule_reads_in_the_same_shape(): void
     {
         $exception = new ToolCallErrorMessages()->forArgument('markdown', 'The markdown content exceeds the maximum allowed size.');
