@@ -162,6 +162,19 @@ framework:
             limit: 30
             interval: '1 minute'
 
+        # Bound push device writes of one signed-in user. A real person registers
+        # a browser a few times and sends a few test pushes, so these stay far
+        # above that. A test push also costs a call to the push service.
+        notification_device_create:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        notification_test_push:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
 # The e2e suite drives one dev instance, and PHPUnit drives one kernel, both
 # from a single client address. A per-address limit therefore accumulates across
 # unrelated specs. Relax it there, never in prod.
@@ -181,6 +194,14 @@ when@dev:
                 limit: 100000
                 interval: '1 minute'
             mercure_authorize:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            notification_device_create:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            notification_test_push:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'
@@ -221,6 +242,14 @@ when@test:
                 limit: 100000
                 interval: '1 minute'
             mercure_authorize:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            notification_device_create:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            notification_test_push:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'
