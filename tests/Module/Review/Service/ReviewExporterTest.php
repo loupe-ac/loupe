@@ -36,6 +36,22 @@ final class ReviewExporterTest extends TestCase
         self::assertSame('approved', $rows[0]['verdict']);
         self::assertSame('Ready for implementation.', $rows[0]['note']);
         self::assertArrayHasKey('submittedAt', $rows[0]);
+        self::assertFalse($rows[0]['throughAgent']);
         self::assertSame('reviews.json', new ReviewExporter($repo)->filename());
+    }
+
+    public function test_exports_the_agent_mark_of_a_verdict(): void
+    {
+        $reviewer = new User('Alice A', 'alice@example.com', 'x');
+        $document = new Document($reviewer, new Project($reviewer, 'My project'), 'My doc');
+        $review = new Review($document->addVersion('# v1', '<h1>v1</h1>'), Verdict::Withdrawn, $reviewer, throughAgent: true);
+
+        /** @var ReviewRepository&Stub $repo */
+        $repo = $this->createStub(ReviewRepository::class);
+        $repo->method('streamByReviewer')->willReturn([$review]);
+
+        $rows = iterator_to_array(new ReviewExporter($repo)->export($reviewer));
+
+        self::assertTrue($rows[0]['throughAgent']);
     }
 }

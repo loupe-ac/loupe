@@ -63,6 +63,7 @@ final readonly class ShowDocumentHandler
                     readOnly: !$isLatest,
                     badgeLabels: DecisionBlockService::badgeLabels($this->translator),
                     notesByDecisionId: $decisions->notesByDecisionId,
+                    throughAgentDecisionIds: $decisions->throughAgentDecisionIds,
                 ),
                 $referenceDefinitions,
             ),

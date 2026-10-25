@@ -31,6 +31,7 @@ final readonly class DecisionAnswerExporter implements UserDataExporterInterface
                 'note' => $answer->note,
                 'answeredAtVersion' => $answer->answeredAtVersion,
                 'updatedAt' => $answer->updatedAt->format(\DateTimeInterface::ATOM),
+                'answeredThroughAgent' => $answer->answeredThroughAgent,
             ];
         }
     }

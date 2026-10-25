@@ -11,6 +11,8 @@ use App\Module\Review\Command\CreateDocumentCommand;
 use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
+use App\Module\Review\Command\SaveDecisionAnswerCommand;
+use App\Module\Review\Command\SaveDecisionAnswerHandler;
 use App\Module\Review\Entity\DecisionAnswer;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentVersion;
@@ -151,6 +153,39 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
             $version = $this->versionNumbered($document, '' === $suffix ? 2 : 1);
             self::assertSame($version->plainText(), $pane->text(null, false));
         }
+    }
+
+    public function test_an_answer_an_agent_recorded_is_marked_on_its_block(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+        $managed = $this->em()->find(Document::class, $document->id);
+        self::assertInstanceOf(Document::class, $managed);
+        $save = static::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $save(new SaveDecisionAnswerCommand($managed, 'deploy-target', 1, [0], null, false, $owner, true));
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->reviewPath($document));
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-decision-id="deploy-target"][data-decision-through-agent]');
+        self::assertSame('An agent recorded this answer for the owner.', $crawler->filter('[data-controller~="decision"]')->attr('data-decision-agent-mark-value'));
+        $pane = $crawler->filter('[data-comment-anchor-target="doc"]');
+        self::assertStringNotContainsString('An agent recorded', $pane->text(null, false));
+    }
+
+    public function test_an_answer_from_the_page_carries_no_agent_mark(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+
+        $client->loginUser($owner);
+        $this->answer($client, $document, ['optionIndexes' => [0]], self::TURBO);
+        $client->request(Request::METHOD_GET, $this->reviewPath($document));
+
+        self::assertSelectorExists('[data-decision-id="deploy-target"]');
+        self::assertSelectorNotExists('[data-decision-through-agent]');
     }
 
     public function test_a_block_with_no_note_carries_no_note_attribute(): void
@@ -448,6 +483,22 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, $this->reviewPath($document).'/diff/1/2');
         self::assertResponseIsSuccessful();
         self::assertNotContains($documentTopic, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')));
+    }
+
+    public function test_the_review_page_follows_the_draft_state_signal_and_a_diff_does_not(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+        $this->revise($document, self::MARKDOWN."\n\nA closing note.\n");
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $this->reviewPath($document));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-review[data-controller~="review-draft-live"][data-review-draft-live-url-value$="/review/draft-state"]');
+
+        $client->request(Request::METHOD_GET, $this->reviewPath($document).'/diff/1/2');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('[data-controller~="review-draft-live"]');
     }
 
     public function test_the_review_page_names_the_summary_of_its_version_and_a_diff_does_not(): void

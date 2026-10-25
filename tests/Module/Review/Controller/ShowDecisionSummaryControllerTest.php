@@ -68,7 +68,10 @@ final class ShowDecisionSummaryControllerTest extends WebTestCase
             ->filter('turbo-stream[data-decision-answers]')
             ->attr('data-decision-answers');
         self::assertSame(
-            ['target' => ['indexes' => [1], 'note' => null], 'region' => ['indexes' => [], 'note' => 'Either works.']],
+            [
+                'target' => ['indexes' => [1], 'note' => null, 'throughAgent' => false],
+                'region' => ['indexes' => [], 'note' => 'Either works.', 'throughAgent' => false],
+            ],
             json_decode((string) $answers, true, flags: \JSON_THROW_ON_ERROR),
         );
     }

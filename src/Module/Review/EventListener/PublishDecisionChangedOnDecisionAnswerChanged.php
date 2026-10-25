@@ -34,6 +34,7 @@ final readonly class PublishDecisionChangedOnDecisionAnswerChanged
             'note' => $event->note,
             'answeredBy' => $event->answeredByName,
             'answeredAt' => $event->answeredAt->format(\DATE_ATOM),
+            'throughAgent' => $event->throughAgent,
         ]);
     }
 }

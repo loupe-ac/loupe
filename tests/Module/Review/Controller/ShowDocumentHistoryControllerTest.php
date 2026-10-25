@@ -194,6 +194,32 @@ final class ShowDocumentHistoryControllerTest extends WebTestCase
         self::assertStringNotContainsString('Unrelated verdict.', $crawler->text());
     }
 
+    public function test_the_history_says_which_verdicts_an_agent_recorded_and_follows_the_signal(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->createUser($em, 'history-agent', 'history-agent@example.com');
+        $project = $this->project($em, $owner);
+        $document = new Document(owner: $owner, project: $project, title: 'Agent history');
+        $version = $document->addVersion('# First', '<h1>First</h1>');
+        $em->persist($document);
+        $em->persist(new Review($version, Verdict::Approved, $owner, 1, throughAgent: true));
+        $em->persist(new Review($version, Verdict::Withdrawn, $owner, 2));
+        $em->flush();
+        $path = '/projects/'.$project->id.'/documents/'.$document->id.'/review/history';
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            ['An agent recorded this verdict for the owner.'],
+            $crawler->filter('.lp-history-log .lp-history__review-agent')->each(static fn (Crawler $node): string => $node->text()),
+        );
+        self::assertSelectorExists('.lp-review[data-controller~="review-draft-live"][data-review-draft-live-url-value$="/review/draft-state"]');
+    }
+
     /**
      * Both selects offer every version, because the redirect swaps a pair given
      * the wrong way round rather than refusing it.

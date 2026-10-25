@@ -239,6 +239,40 @@ final class SaveDecisionAnswerHandlerTest extends KernelTestCase
         self::assertSame(['review.decision_saved'], $this->audit->operations());
     }
 
+    public function test_an_answer_recorded_through_an_agent_carries_the_mark(): void
+    {
+        $this->answer('target', [1], throughAgent: true);
+
+        self::assertTrue($this->answerRow('target')->answeredThroughAgent);
+    }
+
+    public function test_the_owner_confirming_the_same_option_on_the_page_removes_the_mark(): void
+    {
+        $this->answer('target', [1], throughAgent: true);
+
+        $result = $this->answer('target', [1]);
+
+        self::assertTrue($result->changed);
+        self::assertFalse($this->answerRow('target')->answeredThroughAgent);
+    }
+
+    public function test_an_agent_repeating_the_owners_option_adds_the_mark(): void
+    {
+        $this->answer('target', [1]);
+
+        $result = $this->answer('target', [1], throughAgent: true);
+
+        self::assertTrue($result->changed);
+        self::assertTrue($this->answerRow('target')->answeredThroughAgent);
+    }
+
+    public function test_a_repeat_with_the_same_mark_still_writes_nothing(): void
+    {
+        $this->answer('target', [1], throughAgent: true);
+
+        self::assertFalse($this->answer('target', [1], throughAgent: true)->changed);
+    }
+
     /** Picks saved before notes existed have no answer row; saving them again creates it. */
     public function test_saving_picks_that_have_no_answer_row_creates_one(): void
     {
@@ -265,9 +299,9 @@ final class SaveDecisionAnswerHandlerTest extends KernelTestCase
     /**
      * @param list<int> $indexes
      */
-    private function answer(string $decisionId, array $indexes, ?string $note = null, bool $clear = false, int $version = 1): SaveDecisionAnswerResult
+    private function answer(string $decisionId, array $indexes, ?string $note = null, bool $clear = false, int $version = 1, bool $throughAgent = false): SaveDecisionAnswerResult
     {
-        return ($this->save)(new SaveDecisionAnswerCommand($this->document, $decisionId, $version, $indexes, $note, $clear, $this->owner));
+        return ($this->save)(new SaveDecisionAnswerCommand($this->document, $decisionId, $version, $indexes, $note, $clear, $this->owner, $throughAgent));
     }
 
     /**

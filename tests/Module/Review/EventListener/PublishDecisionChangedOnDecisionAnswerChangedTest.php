@@ -75,6 +75,19 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
         self::assertSame([$this->message([0, 2], 'Both, please.', 'Riley Chen', 1)], $this->drain());
     }
 
+    public function test_an_answer_recorded_through_an_agent_publishes_the_mark(): void
+    {
+        $this->save([1], null, throughAgent: true);
+        $messages = $this->drain();
+        self::assertCount(1, $messages);
+        self::assertTrue($messages[0]['throughAgent']);
+
+        $this->save([1], null);
+        $messages = $this->drain();
+        self::assertCount(1, $messages);
+        self::assertFalse($messages[0]['throughAgent']);
+    }
+
     public function test_a_save_that_changes_nothing_publishes_nothing(): void
     {
         $this->save([1], null);
@@ -115,6 +128,7 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
             'optionIndexes' => [],
             'note' => null,
             'answeredBy' => null,
+            'throughAgent' => false,
             'origin' => null,
         ], $messages[0]);
     }
@@ -145,9 +159,9 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
     }
 
     /** @param list<int> $indexes */
-    private function save(array $indexes, ?string $note, bool $clear = false, int $version = 1): void
+    private function save(array $indexes, ?string $note, bool $clear = false, int $version = 1, bool $throughAgent = false): void
     {
-        $this->service(SaveDecisionAnswerHandler::class)(new SaveDecisionAnswerCommand($this->document, 'features', $version, $indexes, $note, $clear, $this->owner));
+        $this->service(SaveDecisionAnswerHandler::class)(new SaveDecisionAnswerCommand($this->document, 'features', $version, $indexes, $note, $clear, $this->owner, $throughAgent));
     }
 
     /**
@@ -168,6 +182,7 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
             'note' => $note,
             'answeredBy' => $answeredBy,
             'answeredAt' => $answer->updatedAt->format(\DATE_ATOM),
+            'throughAgent' => false,
             'origin' => null,
         ];
     }

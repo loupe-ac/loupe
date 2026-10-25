@@ -79,4 +79,28 @@ final class DecisionSummaryTest extends TestCase
             ],
         );
     }
+
+    public function test_rows_and_answers_carry_the_agent_mark_of_each_block(): void
+    {
+        $summary = new DecisionSummary(
+            [new Decision('by-agent', ['A', 'B']), new Decision('by-owner', ['A', 'B'])],
+            ['by-agent' => [0], 'by-owner' => [1]],
+            [],
+            [],
+            ['by-agent'],
+        );
+
+        self::assertSame([true, false], array_column($summary->rows(), 'throughAgent'));
+        self::assertSame(
+            ['by-agent' => true, 'by-owner' => false],
+            array_map(static fn (array $answer): bool => $answer['throughAgent'], $summary->answers()),
+        );
+    }
+
+    public function test_a_summary_built_without_marks_reports_none(): void
+    {
+        $summary = new DecisionSummary([new Decision('open', ['A'])], [], [], []);
+
+        self::assertSame([false], array_column($summary->rows(), 'throughAgent'));
+    }
 }

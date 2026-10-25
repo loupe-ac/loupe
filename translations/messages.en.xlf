@@ -1775,6 +1775,10 @@
                 <source>review.document.verdict.workflow_approved_note</source>
                 <target>Approved when it was published: no unanswered decision, no open thread, and the agent review passed.</target>
             </trans-unit>
+            <trans-unit id="review.document.verdict.through_agent">
+                <source>review.document.verdict.through_agent</source>
+                <target>An agent recorded this verdict for the owner.</target>
+            </trans-unit>
             <trans-unit id="review.document.verdict.undo">
                 <source>review.document.verdict.undo</source>
                 <target>Undo</target>
@@ -2140,6 +2144,10 @@
             <trans-unit id="review.decision.status.changed_by">
                 <source>review.decision.status.changed_by</source>
                 <target>Changed by %name%.</target>
+            </trans-unit>
+            <trans-unit id="review.decision.agent_mark">
+                <source>review.decision.agent_mark</source>
+                <target>An agent recorded this answer for the owner.</target>
             </trans-unit>
             <trans-unit id="review.decision.error.unknown_version">
                 <source>review.decision.error.unknown_version</source>

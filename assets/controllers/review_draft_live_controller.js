@@ -15,6 +15,27 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 const STATUS = '[data-review-draft-live-status]';
 const CONNECTED_ATTRIBUTE = 'data-review-draft-live-connected';
 
+const TEXT_FIELDS =
+    'textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="button"], [type="submit"])';
+
+/**
+ * A form that holds text the reader typed, or that a script opened, is not the
+ * server's to redraw: the new page renders it empty and hidden.
+ */
+function keepLocalForm(event) {
+    const { currentElement, newElement } = event.detail;
+    if (!(currentElement instanceof HTMLFormElement) || !newElement) {
+        return;
+    }
+    const typed = [...currentElement.querySelectorAll(TEXT_FIELDS)].some(
+        (field) => field.value !== field.defaultValue,
+    );
+    const opened = newElement.hidden && !currentElement.hidden;
+    if (typed || opened) {
+        event.preventDefault();
+    }
+}
+
 /**
  * Keeps the band of a draft and the warning of Finish review current. A signal
  * on the document topic, and a reconnect, fetch the two fragments as a Turbo
@@ -140,7 +161,15 @@ export default class extends Controller {
             fetched.body,
             'text/html',
         );
-        morphBodyElements(document.body, fresh.body);
+        document.addEventListener('turbo:before-morph-element', keepLocalForm);
+        try {
+            morphBodyElements(document.body, fresh.body);
+        } finally {
+            document.removeEventListener(
+                'turbo:before-morph-element',
+                keepLocalForm,
+            );
+        }
     }
 
     begin() {

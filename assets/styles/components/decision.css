@@ -130,6 +130,13 @@
     .lp-decision__note {
         @apply mt-2 flex items-start gap-3;
     }
+    /* The words ride on an attribute, because the pane may gain no text node. */
+    .lp-decision__agent-mark {
+        @apply mt-1.5 mb-0 text-xs text-fg-dim;
+    }
+    .lp-decision__agent-mark::before {
+        content: attr(data-label);
+    }
     .lp-decision__note-field {
         @apply min-h-10 w-full flex-1 resize-y rounded-lg border border-line bg-surface-1 px-2.5 py-2 text-sm;
     }

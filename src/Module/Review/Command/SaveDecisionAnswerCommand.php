@@ -20,6 +20,7 @@ final readonly class SaveDecisionAnswerCommand
         public ?string $note,
         public bool $clear,
         public User $answeredBy,
+        public bool $throughAgent = false,
     ) {
     }
 }

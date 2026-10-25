@@ -15,7 +15,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type ReviewPayload from ShowReviewHandler
  */
-#[McpTool(name: 'document_get_review', description: 'Fetch the review state (verdict, status, threaded comments, answered decision blocks, and the agent reviews with their answers) for a document\'s current version. Every comment and reply reports whether an agent or a human wrote it, and a comment may carry a replacement for the text it quotes. A decision block reports its type: a single-choice block answers in selected, and a multiple-choice block answers in selections.')]
+#[McpTool(name: 'document_get_review', description: 'Fetch the review state (verdict, status, threaded comments, answered decision blocks, and the agent reviews with their answers) for a document\'s current version. Every comment and reply reports whether an agent or a human wrote it, and a comment may carry a replacement for the text it quotes. A decision block reports its type: a single-choice block answers in selected, and a multiple-choice block answers in selections. verdictId is the id of the newest entry of the verdict log, a withdrawal included, and verdictThroughAgent says that an agent recorded it for the owner. The verdict tools take that verdictId. Each decision reports through_agent when an agent recorded its answer for the owner.')]
 final readonly class DocumentGetReviewTool
 {
     public function __construct(
@@ -68,6 +68,13 @@ final readonly class DocumentGetReviewTool
      *
      * Each decision's `id` is the one the document declared in its fence, and it is permanent:
      * changing it in a revision discards the answer keyed to the old one
+     *
+     * `through_agent` is true when an agent recorded the answer for the owner, and false otherwise
+     *
+     * `verdictId` is the id of the newest entry of the verdict log on the current version, a
+     * withdrawal included, or null while the log is empty. The verdict tools take it, so read
+     * it again before you call one. `verdictThroughAgent` is true when an agent recorded that
+     * entry for the owner, and false when the log is empty
      *
      * `agentReviews` lists each agent review of the document, newest first. Each carries the
      * `cardId` of the card it reviewed, the `versionNumber` that the reviewer read, its

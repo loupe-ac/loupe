@@ -23,10 +23,12 @@ use App\Module\Review\ValueObject\DecisionType;
  * @phpstan-type ReviewPayload array{
  *     status: string,
  *     verdict: string|null,
+ *     verdictId: string|null,
+ *     verdictThroughAgent: bool,
  *     note: string|null,
  *     version: int,
  *     comments: list<array{id: string, quote: string, body: string, replacement: string|null, author: 'agent'|'human', status: string, orphaned: bool, thread: list<array{id: string, quote: string, body: string, author: 'agent'|'human', orphaned: bool}>}>,
- *     decisions: list<array{id: string, type: string, options: list<string>, selected: string|null, selected_index: int|null, answered_at: string|null, answered_at_version: int|null, note: string|null, updated_at: string|null, selections: list<array{option: string, index: int|null, answered_at: string, answered_at_version: int}>}>,
+ *     decisions: list<array{id: string, type: string, options: list<string>, selected: string|null, selected_index: int|null, answered_at: string|null, answered_at_version: int|null, note: string|null, updated_at: string|null, through_agent: bool, selections: list<array{option: string, index: int|null, answered_at: string, answered_at_version: int}>}>,
  *     agentReviews: list<DocumentAgentReviewSummary>
  * }
  */
@@ -83,6 +85,12 @@ final readonly class ShowReviewHandler
      * `note` is the reviewer's note on the decision, and `updated_at` is when its
      * answer was last saved. Both are null while the decision has no answer row.
      *
+     * `verdictId` and `verdictThroughAgent` describe the newest entry of the verdict log
+     * on the current version, a withdrawal included, which is the entry the verdict
+     * tools expect the caller to have read. Both are null and false while the log is
+     * empty. `through_agent` on a decision says that an agent recorded its answer
+     * for the owner.
+     *
      * @return ReviewPayload
      */
     public function __invoke(ShowReviewCommand $command): array
@@ -94,6 +102,7 @@ final readonly class ShowReviewHandler
         // version nobody has ruled on yet, rather than letting 'withdrawn' reach a
         // field agents read as an outcome. `status` says in-review alongside it.
         $review = $this->reviews->findStandingVerdictByVersion($currentVersion);
+        $newestEntry = $this->reviews->findNewestByVersion($currentVersion);
         $allComments = $this->comments->findByVersion($currentVersion);
 
         // Index replies by parent id so we can build threads in O(n).
@@ -180,6 +189,7 @@ final readonly class ShowReviewHandler
                 'answered_at_version' => $single?->versionNumber,
                 'note' => ($answers[$decision->id] ?? null)?->note,
                 'updated_at' => ($answers[$decision->id] ?? null)?->updatedAt->format(\DateTimeInterface::ATOM),
+                'through_agent' => $answers[$decision->id]->answeredThroughAgent ?? false,
                 'selections' => $chosen,
             ];
         }
@@ -187,6 +197,8 @@ final readonly class ShowReviewHandler
         return [
             'status' => $document->status->value,
             'verdict' => $review?->verdict->value,
+            'verdictId' => $newestEntry?->id?->toRfc4122(),
+            'verdictThroughAgent' => $newestEntry->throughAgent ?? false,
             'note' => $review?->note,
             'version' => $currentVersion->versionNumber,
             'comments' => $threadedComments,

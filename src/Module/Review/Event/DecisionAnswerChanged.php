@@ -22,6 +22,7 @@ final readonly class DecisionAnswerChanged
         public ?string $note,
         public ?string $answeredByName,
         public \DateTimeImmutable $answeredAt,
+        public bool $throughAgent,
     ) {
     }
 }

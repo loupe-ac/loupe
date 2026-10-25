@@ -48,6 +48,10 @@ class DecisionAnswer
 
         #[ORM\Column]
         public \DateTimeImmutable $updatedAt = new \DateTimeImmutable(),
+
+        // True while the latest save came from an agent in a chat; a save on the page clears it.
+        #[ORM\Column(options: ['default' => false])]
+        public bool $answeredThroughAgent = false,
     ) {
     }
 }

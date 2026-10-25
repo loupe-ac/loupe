@@ -229,11 +229,14 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         self::assertSubscribesToTheDocumentTopic($crawler, $document);
     }
 
-    public function test_a_document_in_review_does_not_listen_for_draft_changes(): void
+    public function test_a_document_in_review_listens_for_the_signal_and_shows_no_band(): void
     {
-        $crawler = $this->visit($this->plainDraft(DocumentStatus::InReview));
+        $document = $this->plainDraft(DocumentStatus::InReview);
+        $crawler = $this->visit($document);
 
-        self::assertStringNotContainsString('review-draft-live', (string) $crawler->filter('.lp-review')->attr('data-controller'));
+        self::assertStringContainsString('review-draft-live', (string) $crawler->filter('.lp-review')->attr('data-controller'));
+        self::assertCount(0, $crawler->filter('#draft-band'));
+        self::assertSubscribesToTheDocumentTopic($crawler, $document);
         self::assertCount(0, $crawler->filter('[data-review-draft-live-status]'));
     }
 

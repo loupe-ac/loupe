@@ -100,7 +100,9 @@ final readonly class SaveDecisionAnswerHandler
             )), static fn (?int $index): bool => null !== $index));
             sort($current);
             $selectionsChanged = $current !== $wanted || \count($stored) !== \count($wanted);
-            $answerChanged = $unanswered ? null !== $answer : (null === $answer || $answer->note !== $note);
+            $answerChanged = $unanswered
+                ? null !== $answer
+                : (null === $answer || $answer->note !== $note || $answer->answeredThroughAgent !== $command->throughAgent);
             if (!$selectionsChanged && !$answerChanged) {
                 return new SaveDecisionAnswerResult(changed: false, cleared: $command->clear || $unanswered);
             }
@@ -128,12 +130,20 @@ final readonly class SaveDecisionAnswerHandler
                 }
                 $answer = null;
             } elseif (null === $answer) {
-                $answer = new DecisionAnswer($command->document, $command->decisionId, $note, $command->answeredBy, $latest->versionNumber);
+                $answer = new DecisionAnswer(
+                    $command->document,
+                    $command->decisionId,
+                    $note,
+                    $command->answeredBy,
+                    $latest->versionNumber,
+                    answeredThroughAgent: $command->throughAgent,
+                );
                 $this->em->persist($answer);
             } else {
                 $answer->note = $note;
                 $answer->answeredBy = $command->answeredBy;
                 $answer->answeredAtVersion = $latest->versionNumber;
+                $answer->answeredThroughAgent = $command->throughAgent;
                 $answer->updatedAt = new \DateTimeImmutable();
             }
             $this->em->flush();
@@ -154,6 +164,7 @@ final readonly class SaveDecisionAnswerHandler
                 $answer?->note,
                 $answer?->answeredBy?->fullName,
                 $answer->updatedAt ?? new \DateTimeImmutable(),
+                $answer->answeredThroughAgent ?? false,
             );
 
             return new SaveDecisionAnswerResult(changed: true, cleared: $command->clear || $unanswered);
