@@ -5105,8 +5105,16 @@
     .lp-device-row--stopped > .lp-status-chip {
         @apply ml-0;
     }
+    /* The line that says the device list or the warning stopped updating. */
+    .lp-live-stopped {
+        @apply m-0 text-sm font-semibold text-status-pending-deep;
+    }
+    .lp-live-stopped:empty {
+        @apply hidden;
+    }
     /* The stopped device warning above an inbox page. It draws nothing while no device stopped. */
-    .lp-stopped-warning:has(.lp-flash) {
+    .lp-stopped-warning:has(.lp-flash),
+    .lp-stopped-warning:has(.lp-live-stopped:not(:empty)) {
         @apply mb-4 flex flex-col gap-2;
     }
     .lp-stopped-warning .lp-flash {

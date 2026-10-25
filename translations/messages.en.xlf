@@ -9335,6 +9335,7 @@
             <trans-unit id="notification.push.test.title"><source>notification.push.test.title</source><target>Loupe</target></trans-unit>
             <trans-unit id="notification.push.test.body"><source>notification.push.test.body</source><target>This is a test notification. Notifications work on this device.</target></trans-unit>
             <trans-unit id="account.settings.nav.notifications"><source>account.settings.nav.notifications</source><target>Notifications</target></trans-unit>
+            <trans-unit id="notification.live_stopped"><source>notification.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
             <trans-unit id="notification.devices.heading"><source>notification.devices.heading</source><target>Web push devices</target></trans-unit>
             <trans-unit id="notification.devices.description"><source>notification.devices.description</source><target>Each browser or Home Screen app that gets your pushes. Signing out of a device removes it.</target></trans-unit>
             <trans-unit id="notification.devices.this_device"><source>notification.devices.this_device</source><target>this device</target></trans-unit>

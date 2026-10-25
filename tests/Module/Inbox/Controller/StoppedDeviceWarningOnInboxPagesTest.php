@@ -68,7 +68,8 @@ final class StoppedDeviceWarningOnInboxPagesTest extends WebTestCase
         $live = $crawler->filter('[data-controller~="live-pill"][data-live-pill-url-value="/account/notifications/warning"]');
         self::assertCount(1, $live);
         self::assertSame('["notifications.devices_changed"]', $live->attr('data-live-pill-events-value'));
-        self::assertSame('turbo:frame-missing->live-pill#keepPill', $live->attr('data-action'));
+        self::assertSame('Live updates stopped. Reload the page to see the current state.', $live->attr('data-live-pill-stopped-value'));
+        self::assertCount(1, $live->filter('p[data-live-pill-target="status"]'));
         self::assertNull($live->attr('data-live-pill-project-value'));
         self::assertCount(1, $live->filter('turbo-frame#push-device-warning[data-live-pill-target="frame"]'));
     }

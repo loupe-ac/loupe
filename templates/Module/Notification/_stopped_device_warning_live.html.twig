@@ -2,8 +2,9 @@
 {% do mercure_subscribe(notifications_topic(app.user)) %}
 <div class="lp-stopped-warning"
      data-controller="live-pill"
-     data-action="turbo:frame-missing->live-pill#keepPill"
      data-live-pill-events-value="{{ ['notifications.devices_changed']|json_encode }}"
-     data-live-pill-url-value="{{ path('app_account_notifications_warning') }}">
+     data-live-pill-url-value="{{ path('app_account_notifications_warning') }}"
+     data-live-pill-stopped-value="{{ 'notification.live_stopped'|trans }}">
     {% include '@Notification/_stopped_device_warning.html.twig' with {devices: stopped_device_warnings(app.user), returnPath: app.request.requestUri} only %}
+    <p class="lp-live-stopped" role="status" data-live-pill-target="status"></p>
 </div>
