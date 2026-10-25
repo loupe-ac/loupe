@@ -10,6 +10,11 @@
         <meta name="description" content="{{ pageDescription }}">
         {% include '_open_graph.html.twig' with {title: block('title')|trim, description: pageDescription} only %}
         {% endif %}
+        <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+        <link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="theme-color" content="#181d18">
         {% block head_links %}{% endblock %}
         {# A plain <link>, not an `import` in app.js: AssetMapper turns a CSS
            import into a `data:application/javascript,` entry in the import map,
