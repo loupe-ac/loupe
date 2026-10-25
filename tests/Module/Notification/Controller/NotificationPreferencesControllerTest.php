@@ -27,6 +27,8 @@ final class NotificationPreferencesControllerTest extends WebTestCase
 
     private const string FORM = 'change_notification_preferences_form';
 
+    private const array DEFAULTS_SHOWN = ['blocking-inbox-item__web-push' => '1', 'other-inbox-item__web-push' => '0'];
+
     public function test_the_grid_shows_one_row_per_event_with_the_defaults(): void
     {
         $client = $this->client();
@@ -109,6 +111,35 @@ final class NotificationPreferencesControllerTest extends WebTestCase
         self::assertFalse($rows[0]->enabled);
     }
 
+    public function test_the_grid_renders_what_it_showed_beside_each_switch(): void
+    {
+        $client = $this->client();
+        $client->loginUser($this->makeUser(static::getContainer(), 'grid-shown@example.com'));
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE);
+
+        self::assertSame('1', $crawler->filter('input[type="hidden"][name="'.self::FORM.'[shown][blocking-inbox-item__web-push]"]')->attr('value'));
+        self::assertSame('0', $crawler->filter('input[type="hidden"][name="'.self::FORM.'[shown][other-inbox-item__web-push]"]')->attr('value'));
+    }
+
+    public function test_a_page_from_an_older_tab_does_not_undo_a_later_choice(): void
+    {
+        $client = $this->client();
+        $user = $this->makeUser(static::getContainer(), 'save-stale@example.com');
+        $client->loginUser($user);
+
+        $this->save($client, []);
+        $this->save($client, ['blocking-inbox-item__web-push' => '1', 'other-inbox-item__web-push' => '1']);
+
+        $repository = static::getContainer()->get(NotificationPreferenceRepository::class);
+        $cells = [];
+        foreach ($repository->findByOwner($user) as $row) {
+            $cells[$row->event->value] = $row->enabled;
+        }
+        ksort($cells);
+        self::assertSame(['blocking-inbox-item' => false, 'other-inbox-item' => true], $cells);
+    }
+
     public function test_a_submission_cannot_change_the_choices_of_another_user(): void
     {
         $client = $this->client();
@@ -171,13 +202,16 @@ final class NotificationPreferencesControllerTest extends WebTestCase
         return $client;
     }
 
-    /** @param array<string, string> $cells */
-    private function save(KernelBrowser $client, array $cells): void
+    /**
+     * @param array<string, string> $cells
+     * @param array<string, string> $shown what the page showed, the defaults unless given
+     */
+    private function save(KernelBrowser $client, array $cells, array $shown = self::DEFAULTS_SHOWN): void
     {
         $client->request(
             Request::METHOD_POST,
             self::PREFERENCES,
-            [self::FORM => ['choices' => $cells, '_token' => 'csrf-token']],
+            [self::FORM => ['choices' => $cells, 'shown' => $shown, '_token' => 'csrf-token']],
             [],
             ['HTTP_REFERER' => 'http://localhost'.self::PAGE],
         );

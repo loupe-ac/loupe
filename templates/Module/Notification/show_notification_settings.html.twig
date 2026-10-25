@@ -44,6 +44,7 @@
                             :checked="field.vars.checked"
                             :disabled="field.vars.disabled"
                             :aria-label="'notification.preferences.cell_label'|trans({'%channel%': cell.channel.labelKey|trans, '%event%': event.labelKey|trans})" />
+                        {{ form_widget(preferencesForm.shown[cell.fieldName]) }}
                     </td>
                     {% endfor %}
                 </tr>

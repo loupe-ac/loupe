@@ -10,13 +10,14 @@ use App\Module\Notification\NotificationEvent;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
- * One switch for every cell of the grid. The form submits on change, and the
- * submit button serves a reader without JavaScript.
+ * One switch for every cell of the grid, beside the value the page showed for it.
+ * The form submits on change, and the submit button serves a reader without JavaScript.
  *
  * @extends AbstractType<ChangeNotificationPreferencesRequest>
  */
@@ -26,18 +27,22 @@ final class ChangeNotificationPreferencesFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $choices = $builder->create('choices', FormType::class, ['label' => false]);
+        $shown = $builder->create('shown', FormType::class, ['label' => false]);
         foreach (NotificationEvent::cases() as $event) {
             foreach (NotificationChannel::cases() as $channel) {
-                $choices->add(NotificationChoice::key($event, $channel), CheckboxType::class, [
+                $key = NotificationChoice::key($event, $channel);
+                $choices->add($key, CheckboxType::class, [
                     'required' => false,
                     'label' => false,
                     'disabled' => $options['disabled_cells'],
                 ]);
+                $shown->add($key, HiddenType::class);
             }
         }
 
         $builder
             ->add($choices)
+            ->add($shown)
             ->add('save', SubmitType::class, ['label' => 'notification.form.change_notification_preferences_form.save.label']);
     }
 
