@@ -5105,6 +5105,12 @@
     .lp-device-error {
         @apply m-0 text-sm text-danger;
     }
+    /* The display utilities above outrank the UA `[hidden]` rule, so a hidden push panel stayed laid out. */
+    .lp-identity-row[hidden],
+    .lp-settings-panel[hidden],
+    .lp-device-row__blocked[hidden] {
+        display: none;
+    }
 
     /* An app row with sub-rows under it: the site review widget and its live
        preview tokens on Connected apps. */
