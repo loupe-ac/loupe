@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Messenger;
 
+use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
@@ -61,13 +64,15 @@ final readonly class NotifyInboxOwnerHandler
             return;
         }
 
-        $first = $ask->items->first();
-        if (false === $first) {
+        $items = array_values(array_map(static fn (InboxAskItem $askItem): InboxItem => $askItem->item, $ask->items->toArray()));
+        $questions = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Question === $item->kind));
+        $shown = [] === $questions ? $items : $questions;
+        if ([] === $shown) {
             return;
         }
 
-        $body = $first->item->title;
-        $more = $ask->items->count() - 1;
+        $body = $shown[0]->title;
+        $more = [] === $questions ? 0 : \count($questions) - 1;
         if ($more > 0) {
             $body .= ' '.$this->translator->trans('inbox.push.more_questions', ['%count%' => $more], null, $this->locale);
         }

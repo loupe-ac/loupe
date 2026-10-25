@@ -96,6 +96,24 @@ final class NotifyInboxOwnerHandlerTest extends KernelTestCase
         self::assertSame('First question +1 more question', $this->onlyPayload()['notification']['body']);
     }
 
+    public function test_a_mixed_ask_shows_the_first_question_and_counts_only_questions(): void
+    {
+        $ask = $this->askWithItems([InboxItemKind::Todo, 'Rotate the key'], [InboxItemKind::Question, 'Which column?'], [InboxItemKind::Todo, 'Check the logs'], [InboxItemKind::Question, 'Which owner?']);
+
+        $this->handle(new NotifyInboxOwner((string) $ask->id, NotifyInboxOwnerKind::Ask));
+
+        self::assertSame('Which column? +1 more question', $this->onlyPayload()['notification']['body']);
+    }
+
+    public function test_an_ask_with_no_question_shows_its_first_item_and_no_count(): void
+    {
+        $ask = $this->askWithItems([InboxItemKind::Wait, 'Card 12 waits for you'], [InboxItemKind::Todo, 'Check the logs']);
+
+        $this->handle(new NotifyInboxOwner((string) $ask->id, NotifyInboxOwnerKind::Ask));
+
+        self::assertSame('Card 12 waits for you', $this->onlyPayload()['notification']['body']);
+    }
+
     public function test_a_closed_ask_sends_nothing(): void
     {
         $ask = $this->askWith('Which column?');
@@ -179,11 +197,17 @@ final class NotifyInboxOwnerHandlerTest extends KernelTestCase
 
     private function askWith(string ...$titles): InboxAsk
     {
+        return $this->askWithItems(...array_map(static fn (string $title): array => [InboxItemKind::Question, $title], $titles));
+    }
+
+    /** @param array{InboxItemKind, string} ...$items */
+    private function askWithItems(array ...$items): InboxAsk
+    {
         static $number = 0;
         $ask = new InboxAsk(project: $this->project, sessionId: Uuid::v4());
         $this->em->persist($ask);
-        foreach ($titles as $index => $title) {
-            $item = new InboxItem(project: $this->project, number: ++$number, kind: InboxItemKind::Question, title: $title, blocking: true, origin: InboxAskOrigin::Agent, freeText: true);
+        foreach ($items as $index => [$kind, $title]) {
+            $item = new InboxItem(project: $this->project, number: ++$number, kind: $kind, title: $title, blocking: InboxItemKind::Todo !== $kind, origin: InboxAskOrigin::Agent, freeText: true);
             $this->em->persist($item);
             $ask->items->add(new InboxAskItem($ask, $item, new \DateTimeImmutable(\sprintf('2026-10-25 12:00:0%d', $index))));
         }
