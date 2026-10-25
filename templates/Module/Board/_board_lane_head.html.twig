@@ -1,5 +1,6 @@
 {# The head of an epic lane: the lane buttons, the number and progress over the title, and the Up next deck at the right end.
    The board page draws it, and a card placement morphs it.
+   The phone hides most of the head. Its "…" button opens the lane sheet and carries the data the sheet needs.
    Props: epic (Card), progress (CardProgress), deck (LaneDeckView, or null when no child waits in Backlog), markers (?StoredCardMarkers): the state mark of the epic. #}
 <header class="lp-board-lane__head"
         data-board-filter-target="laneHead"
@@ -44,4 +45,15 @@
     {% if deck %}
     {% include '@Board/_board_lane_deck.html.twig' with {epic: epic, deck: deck} only %}
     {% endif %}
+    <twig:Ds:Button variant="ghost icon"
+            class="lp-board-lane__menu"
+            aria-label="{{ 'board.lane.menu'|trans({'%number%': epic.number}) }}"
+            aria-haspopup="dialog"
+            data-action="click->lane-sheet#open"
+            data-lane-sheet-epic-param="{{ epic.id }}"
+            data-lane-sheet-number-param="{{ epic.number }}"
+            data-lane-sheet-column-param="{{ epic.column.id }}"
+            data-lane-sheet-move-label-param="{{ 'board.card.move.label'|trans({'%number%': epic.number}) }}"
+            data-lane-sheet-up-next-label-param="{{ deck ? 'board.lane.sheet.up_next'|trans({'%count%': deck.count}) : '' }}"
+            data-lane-sheet-up-next-url-param="{{ deck ? path('app_project_board_backlog', {projectId: epic.project.id, epic: epic.id}) : '' }}"><twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" /></twig:Ds:Button>
 </header>

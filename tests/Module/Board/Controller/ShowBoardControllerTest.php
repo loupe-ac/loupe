@@ -527,6 +527,41 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertStringContainsString('In progress', $plainHead->filter('.lp-board-lane__status')->text());
     }
 
+    public function test_a_lane_head_carries_the_data_of_the_lane_sheet_and_the_page_holds_one_sheet(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'board-lane-sheet@example.com');
+        $project = $this->project($em, $owner);
+        $queued = $this->typed($em, $this->card($em, $project, 'Queued epic', 'in-progress'), 'epic');
+        $this->childOf($em, $queued, $this->card($em, $project, 'Waiting child', 'backlog'));
+        $this->childOf($em, $queued, $this->card($em, $project, 'Second waiting child', 'backlog'));
+        $bare = $this->typed($em, $this->card($em, $project, 'Bare epic', 'in-progress', 1), 'epic');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
+        self::assertResponseIsSuccessful();
+
+        $queuedMenu = $crawler->filter('#board-lane-'.$queued->id.' .lp-board-lane__head .lp-board-lane__menu');
+        self::assertCount(1, $queuedMenu);
+        self::assertSame('click->lane-sheet#open', $queuedMenu->attr('data-action'));
+        self::assertSame((string) $queued->id, $queuedMenu->attr('data-lane-sheet-epic-param'));
+        self::assertSame((string) $queued->number, $queuedMenu->attr('data-lane-sheet-number-param'));
+        self::assertSame((string) $queued->column->id, $queuedMenu->attr('data-lane-sheet-column-param'));
+        self::assertSame('Move #'.$queued->number, $queuedMenu->attr('data-lane-sheet-move-label-param'));
+        self::assertSame('Up next: 2 cards', $queuedMenu->attr('data-lane-sheet-up-next-label-param'));
+        self::assertStringEndsWith('/board/backlog?epic='.$queued->id, (string) $queuedMenu->attr('data-lane-sheet-up-next-url-param'));
+
+        $bareMenu = $crawler->filter('#board-lane-'.$bare->id.' .lp-board-lane__menu');
+        self::assertSame('', $bareMenu->attr('data-lane-sheet-up-next-label-param'));
+        self::assertSame('', $bareMenu->attr('data-lane-sheet-up-next-url-param'));
+
+        self::assertCount(1, $crawler->filter('[data-lane-sheet-target="sheet"]'));
+        self::assertCount(0, $crawler->filter('#board [data-lane-sheet-target="sheet"]'));
+    }
+
     public function test_a_card_shows_the_one_mark_of_its_stored_markers_on_its_face_its_row_and_its_placement(): void
     {
         $client = static::createClient();
