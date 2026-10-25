@@ -20,6 +20,8 @@ use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\InboxLimits;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
@@ -36,6 +38,7 @@ use App\Module\Review\Entity\Document;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -94,6 +97,7 @@ final readonly class AskInboxHandler
         private WorkerRunRepository $workerRuns,
         private RecordRunAskHandler $recordRunAsk,
         private SessionPromptLimit $promptLimit,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -165,6 +169,10 @@ final readonly class AskInboxHandler
                 }
 
                 $this->sessionAsks->closeWhenNothingBlocks($sessionAsk, $now);
+                // Only an ask this call opened and left open is news. The Doctrine transport commits the message with the ask.
+                if ($sessionAsk->opened && null === $sessionAsk->ask->closedAt) {
+                    $this->bus->dispatch(new NotifyInboxOwner(($sessionAsk->ask->id ?? throw new \LogicException('A persisted ask has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Ask));
+                }
                 $this->linkRunToAsk($sessionAsk->ask, $drafts);
                 $this->em->flush();
 

@@ -3,6 +3,9 @@
 {% block page %}
         {% if app.user %}
         <script type="application/json" data-state-age-texts>{{ card_state_age_texts()|json_encode(constant('JSON_HEX_TAG'))|raw }}</script>
+        <form hidden method="post" action="{{ path('app_account_presence') }}" data-controller="presence" data-presence-open-tags-url-value="{{ path('app_account_notifications_open_tags') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}">
+        </form>
         {% set project = current_project() %}
         {% set route = app.request.attributes.get('_route') %}
         <div class="lp-app" data-controller="drawer">
