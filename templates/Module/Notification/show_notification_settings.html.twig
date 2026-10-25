@@ -11,7 +11,7 @@
     <twig:Ds:Flash severity="info" data-testid="push-unavailable">
         {% if isAdmin and view.unavailableReason %}
             {{ 'notification.push.unavailable.admin'|trans }} {{ view.unavailableReason.detailKey|trans }}
-            <a href="{{ app_docs_url }}/operating/" target="_blank" rel="noopener noreferrer" data-testid="push-docs-link">{{ 'notification.push.unavailable.docs_link'|trans }}</a>
+            <a href="{{ app_docs_url }}/operating/web-push/" target="_blank" rel="noopener noreferrer" data-testid="push-docs-link">{{ 'notification.push.unavailable.docs_link'|trans }}</a>
         {% else %}
             {{ 'notification.push.unavailable.user'|trans }}
         {% endif %}

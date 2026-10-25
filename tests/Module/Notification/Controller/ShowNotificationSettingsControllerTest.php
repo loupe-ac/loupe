@@ -179,7 +179,7 @@ final class ShowNotificationSettingsControllerTest extends WebTestCase
         self::assertStringContainsString('switch on the notifications.web_push.enabled flag', $crawler->text());
         $link = $crawler->filter('[data-testid="push-docs-link"]');
         self::assertCount(1, $link);
-        self::assertStringEndsWith('/operating/', (string) $link->attr('href'));
+        self::assertStringEndsWith('/operating/web-push/', (string) $link->attr('href'));
         self::assertSelectorNotExists('[data-controller~="push-device"]');
     }
 
