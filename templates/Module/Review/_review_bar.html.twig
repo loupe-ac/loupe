@@ -189,7 +189,7 @@
     {% endif %}
 
     {% if showVerdict %}
-    <twig:Ds:Button variant="primary" type="button" class="lp-review-bar__finish" data-action="click->sheet#open">
+    <twig:Ds:Button variant="primary" type="button" class="lp-review-bar__finish" data-controller="review-finish" data-action="click->review-finish#open">
         {{ 'review.document.finish.title'|trans }}
     </twig:Ds:Button>
     {% endif %}
