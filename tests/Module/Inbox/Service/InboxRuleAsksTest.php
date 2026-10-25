@@ -21,12 +21,16 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxWorkflowAsk;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Mcp\InboxSubjectResolver;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxWorkflowAskRepository;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\RuleAsks;
 use App\Module\Workflow\Messenger\RunRuleAskAnswer;
 use App\Tests\Module\Inbox\InboxFixtures;
+use App\Tests\Module\Inbox\QueuedPushes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -37,6 +41,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 final class InboxRuleAsksTest extends KernelTestCase
 {
     use InboxFixtures;
+    use QueuedPushes;
 
     private EntityManagerInterface $em;
     private InMemoryTransport $transport;
@@ -94,6 +99,17 @@ final class InboxRuleAsksTest extends KernelTestCase
         self::assertInstanceOf(InboxWorkflowAsk::class, $row);
         self::assertSame((string) $this->card->id, (string) $row->cardId);
         self::assertSame('unplanned-child', $row->ruleId);
+    }
+
+    public function test_open_queues_one_push_for_the_ask_it_opens(): void
+    {
+        $item = $this->open();
+
+        $asks = self::getContainer()->get(InboxAskRepository::class);
+        self::assertInstanceOf(InboxAskRepository::class, $asks);
+        $held = $asks->findHolding($item);
+        self::assertCount(1, $held);
+        self::assertEquals([new NotifyInboxOwner((string) $held[0]->id, NotifyInboxOwnerKind::Ask)], $this->queuedPushes());
     }
 
     public function test_withdraw_closes_an_open_item_and_ignores_a_closed_one(): void

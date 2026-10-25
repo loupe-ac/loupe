@@ -9330,6 +9330,7 @@
             <trans-unit id="notification.device.error.stopped"><source>notification.device.error.stopped</source><target>This device stopped receiving notifications. Turn them on again on the device.</target></trans-unit>
             <trans-unit id="notification.device.flash.test_sent"><source>notification.device.flash.test_sent</source><target>The test notification is on its way.</target></trans-unit>
             <trans-unit id="notification.device.flash.removed"><source>notification.device.flash.removed</source><target>The device no longer receives notifications.</target></trans-unit>
+            <trans-unit id="inbox.push.more_questions"><source>inbox.push.more_questions</source><target>{0}No more questions|{1}+%count% more question|]1,Inf[+%count% more questions</target></trans-unit>
             <trans-unit id="notification.push.test.title"><source>notification.push.test.title</source><target>Loupe</target></trans-unit>
             <trans-unit id="notification.push.test.body"><source>notification.push.test.body</source><target>This is a test notification. Notifications work on this device.</target></trans-unit>
             <trans-unit id="account.settings.nav.notifications"><source>account.settings.nav.notifications</source><target>Notifications</target></trans-unit>

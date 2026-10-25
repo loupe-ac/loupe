@@ -20,6 +20,8 @@ use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\InboxEventType;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Project\Entity\Project;
@@ -29,6 +31,7 @@ use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\MarkerSubjectType;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -50,6 +53,7 @@ final readonly class CardWaitReconciler
         private DocumentRepository $documents,
         private CardWaitText $waitText,
         private CardMarkerStore $markers,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -265,6 +269,8 @@ final readonly class CardWaitReconciler
         $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $now);
         $ask->items->add(new InboxAskItem($ask, $item, $now));
         $this->em->persist($ask);
+        // The Doctrine transport commits the message with the ask.
+        $this->bus->dispatch(new NotifyInboxOwner(($ask->id ?? throw new \LogicException('A persisted ask has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Ask));
 
         $watch = new InboxCardWatch($item, $cardId, $card->number, $now);
         $this->em->persist($watch);

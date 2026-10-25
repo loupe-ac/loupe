@@ -40,6 +40,12 @@ class PushDeviceRepository extends ServiceEntityRepository
         return $this->findBy(['owner' => $owner], ['createdAt' => 'ASC']);
     }
 
+    /** @return list<PushDevice> the devices that still receive a push, oldest first */
+    public function findActiveByOwner(User $owner): array
+    {
+        return $this->findBy(['owner' => $owner, 'stoppedAt' => null], ['createdAt' => 'ASC']);
+    }
+
     public function deleteForOwner(Uuid $ownerId): void
     {
         $this->getEntityManager()->createQuery('DELETE FROM '.PushDevice::class.' d WHERE IDENTITY(d.owner) = :owner')
