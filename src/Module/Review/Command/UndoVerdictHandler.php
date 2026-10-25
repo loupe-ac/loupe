@@ -37,6 +37,9 @@ final readonly class UndoVerdictHandler
             $this->em->lock($document, LockMode::PESSIMISTIC_WRITE);
 
             $version = $this->documentVersions->findLatest($document);
+            if (null !== $command->expectedVersionNumber && $version->versionNumber !== $command->expectedVersionNumber) {
+                return new DomainErrors(['versionNumber' => 'review.document.flash.verdict_stale']);
+            }
             $newest = $this->reviews->findNewestByVersion($version);
             if (null === $newest) {
                 return new DomainErrors(['reviewId' => 'review.document.flash.verdict_none']);
@@ -58,6 +61,7 @@ final readonly class UndoVerdictHandler
                 verdict: Verdict::Withdrawn,
                 reviewer: $command->actor,
                 sequence: $newest->sequence + 1,
+                throughAgent: $command->throughAgent,
             );
 
             $document->status = Verdict::Withdrawn->documentStatus();

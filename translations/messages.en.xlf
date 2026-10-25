@@ -2157,6 +2157,10 @@
                 <source>review.decision.error.unknown</source>
                 <target>That decision is no longer part of this document.</target>
             </trans-unit>
+            <trans-unit id="review.decision.error.stale_version">
+                <source>review.decision.error.stale_version</source>
+                <target>A newer version of the document exists. Read it again before you answer.</target>
+            </trans-unit>
             <trans-unit id="review.decision.error.unknown_option">
                 <source>review.decision.error.unknown_option</source>
                 <target>That option is no longer offered for this decision.</target>

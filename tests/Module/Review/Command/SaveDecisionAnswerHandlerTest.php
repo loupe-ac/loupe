@@ -296,6 +296,107 @@ final class SaveDecisionAnswerHandlerTest extends KernelTestCase
         self::assertStringNotContainsString('private', json_encode($record->context, \JSON_THROW_ON_ERROR));
     }
 
+    public function test_a_note_over_the_limit_is_refused(): void
+    {
+        try {
+            $this->answer('target', [0], str_repeat('a', 2001));
+            self::fail('The note must be refused.');
+        } catch (DomainErrors $refusal) {
+            self::assertSame(['note' => 'review.form.save_decision_answer_form.note.too_long'], $refusal->errors);
+        }
+        self::assertNull($this->answers->findOneByDocumentAndDecisionId($this->document, 'target'));
+        self::assertSame([], $this->audit->operations());
+    }
+
+    public function test_a_note_at_the_limit_after_trimming_is_saved(): void
+    {
+        $this->answer('target', [0], ' '.str_repeat('a', 2000).' ');
+
+        self::assertSame(2000, mb_strlen($this->answerRow('target')->note ?? ''));
+    }
+
+    public function test_an_agent_save_refuses_a_version_that_is_not_the_latest(): void
+    {
+        $this->revise(self::MARKDOWN);
+
+        try {
+            ($this->save)(new SaveDecisionAnswerCommand($this->document, 'target', 1, [0], null, false, $this->owner, true, requireLatestVersion: true));
+            self::fail('The save must be refused.');
+        } catch (DomainErrors $refusal) {
+            self::assertSame(['versionNumber' => 'review.decision.error.stale_version'], $refusal->errors);
+        }
+        self::assertSame([], $this->stored('target'));
+        self::assertSame([], $this->audit->operations());
+    }
+
+    public function test_an_agent_save_of_the_latest_version_passes(): void
+    {
+        $this->revise(self::MARKDOWN);
+
+        $result = ($this->save)(new SaveDecisionAnswerCommand($this->document, 'target', 2, [0], null, false, $this->owner, true, requireLatestVersion: true));
+
+        self::assertTrue($result->changed);
+    }
+
+    public function test_the_page_path_still_takes_an_older_version(): void
+    {
+        $this->revise(self::MARKDOWN);
+
+        self::assertTrue($this->answer('target', [0], version: 1)->changed);
+    }
+
+    public function test_keep_note_keeps_the_stored_note_and_ignores_the_given_one(): void
+    {
+        $this->answer('target', [0], 'The owner wrote this.');
+
+        $this->keepNote('target', [1], 'The agent must not replace it.');
+
+        self::assertSame([[1, 'Production', 1]], $this->stored('target'));
+        self::assertSame('The owner wrote this.', $this->answerRow('target')->note);
+    }
+
+    public function test_keep_note_with_no_stored_note_saves_none(): void
+    {
+        $this->keepNote('target', [1], 'Ignored.');
+
+        self::assertNull($this->answerRow('target')->note);
+    }
+
+    public function test_keep_note_does_not_check_the_length_of_the_ignored_note(): void
+    {
+        $this->answer('target', [0], 'Kept.');
+
+        $this->keepNote('target', [1], str_repeat('a', 2001));
+
+        self::assertSame('Kept.', $this->answerRow('target')->note);
+    }
+
+    public function test_an_empty_note_without_keep_note_removes_the_stored_note(): void
+    {
+        $this->answer('target', [0], 'Remove me.');
+
+        $this->answer('target', [0], '', throughAgent: true);
+
+        self::assertNull($this->answerRow('target')->note);
+    }
+
+    public function test_the_audit_records_carry_the_agent_mark(): void
+    {
+        $this->answer('target', [1], throughAgent: true);
+        $this->answer('target', [], clear: true);
+
+        self::assertTrue($this->audit->record('review.decision_saved')->context['throughAgent']);
+        self::assertFalse($this->audit->record('review.decision_cleared')->context['throughAgent']);
+    }
+
+    /**
+     * @param list<int> $indexes
+     */
+    private function keepNote(string $decisionId, array $indexes, ?string $note): void
+    {
+        ($this->save)(new SaveDecisionAnswerCommand($this->document, $decisionId, 1, $indexes, $note, false, $this->owner, true, keepNote: true));
+    }
+
     /**
      * @param list<int> $indexes
      */

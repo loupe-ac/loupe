@@ -9,6 +9,8 @@ use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\CreateDocumentCommand;
 use App\Module\Review\Command\CreateDocumentHandler;
+use App\Module\Review\Command\ReviseDocumentCommand;
+use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Command\UndoVerdictCommand;
@@ -194,6 +196,40 @@ final class UndoVerdictHandlerTest extends KernelTestCase
         } catch (DomainErrors) {
         }
         self::assertCount(1, $changes->events(), 'A refused undo announces nothing');
+    }
+
+    public function test_an_undo_with_the_wrong_version_is_refused(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$reviewer, $doc] = $this->createUserAndDocument($em, '-expected-version');
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        $approval = $submit(new SubmitReviewCommand($reviewer, $doc, Verdict::Approved->value, 1));
+        (self::getContainer()->get(ReviseDocumentHandler::class))(new ReviseDocumentCommand($doc, '# Auth v2', 'Revised.'));
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+
+        try {
+            $undo(new UndoVerdictCommand(document: $doc, actor: $reviewer, reviewId: (string) $approval->id, expectedVersionNumber: 1));
+            self::fail('The undo must be refused.');
+        } catch (DomainErrors $error) {
+            self::assertSame(['versionNumber' => 'review.document.flash.verdict_stale'], $error->errors);
+        }
+        self::assertSame(1, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM reviews WHERE version_id = ?', [(string) $approval->version->id]));
+    }
+
+    public function test_an_undo_through_an_agent_marks_the_withdrawal(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$reviewer, $doc] = $this->createUserAndDocument($em, '-through-agent');
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        $approval = $submit(new SubmitReviewCommand($reviewer, $doc, Verdict::Approved->value, 1));
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+
+        $withdrawal = $undo(new UndoVerdictCommand(document: $doc, actor: $reviewer, reviewId: (string) $approval->id, expectedVersionNumber: 1, throughAgent: true));
+
+        self::assertTrue($withdrawal->throughAgent);
+        self::assertFalse($approval->throughAgent);
     }
 
     public function test_an_already_withdrawn_verdict_cannot_be_withdrawn_again(): void

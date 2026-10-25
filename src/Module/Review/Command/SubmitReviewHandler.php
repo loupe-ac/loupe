@@ -90,6 +90,7 @@ final readonly class SubmitReviewHandler
                 sequence: null === $newest ? 1 : $newest->sequence + 1,
                 note: '' === $note ? null : $note,
                 workflowRule: $command->workflowRule,
+                throughAgent: $command->throughAgent,
             );
 
             $document->status = $verdict->documentStatus();

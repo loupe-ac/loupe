@@ -6,6 +6,7 @@ namespace App\Module\Review\Mcp;
 
 use App\Exception\DomainErrors;
 use App\Module\Review\Command\ReplyToCommentHandler;
+use App\Module\Review\Entity\DecisionAnswer;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Entity\Tag;
@@ -68,6 +69,8 @@ final readonly class ToolCallErrorMessages
             'review.decision.error.unknown_version' => 'The document has no version with that number.',
             'review.decision.error.unknown' => 'This version of the document holds no decision with that id.',
             'review.decision.error.unknown_option' => 'That decision offers no option with that index.',
+            'review.decision.error.stale_version' => 'The document has a newer version. Read it again before you answer a decision.',
+            'review.form.save_decision_answer_form.note.too_long' => \sprintf('A decision note must be at most %d characters.', DecisionAnswer::MAX_NOTE_LENGTH),
             'review.document.suggestion.error.no_anchor' => 'A suggestion must quote the text that it replaces.',
             'review.document.flash.verdict_none' => 'You left no verdict on this document, so there is none to withdraw.',
             'review.document.flash.verdict_already_withdrawn' => 'You already withdrew your verdict on this document.',

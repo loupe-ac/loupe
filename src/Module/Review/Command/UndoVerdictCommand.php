@@ -15,6 +15,8 @@ final readonly class UndoVerdictCommand
         // other, and a log entry with no author answers half the question.
         public User $actor,
         public string $reviewId,
+        public ?int $expectedVersionNumber = null,
+        public bool $throughAgent = false,
     ) {
     }
 }
