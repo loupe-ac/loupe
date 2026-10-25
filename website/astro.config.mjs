@@ -93,6 +93,7 @@ export default defineConfig({
             { slug: 'using/board' },
             { slug: 'using/workflows' },
             { slug: 'using/inbox' },
+            { slug: 'using/notifications' },
             { slug: 'using/artifacts' },
             {
               label: 'Activity',
@@ -150,6 +151,7 @@ export default defineConfig({
             { slug: 'operating/sentry' },
             { slug: 'operating/artifact-content-domain' },
             { slug: 'operating/failed-messages' },
+            { slug: 'operating/web-push' },
             { slug: 'operating/recovering' },
             { slug: 'operating/backups' },
             { slug: 'operating/restoring' },
