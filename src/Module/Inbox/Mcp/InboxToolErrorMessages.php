@@ -121,7 +121,7 @@ final readonly class InboxToolErrorMessages
             RunCommandResolver::NO_WORKTREE => 'The bridge has no worktree for this branch.',
             RunCommandResolver::PLACEHOLDER_MISSING => 'The command needs a card, and this item has no single card.',
             RunCommandResolver::PLACEHOLDER_UNKNOWN => 'The command uses a value that the bridge fills only at the run, so Loupe cannot show the command before it runs.',
-            self::REVIEW_ON_PAGE => 'A review verdict stays on the inbox page. Ask the owner to give it there.',
+            self::REVIEW_ON_PAGE => 'A review verdict stays on the inbox page. Ask the owner to give it there, or call document_verdict_submit when the owner gave it in the chat.',
             default => self::UNMAPPED,
         };
     }

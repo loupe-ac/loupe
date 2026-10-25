@@ -2842,6 +2842,22 @@
                 <source>project.connect.tool.document_mark_comment_addressed</source>
                 <target>Mark document-review comment threads as addressed after acting on them.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.document_decision_answer">
+                <source>project.connect.tool.document_decision_answer</source>
+                <target>Record the owner's answer to a decision block of a document, after the owner gave it in the chat.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.document_decision_clear">
+                <source>project.connect.tool.document_decision_clear</source>
+                <target>Clear the owner's answer to a decision block of a document, after the owner asked for it in the chat.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.document_verdict_submit">
+                <source>project.connect.tool.document_verdict_submit</source>
+                <target>Record the owner's verdict on a document, after the owner gave it in the chat. Use the verdictId from document_get_review.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.document_verdict_withdraw">
+                <source>project.connect.tool.document_verdict_withdraw</source>
+                <target>Withdraw the newest verdict on a document, after the owner asked for it in the chat. Use the verdictId from document_get_review.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.project_current">
                 <source>project.connect.tool.project_current</source>
                 <target>Report which project this connection acts on.</target>

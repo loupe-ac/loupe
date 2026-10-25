@@ -135,7 +135,7 @@ final class InboxDeclineToolTest extends KernelTestCase
             ($this->tool)((string) $item->id, 'No');
             self::fail('Expected a refusal for a review.');
         } catch (ToolCallException $e) {
-            self::assertSame('itemId: A review verdict stays on the inbox page. Ask the owner to give it there.', $e->getMessage());
+            self::assertSame('itemId: A review verdict stays on the inbox page. Ask the owner to give it there, or call document_verdict_submit when the owner gave it in the chat.', $e->getMessage());
         }
 
         self::assertSame(InboxItemState::Open, $this->stored((string) $item->id)->state);

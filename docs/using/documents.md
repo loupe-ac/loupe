@@ -420,6 +420,22 @@ tab of the document. The status line in those tabs shows "Changed by" and the
 name of the person who saved it. A block keeps your own pick and note while
 your save for that block is not complete.
 
+### Recording a decision from a chat
+
+You can read a design with an agent in a chat and decide there. The agent then
+records your answers and your verdict with the `document_decision_answer`,
+`document_decision_clear`, `document_verdict_submit` and
+`document_verdict_withdraw` tools. See [the MCP tools](mcp.md).
+
+The page shows "An agent recorded this answer for the owner." under the
+decision block. It shows "An agent recorded this verdict for the owner." in the
+verdict menu. A click of the owner on the page removes the answer mark.
+
+Each call names the version that the agent showed you. Loupe refuses the call
+when a newer version exists. A verdict call also names the newest verdict that
+the agent read. Loupe refuses it when a newer verdict exists. A bridge worker
+cannot make these calls.
+
 The author can mark the option they recommend. They end its line with
 `(recommended: high)`, `(recommended: moderate)` or `(recommended: low)`:
 
