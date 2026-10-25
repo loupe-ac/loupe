@@ -9,6 +9,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Notification\Command\ListPushDevicesCommand;
 use App\Module\Notification\Command\ListPushDevicesHandler;
 use App\Module\Notification\Service\DeviceCookie;
+use App\Module\Notification\Service\DeviceLabel;
 use App\Module\Notification\Service\PushAvailability;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -42,6 +43,7 @@ final class ShowNotificationSettingsController extends AppController
             'view' => $view,
             'vapidPublicKey' => $view->available ? $this->availability->keys()?->publicKey : null,
             'isAdmin' => $this->isGranted('ROLE_ADMIN'),
+            'thisBrowserLabel' => DeviceLabel::fromUserAgent($request->headers->get('User-Agent')),
         ]);
     }
 }

@@ -5089,6 +5089,16 @@
     .lp-device-row__actions {
         @apply flex items-center gap-2;
     }
+    .lp-device-row--blocked,
+    .lp-device-row:has(> .lp-device-row__blocked:not([hidden])) {
+        @apply border border-status-pending-border bg-status-pending-bg;
+    }
+    .lp-device-row__blocked {
+        @apply flex basis-full flex-col gap-2 text-sm text-status-pending-deep;
+    }
+    .lp-device-row__blocked-lead {
+        @apply m-0 font-semibold;
+    }
     .lp-device-steps {
         @apply m-0 list-decimal pl-5 text-sm leading-relaxed text-ink;
     }

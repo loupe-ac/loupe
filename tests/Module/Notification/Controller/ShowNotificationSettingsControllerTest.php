@@ -99,6 +99,31 @@ final class ShowNotificationSettingsControllerTest extends WebTestCase
         self::assertSame('true', $crawler->filter('[data-controller~="push-device"]')->attr('data-push-device-device-known-value'));
     }
 
+    public function test_the_blocked_state_sits_in_the_row_of_this_browser(): void
+    {
+        $client = $this->client(true);
+        $user = $this->makeUser(static::getContainer(), 'page-blocked@example.com');
+        $client->loginUser($user);
+        $userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/130.0 Safari/537.36';
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE, server: ['HTTP_USER_AGENT' => $userAgent]);
+        $row = $crawler->filter('.lp-device-list > .lp-device-row[data-panel="blocked"]');
+        self::assertCount(1, $row);
+        self::assertStringContainsString('Chrome on macOS', $row->text());
+        self::assertStringContainsString('Blocked by this browser', $row->text());
+
+        $token = new DeviceCookie()->generate();
+        $device = $this->makeDevice(static::getContainer(), $user, 'https://web.push.apple.com/BLOCKED', DeviceCookie::hash($token));
+        $client->getCookieJar()->set(new BrowserCookie(DeviceCookie::NAME, $token));
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE, server: ['HTTP_USER_AGENT' => $userAgent]);
+        self::assertCount(1, $crawler->filter('[data-panel="blocked"]'));
+        self::assertCount(0, $crawler->filter('.lp-device-list > .lp-device-row[data-panel="blocked"]'));
+        $panel = $crawler->filter('.lp-device-row[data-device-id="'.self::idOf($device)->toRfc4122().'"] > [data-panel="blocked"]');
+        self::assertCount(1, $panel);
+        self::assertStringContainsString('Blocked by this browser', $panel->text());
+    }
+
     public function test_a_stopped_device_is_a_plain_row_with_its_label(): void
     {
         $client = $this->client(true);

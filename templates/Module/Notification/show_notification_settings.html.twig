@@ -17,14 +17,39 @@
     </twig:Ds:Flash>
     {% endif %}
 
-    {% if view.devices is not empty %}
+    {% set currentDeviceListed = view.devices|filter(device => device.id.toRfc4122 == view.currentDeviceId) is not empty %}
+
+    <div class="lp-connect-block"
+        {% if vapidPublicKey %}
+         data-controller="push-device"
+         data-push-device-public-key-value="{{ vapidPublicKey }}"
+         data-push-device-create-url-value="{{ path('app_account_notifications_device_create') }}"
+         data-push-device-service-worker-url-value="/sw.js"
+         data-push-device-device-known-value="{{ view.currentDeviceId ? 'true' : 'false' }}"
+         data-push-device-denied-message-value="{{ 'notification.push.error.denied'|trans }}"
+         data-push-device-failed-message-value="{{ 'notification.push.error.failed'|trans }}"
+         data-push-device-throttled-message-value="{{ 'notification.push.error.throttled'|trans }}"
+        {% endif %}>
+    {% if view.devices is not empty or vapidPublicKey %}
     <div class="lp-device-list">
+        {% if vapidPublicKey and not currentDeviceListed %}
+        <div class="lp-identity-row lp-device-row lp-device-row--blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" hidden>
+            <span class="lp-identity-row__text">
+                <span class="lp-identity-row__name">
+                    {{ thisBrowserLabel }}
+                    <span class="lp-device-row__this">· {{ 'notification.devices.this_device'|trans }}</span>
+                </span>
+            </span>
+            <div class="lp-device-row__blocked">{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+        </div>
+        {% endif %}
         {% for device in view.devices %}
+        {% set isCurrent = device.id.toRfc4122 == view.currentDeviceId %}
         <div class="lp-identity-row lp-device-row" data-device-id="{{ device.id }}">
             <span class="lp-identity-row__text">
                 <span class="lp-identity-row__name">
                     {{ device.label }}
-                    {% if device.id.toRfc4122 == view.currentDeviceId %}<span class="lp-device-row__this" data-this-device>· {{ 'notification.devices.this_device'|trans }}</span>{% endif %}
+                    {% if isCurrent %}<span class="lp-device-row__this" data-this-device>· {{ 'notification.devices.this_device'|trans }}</span>{% endif %}
                 </span>
                 <span class="lp-identity-row__meta lp-identity-row__meta--plain">{{ 'notification.devices.added'|trans({'%date%': device.createdAt|date('j M Y')}) }}</span>
             </span>
@@ -40,21 +65,16 @@
                     <twig:Ds:Button variant="danger-ghost" size="sm" type="submit">{{ 'notification.devices.remove'|trans }}</twig:Ds:Button>
                 </form>
             </div>
+            {% if isCurrent and vapidPublicKey %}
+            <div class="lp-device-row__blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" hidden>{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
     {% if vapidPublicKey %}
-    <div class="lp-connect-block"
-         data-controller="push-device"
-         data-push-device-public-key-value="{{ vapidPublicKey }}"
-         data-push-device-create-url-value="{{ path('app_account_notifications_device_create') }}"
-         data-push-device-service-worker-url-value="/sw.js"
-         data-push-device-device-known-value="{{ view.currentDeviceId ? 'true' : 'false' }}"
-         data-push-device-denied-message-value="{{ 'notification.push.error.denied'|trans }}"
-         data-push-device-failed-message-value="{{ 'notification.push.error.failed'|trans }}"
-         data-push-device-throttled-message-value="{{ 'notification.push.error.throttled'|trans }}">
+    <div class="lp-connect-block">
         <form data-push-device-target="form" hidden>
             <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
         </form>
@@ -78,24 +98,10 @@
             <p class="lp-connect-hint">{{ 'notification.push.ios_tab.requirement'|trans }}</p>
         </div>
 
-        <div class="lp-settings-panel" data-push-device-target="panel" data-panel="blocked" hidden>
-            <div>
-                <twig:Ds:StatusChip modifier="pending" :label="'notification.push.blocked.chip'|trans" />
-            </div>
-            <p class="lp-connect-hint">{{ 'notification.push.blocked.lead'|trans }}</p>
-            {% for platform, stepCount in {chromium: 3, firefox: 3, safari: 3, ios: 4, other: 3} %}
-            <ol class="lp-device-steps" data-push-device-target="platformSteps" data-platform="{{ platform }}" hidden>
-                {% for step in 1..stepCount %}<li>{{ ('notification.push.blocked.' ~ platform ~ '.step_' ~ step)|trans }}</li>{% endfor %}
-            </ol>
-            {% endfor %}
-            <div>
-                <twig:Ds:Button variant="outline" size="sm" type="button" data-action="push-device#refresh">{{ 'notification.push.blocked.retry'|trans }}</twig:Ds:Button>
-            </div>
-        </div>
-
         <p class="lp-device-error" role="alert" data-push-device-target="error" hidden></p>
     </div>
     {% endif %}
+    </div>
 
     <p class="lp-connect-hint">{{ 'notification.devices.hint'|trans }}</p>
 </twig:Ds:Panel>
