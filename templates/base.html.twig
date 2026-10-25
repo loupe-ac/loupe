@@ -110,7 +110,7 @@
                     {% if is_feature_enabled('inbox.enabled') %}
                     <twig:Ds:NavItem :url="path('app_account_inbox')" icon="lucide:mails" :label="'inbox.account.nav'|trans" :active="route == 'app_account_inbox'" />
                     {% endif %}
-                    <twig:Ds:NavItem :url="path('app_account_profile')" icon="lucide:user" :label="'nav.link.account'|trans" :active="route in ['app_account_profile', 'app_account_connected_apps', 'app_account_data', 'app_billing_subscribe']" />
+                    <twig:Ds:NavItem :url="path('app_account_profile')" icon="lucide:user" :label="'nav.link.account'|trans" :active="route in ['app_account_profile', 'app_account_notifications', 'app_account_connected_apps', 'app_account_data', 'app_billing_subscribe']" />
                     {# The admin shell links back to the app; without this the app
                        never links forward to it and an admin has to type /admin. #}
                     {% if is_granted('ROLE_ADMIN') %}
@@ -123,7 +123,7 @@
                     <span class="lp-sidebar__account-text">
                         <span class="lp-sidebar__account-name">{{ app.user.userIdentifier }}</span>
                     </span>
-                    <twig:Ds:ActionForm :action="path('app_logout')" token="logout" class="lp-sidebar__account-logout-form">
+                    <twig:Ds:ActionForm :action="path('app_logout')" token="logout" class="lp-sidebar__account-logout-form" data-controller="push-unsubscribe" data-action="submit->push-unsubscribe#unsubscribe">
                         <button type="submit" class="lp-sidebar__account-logout"
                                 aria-label="{{ 'nav.link.logout'|trans }}">
                             <twig:ux:icon name="lucide:log-out" />

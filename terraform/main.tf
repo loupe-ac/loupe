@@ -221,5 +221,8 @@ module "app" {
     var.oauth_private_key_passphrase == "" ? {} : { OAUTH_PRIVATE_KEY_PASSPHRASE = { value = var.oauth_private_key_passphrase, type = "SECRET" } },
     var.oauth_public_key == "" ? {} : { OAUTH_PUBLIC_KEY = { value = var.oauth_public_key } },
     var.oauth_encryption_key == "" ? {} : { OAUTH_ENCRYPTION_KEY = { value = var.oauth_encryption_key, type = "SECRET" } },
+
+    var.vapid_public_key == "" ? {} : { VAPID_PUBLIC_KEY = { value = var.vapid_public_key } },
+    var.vapid_private_key == "" ? {} : { VAPID_PRIVATE_KEY = { value = var.vapid_private_key, type = "SECRET" } },
   )
 }

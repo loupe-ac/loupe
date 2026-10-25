@@ -1,0 +1,110 @@
+{% extends '@Account/_settings_layout.html.twig' %}
+
+{% block settings_section 'notifications' %}
+
+{% block settings_content %}
+{% set previewState = previewState|default(null) %}
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="push-devices-section">
+    <twig:Ds:SectionHeading :description="'notification.devices.description'|trans">{{ 'notification.devices.heading'|trans }}</twig:Ds:SectionHeading>
+
+    {% if not view.available %}
+    <twig:Ds:Flash severity="info" data-testid="push-unavailable">
+        {% if isAdmin and view.unavailableReason %}
+            {{ 'notification.push.unavailable.admin'|trans }} {{ view.unavailableReason.detailKey|trans }}
+            <a href="{{ app_docs_url }}/operating/" target="_blank" rel="noopener noreferrer" data-testid="push-docs-link">{{ 'notification.push.unavailable.docs_link'|trans }}</a>
+        {% else %}
+            {{ 'notification.push.unavailable.user'|trans }}
+        {% endif %}
+    </twig:Ds:Flash>
+    {% endif %}
+
+    {% set currentDeviceListed = view.devices|filter(device => device.id.toRfc4122 == view.currentDeviceId) is not empty %}
+
+    <div class="lp-connect-block"
+        {% if vapidPublicKey %}
+         data-controller="push-device"
+         data-push-device-public-key-value="{{ vapidPublicKey }}"
+         data-push-device-create-url-value="{{ path('app_account_notifications_device_create') }}"
+         data-push-device-service-worker-url-value="/sw.js"
+         data-push-device-device-known-value="{{ view.currentDeviceId ? 'true' : 'false' }}"
+         data-push-device-denied-message-value="{{ 'notification.push.error.denied'|trans }}"
+         data-push-device-failed-message-value="{{ 'notification.push.error.failed'|trans }}"
+         data-push-device-throttled-message-value="{{ 'notification.push.error.throttled'|trans }}"
+         {% if previewState %}data-push-device-preview-state-value="{{ previewState }}"{% endif %}
+        {% endif %}>
+    {% if view.devices is not empty or vapidPublicKey %}
+    <div class="lp-device-list">
+        {% if vapidPublicKey and not currentDeviceListed %}
+        <div class="lp-identity-row lp-device-row lp-device-row--blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>
+            <span class="lp-identity-row__text">
+                <span class="lp-identity-row__name">
+                    {{ thisBrowserLabel }}
+                    <span class="lp-device-row__this">· {{ 'notification.devices.this_device'|trans }}</span>
+                </span>
+            </span>
+            <div class="lp-device-row__blocked">{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+        </div>
+        {% endif %}
+        {% for device in view.devices %}
+        {% set isCurrent = device.id.toRfc4122 == view.currentDeviceId %}
+        <div class="lp-identity-row lp-device-row" data-device-id="{{ device.id }}">
+            <span class="lp-identity-row__text">
+                <span class="lp-identity-row__name">
+                    {{ device.label }}
+                    {% if isCurrent %}<span class="lp-device-row__this" data-this-device>· {{ 'notification.devices.this_device'|trans }}</span>{% endif %}
+                </span>
+                <span class="lp-identity-row__meta lp-identity-row__meta--plain">{{ 'notification.devices.added'|trans({'%date%': device.createdAt|date('j M Y')}) }}</span>
+            </span>
+            <div class="lp-device-row__actions">
+                {% if view.available %}
+                <form method="post" action="{{ path('app_account_notifications_device_test', {id: device.id}) }}">
+                    <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                    <twig:Ds:Button variant="outline" size="sm" type="submit">{{ 'notification.devices.test'|trans }}</twig:Ds:Button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ path('app_account_notifications_device_remove', {id: device.id}) }}">
+                    <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                    <twig:Ds:Button variant="danger-ghost" size="sm" type="submit">{{ 'notification.devices.remove'|trans }}</twig:Ds:Button>
+                </form>
+            </div>
+            {% if isCurrent and vapidPublicKey %}
+            <div class="lp-device-row__blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if vapidPublicKey %}
+    <div class="lp-connect-block">
+        <form data-push-device-target="form" hidden>
+            <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        </form>
+
+        <div class="lp-settings-panel" data-push-device-target="panel" data-panel="off" hidden>
+            <div>
+                <twig:Ds:Button variant="primary" type="button" data-push-device-target="button" data-action="push-device#turnOn">{{ 'notification.push.turn_on'|trans }}</twig:Ds:Button>
+            </div>
+            <p class="lp-connect-hint">{{ 'notification.push.turn_on_hint'|trans }}</p>
+        </div>
+
+        <p class="lp-connect-hint" data-push-device-target="panel" data-panel="on" hidden>{{ 'notification.push.on'|trans }}</p>
+
+        <p class="lp-connect-hint" data-push-device-target="panel" data-panel="not-supported" hidden>{{ 'notification.push.not_supported'|trans }}</p>
+
+        <div class="lp-settings-panel" data-push-device-target="panel" data-panel="ios-tab" {{ previewState == 'ios-tab' ? 'data-preview-shown="ios-tab"' : 'hidden' }}>
+            <p class="lp-connect-hint">{{ 'notification.push.ios_tab.lead'|trans }}</p>
+            <ol class="lp-device-steps">
+                {% for step in 1..5 %}<li>{{ ('notification.push.ios_tab.step_' ~ step)|trans }}</li>{% endfor %}
+            </ol>
+            <p class="lp-connect-hint">{{ 'notification.push.ios_tab.requirement'|trans }}</p>
+        </div>
+
+        <p class="lp-device-error" role="alert" data-push-device-target="error" hidden></p>
+    </div>
+    {% endif %}
+    </div>
+
+    <p class="lp-connect-hint">{{ 'notification.devices.hint'|trans }}</p>
+</twig:Ds:Panel>
+{% endblock %}

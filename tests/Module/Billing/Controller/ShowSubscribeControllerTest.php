@@ -237,8 +237,9 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(4, $crawler->filter('.lp-settings-nav a.lp-settings-nav__item'));
+        self::assertCount(5, $crawler->filter('.lp-settings-nav a.lp-settings-nav__item'));
         self::assertSelectorExists('.lp-settings-nav__item--active[aria-current="page"][href="/account/billing"]');
+        self::assertSelectorExists('.lp-settings-nav__item[href="/account/notifications"]');
 
         $crawler = $client->request(Request::METHOD_GET, '/account/profile');
 

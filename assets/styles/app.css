@@ -5073,6 +5073,45 @@
         @apply shrink-0 whitespace-nowrap;
     }
 
+    /* A push device row wraps, so the two buttons drop under the label on a phone. */
+    .lp-device-list {
+        @apply flex flex-col gap-2;
+    }
+    .lp-device-row {
+        @apply flex-wrap;
+    }
+    .lp-device-row .lp-identity-row__text {
+        @apply grow basis-60;
+    }
+    .lp-device-row__this {
+        @apply font-normal text-fg-mute;
+    }
+    .lp-device-row__actions {
+        @apply flex items-center gap-2;
+    }
+    .lp-device-row--blocked,
+    .lp-device-row:has(> .lp-device-row__blocked:not([hidden])) {
+        @apply border border-status-pending-border bg-status-pending-bg;
+    }
+    .lp-device-row__blocked {
+        @apply flex basis-full flex-col gap-2 text-sm text-status-pending-deep;
+    }
+    .lp-device-row__blocked-lead {
+        @apply m-0 font-semibold;
+    }
+    .lp-device-steps {
+        @apply m-0 list-decimal pl-5 text-sm leading-relaxed text-ink;
+    }
+    .lp-device-error {
+        @apply m-0 text-sm text-danger;
+    }
+    /* The display utilities above outrank the UA `[hidden]` rule, so a hidden push panel stayed laid out. */
+    .lp-identity-row[hidden],
+    .lp-settings-panel[hidden],
+    .lp-device-row__blocked[hidden] {
+        display: none;
+    }
+
     /* An app row with sub-rows under it: the site review widget and its live
        preview tokens on Connected apps. */
     .lp-app-group {

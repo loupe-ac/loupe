@@ -234,3 +234,8 @@ export_bucket_region = "tor1"
 #   -----END PUBLIC KEY-----
 # EOT
 # oauth_encryption_key         = "GENERATED_HEX_64"
+
+# Web push. Make the pair once with bin/console app:notifications:generate-keys.
+# Never change it after users subscribe: every subscription then stops working.
+# vapid_public_key  = "GENERATED_BASE64URL"
+# vapid_private_key = "GENERATED_BASE64URL"

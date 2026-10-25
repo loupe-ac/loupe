@@ -58,6 +58,15 @@ framework:
                 max_duration: 5
                 max_redirects: 0
 
+            # Web push sends, inside a queue worker. A push service that hangs
+            # would hold the shared jobs consumer, so the exchange is bounded.
+            # A redirect is never followed, because the address came from a browser.
+            web_push.client:
+                scope: '^https://'
+                timeout: 5
+                max_duration: 10
+                max_redirects: 0
+
     rate_limiter:
         # The `*_address` buckets below are keyed on a hash of the target email
         # address rather than the client address, and are consumed alongside the
