@@ -10,6 +10,7 @@
 
 {% block body %}
 <twig:Ds:Workspace class="lp-account-inbox">
+    {% include '@Notification/_stopped_device_warning_live.html.twig' only %}
     <twig:Ds:PageHeader :title="'inbox.account.page.title'|trans" :description="'inbox.account.page.description'|trans" />
 
     {% if inbox.isEmpty %}

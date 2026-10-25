@@ -60,16 +60,29 @@ Do these steps before every deploy, and do not skip them for a small release. Ne
 5. Show the owner the summary below.
 6. Wait for the owner to say go. Do not deploy before that, also when the owner already asked for the deploy. The owner decided that this summary is a required approval gate on every deploy.
 
-```text
-Live:     <live sha> (deployed <date>)
-Target:   <origin/main sha>, <N> commits, <M> pull requests
-Changes:  <one line per pull request, or grouped by theme when there are many>
-Migrations: <names and risk, or "none">
-Deploy notes: <each step and value to set, in order, or "none">
-Risky:    <every file that "Check the release diff" lists, or "none">
-Unnoted:  <the risky files with no deploy note, or "none">
-After:    <the checks the deploy notes ask for>
+Write the summary as Markdown in this shape:
+
+```markdown
+**Deploy `<origin/main sha>` to production?**
+
+Production runs `<live sha>`. This release adds <M> pull requests.
+
+**What ships**
+- <plain name of the change> (PR <number>, card <number>)
+
+**Risk: <low | medium | high>**
+- <each migration, with its risk, or "No migration">
+- <each risky file, with its deploy note or **no note**, or "No change to env, Terraform, CSP, messenger or prod compose">
+- <each deploy note step, or "No deploy notes">
+
+**Steps**
+1. Switch the checkout to `main` at `<origin/main sha>`.
+2. <each deploy note step that comes before the code, such as a `terraform apply`>
+3. Run `just deploy`.
+4. Run the checks of "After a deploy", and <each check the deploy notes ask for>.
 ```
+
+Give each change a plain name that a person understands without the diff. Group the pull requests by theme when there are many. Name an epic once, with the count of its parts. Write each empty item as a sentence, such as "No migration", and never as "none". Choose the risk level yourself, and let the bullets under it show the reasons. Leave out a step that does not apply.
 
 An empty gap means that production already runs `origin/main`. Say so, and do not deploy.
 
@@ -83,7 +96,7 @@ git diff --name-only <last deployed sha>..origin/main -- migrations/ .env terraf
   config/packages/messenger.yaml config/packages/nelmio_security.yaml docker/compose/prod.yaml
 ```
 
-Put every file of this list on the `Risky:` line of the summary, also a file that a deploy note covers. Read each file that no deploy note covers, and put it on the `Unnoted:` line too. Say whether the release ships a migration.
+Put every file of this list under **Risk** in the summary, also a file that a deploy note covers. Read each file that no deploy note covers, and mark it **no note**. Say whether the release ships a migration.
 
 ### Read the deploy notes of the release
 

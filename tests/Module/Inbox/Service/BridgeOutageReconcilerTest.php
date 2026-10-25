@@ -15,10 +15,13 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Service\BridgeOutageReconciler;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
+use App\Tests\Module\Inbox\QueuedPushes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -27,6 +30,7 @@ use Symfony\Component\Uid\Uuid;
 final class BridgeOutageReconcilerTest extends KernelTestCase
 {
     use InboxFixtures;
+    use QueuedPushes;
 
     private const string NOW = '2026-10-16 12:00:00';
 
@@ -73,6 +77,23 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-16 11:49:00'), $outage->startedAt);
         self::assertNull($outage->endedAt);
         self::assertSame(1, $this->searchHits('bridge'));
+    }
+
+    public function test_a_new_notice_queues_one_push_and_a_card_joining_it_queues_none(): void
+    {
+        $this->jobs()->reset();
+        $this->waitingRequest($this->card, '2026-10-16 11:49:00');
+
+        $this->reconciler->reconcile($this->project);
+
+        $item = $this->onlyOutage()->item;
+        self::assertEquals([new NotifyInboxOwner((string) $item->id, NotifyInboxOwnerKind::Notice)], $this->queuedPushes());
+
+        $this->waitingRequest($this->card($this->em, $this->project, 9), '2026-10-16 11:55:00');
+        $this->em->flush();
+        $this->reconciler->reconcile($this->project);
+
+        self::assertCount(1, $this->queuedPushes(), 'the second pass only extended the open notice');
     }
 
     public function test_work_that_waited_less_than_ten_minutes_opens_nothing_until_the_tenth_minute_passes(): void

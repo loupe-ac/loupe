@@ -18,6 +18,8 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\InboxEventType;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Project\Entity\Project;
@@ -25,6 +27,7 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -49,6 +52,7 @@ final readonly class BridgeOutageReconciler
         private InboxAvailability $inbox,
         private TranslatorInterface $translator,
         private ClockInterface $clock,
+        private MessageBusInterface $bus,
 
         #[Autowire(param: 'app.inbox.bridge_outage_after_minutes')]
         private int $afterMinutes,
@@ -203,6 +207,8 @@ final readonly class BridgeOutageReconciler
         $outage = new InboxBridgeOutage($project, $item, $startedAt);
         $this->em->persist($item);
         $this->em->persist($outage);
+        // The Doctrine transport commits the message with the notice.
+        $this->bus->dispatch(new NotifyInboxOwner(($item->id ?? throw new \LogicException('A persisted item has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Notice));
 
         return $outage;
     }

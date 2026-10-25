@@ -20,6 +20,8 @@
 <twig:Ds:SplitView width="full" class="lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live inbox-navigation card-drawer">
     <h1 class="sr-only">{{ 'inbox.page.title'|trans }}</h1>
 
+    {% include '@Notification/_stopped_device_warning_live.html.twig' only %}
+
     {# The frame holds the whole view, so a row, the switch, a filter, the search and the pager each reload it and move the address on.
        A link or a form outside the view leaves the frame, which is why the frame targets the page. #}
     <turbo-frame id="inbox-view" class="lp-inbox-frame" target="_top" data-turbo-action="advance">

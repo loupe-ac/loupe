@@ -165,6 +165,10 @@ x-app-environment: &app-environment
   OAUTH_PUBLIC_KEY: "${OAUTH_PUBLIC_KEY:-}"
   OAUTH_ENCRYPTION_KEY: "${OAUTH_ENCRYPTION_KEY:-}"
 
+  # Web push. An empty or invalid pair keeps push off.
+  VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY:-}"
+  VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY:-}"
+
 services:
   # nginx + php-fpm under supervisord, and nothing else — the image's own
   # default command, so none is given here. Expired-export purging is not run
