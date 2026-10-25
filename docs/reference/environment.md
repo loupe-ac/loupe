@@ -112,6 +112,8 @@ A new key pair makes every issued access token invalid. The apps then refresh, s
 | `GITHUB_APP_WEBHOOK_SECRET` | The webhook secret you set on the *General* page of the App settings. **Secret.** It verifies a delivery to `/webhooks/forge/github`. Unset refuses every App delivery. A per-project webhook has its own secret and does not use it. | No |
 | `GITHUB_APP_ID` | The App ID on the *General* page of the App settings on GitHub. Not a secret. It is a separate optional pair with `GITHUB_APP_PRIVATE_KEY`, and the install does not need it. The workflow rules for review and merge need the pair. See [Forge webhooks](../extending/forge-webhooks.md). With both set, Loupe signs as the App and reads repositories through an installation token. While one of the two is empty, the *GitHub App access* row on `/admin/status` names it. | No |
 | `GITHUB_APP_PRIVATE_KEY` | A private key, which you generate on the *General* page of the App settings. **Secret.** Paste the PEM file as it is, or on one line with `\n` for each line break. The *GitHub App access* row on `/admin/status` reports a key that GitHub refuses, and an installation that misses a permission. | No |
+| `VAPID_PUBLIC_KEY` | The public half of the key pair that signs web push. Not a secret. Set it together with `VAPID_PRIVATE_KEY`. Push stays off while either key is empty, malformed or does not match the other, and the *Web push* row on `/admin/status` names the bad key. Make a pair with `bin/console app:notifications:generate-keys`. **A new pair makes every existing push subscription stop working.** | No |
+| `VAPID_PRIVATE_KEY` | The private half of the web push key pair. **Secret.** Loupe never logs it and never prints it. It stays off until the `notifications.web_push.enabled` flag is on as well. The push services of Apple, Google, Mozilla and Microsoft need outbound HTTPS from the worker. | No |
 | `OAUTH_GOOGLE_ID`, `OAUTH_GOOGLE_SECRET`, `OAUTH_GITHUB_ID`, `OAUTH_GITHUB_SECRET` | Social login. A provider becomes reachable only when its credentials **and** its feature flag (`auth.google.enabled` / `auth.github.enabled`) are both set. | No |
 | `HEALTH_PROBE_TOKEN` | Adds the build version to `GET /healthz`, for a caller presenting it as an `X-Probe-Token` header — so a post-deploy check can prove which build went live without a session. Unset, the field never appears: an instance must not advertise its build to anyone who asks. | No |
 | `SITE_REVIEW_WIDGET_PUBLIC` | Serves the live-review widget to every visitor instead of administrators only. Its comments are instructions an agent may act on, so set it only where you trust everyone who can reach the site — **production should leave it empty**. | No |
@@ -193,6 +195,9 @@ openssl rsa -in oauth-private.pem -pubout -out oauth-public.pem
 
 # OAUTH_ENCRYPTION_KEY
 openssl rand -hex 32
+
+# VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY: prints both lines, stores nothing
+bin/console app:notifications:generate-keys
 ```
 
 In development and in a worktree, `league:oauth2-server:generate-keypair --skip-if-exists` writes a key pair into `var/oauth/`. Worktree provisioning and `just e2e-up` run it for you. The test suite uses the key pair in `tests/Support/oauth/`, which is for tests only.

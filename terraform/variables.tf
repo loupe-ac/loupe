@@ -559,3 +559,16 @@ variable "oauth_encryption_key" {
   default     = ""
   description = "OAUTH_ENCRYPTION_KEY: encrypts OAuth authorization codes and refresh tokens (openssl rand -hex 32)."
 }
+
+variable "vapid_public_key" {
+  type        = string
+  default     = ""
+  description = "VAPID_PUBLIC_KEY: the public half of the web push key pair. Make a pair with bin/console app:notifications:generate-keys. Empty keeps web push off."
+}
+
+variable "vapid_private_key" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "VAPID_PRIVATE_KEY: the private half of the web push key pair. Empty keeps web push off. Never change the pair after users subscribe."
+}
