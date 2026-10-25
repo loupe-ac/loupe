@@ -383,6 +383,7 @@ export const KEPT_CSS_WORDS = new Set([
     'outline-color',
     'overlay',
     'paint',
+    'pan-y',
     'pointer',
     'pointer-events',
     'pre',

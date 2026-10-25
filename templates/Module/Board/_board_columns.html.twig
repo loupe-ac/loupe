@@ -20,7 +20,7 @@
                        class="lp-board-toolbar__input lp-touch-text"
                        placeholder="{{ 'board.filter.search.placeholder'|trans }}"
                        data-board-filter-target="query"
-                       data-action="input->board-filter#filter">
+                       data-action="input->board-filter#filter blur->board-filter#closeSearch">
             </label>
         </div>
         <span class="lp-board-toolbar__count"
@@ -29,7 +29,7 @@
               data-many="{{ 'board.card.count'|trans({'%count%': 2})|replace({'2': '%count%'}) }}">{{ 'board.card.count'|trans({'%count%': cardCount}) }}</span>
         <p class="lp-board-toolbar__paused" role="status" data-board-live-target="paused" data-message="{{ 'board.live.paused'|trans }}" data-failed-message="{{ 'board.live.catch_up_failed'|trans }}"></p>
         <div class="lp-board-toolbar__actions">
-            {% include '@Board/_board_toolbar_actions.html.twig' with {projectId: board.project.id ~ '', inMenu: false} only %}
+            {% include '@Board/_board_toolbar_actions.html.twig' with {projectId: board.project.id ~ '', backlogCount: board.backlogCount, inMenu: false} only %}
         </div>
         {# A phone shows the same actions in this "…" menu instead of the row above. #}
         <twig:Ds:Menu id="board-toolbar-menu-{{ board.project.id }}" class="lp-board-toolbar__menu">
@@ -46,7 +46,7 @@
                 </twig:Ds:Button>
             </twig:block>
             <twig:block name="content">
-                {% include '@Board/_board_toolbar_actions.html.twig' with {projectId: board.project.id ~ '', inMenu: true} only %}
+                {% include '@Board/_board_toolbar_actions.html.twig' with {projectId: board.project.id ~ '', backlogCount: board.backlogCount, inMenu: true} only %}
             </twig:block>
         </twig:Ds:Menu>
     </div>

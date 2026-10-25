@@ -900,7 +900,7 @@ it('sets the Backlog count from the manifest on a reconnect, with no placement',
         .getElementById('board')
         .insertAdjacentHTML(
             'beforeend',
-            '<a class="lp-board-backlog" data-column="bl"><span id="board-count-bl">3</span></a>',
+            '<a class="lp-board-backlog" data-column="bl"><span id="board-count-bl">3</span></a><a href="/backlog"><span data-board-backlog-count>3</span></a>',
         );
     answerManifest(
         json({
@@ -917,6 +917,9 @@ it('sets the Backlog count from the manifest on a reconnect, with no placement',
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(document.getElementById('board-count-bl').textContent).toBe('5');
+    expect(
+        document.querySelector('[data-board-backlog-count]').textContent,
+    ).toBe('5');
     expect(placements()).toEqual([]);
 });
 

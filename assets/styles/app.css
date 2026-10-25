@@ -2629,8 +2629,8 @@
     }
 
     /* A phone shows one column per screen and a sideways swipe steps one column. The
-       header row holds the title, Backlog and the "…" menu, and Find takes
-       the row below it, because the header row has no room for a field. */
+       header row holds the title and the "…" menu. Search opens the row below
+       it, and that row stays while the search has text. */
     @media (width < 40rem) {
         .lp-board-header {
             @apply flex-wrap gap-x-2;
@@ -2642,10 +2642,13 @@
             @apply order-1 mr-auto text-xl;
         }
         .lp-board-toolbar__filters {
-            @apply order-5 basis-full;
+            @apply hidden order-5 basis-full;
+        }
+        .lp-board-toolbar[data-search-open] .lp-board-toolbar__filters {
+            @apply flex;
         }
         .lp-board-backlog {
-            @apply order-3;
+            @apply hidden;
         }
         .lp-board-toolbar__actions {
             @apply hidden;

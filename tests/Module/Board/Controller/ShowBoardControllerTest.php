@@ -105,6 +105,29 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertNull($button->attr('data-lane'));
     }
 
+    public function test_the_board_menu_holds_backlog_search_and_settings(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'board-menu-entries@example.com');
+        $project = $this->project($em, $owner);
+        $this->card($em, $project, 'Waiting', 'backlog');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
+
+        self::assertResponseIsSuccessful();
+        $menu = $crawler->filter('.lp-board-toolbar__menu .lp-menu__panel');
+        $backlog = $menu->filter('a[href="/projects/'.$project->id.'/board/backlog"]');
+        self::assertCount(1, $backlog);
+        self::assertSame('1', trim($backlog->filter('[data-board-backlog-count]')->text()));
+        self::assertCount(0, $menu->filter('[id^="board-count-"]'));
+        self::assertSame('board-filter#openSearch popover#close', $menu->filter('button[data-action*="openSearch"]')->attr('data-action'));
+        self::assertStringContainsString('Board settings', $menu->filter('a[href$="/settings"], a[href*="/settings"]')->first()->text());
+    }
+
     public function test_the_board_renders_the_columns_its_project_holds(): void
     {
         $client = static::createClient();

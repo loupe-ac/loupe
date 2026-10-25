@@ -8054,6 +8054,7 @@
                 <target>Board</target>
             </trans-unit>
             <trans-unit id="board.view.list"><source>board.view.list</source><target>List</target></trans-unit>
+            <trans-unit id="board.toolbar.search"><source>board.toolbar.search</source><target>Search</target></trans-unit>
             <trans-unit id="board.toolbar.more"><source>board.toolbar.more</source><target>More board options</target></trans-unit>
             <trans-unit id="board.columns.tabs"><source>board.columns.tabs</source><target>Board columns</target></trans-unit>
             <trans-unit id="board.list.work"><source>board.list.work</source><target>Work</target></trans-unit>

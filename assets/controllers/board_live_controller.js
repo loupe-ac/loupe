@@ -438,8 +438,15 @@ export default class extends Controller {
         const backlogCount = document.getElementById(
             `board-count-${backlogId}`,
         );
-        if (backlogCount !== null && Number.isInteger(manifest.backlogCount)) {
-            backlogCount.textContent = String(manifest.backlogCount);
+        if (Number.isInteger(manifest.backlogCount)) {
+            const counts = this.element.querySelectorAll(
+                '[data-board-backlog-count]',
+            );
+            for (const element of [backlogCount, ...counts]) {
+                if (element !== null) {
+                    element.textContent = String(manifest.backlogCount);
+                }
+            }
         }
         const rowIds = new Set(
             [
