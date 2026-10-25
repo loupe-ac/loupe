@@ -3,6 +3,7 @@
 {% block settings_section 'notifications' %}
 
 {% block settings_content %}
+{% set previewState = previewState|default(null) %}
 <twig:Ds:Panel as="section" class="lp-connect-block" data-testid="push-devices-section">
     <twig:Ds:SectionHeading :description="'notification.devices.description'|trans">{{ 'notification.devices.heading'|trans }}</twig:Ds:SectionHeading>
 
@@ -29,11 +30,12 @@
          data-push-device-denied-message-value="{{ 'notification.push.error.denied'|trans }}"
          data-push-device-failed-message-value="{{ 'notification.push.error.failed'|trans }}"
          data-push-device-throttled-message-value="{{ 'notification.push.error.throttled'|trans }}"
+         {% if previewState %}data-push-device-preview-state-value="{{ previewState }}"{% endif %}
         {% endif %}>
     {% if view.devices is not empty or vapidPublicKey %}
     <div class="lp-device-list">
         {% if vapidPublicKey and not currentDeviceListed %}
-        <div class="lp-identity-row lp-device-row lp-device-row--blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" hidden>
+        <div class="lp-identity-row lp-device-row lp-device-row--blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>
             <span class="lp-identity-row__text">
                 <span class="lp-identity-row__name">
                     {{ thisBrowserLabel }}
@@ -66,7 +68,7 @@
                 </form>
             </div>
             {% if isCurrent and vapidPublicKey %}
-            <div class="lp-device-row__blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" hidden>{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+            <div class="lp-device-row__blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
             {% endif %}
         </div>
         {% endfor %}
@@ -90,7 +92,7 @@
 
         <p class="lp-connect-hint" data-push-device-target="panel" data-panel="not-supported" hidden>{{ 'notification.push.not_supported'|trans }}</p>
 
-        <div class="lp-settings-panel" data-push-device-target="panel" data-panel="ios-tab" hidden>
+        <div class="lp-settings-panel" data-push-device-target="panel" data-panel="ios-tab" {{ previewState == 'ios-tab' ? 'data-preview-shown="ios-tab"' : 'hidden' }}>
             <p class="lp-connect-hint">{{ 'notification.push.ios_tab.lead'|trans }}</p>
             <ol class="lp-device-steps">
                 {% for step in 1..5 %}<li>{{ ('notification.push.ios_tab.step_' ~ step)|trans }}</li>{% endfor %}

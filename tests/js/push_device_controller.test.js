@@ -319,3 +319,18 @@ it('enables the button again after a failure', async () => {
 
     expect(button.disabled).toBe(false);
 });
+
+it('shows the preview state and ignores the browser when one is set', async () => {
+    stubBrowser({ permission: 'granted' });
+    await start(
+        MARKUP().replace(
+            'data-controller="push-device"',
+            'data-controller="push-device" data-push-device-preview-state-value="ios-tab"',
+        ),
+    );
+    expect(visiblePanels()).toEqual(['ios-tab']);
+
+    document.getElementById('retry').click();
+    await flush();
+    expect(visiblePanels()).toEqual(['ios-tab']);
+});

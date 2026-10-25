@@ -78,6 +78,9 @@ final class ShowNotificationSettingsControllerTest extends WebTestCase
         foreach (['off', 'on', 'blocked', 'ios-tab', 'not-supported'] as $panel) {
             self::assertCount(1, $controller->filter('[data-push-device-target="panel"][data-panel="'.$panel.'"]'), $panel);
         }
+        self::assertNull($controller->attr('data-push-device-preview-state-value'));
+        self::assertCount(0, $controller->filter('[data-preview-shown]'));
+        self::assertCount(0, $controller->filter('[data-push-device-target="panel"]:not([hidden])'));
         self::assertCount(1, $controller->filter('form[data-push-device-target="form"] input[name="token"][data-controller="csrf-protection"]'));
         self::assertCount(1, $controller->filter('[data-action="push-device#turnOn"]'));
     }

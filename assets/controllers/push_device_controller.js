@@ -31,6 +31,7 @@ export default class extends Controller {
         deniedMessage: String,
         failedMessage: String,
         throttledMessage: String,
+        previewState: String,
     };
 
     connect() {
@@ -127,6 +128,9 @@ export default class extends Controller {
     }
 
     async currentState() {
+        if (this.previewStateValue) {
+            return this.previewStateValue;
+        }
         const hasServiceWorker = 'serviceWorker' in navigator;
         const hasPushManager = 'PushManager' in window;
         const hasNotification = 'Notification' in window;
