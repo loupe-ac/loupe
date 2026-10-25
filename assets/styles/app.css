@@ -2647,7 +2647,7 @@
         .lp-board-toolbar[data-search-open] .lp-board-toolbar__filters {
             @apply flex;
         }
-        .lp-board-backlog {
+        .lp-board-header .lp-board-backlog {
             @apply hidden;
         }
         .lp-board-toolbar__actions {
