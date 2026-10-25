@@ -5073,6 +5073,136 @@
         @apply shrink-0 whitespace-nowrap;
     }
 
+    /* A push device row wraps, so the two buttons drop under the label on a phone. */
+    .lp-device-list {
+        @apply flex flex-col gap-2;
+    }
+    .lp-device-row {
+        @apply flex-wrap;
+    }
+    .lp-device-row .lp-identity-row__text {
+        @apply grow basis-60;
+    }
+    .lp-device-row__this {
+        @apply font-normal text-fg-mute;
+    }
+    .lp-device-row__actions {
+        @apply flex items-center gap-2;
+    }
+    .lp-device-live {
+        display: contents;
+    }
+    .lp-device-frame:not(:has(.lp-device-list)) {
+        @apply hidden;
+    }
+    /* A device that stopped working: the row takes the danger tint and its second line the danger ink. */
+    .lp-device-row--stopped {
+        @apply bg-status-danger-bg;
+    }
+    .lp-device-row--stopped .lp-identity-row__meta {
+        @apply text-status-danger-deep;
+    }
+    .lp-device-row--stopped > .lp-status-chip {
+        @apply ml-0;
+    }
+    /* The line that says the device list or the warning stopped updating. */
+    .lp-live-stopped {
+        @apply m-0 text-sm font-semibold text-status-pending-deep;
+    }
+    .lp-live-stopped:empty {
+        @apply hidden;
+    }
+    /* The stopped device warning above an inbox page. It draws nothing while no device stopped. */
+    .lp-stopped-warning:has(.lp-flash),
+    .lp-stopped-warning:has(.lp-live-stopped:not(:empty)) {
+        @apply mb-4 flex flex-col gap-2;
+    }
+    .lp-stopped-warning .lp-flash {
+        @apply m-0;
+    }
+    .lp-core-inbox .lp-stopped-warning:has(.lp-flash) {
+        @apply mb-0 pt-4;
+        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+    }
+    .lp-device-row--blocked,
+    .lp-device-row:has(> .lp-device-row__blocked:not([hidden])) {
+        @apply border border-status-pending-border bg-status-pending-bg;
+    }
+    .lp-device-row__blocked {
+        @apply flex basis-full flex-col gap-2 text-sm text-status-pending-deep;
+    }
+    .lp-device-row__blocked-lead {
+        @apply m-0 font-semibold;
+    }
+    .lp-device-steps {
+        @apply m-0 list-decimal pl-5 text-sm leading-relaxed text-ink;
+    }
+    .lp-device-error {
+        @apply m-0 text-sm text-danger;
+    }
+
+    /* The grid of events and channels. A cell holds one switch, centred under its channel. */
+    .lp-pref-grid {
+        @apply mt-4 w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-line bg-surface-1 text-left;
+    }
+    .lp-pref-grid thead th {
+        @apply bg-surface-3 px-4 py-2.5 text-xs font-semibold text-fg-label;
+    }
+    .lp-pref-grid tbody th {
+        @apply border-t border-line-faint px-4 py-3.5 text-left align-middle font-normal;
+    }
+    .lp-pref-grid td {
+        @apply border-t border-line-faint px-4 py-3.5 align-middle;
+    }
+    .lp-pref-grid__channel,
+    .lp-pref-grid__cell {
+        @apply w-30 text-center;
+    }
+    .lp-pref-grid__cell .lp-switch {
+        @apply m-0;
+    }
+    .lp-pref-grid__event {
+        @apply block text-sm font-semibold text-ink;
+    }
+    .lp-pref-grid__description {
+        @apply block text-sm font-normal text-fg-mute max-sm:hidden;
+    }
+    .lp-pref-grid__cell-label {
+        @apply hidden text-left text-sm text-fg-mute max-sm:col-start-1 max-sm:block;
+    }
+    /* A phone stacks each event: its name, then one line per channel with the switch on the right. */
+    @media (max-width: 40rem) {
+        .lp-pref-grid,
+        .lp-pref-grid tbody {
+            @apply block rounded-none border-0 bg-transparent;
+        }
+        .lp-pref-grid thead {
+            @apply hidden;
+        }
+        .lp-pref-grid tbody tr {
+            @apply grid items-center gap-x-3 border-t border-line-faint py-3 first:border-t-0 first:pt-0;
+            grid-template-columns: 1fr auto;
+        }
+        .lp-pref-grid tbody th {
+            @apply col-start-1 border-0 p-0;
+        }
+        .lp-pref-grid td {
+            @apply contents;
+        }
+        .lp-pref-grid__cell .lp-switch {
+            @apply col-start-2;
+        }
+        .lp-pref-grid__cell:first-of-type .lp-switch {
+            @apply row-span-2 row-start-1;
+        }
+    }
+    /* The display utilities above outrank the UA `[hidden]` rule, so a hidden push panel stayed laid out. */
+    .lp-identity-row[hidden],
+    .lp-settings-panel[hidden],
+    .lp-device-row__blocked[hidden] {
+        display: none;
+    }
+
     /* An app row with sub-rows under it: the site review widget and its live
        preview tokens on Connected apps. */
     .lp-app-group {

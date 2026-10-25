@@ -1,0 +1,12 @@
+<div>
+    <twig:Ds:StatusChip modifier="pending" :label="'notification.push.blocked.chip'|trans" />
+</div>
+<p class="lp-device-row__blocked-lead">{{ 'notification.push.blocked.lead'|trans }}</p>
+{% for platform, stepCount in {chromium: 3, firefox: 3, safari: 3, ios: 4, other: 3} %}
+<ol class="lp-device-steps" data-push-device-target="platformSteps" data-platform="{{ platform }}" hidden>
+    {% for step in 1..stepCount %}<li>{{ ('notification.push.blocked.' ~ platform ~ '.step_' ~ step)|trans }}</li>{% endfor %}
+</ol>
+{% endfor %}
+<div>
+    <twig:Ds:Button variant="outline" size="sm" type="button" data-action="push-device#refresh">{{ 'notification.push.blocked.retry'|trans }}</twig:Ds:Button>
+</div>

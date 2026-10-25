@@ -14,12 +14,15 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxWorkflowAsk;
 use App\Module\Inbox\InboxEventType;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxWorkflowAskRepository;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\RuleAsks;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -43,6 +46,7 @@ final readonly class InboxRuleAsks implements RuleAsks
         private InboxSearchIndexer $searchIndexer,
         private InboxChangedPublisher $inboxChanged,
         private InboxCardTileRefresher $cardTiles,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -80,6 +84,8 @@ final readonly class InboxRuleAsks implements RuleAsks
             $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $now);
             $ask->items->add(new InboxAskItem($ask, $item, $now));
             $this->em->persist($ask);
+            // The Doctrine transport commits the message with the ask.
+            $this->bus->dispatch(new NotifyInboxOwner(($ask->id ?? throw new \LogicException('A persisted ask has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Ask));
 
             $this->em->persist(new InboxWorkflowAsk($item, $cardId, $ruleId, $now));
             $this->em->flush();

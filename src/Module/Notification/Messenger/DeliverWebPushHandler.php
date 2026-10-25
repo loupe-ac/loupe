@@ -6,6 +6,7 @@ namespace App\Module\Notification\Messenger;
 
 use App\Module\Notification\Entity\PushDevice;
 use App\Module\Notification\Repository\PushDeviceRepository;
+use App\Module\Notification\Service\DeviceChangedPublisher;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushEndpointPolicy;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,6 +34,7 @@ final readonly class DeliverWebPushHandler
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private DeviceChangedPublisher $devicesChanged,
 
         #[Autowire(service: 'web_push.client')]
         private HttpClientInterface $httpClient,
@@ -93,6 +95,7 @@ final readonly class DeliverWebPushHandler
         if ($report->isSubscriptionExpired()) {
             $device->stoppedAt = $this->clock->now();
             $this->em->flush();
+            $this->devicesChanged->changed($device->owner);
             $this->logger->info('notification.push_device_stopped', $context + ['status' => $status]);
 
             return;

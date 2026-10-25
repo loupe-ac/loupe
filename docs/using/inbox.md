@@ -10,6 +10,9 @@ the project owner can read it or answer it.
 The inbox is behind the `inbox.enabled` feature flag, and the flag ships off.
 See [Turning the inbox on](#turning-the-inbox-on).
 
+A blocking ask can send a web push to your phone or laptop. See
+[Push notifications](notifications.md).
+
 ## Items and asks
 
 An **item** is one question, review request, or to-do. Each item has a number that counts

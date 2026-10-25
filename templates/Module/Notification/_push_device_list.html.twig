@@ -1,0 +1,52 @@
+{# The device list frame. The settings page and the device list route both render it. #}
+<turbo-frame id="push-devices" class="lp-device-frame" data-live-pill-target="frame">
+    {% set currentDeviceListed = view.devices|filter(device => device.id.toRfc4122 == view.currentDeviceId) is not empty %}
+    {% if view.devices is not empty or pushControls %}
+    <div class="lp-device-list">
+        {% if pushControls and not currentDeviceListed %}
+        <div class="lp-identity-row lp-device-row lp-device-row--blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>
+            <span class="lp-identity-row__text">
+                <span class="lp-identity-row__name">
+                    {{ thisBrowserLabel }}
+                    <span class="lp-device-row__this">· {{ 'notification.devices.this_device'|trans }}</span>
+                </span>
+            </span>
+            <div class="lp-device-row__blocked">{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+        </div>
+        {% endif %}
+        {% for device in view.devices %}
+        {% set isCurrent = device.id.toRfc4122 == view.currentDeviceId %}
+        {% set isStopped = device.stoppedAt is not null %}
+        <div class="lp-identity-row lp-device-row{{ isStopped ? ' lp-device-row--stopped' : '' }}" data-device-id="{{ device.id }}">
+            <span class="lp-identity-row__text">
+                <span class="lp-identity-row__name">
+                    {{ device.label }}
+                    {% if isCurrent %}<span class="lp-device-row__this" data-this-device{{ isStopped ? ' data-device-stopped' : '' }}>· {{ 'notification.devices.this_device'|trans }}</span>{% endif %}
+                </span>
+                {% if isStopped %}
+                <span class="lp-identity-row__meta lp-identity-row__meta--plain lp-identity-row__meta--wrap" data-testid="push-device-stopped-meta">{{ 'notification.devices.stopped_meta'|trans({'%date%': device.stoppedAt|date('j M Y')}) }}</span>
+                {% else %}
+                <span class="lp-identity-row__meta lp-identity-row__meta--plain">{{ 'notification.devices.added'|trans({'%date%': device.createdAt|date('j M Y')}) }}</span>
+                {% endif %}
+            </span>
+            {% if isStopped %}<twig:Ds:StatusChip modifier="failed" :label="'notification.devices.stopped_chip'|trans" data-testid="push-device-stopped-chip" />{% endif %}
+            <div class="lp-device-row__actions">
+                {% if view.available and not isStopped %}
+                <form method="post" action="{{ path('app_account_notifications_device_test', {id: device.id}) }}" data-turbo-frame="_top">
+                    <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                    <twig:Ds:Button variant="outline" size="sm" type="submit">{{ 'notification.devices.test'|trans }}</twig:Ds:Button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ path('app_account_notifications_device_remove', {id: device.id}) }}" data-turbo-frame="_top">
+                    <input type="hidden" name="token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                    <twig:Ds:Button variant="danger-ghost" size="sm" type="submit">{{ 'notification.devices.remove'|trans }}</twig:Ds:Button>
+                </form>
+            </div>
+            {% if isCurrent and pushControls %}
+            <div class="lp-device-row__blocked" data-push-device-target="panel" data-panel="blocked" data-testid="push-blocked" {{ previewState == 'blocked' ? 'data-preview-shown="blocked"' : 'hidden' }}>{{ include('@Notification/_push_blocked_steps.html.twig') }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</turbo-frame>

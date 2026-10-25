@@ -17,6 +17,7 @@
 {% set settingsContent %}{% if 'billing' != section %}<twig:BillingSummary />{% endif %}{% block settings_content %}{% endblock %}{% endset %}
 {% set items = [
     {label: 'account.settings.nav.profile'|trans, url: path('app_account_profile'), icon: 'lucide:users', active: 'profile' == section},
+    {label: 'account.settings.nav.notifications'|trans, url: path('app_account_notifications'), icon: 'lucide:bell', active: 'notifications' == section},
     {label: 'account.settings.nav.connected_apps'|trans, url: path('app_account_connected_apps'), icon: 'lucide:plug', active: 'connected-apps' == section},
     {label: 'account.settings.nav.data'|trans, url: path('app_account_data'), icon: 'lucide:archive', active: 'data' == section},
 ] %}

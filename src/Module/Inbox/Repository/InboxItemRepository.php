@@ -386,6 +386,27 @@ class InboxItemRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open notices in every project the user owns.
+     *
+     * @return list<InboxItem>
+     */
+    public function findOpenNoticesByOwner(User $user): array
+    {
+        return array_values($this->createQueryBuilder('i')
+            ->join('i.project', 'p')
+            ->andWhere('p.owner = :user')
+            ->andWhere('i.kind = :notice')
+            ->andWhere('i.state = :open')
+            ->setParameter('user', $user)
+            ->setParameter('notice', InboxItemKind::Notice)
+            ->setParameter('open', InboxItemState::Open)
+            ->orderBy('i.createdAt', 'ASC')
+            ->addOrderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * Copies onto each entity every column that can change, as stored now. A
      * query hydrates no fresh copy of an entity already managed, and refresh()
      * would also reload the readonly columns, which Doctrine refuses.

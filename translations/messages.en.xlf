@@ -4908,7 +4908,7 @@
             </trans-unit>
             <trans-unit id="landing.features.inbox.text">
                 <source>landing.features.inbox.text</source>
-                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, run a command on your machine, or pick it up yourself.</target>
+                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, run a command on your machine, or pick it up yourself. A push to your phone or laptop tells you when a blocking question opens.</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.caption">
                 <source>landing.features.inbox.caption</source>
@@ -9321,6 +9321,83 @@
             <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>
             <trans-unit id="tabs.scroll_prev"><source>tabs.scroll_prev</source><target>Scroll back</target></trans-unit>
             <trans-unit id="tabs.scroll_next"><source>tabs.scroll_next</source><target>Scroll forward</target></trans-unit>
+            <trans-unit id="notification.device.error.unavailable"><source>notification.device.error.unavailable</source><target>Notifications are not available on this instance now.</target></trans-unit>
+            <trans-unit id="notification.device.error.endpoint_refused"><source>notification.device.error.endpoint_refused</source><target>This browser uses a push service that Loupe does not send to.</target></trans-unit>
+            <trans-unit id="notification.device.error.endpoint_taken"><source>notification.device.error.endpoint_taken</source><target>This browser already receives notifications for another account.</target></trans-unit>
+            <trans-unit id="notification.device.error.required"><source>notification.device.error.required</source><target>This field is required.</target></trans-unit>
+            <trans-unit id="notification.device.error.key_invalid"><source>notification.device.error.key_invalid</source><target>The browser sent a key that Loupe cannot use.</target></trans-unit>
+            <trans-unit id="notification.device.error.encoding_invalid"><source>notification.device.error.encoding_invalid</source><target>The browser uses a message format that Loupe does not support.</target></trans-unit>
+            <trans-unit id="notification.device.error.endpoint_stopped"><source>notification.device.error.endpoint_stopped</source><target>This browser kept the subscription that stopped working. Turn notifications off for Loupe in the browser settings, then turn them on here again.</target></trans-unit>
+            <trans-unit id="notification.device.error.stopped"><source>notification.device.error.stopped</source><target>This device stopped receiving notifications. Turn them on again on the device.</target></trans-unit>
+            <trans-unit id="notification.device.flash.test_sent"><source>notification.device.flash.test_sent</source><target>The test notification is on its way.</target></trans-unit>
+            <trans-unit id="notification.device.flash.removed"><source>notification.device.flash.removed</source><target>The device no longer receives notifications.</target></trans-unit>
+            <trans-unit id="inbox.push.more_questions"><source>inbox.push.more_questions</source><target>{0}No more questions|{1}+%count% more question|]1,Inf[+%count% more questions</target></trans-unit>
+            <trans-unit id="notification.push.test.title"><source>notification.push.test.title</source><target>Loupe</target></trans-unit>
+            <trans-unit id="notification.push.test.body"><source>notification.push.test.body</source><target>This is a test notification. Notifications work on this device.</target></trans-unit>
+            <trans-unit id="account.settings.nav.notifications"><source>account.settings.nav.notifications</source><target>Notifications</target></trans-unit>
+            <trans-unit id="notification.live_stopped"><source>notification.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="notification.devices.heading"><source>notification.devices.heading</source><target>Web push devices</target></trans-unit>
+            <trans-unit id="notification.devices.description"><source>notification.devices.description</source><target>Each browser or Home Screen app that gets your pushes. Signing out of a device removes it.</target></trans-unit>
+            <trans-unit id="notification.devices.this_device"><source>notification.devices.this_device</source><target>this device</target></trans-unit>
+            <trans-unit id="notification.devices.added"><source>notification.devices.added</source><target>Added %date%</target></trans-unit>
+            <trans-unit id="notification.devices.test"><source>notification.devices.test</source><target>Send test</target></trans-unit>
+            <trans-unit id="notification.devices.remove"><source>notification.devices.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="notification.devices.stopped_chip"><source>notification.devices.stopped_chip</source><target>Stopped working</target></trans-unit>
+            <trans-unit id="notification.devices.stopped_meta"><source>notification.devices.stopped_meta</source><target>Stopped working since %date%. Open Loupe on that device. Turn on push again.</target></trans-unit>
+            <trans-unit id="notification.warning.message"><source>notification.warning.message</source><target>Your push device %device% stopped working on %date%, so it gets no pushes.</target></trans-unit>
+            <trans-unit id="notification.warning.settings_link"><source>notification.warning.settings_link</source><target>Open notification settings</target></trans-unit>
+            <trans-unit id="notification.warning.dismiss"><source>notification.warning.dismiss</source><target>Dismiss</target></trans-unit>
+            <trans-unit id="notification.devices.hint"><source>notification.devices.hint</source><target>To add your phone, open this page in the Loupe Home Screen app on it.</target></trans-unit>
+            <trans-unit id="notification.push.unavailable.user"><source>notification.push.unavailable.user</source><target>Push is not set up on this server. Ask your administrator.</target></trans-unit>
+            <trans-unit id="notification.push.unavailable.admin"><source>notification.push.unavailable.admin</source><target>Push is off on this server.</target></trans-unit>
+            <trans-unit id="notification.push.unavailable.docs_link"><source>notification.push.unavailable.docs_link</source><target>Set up web push in the operator docs.</target></trans-unit>
+            <trans-unit id="notification.push.turn_on"><source>notification.push.turn_on</source><target>Turn on push</target></trans-unit>
+            <trans-unit id="notification.push.turn_on_hint"><source>notification.push.turn_on_hint</source><target>Your browser then asks whether Loupe may send notifications. Choose Allow.</target></trans-unit>
+            <trans-unit id="notification.push.on"><source>notification.push.on</source><target>Push is on for this browser.</target></trans-unit>
+            <trans-unit id="notification.push.not_supported"><source>notification.push.not_supported</source><target>This browser cannot get web push. Use a current version of Chrome, Edge, Firefox or Safari.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.lead"><source>notification.push.ios_tab.lead</source><target>Push on iPhone and iPad needs Loupe on your Home Screen. A Safari tab cannot get pushes.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.step_1"><source>notification.push.ios_tab.step_1</source><target>Tap Share at the bottom of Safari.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.step_2"><source>notification.push.ios_tab.step_2</source><target>Tap Add to Home Screen, then Add.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.step_3"><source>notification.push.ios_tab.step_3</source><target>Open Loupe from your Home Screen.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.step_4"><source>notification.push.ios_tab.step_4</source><target>Sign in, because the Home Screen app keeps its own sign-in.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.step_5"><source>notification.push.ios_tab.step_5</source><target>Come back to this page, and tap Turn on push.</target></trans-unit>
+            <trans-unit id="notification.push.ios_tab.requirement"><source>notification.push.ios_tab.requirement</source><target>Needs iOS 16.4 or later.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.chip"><source>notification.push.blocked.chip</source><target>Blocked by this browser</target></trans-unit>
+            <trans-unit id="notification.push.blocked.lead"><source>notification.push.blocked.lead</source><target>This browser blocks notifications from Loupe. Only the browser can undo it:</target></trans-unit>
+            <trans-unit id="notification.push.blocked.retry"><source>notification.push.blocked.retry</source><target>I changed it, try again</target></trans-unit>
+            <trans-unit id="notification.push.blocked.chromium.step_1"><source>notification.push.blocked.chromium.step_1</source><target>Click the icon at the left of the address bar.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.chromium.step_2"><source>notification.push.blocked.chromium.step_2</source><target>Set Notifications to Allow.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.chromium.step_3"><source>notification.push.blocked.chromium.step_3</source><target>Reload this page, and turn on push again.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.firefox.step_1"><source>notification.push.blocked.firefox.step_1</source><target>Click the icon at the left of the address bar.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.firefox.step_2"><source>notification.push.blocked.firefox.step_2</source><target>Next to Notifications, remove the block.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.firefox.step_3"><source>notification.push.blocked.firefox.step_3</source><target>Reload this page, and turn on push again.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.safari.step_1"><source>notification.push.blocked.safari.step_1</source><target>Open the Safari menu, then Settings, then Websites.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.safari.step_2"><source>notification.push.blocked.safari.step_2</source><target>Choose Notifications, and set Loupe to Allow.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.safari.step_3"><source>notification.push.blocked.safari.step_3</source><target>Reload this page, and turn on push again.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.ios.step_1"><source>notification.push.blocked.ios.step_1</source><target>Open the Settings app on this device.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.ios.step_2"><source>notification.push.blocked.ios.step_2</source><target>Tap Notifications, then Loupe.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.ios.step_3"><source>notification.push.blocked.ios.step_3</source><target>Turn on Allow Notifications.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.ios.step_4"><source>notification.push.blocked.ios.step_4</source><target>Come back to Loupe, and turn on push again.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.other.step_1"><source>notification.push.blocked.other.step_1</source><target>Open the site settings of this browser.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.other.step_2"><source>notification.push.blocked.other.step_2</source><target>Allow notifications for Loupe.</target></trans-unit>
+            <trans-unit id="notification.push.blocked.other.step_3"><source>notification.push.blocked.other.step_3</source><target>Reload this page, and turn on push again.</target></trans-unit>
+            <trans-unit id="notification.push.error.denied"><source>notification.push.error.denied</source><target>Notifications are off for Loupe. Choose Allow when the browser asks.</target></trans-unit>
+            <trans-unit id="notification.push.error.failed"><source>notification.push.error.failed</source><target>Push did not turn on. Try again.</target></trans-unit>
+            <trans-unit id="notification.push.error.throttled"><source>notification.push.error.throttled</source><target>Too many tries. Wait a few minutes, and try again.</target></trans-unit>
+            <trans-unit id="notification.preferences.heading"><source>notification.preferences.heading</source><target>What you receive</target></trans-unit>
+            <trans-unit id="notification.preferences.description"><source>notification.preferences.description</source><target>Choose which events reach you on each channel. The same choices apply to every project.</target></trans-unit>
+            <trans-unit id="notification.preferences.table_label"><source>notification.preferences.table_label</source><target>Notification choices</target></trans-unit>
+            <trans-unit id="notification.preferences.event_column"><source>notification.preferences.event_column</source><target>Event</target></trans-unit>
+            <trans-unit id="notification.preferences.cell_label"><source>notification.preferences.cell_label</source><target>%channel% for %event%</target></trans-unit>
+            <trans-unit id="notification.preferences.flash.saved"><source>notification.preferences.flash.saved</source><target>Your notification choices are saved.</target></trans-unit>
+            <trans-unit id="notification.preferences.flash.unavailable"><source>notification.preferences.flash.unavailable</source><target>Notifications are not available on this instance now.</target></trans-unit>
+            <trans-unit id="notification.preferences.flash.invalid"><source>notification.preferences.flash.invalid</source><target>Your choices were not saved. Try again.</target></trans-unit>
+            <trans-unit id="notification.event.blocking_inbox_item.label"><source>notification.event.blocking_inbox_item.label</source><target>Blocking inbox item</target></trans-unit>
+            <trans-unit id="notification.event.blocking_inbox_item.description"><source>notification.event.blocking_inbox_item.description</source><target>An agent or the workflow waits for your answer.</target></trans-unit>
+            <trans-unit id="notification.event.other_inbox_item.label"><source>notification.event.other_inbox_item.label</source><target>Other inbox item</target></trans-unit>
+            <trans-unit id="notification.event.other_inbox_item.description"><source>notification.event.other_inbox_item.description</source><target>A notice or a to-do that nothing waits on.</target></trans-unit>
+            <trans-unit id="notification.channel.web_push.label"><source>notification.channel.web_push.label</source><target>Web push</target></trans-unit>
+            <trans-unit id="notification.form.change_notification_preferences_form.save.label"><source>notification.form.change_notification_preferences_form.save.label</source><target>Save choices</target></trans-unit>
         </body>
     </file>
 </xliff>

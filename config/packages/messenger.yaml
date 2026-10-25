@@ -50,6 +50,7 @@ framework:
             App\Module\Bridge\Messenger\RecomputeBucketTimes: jobs
             App\Module\Bridge\Messenger\ResumeAskingSession: jobs
             App\Module\Forge\Messenger\RefreshPullRequestState: jobs
+            App\Module\Inbox\Messenger\NotifyInboxOwner: jobs
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
             App\Module\Notification\Messenger\DeliverWebPush: jobs
             App\Module\Workflow\Messenger\EvaluateCard: card_eval
