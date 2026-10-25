@@ -74,14 +74,23 @@ export default class extends Controller {
             this.serviceWorkerUrlValue,
         );
         await navigator.serviceWorker.ready;
-        const subscription =
-            (await registration.pushManager.getSubscription()) ??
-            (await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: base64UrlDecode(this.publicKeyValue),
-            }));
+        const { pushManager } = registration;
+        const options = {
+            userVisibleOnly: true,
+            applicationServerKey: base64UrlDecode(this.publicKeyValue),
+        };
+        let subscription =
+            (await pushManager.getSubscription()) ??
+            (await pushManager.subscribe(options));
+        let response = await this.register(subscription);
+        if (response.status === 409) {
+            // An account that signed in here before holds this endpoint, so this browser takes a new one.
+            await subscription.unsubscribe();
+            subscription = await pushManager.subscribe(options);
+            response = await this.register(subscription);
+        }
 
-        await this.register(subscription);
+        await this.answer(response);
     }
 
     async register(subscription) {
@@ -98,11 +107,10 @@ export default class extends Controller {
             ),
         );
 
-        let response;
         try {
             // The browser creates the subscription, and the endpoint answers JSON with a cookie. No form can carry that.
             // eslint-disable-next-line no-restricted-syntax
-            response = await fetch(this.createUrlValue, {
+            return await fetch(this.createUrlValue, {
                 method: 'POST',
                 body,
                 credentials: 'same-origin',
@@ -114,7 +122,9 @@ export default class extends Controller {
         } finally {
             removeCsrfToken(form);
         }
+    }
 
+    async answer(response) {
         if (response.status === 201) {
             visit(window.location.href, { action: 'replace' });
             return;

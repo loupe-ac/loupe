@@ -212,6 +212,75 @@ it('reuses a subscription the browser already holds', async () => {
     );
 });
 
+it('takes a new subscription when another account holds the endpoint', async () => {
+    const held = {
+        endpoint: 'https://push.example/earlier-account',
+        getKey: () => new Uint8Array([9]).buffer,
+        unsubscribe: vi.fn().mockResolvedValue(true),
+    };
+    const browser = stubBrowser({ subscription: held });
+    const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+            status: 409,
+            ok: false,
+            json: async () => ({ message: 'taken', errors: {} }),
+        })
+        .mockResolvedValueOnce({
+            status: 201,
+            ok: true,
+            json: async () => ({}),
+        });
+    vi.stubGlobal('fetch', fetchMock);
+    await start();
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(held.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(browser.subscribe).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1].body.get('endpoint')).toBe(
+        'https://push.example/earlier-account',
+    );
+    expect(fetchMock.mock.calls[1][1].body.get('endpoint')).toBe(
+        'https://push.example/abc',
+    );
+    expect(document.getElementById('error').hidden).toBe(true);
+    expect(visit).toHaveBeenCalledTimes(1);
+});
+
+it('retries a taken endpoint once and then shows the message', async () => {
+    const browser = stubBrowser({
+        created: {
+            endpoint: 'https://push.example/same',
+            getKey: () => new Uint8Array([9]).buffer,
+            unsubscribe: vi.fn().mockResolvedValue(true),
+        },
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+        status: 409,
+        ok: false,
+        json: async () => ({
+            message:
+                'This browser already receives notifications for another account.',
+            errors: {},
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await start();
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(browser.subscribe).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(document.getElementById('error').textContent).toBe(
+        'This browser already receives notifications for another account.',
+    );
+    expect(visit).not.toHaveBeenCalled();
+});
+
 it('shows the blocked panel when the user denies the prompt', async () => {
     const browser = stubBrowser({ requestResult: 'denied' });
     await start();

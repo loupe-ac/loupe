@@ -24,7 +24,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Called by a fetch() from the settings page. It binds the signed-in user's own
  * subscription, so no voter is needed. A success is 201 with the device and sets
- * the device cookie. A failure is 422 with `message` and `errors` by field.
+ * the device cookie. A failure is 422 with `message` and `errors` by field, or
+ * 409 when another account holds the endpoint, so the browser can subscribe again.
  */
 #[Route(
     '/account/notifications/devices',
@@ -75,8 +76,9 @@ final class RegisterPushDeviceController extends AppController
             ));
         } catch (DomainErrors $e) {
             $this->applyDomainErrors($form, $e);
+            $taken = 'notification.device.error.endpoint_taken' === ($e->errors['endpoint'] ?? null);
 
-            return $this->failure($form);
+            return $this->failure($form, $taken ? Response::HTTP_CONFLICT : Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $response = new JsonResponse(['id' => (string) $device->id, 'label' => $device->label], Response::HTTP_CREATED);
@@ -86,7 +88,7 @@ final class RegisterPushDeviceController extends AppController
     }
 
     /** @param FormInterface<mixed> $form */
-    private function failure(FormInterface $form): JsonResponse
+    private function failure(FormInterface $form, int $status = Response::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
     {
         $errors = [];
         foreach ($form->getErrors(true) as $error) {
@@ -97,6 +99,6 @@ final class RegisterPushDeviceController extends AppController
 
         $first = array_first($errors)[0] ?? '';
 
-        return new JsonResponse(['message' => $first, 'errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        return new JsonResponse(['message' => $first, 'errors' => $errors], $status);
     }
 }

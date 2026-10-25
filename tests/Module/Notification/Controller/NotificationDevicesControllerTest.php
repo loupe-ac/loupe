@@ -136,7 +136,7 @@ final class NotificationDevicesControllerTest extends WebTestCase
         self::assertNull(static::getContainer()->get(PushDeviceRepository::class)->findOneByEndpoint(self::ENDPOINT));
     }
 
-    public function test_an_endpoint_of_another_user_is_refused(): void
+    public function test_an_endpoint_of_another_user_is_refused_with_409(): void
     {
         $client = $this->client();
         $other = $this->makeUser(static::getContainer(), 'create-taken-owner@example.com');
@@ -145,7 +145,8 @@ final class NotificationDevicesControllerTest extends WebTestCase
 
         $this->create($client, $this->fields());
 
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseStatusCodeSame(409);
+        self::assertArrayHasKey('endpoint', json_decode((string) $client->getResponse()->getContent(), true)['errors']);
         self::assertSame(1, static::getContainer()->get(PushDeviceRepository::class)->count(['endpoint' => self::ENDPOINT]));
     }
 
