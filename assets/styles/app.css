@@ -5130,7 +5130,36 @@
         @apply block text-sm font-semibold text-ink;
     }
     .lp-pref-grid__description {
-        @apply block text-sm font-normal text-fg-mute;
+        @apply block text-sm font-normal text-fg-mute max-sm:hidden;
+    }
+    .lp-pref-grid__cell-label {
+        @apply hidden text-left text-sm text-fg-mute max-sm:col-start-1 max-sm:block;
+    }
+    /* A phone stacks each event: its name, then one line per channel with the switch on the right. */
+    @media (max-width: 40rem) {
+        .lp-pref-grid,
+        .lp-pref-grid tbody {
+            @apply block rounded-none border-0 bg-transparent;
+        }
+        .lp-pref-grid thead {
+            @apply hidden;
+        }
+        .lp-pref-grid tbody tr {
+            @apply grid items-center gap-x-3 border-t border-line-faint py-3 first:border-t-0 first:pt-0;
+            grid-template-columns: 1fr auto;
+        }
+        .lp-pref-grid tbody th {
+            @apply col-start-1 border-0 p-0;
+        }
+        .lp-pref-grid td {
+            @apply contents;
+        }
+        .lp-pref-grid__cell .lp-switch {
+            @apply col-start-2;
+        }
+        .lp-pref-grid__cell:first-of-type .lp-switch {
+            @apply row-span-2 row-start-1;
+        }
     }
     /* The display utilities above outrank the UA `[hidden]` rule, so a hidden push panel stayed laid out. */
     .lp-identity-row[hidden],

@@ -49,6 +49,22 @@ final class NotificationPreferencesControllerTest extends WebTestCase
         self::assertCount(2, $crawler->filter('.lp-pref-grid input.lp-switch[role="switch"][aria-label]'));
     }
 
+    public function test_each_cell_names_its_channel_for_the_stacked_phone_layout(): void
+    {
+        $client = $this->client();
+        $client->loginUser($this->makeUser(static::getContainer(), 'grid-phone@example.com'));
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE);
+
+        $cells = $crawler->filter('[data-testid="notification-preference-row"] .lp-pref-grid__cell');
+        self::assertCount(2, $cells);
+        foreach ($cells as $cell) {
+            $label = new Crawler($cell)->filter('.lp-pref-grid__cell-label');
+            self::assertSame('Web push', $label->text());
+            self::assertSame('true', $label->attr('aria-hidden'));
+        }
+    }
+
     public function test_the_grid_shows_the_stored_choices_of_this_user_alone(): void
     {
         $client = $this->client();

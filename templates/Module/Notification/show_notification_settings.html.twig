@@ -38,6 +38,7 @@
                     {% for cell in preferences.cells|filter(cell => cell.event == event) %}
                     {% set field = preferencesForm.choices[cell.fieldName] %}
                     <td class="lp-pref-grid__cell">
+                        <span class="lp-pref-grid__cell-label" aria-hidden="true">{{ cell.channel.labelKey|trans }}</span>
                         <twig:Ds:Switch
                             :id="field.vars.id"
                             :name="field.vars.full_name"
