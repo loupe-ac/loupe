@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Notification\Controller;
 
+use App\Mercure\UserTopicBuilder;
 use App\Module\Notification\Service\DeviceCookie;
 use App\Module\Notification\Service\PushAvailability;
 use App\Tests\Module\Notification\NotificationScenario;
 use App\Tests\Support\FeatureFlags;
+use App\Tests\Support\MercureCookies;
+use Doctrine\ORM\EntityManagerInterface;
 use Minishlink\WebPush\VAPID;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -17,6 +20,7 @@ use Symfony\Component\HttpFoundation\Request;
 final class ShowNotificationSettingsControllerTest extends WebTestCase
 {
     use NotificationScenario;
+    use MercureCookies;
 
     private const string PAGE = '/account/notifications';
 
@@ -228,6 +232,77 @@ final class ShowNotificationSettingsControllerTest extends WebTestCase
         self::assertCount(1, $form);
         self::assertStringContainsString('push-unsubscribe', (string) $form->attr('data-controller'));
         self::assertStringContainsString('submit->push-unsubscribe#unsubscribe', (string) $form->attr('data-action'));
+    }
+
+    public function test_a_stopped_device_shows_the_chip_and_no_send_test_button(): void
+    {
+        $client = $this->client(true);
+        $user = $this->makeUser(static::getContainer(), 'page-stopped@example.com');
+        $token = new DeviceCookie()->generate();
+        $stopped = $this->makeDevice(static::getContainer(), $user, 'https://web.push.apple.com/STOPPED', DeviceCookie::hash($token));
+        $stopped->stoppedAt = new \DateTimeImmutable('2026-10-20 08:00:00');
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+        $healthy = $this->makeDevice(static::getContainer(), $user, 'https://web.push.apple.com/HEALTHY', 'healthy-hash');
+        $client->loginUser($user);
+        $client->getCookieJar()->set(new BrowserCookie(DeviceCookie::NAME, $token));
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE);
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-device-id="'.$stopped->id.'"]');
+        self::assertStringContainsString('lp-device-row--stopped', (string) $row->attr('class'));
+        self::assertSame('Stopped working', trim($row->filter('.lp-status-chip--failed')->text()));
+        self::assertStringContainsString('Stopped working since 20 Oct 2026. Open Loupe on that device. Turn on push again.', $row->text());
+        self::assertCount(0, $row->filter('form[action$="/test"]'));
+        self::assertCount(1, $row->filter('form[action="'.self::PAGE.'/devices/'.$stopped->id.'/remove"]'));
+        self::assertCount(1, $row->filter('[data-this-device][data-device-stopped]'));
+
+        $healthyRow = $crawler->filter('[data-device-id="'.$healthy->id.'"]');
+        self::assertStringNotContainsString('lp-device-row--stopped', (string) $healthyRow->attr('class'));
+        self::assertCount(0, $healthyRow->filter('.lp-status-chip'));
+        self::assertCount(1, $healthyRow->filter('form[action$="/test"]'));
+
+        self::assertSame('true', $crawler->filter('[data-controller~="push-device"]')->attr('data-push-device-device-stopped-value'));
+    }
+
+    public function test_a_working_current_device_is_not_marked_stopped_for_the_controller(): void
+    {
+        $client = $this->client(true);
+        $user = $this->makeUser(static::getContainer(), 'page-working@example.com');
+        $token = new DeviceCookie()->generate();
+        $this->makeDevice(static::getContainer(), $user, 'https://web.push.apple.com/WORKING', DeviceCookie::hash($token));
+        $client->loginUser($user);
+        $client->getCookieJar()->set(new BrowserCookie(DeviceCookie::NAME, $token));
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE);
+
+        self::assertSame('false', $crawler->filter('[data-controller~="push-device"]')->attr('data-push-device-device-stopped-value'));
+        self::assertCount(0, $crawler->filter('[data-device-stopped]'));
+    }
+
+    public function test_the_device_list_reloads_in_place_when_the_hub_reports_a_device_change(): void
+    {
+        $client = $this->client(true);
+        $user = $this->makeUser(static::getContainer(), 'page-live@example.com');
+        $this->makeDevice(static::getContainer(), $user);
+        $client->loginUser($user);
+
+        $crawler = $client->request(Request::METHOD_GET, self::PAGE);
+
+        $live = $crawler->filter('[data-controller~="live-pill"]');
+        self::assertCount(1, $live);
+        self::assertSame('["notifications.devices_changed"]', $live->attr('data-live-pill-events-value'));
+        self::assertSame(self::PAGE.'/device-list', $live->attr('data-live-pill-url-value'));
+        self::assertNull($live->attr('data-live-pill-project-value'));
+        self::assertCount(1, $live->filter('turbo-frame#push-devices[data-live-pill-target="frame"] [data-device-id]'));
+        foreach (['off', 'on', 'blocked', 'ios-tab', 'not-supported'] as $panel) {
+            self::assertCount(0, $live->filter('[data-panel="'.$panel.'"]:not([data-testid="push-blocked"])'), $panel.' stays outside the frame that reloads');
+        }
+
+        $topics = static::getContainer()->get(UserTopicBuilder::class);
+        self::assertInstanceOf(UserTopicBuilder::class, $topics);
+        $expected = $topics->forNotifications($user->id ?? throw new \LogicException('The user has no id.'));
+        self::assertContains($expected, self::subscribedTopics($client->getResponse()) ?? []);
     }
 
     private function client(bool $available): KernelBrowser

@@ -7,7 +7,9 @@ namespace App\Module\Notification\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Notification\Entity\PushDevice;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<PushDevice> */
@@ -44,6 +46,35 @@ class PushDeviceRepository extends ServiceEntityRepository
     public function findActiveByOwner(User $owner): array
     {
         return $this->findBy(['owner' => $owner, 'stoppedAt' => null], ['createdAt' => 'ASC']);
+    }
+
+    /** @return list<PushDevice> the devices that stopped and whose warning is still open, the longest stopped first */
+    public function findWarningByOwner(User $owner): array
+    {
+        return array_values($this->createQueryBuilder('d')
+            ->andWhere('d.owner = :owner')
+            ->andWhere('d.stoppedAt IS NOT NULL')
+            ->andWhere('d.warningDismissedAt IS NULL')
+            ->orderBy('d.stoppedAt', 'ASC')
+            ->addOrderBy('d.createdAt', 'ASC')
+            ->setParameter('owner', $owner)
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
+     * Closes the warning of a stopped device. One statement checks the state and
+     * writes it, so a re-subscribe between a read and this write cannot leave a
+     * dismissed mark on a device that works again.
+     *
+     * @return bool whether the row changed
+     */
+    public function dismissWarning(Uuid $id, \DateTimeImmutable $at): bool
+    {
+        return 0 < $this->getEntityManager()->createQuery('UPDATE '.PushDevice::class.' d SET d.warningDismissedAt = :at WHERE d.id = :id AND d.stoppedAt IS NOT NULL AND d.warningDismissedAt IS NULL')
+            ->setParameter('at', $at, Types::DATETIME_IMMUTABLE)
+            ->setParameter('id', $id, UuidType::NAME)
+            ->execute();
     }
 
     public function deleteForOwner(Uuid $ownerId): void

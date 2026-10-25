@@ -28,6 +28,7 @@ export default class extends Controller {
         createUrl: String,
         serviceWorkerUrl: String,
         deviceKnown: Boolean,
+        deviceStopped: Boolean,
         deniedMessage: String,
         failedMessage: String,
         throttledMessage: String,
@@ -41,6 +42,15 @@ export default class extends Controller {
     async refresh() {
         this.clearError();
         this.show(await this.currentState());
+    }
+
+    frameLoaded(event) {
+        // A reload of the device list replaces the rows, so the values follow the new current row.
+        const current = event.target.querySelector('[data-this-device]');
+        this.deviceKnownValue = current !== null;
+        this.deviceStoppedValue =
+            current?.hasAttribute('data-device-stopped') ?? false;
+        this.currentState().then((state) => this.show(state));
     }
 
     async turnOn() {
@@ -79,9 +89,13 @@ export default class extends Controller {
             userVisibleOnly: true,
             applicationServerKey: base64UrlDecode(this.publicKeyValue),
         };
-        let subscription =
-            (await pushManager.getSubscription()) ??
-            (await pushManager.subscribe(options));
+        let subscription = await pushManager.getSubscription();
+        if (subscription && this.deviceStoppedValue) {
+            // The server stopped pushing to this subscription, so a new endpoint replaces it.
+            await subscription.unsubscribe().catch(() => false);
+            subscription = null;
+        }
+        subscription ??= await pushManager.subscribe(options);
         let response = await this.register(subscription);
         if (response.status === 409) {
             // An account that signed in here before holds this endpoint, so this browser takes a new one.
@@ -168,6 +182,7 @@ export default class extends Controller {
             permission: hasNotification ? Notification.permission : 'default',
             subscribed,
             deviceKnown: this.deviceKnownValue,
+            deviceStopped: this.deviceStoppedValue,
         });
     }
 

@@ -19,6 +19,7 @@ use App\Module\Notification\Repository\PushDeviceRepository;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushUnavailableReason;
 use App\Tests\Module\Notification\NotificationScenario;
+use App\Tests\Module\Notification\RecordedDeviceSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -42,11 +43,13 @@ final class DeviceHandlersTest extends KernelTestCase
         $user = $this->makeUser($container, 'remove-owner@example.com');
         $device = $this->makeDevice($container, $user);
         $audit = $this->audit();
+        $signals = new RecordedDeviceSignals();
 
-        $this->remover($audit)(new RemovePushDeviceCommand($user, self::idOf($device)));
+        $this->remover($audit, $signals)(new RemovePushDeviceCommand($user, self::idOf($device)));
 
         self::assertNull($container->get(PushDeviceRepository::class)->findOneByEndpoint(self::ENDPOINT));
         $audit->record('notification.device_removed');
+        $signals->assertSignalled($user->id);
     }
 
     public function test_a_device_of_another_user_cannot_be_removed_and_reads_as_missing(): void
@@ -56,13 +59,16 @@ final class DeviceHandlersTest extends KernelTestCase
         $user = $this->makeUser($container, 'remove-stranger@example.com');
         $device = $this->makeDevice($container, $other);
 
+        $signals = new RecordedDeviceSignals();
+
         try {
-            $this->remover($this->audit())(new RemovePushDeviceCommand($user, self::idOf($device)));
+            $this->remover($this->audit(), $signals)(new RemovePushDeviceCommand($user, self::idOf($device)));
             self::fail('Expected a 404.');
         } catch (NotFoundHttpException) {
         }
 
         self::assertNotNull($container->get(PushDeviceRepository::class)->findOneByEndpoint(self::ENDPOINT));
+        $signals->assertNothingSignalled();
     }
 
     public function test_a_test_push_queues_one_declarative_message_for_the_device(): void
@@ -139,11 +145,13 @@ final class DeviceHandlersTest extends KernelTestCase
         $theirs = $this->makeDevice($container, $other, 'https://web.push.apple.com/THEIRS', 'cookie-hash');
         $elsewhere = $this->makeDevice($container, $user, 'https://web.push.apple.com/ELSE', 'another-hash');
         $mineId = $mine->id;
+        $signals = new RecordedDeviceSignals();
 
         new ForgetPushDeviceHandler(
             $container->get(PushDeviceRepository::class),
             $container->get(EntityManagerInterface::class),
             $this->audit()->auditor,
+            $signals->publisher,
         )(new ForgetPushDeviceCommand($user, 'cookie-hash'));
 
         $em = $container->get(EntityManagerInterface::class);
@@ -151,6 +159,23 @@ final class DeviceHandlersTest extends KernelTestCase
         self::assertNull($em->find(PushDevice::class, $mineId));
         self::assertNotNull($em->find(PushDevice::class, $theirs->id));
         self::assertNotNull($em->find(PushDevice::class, $elsewhere->id));
+        $signals->assertSignalled($user->id);
+    }
+
+    public function test_forgetting_a_browser_with_no_row_signals_nothing(): void
+    {
+        $container = static::getContainer();
+        $user = $this->makeUser($container, 'forget-none@example.com');
+        $signals = new RecordedDeviceSignals();
+
+        new ForgetPushDeviceHandler(
+            $container->get(PushDeviceRepository::class),
+            $container->get(EntityManagerInterface::class),
+            $this->audit()->auditor,
+            $signals->publisher,
+        )(new ForgetPushDeviceCommand($user, 'no-such-hash'));
+
+        $signals->assertNothingSignalled();
     }
 
     public function test_the_list_holds_the_devices_of_the_user_oldest_first_and_marks_the_current_one(): void
@@ -188,11 +213,11 @@ final class DeviceHandlersTest extends KernelTestCase
         return new RecordingAuditor(static::getContainer()->get(AuditActorProviderInterface::class));
     }
 
-    private function remover(RecordingAuditor $audit): RemovePushDeviceHandler
+    private function remover(RecordingAuditor $audit, RecordedDeviceSignals $signals): RemovePushDeviceHandler
     {
         $container = static::getContainer();
 
-        return new RemovePushDeviceHandler($container->get(PushDeviceRepository::class), $container->get(EntityManagerInterface::class), $audit->auditor);
+        return new RemovePushDeviceHandler($container->get(PushDeviceRepository::class), $container->get(EntityManagerInterface::class), $audit->auditor, $signals->publisher);
     }
 
     private function tester(RecordingAuditor $audit, ?PushAvailability $availability = null): SendTestPushHandler

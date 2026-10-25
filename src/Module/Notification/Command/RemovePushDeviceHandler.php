@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Notification\Command;
 
 use App\Module\Notification\Repository\PushDeviceRepository;
+use App\Module\Notification\Service\DeviceChangedPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ubermuda\AuditBundle\Auditor;
@@ -18,6 +19,7 @@ final readonly class RemovePushDeviceHandler
         private PushDeviceRepository $pushDevices,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private DeviceChangedPublisher $devicesChanged,
     ) {
     }
 
@@ -36,5 +38,6 @@ final readonly class RemovePushDeviceHandler
             ['deviceId' => $deviceId],
             new AuditSubject('push_device', $deviceId),
         );
+        $this->devicesChanged->changed($command->user);
     }
 }

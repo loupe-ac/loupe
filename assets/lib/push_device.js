@@ -34,7 +34,9 @@ export function isIosDevice(userAgent, maxTouchPoints) {
 
 /**
  * The state of push for this browser: ios-tab, not-supported, blocked, on or off.
- * An iOS tab has no push manager, so it is judged before support.
+ * An iOS tab has no push manager, so it is judged before support. A stopped
+ * device is off whatever the browser holds, because the server no longer
+ * pushes to that subscription.
  */
 export function detectState({
     isIos,
@@ -45,6 +47,7 @@ export function detectState({
     permission,
     subscribed,
     deviceKnown,
+    deviceStopped = false,
 }) {
     if (isIos && !standalone) {
         return 'ios-tab';
@@ -55,7 +58,7 @@ export function detectState({
     if (permission === 'denied') {
         return 'blocked';
     }
-    return subscribed && deviceKnown ? 'on' : 'off';
+    return subscribed && deviceKnown && !deviceStopped ? 'on' : 'off';
 }
 
 /** Which set of steps undoes a block: ios, firefox, chromium, safari or other. */

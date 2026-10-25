@@ -67,6 +67,17 @@ describe('detectState', () => {
         expect(detectState({ ...READY, deviceKnown: true })).toBe('off');
     });
 
+    it('is off when the device stopped working although the browser holds a subscription', () => {
+        expect(
+            detectState({
+                ...READY,
+                subscribed: true,
+                deviceKnown: true,
+                deviceStopped: true,
+            }),
+        ).toBe('off');
+    });
+
     it('is blocked when the permission is denied', () => {
         expect(detectState({ ...READY, permission: 'denied' })).toBe('blocked');
     });

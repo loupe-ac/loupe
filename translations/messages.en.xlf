@@ -9340,6 +9340,11 @@
             <trans-unit id="notification.devices.added"><source>notification.devices.added</source><target>Added %date%</target></trans-unit>
             <trans-unit id="notification.devices.test"><source>notification.devices.test</source><target>Send test</target></trans-unit>
             <trans-unit id="notification.devices.remove"><source>notification.devices.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="notification.devices.stopped_chip"><source>notification.devices.stopped_chip</source><target>Stopped working</target></trans-unit>
+            <trans-unit id="notification.devices.stopped_meta"><source>notification.devices.stopped_meta</source><target>Stopped working since %date%. Open Loupe on that device. Turn on push again.</target></trans-unit>
+            <trans-unit id="notification.warning.message"><source>notification.warning.message</source><target>Your push device %device% stopped working on %date%, so it gets no pushes.</target></trans-unit>
+            <trans-unit id="notification.warning.settings_link"><source>notification.warning.settings_link</source><target>Open notification settings</target></trans-unit>
+            <trans-unit id="notification.warning.dismiss"><source>notification.warning.dismiss</source><target>Dismiss</target></trans-unit>
             <trans-unit id="notification.devices.hint"><source>notification.devices.hint</source><target>To add your phone, open this page in the Loupe Home Screen app on it.</target></trans-unit>
             <trans-unit id="notification.push.unavailable.user"><source>notification.push.unavailable.user</source><target>Push is not set up on this server. Ask your administrator.</target></trans-unit>
             <trans-unit id="notification.push.unavailable.admin"><source>notification.push.unavailable.admin</source><target>Push is off on this server.</target></trans-unit>

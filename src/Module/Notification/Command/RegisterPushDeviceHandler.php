@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\Notification\Entity\PushDevice;
 use App\Module\Notification\Repository\PushDeviceRepository;
+use App\Module\Notification\Service\DeviceChangedPublisher;
 use App\Module\Notification\Service\DeviceLabel;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushEndpointPolicy;
@@ -32,6 +33,7 @@ final readonly class RegisterPushDeviceHandler
         private PushEndpointPolicy $endpointPolicy,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private DeviceChangedPublisher $devicesChanged,
     ) {
     }
 
@@ -91,6 +93,7 @@ final readonly class RegisterPushDeviceHandler
             ['deviceId' => $deviceId, 'reused' => $reused],
             new AuditSubject('push_device', $deviceId),
         );
+        $this->devicesChanged->changed($command->user);
 
         return $device;
     }

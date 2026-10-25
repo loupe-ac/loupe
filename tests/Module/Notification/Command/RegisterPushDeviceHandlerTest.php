@@ -12,6 +12,7 @@ use App\Module\Notification\Repository\PushDeviceRepository;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\Notification\Service\PushEndpointPolicy;
 use App\Tests\Module\Notification\NotificationScenario;
+use App\Tests\Module\Notification\RecordedDeviceSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,8 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
     use NotificationScenario;
 
     private RecordingAuditor $audit;
+
+    private RecordedDeviceSignals $signals;
 
     public function test_it_stores_a_new_device_with_the_label_the_user_typed(): void
     {
@@ -40,6 +43,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertSame('Kitchen iPad', $device->label);
         self::assertSame('hash-1', $device->deviceTokenHash);
         $this->audit->record('notification.device_registered');
+        $this->signals->assertSignalled($user->id);
     }
 
     public function test_a_blank_label_comes_from_the_user_agent(): void
@@ -166,6 +170,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertNull($device->warningDismissedAt);
         self::assertSame('Chrome on macOS', $device->label, 'a blank label keeps the old one');
         self::assertSame(1, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
+        $this->signals->assertSignalled($user->id);
     }
 
     public function test_a_cookie_hash_of_another_user_is_not_reused(): void
@@ -206,12 +211,14 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
             null,
         ));
 
+        $signals = new RecordedDeviceSignals();
         $handler = new RegisterPushDeviceHandler(
             static::getContainer()->get(PushDeviceRepository::class),
             self::availability(),
             new PushEndpointPolicy(),
             $em,
             new RecordingAuditor(static::getContainer()->get(AuditActorProviderInterface::class))->auditor,
+            $signals->publisher,
         );
 
         $errors = $this->errorsOf(fn () => $handler(new RegisterPushDeviceCommand(
@@ -226,6 +233,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         )));
 
         self::assertSame(['endpoint' => 'notification.device.error.endpoint_taken'], $errors);
+        $signals->assertNothingSignalled();
     }
 
     /** @param array<string, string> $keys */
@@ -241,6 +249,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         $container = static::getContainer();
         $actors = $container->get(AuditActorProviderInterface::class);
         $this->audit = new RecordingAuditor($actors);
+        $this->signals = new RecordedDeviceSignals();
 
         $handler = new RegisterPushDeviceHandler(
             $container->get(PushDeviceRepository::class),
@@ -248,6 +257,7 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
             new PushEndpointPolicy(),
             $container->get(EntityManagerInterface::class),
             $this->audit->auditor,
+            $this->signals->publisher,
         );
 
         return $handler(new RegisterPushDeviceCommand(
