@@ -46,6 +46,11 @@ final readonly class RegisterPushDeviceHandler
             throw new DomainErrors(['endpoint' => 'notification.device.error.endpoint_taken']);
         }
 
+        if (null !== $byEndpoint?->stoppedAt) {
+            // The push service refused this endpoint, so only a new subscription can bring the device back.
+            throw new DomainErrors(['endpoint' => 'notification.device.error.endpoint_stopped']);
+        }
+
         $byCookie = '' === $command->deviceTokenHash ? null : $this->pushDevices->findOneByOwnerAndTokenHash($command->user, $command->deviceTokenHash);
         $device = $byCookie ?? $byEndpoint;
         $label = DeviceLabel::normalize($command->label);

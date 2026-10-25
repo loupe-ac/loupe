@@ -139,7 +139,6 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         $container = static::getContainer();
         $user = $this->makeUser($container, 'register-same-endpoint@example.com');
         $existing = $this->makeDevice($container, $user, hash: 'old-hash');
-        $existing->stoppedAt = new \DateTimeImmutable('2026-01-01');
         $keys = self::subscriptionKeys();
 
         $device = $this->register($user, $keys, label: 'Renamed');
@@ -148,8 +147,41 @@ final class RegisterPushDeviceHandlerTest extends KernelTestCase
         self::assertSame($keys['publicKey'], $device->publicKey);
         self::assertSame('hash-1', $device->deviceTokenHash);
         self::assertSame('Renamed', $device->label);
-        self::assertNull($device->stoppedAt);
         self::assertSame(1, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
+    }
+
+    public function test_a_stopped_device_does_not_come_back_with_its_refused_endpoint(): void
+    {
+        $container = static::getContainer();
+        $user = $this->makeUser($container, 'register-refused-endpoint@example.com');
+        $stopped = $this->makeDevice($container, $user, hash: 'hash-1');
+        $stoppedAt = new \DateTimeImmutable('2026-01-01');
+        $stopped->stoppedAt = $stoppedAt;
+        $container->get(EntityManagerInterface::class)->flush();
+
+        $errors = $this->errorsOf(fn () => $this->register($user, self::subscriptionKeys()));
+
+        self::assertSame(['endpoint' => 'notification.device.error.endpoint_stopped'], $errors);
+        $em = $container->get(EntityManagerInterface::class);
+        $em->clear();
+        $stored = $em->find(PushDevice::class, $stopped->id);
+        self::assertNotNull($stored);
+        self::assertEquals($stoppedAt, $stored->stoppedAt);
+        $this->signals->assertNothingSignalled();
+    }
+
+    public function test_a_cookie_row_cannot_take_the_refused_endpoint_of_another_stopped_row(): void
+    {
+        $container = static::getContainer();
+        $user = $this->makeUser($container, 'register-refused-other-row@example.com');
+        $stopped = $this->makeDevice($container, $user, endpoint: self::ENDPOINT, hash: 'stale-hash');
+        $stopped->stoppedAt = new \DateTimeImmutable('2026-01-01');
+        $this->makeDevice($container, $user, endpoint: 'https://web.push.apple.com/OTHER', hash: 'hash-1');
+
+        $errors = $this->errorsOf(fn () => $this->register($user, self::subscriptionKeys()));
+
+        self::assertSame(['endpoint' => 'notification.device.error.endpoint_stopped'], $errors);
+        self::assertSame(2, $container->get(PushDeviceRepository::class)->count(['owner' => $user]));
     }
 
     public function test_a_cookie_hash_that_matches_a_stopped_row_reuses_it(): void

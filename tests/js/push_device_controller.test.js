@@ -519,3 +519,25 @@ it('keeps an error on screen when the device list reloads', async () => {
     expect(error.hidden).toBe(false);
     expect(error.textContent).toBe('Push failed');
 });
+
+it('shows an error and registers nothing when the browser keeps the dead endpoint', async () => {
+    const dead = {
+        endpoint: 'https://push.example/dead',
+        getKey: () => new Uint8Array([9]).buffer,
+        unsubscribe: vi.fn().mockResolvedValue(false),
+    };
+    const browser = stubBrowser({ subscription: dead, created: dead });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await start(MARKUP(true, true));
+
+    document.getElementById('turn-on').click();
+    await flush();
+
+    expect(browser.subscribe).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(visit).not.toHaveBeenCalled();
+    const error = document.getElementById('error');
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe('Push did not turn on.');
+});

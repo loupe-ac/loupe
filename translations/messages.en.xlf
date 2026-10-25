@@ -9327,6 +9327,7 @@
             <trans-unit id="notification.device.error.required"><source>notification.device.error.required</source><target>This field is required.</target></trans-unit>
             <trans-unit id="notification.device.error.key_invalid"><source>notification.device.error.key_invalid</source><target>The browser sent a key that Loupe cannot use.</target></trans-unit>
             <trans-unit id="notification.device.error.encoding_invalid"><source>notification.device.error.encoding_invalid</source><target>The browser uses a message format that Loupe does not support.</target></trans-unit>
+            <trans-unit id="notification.device.error.endpoint_stopped"><source>notification.device.error.endpoint_stopped</source><target>This browser kept the subscription that stopped working. Turn notifications off for Loupe in the browser settings, then turn them on here again.</target></trans-unit>
             <trans-unit id="notification.device.error.stopped"><source>notification.device.error.stopped</source><target>This device stopped receiving notifications. Turn them on again on the device.</target></trans-unit>
             <trans-unit id="notification.device.flash.test_sent"><source>notification.device.flash.test_sent</source><target>The test notification is on its way.</target></trans-unit>
             <trans-unit id="notification.device.flash.removed"><source>notification.device.flash.removed</source><target>The device no longer receives notifications.</target></trans-unit>

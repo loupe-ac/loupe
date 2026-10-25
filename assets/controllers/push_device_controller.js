@@ -90,12 +90,18 @@ export default class extends Controller {
             applicationServerKey: base64UrlDecode(this.publicKeyValue),
         };
         let subscription = await pushManager.getSubscription();
+        let deadEndpoint = null;
         if (subscription && this.deviceStoppedValue) {
             // The server stopped pushing to this subscription, so a new endpoint replaces it.
+            deadEndpoint = subscription.endpoint;
             await subscription.unsubscribe().catch(() => false);
             subscription = null;
         }
         subscription ??= await pushManager.subscribe(options);
+        if (subscription.endpoint === deadEndpoint) {
+            this.showError(this.failedMessageValue);
+            return;
+        }
         let response = await this.register(subscription);
         if (response.status === 409) {
             // An account that signed in here before holds this endpoint, so this browser takes a new one.
