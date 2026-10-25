@@ -5090,7 +5090,7 @@
         @apply flex items-center gap-2;
     }
     .lp-device-steps {
-        @apply m-0 pl-5 text-sm leading-relaxed text-ink;
+        @apply m-0 list-decimal pl-5 text-sm leading-relaxed text-ink;
     }
     .lp-device-error {
         @apply m-0 text-sm text-danger;
