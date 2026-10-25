@@ -57,6 +57,7 @@ A feature that wants live updates on a page adds three things:
    example, and it applies the project view permission. `InboxTopicAuthorizer`
    allows a user only their own `/users/{id}/inbox` topic, while the inbox is on.
    `InboxPageTopicAuthorizer` allows the `/projects/{id}/inbox` topic to whoever may view the project, while the inbox is on.
+   `NotificationTopicAuthorizer` allows a user only their own `/users/{id}/notifications` topic, whatever the inbox flag says.
 2. A call to `{% do mercure_subscribe(topic) %}` in the page template.
 3. A handler in a Stimulus controller, with `on(types, handler, options)` from
    `assets/lib/live.js`. A handler receives each message whose JSON `type` it

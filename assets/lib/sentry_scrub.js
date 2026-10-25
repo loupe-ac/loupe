@@ -400,6 +400,7 @@ export const KEPT_CSS_WORDS = new Set([
     'safe-area-inset-bottom',
     'sans-serif',
     'scale',
+    'separate',
     'sfmono-regular',
     'smooth',
     'solid',

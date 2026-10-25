@@ -15,6 +15,8 @@ use App\Module\Inbox\Command\AskInboxCommand;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\AskInboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
@@ -26,17 +28,20 @@ use App\Module\Inbox\Service\InboxSessionAsks;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
+use App\Tests\Module\Inbox\QueuedPushes;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\AuditOutcome;
 
 final class AskInboxHandlerTest extends KernelTestCase
 {
     use InboxFixtures;
+    use QueuedPushes;
 
     private EntityManagerInterface $em;
     private RecordingAuditor $audit;
@@ -95,6 +100,41 @@ final class AskInboxHandlerTest extends KernelTestCase
         } catch (DomainErrors $e) {
             self::assertSame(['sessionId' => InboxSessionAsks::SESSION_ASK_ELSEWHERE], $e->errors);
         }
+    }
+
+    public function test_a_new_blocking_ask_queues_one_push_for_its_ask(): void
+    {
+        $project = $this->persistedProject('ask-handler-push-open');
+        $this->jobs()->reset();
+
+        $view = $this->handler($this->em)(new AskInboxCommand($project, Uuid::v4(), [new AskInboxItem(InboxItemKind::Question, 'Which column?', freeText: true)]));
+
+        self::assertEquals([new NotifyInboxOwner((string) $view->ask->id, NotifyInboxOwnerKind::Ask)], $this->queuedPushes());
+    }
+
+    public function test_an_item_added_to_the_open_ask_of_the_session_queues_no_push(): void
+    {
+        $project = $this->persistedProject('ask-handler-push-extend');
+        $sessionId = Uuid::v4();
+        $this->handler($this->em)(new AskInboxCommand($project, $sessionId, [new AskInboxItem(InboxItemKind::Question, 'Which column?', freeText: true)]));
+        self::assertCount(1, $this->queuedPushes(), 'the first call opened the ask');
+        $this->jobs()->reset();
+
+        $view = $this->handler($this->em)(new AskInboxCommand($project, $sessionId, [new AskInboxItem(InboxItemKind::Question, 'And which owner?', freeText: true)]));
+
+        self::assertTrue($view->extended);
+        self::assertSame([], $this->queuedPushes());
+    }
+
+    public function test_an_ask_that_closes_at_once_for_lack_of_a_blocking_item_queues_no_push(): void
+    {
+        $project = $this->persistedProject('ask-handler-push-closed');
+        $this->jobs()->reset();
+
+        $view = $this->handler($this->em)(new AskInboxCommand($project, Uuid::v4(), [new AskInboxItem(InboxItemKind::Todo, 'Rotate the key')]));
+
+        self::assertNotNull($view->ask->closedAt);
+        self::assertSame([], $this->queuedPushes());
     }
 
     public function test_an_ask_is_recorded_without_the_text_the_agent_wrote(): void
@@ -236,6 +276,6 @@ final class AskInboxHandlerTest extends KernelTestCase
         $promptLimit = $container->get(SessionPromptLimit::class);
         self::assertInstanceOf(SessionPromptLimit::class, $promptLimit);
 
-        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $promptLimit);
+        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $promptLimit, $container->get(MessageBusInterface::class));
     }
 }

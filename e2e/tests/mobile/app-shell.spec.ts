@@ -265,7 +265,7 @@ test('account panels fit narrow screens and enlarged text', async ({
                 ).toBeLessThanOrEqual(1);
             }
             const navItems = page.locator('.lp-settings-nav__item');
-            await expect(navItems).toHaveCount(3);
+            await expect(navItems).toHaveCount(4);
             for (const item of await navItems.all()) {
                 const icon = (await item.locator('svg').boundingBox())!;
                 const label = (await item.boundingBox())!;

@@ -25,6 +25,8 @@ use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
@@ -35,6 +37,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Tests\Module\Inbox\InboxFixtures;
+use App\Tests\Module\Inbox\QueuedPushes;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
@@ -46,6 +49,7 @@ use Symfony\Component\Uid\Uuid;
 final class CardWaitReconcilerTest extends KernelTestCase
 {
     use InboxFixtures;
+    use QueuedPushes;
 
     private const string HEAD_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const string HEAD_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
@@ -113,6 +117,32 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertEquals($pullRequest->id, $wait->pullRequestId);
         self::assertSame(self::HEAD_A, $wait->headSha);
         self::assertNull($wait->endedAt);
+    }
+
+    public function test_a_card_with_no_open_watch_queues_one_push_for_the_ask_of_its_new_item(): void
+    {
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
+        $this->jobs()->reset();
+
+        $this->reconcile();
+
+        $ask = $this->onlyAskHolding($this->onlyWatch()->item);
+        self::assertEquals([new NotifyInboxOwner((string) $ask->id, NotifyInboxOwnerKind::Ask)], $this->queuedPushes());
+    }
+
+    public function test_a_second_wait_on_a_card_that_has_an_open_watch_queues_no_push(): void
+    {
+        $first = $this->pullRequest(5);
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($first, self::HEAD_A));
+        $this->reconcile();
+        self::assertCount(1, $this->queuedPushes(), 'the first pass opened the watch');
+        $this->jobs()->reset();
+
+        $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($first, self::HEAD_A), $this->pullRequestEntry($this->pullRequest(6), self::HEAD_B));
+        $this->reconcile();
+
+        self::assertCount(2, $this->onlyWatch()->waits, 'the second entry joined the open watch');
+        self::assertSame([], $this->queuedPushes());
     }
 
     public function test_the_wait_starts_at_the_time_of_its_entry(): void

@@ -37,12 +37,33 @@ final readonly class UserTopicBuilder
     /** The user a forInbox() topic names, or null for any other string. */
     public function userIdFromInboxTopic(string $topic): ?Uuid
     {
+        return $this->userIdFromTopic($topic, '/inbox');
+    }
+
+    /**
+     * The topic the pages of one user listen on for a change to their push
+     * devices. It is apart from forInbox(), so a user with the inbox off still
+     * gets it.
+     */
+    public function forNotifications(Uuid $userId): string
+    {
+        return rtrim($this->appUrl, '/').'/users/'.$userId.'/notifications';
+    }
+
+    /** The user a forNotifications() topic names, or null for any other string. */
+    public function userIdFromNotificationsTopic(string $topic): ?Uuid
+    {
+        return $this->userIdFromTopic($topic, '/notifications');
+    }
+
+    private function userIdFromTopic(string $topic, string $suffix): ?Uuid
+    {
         $prefix = rtrim($this->appUrl, '/').'/users/';
-        if (!str_starts_with($topic, $prefix) || !str_ends_with($topic, '/inbox')) {
+        if (!str_starts_with($topic, $prefix) || !str_ends_with($topic, $suffix)) {
             return null;
         }
 
-        $userId = substr($topic, \strlen($prefix), -\strlen('/inbox'));
+        $userId = substr($topic, \strlen($prefix), -\strlen($suffix));
 
         return Uuid::isValid($userId) ? Uuid::fromString($userId) : null;
     }

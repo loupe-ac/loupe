@@ -42,4 +42,25 @@ final class UserTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->userIdFromInboxTopic(str_replace((string) $userId, 'not-a-uuid', $topic)));
         self::assertNull($builder->userIdFromInboxTopic('https://elsewhere.test/users/'.$userId.'/inbox'));
     }
+
+    public function test_the_notifications_topic_is_apart_from_the_other_user_topics_and_names_its_user(): void
+    {
+        self::bootKernel();
+
+        $builder = self::getContainer()->get(UserTopicBuilder::class);
+        self::assertInstanceOf(UserTopicBuilder::class, $builder);
+        $userId = Uuid::v7();
+
+        $topic = $builder->forNotifications($userId);
+
+        self::assertStringEndsWith('/users/'.$userId.'/notifications', $topic);
+        self::assertNotSame($builder->forUser($userId), $topic);
+        self::assertNotSame($builder->forInbox($userId), $topic);
+        self::assertEquals($userId, $builder->userIdFromNotificationsTopic($topic));
+        self::assertNull($builder->userIdFromNotificationsTopic($builder->forUser($userId)));
+        self::assertNull($builder->userIdFromNotificationsTopic($builder->forInbox($userId)));
+        self::assertNull($builder->userIdFromInboxTopic($topic));
+        self::assertNull($builder->userIdFromNotificationsTopic(str_replace((string) $userId, 'not-a-uuid', $topic)));
+        self::assertNull($builder->userIdFromNotificationsTopic('https://elsewhere.test/users/'.$userId.'/notifications'));
+    }
 }
