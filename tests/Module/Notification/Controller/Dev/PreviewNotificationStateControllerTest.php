@@ -23,7 +23,7 @@ final class PreviewNotificationStateControllerTest extends KernelTestCase
         $route = $class->getAttributes(Route::class)[0]->newInstance();
         self::assertIsString($route->path);
         self::assertStringStartsWith('/dev/', $route->path);
-        self::assertSame(['state' => 'push-unavailable|blocked|ios-tab'], $route->requirements);
+        self::assertSame(['state' => 'push-unavailable|preferences-on|blocked|ios-tab'], $route->requirements);
 
         /** @var RouterInterface $router */
         $router = static::getContainer()->get('router');

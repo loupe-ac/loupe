@@ -4,8 +4,8 @@
 
 {% block settings_content %}
 {% set previewState = previewState|default(null) %}
-<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="push-devices-section">
-    <twig:Ds:SectionHeading :description="'notification.devices.description'|trans">{{ 'notification.devices.heading'|trans }}</twig:Ds:SectionHeading>
+<twig:Ds:Panel as="section" id="notification-preferences" data-testid="notification-preferences">
+    <twig:Ds:SectionHeading :description="'notification.preferences.description'|trans">{{ 'notification.preferences.heading'|trans }}</twig:Ds:SectionHeading>
 
     {% if not view.available %}
     <twig:Ds:Flash severity="info" data-testid="push-unavailable">
@@ -17,6 +17,46 @@
         {% endif %}
     </twig:Ds:Flash>
     {% endif %}
+
+    {{ form_start(preferencesForm, {attr: {'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
+        <table class="lp-pref-grid" aria-label="{{ 'notification.preferences.table_label'|trans }}">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'notification.preferences.event_column'|trans }}</th>
+                    {% for channel in preferences.channels %}
+                    <th scope="col" class="lp-pref-grid__channel">{{ channel.labelKey|trans }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in preferences.events %}
+                <tr data-testid="notification-preference-row" data-event="{{ event.value }}">
+                    <th scope="row">
+                        <span class="lp-pref-grid__event">{{ event.labelKey|trans }}</span>
+                        <span class="lp-pref-grid__description">{{ event.descriptionKey|trans }}</span>
+                    </th>
+                    {% for cell in preferences.cells|filter(cell => cell.event == event) %}
+                    {% set field = preferencesForm.choices[cell.fieldName] %}
+                    <td class="lp-pref-grid__cell">
+                        <twig:Ds:Switch
+                            :id="field.vars.id"
+                            :name="field.vars.full_name"
+                            :checked="field.vars.checked"
+                            :disabled="field.vars.disabled"
+                            :aria-label="'notification.preferences.cell_label'|trans({'%channel%': cell.channel.labelKey|trans, '%event%': event.labelKey|trans})" />
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <noscript>{{ form_widget(preferencesForm.save, {attr: {class: ds_button_class('primary')}}) }}</noscript>
+        {{ form_widget(preferencesForm._token) }}
+    {{ form_end(preferencesForm, {render_rest: false}) }}
+</twig:Ds:Panel>
+
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="push-devices-section">
+    <twig:Ds:SectionHeading :description="'notification.devices.description'|trans">{{ 'notification.devices.heading'|trans }}</twig:Ds:SectionHeading>
 
     {% set currentDeviceListed = view.devices|filter(device => device.id.toRfc4122 == view.currentDeviceId) is not empty %}
 

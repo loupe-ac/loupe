@@ -9376,6 +9376,20 @@
             <trans-unit id="notification.push.error.denied"><source>notification.push.error.denied</source><target>Notifications are off for Loupe. Choose Allow when the browser asks.</target></trans-unit>
             <trans-unit id="notification.push.error.failed"><source>notification.push.error.failed</source><target>Push did not turn on. Try again.</target></trans-unit>
             <trans-unit id="notification.push.error.throttled"><source>notification.push.error.throttled</source><target>Too many tries. Wait a few minutes, and try again.</target></trans-unit>
+            <trans-unit id="notification.preferences.heading"><source>notification.preferences.heading</source><target>What you receive</target></trans-unit>
+            <trans-unit id="notification.preferences.description"><source>notification.preferences.description</source><target>Choose which events reach you on each channel. The same choices apply to every project.</target></trans-unit>
+            <trans-unit id="notification.preferences.table_label"><source>notification.preferences.table_label</source><target>Notification choices</target></trans-unit>
+            <trans-unit id="notification.preferences.event_column"><source>notification.preferences.event_column</source><target>Event</target></trans-unit>
+            <trans-unit id="notification.preferences.cell_label"><source>notification.preferences.cell_label</source><target>%channel% for %event%</target></trans-unit>
+            <trans-unit id="notification.preferences.flash.saved"><source>notification.preferences.flash.saved</source><target>Your notification choices are saved.</target></trans-unit>
+            <trans-unit id="notification.preferences.flash.unavailable"><source>notification.preferences.flash.unavailable</source><target>Notifications are not available on this instance now.</target></trans-unit>
+            <trans-unit id="notification.preferences.flash.invalid"><source>notification.preferences.flash.invalid</source><target>Your choices were not saved. Try again.</target></trans-unit>
+            <trans-unit id="notification.event.blocking_inbox_item.label"><source>notification.event.blocking_inbox_item.label</source><target>Blocking inbox item</target></trans-unit>
+            <trans-unit id="notification.event.blocking_inbox_item.description"><source>notification.event.blocking_inbox_item.description</source><target>An agent or the workflow waits for your answer.</target></trans-unit>
+            <trans-unit id="notification.event.other_inbox_item.label"><source>notification.event.other_inbox_item.label</source><target>Other inbox item</target></trans-unit>
+            <trans-unit id="notification.event.other_inbox_item.description"><source>notification.event.other_inbox_item.description</source><target>A notice or a to-do that nothing waits on.</target></trans-unit>
+            <trans-unit id="notification.channel.web_push.label"><source>notification.channel.web_push.label</source><target>Web push</target></trans-unit>
+            <trans-unit id="notification.form.change_notification_preferences_form.save.label"><source>notification.form.change_notification_preferences_form.save.label</source><target>Save choices</target></trans-unit>
         </body>
     </file>
 </xliff>

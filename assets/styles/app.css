@@ -5105,6 +5105,33 @@
     .lp-device-error {
         @apply m-0 text-sm text-danger;
     }
+
+    /* The grid of events and channels. A cell holds one switch, centred under its channel. */
+    .lp-pref-grid {
+        @apply mt-4 w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-line bg-surface-1 text-left;
+    }
+    .lp-pref-grid thead th {
+        @apply bg-surface-3 px-4 py-2.5 text-xs font-semibold text-fg-label;
+    }
+    .lp-pref-grid tbody th {
+        @apply border-t border-line-faint px-4 py-3.5 text-left align-middle font-normal;
+    }
+    .lp-pref-grid td {
+        @apply border-t border-line-faint px-4 py-3.5 align-middle;
+    }
+    .lp-pref-grid__channel,
+    .lp-pref-grid__cell {
+        @apply w-30 text-center;
+    }
+    .lp-pref-grid__cell .lp-switch {
+        @apply m-0;
+    }
+    .lp-pref-grid__event {
+        @apply block text-sm font-semibold text-ink;
+    }
+    .lp-pref-grid__description {
+        @apply block text-sm font-normal text-fg-mute;
+    }
     /* The display utilities above outrank the UA `[hidden]` rule, so a hidden push panel stayed laid out. */
     .lp-identity-row[hidden],
     .lp-settings-panel[hidden],

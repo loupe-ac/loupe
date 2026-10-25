@@ -6,9 +6,13 @@ namespace App\Module\Notification\Controller\Dev;
 
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
+use App\Module\Notification\Command\ListNotificationPreferencesCommand;
+use App\Module\Notification\Command\ListNotificationPreferencesHandler;
 use App\Module\Notification\Command\ListPushDevicesCommand;
 use App\Module\Notification\Command\ListPushDevicesHandler;
 use App\Module\Notification\Command\ListPushDevicesView;
+use App\Module\Notification\Form\ChangeNotificationPreferencesFormType;
+use App\Module\Notification\Form\ChangeNotificationPreferencesRequest;
 use App\Module\Notification\Service\DeviceCookie;
 use App\Module\Notification\Service\DeviceLabel;
 use App\Module\Notification\Service\PushAvailability;
@@ -25,7 +29,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route(
     '/dev/notification-preview/{state}',
     name: 'dev_notification_preview',
-    requirements: ['state' => 'push-unavailable|blocked|ios-tab'],
+    requirements: ['state' => 'push-unavailable|preferences-on|blocked|ios-tab'],
     methods: ['GET'],
 )]
 #[When('dev')]
@@ -33,6 +37,7 @@ final class PreviewNotificationStateController extends AppController
 {
     public function __construct(
         private readonly ListPushDevicesHandler $listDevices,
+        private readonly ListNotificationPreferencesHandler $listPreferences,
         private readonly DeviceCookie $deviceCookie,
         private readonly PushAvailability $availability,
     ) {
@@ -50,10 +55,23 @@ final class PreviewNotificationStateController extends AppController
             $view = new ListPushDevicesView($view->devices, $view->currentDeviceId, PushUnavailableReason::FlagOff, false);
         }
 
+        if ('preferences-on' === $state) {
+            $view = new ListPushDevicesView($view->devices, $view->currentDeviceId, null, true);
+        }
+
+        $preferences = ($this->listPreferences)(new ListNotificationPreferencesCommand($user));
+        $preferencesForm = $this->createForm(
+            ChangeNotificationPreferencesFormType::class,
+            ChangeNotificationPreferencesRequest::fromCells($preferences->cells),
+            ['action' => $this->generateUrl('app_account_notifications_preferences'), 'disabled_cells' => !$view->available],
+        );
+
         return $this->render('@Notification/preview_notification_state.html.twig', [
             'view' => $view,
-            'vapidPublicKey' => $view->available ? $this->availability->keys()?->publicKey : null,
-            'previewState' => 'push-unavailable' === $state ? null : $state,
+            'preferences' => $preferences,
+            'preferencesForm' => $preferencesForm,
+            'vapidPublicKey' => 'preferences-on' !== $state && $view->available ? $this->availability->keys()?->publicKey : null,
+            'previewState' => \in_array($state, ['push-unavailable', 'preferences-on'], true) ? null : $state,
             'isAdmin' => $this->isGranted('ROLE_ADMIN'),
             'thisBrowserLabel' => DeviceLabel::fromUserAgent($request->headers->get('User-Agent')),
         ]);
