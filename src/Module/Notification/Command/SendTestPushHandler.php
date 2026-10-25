@@ -62,7 +62,7 @@ final readonly class SendTestPushHandler
                 'navigate' => $url,
                 'tag' => 'test',
                 'icon' => $base.'/icons/push-192.png',
-                'data' => ['url' => $url, 'openTags' => ['test']],
+                'data' => ['url' => $url],
             ],
         ], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
 

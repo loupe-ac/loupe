@@ -85,7 +85,8 @@ final class DeviceHandlersTest extends KernelTestCase
         self::assertSame('https://loupe.test/account/notifications', $payload['notification']['navigate']);
         self::assertSame('test', $payload['notification']['tag']);
         self::assertSame('https://loupe.test/icons/push-192.png', $payload['notification']['icon']);
-        self::assertSame(['url' => 'https://loupe.test/account/notifications', 'openTags' => ['test']], $payload['notification']['data']);
+        self::assertSame(['url' => 'https://loupe.test/account/notifications'], $payload['notification']['data']);
+        self::assertArrayNotHasKey('openTags', $payload['notification']['data'], 'The service worker closes every shown push whose tag is not in openTags, so a test push must not close a live ask.');
     }
 
     public function test_a_test_push_is_refused_when_push_is_unavailable(): void
