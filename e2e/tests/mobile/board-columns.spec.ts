@@ -1,5 +1,5 @@
 /**
- * The phone board at 390px: one column per screen, a swipe stops on a column,
+ * The phone board at 390px: one column per screen, a sideways swipe steps a column,
  * and the tab strip above names each column. The "‹" and "›" arrows step the
  * board one column, and each hides at its end. The board has six columns.
  */
@@ -252,18 +252,58 @@ test('Find takes its own full row below the header row', async ({
     await expect(more).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('a swipe stops on a column and the tab follows it', async ({
+async function swipe(
+    page: Page,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+): Promise<void> {
+    const session = await page.context().newCDPSession(page);
+    const send = (type: string, point?: { x: number; y: number }) =>
+        session.send('Input.dispatchTouchEvent', {
+            type,
+            touchPoints: point ? [point] : [],
+        });
+    await send('touchStart', from);
+    for (let part = 1; part <= 6; part++) {
+        await send('touchMove', {
+            x: from.x + ((to.x - from.x) * part) / 6,
+            y: from.y + ((to.y - from.y) * part) / 6,
+        });
+    }
+    await send('touchEnd');
+    await session.detach();
+}
+
+test('a sideways swipe steps one column on release and the tab follows it', async ({
     page,
     boardUrl,
 }) => {
     await page.goto(boardUrl);
-    const strip = page.locator('.lp-board__columns');
-    await strip.evaluate((element) => {
-        element.scrollTo({ left: element.clientWidth * 2 - 90 });
-    });
+    await swipe(page, { x: 320, y: 500 }, { x: 120, y: 510 });
 
-    await expectInView(page, 2);
-    await expect(page.getByRole('tab').nth(2)).toHaveAttribute(
+    await expectInView(page, 1);
+    await expect(page.getByRole('tab').nth(1)).toHaveAttribute(
+        'aria-selected',
+        'true',
+    );
+
+    await swipe(page, { x: 120, y: 500 }, { x: 320, y: 490 });
+    await expectInView(page, 0);
+    await expect(page.getByRole('tab').first()).toHaveAttribute(
+        'aria-selected',
+        'true',
+    );
+});
+
+test('a mostly vertical swipe leaves the column in view', async ({
+    page,
+    boardUrl,
+}) => {
+    await page.goto(boardUrl);
+    await swipe(page, { x: 250, y: 600 }, { x: 190, y: 400 });
+
+    await expectInView(page, 0);
+    await expect(page.getByRole('tab').first()).toHaveAttribute(
         'aria-selected',
         'true',
     );

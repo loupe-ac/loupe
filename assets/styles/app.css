@@ -2628,7 +2628,7 @@
         @apply hidden;
     }
 
-    /* A phone shows one column per screen and a swipe stops on a column. The
+    /* A phone shows one column per screen and a sideways swipe steps one column. The
        header row holds the title, Backlog and the "…" menu, and Find takes
        the row below it, because the header row has no room for a field. */
     @media (width < 40rem) {
@@ -2686,8 +2686,10 @@
             @apply gap-3;
             container-type: inline-size;
             grid-auto-columns: 100cqw;
+            overflow-x: hidden;
             scroll-padding-inline: 0;
             scroll-snap-type: x mandatory;
+            touch-action: pan-y;
         }
         .lp-board .lp-board__column {
             @apply w-full;
