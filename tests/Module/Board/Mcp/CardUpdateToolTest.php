@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Mcp;
 
 use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardPayload;
@@ -352,6 +353,76 @@ final class CardUpdateToolTest extends KernelTestCase
         self::assertTrue(($this->tool)($epic['cardId'], laneEnabled: true)['laneEnabled']);
     }
 
+    public function test_the_switch_turns_on_and_off_and_an_omitted_one_stays(): void
+    {
+        $created = $this->card('card-update-switch');
+        self::assertFalse($created['requiresHumanReview']);
+
+        self::assertTrue(($this->tool)($created['cardId'], requiresHumanReview: true)['requiresHumanReview']);
+        self::assertTrue(($this->tool)($created['cardId'], title: 'Renamed')['requiresHumanReview']);
+        self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
+    }
+
+    public function test_a_change_of_the_switch_reads_in_the_history_as_an_agent_change(): void
+    {
+        $created = $this->card('card-update-switch-history');
+
+        ($this->tool)($created['cardId'], requiresHumanReview: true);
+
+        $detail = $this->em->getConnection()->fetchOne(
+            "SELECT detail FROM board_card_events WHERE card_id = :card AND kind = 'human-review-changed'",
+            ['card' => $created['cardId']],
+        );
+        $decoded = json_decode((string) $detail, true, flags: \JSON_THROW_ON_ERROR);
+        self::assertTrue($decoded['value']);
+        self::assertSame('agent', $decoded['cause']);
+    }
+
+    public function test_a_worker_session_may_turn_the_switch_on(): void
+    {
+        $created = $this->card('card-update-worker-raises');
+        $this->workerSession($created);
+
+        self::assertTrue(($this->tool)($created['cardId'], requiresHumanReview: true)['requiresHumanReview']);
+    }
+
+    public function test_a_worker_session_cannot_turn_the_switch_off(): void
+    {
+        $created = $this->card('card-update-worker-lowers');
+        ($this->tool)($created['cardId'], requiresHumanReview: true);
+        $this->workerSession($created);
+
+        try {
+            ($this->tool)($created['cardId'], title: 'Renamed', requiresHumanReview: false);
+            self::fail('A worker lowered the switch.');
+        } catch (ToolCallException $e) {
+            self::assertSame(CardUpdateTool::WORKER_LOWER_REFUSAL, $e->getMessage());
+            self::assertStringContainsString('can only turn the switch on', $e->getMessage());
+        }
+
+        $row = $this->em->getConnection()->fetchAssociative('SELECT title, requires_human_review FROM board_cards WHERE id = :id', ['id' => $created['cardId']]);
+        self::assertIsArray($row);
+        self::assertSame('Ship it', $row['title']);
+        self::assertTrue((bool) $row['requires_human_review']);
+    }
+
+    public function test_a_worker_session_may_send_false_for_a_switch_that_is_already_off(): void
+    {
+        $created = $this->card('card-update-worker-false-off');
+        $this->workerSession($created);
+
+        self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
+    }
+
+    public function test_a_session_with_no_worker_run_may_turn_the_switch_off(): void
+    {
+        $created = $this->card('card-update-session-lowers');
+        ($this->tool)($created['cardId'], requiresHumanReview: true);
+        $this->pushMcpRequest((string) Uuid::v4());
+
+        self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
+    }
+
     /** @return iterable<string, array{string}> */
     public static function parentRefusals(): iterable
     {
@@ -432,6 +503,25 @@ final class CardUpdateToolTest extends KernelTestCase
         }
 
         return $names;
+    }
+
+    /** @param CardSummary $card */
+    private function workerSession(array $card): void
+    {
+        $sessionId = Uuid::v4();
+        $project = ($this->em->find(Card::class, $card['cardId']) ?? throw new \LogicException('The card exists.'))->project;
+        $this->em->persist(new WorkerRun(
+            project: $project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: Uuid::fromString($card['cardId']),
+            cardNumber: $card['number'],
+            workKind: 'implement',
+            state: WorkerRunState::Running,
+            sessionId: $sessionId,
+        ));
+        $this->em->flush();
+        $this->pushMcpRequest((string) $sessionId);
     }
 
     private function pushMcpRequest(?string $session): void

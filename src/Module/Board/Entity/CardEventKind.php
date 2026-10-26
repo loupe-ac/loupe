@@ -24,4 +24,5 @@ enum CardEventKind: string
     case VerdictFailed = 'verdict-failed';
     case AutoApproved = 'auto-approved';
     case ApprovalDismissed = 'approval-dismissed';
+    case HumanReviewChanged = 'human-review-changed';
 }

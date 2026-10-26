@@ -381,6 +381,18 @@ final class CardListToolTest extends KernelTestCase
         self::assertSame([], $row['relatedCards']);
     }
 
+    public function test_full_returns_the_human_review_switch(): void
+    {
+        $this->boardWith('card-list-full-switch');
+        ($this->createTool)('Reviewed', 'Body', 'feature', requiresHumanReview: true);
+        ($this->createTool)('Plain', 'Body', 'feature');
+
+        $rows = array_column(($this->tool)(full: true)['cards'], null, 'title');
+
+        self::assertTrue($rows['Reviewed']['requiresHumanReview']);
+        self::assertFalse($rows['Plain']['requiresHumanReview']);
+    }
+
     public function test_full_returns_each_linked_feedback_item_on_its_own_card(): void
     {
         $project = $this->boardWith('card-list-full-feedback');

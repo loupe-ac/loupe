@@ -1,0 +1,22 @@
+{#- The human review switch of a card and its tooltip. Props: card (Card), error (?string: why a save was refused). -#}
+{% set reviewForm = card_human_review_form(card) %}
+{% set tooltipId = 'card-human-review-tip-' ~ card.id %}
+{% set rulesRule = workflow_human_review_rule(card.project.id) %}
+<div id="card-human-review-{{ card.id }}">
+    {{ form_start(reviewForm, {action: path('app_board_card_human_review', {projectId: card.project.id, cardId: card.id}), attr: {class: 'lp-card-review', 'data-controller': 'submit-on-change'}}) }}
+        {{ form_widget(reviewForm._token) }}
+        <twig:Ds:Switch :name="reviewForm.requiresHumanReview.vars.full_name" :id="reviewForm.requiresHumanReview.vars.id" :checked="card.requiresHumanReview" :label="'board.card.human_review.label'|trans" :disabled="not is_granted(constant('App\\Module\\Board\\Security\\CardVoter::WRITE'), card)" aria-describedby="{{ tooltipId }}" data-action="change->submit-on-change#submit" />
+        <span class="lp-card-review__help" data-controller="interactive-tooltip" data-interactive-tooltip-align-value="start" data-action="pointerenter->interactive-tooltip#open pointerleave->interactive-tooltip#scheduleClose focusin->interactive-tooltip#open focusout->interactive-tooltip#leaveFocus keydown.esc->interactive-tooltip#close">
+            <span tabindex="0" role="img" aria-label="{{ 'board.card.human_review.help_label'|trans }}" aria-describedby="{{ tooltipId }}" data-action="pointerdown->interactive-tooltip#pressed">
+                <twig:ux:icon name="lucide:circle-help" class="lp-icon lp-icon--sm" aria-hidden="true" />
+            </span>
+            <twig:Ds:Tooltip id="{{ tooltipId }}" :interactive="true">
+                <span>{{ 'board.card.human_review.tooltip'|trans }}</span>
+                <a class="lp-tooltip__link" data-turbo-frame="_top" href="{{ path('app_project_workflow', {id: card.project.id}) }}{{ rulesRule is null ? '' : '#rule-' ~ rulesRule|url_encode }}">{{ 'board.card.human_review.rules_link'|trans }}</a>
+            </twig:Ds:Tooltip>
+        </span>
+    {{ form_end(reviewForm, {render_rest: false}) }}
+    {% if error is not null %}
+        <twig:Ds:Flash severity="error">{{ error }}</twig:Ds:Flash>
+    {% endif %}
+</div>

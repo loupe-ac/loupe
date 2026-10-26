@@ -95,6 +95,7 @@ final readonly class CardHistoryEntry
             CardEventKind::ApprovalDismissed => \is_int($detail['pullRequest'] ?? null)
                 ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.approval_dismissed', ['%pr%' => $detail['pullRequest']]))
                 : null,
+            CardEventKind::HumanReviewChanged => self::humanReview($event, $actor, $detail),
             CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
                 ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
                 : null,
@@ -258,6 +259,28 @@ final readonly class CardHistoryEntry
             ),
             default => null,
         };
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function humanReview(CardEvent $event, string|TranslatableMessage $actor, array $detail): ?self
+    {
+        $value = $detail['value'] ?? null;
+        if (!\is_bool($value)) {
+            return null;
+        }
+        $ruleId = $detail['ruleId'] ?? null;
+
+        return new self(
+            'lucide:user-check',
+            $event->occurredAt,
+            $actor,
+            new TranslatableMessage($value ? 'board.card.history.human_review_on' : 'board.card.history.human_review_off', ['%actor%' => $actor]),
+            match ($detail['cause'] ?? null) {
+                'rule' => \is_string($ruleId) && '' !== $ruleId ? new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => $ruleId]) : null,
+                'rollout' => new TranslatableMessage('board.card.history.cause.human_review_rollout'),
+                default => null,
+            },
+        );
     }
 
     /** @param array<string, mixed> $detail */
