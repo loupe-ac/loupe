@@ -406,6 +406,69 @@ final class ShowReviewHandlerTest extends KernelTestCase
         self::assertSame('in-review', $result['status']);
     }
 
+    public function test_the_newest_verdict_of_the_log_is_reported_with_its_id_and_its_mark(): void
+    {
+        $doc = new Document(owner: $this->owner, project: $this->project, title: 'Verdict Id');
+        $version = $doc->addVersion('Some content.', '<p>Some content.</p>');
+        $this->em->persist($doc);
+        $this->em->persist(new Review($version, Verdict::Approved, $this->owner, sequence: 1));
+        $newest = new Review($version, Verdict::ChangesRequested, $this->owner, sequence: 2, throughAgent: true);
+        $this->em->persist($newest);
+        $this->em->flush();
+
+        $result = ($this->getReview)(new ShowReviewCommand($doc));
+
+        self::assertSame((string) $newest->id, $result['verdictId']);
+        self::assertTrue($result['verdictThroughAgent']);
+        self::assertSame('changes-requested', $result['verdict']);
+    }
+
+    public function test_a_withdrawal_is_the_newest_entry_and_its_id_is_reported(): void
+    {
+        $doc = new Document(owner: $this->owner, project: $this->project, title: 'Withdrawal Id');
+        $version = $doc->addVersion('Some content.', '<p>Some content.</p>');
+        $this->em->persist($doc);
+        $this->em->persist(new Review($version, Verdict::Approved, $this->owner, sequence: 1));
+        $withdrawal = new Review($version, Verdict::Withdrawn, $this->owner, sequence: 2);
+        $this->em->persist($withdrawal);
+        $this->em->flush();
+
+        $result = ($this->getReview)(new ShowReviewCommand($doc));
+
+        self::assertNull($result['verdict']);
+        self::assertSame((string) $withdrawal->id, $result['verdictId']);
+        self::assertFalse($result['verdictThroughAgent']);
+    }
+
+    public function test_an_empty_verdict_log_reports_no_id_and_no_mark(): void
+    {
+        $doc = new Document(owner: $this->owner, project: $this->project, title: 'No Verdict Id');
+        $doc->addVersion('Some content.', '<p>Some content.</p>');
+        $this->em->persist($doc);
+        $this->em->flush();
+
+        $result = ($this->getReview)(new ShowReviewCommand($doc));
+
+        self::assertNull($result['verdictId']);
+        self::assertFalse($result['verdictThroughAgent']);
+    }
+
+    public function test_a_decision_reports_whether_an_agent_recorded_its_answer(): void
+    {
+        $markdown = "<!-- decision: by-agent -->\n\n- ( ) A\n- ( ) B\n\n<!-- /decision -->\n\n<!-- decision: by-owner -->\n\n- ( ) A\n- ( ) B\n\n<!-- /decision -->\n\n<!-- decision: open -->\n\n- ( ) A\n\n<!-- /decision -->\n";
+        $create = self::getContainer()->get(CreateDocumentHandler::class);
+        self::assertInstanceOf(CreateDocumentHandler::class, $create);
+        $doc = $create(new CreateDocumentCommand($this->project, 'Marks', $markdown));
+        $save = self::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $save(new SaveDecisionAnswerCommand($doc, 'by-agent', 1, [0], null, false, $this->owner, true));
+        $save(new SaveDecisionAnswerCommand($doc, 'by-owner', 1, [0], null, false, $this->owner));
+
+        $decisions = ($this->getReview)(new ShowReviewCommand($doc))['decisions'];
+
+        self::assertSame([true, false, false], array_column($decisions, 'through_agent'));
+    }
+
     /**
      * Every decision is reported, answered or not — an agent has to be able to
      * tell "still waiting" from "answered", and a payload holding only answers

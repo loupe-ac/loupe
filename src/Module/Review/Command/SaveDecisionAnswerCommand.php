@@ -20,6 +20,11 @@ final readonly class SaveDecisionAnswerCommand
         public ?string $note,
         public bool $clear,
         public User $answeredBy,
+        public bool $throughAgent = false,
+        // Refuse the save when the displayed version is not the latest one.
+        public bool $requireLatestVersion = false,
+        // Keep the stored note and ignore the one in the command.
+        public bool $keepNote = false,
     ) {
     }
 }

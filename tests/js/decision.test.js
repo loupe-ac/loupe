@@ -70,9 +70,10 @@ const block = (
     note,
     checked = [],
     kind = 'checkbox',
+    agent = false,
 ) => `<fieldset data-decision-id="${id}"${
     note === undefined ? '' : ` data-decision-note="${note}"`
-}>
+}${agent ? ' data-decision-through-agent' : ''}>
     <legend>Question ${id}</legend>
     <div>${option(id, 0, checked, kind)}<label>A</label></div>
     <div>${option(id, 1, checked, kind)}<label>B</label></div>
@@ -93,6 +94,7 @@ async function mount({
     page = 'doc-1/3',
     checked = [],
     kind = 'checkbox',
+    agent = [],
 } = {}) {
     document.body.innerHTML = `<div id="decision-status"></div>
 ${['info', 'error'].map((severity) => `<template data-decision-status-flash="${severity}"><div class="lp-flash lp-flash--${severity}"><span class="lp-flash__dot"></span><span class="lp-flash__message"></span></div></template>`).join('')}
@@ -104,8 +106,9 @@ ${['info', 'error'].map((severity) => `<template data-decision-status-flash="${s
         data-decision-note-placeholder-value="Add a note"
         data-decision-clear-label-value="Clear choice"
         data-decision-clear-class-value="lp-decision__clear"
-        data-decision-error-message-value="Could not save.">
-    <div class="prose">${block('a', notes.a, checked, kind)}${block('b', notes.b, checked, kind)}</div>
+        data-decision-error-message-value="Could not save."
+        data-decision-agent-mark-value="An agent recorded this answer for the owner.">
+    <div class="prose">${block('a', notes.a, checked, kind, agent.includes('a'))}${block('b', notes.b, checked, kind, agent.includes('b'))}</div>
     ${editable ? form : ''}
 </div>`;
     const formElement = document.querySelector('form');
@@ -1263,4 +1266,86 @@ it('repeats the CSRF steps of a form submit', async () => {
     const [, init] = saves()[0];
     expect(init.body.get('_csrf_token')).toMatch(/^[-_/+a-zA-Z0-9]{24,}$/);
     expect(Object.values(init.headers)).toContain(init.body.get('_csrf_token'));
+});
+
+const mark = (id) =>
+    document.querySelector(
+        `[data-decision-id="${id}"] [data-decision-agent-mark]`,
+    );
+
+it('draws the agent mark under a block an agent answered, with no text node', async () => {
+    await mount({ agent: ['a'], notes: { a: 'Kept' } });
+    const fieldset = document.querySelector('fieldset[data-decision-id="a"]');
+
+    expect(mark('a').dataset.label).toBe(
+        'An agent recorded this answer for the owner.',
+    );
+    expect(mark('a').textContent).toBe('');
+    expect(mark('a').tagName).toBe('DIV');
+    expect(fieldset.lastElementChild).toBe(mark('a'));
+    expect(mark('b')).toBeNull();
+});
+
+it('draws the agent mark on a read-only block with no note', async () => {
+    await mount({ editable: false, agent: ['b'] });
+
+    expect(mark('b')).not.toBeNull();
+});
+
+it('adds and removes the agent mark as the stored answer changes', async () => {
+    await mount();
+    stored = { a: { indexes: [1], note: null, throughAgent: true } };
+    receive(change({ throughAgent: true }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mark('a')).not.toBeNull();
+
+    stored = { a: { indexes: [1], note: null, throughAgent: false } };
+    receive(change({ throughAgent: false }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mark('a')).toBeNull();
+});
+
+it('removes the agent mark when this page saves the block', async () => {
+    await mount({ agent: ['a'] });
+    check('a', 0);
+    finish();
+
+    expect(mark('a')).toBeNull();
+});
+
+it('keeps the agent mark when a save fails', async () => {
+    await mount({ agent: ['a'] });
+    check('a', 0);
+    finish({ success: false, fetchResponse: { succeeded: false } });
+
+    expect(mark('a')).not.toBeNull();
+});
+
+it('draws the agent mark again after a page morph', async () => {
+    await mount({ agent: ['a'] });
+    mark('a').remove();
+    document.dispatchEvent(new Event('turbo:morph'));
+
+    expect(mark('a')).not.toBeNull();
+    expect(
+        document.querySelectorAll('[data-decision-agent-mark]'),
+    ).toHaveLength(1);
+});
+
+it('keeps the controls it builds through a page morph', async () => {
+    await mount({ notes: { a: 'Kept' } });
+    const fieldset = document.querySelector('fieldset[data-decision-id="a"]');
+
+    expect(
+        fieldset
+            .querySelector('.lp-decision__note')
+            .hasAttribute('data-turbo-permanent'),
+    ).toBe(true);
+    expect(
+        fieldset
+            .querySelector('input[type="button"]')
+            .hasAttribute('data-turbo-permanent'),
+    ).toBe(true);
 });

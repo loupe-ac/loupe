@@ -38,6 +38,7 @@ export default class extends Controller {
         clearLabel: String,
         clearClass: String,
         errorMessage: String,
+        agentMark: String,
         summaryUrl: String,
         changedBy: String,
     };
@@ -59,6 +60,8 @@ export default class extends Controller {
         document.addEventListener('turbo:before-visit', this.beforeVisit);
         document.addEventListener('turbo:before-cache', this.beforeCache);
         window.addEventListener('beforeunload', this.beforeUnload);
+        this.afterMorph = () => this.markAgentBlocks();
+        document.addEventListener('turbo:morph', this.afterMorph);
         for (const block of this.element.querySelectorAll(
             'fieldset[data-decision-id]',
         )) {
@@ -90,6 +93,7 @@ export default class extends Controller {
         this.element.removeAttribute(CONNECTED_ATTRIBUTE);
         document.removeEventListener('turbo:before-visit', this.beforeVisit);
         document.removeEventListener('turbo:before-cache', this.beforeCache);
+        document.removeEventListener('turbo:morph', this.afterMorph);
         window.removeEventListener('beforeunload', this.beforeUnload);
         for (const timer of this.timers.values()) clearTimeout(timer);
         this.sendRemaining();
@@ -175,7 +179,31 @@ export default class extends Controller {
         }
     }
 
+    // A page morph drops what the server never rendered, so the controls built
+    // here are permanent and the agent mark is drawn again after each morph.
+    markAgentBlocks() {
+        for (const block of this.element.querySelectorAll(
+            'fieldset[data-decision-id]',
+        ))
+            this.markAgent(block);
+    }
+
+    markAgent(block) {
+        block.querySelector('[data-decision-agent-mark]')?.remove();
+        if (block.dataset.decisionThroughAgent === undefined) return;
+        const mark = document.createElement('div');
+        mark.className = 'lp-decision__agent-mark';
+        mark.dataset.decisionAgentMark = '';
+        mark.dataset.label = this.agentMarkValue;
+        block.append(mark);
+    }
+
     decorate(block) {
+        this.buildControls(block);
+        this.markAgent(block);
+    }
+
+    buildControls(block) {
         block.querySelector('[data-decision-note-controls]')?.remove();
         block.querySelector('[data-decision-clear-control]')?.remove();
         const editable = this.hasFormTarget;
@@ -187,6 +215,7 @@ export default class extends Controller {
         const controls = document.createElement('div');
         controls.className = 'lp-decision__note';
         controls.dataset.decisionNoteControls = '';
+        controls.dataset.turboPermanent = '';
         const field = document.createElement('textarea');
         field.className = 'lp-input lp-decision__note-field';
         field.rows = 1;
@@ -209,6 +238,7 @@ export default class extends Controller {
         clear.value = this.clearLabelValue;
         clear.className = this.clearClassValue;
         clear.dataset.decisionClearControl = '';
+        clear.dataset.turboPermanent = '';
         clear.addEventListener('click', () => this.clear(block));
         // It sits in the block header beside the kind-of-answer chip, apart
         // from the note field, and is no part of the legend's text.
@@ -354,6 +384,9 @@ export default class extends Controller {
             // A Turbo snapshot restore compares the block with these attributes.
             block.dataset.decisionNote = state.note;
             block.dataset.decisionSavedIndexes = JSON.stringify(state.indexes);
+            // A save from this page is the owner's own answer.
+            delete block.dataset.decisionThroughAgent;
+            this.markAgent(block);
         } else {
             this.sentStates.delete(block);
             // A checked radio fires no `change` when clicked again, so the
@@ -418,7 +451,7 @@ export default class extends Controller {
 
     // A note with an unsaved edit stays. A focused note with no edit takes the
     // stored note, or its blur would save the old note over it.
-    apply(block, { indexes, note }) {
+    apply(block, { indexes, note, throughAgent }) {
         const stored = note ?? '';
         const field = block.querySelector('[data-decision-note-field]');
         const edited =
@@ -426,6 +459,9 @@ export default class extends Controller {
             field.value !== (block.dataset.decisionNote ?? '');
         block.dataset.decisionSavedIndexes = JSON.stringify(indexes);
         block.dataset.decisionNote = stored;
+        if (throughAgent) block.dataset.decisionThroughAgent = '';
+        else delete block.dataset.decisionThroughAgent;
+        this.markAgent(block);
         for (const input of block.querySelectorAll(
             'input[data-decision-option]',
         ))

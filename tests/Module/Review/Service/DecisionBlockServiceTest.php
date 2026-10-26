@@ -1079,4 +1079,18 @@ final class DecisionBlockServiceTest extends TestCase
         self::assertSame(1, substr_count($marked, 'data-decision-note='));
         self::assertSame(strip_tags($html), strip_tags($marked));
     }
+
+    public function test_showing_a_block_marks_an_answer_an_agent_recorded_with_an_attribute(): void
+    {
+        $html = $this->renderer->render(
+            "<!-- decision: a -->\n\n- ( ) One\n- ( ) Two\n\n<!-- /decision -->\n\n"
+            ."<!-- decision: b -->\n\n- ( ) Three\n- ( ) Four\n\n<!-- /decision -->\n",
+        );
+
+        $marked = $this->decisions->withSelections($html, [], readOnly: false, notesByDecisionId: ['a' => 'Note.'], throughAgentDecisionIds: ['a']);
+
+        self::assertStringContainsString('data-decision-note="Note." data-decision-through-agent>', $marked);
+        self::assertSame(1, substr_count($marked, 'data-decision-through-agent'));
+        self::assertSame(strip_tags($html), strip_tags($marked));
+    }
 }

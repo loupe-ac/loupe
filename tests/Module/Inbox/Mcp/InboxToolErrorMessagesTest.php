@@ -32,7 +32,7 @@ final class InboxToolErrorMessagesTest extends TestCase
         yield 'closed by agent' => [InboxItemCloser::ERROR_CLOSED_BY_AGENT, 'An agent closed this item, so it takes no response.'];
         yield 'closed by loupe' => [InboxItemCloser::ERROR_CLOSED_BY_LOUPE, 'Loupe closed this item, so it takes no response.'];
         yield 'notice' => [InboxItemCloser::ERROR_NOTICE, 'A notice takes no response.'];
-        yield 'review on the page' => [InboxToolErrorMessages::REVIEW_ON_PAGE, 'A review verdict stays on the inbox page. Ask the owner to give it there.'];
+        yield 'review on the page' => [InboxToolErrorMessages::REVIEW_ON_PAGE, 'A review verdict stays on the inbox page. Ask the owner to give it there, or call document_verdict_submit when the owner gave it in the chat.'];
     }
 
     #[DataProvider('responseKeys')]

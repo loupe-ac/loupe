@@ -553,19 +553,28 @@ final readonly class DecisionBlockService
      * @param array<string, list<int>> $selectedIndexesByDecisionId
      * @param array<string, string>    $badgeLabels                 keyed by confidence
      * @param array<string, string>    $notesByDecisionId
+     * @param list<string>             $throughAgentDecisionIds     blocks whose answer an agent recorded, marked by an attribute that the page draws
      */
-    public function withSelections(string $html, array $selectedIndexesByDecisionId, bool $readOnly, array $badgeLabels = [], array $notesByDecisionId = []): string
+    public function withSelections(string $html, array $selectedIndexesByDecisionId, bool $readOnly, array $badgeLabels = [], array $notesByDecisionId = [], array $throughAgentDecisionIds = []): string
     {
-        if ([] !== $notesByDecisionId) {
+        if ([] !== $notesByDecisionId || [] !== $throughAgentDecisionIds) {
             $html = preg_replace_callback(
                 '~<fieldset[^>]*\s'.self::BLOCK_MARKER.'="('.self::ID_PATTERN.')"[^>]*>~',
-                static fn (array $matches): string => isset($notesByDecisionId[$matches[1]])
-                    ? substr($matches[0], 0, -1).' data-decision-note="'.str_replace(
-                        ["\r", "\n"],
-                        ['&#13;', '&#10;'],
-                        htmlspecialchars($notesByDecisionId[$matches[1]], \ENT_QUOTES | \ENT_HTML5),
-                    ).'">'
-                    : $matches[0],
+                static function (array $matches) use ($notesByDecisionId, $throughAgentDecisionIds): string {
+                    $added = '';
+                    if (isset($notesByDecisionId[$matches[1]])) {
+                        $added .= ' data-decision-note="'.str_replace(
+                            ["\r", "\n"],
+                            ['&#13;', '&#10;'],
+                            htmlspecialchars($notesByDecisionId[$matches[1]], \ENT_QUOTES | \ENT_HTML5),
+                        ).'"';
+                    }
+                    if (\in_array($matches[1], $throughAgentDecisionIds, true)) {
+                        $added .= ' data-decision-through-agent';
+                    }
+
+                    return '' === $added ? $matches[0] : substr($matches[0], 0, -1).$added.'>';
+                },
                 $html,
             ) ?? throw new \RuntimeException('Decision note marking failed: '.preg_last_error_msg().'.');
         }

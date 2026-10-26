@@ -70,7 +70,7 @@ Call `inbox_withdraw` with the `itemId` and a `reason`, which the owner reads, w
 Use `inbox_answer`, `inbox_decline`, `inbox_done` and `inbox_action_run` only when the owner decided an item in your chat. Never use them to answer your own ask. A bridge worker session is refused.
 
 1. `inbox_answer` takes `selectedOptions` (zero-based indexes), `answerText`, or both.
-2. `inbox_decline` takes an optional `note`. It refuses a review. The review verdict stays on the inbox page.
+2. `inbox_decline` takes an optional `note`. It refuses a review. The review verdict stays on the inbox page. When the owner gave the verdict in your chat, call `document_verdict_submit`.
 3. `inbox_done` marks a to-do done.
 4. `inbox_action_run` runs one action. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
 5. For `start-session`, show the owner the `prompt` of the suggestion. Pass `sessionPrompt` with the prompt the owner confirms, or an empty string when the owner clears it. Leave it out to send the suggested prompt unchanged.

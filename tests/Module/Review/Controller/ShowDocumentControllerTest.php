@@ -722,6 +722,60 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertSame('2h ago', trim($ages->text()));
     }
 
+    public function test_the_verdict_chip_says_when_an_agent_recorded_the_verdict_for_the_owner(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->createUser($em, 'agentverdict', 'agent-verdict@example.com');
+        $project = $this->project($em, $owner);
+        $marked = $this->approvedDocument($em, $owner, $project, throughAgent: true);
+        $plain = $this->approvedDocument($em, $owner, $project, throughAgent: false);
+        $markedPath = '/projects/'.$project->id.'/documents/'.$marked->id.'/review';
+        $plainPath = '/projects/'.$project->id.'/documents/'.$plain->id.'/review';
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $markedPath);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-verdict-chip__agent', 'An agent recorded this verdict for the owner.');
+        self::assertSelectorExists('.lp-verdict-chip__agent > svg.lp-icon');
+
+        $client->request(Request::METHOD_GET, $plainPath);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-verdict-chip--approved');
+        self::assertSelectorNotExists('.lp-verdict-chip__agent');
+    }
+
+    public function test_an_approved_document_follows_the_draft_state_signal(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->createUser($em, 'approvedlive', 'approved-live@example.com');
+        $project = $this->project($em, $owner);
+        $document = $this->approvedDocument($em, $owner, $project, throughAgent: false);
+        $path = '/projects/'.$project->id.'/documents/'.$document->id.'/review';
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-review[data-controller~="review-draft-live"][data-review-draft-live-url-value$="/review/draft-state"]');
+        self::assertSelectorNotExists('#draft-band');
+    }
+
+    private function approvedDocument(EntityManagerInterface $em, User $owner, Project $project, bool $throughAgent): Document
+    {
+        $document = new Document(owner: $owner, project: $project, title: 'Approved '.uniqid());
+        $version = $document->addVersion('# Done', '<h1>Done</h1>');
+        $document->status = DocumentStatus::Approved;
+        $em->persist($document);
+        $em->persist(new Review($version, Verdict::Approved, $owner, throughAgent: $throughAgent));
+        $em->flush();
+
+        return $document;
+    }
+
     public function test_an_approved_document_offers_to_change_its_verdict(): void
     {
         $client = static::createClient();

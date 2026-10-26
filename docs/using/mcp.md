@@ -295,6 +295,10 @@ Roughly in the order an agent uses them:
 | `document_get_review` | Verdict, threaded comments, answered decision blocks, and the agent reviews of the document, each with its card and the answer to each finding |
 | `document_reply_to_comment` | Reply to a reviewer's thread |
 | `document_mark_comment_addressed` | Mark a thread acted on |
+| `document_decision_answer` | Record the owner's answer to a decision block, after the owner gave it in the chat |
+| `document_decision_clear` | Clear the owner's answer to a decision block, after the owner asked for it in the chat |
+| `document_verdict_submit` | Record the owner's verdict on a document, after the owner gave it in the chat |
+| `document_verdict_withdraw` | Withdraw the newest verdict on a document, after the owner asked for it in the chat |
 | `document_highlight` | Tint the passages to read first (off by default — see below) |
 | `document_rename` | Change the title without minting a version |
 | `document_archive` / `document_unarchive` | Take it out of the listing, or put it back |

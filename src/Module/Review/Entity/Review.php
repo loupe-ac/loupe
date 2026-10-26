@@ -51,6 +51,10 @@ class Review
         // The id of the workflow rule that wrote the verdict, or null for a verdict a person wrote.
         #[ORM\Column(length: 100, nullable: true)]
         public readonly ?string $workflowRule = null,
+
+        // True when an agent in a chat wrote the row for the owner.
+        #[ORM\Column(options: ['default' => false])]
+        public readonly bool $throughAgent = false,
     ) {
     }
 }

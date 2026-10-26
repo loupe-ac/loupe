@@ -49,6 +49,22 @@ final class SubmitReviewHandlerTest extends KernelTestCase
         self::assertSame(Verdict::ChangesRequested, $second->verdict);
     }
 
+    public function test_a_verdict_submitted_through_an_agent_carries_the_mark(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        [$reviewer, $document] = $this->createUserAndDocument($em, 'through-agent');
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+
+        $agent = $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1, throughAgent: true));
+        $page = $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1, expectedReviewId: (string) $agent->id));
+
+        self::assertTrue($agent->throughAgent);
+        self::assertFalse($page->throughAgent);
+    }
+
     /** @return array{User, Document} */
     private function createUserAndDocument(EntityManagerInterface $em, string $suffix): array
     {

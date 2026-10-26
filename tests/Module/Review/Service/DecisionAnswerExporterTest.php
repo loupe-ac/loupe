@@ -30,7 +30,22 @@ final class DecisionAnswerExporterTest extends TestCase
             'note' => 'Staging is down.',
             'answeredAtVersion' => 2,
             'updatedAt' => '2026-09-28T10:00:00+00:00',
+            'answeredThroughAgent' => false,
         ]], iterator_to_array($exporter->export($user)));
         self::assertSame('decision_answers.json', $exporter->filename());
+    }
+
+    public function test_exports_the_agent_mark_of_an_answer(): void
+    {
+        $user = new User('Alice A', 'alice@example.com', 'x');
+        $document = new Document($user, new Project($user, 'My project'), 'My doc');
+        $answer = new DecisionAnswer($document, 'deploy-target', null, $user, 2, answeredThroughAgent: true);
+
+        $repo = $this->createStub(DecisionAnswerRepository::class);
+        $repo->method('streamByAnsweredBy')->willReturn([$answer]);
+
+        $rows = iterator_to_array(new DecisionAnswerExporter($repo)->export($user));
+
+        self::assertTrue($rows[0]['answeredThroughAgent']);
     }
 }

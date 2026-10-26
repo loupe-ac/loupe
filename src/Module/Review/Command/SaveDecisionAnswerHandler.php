@@ -25,7 +25,8 @@ use Ubermuda\AuditBundle\AuditSubject;
 /**
  * Replaces the whole answer to one decision with the state the reviewer's tab
  * shows. The last write wins, whichever version that tab displays: the picks
- * are carried onto the latest version by label.
+ * are carried onto the latest version by label. An agent call sets the flags
+ * that refuse an older version and keep the owner's note.
  */
 final readonly class SaveDecisionAnswerHandler
 {
@@ -42,6 +43,10 @@ final readonly class SaveDecisionAnswerHandler
 
     public function __invoke(SaveDecisionAnswerCommand $command): SaveDecisionAnswerResult
     {
+        if (!$command->keepNote && mb_strlen(trim($command->note ?? '')) > DecisionAnswer::MAX_NOTE_LENGTH) {
+            throw new DomainErrors(['note' => 'review.form.save_decision_answer_form.note.too_long']);
+        }
+
         $context = [];
         $changed = null;
         $result = $this->em->wrapInTransaction(function () use ($command, &$context, &$changed): SaveDecisionAnswerResult|DomainErrors {
@@ -54,6 +59,9 @@ final readonly class SaveDecisionAnswerHandler
                 return new DomainErrors(['versionNumber' => 'review.decision.error.unknown_version']);
             }
             $latest = $this->documentVersions->findLatest($command->document);
+            if ($command->requireLatestVersion && $shown->versionNumber !== $latest->versionNumber) {
+                return new DomainErrors(['versionNumber' => 'review.decision.error.stale_version']);
+            }
             $shownDecision = $this->decision($shown, $command->decisionId);
             $latestDecision = $this->decision($latest, $command->decisionId);
             if (null === $shownDecision || null === $latestDecision) {
@@ -88,7 +96,7 @@ final readonly class SaveDecisionAnswerHandler
                 sort($wanted);
             }
             // Clear drops the picks only: the note is the reviewer's own writing.
-            $trimmed = trim($command->note ?? '');
+            $trimmed = $command->keepNote ? ($answer->note ?? '') : trim($command->note ?? '');
             if ('' !== $trimmed) {
                 $note = $trimmed;
             }
@@ -100,7 +108,9 @@ final readonly class SaveDecisionAnswerHandler
             )), static fn (?int $index): bool => null !== $index));
             sort($current);
             $selectionsChanged = $current !== $wanted || \count($stored) !== \count($wanted);
-            $answerChanged = $unanswered ? null !== $answer : (null === $answer || $answer->note !== $note);
+            $answerChanged = $unanswered
+                ? null !== $answer
+                : (null === $answer || $answer->note !== $note || $answer->answeredThroughAgent !== $command->throughAgent);
             if (!$selectionsChanged && !$answerChanged) {
                 return new SaveDecisionAnswerResult(changed: false, cleared: $command->clear || $unanswered);
             }
@@ -128,12 +138,20 @@ final readonly class SaveDecisionAnswerHandler
                 }
                 $answer = null;
             } elseif (null === $answer) {
-                $answer = new DecisionAnswer($command->document, $command->decisionId, $note, $command->answeredBy, $latest->versionNumber);
+                $answer = new DecisionAnswer(
+                    $command->document,
+                    $command->decisionId,
+                    $note,
+                    $command->answeredBy,
+                    $latest->versionNumber,
+                    answeredThroughAgent: $command->throughAgent,
+                );
                 $this->em->persist($answer);
             } else {
                 $answer->note = $note;
                 $answer->answeredBy = $command->answeredBy;
                 $answer->answeredAtVersion = $latest->versionNumber;
+                $answer->answeredThroughAgent = $command->throughAgent;
                 $answer->updatedAt = new \DateTimeImmutable();
             }
             $this->em->flush();
@@ -144,6 +162,7 @@ final readonly class SaveDecisionAnswerHandler
                 'versionNumber' => $latest->versionNumber,
                 'optionCount' => \count($wanted),
                 'hasNote' => null !== $note,
+                'throughAgent' => $command->throughAgent,
             ];
             $changed = new DecisionAnswerChanged(
                 $command->document->project->id ?? throw new \LogicException('The project has no id.'),
@@ -154,6 +173,7 @@ final readonly class SaveDecisionAnswerHandler
                 $answer?->note,
                 $answer?->answeredBy?->fullName,
                 $answer->updatedAt ?? new \DateTimeImmutable(),
+                $answer->answeredThroughAgent ?? false,
             );
 
             return new SaveDecisionAnswerResult(changed: true, cleared: $command->clear || $unanswered);

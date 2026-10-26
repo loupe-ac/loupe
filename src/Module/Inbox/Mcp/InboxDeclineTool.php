@@ -21,7 +21,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type InboxItemListSummary from InboxItemPayload
  */
-#[McpTool(name: self::NAME, description: 'Decline an open inbox question or to-do for the owner, only after the owner told you in chat to decline it. On an automatic item, of kind wait or review, this dismisses the wait. Pass note, a reason the item keeps. The item shows that it was declined through an agent. A bridge worker session is refused, because a worker has no owner beside it. An agent\'s review ask is refused, because a review verdict stays on the inbox page. A workflow question cannot be declined: answer it with inbox_answer, which is final and runs its action at once. The response is the item\'s summary.')]
+#[McpTool(name: self::NAME, description: 'Decline an open inbox question or to-do for the owner, only after the owner told you in chat to decline it. On an automatic item, of kind wait or review, this dismisses the wait. Pass note, a reason the item keeps. The item shows that it was declined through an agent. A bridge worker session is refused, because a worker has no owner beside it. An agent\'s review ask is refused, because a review verdict stays on the inbox page. To record a verdict the owner gave in chat, call document_verdict_submit. A workflow question cannot be declined: answer it with inbox_answer, which is final and runs its action at once. The response is the item\'s summary.')]
 final readonly class InboxDeclineTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_decline';

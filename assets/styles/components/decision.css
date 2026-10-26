@@ -130,6 +130,24 @@
     .lp-decision__note {
         @apply mt-2 flex items-start gap-3;
     }
+    /* The words ride on an attribute, because the pane may gain no text node.
+       The inset lines the mark up with the words inside the note field. */
+    .lp-decision__agent-mark {
+        @apply mt-2 flex items-center gap-1.5 pl-2.75 text-xs text-fg-dim;
+    }
+    .lp-decision__agent-mark::before {
+        @apply inline-block size-3.5 shrink-0 bg-current;
+        content: '';
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8V4H8'/%3E%3Crect width='16' height='12' x='4' y='8' rx='2'/%3E%3Cpath d='M2 14h2m16 0h2m-7-1v2m-6-2v2'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8V4H8'/%3E%3Crect width='16' height='12' x='4' y='8' rx='2'/%3E%3Cpath d='M2 14h2m16 0h2m-7-1v2m-6-2v2'/%3E%3C/svg%3E");
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+    .lp-decision__agent-mark::after {
+        content: attr(data-label);
+    }
     .lp-decision__note-field {
         @apply min-h-10 w-full flex-1 resize-y rounded-lg border border-line bg-surface-1 px-2.5 py-2 text-sm;
     }
