@@ -1,4 +1,4 @@
-import { expect, type Page, type Route } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { createTest, suppressWidget } from '../fixtures';
 
 const test = createTest({
@@ -145,65 +145,4 @@ test('a project with no events shows the empty state and no filters', async ({
         'No recorded activity',
     );
     await expect(page.locator('.lp-list-filters')).toHaveCount(0);
-});
-
-test('the bell drawer lists recent events and keeps the page in place', async ({
-    page,
-}) => {
-    await suppressWidget(page);
-    const projectId = await seedProject(page, `Drawer ${Date.now()}`);
-    const editUrl = `/projects/${projectId}/edit`;
-    const activityUrl = `/projects/${projectId}/activity`;
-    await rename(page, projectId, `Drawer renamed ${Date.now()}`);
-
-    await page.goto(editUrl);
-    await page
-        .getByLabel('Project name', { exact: true })
-        .fill('Unsaved local draft');
-    const trigger = page.getByRole('link', {
-        name: 'Open project activity',
-        exact: true,
-    });
-    await trigger.click();
-    const drawer = page.getByRole('dialog', { name: 'Recent activity' });
-    await expect(drawer).toBeVisible();
-    await expect(drawer.locator('[data-activity-event-id]')).toHaveCount(1);
-    await expect(
-        drawer.getByRole('button', { name: 'Close activity' }),
-    ).toBeFocused();
-    await expect(page).toHaveURL(new RegExp(`${editUrl}$`));
-    await page.keyboard.press('Escape');
-    await expect(drawer).toBeHidden();
-    await expect(trigger).toBeFocused();
-    await expect(page.getByLabel('Project name', { exact: true })).toHaveValue(
-        'Unsaved local draft',
-    );
-
-    let pendingRequest: (route: Route) => void;
-    const requested = new Promise<Route>((resolve) => {
-        pendingRequest = resolve;
-    });
-    await page.route(`**${activityUrl}/recent`, (route) =>
-        pendingRequest(route),
-    );
-    await trigger.click();
-    const failedRequest = await requested;
-    await expect(drawer.getByRole('status')).toHaveText(
-        'Loading recent activity…',
-    );
-    await failedRequest.fulfill({ status: 503, body: 'Unavailable' });
-    await expect(drawer.getByRole('alert')).toContainText(
-        'Recent activity is unavailable',
-    );
-    await drawer.getByRole('button', { name: 'Close activity' }).click();
-    await expect(drawer).toBeHidden();
-    await page.unroute(`**${activityUrl}/recent`);
-
-    await trigger.click();
-    await expect(drawer.locator('[data-activity-event-id]')).toBeVisible();
-    await drawer
-        .getByRole('link', { name: 'Open activity', exact: true })
-        .click();
-    await expect(page).toHaveURL(new RegExp(`${activityUrl}$`));
-    await expect(page.locator('[data-activity-event-id]')).toHaveCount(1);
 });

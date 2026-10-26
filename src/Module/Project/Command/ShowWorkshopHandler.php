@@ -11,8 +11,6 @@ use App\Module\Project\Workshop\WorkshopCard;
 use App\Module\Project\Workshop\WorkshopCardsProviderInterface;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadinessProviderInterface;
-use App\Outbox\Command\ListActivityCommand;
-use App\Outbox\Command\ListActivityHandler;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 final readonly class ShowWorkshopHandler
@@ -23,7 +21,6 @@ final readonly class ShowWorkshopHandler
         private iterable $statsProviders,
         private WorkshopAttentionProviderInterface $attention,
         private WorkshopCardsProviderInterface $cards,
-        private ListActivityHandler $activity,
         private WorkshopConnectionsProviderInterface $connections,
         private WorkshopReadinessProviderInterface $readiness,
     ) {
@@ -52,7 +49,6 @@ final readonly class ShowWorkshopHandler
             $stats,
             $attention,
             $inMotion,
-            ($this->activity)(new ListActivityCommand($command->project, 4))->entries,
             $this->connections->forProject($command->project),
             $readiness,
             [] === $attention && [] === $moving && 0 === $inMotion->more,
