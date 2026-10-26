@@ -738,6 +738,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $markedPath);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('.lp-verdict-chip__agent', 'An agent recorded this verdict for the owner.');
+        self::assertSelectorExists('.lp-verdict-chip__agent > svg.lp-icon');
 
         $client->request(Request::METHOD_GET, $plainPath);
         self::assertResponseIsSuccessful();

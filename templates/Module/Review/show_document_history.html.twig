@@ -127,7 +127,7 @@
             <twig:Ds:RelativeTime :datetime="entry.review.submittedAt" class="lp-history__date" />
             {% if entry.review.workflowRule and entry.review.verdict.value == 'approved' %}<p class="lp-history__review-note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
             {% elseif entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
-            {% if entry.review.throughAgent %}<p class="lp-history__review-agent">{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
+            {% if entry.review.throughAgent %}<p class="lp-history__review-agent"><twig:ux:icon name="lucide:bot" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
         </div>
         {% else %}
         <p class="lp-history__empty">{{ 'review.document.history.no_verdicts'|trans }}</p>

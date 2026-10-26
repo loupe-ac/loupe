@@ -217,6 +217,7 @@ final class ShowDocumentHistoryControllerTest extends WebTestCase
             ['An agent recorded this verdict for the owner.'],
             $crawler->filter('.lp-history-log .lp-history__review-agent')->each(static fn (Crawler $node): string => $node->text()),
         );
+        self::assertSelectorExists('.lp-history-log .lp-history__review-agent > svg.lp-icon');
         self::assertSelectorExists('.lp-review[data-controller~="review-draft-live"][data-review-draft-live-url-value$="/review/draft-state"]');
     }
 

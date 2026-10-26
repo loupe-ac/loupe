@@ -52,7 +52,7 @@
                 </p>
                 {% if review.workflowRule and review.verdict.value == 'approved' %}<blockquote class="lp-verdict-chip__note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</blockquote>
                 {% elseif review.note %}<blockquote class="lp-verdict-chip__note">{{ review.note }}</blockquote>{% endif %}
-                {% if review.throughAgent %}<p class="lp-verdict-chip__agent">{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
+                {% if review.throughAgent %}<p class="lp-verdict-chip__agent"><twig:ux:icon name="lucide:bot" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
             </div>
             {% endif %}
             <div class="lp-verdict-chip__actions">
