@@ -191,7 +191,7 @@ export default class extends Controller {
     markAgent(block) {
         block.querySelector('[data-decision-agent-mark]')?.remove();
         if (block.dataset.decisionThroughAgent === undefined) return;
-        const mark = document.createElement('p');
+        const mark = document.createElement('div');
         mark.className = 'lp-decision__agent-mark';
         mark.dataset.decisionAgentMark = '';
         mark.dataset.label = this.agentMarkValue;

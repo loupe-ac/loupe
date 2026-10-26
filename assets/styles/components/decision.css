@@ -133,7 +133,7 @@
     /* The words ride on an attribute, because the pane may gain no text node.
        The inset lines the mark up with the words inside the note field. */
     .lp-decision__agent-mark {
-        @apply mt-1.5 mb-0 flex items-center gap-1.5 pl-2.75 text-xs text-fg-dim;
+        @apply mt-2 flex items-center gap-1.5 pl-2.75 text-xs text-fg-dim;
     }
     .lp-decision__agent-mark::before {
         @apply inline-block size-3.5 shrink-0 bg-current;

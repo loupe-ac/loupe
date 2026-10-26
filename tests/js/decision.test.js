@@ -1281,6 +1281,7 @@ it('draws the agent mark under a block an agent answered, with no text node', as
         'An agent recorded this answer for the owner.',
     );
     expect(mark('a').textContent).toBe('');
+    expect(mark('a').tagName).toBe('DIV');
     expect(fieldset.lastElementChild).toBe(mark('a'));
     expect(mark('b')).toBeNull();
 });
