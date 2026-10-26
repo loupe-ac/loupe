@@ -199,7 +199,7 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                     ? '.lp-board-toolbar__menu a'
                     : '.lp-board-toolbar__actions a',
             );
-            await expect(links).toHaveCount(1);
+            await expect(links).toHaveCount(inMenu ? 2 : 1);
             for (const link of await links.all()) {
                 await expect(link).toBeInViewport({ ratio: 1 });
                 expect(
@@ -216,14 +216,21 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                 ).toBeLessThanOrEqual(1);
             }
             if (inMenu) {
-                await page.keyboard.press('Escape');
+                await expect(links.filter({ hasText: 'Backlog' })).toHaveCount(
+                    1,
+                );
+                await page
+                    .locator('.lp-board-toolbar__menu')
+                    .getByRole('button', { name: 'Search', exact: true })
+                    .click();
                 await expect(
                     page.locator('.lp-board-toolbar__more'),
                 ).toHaveAttribute('aria-expanded', 'false');
+            } else {
+                await expect(page.locator('a.lp-board-backlog')).toBeInViewport(
+                    { ratio: 1 },
+                );
             }
-            await expect(page.locator('a.lp-board-backlog')).toBeInViewport({
-                ratio: 1,
-            });
             const query = page.getByRole('searchbox', {
                 name: 'Search cards',
                 exact: true,

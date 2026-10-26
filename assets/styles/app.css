@@ -2628,9 +2628,9 @@
         @apply hidden;
     }
 
-    /* A phone shows one column per screen and a swipe stops on a column. The
-       header row holds the title, Backlog and the "…" menu, and Find takes
-       the row below it, because the header row has no room for a field. */
+    /* A phone shows one column per screen and a sideways swipe steps one column. The
+       header row holds the title and the "…" menu. Search opens the row below
+       it, and that row stays while the search has text. */
     @media (width < 40rem) {
         .lp-board-header {
             @apply flex-wrap gap-x-2;
@@ -2642,10 +2642,13 @@
             @apply order-1 mr-auto text-xl;
         }
         .lp-board-toolbar__filters {
-            @apply order-5 basis-full;
+            @apply hidden order-5 basis-full;
         }
-        .lp-board-backlog {
-            @apply order-3;
+        .lp-board-toolbar[data-search-open] .lp-board-toolbar__filters {
+            @apply flex;
+        }
+        .lp-board-header .lp-board-backlog {
+            @apply hidden;
         }
         .lp-board-toolbar__actions {
             @apply hidden;
@@ -2686,8 +2689,10 @@
             @apply gap-3;
             container-type: inline-size;
             grid-auto-columns: 100cqw;
+            overflow-x: hidden;
             scroll-padding-inline: 0;
             scroll-snap-type: x mandatory;
+            touch-action: pan-y;
         }
         .lp-board .lp-board__column {
             @apply w-full;
@@ -6611,6 +6616,10 @@
     .lp-board-lane__move {
         @apply size-11 shrink-0 cursor-pointer text-fg-dim;
     }
+    /* The lane sheet button. A phone shows it, and the other widths keep the buttons of the head. */
+    .lp-board-lane__head .lp-board-lane__menu {
+        @apply hidden size-11 shrink-0 cursor-pointer text-fg-dim;
+    }
     .lp-board-lane__chevron {
         @apply w-4 h-4 rotate-90 transition-transform;
     }
@@ -6983,6 +6992,36 @@
         @apply flex flex-col flex-1 gap-2.5 min-h-16 pr-1.5 rounded-lg overflow-y-auto overflow-x-hidden;
     }
 
+    /* On a phone a lane head keeps the title, the done count and the lane sheet button.
+       These rules follow the base and collapsed rules and match their weight. */
+    @media (width < 40rem) {
+        .lp-board-lane__head .lp-board-lane__menu {
+            @apply inline-flex;
+        }
+        .lp-board-lane:not(.lp-board-lane--collapsed) .lp-board-lane__head {
+            @apply h-18;
+        }
+        .lp-board-lane__head .lp-board-lane__collapse,
+        .lp-board-lane__head .lp-board-lane__move,
+        .lp-board-lane__head .lp-board-lane__up-next,
+        .lp-board-lane__head > form,
+        .lp-board-lane__number,
+        .lp-board-lane__status,
+        .lp-board-lane__bar,
+        .lp-board-lane__done {
+            @apply hidden;
+        }
+        .lp-board-lane__progress::before {
+            @apply hidden;
+        }
+        .lp-board-lane--epic .lp-board-lane__heading,
+        .lp-board-lane--collapsed .lp-board-lane__heading {
+            @apply flex-1 self-center pt-0 max-w-none;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas: 'title progress';
+        }
+    }
+
     /* The whole card is the drag handle, so its own text is not selectable.
        A selection started on a card would fight the gesture. The card's page
        carries the same text, and there it selects normally. */
@@ -7058,7 +7097,7 @@
         @apply mt-0 mb-2 line-clamp-2 text-sm text-fg-mute;
     }
     .lp-move-sheet__row {
-        @apply flex min-h-12 w-full cursor-pointer items-center gap-2.5 border-0 border-b border-line bg-transparent px-1 text-left font-sans text-base font-medium text-ink transition-colors;
+        @apply flex min-h-12 w-full cursor-pointer items-center gap-2.5 border-0 border-b border-line bg-transparent px-1 text-left font-sans text-base font-medium text-ink transition-colors no-underline;
     }
     .lp-move-sheet__row:last-child {
         @apply border-b-0;

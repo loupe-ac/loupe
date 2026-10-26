@@ -240,3 +240,22 @@ it('switches at once when the reader asks for reduced motion', async () => {
     );
     expect(title.animate).not.toHaveBeenCalled();
 });
+
+it('collapses and expands through a call from outside the lane', async () => {
+    await mount('epic-a');
+    const controller = application.getControllerForElementAndIdentifier(
+        lane('epic-a'),
+        'board-lane',
+    );
+
+    controller.toggle();
+    expect(lane('epic-a').classList.contains('lp-board-lane--collapsed')).toBe(
+        true,
+    );
+    expect(JSON.parse(window.localStorage.getItem(KEY))).toEqual(['epic-a']);
+
+    controller.toggle();
+    expect(lane('epic-a').classList.contains('lp-board-lane--collapsed')).toBe(
+        false,
+    );
+});

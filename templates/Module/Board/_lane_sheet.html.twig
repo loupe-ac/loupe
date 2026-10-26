@@ -1,0 +1,19 @@
+{# The lane sheet of the phone board, one for the page. It sits outside #board, so no board stream replaces it while it is open.
+   The lane-sheet controller of the page fills the title and the rows when the "…" button of a lane head opens it. #}
+<div data-lane-sheet-target="sheet"
+     data-controller="sheet"
+     data-show-label="{{ 'board.lane.sheet.show'|trans }}"
+     data-hide-label="{{ 'board.lane.sheet.hide'|trans }}">
+    <twig:Ds:Sheet :title="'board.lane.sheet.title'|trans">
+        <button type="button" class="lp-move-sheet__row" data-action="lane-sheet#toggleCards">
+            <span class="lp-move-sheet__label" data-lane-sheet-target="cardsLabel"></span>
+        </button>
+        <button type="button" class="lp-move-sheet__row" data-lane-sheet-target="moveRow" data-action="click->card-move#open click->lane-sheet#dismiss">
+            <span class="lp-move-sheet__label" data-lane-sheet-target="moveLabel"></span>
+        </button>
+        <button type="button" class="lp-move-sheet__row" data-action="lane-sheet#hideLane">
+            <span class="lp-move-sheet__label">{{ 'board.lane.sheet.hide_lane'|trans }}</span>
+        </button>
+        <a class="lp-move-sheet__row" data-lane-sheet-target="upNextRow" data-action="click->lane-sheet#dismiss" hidden></a>
+    </twig:Ds:Sheet>
+</div>
