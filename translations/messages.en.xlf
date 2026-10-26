@@ -7440,7 +7440,6 @@
             <trans-unit id="board.card.drawer.deleted"><source>board.card.drawer.deleted</source><target>This card was deleted.</target></trans-unit>
             <trans-unit id="nav.global_actions.label"><source>nav.global_actions.label</source><target>Global tools</target></trans-unit>
             <trans-unit id="nav.new_work"><source>nav.new_work</source><target>New work</target></trans-unit>
-            <trans-unit id="nav.activity.open"><source>nav.activity.open</source><target>Open project activity</target></trans-unit>
             <trans-unit id="board.card.drawer.sections"><source>board.card.drawer.sections</source><target>Card sections</target></trans-unit>
             <trans-unit id="board.card.tab.overview"><source>board.card.tab.overview</source><target>Overview</target></trans-unit>
             <trans-unit id="board.card.tab.conversation"><source>board.card.tab.conversation</source><target>Conversation</target></trans-unit>
@@ -7781,7 +7780,6 @@
                 <source>project.workshop.needs_you.action</source>
                 <target>Open inbox</target>
             </trans-unit>
-            <trans-unit id="project.workshop.activity.view_all"><source>project.workshop.activity.view_all</source><target>View all</target></trans-unit>
             <trans-unit id="activity.event_type.board.card_moved"><source>activity.event_type.board.card_moved</source><target>Card moved</target></trans-unit>
             <trans-unit id="activity.event_type.board.column_renamed"><source>activity.event_type.board.column_renamed</source><target>Column renamed</target></trans-unit>
             <trans-unit id="activity.event_type.board.column_deleted"><source>activity.event_type.board.column_deleted</source><target>Column deleted</target></trans-unit>
@@ -7801,7 +7799,6 @@
             <trans-unit id="activity.event_type.pull_request.merged"><source>activity.event_type.pull_request.merged</source><target>Pull request merged</target></trans-unit>
             <trans-unit id="activity.event_type.pull_request.repository_moved"><source>activity.event_type.pull_request.repository_moved</source><target>Repository moved</target></trans-unit>
             <trans-unit id="activity.event_type.document.review_submitted"><source>activity.event_type.document.review_submitted</source><target>Document review submitted</target></trans-unit>
-            <trans-unit id="project.workshop.activity.empty"><source>project.workshop.activity.empty</source><target>No recorded activity yet.</target></trans-unit>
             <trans-unit id="project.workshop.cards.empty"><source>project.workshop.cards.empty</source><target>Nothing in motion. A card shows here when a bridge queues it or a session works on it.</target></trans-unit>
             <trans-unit id="project.workshop.needs_you.disabled"><source>project.workshop.needs_you.disabled</source><target>The inbox is disabled on this instance.</target></trans-unit>
             <trans-unit id="project.workshop.needs_you.clear">
@@ -8259,11 +8256,6 @@
             <trans-unit id="analytics.metrics.chart.label"><source>analytics.metrics.chart.label</source><target>%metric%, %statistic%, %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.week"><source>analytics.metrics.chart.week</source><target>Week of %date%</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.bar"><source>analytics.metrics.chart.bar</source><target>%bucket%: %series%, %value%, %rows%</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.run"><source>analytics.metrics.table.run</source><target>Run</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.card"><source>analytics.metrics.table.card</source><target>Card</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.time"><source>analytics.metrics.table.time</source><target>Time</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.hidden.run"><source>analytics.metrics.table.hidden.run</source><target>{0}No more runs.|{1}1 more run is not shown.|]1,Inf[%count% more runs are not shown.</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.hidden.card"><source>analytics.metrics.table.hidden.card</source><target>{0}No more cards.|{1}1 more card is not shown.|]1,Inf[%count% more cards are not shown.</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.title"><source>analytics.metrics.empty.title</source><target>No runs are recorded yet</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.description"><source>analytics.metrics.empty.description</source><target>The chart fills when a bridge reports worker runs. Connect a bridge on the Agents page, or pick a longer range.</target></trans-unit>
             <trans-unit id="insights.reports.start.title"><source>insights.reports.start.title</source><target>Analyse</target></trans-unit>
@@ -8413,11 +8405,6 @@
             <trans-unit id="search.pagination"><source>search.pagination</source><target>Search result pages</target></trans-unit>
             <trans-unit id="search.previous"><source>search.previous</source><target>Previous results</target></trans-unit>
             <trans-unit id="search.next"><source>search.next</source><target>Next results</target></trans-unit>
-            <trans-unit id="activity.recent.title"><source>activity.recent.title</source><target>Recent activity</target></trans-unit>
-            <trans-unit id="activity.recent.close"><source>activity.recent.close</source><target>Close activity</target></trans-unit>
-            <trans-unit id="activity.recent.loading"><source>activity.recent.loading</source><target>Loading recent activity…</target></trans-unit>
-            <trans-unit id="activity.recent.failed"><source>activity.recent.failed</source><target>Recent activity is unavailable. Reopen this panel to retry, or open the full Activity page.</target></trans-unit>
-            <trans-unit id="activity.recent.open"><source>activity.recent.open</source><target>Open activity</target></trans-unit>
             <trans-unit id="activity.delivery.delivered"><source>activity.delivery.delivered</source><target>Delivered</target></trans-unit>
             <trans-unit id="activity.delivery.failed"><source>activity.delivery.failed</source><target>Delivery failed</target></trans-unit>
             <trans-unit id="activity.delivery.pending"><source>activity.delivery.pending</source><target>Pending delivery</target></trans-unit>

@@ -126,48 +126,6 @@
             <line class="lp-metric-chart__baseline" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ baseline }}" y2="{{ baseline }}" />
         </svg>
     </figure>
-
-    <div class="lp-metric-table" data-metrics-table>
-        {% for series in view.series %}
-        <section class="lp-metric-table__series" data-metrics-series="{{ series.group ?? 'none' }}">
-            <h3 class="lp-metric-table__title">{{ labels[loop.index0] }}</h3>
-            <div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-metric-table__cue" data-controller="overflow-cue">
-<div class="lp-metric-table__scroll" data-overflow-cue-target="viewport">
-<table class="lp-metric-table__table">
-                <thead>
-                    <tr>
-                        <th scope="col">{{ ('analytics.metrics.table.' ~ query.unit.value)|trans }}</th>
-                        <th scope="col" class="lp-metric-table__number">{{ metricName }}</th>
-                        <th scope="col">{{ 'analytics.metrics.table.time'|trans }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in series.rows|slice(0, rowLimit) %}
-                    <tr>
-                        <td>
-                            {% if query.unit.value == 'card' %}
-                                {% set cardLabel = 'bridge.worker_runs.card_number'|trans({'%number%': row.cardNumber}) %}
-                                <a href="{{ path('app_board_card', {projectId: project.id, cardId: row.unitId}) }}">{{ cardLabel }}</a>
-                            {% else %}
-                                {% set runLabel = row.cardNumber is null ? row.unitId : 'bridge.worker_runs.card_number'|trans({'%number%': row.cardNumber}) %}
-                                {% if keptRunIds[row.unitId.toRfc4122()] is defined %}<a href="{{ path('app_project_worker_runs', {id: project.id, search: row.unitId}) }}">{{ runLabel }}</a>{% else %}<span data-metrics-purged-run>{{ runLabel }}</span>{% endif %}
-                            {% endif %}
-                        </td>
-                        <td class="lp-metric-table__number">{{ row.value|metric_value(metric) }}</td>
-                        <td><twig:Ds:RelativeTime :datetime="row.time" mode="datetime" /></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-</div>
-{% include '_overflow_arrows.html.twig' only %}
-</div>
-            {% if series.rows|length > rowLimit %}
-            <p class="lp-metric-table__note" data-metrics-hidden-rows>{{ ('analytics.metrics.table.hidden.' ~ query.unit.value)|trans({'%count%': series.rows|length - rowLimit}) }}</p>
-            {% endif %}
-        </section>
-        {% endfor %}
-    </div>
     {% endif %}
 </twig:Ds:Workspace>
 {% endblock %}

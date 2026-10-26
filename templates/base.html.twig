@@ -153,14 +153,11 @@
                             {% block topbar_crumbs %}{% endblock %}
                             {% block topbar_meta %}{% endblock %}
                         </div>
-                        {# Before the global actions, so the bell and New work stay right-most on every page. #}
+                        {# Before the global actions, so New work stays right-most on every page. #}
                         {% block topbar_actions %}{% endblock %}
                         <div class="lp-topbar__global-actions" aria-label="{{ 'nav.global_actions.label'|trans }}">
                             {% if is_feature_enabled('search.topbar.enabled') %}
                             {% include 'search/_search_dialog.html.twig' with {project: project} only %}
-                            {% endif %}
-                            {% if project %}
-                            {% include 'outbox/_activity_drawer.html.twig' with {project: project} only %}
                             {% endif %}
                             {% if project %}
                             <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="{{ path('app_board_card_create', {id: project.id}) }}" data-card-drawer-opener data-drawer-title="{{ 'nav.new_work'|trans }}" aria-label="{{ 'nav.new_work'|trans }}">

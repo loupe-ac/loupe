@@ -188,14 +188,13 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
     await page.goto(`/projects/${seeded.projectId}/documents`);
     const menu = page.locator('.lp-topbar__menu');
     const newWork = page.locator('.lp-topbar__new-work');
-    const bell = page.locator('.lp-topbar__global-action[aria-haspopup]');
     const label = page.locator('.lp-topbar__new-work-label');
 
     for (const width of [639, 640, 820, 1023]) {
         await page.setViewportSize({ width, height: 900 });
         await expect(page.locator(SIDEBAR), `${width}px`).toBeHidden();
         await expect(menu, `${width}px`).toBeVisible();
-        for (const control of [menu, bell, newWork]) {
+        for (const control of [menu, newWork]) {
             const box = (await control.boundingBox())!;
             expect(box.width, `${width}px`).toBeGreaterThanOrEqual(44);
             expect(box.height, `${width}px`).toBeGreaterThanOrEqual(44);
@@ -216,7 +215,7 @@ test('the compact shell holds up to 1023px and the desktop shell starts at 1024p
     await page.evaluate(() => {
         document.documentElement.style.fontSize = '200%';
     });
-    for (const control of [menu, bell, newWork]) {
+    for (const control of [menu, newWork]) {
         const box = (await control.boundingBox())!;
         expect(box.width, '200% text').toBe(44);
         expect(box.height, '200% text').toBe(44);
