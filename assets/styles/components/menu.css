@@ -7,8 +7,13 @@
         @apply relative;
     }
     .lp-menu__panel {
-        @apply absolute top-full right-0 z-40 mt-1 flex min-w-46 flex-col rounded-xl border border-line bg-elev p-1.5 text-sm shadow-card;
+        @apply absolute top-full right-0 z-40 mt-1 flex flex-col rounded-xl border border-line bg-elev p-1.5 text-sm shadow-card;
+        min-width: min(
+            calc(var(--spacing) * 46),
+            calc(100vw - var(--spacing) * 8)
+        );
         max-width: calc(100vw - var(--spacing) * 8);
+        translate: var(--lp-menu-shift, 0) 0;
         animation: lp-appear 120ms ease-out both;
     }
     .lp-menu__panel[hidden] {
@@ -18,7 +23,7 @@
         @apply right-auto left-0;
     }
     .lp-menu--stretch .lp-menu__panel {
-        @apply right-0 left-0 max-w-none;
+        @apply right-0 left-0;
     }
     .lp-menu--up .lp-menu__panel {
         @apply top-auto bottom-full mt-0 mb-1;

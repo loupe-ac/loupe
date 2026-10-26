@@ -2656,13 +2656,6 @@
         .lp-board-toolbar__menu {
             @apply order-4 ml-auto block;
         }
-        /* The panel minimum outgrows a phone at large text sizes. */
-        .lp-board-toolbar__menu .lp-menu__panel {
-            min-width: min(
-                calc(var(--spacing) * 46),
-                calc(100vw - var(--spacing) * 8)
-            );
-        }
         .lp-board-toolbar__menu .lp-board-toolbar__mode {
             @apply flex-wrap;
         }
