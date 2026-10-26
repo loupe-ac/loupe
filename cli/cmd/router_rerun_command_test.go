@@ -127,7 +127,7 @@ func TestARerunRunsTheCommandAgain(t *testing.T) {
 	}
 
 	specs := f.recorded()
-	if len(specs) != 1 || !slices.Equal(specs[0].argv, []string{"teardown", "87", workID(1)}) || specs[0].dir != h.dir {
+	if len(specs) != 1 || !slices.Equal(entryArgv(specs[0].argv), []string{"teardown", "87", workID(1)}) || specs[0].dir != h.dir {
 		t.Fatalf("command = %+v", specs)
 	}
 	sent := rec.states()
@@ -263,7 +263,7 @@ func TestARerunFillsTheContextOfItsRun(t *testing.T) {
 			if state, reason := h.rerun(c); state != api.CommandDone {
 				t.Fatalf("rerun = %s %q", state, reason)
 			}
-			if specs := f.recorded(); len(specs) != 1 || !slices.Equal(specs[0].argv, tc.argv) {
+			if specs := f.recorded(); len(specs) != 1 || !slices.Equal(entryArgv(specs[0].argv), tc.argv) {
 				t.Fatalf("command = %+v, want %q", specs, tc.argv)
 			}
 		})

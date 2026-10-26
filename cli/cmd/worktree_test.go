@@ -370,15 +370,40 @@ func TestTeardownSucceedsWhenTheCardNeverHadAWorktree(t *testing.T) {
 	wantStates(t, rec.states(), api.RunQueued, api.RunRunning, api.RunSucceeded)
 }
 
-func TestTeardownEntryOfTheUserWinsOverTheBridge(t *testing.T) {
-	isolateConfig(t)
-	h, f := withCommand(t, "1m")
-	rec := h.states()
+// A teardown entry of the user runs first, and the bridge then removes its
+// own worktree of the card. A failed entry fails the run, and the removal
+// still runs. It runs the real sh and git.
+func TestTeardownEntryRunsBeforeTheBridgeRemovesTheWorktree(t *testing.T) {
+	for name, tc := range map[string]struct {
+		run   string
+		state string
+	}{
+		"the entry passes": {"[touch, 'ran-{cardNumber}']", api.RunSucceeded},
+		"the entry fails":  {"[sh, -c, 'touch ran-$0; exit 3', '{cardNumber}']", api.RunFailed},
+	} {
+		t.Run(name, func(t *testing.T) {
+			isolateConfig(t)
+			body := strings.Replace(strings.Replace(commandRunRules, "TIMEOUT", "1m", 1), "[teardown, '{cardNumber}']", tc.run, 1)
+			h := newHarnessWith(t, body, rules.Defaults{})
+			newRepo(t, h.dir)
+			path, err := ensureWorktree(context.Background(), h.dir, "loupe", 87)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rec := h.states()
 
-	h.send(doneMoved(87))
+			h.send(doneMoved(87))
 
-	wantStates(t, rec.states(), api.RunQueued, api.RunRunning, api.RunSucceeded)
-	if specs := f.recorded(); len(specs) != 1 || specs[0].argv[0] != "teardown" {
-		t.Fatalf("command = %+v, want the entry of the user", specs)
+			wantStates(t, rec.states(), api.RunQueued, api.RunRunning, tc.state)
+			if _, err := os.Stat(filepath.Join(h.dir, "ran-87")); err != nil {
+				t.Fatalf("the entry did not run: %v", err)
+			}
+			if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("the worktree folder is still there: %v", err)
+			}
+			if got := worktreePaths(t, h.dir); len(got) != 1 {
+				t.Fatalf("worktrees = %v, want the project alone", got)
+			}
+		})
 	}
 }
