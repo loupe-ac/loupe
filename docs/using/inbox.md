@@ -642,6 +642,7 @@ The `waits-for-approval` marker is on when all of these are true:
 - Its base is the default branch.
 - No worker run of the card is active.
 - No approval covers its head commit.
+- A person must review the card, Loupe cannot post a review on the repository, or the agent review failed. A pull request that the App can approve and that a person need not review gives no wait.
 
 A pull request of an epic child into the epic branch of its parent gives no
 wait, because its base is not the default branch. The epic's own pull request

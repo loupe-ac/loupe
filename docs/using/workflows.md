@@ -986,6 +986,38 @@ A project that updates to this version gets the rule in its template copy. A mig
 card outside a terminal column that an artifact reaches today, and writes one history row with the cause `rollout`.
 After the update, the rule fires only for an artifact that arrives later.
 
+### Automatic approval of a pull request
+
+A pull request into the default branch can approve itself. Loupe then posts the approval as the GitHub App, and the
+`merge-ready` rule merges the pull request without a person. The rule `pull-request-auto-approve` sits in the
+`in-review` slot, right before `merge-ready`. It fires when all of these are true:
+
+1. The pull request is open, it is not a draft, and its base is the default branch.
+2. The checks passed on the head commit.
+3. The agent review passed.
+4. The repository has an active GitHub App installation (`pr.app_can_approve`).
+5. The card does not require a human review (`card.review.needs_person`).
+6. The pull request has no conflict, no change request, and no App approval on the head commit.
+
+The approval names the head commit that the rule read. A push after it makes the rule fire again once the agent review
+passed on the new head.
+
+A card with the **Requires human review** switch on never gets this approval. If an App approval already stands,
+the rule `dismiss-app-approval` dismisses it. It has no slot, so it also runs while the card sits in another column.
+The `merge-ready` rule needs the approval of a person when the card requires a human review, so an App approval never
+merges such a pull request.
+
+| Condition | True when |
+|---|---|
+| `card.review.needs_person` | The **Requires human review** switch of the card is on. It is in the **Board** group |
+
+The wait item "Waits for approval" opens when a person must review the card, when Loupe cannot post a review on the
+repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
+of a new commit opens no item.
+
+A project that updates to this version gets the two rules in its template copy. A pull request that is open at that time
+gets the approval of the App when it meets the conditions above.
+
 ### Asking about an unplanned child
 
 A child that joins an epic after the epic design was approved may link no tech
