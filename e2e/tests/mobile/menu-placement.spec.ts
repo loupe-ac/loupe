@@ -65,10 +65,7 @@ test('a start-aligned menu stays on screen at enlarged text', async ({
     await page.goto(await seedReviewPath(page));
     await enlargeText(page);
     await page.locator('.lp-revision-notes__trigger').click();
-    await expectPanelOnScreen(
-        page.locator('#revision-notes-panel'),
-        page,
-    );
+    await expectPanelOnScreen(page.locator('#revision-notes-panel'), page);
 });
 
 test('an end-aligned menu stays on screen at enlarged text', async ({
@@ -81,10 +78,7 @@ test('an end-aligned menu stays on screen at enlarged text', async ({
         .getByRole('button')
         .first()
         .click();
-    await expectPanelOnScreen(
-        page.locator('#diff-views-menu'),
-        page,
-    );
+    await expectPanelOnScreen(page.locator('#diff-views-menu'), page);
 });
 
 test('the stretch project switcher stays on screen at enlarged text', async ({
@@ -96,8 +90,5 @@ test('the stretch project switcher stays on screen at enlarged text', async ({
         .getByRole('button', { name: 'Open navigation', exact: true })
         .click();
     await page.locator('.lp-sidebar__switcher').click();
-    await expectPanelOnScreen(
-        page.locator('#project-switcher-panel'),
-        page,
-    );
+    await expectPanelOnScreen(page.locator('#project-switcher-panel'), page);
 });
