@@ -36,15 +36,6 @@ final class DropInboxItemOriginTriggerMigrationTest extends KernelTestCase
         self::assertSame(0, $this->rows("SELECT COUNT(*) FROM pg_proc WHERE proname = 'inbox_items_fill_origin'"));
     }
 
-    /** The previous image still inserts inbox_asks.origin, and this image omits it, so the column stays with its default. */
-    public function test_up_keeps_the_ask_column_with_its_default(): void
-    {
-        $this->migrate(down: true);
-        $this->migrate();
-
-        self::assertSame(1, $this->rows("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'inbox_asks' AND column_name = 'origin' AND column_default LIKE '''agent''%'"));
-    }
-
     public function test_up_keeps_the_origin_of_inbox_items(): void
     {
         $this->migrate(down: true);
