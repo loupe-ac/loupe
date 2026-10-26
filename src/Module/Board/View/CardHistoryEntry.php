@@ -89,6 +89,12 @@ final readonly class CardHistoryEntry
                 : null,
             CardEventKind::DocumentVerdict => self::documentVerdict($event, $actor, $detail),
             CardEventKind::VerdictFailed => self::verdictFailed($event, $actor, $detail),
+            CardEventKind::AutoApproved => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['headSha'] ?? null)
+                ? new self('lucide:shield-check', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.auto_approved', ['%pr%' => $detail['pullRequest'], '%sha%' => mb_substr($detail['headSha'], 0, 7)]))
+                : null,
+            CardEventKind::ApprovalDismissed => \is_int($detail['pullRequest'] ?? null)
+                ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.approval_dismissed', ['%pr%' => $detail['pullRequest']]))
+                : null,
             CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
                 ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
                 : null,

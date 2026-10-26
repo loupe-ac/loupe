@@ -14,6 +14,7 @@ use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardPullRequest;
@@ -22,6 +23,7 @@ use App\Module\Board\Entity\CardVerdictDelivery;
 use App\Module\Board\Entity\CardVerdictDeliveryState;
 use App\Module\Board\Entity\CardVerdictKind;
 use App\Module\Board\Entity\Forge;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardVerdictDeliveryRepository;
@@ -50,7 +52,9 @@ use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\EpicBranchMergeFailed;
 use App\Module\Forge\Service\EpicBranchMergers;
+use App\Module\Forge\Service\ForgePullRequestApprovals;
 use App\Module\Forge\Service\ForgePullRequestWrites;
+use App\Module\Forge\Service\PullRequestApprovers;
 use App\Module\Forge\Service\PullRequestBaseChangers;
 use App\Module\Forge\Service\PullRequestBranchUpdaters;
 use App\Module\Forge\Service\PullRequestCheckWriters;
@@ -261,6 +265,120 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertSame('abc123', $this->em()->getConnection()->fetchOne('SELECT sync_from_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
         self::assertEquals(ActionOutcome::done(), $this->write($card, 'update-branch'));
         self::assertCount(1, $this->writer->calls);
+    }
+
+    public function test_approve_posts_the_head_the_rule_read_stores_the_review_and_writes_a_history_row(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc123');
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertCount(1, $this->writer->calls);
+        self::assertSame(['approve', $pullRequest->number, 'abc123'], \array_slice($this->writer->calls[0], 0, 3));
+        self::assertStringContainsString('/board/cards/'.$card->id, (string) $this->writer->calls[0][3]);
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT app_approval_id, app_approval_sha, approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]);
+        self::assertSame(['app_approval_id' => 'PRR_app', 'app_approval_sha' => 'abc123', 'approval_id' => null], $row);
+        $this->em()->flush();
+        self::assertEquals([['pullRequest' => $pullRequest->number, 'headSha' => 'abc123', 'rule' => 'test-rule']], $this->historyDetails($card, CardEventKind::AutoApproved));
+    }
+
+    public function test_approve_posts_nothing_when_the_head_moved_since_the_rule_read_the_facts(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'new456');
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'old123'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertSame([], $this->writer->calls);
+        $this->em()->flush();
+        self::assertSame([], $this->historyDetails($card, CardEventKind::AutoApproved));
+    }
+
+    public function test_approve_posts_nothing_on_a_pull_request_that_is_no_longer_open(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, state: PullRequestState::Merged, headSha: 'abc123');
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertSame([], $this->writer->calls);
+    }
+
+    public function test_approve_with_no_installation_ends_done_and_opens_no_work(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc123');
+        $this->writer->failure = new PullRequestWriteFailed('no_installation', permanent: true);
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertSame([], $this->liveKinds($card));
+    }
+
+    public function test_a_refused_approval_is_refused_with_its_cause_and_stores_nothing(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc123');
+        $this->writer->failure = new PullRequestWriteFailed('permission', permanent: true);
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
+
+        self::assertEquals(ActionOutcome::refused('permission'), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertNull($this->em()->getConnection()->fetchOne('SELECT app_approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
+    }
+
+    public function test_dismiss_approval_dismisses_the_stored_review_clears_it_and_writes_a_history_row(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc123');
+        $pullRequest->appApprovalId = 'PRR_app';
+        $pullRequest->appApprovalSha = 'abc123';
+        $this->em()->flush();
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'dismiss-approval', fallback: null));
+
+        self::assertSame(['dismiss', $pullRequest->number, 'PRR_app'], \array_slice($this->writer->calls[0], 0, 3));
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT app_approval_id, app_approval_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]);
+        self::assertSame(['app_approval_id' => null, 'app_approval_sha' => null], $row);
+        $this->em()->flush();
+        self::assertEquals([['pullRequest' => $pullRequest->number, 'rule' => 'test-rule']], $this->historyDetails($card, CardEventKind::ApprovalDismissed));
+    }
+
+    public function test_dismiss_approval_does_nothing_when_no_app_approval_stands(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $this->pullRequest($card, headSha: 'abc123');
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'dismiss-approval', fallback: null));
+
+        self::assertSame([], $this->writer->calls);
+    }
+
+    public function test_a_refused_dismissal_is_refused_with_its_cause_and_keeps_the_stored_approval(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc123');
+        $pullRequest->appApprovalId = 'PRR_app';
+        $pullRequest->appApprovalSha = 'abc123';
+        $this->em()->flush();
+        $this->writer->failure = new PullRequestWriteFailed('api_failed_rate_limited', permanent: false);
+
+        self::assertEquals(ActionOutcome::refused('api-failed-rate-limited'), $this->write($card, 'dismiss-approval', fallback: null));
+
+        self::assertSame('PRR_app', $this->em()->getConnection()->fetchOne('SELECT app_approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function historyDetails(Card $card, CardEventKind $kind): array
+    {
+        $rows = $this->service(CardEventRepository::class)->findKindsOfCards($card->project, [$card->id ?? throw new \LogicException('A flushed card has an id.')], [$kind]);
+
+        return array_values(array_map(static fn (array $row): array => $row['detail'], array_filter($rows, static fn (array $row): bool => $kind === $row['kind'])));
     }
 
     public function test_only_a_comment_and_a_branch_update_refire_when_their_facts_change(): void
@@ -1149,6 +1267,8 @@ final class ForgeWriteTest extends KernelTestCase
                 $this->service(EntityManagerInterface::class),
                 new MockClock('2026-10-02 12:00:00'),
             ),
+            new ForgePullRequestApprovals(new PullRequestApprovers($registered), $forgePullRequests, $this->service(EntityManagerInterface::class)),
+            $this->service(CardEventRepository::class),
             $forgePullRequests,
             new EpicBranchMergers($writers ? [$this->epicMerger] : []),
             new PullRequestStateWriters($registered),

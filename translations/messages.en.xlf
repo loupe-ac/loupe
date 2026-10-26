@@ -7469,6 +7469,8 @@
             <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the live-review widget: %verdict%.</target></trans-unit>
             <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
+            <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe approved #%pr% at %sha% as the GitHub App.</target></trans-unit>
+            <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe dismissed its approval of #%pr% as the GitHub App, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
@@ -8806,6 +8808,12 @@
             <trans-unit id="workflow.waiting.not.pr_behind"><source>workflow.waiting.not.pr_behind</source><target>Waiting: the pull request is behind its base.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_approval_covers_head"><source>workflow.waiting.pr_approval_covers_head</source><target>Waiting: fewer than %min% approvals cover the head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_approval_covers_head"><source>workflow.waiting.not.pr_approval_covers_head</source><target>Waiting: %min% or more approvals cover the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_app_approval_covers_head"><source>workflow.waiting.pr_app_approval_covers_head</source><target>Waiting: the approval of Loupe does not cover the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_app_approval_covers_head"><source>workflow.waiting.not.pr_app_approval_covers_head</source><target>Waiting: the approval of Loupe covers the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_app_approval_stands"><source>workflow.waiting.pr_app_approval_stands</source><target>Waiting: no approval of Loupe stands on the pull request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_app_approval_stands"><source>workflow.waiting.not.pr_app_approval_stands</source><target>Waiting: an approval of Loupe stands on the pull request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_app_can_approve"><source>workflow.waiting.pr_app_can_approve</source><target>Waiting: Loupe cannot post a review on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_app_can_approve"><source>workflow.waiting.not.pr_app_can_approve</source><target>Waiting: Loupe can post a review on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>

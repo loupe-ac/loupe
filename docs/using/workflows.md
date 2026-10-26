@@ -221,6 +221,15 @@ A marker reads the same conditions as a rule. These conditions suit markers:
 - `pr.can_merge`: the forge reads the pull request as mergeable, behind or
   blocked.
 - `pr.base_is_default`: the pull request targets the default branch.
+- `pr.approval_covers_head` with a `min`: at least that many approvals cover
+  the head commit. An approval that Loupe posted as the GitHub App counts as
+  one. Set `by: person` to count the approvals of people only.
+- `pr.app_approval_covers_head`: the approval that Loupe posted as the GitHub
+  App names the head commit.
+- `pr.app_approval_stands`: an approval that Loupe posted as the GitHub App
+  still stands on the open pull request, on any commit.
+- `pr.app_can_approve`: Loupe can post and dismiss a review on the pull request,
+  because its repository has an active GitHub App installation.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
@@ -456,7 +465,18 @@ again later asks for a new merge. That work merges in one repository, so when
 the code lives in several repositories and Loupe cannot merge in one of them,
 the write refuses, and a person merges by hand.
 
-Two more writes come from the [rules the app adds](#rules-the-app-adds). They
+Two writes post and dismiss a review as the GitHub App. They need an
+active installation on the repository, and they never ask a bridge for work.
+Loupe stores the approval of the App apart from the approvals of people. The
+stale-approval comment and the agent review override read the approvals of
+people only.
+
+| Write | Does |
+|---|---|
+| `approve` | Approves the head commit that the rule read, as the GitHub App, and writes an `auto-approved` row in the history of the card. A head that moved since then ends the write with no review, and the next evaluation decides again |
+| `dismiss-approval` | Dismisses the approval that Loupe posted, and writes an `approval-dismissed` row in the history of the card. A refused dismissal backs off, retries and pauses the card |
+
+Two further writes come from the [rules the app adds](#rules-the-app-adds). They
 act on a live-review verdict, and they never ask a bridge for work:
 
 | Write | Does |
