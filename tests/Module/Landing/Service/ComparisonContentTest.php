@@ -65,6 +65,25 @@ final class ComparisonContentTest extends KernelTestCase
         }
     }
 
+    public function test_no_page_recommends_loupe_for_a_team(): void
+    {
+        $files = glob(\dirname(__DIR__, 4).'/src/Module/Landing/Resources/compare/*.md');
+        self::assertIsArray($files);
+
+        foreach ($files as $file) {
+            $source = (string) file_get_contents($file);
+            if (1 !== preg_match('/^## What Loupe does well\n(.*?)^## /ms', $source, $strengths)
+                || 1 !== preg_match('/^Pick Loupe if:\n(.*?)^(Pick |## )/ms', $source, $picks)) {
+                self::fail(basename($file).' has no Loupe strengths or no Pick Loupe list.');
+            }
+            foreach (explode("\n", $strengths[1]."\n".$picks[1]) as $line) {
+                if (1 === preg_match('/\bteam/i', $line)) {
+                    self::assertMatchesRegularExpression('/\bno team/i', $line, basename($file).' recommends Loupe for a team: '.$line);
+                }
+            }
+        }
+    }
+
     public function test_no_content_file_runs_two_list_items_together(): void
     {
         $files = glob(\dirname(__DIR__, 4).'/src/Module/Landing/Resources/compare/*.md');

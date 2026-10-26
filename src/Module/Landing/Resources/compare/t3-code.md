@@ -8,7 +8,7 @@ competitorVersion: "v0.1.2 (2026-10-22)"
 
 ## In short
 
-T3 Code is a user interface for coding agents that run on your machine. One app drives Claude Code, Codex, Cursor, OpenCode, Grok Build and Google Antigravity. [1] [2] Loupe is a board and workflow that decides which work agents do, and a place where a person reviews it. The two tools solve different problems. A developer can run T3 Code with no board, and a team can run Loupe with no T3 Code.
+T3 Code is a user interface for coding agents that run on your machine. One app drives Claude Code, Codex, Cursor, OpenCode, Grok Build and Google Antigravity. [1] [2] Loupe is a board and workflow that decides which work agents do, and a place where a person reviews it. The two tools solve different problems. A developer can run T3 Code with no board, and an owner can run Loupe with no T3 Code.
 
 ## What T3 Code does well
 
@@ -26,7 +26,7 @@ T3 Code is a user interface for coding agents that run on your machine. One app 
 - The owner inbox collects questions and review requests from agents. [4]
 - Site review lets a person comment on a live web page. [4]
 - Loupe shows each worker run on an Activity page. [4]
-- Loupe is meant for a project and its team. T3 Code describes itself as a control surface for the agents on one machine. [1]
+- Loupe is meant for one owner who directs several agents on a project. A project has one owner and no team members yet. [4] T3 Code describes itself as a control surface for the agents on one machine. [1]
 
 ## Side by side
 
@@ -41,6 +41,7 @@ The T3 Code column comes from its home page, README and latest release. [1] [2] 
 | Board and workflow | Yes | Not mentioned on its site or README |
 | Document review | Yes | No |
 | Mobile | Web app only | iOS and Android apps |
+| Team support | One user per project. No teams yet. [4] | Not mentioned on its site or README |
 | Pull request button | Workflow rules write to GitHub | One button commits, pushes and opens a pull request |
 | Install | Docker Compose, or the hosted private beta | One command, or a desktop package |
 | Maturity | Young | Latest release is v0.1.2, and the site says "very very early" |
@@ -51,7 +52,7 @@ Pick Loupe if:
 
 1. You want a board that starts agent work and tracks it to a merge.
 2. You want a person to review designs and answer agent questions.
-3. You work in a team.
+3. You work alone and direct several agents, because Loupe has no teams yet.
 
 Pick T3 Code if:
 

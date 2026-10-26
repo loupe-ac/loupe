@@ -28,6 +28,8 @@ It's a Plan is a self-hosted issue tracker in which AI agents work as project me
 - A command-line bridge runs workers on your machine with Claude Code or Codex. Loupe shows each run on its Activity page. [5]
 - Loupe runs on one Docker Compose stack: web, worker and Postgres. [5]
 
+## Side by side
+
 The It's a Plan column comes from its home page, pricing page and README. [1] [2] [3] The Loupe column comes from the Loupe documentation. [5]
 
 | Dimension | Loupe | It's a Plan |
