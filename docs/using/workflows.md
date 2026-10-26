@@ -1009,7 +1009,12 @@ merges such a pull request.
 
 | Condition | True when |
 |---|---|
-| `card.review.needs_person` | The **Requires human review** switch of the card is on. It is in the **Board** group |
+| `card.review.needs_person` | The **Requires human review** switch of the card is on. For an epic it is also true when the switch of a child is on, or when a child pull request merged into the epic branch without a passed or overridden agent review. It is in the **Board** group |
+
+An epic pull request approves itself under the same rule. It needs a person when the epic or any of its children has the
+switch on. It also needs a person when a child pull request merged into the epic branch and its newest agent review of the
+last head did not pass and no person overrode it. A child with no merged pull request counts as reviewed. A change of the
+switch of a child writes a history row, so the epic is evaluated again.
 
 The wait item "Waits for approval" opens when a person must review the card, when Loupe cannot post a review on the
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
