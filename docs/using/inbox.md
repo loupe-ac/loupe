@@ -349,7 +349,13 @@ review worker on card 686 is blocked: cannot reach github.com". When a
 workflow pause of the card comes from that run, the panel shows no second
 line. The link of the run line then reads "Fix the cause, then resume the
 card" and opens the card. A run wait shows the whole output of the run below
-the sentence, with the stage protocol text and the reason tag removed. The
+the sentence, with the stage protocol text and the reason tag removed.
+A pause wait says the reason of the pause in words, such as "Card 1033 is
+paused. The repair worker could not fix the failure." When failed work caused
+the pause, the sentence also names the last run that failed before it, with
+its kind and its failure reason or the last line of its output. Below the
+sentence, the "Open the failed run" link opens that run on the worker runs
+page. The title of the item reads "Paused:" and the reason. The
 body of the item that `inbox_get` returns holds the same sentences. The waits
 that ended show below them, in grey, with a sentence that says how they
 closed, such as "Closed when you acted on it."

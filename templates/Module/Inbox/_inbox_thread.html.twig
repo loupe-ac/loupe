@@ -41,6 +41,9 @@
                         <div class="prose lp-prose lp-review-doc__prose">{{ line.detail|inbox_markdown }}</div>
                     {%- else %}
                         <p class="lp-comment-body">{{ line.pageKey|trans(line.params) }}</p>
+                        {%- if line.detail %}
+                            <div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail>{{ line.detail|inbox_markdown }}</div>
+                        {%- endif %}
                     {%- endif %}
                     {%- if wait.endedAt %}
                         <twig:Ds:Hint>{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</twig:Ds:Hint>
