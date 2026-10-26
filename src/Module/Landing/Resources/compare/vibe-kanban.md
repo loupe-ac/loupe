@@ -8,15 +8,15 @@ competitorVersion: "v0.1.44 (2026-04-24), repository read 2026-10-26"
 
 ## In short
 
-The company behind Vibe Kanban, bloop, announced its shutdown on 2026-04-10. The app stays open source under Apache-2.0, and contributors still commit to it. Pick Vibe Kanban if you want one local command that runs many coding agents in parallel, and you review each diff yourself. Pick Loupe if you want each card to pass a tech design and an agent review before you read the code.
+The company behind Vibe Kanban, bloop, announced its shutdown on 2026-04-10. The app stays open source under Apache-2.0, and contributors still commit to it. Pick Vibe Kanban if you want one local command that runs many coding agents in parallel, and you review each diff yourself. In v0.1.44 you do this on the workspace screens, because the project board now shows only an export screen. [4] [10] Pick Loupe if you want each card to pass a tech design and an agent review before you read the code.
 
 ## What Vibe Kanban does well
 
 - It starts with one command, `npx vibe-kanban`, and runs on your machine. [3]
 - It supports ten coding agents, among them Claude Code, Codex, Gemini CLI, GitHub Copilot, Amp, Cursor and OpenCode. [3]
-- Each workspace has its own branch, terminal and dev server. [3]
-- You review diffs in the app. An inline comment goes straight back to the agent. [3]
-- It has a built-in preview browser with devtools, inspect mode and device emulation. [3]
+- Each workspace has its own branch, terminal and dev server. In v0.1.44 the workspace screens at `/workspaces` still run, outside the retired project pages. [3] [10]
+- You review diffs in the app. An inline comment goes straight back to the agent. The workspace screen of v0.1.44 still has the changes panel. [3] [10]
+- It has a built-in preview browser with devtools, inspect mode and device emulation. The workspace screen of v0.1.44 still has it. [3] [10]
 - You can merge a workspace branch locally, so it does not need GitHub. [5]
 - Its licence is Apache-2.0, which has fewer conditions than AGPL-3.0. [2]
 - It has about 28,500 GitHub stars and a long release history. [2]
@@ -36,10 +36,10 @@ The company behind Vibe Kanban, bloop, announced its shutdown on 2026-04-10. The
 | Dimension | Loupe | Vibe Kanban |
 |---|---|---|
 | What it is | A software factory for coding agents: product design, tech design, code and review in one workflow. | A local app that runs coding agents in parallel workspaces. [3] |
-| Workflow | Each card gets a tech design, an implementation and an agent review. Product design and live review are optional. Rules move the card and stop where a person decides. | You start a workspace, the agent works, you review the diff, then you open a pull request or merge. [3] [5] |
+| Workflow | Each card gets a tech design, an implementation and an agent review. Product design and live review are optional. Rules move the card and stop where a person decides. | You start a workspace, the agent works, you review the diff, then you open a pull request or merge. In v0.1.44 this runs on the workspace screens. Workspaces opened from a project or an issue show the export screen. [3] [4] [5] [10] |
 | Kanban board | Yes. Cards, states and epic lanes. | The README describes a board. Since release v0.1.44, the project pages show an export screen instead of the interactive board. [3] [4] |
 | Document and spec review | Rendered documents with versions, diffs, line comments, suggestions and decision blocks. | None found in the README or on the site. |
-| Code review | A second agent reviews the pull request. You read the code on GitHub. | Diff view with inline comments inside the app. [3] |
+| Code review | A second agent reviews the pull request. You read the code on GitHub. | Diff view with inline comments inside the app, on the workspace screen in v0.1.44. [3] [10] |
 | Agent runtimes | Claude Code and Codex at any stage. Other models through OpenRouter with a Codex profile. Any MCP client can read and write the board, documents and inbox. | Ten agents named in the README. [3] |
 | Where agents run | On your machine through the `loupe bridge` CLI on Mac or Linux. No cloud sandboxes. | On your machine, each workspace on its own branch. [3] |
 | Team support | One user per project. No teams yet. | Team and organisation features were remote services, and the shutdown post says the company removes them. [1] |
@@ -54,7 +54,7 @@ Pick Vibe Kanban if:
 
 1. You want one command and a local app with no server.
 2. You use an agent that Loupe does not run, such as Gemini CLI, Amp or Cursor.
-3. You want to review diffs and a preview in one window.
+3. You want to review diffs and a preview in one window, on the workspace screen.
 4. You need to work without GitHub.
 5. You accept that no company stands behind the project.
 
@@ -99,6 +99,7 @@ Competitor sources were read on 2026-10-26.
 7. [npm registry entry for vibe-kanban](https://registry.npmjs.org/vibe-kanban/latest), version 0.1.44.
 8. [Vibe Kanban issues](https://github.com/BloopAI/vibe-kanban/issues)
 9. [Vibe Kanban pricing](https://www.vibekanban.com/pricing)
+10. [Workspace routes at release v0.1.44](https://github.com/BloopAI/vibe-kanban/tree/v0.1.44-20260424091429/packages/local-web/src/routes): `/workspaces/create` and `/workspaces/$workspaceId` mount the [workspace layout](https://github.com/BloopAI/vibe-kanban/blob/v0.1.44-20260424091429/packages/web-core/src/pages/workspaces/WorkspacesLayout.tsx) with its changes panel and preview browser. Pull request 3387 changed only the project pages.
 
 Loupe sources are in the Loupe repository, read on 2026-10-26.
 
