@@ -78,7 +78,7 @@ final readonly class WorkflowCardStateHints implements CardStateHints
                 continue;
             }
             foreach ($template->rules as $rule) {
-                if ($rule->slot === $slot && \in_array(EngineFact::PullRequest, $rule->when->reads(), true)) {
+                if ($rule->slot === $slot && array_any($rule->when->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest())) {
                     $ids[] = $column->id->toRfc4122();
                     break;
                 }

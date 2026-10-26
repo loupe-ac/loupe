@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Engine;
 
 use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
+use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Engine\RuleSubject;
@@ -73,6 +74,20 @@ final class RuleSubjectTest extends TestCase
         self::assertFalse($bound->binds);
         self::assertSame($facts, $bound->facts);
         self::assertSame($primary->id, $bound->subject);
+    }
+
+    public function test_a_rule_that_reads_only_the_subject_group_still_binds_the_open_pull_request(): void
+    {
+        $merged = FactsMother::pullRequest(state: PullRequestState::Merged, id: Uuid::v7());
+        $open = FactsMother::pullRequest(id: Uuid::v7());
+        $facts = FactsMother::facts(pullRequest: $merged, pullRequests: [$merged, $open]);
+
+        $bound = new RuleSubject()->bind(self::rule(new ConditionLeaf(new PullRequestOpen(), [])), $facts);
+
+        self::assertTrue($bound->truth);
+        self::assertTrue($bound->binds);
+        self::assertSame($open, $bound->facts->pullRequest);
+        self::assertSame($open->id, $bound->subject);
     }
 
     private static function rule(Expression $when): Rule

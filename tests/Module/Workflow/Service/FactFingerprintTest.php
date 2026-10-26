@@ -60,6 +60,37 @@ final class FactFingerprintTest extends TestCase
         self::assertNotSame($fingerprint->of($before, [EngineFact::PullRequestHead]), $fingerprint->of($after, [EngineFact::PullRequestHead]));
     }
 
+    public function test_the_subject_group_counts_only_whether_the_pull_request_is_open(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $keys = [EngineFact::PullRequestSubject];
+        $open = FactsMother::facts(pullRequest: FactsMother::pullRequest());
+        $closed = FactsMother::facts(pullRequest: FactsMother::pullRequest(state: PullRequestState::Closed));
+
+        $changes = [
+            'draft' => FactsMother::pullRequest(draft: true),
+            'checks' => FactsMother::pullRequest(checks: ChecksState::Failed),
+            'conflicting' => FactsMother::pullRequest(conflicting: true),
+            'behind' => FactsMother::pullRequest(behind: true),
+            'changes requested' => FactsMother::pullRequest(changesRequested: true),
+            'approval' => FactsMother::pullRequest(approvalsCoveringHead: 1),
+        ];
+        foreach ($changes as $name => $pullRequest) {
+            self::assertSame($fingerprint->of($open, $keys), $fingerprint->of(FactsMother::facts(pullRequest: $pullRequest), $keys), $name);
+        }
+        self::assertNotSame($fingerprint->of($open, $keys), $fingerprint->of($closed, $keys));
+        self::assertNotSame($fingerprint->of($open, $keys), $fingerprint->of(FactsMother::facts(), $keys));
+    }
+
+    public function test_a_rule_that_reads_both_pull_request_groups_hashes_as_the_wide_group_alone(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed));
+
+        self::assertSame($fingerprint->of($facts, [EngineFact::PullRequest]), $fingerprint->of($facts, [EngineFact::PullRequestSubject, EngineFact::PullRequest]));
+        self::assertSame($fingerprint->of($facts, [EngineFact::PullRequest]), $fingerprint->of($facts, [EngineFact::PullRequest, EngineFact::PullRequestSubject]));
+    }
+
     public function test_each_merge_gate_fact_changes_its_own_group_and_leaves_the_shared_pull_request_group_as_it_was(): void
     {
         $fingerprint = new FactFingerprint();

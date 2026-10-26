@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
+use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\AgentReview\Service\AgentReviewNoticeBody;
 use App\Module\AgentReview\Service\UncommentedAgentReviews;
 use App\Module\Board\Command\PauseCardHandler;
@@ -3108,6 +3109,98 @@ final class EngineTest extends KernelTestCase
         self::assertSame('agent-review', $this->liveRequestOfKind($card, 'review')->ruleId);
         self::assertFalse($this->ruleState($card, 'fix-agent-review')->truth, 'The new head has no review yet.');
         self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    public function test_a_paused_fix_rule_ignores_the_draft_flag_and_an_approval_that_overrides_the_review_asks_for_no_fix_round(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-approval');
+
+        $pullRequest->draft = false;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:22:00');
+        self::assertNull($pause->releasedAt, 'Marking the pull request ready does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->coveredSha = $pullRequest->headSha;
+        $pullRequest->latestApprovedAt = new \DateTimeImmutable('2026-10-02 12:23:00');
+        $pullRequest->latestApprovalId = 'PRR_latest';
+        $pullRequest->latestApproverLogin = 'ubermuda';
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:24:00');
+
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+        self::assertSame([], $this->liveKinds($card), 'The overridden review asks for no fix round.');
+    }
+
+    public function test_a_paused_fix_rule_stays_paused_while_the_review_check_and_its_comment_are_posted(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-posts');
+        $review = $this->service(AgentReviewRepository::class)->findOneBy(['card' => $card]);
+        self::assertNotNull($review);
+
+        $review->postedAt = new \DateTimeImmutable('2026-10-02 12:22:00');
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:23:00');
+
+        self::assertNull($pause->releasedAt, 'A post of the review check does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    public function test_a_paused_fix_rule_resumes_on_a_new_head_with_a_new_failed_review(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-head');
+
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:30:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertSame('facts-changed', $pause->releaseReason);
+        self::assertSame(['fix'], $this->liveKinds($card));
+        self::assertSame(2, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    public function test_a_review_request_waiting_for_its_retry_ignores_the_draft_flag(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('engine-review-retry-draft');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-progress');
+        $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
+        $pullRequest->draft = true;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $this->refuse($this->liveRequestOfKind($card, 'review'), 'failed', '2026-10-02 12:02:00');
+        $this->evaluate($card, '2026-10-02 12:03:00');
+        $state = $this->ruleState($card, 'agent-review');
+        $attempts = $state->attempts;
+        self::assertGreaterThan(0, $attempts);
+        self::assertGreaterThan(new \DateTimeImmutable('2026-10-02 12:03:00'), $state->dueAt);
+
+        $pullRequest->draft = false;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:03:30');
+
+        self::assertSame($attempts, $this->ruleState($card, 'agent-review')->attempts);
+        self::assertSame([], $this->liveKinds($card), 'The draft flag does not start the retry before its due time.');
+    }
+
+    /**
+     * A lifecycle card whose fix round stopped for a person at 12:20, so the rule fix-agent-review is paused.
+     *
+     * @return array{Card, ForgePullRequest, CardPause}
+     */
+    private function pausedFixRule(string $slug): array
+    {
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound($slug);
+        $this->refuse($this->liveRequestOfKind($card, 'fix'), 'needs-person', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $pause = $this->activePause($card);
+        self::assertNotNull($pause);
+        self::assertSame([PauseKind::WorkStopped, 'fix-agent-review'], [$pause->kind, $pause->ruleId]);
+
+        return [$card, $pullRequest, $pause];
     }
 
     /**

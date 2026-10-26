@@ -102,7 +102,7 @@ final class ShippedMarkersTest extends KernelTestCase
         $catalogue = $translator->getCatalogue('en');
 
         foreach ($this->template($key)->markers as $marker) {
-            if (\in_array(EngineFact::PullRequest, $marker->when->reads(), true)) {
+            if (array_any($marker->when->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest())) {
                 self::assertStringContainsString('#%number%', $catalogue->get($marker->label), $marker->key);
             }
         }
@@ -117,7 +117,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
         $checked = 0;
         foreach ($this->template($key)->markers as $marker) {
-            if (!str_contains($catalogue->get($marker->label), '#%number%') || !\in_array(EngineFact::PullRequest, $marker->when->reads(), true)) {
+            if (!str_contains($catalogue->get($marker->label), '#%number%') || !array_any($marker->when->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest())) {
                 continue;
             }
             ++$checked;
@@ -131,7 +131,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         return match (true) {
             $expression instanceof NamedFact => self::givesPullRequestEvidence($expression->expression),
-            $expression instanceof ConditionLeaf => $expression->condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $expression->reads(), true),
+            $expression instanceof ConditionLeaf => $expression->condition instanceof MarkerEvidence && array_any($expression->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest()),
             $expression instanceof AllOf, $expression instanceof AnyOf => array_any($expression->children, self::givesPullRequestEvidence(...)),
             default => false,
         };
