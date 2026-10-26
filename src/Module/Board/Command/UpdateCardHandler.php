@@ -25,6 +25,7 @@ use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
 use App\Module\Board\Service\CardSearchIndexer;
 use App\Module\Board\Service\DocumentLinkResolver;
+use App\Module\Board\Service\HumanReviewSwitch;
 use App\Module\Board\Service\PullRequestTracking;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Bridge\Service\CardPause;
@@ -47,6 +48,7 @@ final readonly class UpdateCardHandler
     public const string LINKED_CARD_GONE = 'board.card.error.linked_card_unknown';
     public const string CONTENT_CHANGED = 'board.card.error.changed_since_opened';
     public const string COLUMN_CHANGED = 'board.card.error.column_changed';
+    public const string HUMAN_REVIEW_RAISE_ONLY = 'board.card.error.human_review_raise_only';
     private const string NOT_WHERE_EXPECTED = 'not_where_expected';
 
     public function __construct(
@@ -70,6 +72,7 @@ final readonly class UpdateCardHandler
         private InteractiveRuns $interactiveRuns,
         private CardMoveGuard $moveGuard,
         private CardPause $cardPause,
+        private HumanReviewSwitch $humanReviewSwitch,
     ) {
     }
 
@@ -129,6 +132,13 @@ final readonly class UpdateCardHandler
                 && $command->expectedFingerprint !== Card::contentFingerprint($card->title, $card->body)) {
                 return self::CONTENT_CHANGED;
             }
+            // Before any write, so the refusal commits nothing.
+            if ($command->onlyRaiseHumanReview && false === $command->requiresHumanReview) {
+                $this->cards->refreshHumanReview($card);
+                if ($card->requiresHumanReview) {
+                    return new DomainErrors(['requiresHumanReview' => self::HUMAN_REVIEW_RAISE_ONLY]);
+                }
+            }
             // The columns too: one deleted or given another terminal flag since
             // the request loaded it decides where the card may go and whether
             // the move stamps it.
@@ -162,9 +172,10 @@ final readonly class UpdateCardHandler
                     return $refusal;
                 }
                 $card->parent = $parent;
-            } elseif (null !== $command->laneEnabled || null !== $command->column || null !== $title) {
+            } elseif (null !== $command->laneEnabled || null !== $command->column || null !== $title || null !== $command->requiresHumanReview) {
                 // A lane toggle or a move decides whether a lane shows, from the committed setting.
                 // A rename tells the committed parent, which a concurrent reparent may have changed.
+                // The switch stores the artifacts the committed parent lends.
                 $this->cards->refreshTypeAndParent($card);
             }
             // After the parent step, so the guard reads the parent the move keeps or sets.
@@ -246,6 +257,12 @@ final readonly class UpdateCardHandler
             if (null !== $artifacts) {
                 $card->syncArtifacts(...$artifacts);
             }
+            $humanReviewChanged = false;
+            if (null !== $command->requiresHumanReview) {
+                // The committed value, so a second request that sets the same value writes no second row.
+                $this->cards->refreshHumanReview($card);
+                $humanReviewChanged = $this->humanReviewSwitch->set($card, $command->requiresHumanReview, $command->actor, $command->humanReviewCause, $command->humanReviewRuleId);
+            }
             $trackedBefore = null;
             if (null !== $command->pullRequestUrls) {
                 $trackedBefore = $this->pullRequestTracking->referencesOf($card);
@@ -294,7 +311,7 @@ final readonly class UpdateCardHandler
                 $this->events->dispatch(new CardBlockersChanged($card->project, $blockersChanged, $command->actor));
             }
 
-            return new UpdateCardOutcome($move, $titleChanged, $bodyChanged, $typeChanged, $parentChanged, $laneChanged, $lanesBefore !== $lanesAfter, $contentChanged, $openedRun, $held);
+            return new UpdateCardOutcome($move, $titleChanged, $bodyChanged, $typeChanged, $parentChanged, $laneChanged, $lanesBefore !== $lanesAfter, $contentChanged, $openedRun, $held, $humanReviewChanged);
         });
 
         // A refusal leaves the closure as a value, for the reason in AddBoardColumnHandler.
@@ -337,6 +354,7 @@ final readonly class UpdateCardHandler
             || $outcome->typeChanged
             || $outcome->parentChanged
             || $outcome->laneChanged
+            || $outcome->humanReviewChanged
             || null !== $command->pullRequestUrls
             || null !== $command->documentIds
             || null !== $command->artifactIds
@@ -394,6 +412,7 @@ final readonly class UpdateCardHandler
                 'typeChanged' => $outcome->typeChanged,
                 'parentChanged' => $outcome->parentChanged,
                 'laneChanged' => $outcome->laneChanged,
+                'humanReviewChanged' => $outcome->humanReviewChanged,
                 'pullRequestsReplaced' => null !== $command->pullRequestUrls,
                 'documentsReplaced' => null !== $command->documentIds,
                 'artifactsReplaced' => null !== $command->artifactIds,

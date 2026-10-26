@@ -22,4 +22,5 @@ enum CardEventKind: string
     case ResumeSkipped = 'resume-skipped';
     case DocumentVerdict = 'document-verdict';
     case VerdictFailed = 'verdict-failed';
+    case HumanReviewChanged = 'human-review-changed';
 }

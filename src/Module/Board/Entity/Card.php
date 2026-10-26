@@ -95,6 +95,19 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
 
+    /** Whether a person must review this card's pull request before it merges. */
+    #[ORM\Column(name: 'requires_human_review', options: ['default' => false])]
+    public bool $requiresHumanReview = false;
+
+    /**
+     * The ids of the artifacts that reached the card when the switch last changed. An artifact in this list
+     * has already been weighed by whoever set the switch.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(name: 'human_review_seen_artifacts', type: Types::JSON, options: ['jsonb' => true, 'default' => '[]'])]
+    public array $humanReviewSeenArtifacts = [];
+
     /**
      * Only an epic reads it: each blocker outside the epic whose code a merge of the default branch brought into
      * the epic branch, by card id, with the completion count the blocker had then.
@@ -361,6 +374,28 @@ class Card implements ProjectScopedSubject
         foreach ($wanted as $document) {
             $this->documents->add(new CardDocument($this, $document));
         }
+    }
+
+    /**
+     * The ids of the artifacts linked to this card or to its parent, in id order.
+     *
+     * @return list<string>
+     */
+    public function reachingArtifactIds(): array
+    {
+        $ids = [];
+        foreach ($this->artifacts as $link) {
+            $ids[(string) $link->artifact->id] = true;
+        }
+        if (null !== $this->parent) {
+            foreach ($this->parent->artifacts as $link) {
+                $ids[(string) $link->artifact->id] = true;
+            }
+        }
+        $ids = array_keys($ids);
+        sort($ids);
+
+        return $ids;
     }
 
     /** Links the artifact unless the card already carries it. */

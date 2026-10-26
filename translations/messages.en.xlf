@@ -7508,6 +7508,9 @@
             <trans-unit id="board.card.history.change_request_withdrawn"><source>board.card.history.change_request_withdrawn</source><target>%actor% withdrew the change request on %document%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed"><source>board.card.history.verdict_failed</source><target>The %rule% workflow rule did not approve %document%.</target></trans-unit>
             <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
+            <trans-unit id="board.card.history.human_review_on"><source>board.card.history.human_review_on</source><target>%actor% turned on human review.</target></trans-unit>
+            <trans-unit id="board.card.history.human_review_off"><source>board.card.history.human_review_off</source><target>%actor% turned off human review.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.human_review_rollout"><source>board.card.history.cause.human_review_rollout</source><target>Set when the human review switch shipped, because an artifact reached the card.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.decisions_unanswered"><source>board.card.history.verdict_failed_cause.decisions_unanswered</source><target>A decision in the document has no answer.</target></trans-unit>
@@ -7608,6 +7611,12 @@
             <trans-unit id="board.card.children.progress"><source>board.card.children.progress</source><target>%done%/%total% done</target></trans-unit>
             <trans-unit id="board.card.children.progress_tooltip"><source>board.card.children.progress_tooltip</source><target>%done% of %total% child cards are done</target></trans-unit>
             <trans-unit id="board.card.children.empty"><source>board.card.children.empty</source><target>This epic has no child cards yet.</target></trans-unit>
+            <trans-unit id="board.card.human_review.field"><source>board.card.human_review.field</source><target>Pull request review</target></trans-unit>
+            <trans-unit id="board.card.human_review.label"><source>board.card.human_review.label</source><target>Requires human review</target></trans-unit>
+            <trans-unit id="board.card.human_review.help_label"><source>board.card.human_review.help_label</source><target>About this setting</target></trans-unit>
+            <trans-unit id="board.card.human_review.tooltip"><source>board.card.human_review.tooltip</source><target>On: the pull request waits for your approval. Off: the workflow can approve it.</target></trans-unit>
+            <trans-unit id="board.card.human_review.rules_link"><source>board.card.human_review.rules_link</source><target>See the rules</target></trans-unit>
+            <trans-unit id="board.card.human_review.error.not_saved"><source>board.card.human_review.error.not_saved</source><target>The review setting was not saved. Reload the page and try again.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.error.not_saved"><source>board.card.lane.error.not_saved</source><target>The lane setting was not saved. Reload the page and try again.</target></trans-unit>

@@ -91,6 +91,32 @@ final class CardCreateToolTest extends KernelTestCase
         self::assertSame(['source' => CardSourceKind::Run->value, 'source_run_id' => (string) $run->id, 'source_run_card_id' => (string) $runCardId], $row);
     }
 
+    public function test_a_new_card_has_the_switch_off_unless_the_caller_turns_it_on(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-create-switch'));
+
+        self::assertFalse(($this->tool)('Default', 'Body', 'idea')['requiresHumanReview']);
+        self::assertFalse(($this->tool)('Off', 'Body', 'idea', requiresHumanReview: false)['requiresHumanReview']);
+        self::assertTrue(($this->tool)('On', 'Body', 'idea', requiresHumanReview: true)['requiresHumanReview']);
+    }
+
+    public function test_a_worker_session_may_create_a_card_with_either_value(): void
+    {
+        $project = $this->makeProject('card-create-switch-worker');
+        $this->actAsMcpTokenBoundTo($project);
+        $sessionId = Uuid::v4();
+        $this->em->persist(new WorkerRun($project, Uuid::v4(), WorkSubject::CARD, Uuid::v4(), 7, 'implement', WorkerRunState::Running, sessionId: $sessionId));
+        $this->em->flush();
+        $request = Request::create('/mcp', Request::METHOD_POST);
+        $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $sessionId);
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
+
+        self::assertTrue(($this->tool)('On', 'Body', 'idea', requiresHumanReview: true)['requiresHumanReview']);
+        self::assertFalse(($this->tool)('Off', 'Body', 'idea', requiresHumanReview: false)['requiresHumanReview']);
+    }
+
     public function test_a_caller_may_say_a_person_raised_the_card(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-create-human'));
