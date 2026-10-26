@@ -93,9 +93,9 @@
     }
     /* A bar that no table follows is a box of its own, with its own bottom edge. */
     .lp-redesign-runs
-        .lp-list-filters:not(:has(~ .lp-table-cue)):not(:has(~ * .lp-table-cue)):not(
-            :has(~ .lp-data-table)
-        ):not(:has(~ * .lp-data-table)) {
+        .lp-list-filters:not(:has(~ .lp-table-cue--data)):not(
+            :has(~ * .lp-table-cue--data)
+        ):not(:has(~ .lp-data-table)):not(:has(~ * .lp-data-table)) {
         @apply mb-6 rounded-xl border border-line bg-surface-1 px-4 py-3;
     }
     .lp-redesign-runs .lp-filter-form > .lp-select {
@@ -106,13 +106,13 @@
        loses the page gap that would split them. */
     .lp-list-filters:has(~ * .lp-data-table),
     .lp-list-filters:has(~ .lp-data-table),
-    .lp-list-filters:has(~ .lp-table-cue) {
+    .lp-list-filters:has(~ .lp-table-cue--data) {
         @apply mb-0 rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
     }
     .lp-list-filters ~ .lp-data-table,
     .lp-list-filters ~ * .lp-data-table,
-    .lp-list-filters ~ .lp-table-cue,
-    .lp-list-filters ~ * .lp-table-cue {
+    .lp-list-filters ~ .lp-table-cue--data,
+    .lp-list-filters ~ * .lp-table-cue--data {
         @apply mt-0 rounded-t-none;
     }
     .lp-list-filters ~ .lp-data-table .lp-data-table__header,
