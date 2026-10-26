@@ -1,5 +1,5 @@
 /**
- * The phone board at 390px: one column per screen, a swipe stops on a column,
+ * The phone board at 390px: one column per screen, a sideways swipe steps a column,
  * and the tab strip above names each column. The "‹" and "›" arrows step the
  * board one column, and each hides at its end. The board has six columns.
  */
@@ -230,40 +230,107 @@ test('the last tab shows the last column and hides the next arrow', async ({
     );
 });
 
-test('Find takes its own full row below the header row', async ({
+test('the board menu holds Backlog, Search and Board settings, and Search opens the search row', async ({
     page,
     boardUrl,
 }) => {
+    const projectId = boardUrl.split('/')[2];
+    const [cardId] = await createCards(page, projectId, [
+        { title: 'Menu search card', type: 'feature' },
+    ]);
     await page.goto(boardUrl);
     const field = page.getByRole('searchbox', {
         name: 'Search cards',
         exact: true,
     });
     const more = page.locator('.lp-board-toolbar__more');
-    await expect(field).toBeInViewport({ ratio: 1 });
-    const fieldBox = (await field.boundingBox())!;
+    await expect(field).toBeHidden();
+    await expect(page.locator('a.lp-board-backlog')).toBeHidden();
+
+    await more.click();
+    const menu = page.locator('.lp-board-toolbar__menu .lp-menu__panel');
+    await expect(menu.getByRole('link', { name: /^Backlog/ })).toBeVisible();
+    await expect(
+        menu.getByRole('link', { name: 'Board settings', exact: true }),
+    ).toBeVisible();
+    await menu.getByRole('button', { name: 'Search', exact: true }).click();
+
+    await expect(menu).toBeHidden();
+    await expect(field).toBeFocused();
     const moreBox = (await more.boundingBox())!;
+    const fieldBox = (await field.boundingBox())!;
     expect(fieldBox.y).toBeGreaterThanOrEqual(moreBox.y + moreBox.height);
     expect(fieldBox.width).toBeGreaterThan(300);
 
-    await field.focus();
-    expect(await more.boundingBox()).toEqual(moreBox);
-    await more.click();
-    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await field.fill('Menu search');
+    await page.locator('h1').tap();
+    await expect(field).toBeVisible();
+
+    await page.evaluate((id) => {
+        const link = document.createElement('a');
+        link.href = `${window.location.pathname}/cards/${id}`;
+        document.body.append(link);
+        link.click();
+    }, cardId);
+    await expect(page).toHaveURL(new RegExp(`/board/cards/${cardId}$`));
+    await page.goBack();
+
+    await expect(field).toBeVisible();
+    await expect(field).toHaveValue('Menu search');
 });
 
-test('a swipe stops on a column and the tab follows it', async ({
+async function swipe(
+    page: Page,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+): Promise<void> {
+    const session = await page.context().newCDPSession(page);
+    const send = (type: string, point?: { x: number; y: number }) =>
+        session.send('Input.dispatchTouchEvent', {
+            type,
+            touchPoints: point ? [point] : [],
+        });
+    await send('touchStart', from);
+    for (let part = 1; part <= 6; part++) {
+        await send('touchMove', {
+            x: from.x + ((to.x - from.x) * part) / 6,
+            y: from.y + ((to.y - from.y) * part) / 6,
+        });
+    }
+    await send('touchEnd');
+    await session.detach();
+}
+
+test('a sideways swipe steps one column on release and the tab follows it', async ({
     page,
     boardUrl,
 }) => {
     await page.goto(boardUrl);
-    const strip = page.locator('.lp-board__columns');
-    await strip.evaluate((element) => {
-        element.scrollTo({ left: element.clientWidth * 2 - 90 });
-    });
+    await swipe(page, { x: 320, y: 500 }, { x: 120, y: 510 });
 
-    await expectInView(page, 2);
-    await expect(page.getByRole('tab').nth(2)).toHaveAttribute(
+    await expectInView(page, 1);
+    await expect(page.getByRole('tab').nth(1)).toHaveAttribute(
+        'aria-selected',
+        'true',
+    );
+
+    await swipe(page, { x: 120, y: 500 }, { x: 320, y: 490 });
+    await expectInView(page, 0);
+    await expect(page.getByRole('tab').first()).toHaveAttribute(
+        'aria-selected',
+        'true',
+    );
+});
+
+test('a mostly vertical swipe leaves the column in view', async ({
+    page,
+    boardUrl,
+}) => {
+    await page.goto(boardUrl);
+    await swipe(page, { x: 250, y: 600 }, { x: 190, y: 400 });
+
+    await expectInView(page, 0);
+    await expect(page.getByRole('tab').first()).toHaveAttribute(
         'aria-selected',
         'true',
     );

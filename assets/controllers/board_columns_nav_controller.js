@@ -1,17 +1,18 @@
 import { Controller } from '@hotwired/stimulus';
 import { prefersReducedMotion } from '../lib/smooth_scroll.js';
 
-const RATIO_STEPS = [0, 0.25, 0.5, 0.75, 1];
 const SETTLE_MILLISECONDS = 700;
-const HIDDEN_LANE = '.lp-board-lane--collapsed:not(.lp-board-lane--revealed)';
+const SWIPE_MIN_DISTANCE = 48;
+const SWIPE_DOMINANCE = 2;
+const isPhone = () => window.innerWidth < 640;
 
 /**
  * The column tabs of the phone board. The element holds the tab strip (the
- * `tabs` target) and the column strip, and the strip scrolls one column per
- * swipe. The column most in view is the current column: its tab is selected,
- * and the arrows of the tab strip step the board one column. A board with epic
- * lanes names its tabs from the first lane, and reads and scrolls the columns
- * of the lanes that show their cells.
+ * `tabs` target) and the column strip. On a phone the strip scrolls only up and
+ * down, and a clear sideways swipe, a tab or an arrow steps the board one
+ * column. The column nearest the sideways scroll position is the current
+ * column: its tab is selected. The columns of the first lane name the tabs and
+ * give the offsets, so a collapsed lane changes nothing.
  */
 export default class extends Controller {
     static targets = ['tabs'];
@@ -19,10 +20,15 @@ export default class extends Controller {
     connect() {
         this.current = 0;
         this.settling = null;
-        this.ratios = new Map();
+        this.touchStart = null;
         this.onStep = (event) => this.step(event.detail.direction);
         this.onStructure = () => this.#bind();
-        this.onScrollEnd = () => this.#settled();
+        this.onScrollEnd = () => this.#scrollEnded();
+        this.onTouchStart = (event) => this.#touchStarted(event);
+        this.onTouchEnd = (event) => this.#touchEnded(event);
+        this.onTouchCancel = () => {
+            this.touchStart = null;
+        };
         this.element.addEventListener('overflow-cue:step', this.onStep);
         document.addEventListener('board:structure-changed', this.onStructure);
         this.#bind();
@@ -80,35 +86,28 @@ export default class extends Controller {
         ];
     }
 
-    /** The columns with this id whose cells show, so a collapsed lane is never the one read or scrolled. */
-    #shown(id) {
-        if (undefined === id || !this.strip) {
+    /** The sideways offset of each column, read from the first lane so it does not depend on the scroll position. */
+    #offsets() {
+        const columns = this.#columns();
+        if (0 === columns.length) {
             return [];
         }
+        const origin = columns[0].getBoundingClientRect().left;
 
-        return [
-            ...this.strip.querySelectorAll(
-                `.lp-board__column[data-column-id="${CSS.escape(id)}"]`,
-            ),
-        ].filter((column) => !column.closest(HIDDEN_LANE));
+        return columns.map(
+            (column) => column.getBoundingClientRect().left - origin,
+        );
     }
 
     #bind() {
+        const previous = this.strip;
         this.#unbind();
         const strip = this.#strip();
         if (!strip) {
             return;
         }
         this.strip = strip;
-        this.ratios.clear();
         this.#syncTabs();
-        this.intersections = new IntersectionObserver(
-            (entries) => this.#observed(entries),
-            { root: strip, threshold: RATIO_STEPS },
-        );
-        for (const column of strip.querySelectorAll('.lp-board__column')) {
-            this.intersections.observe(column);
-        }
         this.counts = new MutationObserver(() => this.#syncCounts());
         this.counts.observe(strip, {
             subtree: true,
@@ -116,59 +115,95 @@ export default class extends Controller {
             characterData: true,
         });
         strip.addEventListener('scrollend', this.onScrollEnd);
-        this.#show(Math.min(this.current, this.#columns().length - 1));
+        strip.addEventListener('touchstart', this.onTouchStart, {
+            passive: true,
+        });
+        strip.addEventListener('touchend', this.onTouchEnd, { passive: true });
+        strip.addEventListener('touchcancel', this.onTouchCancel, {
+            passive: true,
+        });
+        if (previous && previous !== strip) {
+            this.#restore();
+        } else {
+            this.#pick();
+        }
+    }
+
+    /** A live layout switch replaces the strip, and the new one starts at the left: bring back the column that was on screen. */
+    #restore() {
+        clearTimeout(this.settleTimer);
+        this.settling = null;
+        const index = this.#columns().findIndex(
+            (column) => column.dataset.columnId === this.currentId,
+        );
+        if (index < 0) {
+            this.#pick();
+
+            return;
+        }
+        this.strip.scrollLeft = this.#offsets()[index];
+        this.#show(index);
     }
 
     #unbind() {
-        this.intersections?.disconnect();
         this.counts?.disconnect();
         this.strip?.removeEventListener('scrollend', this.onScrollEnd);
-        this.intersections = null;
+        this.strip?.removeEventListener('touchstart', this.onTouchStart);
+        this.strip?.removeEventListener('touchend', this.onTouchEnd);
+        this.strip?.removeEventListener('touchcancel', this.onTouchCancel);
         this.counts = null;
         this.strip = null;
     }
 
-    #observed(entries) {
-        for (const entry of entries) {
-            this.ratios.set(entry.target, entry.intersectionRatio);
-        }
-        if (null !== this.settling) {
+    #touchStarted(event) {
+        const point = event.touches.length > 1 ? null : event.touches[0];
+        this.touchStart = point ? { x: point.clientX, y: point.clientY } : null;
+    }
+
+    #touchEnded(event) {
+        const start = this.touchStart;
+        this.touchStart = null;
+        const point = event.changedTouches[0];
+        if (!start || !point || !isPhone()) {
             return;
         }
-        this.#pick();
+        const across = point.clientX - start.x;
+        const down = point.clientY - start.y;
+        if (
+            Math.abs(across) > SWIPE_MIN_DISTANCE &&
+            Math.abs(across) > SWIPE_DOMINANCE * Math.abs(down)
+        ) {
+            this.step(across < 0 ? 1 : -1);
+        }
+    }
+
+    #scrollEnded() {
+        if (null === this.settling) {
+            this.#pick();
+        } else {
+            this.#settled();
+        }
     }
 
     #pick() {
+        if (!this.strip) {
+            return;
+        }
         let best = -1;
-        let bestRatio = 0;
-        this.#columns().forEach((column, index) => {
-            const ratio = Math.max(
-                0,
-                ...this.#shown(column.dataset.columnId).map(
-                    (shown) => this.ratios.get(shown) ?? 0,
-                ),
-            );
-            if (ratio > bestRatio) {
+        let bestDistance = Infinity;
+        this.#offsets().forEach((offset, index) => {
+            const distance = Math.abs(offset - this.strip.scrollLeft);
+            if (distance < bestDistance) {
                 best = index;
-                bestRatio = ratio;
+                bestDistance = distance;
             }
         });
-        if (best >= 0) {
-            this.#show(best);
-        }
+        this.#show(best);
     }
 
     #goTo(index) {
-        const id = this.#columns()[index]?.dataset.columnId;
-        const shown = this.#shown(id);
-        const column = shown.reduce(
-            (best, candidate) =>
-                (this.ratios.get(candidate) ?? 0) > (this.ratios.get(best) ?? 0)
-                    ? candidate
-                    : best,
-            shown[0],
-        );
-        if (!column) {
+        const left = this.#offsets()[index];
+        if (undefined === left || !this.strip) {
             return;
         }
         this.settling = index;
@@ -178,9 +213,8 @@ export default class extends Controller {
             () => this.#settled(),
             SETTLE_MILLISECONDS,
         );
-        column.scrollIntoView({
-            inline: 'start',
-            block: 'nearest',
+        this.strip.scrollTo({
+            left,
             behavior: prefersReducedMotion() ? 'auto' : 'smooth',
         });
     }
@@ -198,6 +232,7 @@ export default class extends Controller {
         this.current = Math.max(index, 0);
         const columns = this.#columns();
         const id = columns[this.current]?.dataset.columnId;
+        this.currentId = id;
         for (const tab of this.#tabs()) {
             tab.setAttribute(
                 'aria-selected',

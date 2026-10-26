@@ -17,8 +17,8 @@ afterEach(async () => {
 });
 
 async function mount() {
-    document.body.innerHTML = `<div data-controller="board-filter">
-        <input data-board-filter-target="query" data-action="input->board-filter#filter">
+    document.body.innerHTML = `<main><div data-controller="board-filter">
+        <div class="lp-board-toolbar"><input data-board-filter-target="query" data-action="input->board-filter#filter blur->board-filter#closeSearch"></div>
         <span data-board-filter-target="count" data-one="1 card" data-many="%count% cards">2 cards</span>
         <p data-board-filter-target="empty" hidden>No card matches.</p>
         <section class="lp-board-lane" data-lane="epic-a">
@@ -28,7 +28,7 @@ async function mount() {
         <section class="lp-board-lane" data-lane="other">
             <article data-board-filter-target="card" data-card-title="Fix the footer">Footer</article>
         </section>
-    </div>`;
+    </div></main>`;
     await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
@@ -100,4 +100,72 @@ it('keeps a lane header whose title does not match, and says when nothing matche
     expect(
         document.querySelector('[data-board-filter-target="laneHead"]').hidden,
     ).toBe(false);
+});
+
+const toolbar = () => document.querySelector('.lp-board-toolbar');
+const field = () =>
+    document.querySelector('[data-board-filter-target="query"]');
+
+it('opens the search row and focuses the field', async () => {
+    await mount();
+
+    application
+        .getControllerForElementAndIdentifier(
+            document.querySelector('[data-controller="board-filter"]'),
+            'board-filter',
+        )
+        .openSearch();
+
+    expect(toolbar().hasAttribute('data-search-open')).toBe(true);
+    expect(document.activeElement).toBe(field());
+});
+
+it('closes the search row when the field loses focus while empty', async () => {
+    await mount();
+    application
+        .getControllerForElementAndIdentifier(
+            document.querySelector('[data-controller="board-filter"]'),
+            'board-filter',
+        )
+        .openSearch();
+
+    field().blur();
+
+    expect(toolbar().hasAttribute('data-search-open')).toBe(false);
+});
+
+it('keeps the search row open when the field loses focus with text', async () => {
+    await mount();
+    application
+        .getControllerForElementAndIdentifier(
+            document.querySelector('[data-controller="board-filter"]'),
+            'board-filter',
+        )
+        .openSearch();
+    search('footer');
+
+    field().blur();
+
+    expect(toolbar().hasAttribute('data-search-open')).toBe(true);
+});
+
+it('opens the search row of a new toolbar that gets a saved query back', async () => {
+    document.body.innerHTML = '<div id="page"></div>';
+    const page = document.getElementById('page');
+    const board = `<div data-controller="board-filter">
+        <div class="lp-board-toolbar"><input data-board-filter-target="query" data-action="input->board-filter#filter"></div>
+        <span data-board-filter-target="count" data-one="1 card" data-many="%count% cards">1 card</span>
+        <p data-board-filter-target="empty" hidden></p>
+        <article data-board-filter-target="card" data-card-title="Fix the footer">Footer</article>
+    </div>`;
+    page.innerHTML = board;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    search('footer');
+
+    document.dispatchEvent(new Event('turbo:before-frame-render'));
+    page.innerHTML = board;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(field().value).toBe('footer');
+    expect(toolbar().hasAttribute('data-search-open')).toBe(true);
 });

@@ -1,11 +1,27 @@
-{# The board settings link and the Board or List switch. Props: projectId (string), inMenu (bool): true in the phone "…" menu, where a switch also closes the menu. #}
+{# The board settings link and the Board or List switch. Props: projectId (string), backlogCount (int), inMenu (bool): true in the phone "…" menu, where a switch also closes the menu. #}
 {% set close = inMenu ? ' popover#close' : '' %}
+{% if inMenu %}
+<twig:Ds:MenuItem :href="path('app_project_board_backlog', {projectId: projectId})" title="{{ 'board.backlog.button.hint'|trans }}">
+    <twig:ux:icon name="lucide:inbox" class="lp-icon lp-icon--md" />
+    {{ 'board.backlog.button'|trans }}
+    <span class="lp-board-backlog__count ml-auto" data-board-backlog-count>{{ backlogCount }}</span>
+</twig:Ds:MenuItem>
+<twig:Ds:MenuItem data-action="board-filter#openSearch popover#close">
+    <twig:ux:icon name="lucide:search" class="lp-icon lp-icon--md" />
+    {{ 'board.toolbar.search'|trans }}
+</twig:Ds:MenuItem>
+<twig:Ds:MenuItem :href="path('app_board_settings', {id: projectId})">
+    <twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" />
+    {{ 'board.settings.action'|trans }}
+</twig:Ds:MenuItem>
+{% else %}
 <twig:Ds:Button variant="ghost icon"
    href="{{ path('app_board_settings', {id: projectId}) }}"
    aria-label="{{ 'board.settings.action'|trans }}"
    title="{{ 'board.settings.action'|trans }}">
     <twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" />
 </twig:Ds:Button>
+{% endif %}
 <div class="lp-board-toolbar__mode" aria-label="{{ 'board.view.label'|trans }}">
     <button type="button"
             class="lp-board-toolbar__mode-button"

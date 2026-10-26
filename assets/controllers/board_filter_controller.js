@@ -62,6 +62,22 @@ export default class extends Controller {
         });
     }
 
+    /** A phone shows the search row only while this is set on the toolbar. */
+    openSearch() {
+        this.#toolbar()?.setAttribute('data-search-open', '');
+        this.queryTarget.focus();
+    }
+
+    closeSearch() {
+        if (this.queryTarget.value === '') {
+            this.#toolbar()?.removeAttribute('data-search-open');
+        }
+    }
+
+    #toolbar() {
+        return this.queryTarget.closest('.lp-board-toolbar');
+    }
+
     revealField(event) {
         if (this.#restoringFocus) {
             return;
@@ -156,6 +172,9 @@ export default class extends Controller {
         if (state.query !== '') {
             input.value = state.query;
             this.filter();
+        }
+        if (state.query !== '' || state.focused) {
+            this.#toolbar()?.setAttribute('data-search-open', '');
         }
         if (state.focused) {
             // focusin fires inside focus(), and a reveal would undo the user's scroll.
