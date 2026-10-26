@@ -185,14 +185,46 @@ final class CardWaitTextTest extends KernelTestCase
         $wait = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, $pausedAt);
 
         self::assertSame('Paused: The repair worker could not fix the failure', $this->text->title([$wait], 'Ship it', 200));
-        self::assertSame(
-            'Card 33 is paused. The repair worker could not fix the failure. The last repair worker run failed: the before command exited with code 141. Open the card and resume it.',
+        self::assertStringStartsWith(
+            'Card 33 is paused. The repair worker could not fix the failure. The last repair worker run failed: the before command exited with code 141. Open the card and resume it. [Open the failed run](',
             $this->text->body([$wait]),
         );
         $line = $this->text->line($wait, false);
         self::assertNotNull($line->detail);
         self::assertStringContainsString('search='.$repair->id?->toRfc4122(), $line->detail);
         self::assertStringContainsString('Open the failed run', $line->detail);
+    }
+
+    public function test_a_pause_after_failed_work_keeps_its_reason_beside_an_open_run_wait(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 37);
+        $em->flush();
+        $repair = $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $pause = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+        $params = ['%worker%' => 'repair worker', '%Worker%' => 'Repair worker', '%headline%' => 'Cannot check out the branch'];
+        $run = new InboxCardWait($pause->watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $repair->id, params: $params);
+        $pause->watch->waits->add($run);
+
+        self::assertSame('Paused: The repair worker could not fix the failure', $this->text->title([$run, $pause], 'Ship it', 200));
+        $body = $this->text->body([$run, $pause]);
+        self::assertStringContainsString('Card 37 is paused. The repair worker could not fix the failure. The last repair worker run failed: the before command exited with code 141.', $body);
+        self::assertStringContainsString('search='.$repair->id?->toRfc4122(), $body);
+        self::assertStringContainsString('needs you: Cannot check out the branch', $body);
+    }
+
+    public function test_the_stored_body_of_a_pause_links_the_failed_run_with_an_absolute_url(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 38);
+        $em->flush();
+        $repair = $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $wait = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+
+        self::assertMatchesRegularExpression(
+            '~ Open the card and resume it\. \[Open the failed run\]\(https?://[^/)]+/[^)]*search='.preg_quote($repair->id?->toRfc4122() ?? '', '~').'\)$~',
+            $this->text->body([$wait]),
+        );
     }
 
     public function test_a_pause_falls_back_to_the_last_output_line_of_the_run(): void
@@ -203,8 +235,8 @@ final class CardWaitTextTest extends KernelTestCase
         $this->workerRun($card->id, 'review', WorkerRunState::Blocked, new \DateTimeImmutable('2026-10-26 10:00:00'), null, "Working.\nCannot reach github.com.\n");
         $wait = $this->pauseWait($card, 'blocked', PauseKind::WorkStopped, new \DateTimeImmutable('2026-10-26 10:01:00'));
 
-        self::assertSame(
-            'Card 34 is paused. The worker stopped as blocked. The last review worker run failed: Cannot reach github.com. Open the card and resume it.',
+        self::assertStringStartsWith(
+            'Card 34 is paused. The worker stopped as blocked. The last review worker run failed: Cannot reach github.com. Open the card and resume it. [Open the failed run](',
             $this->text->body([$wait]),
         );
     }
