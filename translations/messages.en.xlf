@@ -4856,7 +4856,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.site_review.text">
                 <source>landing.workflow.step.site_review.text</source>
-                <target>Try the change on a preview. Leave notes on the page with the widget, then approve. When the card does not require your review, the pull request approves itself after the agent review and the checks pass.</target>
+                <target>Try the change on a preview. Leave notes on the page with the widget, then approve. When the GitHub App is installed on the repository and the card does not require your review, the pull request approves itself after the agent review and the checks pass.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.done.title">
                 <source>landing.workflow.step.done.title</source>
@@ -4948,7 +4948,7 @@
             </trans-unit>
             <trans-unit id="landing.features.agent_review.text">
                 <source>landing.features.agent_review.text</source>
-                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design. When the card does not require your review, the pull request approves itself once the agent review passes and the checks are green.</target>
+                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design. When the GitHub App is installed on the repository and the card does not require your review, the pull request approves itself once the agent review passes and the checks are green.</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.caption">
                 <source>landing.features.agent_review.caption</source>
