@@ -28,3 +28,20 @@ export function placeMenuPanel(panel) {
         panel.style.setProperty('--lp-menu-shift', `${shift}px`);
     }
 }
+
+export function followMenuPanel(panel) {
+    const place = () => placeMenuPanel(panel);
+    const placeAfterMove = (event) => {
+        if (event.target !== panel && event.target.contains(panel)) {
+            place();
+        }
+    };
+    place();
+    window.addEventListener('resize', place);
+    document.addEventListener('transitionend', placeAfterMove, true);
+
+    return () => {
+        window.removeEventListener('resize', place);
+        document.removeEventListener('transitionend', placeAfterMove, true);
+    };
+}

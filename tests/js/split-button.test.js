@@ -129,28 +129,34 @@ it('connects without a toggle when the menu has no rows', async () => {
     errors.mockRestore();
 });
 
+function resizeListener(add) {
+    return add.mock.calls.find(([type]) => type === 'resize')[1];
+}
+
 it('places the panel on open and stops listening for resize on close', () => {
     const add = vi.spyOn(window, 'addEventListener');
     const remove = vi.spyOn(window, 'removeEventListener');
     controller.open();
+    const onResize = resizeListener(add);
     controller.panelTarget.style.setProperty('--lp-menu-shift', '9px');
-    expect(add).toHaveBeenCalledWith('resize', controller.onResize);
-    controller.onResize();
+    onResize();
     expect(
         controller.panelTarget.style.getPropertyValue('--lp-menu-shift'),
     ).toBe('');
     controller.close();
-    expect(remove).toHaveBeenCalledWith('resize', controller.onResize);
+    expect(remove).toHaveBeenCalledWith('resize', onResize);
     add.mockRestore();
     remove.mockRestore();
 });
 
 it('stops listening for resize when the controller disconnects', async () => {
+    const add = vi.spyOn(window, 'addEventListener');
     const remove = vi.spyOn(window, 'removeEventListener');
     controller.open();
-    const onResize = controller.onResize;
+    const onResize = resizeListener(add);
     document.body.replaceChildren();
     await settle();
     expect(remove).toHaveBeenCalledWith('resize', onResize);
+    add.mockRestore();
     remove.mockRestore();
 });
