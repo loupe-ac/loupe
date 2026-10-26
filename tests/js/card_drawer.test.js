@@ -415,3 +415,39 @@ it('targets the drawer frame from a top bar opener only while a drawer exists', 
     await settle();
     expect(opener.dataset.turboFrame).toBeUndefined();
 });
+
+it.each([
+    ['metaKey', { metaKey: true }],
+    ['ctrlKey', { ctrlKey: true }],
+    ['shiftKey', { shiftKey: true }],
+    ['altKey', { altKey: true }],
+    ['middle button', { button: 1 }],
+])(
+    'leaves the drawer shut for a %s click that opens a new tab',
+    async (_, init) => {
+        dialog.open = false;
+        const title = document.createElement('a');
+        title.href = '/card/2';
+        title.dataset.action = 'click->card-drawer#prepare';
+        controller.element.append(title);
+        const opener = document.createElement('a');
+        opener.dataset.cardDrawerOpener = '';
+        document.body.append(opener);
+        await settle();
+        const stayOnPage = (event) => event.preventDefault();
+        window.addEventListener('click', stayOnPage);
+        for (const link of [title, opener]) {
+            link.dispatchEvent(
+                new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                }),
+            );
+        }
+        window.removeEventListener('click', stayOnPage);
+        expect(dialog.showModal).not.toHaveBeenCalled();
+        expect(dialog.show).not.toHaveBeenCalled();
+        expect(controller.invoker).toBeNull();
+    },
+);
