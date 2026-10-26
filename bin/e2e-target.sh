@@ -21,7 +21,8 @@
 # would be worse than leaving it alone.
 set -euo pipefail
 
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 main=$(cd "$main" && pwd -P)
 here=$(pwd -P)
 

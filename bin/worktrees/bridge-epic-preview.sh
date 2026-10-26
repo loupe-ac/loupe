@@ -20,7 +20,8 @@ if ! [[ $epic_id =~ ^[A-Za-z0-9-]+$ ]]; then
     exit 1
 fi
 
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 name="epic-$number"
 root="$main/.worktrees/$name"
 lock="$main/.worktrees/$name.lock"
@@ -60,7 +61,8 @@ fi
 # A tree deleted from disk stays registered until a prune.
 git -C "$main" worktree prune --expire now
 
-if git -C "$main" worktree list --porcelain | grep -qxF "worktree $root"; then
+registered=$(git -C "$main" worktree list --porcelain)
+if grep -qxF "worktree $root" <<<"$registered"; then
     git -C "$root" checkout --detach "origin/$branch"
 elif [ -e "$root" ]; then
     echo "bridge-epic-preview: $root exists but is not a registered worktree. Remove it and retry." >&2

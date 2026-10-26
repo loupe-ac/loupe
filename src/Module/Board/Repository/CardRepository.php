@@ -866,6 +866,31 @@ class CardRepository extends ServiceEntityRepository
         }
     }
 
+    /** Reads the human review switch as the database holds it now, like refreshColumn(). */
+    public function refreshHumanReview(Card $card): void
+    {
+        $value = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT requires_human_review FROM board_cards WHERE id = :id',
+            ['id' => (string) $card->id],
+        );
+
+        if (false === $value) {
+            return;
+        }
+
+        $card->requiresHumanReview = (bool) $value;
+        $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($card), 'requiresHumanReview', (bool) $value);
+    }
+
+    /** Whether a child of the epic has its "Requires human review" switch on, read past the identity map. */
+    public function hasChildRequiringHumanReview(Card $epic): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT 1 FROM board_cards WHERE parent_card_id = :epic AND requires_human_review = true LIMIT 1',
+            ['epic' => (string) $epic->id],
+        );
+    }
+
     /** The number the project's next card takes. The first card of a project is 1. */
     public function nextNumber(Project $project): int
     {

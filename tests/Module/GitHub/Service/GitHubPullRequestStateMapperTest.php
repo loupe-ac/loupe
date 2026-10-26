@@ -9,6 +9,7 @@ use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Service\PullRequestUnreadable;
+use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\GitHubBranchRules;
 use App\Module\GitHub\Service\GitHubPullRequestStateMapper;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -20,7 +21,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
 
     public function test_pull_request_604_is_pending_because_a_required_check_never_reported(): void
     {
-        $snapshot = new GitHubPullRequestStateMapper()->map(self::pullRequest604(), self::rules604(), null);
+        $snapshot = self::mapper()->map(self::pullRequest604(), self::rules604(), null);
 
         self::assertSame(PullRequestState::Open, $snapshot->state);
         self::assertFalse($snapshot->draft);
@@ -39,7 +40,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::allPassed(self::pullRequest604());
         $node['mergeStateStatus'] = 'CLEAN';
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), 0);
+        $snapshot = self::mapper()->map($node, self::rules604(), 0);
 
         self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
         self::assertSame(self::HEAD, $snapshot->checksSha);
@@ -54,7 +55,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::withContext($node, self::checkRun('e2e-rest', 'COMPLETED', 'TIMED_OUT'));
         $node = self::withContext($node, self::checkRun('coverage', 'COMPLETED', 'FAILURE', required: false));
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame(PullRequestChecks::Failed, $snapshot->checks);
         self::assertSame(self::HEAD, $snapshot->checksSha);
@@ -66,7 +67,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
     {
         $node = self::withContext(self::pullRequest604(), self::checkRun('phpunit', 'COMPLETED', 'FAILURE'));
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame(PullRequestChecks::Pending, $snapshot->checks);
         self::assertNull($snapshot->checksSha);
@@ -79,7 +80,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::withContext($node, self::checkRun('audit', 'COMPLETED', 'NEUTRAL'));
         $node = self::withContext($node, self::checkRun('e2e', 'COMPLETED', 'SKIPPED'));
 
-        self::assertSame(PullRequestChecks::Passed, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->checks);
+        self::assertSame(PullRequestChecks::Passed, self::mapper()->map($node, self::rules604(), null)->checks);
     }
 
     public function test_the_last_entry_of_a_repeated_name_wins(): void
@@ -88,14 +89,14 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::withContext($node, self::checkRun('phpunit', 'COMPLETED', 'FAILURE'));
         $node = self::withContext($node, self::checkRun('phpunit', 'COMPLETED', 'SUCCESS'));
 
-        self::assertSame(PullRequestChecks::Passed, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->checks);
+        self::assertSame(PullRequestChecks::Passed, self::mapper()->map($node, self::rules604(), null)->checks);
     }
 
     public function test_a_check_run_and_a_status_that_share_a_name_must_both_pass(): void
     {
         $node = self::withContexts(self::pullRequest604(), [self::checkRun('build', 'COMPLETED', 'FAILURE'), self::statusContext('build', 'SUCCESS')]);
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, new GitHubBranchRules(['build'], false), null);
+        $snapshot = self::mapper()->map($node, new GitHubBranchRules(['build'], false), null);
 
         self::assertSame(PullRequestChecks::Failed, $snapshot->checks);
         self::assertSame(['build'], $snapshot->failedChecks);
@@ -103,7 +104,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
 
     public function test_without_a_ruleset_the_contexts_marked_required_decide(): void
     {
-        $mapper = new GitHubPullRequestStateMapper();
+        $mapper = self::mapper();
 
         self::assertSame(PullRequestChecks::Pending, $mapper->map(self::pullRequest604(), null, null)->checks);
 
@@ -120,7 +121,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
     {
         $node = self::withContexts(self::pullRequest604(), [self::checkRun('build', 'COMPLETED', 'FAILURE')]);
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, new GitHubBranchRules([], false), null);
+        $snapshot = self::mapper()->map($node, new GitHubBranchRules([], false), null);
 
         self::assertSame(PullRequestChecks::Failed, $snapshot->checks);
         self::assertSame(['build'], $snapshot->failedChecks);
@@ -139,7 +140,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::withContexts(self::pullRequest604(), []);
         $node['mergeStateStatus'] = $mergeStateStatus;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, new GitHubBranchRules([], false), null);
+        $snapshot = self::mapper()->map($node, new GitHubBranchRules([], false), null);
 
         self::assertSame($expected, $snapshot->checks);
         self::assertSame(PullRequestChecks::Passed === $expected ? self::HEAD : null, $snapshot->checksSha);
@@ -147,7 +148,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
 
     public function test_status_contexts_count_like_check_runs(): void
     {
-        $mapper = new GitHubPullRequestStateMapper();
+        $mapper = self::mapper();
         $rules = new GitHubBranchRules(['ci/legacy', 'ci/deploy'], false);
         $node = self::withContexts(self::pullRequest604(), [self::statusContext('ci/legacy', 'SUCCESS'), self::statusContext('ci/deploy', 'EXPECTED')]);
 
@@ -165,7 +166,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::pullRequest604();
         $node['commits']['nodes'][0]['commit']['statusCheckRollup'] = null;
 
-        self::assertSame(PullRequestChecks::Pending, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->checks);
+        self::assertSame(PullRequestChecks::Pending, self::mapper()->map($node, self::rules604(), null)->checks);
     }
 
     /** @return iterable<string, array{string, string, ?int, PullRequestMergeability}> */
@@ -190,7 +191,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['mergeable'] = $mergeable;
         $node['mergeStateStatus'] = $mergeStateStatus;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), $behindBy);
+        $snapshot = self::mapper()->map($node, self::rules604(), $behindBy);
 
         self::assertSame($expected, $snapshot->mergeability);
         self::assertSame(PullRequestMergeability::Mergeable === $expected, $snapshot->readyToMerge);
@@ -211,7 +212,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::pullRequest604();
         $node['reviewDecision'] = $decision;
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->review);
+        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->review);
     }
 
     /** @return iterable<string, array{?string, list<string>, PullRequestReview}> */
@@ -233,7 +234,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['reviewDecision'] = $decision;
         $node['latestOpinionatedReviews'] = ['nodes' => array_map(static fn (string $state): array => ['state' => $state], $states)];
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->review);
+        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->review);
     }
 
     public function test_a_node_without_latest_opinionated_reviews_has_no_review(): void
@@ -242,7 +243,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['reviewDecision'] = null;
         unset($node['latestOpinionatedReviews']);
 
-        self::assertSame(PullRequestReview::None, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->review);
+        self::assertSame(PullRequestReview::None, self::mapper()->map($node, self::rules604(), null)->review);
     }
 
     /** @return iterable<string, array{mixed, ?string}> */
@@ -270,7 +271,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['latestOpinionatedReviews'] = $reviews;
         }
 
-        $at = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->changesRequestedAt;
+        $at = self::mapper()->map($node, self::rules604(), null)->changesRequestedAt;
 
         self::assertSame($expected, $at?->format('Y-m-d H:i:s'));
     }
@@ -309,7 +310,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['latestOpinionatedReviews'] = $reviews;
         }
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame($approvedAt, $snapshot->approvedAt?->format('Y-m-d H:i:s'));
         self::assertSame($approvalSha, $snapshot->approvalSha);
@@ -342,7 +343,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['latestOpinionatedReviews'] = $reviews;
         }
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame($approvedAt, $snapshot->latestApprovedAt?->format('Y-m-d H:i:s'));
         self::assertSame($approvalId, $snapshot->latestApprovalId);
@@ -355,12 +356,67 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['reviewDecision'] = 'CHANGES_REQUESTED';
         $node['latestOpinionatedReviews'] = ['nodes' => [['id' => 'PRR_first', 'state' => 'APPROVED', 'submittedAt' => '2026-09-20T12:00:00+02:00', 'commit' => ['oid' => 'aaa1111']]]];
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame('2026-09-20 10:00:00', $snapshot->approvedAt?->format('Y-m-d H:i:s'));
         self::assertSame('UTC', $snapshot->approvedAt->getTimezone()->getName());
         self::assertSame('aaa1111', $snapshot->approvalSha);
         self::assertSame('PRR_first', $snapshot->approvalId);
+    }
+
+    /** @return iterable<string, array{string, string, bool}> */
+    public static function appAuthors(): iterable
+    {
+        yield 'the GraphQL login of the App' => ['Bot', 'loupe-ac', true];
+        yield 'the REST login of the App' => ['Bot', 'loupe-ac[bot]', true];
+        yield 'the login in other case' => ['Bot', 'Loupe-AC', true];
+        yield 'another bot' => ['Bot', 'dependabot', false];
+        yield 'a user with the login of the App' => ['User', 'loupe-ac', false];
+    }
+
+    #[DataProvider('appAuthors')]
+    public function test_an_approval_of_the_app_is_stored_apart_from_a_persons(string $type, string $login, bool $isApp): void
+    {
+        $node = self::pullRequest604();
+        $node['latestOpinionatedReviews'] = ['nodes' => [['id' => 'PRR_author', 'state' => 'APPROVED', 'submittedAt' => '2026-09-20T10:00:00Z', 'commit' => ['oid' => 'aaa1111'], 'author' => ['__typename' => $type, 'login' => $login]]]];
+
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
+
+        self::assertSame($isApp ? null : 'PRR_author', $snapshot->approvalId);
+        self::assertSame($isApp ? null : 'PRR_author', $snapshot->latestApprovalId);
+        self::assertSame($isApp ? 'PRR_author' : null, $snapshot->appApprovalId);
+        self::assertSame($isApp ? 'aaa1111' : null, $snapshot->appApprovalSha);
+    }
+
+    public function test_the_newest_approval_of_the_app_stands_beside_a_persons(): void
+    {
+        $app = ['__typename' => 'Bot', 'login' => 'loupe-ac'];
+        $node = self::pullRequest604();
+        $node['latestOpinionatedReviews'] = ['nodes' => [
+            ['id' => 'PRR_person', 'state' => 'APPROVED', 'submittedAt' => '2026-09-20T10:00:00Z', 'commit' => ['oid' => 'aaa1111'], 'author' => ['__typename' => 'User', 'login' => 'riley']],
+            ['id' => 'PRR_app', 'state' => 'APPROVED', 'submittedAt' => '2026-09-21T10:00:00Z', 'commit' => ['oid' => 'bbb2222'], 'author' => $app],
+            ['id' => 'PRR_app_dismissed', 'state' => 'DISMISSED', 'submittedAt' => '2026-09-22T10:00:00Z', 'commit' => ['oid' => 'ccc3333'], 'author' => $app],
+        ]];
+
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
+
+        self::assertSame('PRR_person', $snapshot->approvalId);
+        self::assertSame('riley', $snapshot->latestApproverLogin);
+        self::assertSame('PRR_app', $snapshot->appApprovalId);
+        self::assertSame('bbb2222', $snapshot->appApprovalSha);
+    }
+
+    public function test_no_app_slug_matches_no_review(): void
+    {
+        $node = self::pullRequest604();
+        $node['latestOpinionatedReviews'] = ['nodes' => [['id' => 'PRR_app', 'state' => 'APPROVED', 'submittedAt' => '2026-09-21T10:00:00Z', 'commit' => ['oid' => 'bbb2222'], 'author' => ['__typename' => 'Bot', 'login' => '']]]];
+
+        foreach ([null, ''] as $slug) {
+            $snapshot = self::mapper($slug)->map($node, self::rules604(), null);
+
+            self::assertNull($snapshot->appApprovalId);
+            self::assertSame('PRR_app', $snapshot->approvalId);
+        }
     }
 
     /** @return iterable<string, array{mixed, ?string}> */
@@ -383,7 +439,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['baseRepository'] = $baseRepository;
         }
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->defaultBranch);
+        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->defaultBranch);
     }
 
     /** @return iterable<string, array{mixed, ?string}> */
@@ -405,7 +461,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['headRefName'] = $headRefName;
         }
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->headBranch);
+        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->headBranch);
     }
 
     /** @return iterable<string, array{mixed, ?string}> */
@@ -423,7 +479,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::pullRequest604();
         $node['title'] = $title;
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->title);
+        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->title);
     }
 
     /** @return iterable<string, array{mixed, ?string, ?string}> */
@@ -442,7 +498,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node = self::pullRequest604();
         $node['author'] = $author;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame($expectedId, $snapshot->authorId);
         self::assertSame($expectedLogin, $snapshot->authorLogin);
@@ -469,7 +525,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['commits']['nodes'][0]['commit']['parents'] = $parents;
         }
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->headParents);
+        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->headParents);
     }
 
     public function test_a_draft_is_never_ready_to_merge(): void
@@ -478,7 +534,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['mergeStateStatus'] = 'CLEAN';
         $node['isDraft'] = true;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertTrue($snapshot->draft);
         self::assertFalse($snapshot->readyToMerge);
@@ -498,7 +554,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['mergeStateStatus'] = 'CLEAN';
         $node['state'] = $state;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
 
         self::assertSame($expected, $snapshot->state);
         self::assertFalse($snapshot->readyToMerge);
@@ -510,7 +566,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['createdAt'] = '2026-09-20T08:00:00Z';
         $node['mergedAt'] = null;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, null, null);
+        $snapshot = self::mapper()->map($node, null, null);
 
         self::assertEquals(new \DateTimeImmutable('2026-09-20 08:00:00', new \DateTimeZone('UTC')), $snapshot->openedAt);
         self::assertSame('UTC', $snapshot->openedAt?->getTimezone()->getName());
@@ -524,7 +580,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['createdAt'] = '2026-09-20T08:00:00Z';
         $node['mergedAt'] = '2026-09-21T11:30:00+02:00';
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, null, null);
+        $snapshot = self::mapper()->map($node, null, null);
 
         self::assertEquals(new \DateTimeImmutable('2026-09-20 08:00:00', new \DateTimeZone('UTC')), $snapshot->openedAt);
         self::assertSame('2026-09-21 09:30:00', $snapshot->mergedAt?->format('Y-m-d H:i:s'));
@@ -538,7 +594,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $node['createdAt'] = '2026-09-20T08:00:00Z';
         $node['mergedAt'] = null;
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, null, null);
+        $snapshot = self::mapper()->map($node, null, null);
 
         self::assertNotNull($snapshot->openedAt);
         self::assertNull($snapshot->mergedAt);
@@ -550,7 +606,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         unset($node['createdAt']);
         $node['mergedAt'] = 'yesterday';
 
-        $snapshot = new GitHubPullRequestStateMapper()->map($node, null, null);
+        $snapshot = self::mapper()->map($node, null, null);
 
         self::assertNull($snapshot->openedAt);
         self::assertNull($snapshot->mergedAt);
@@ -562,7 +618,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         unset($node['headRefOid']);
 
         try {
-            new GitHubPullRequestStateMapper()->map($node, null, null);
+            self::mapper()->map($node, null, null);
             self::fail('Expected PullRequestUnreadable.');
         } catch (PullRequestUnreadable $e) {
             self::assertSame('malformed_body', $e->reason);
@@ -596,6 +652,11 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         $this->expectException(\UnexpectedValueException::class);
 
         GitHubBranchRules::fromRules(['message' => 'Not Found']);
+    }
+
+    private static function mapper(?string $slug = 'loupe-ac'): GitHubPullRequestStateMapper
+    {
+        return new GitHubPullRequestStateMapper(new GitHubAppConfiguration($slug, null, null, null, null, null));
     }
 
     /** @return array<string, mixed> */

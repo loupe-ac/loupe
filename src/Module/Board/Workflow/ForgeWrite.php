@@ -8,6 +8,8 @@ use App\Exception\DomainErrors;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\AgentReviewCheck;
 use App\Module\Board\Service\AgentReviewComment;
@@ -21,6 +23,7 @@ use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\EpicBranchMergeFailed;
 use App\Module\Forge\Service\EpicBranchMergers;
+use App\Module\Forge\Service\ForgePullRequestApprovals;
 use App\Module\Forge\Service\ForgePullRequestWrites;
 use App\Module\Forge\Service\PullRequestOpeners;
 use App\Module\Forge\Service\PullRequestStateWriters;
@@ -51,13 +54,15 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * it opens the pull request of the epic branch and links it to the epic, and it has no fallback.
  * A comment write queues the comment that the card's facts ask for, and it has no fallback.
  * The review-ready write marks the open pull request the rule acts on ready, and it has no fallback.
+ * The approve write posts an approval of the exact head the rule read, as the forge's App, and the dismiss-approval write
+ * dismisses it. Neither has a fallback, and each writes a history row of the card.
  * The epic merge write acts on a child that waits for a blocker outside its epic: it merges the default
  * branch into the epic branch, and a project with no writer opens the fallback work.
  */
 final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFactChange
 {
     public const string KEY = 'forge-write';
-    private const array WRITES_WITHOUT_FALLBACK = ['draft', 'ready', 'close', 'open-epic', 'post-review', 'site-review-check', 'agent-review-check', 'review-ready', 'comment'];
+    private const array WRITES_WITHOUT_FALLBACK = ['draft', 'ready', 'close', 'open-epic', 'post-review', 'site-review-check', 'agent-review-check', 'review-ready', 'comment', 'approve', 'dismiss-approval'];
     private const array COMMENTS = ['fix-run', 'stale-approval', 'agent-review'];
 
     public function __construct(
@@ -65,6 +70,8 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         private CardPullRequests $cardPullRequests,
         private EpicBranches $epicBranches,
         private ForgePullRequestWrites $forgePullRequestWrites,
+        private ForgePullRequestApprovals $forgePullRequestApprovals,
+        private CardEventRepository $cardEvents,
         private ForgePullRequestRepository $forgePullRequests,
         private EpicBranchMergers $epicBranchMergers,
         private PullRequestStateWriters $stateWriters,
@@ -238,6 +245,8 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
                 ForgeWriteKind::Merge => $this->forgeWrite(fn () => $this->forgePullRequestWrites->merge($pullRequest, $this->mergeMethod), $fallback),
                 ForgeWriteKind::ChangeBase => $this->changeBase($pullRequest, $fallback),
                 ForgeWriteKind::UpdateBranch => $this->forgeWrite(fn () => $this->forgePullRequestWrites->updateBranch($pullRequest), $fallback),
+                ForgeWriteKind::Approve => $this->forgeWrite(fn () => $this->approve($context, $card, $pullRequest), $fallback),
+                ForgeWriteKind::DismissApproval => $this->forgeWrite(fn () => $this->dismissApproval($context, $card, $pullRequest), $fallback),
             };
         } catch (PullRequestWriteFailed|PullRequestSyncFailed $e) {
             // A sync in flight already serves the rule, so a refire during it is no failure.
@@ -246,6 +255,61 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             }
 
             return ActionOutcome::refused($e->cause);
+        }
+    }
+
+    /**
+     * Approves the head that the rule read. A head that moved since then ends the write with no post, and the next evaluation decides again.
+     *
+     * @throws PullRequestWriteFailed
+     */
+    private function approve(ActionContext $context, Card $card, ForgePullRequest $pullRequest): void
+    {
+        $headSha = $context->facts->pullRequest?->headSha;
+        if (null === $headSha) {
+            return;
+        }
+        $cardUrl = $this->urlGenerator->generate('app_board_card', [
+            'projectId' => (string) $card->project->id,
+            'cardId' => (string) $card->id,
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
+        $body = \sprintf('Approved by Loupe: the agent review passed on this commit and the required checks are green. Card: %s', $cardUrl);
+        if (!$this->forgePullRequestApprovals->approve($pullRequest, $headSha, $body)) {
+            return;
+        }
+
+        $this->cardEvents->record($card, CardEventKind::AutoApproved, Actor::System, null, [
+            'pullRequest' => $pullRequest->number,
+            'headSha' => $headSha,
+            'rule' => $context->ruleId,
+        ]);
+        $this->evaluateAgain($card);
+    }
+
+    /** @throws PullRequestWriteFailed */
+    private function dismissApproval(ActionContext $context, Card $card, ForgePullRequest $pullRequest): void
+    {
+        $cardUrl = $this->urlGenerator->generate('app_board_card', [
+            'projectId' => (string) $card->project->id,
+            'cardId' => (string) $card->id,
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
+        $message = \sprintf('Dismissed by Loupe: a person must review this pull request. Card: %s', $cardUrl);
+        if (!$this->forgePullRequestApprovals->dismiss($pullRequest, $message)) {
+            return;
+        }
+
+        $this->cardEvents->record($card, CardEventKind::ApprovalDismissed, Actor::System, null, [
+            'pullRequest' => $pullRequest->number,
+            'rule' => $context->ruleId,
+        ]);
+        $this->evaluateAgain($card);
+    }
+
+    /** The row now holds the approval, or no longer holds it, and only a new evaluation reads that. */
+    private function evaluateAgain(Card $card): void
+    {
+        if ($this->evaluations->isOn()) {
+            $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')]);
         }
     }
 

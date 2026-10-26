@@ -1,0 +1,4 @@
+{#- The answer to a change of the review switch. Props: card (Card), error (?string). -#}
+<turbo-stream action="replace" target="card-human-review-{{ card.id }}">
+    <template>{% include '@Board/_card_human_review.html.twig' with {card: card, error: error} only %}</template>
+</turbo-stream>

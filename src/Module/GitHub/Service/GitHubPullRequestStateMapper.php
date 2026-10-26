@@ -16,6 +16,11 @@ final readonly class GitHubPullRequestStateMapper
 {
     private const array MERGEABLE_STATES = ['CLEAN', 'HAS_HOOKS', 'UNSTABLE'];
 
+    public function __construct(
+        private GitHubAppConfiguration $app,
+    ) {
+    }
+
     /**
      * @param array<mixed> $pullRequest
      * @param ?int         $behindBy    the commits the head lacks from the base, or null when not compared
@@ -41,6 +46,7 @@ final readonly class GitHubPullRequestStateMapper
         $mergeStateStatus = $pullRequest['mergeStateStatus'] ?? null;
         [$approvedAt, $approvalSha, $approvalId] = $this->approval($pullRequest);
         [$latestApprovedAt, $latestApprovalId, $latestApproverLogin] = $this->latestApproval($pullRequest);
+        [$appApprovalSha, $appApprovalId] = $this->appApproval($pullRequest);
         [$checks, $failedChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus);
         $mergeability = match (true) {
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
@@ -77,6 +83,8 @@ final readonly class GitHubPullRequestStateMapper
             latestApprovalId: $latestApprovalId,
             latestApproverLogin: $latestApproverLogin,
             title: $this->title($pullRequest),
+            appApprovalId: $appApprovalId,
+            appApprovalSha: $appApprovalSha,
         );
     }
 
@@ -136,7 +144,7 @@ final readonly class GitHubPullRequestStateMapper
         $nodes = $pullRequest['latestOpinionatedReviews']['nodes'] ?? [];
         $oldest = [null, null, null];
         foreach (\is_array($nodes) ? $nodes : [] as $node) {
-            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null)) {
+            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null) || $this->isAppReview($node)) {
                 continue;
             }
             $time = $this->time($node['submittedAt'] ?? null);
@@ -162,7 +170,7 @@ final readonly class GitHubPullRequestStateMapper
         $nodes = $pullRequest['latestOpinionatedReviews']['nodes'] ?? [];
         $newest = [null, null, null];
         foreach (\is_array($nodes) ? $nodes : [] as $node) {
-            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null)) {
+            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null) || $this->isAppReview($node)) {
                 continue;
             }
             $time = $this->time($node['submittedAt'] ?? null);
@@ -174,6 +182,50 @@ final readonly class GitHubPullRequestStateMapper
         }
 
         return $newest;
+    }
+
+    /**
+     * The commit and review id of the newest approval that the App posted and that stands.
+     *
+     * @param array<mixed> $pullRequest
+     *
+     * @return array{?string, ?string}
+     */
+    private function appApproval(array $pullRequest): array
+    {
+        $nodes = $pullRequest['latestOpinionatedReviews']['nodes'] ?? [];
+        $newest = null;
+        $found = [null, null];
+        foreach (\is_array($nodes) ? $nodes : [] as $node) {
+            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null) || !$this->isAppReview($node)) {
+                continue;
+            }
+            $time = $this->time($node['submittedAt'] ?? null);
+            $oid = $node['commit']['oid'] ?? null;
+            $id = $node['id'] ?? null;
+            if (null !== $time && \is_string($oid) && '' !== $oid && \is_string($id) && '' !== $id && (null === $newest || $time > $newest)) {
+                $newest = $time;
+                $found = [$oid, $id];
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * GraphQL gives the App's login without the `[bot]` suffix that REST adds, so both spellings count.
+     *
+     * @param array<mixed> $review
+     */
+    private function isAppReview(array $review): bool
+    {
+        $slug = $this->app->slug;
+        $login = $review['author']['login'] ?? null;
+
+        return null !== $slug && '' !== $slug
+            && 'Bot' === ($review['author']['__typename'] ?? null)
+            && \is_string($login)
+            && \in_array(mb_strtolower($login), [mb_strtolower($slug), mb_strtolower($slug).'[bot]'], true);
     }
 
     /** @param array<mixed> $pullRequest */

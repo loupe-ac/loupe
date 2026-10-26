@@ -35,7 +35,7 @@ final class LifecycleAutoApproveRulesMigrationTest extends KernelTestCase
         $old['version'] = 15;
         $old['epicBranch'] = 'feature/epic-{number}';
         $old['approvalCoversConflictResolution'] = false;
-        $old['rules'] = array_values(array_filter($old['rules'], static fn (array $rule): bool => !\in_array($rule['id'], ['product-design-auto-approve', 'tech-design-auto-approve'], true)));
+        $old['rules'] = array_values(array_filter($old['rules'], static fn (array $rule): bool => !\in_array($rule['id'], ['product-design-auto-approve', 'tech-design-auto-approve', 'pull-request-auto-approve'], true)));
         $oldJson = json_encode($old, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION);
         self::assertStringNotContainsString('auto-approve', $oldJson);
         $connection->executeStatement('UPDATE workflow_bindings SET template_version = 15, definition = CAST(? AS JSONB) WHERE project_id = ?', [$oldJson, $projectId]);

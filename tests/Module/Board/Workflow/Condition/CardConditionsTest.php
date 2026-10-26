@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Workflow\Condition;
 
+use App\Module\Board\Workflow\ArtifactReachFacts;
 use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ChildMark;
@@ -22,10 +23,13 @@ use App\Module\Board\Workflow\Condition\CardHasOpenBlocker;
 use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardParentEpicBranchSynced;
 use App\Module\Board\Workflow\Condition\CardParentExists;
+use App\Module\Board\Workflow\Condition\CardReviewNeedsPerson;
+use App\Module\Board\Workflow\Condition\CardUnseenArtifact;
 use App\Module\Board\Workflow\Condition\ParentDocumentApproved;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FollowUpFacts;
+use App\Module\Board\Workflow\HumanReviewFacts;
 use App\Module\Board\Workflow\ParentDocumentsFacts;
 use App\Module\Board\Workflow\ParentFacts;
 use App\Module\Workflow\Contract\Condition;
@@ -65,6 +69,12 @@ final class CardConditionsTest extends TestCase
         yield 'follows only finished cards' => [new CardFollowsFinished(), [], self::followUp(true, true), true];
         yield 'follows an open card' => [new CardFollowsFinished(), [], self::followUp(true, false), false];
         yield 'follows no card' => [new CardFollowsFinished(), [], self::followUp(false, false), false];
+
+        yield 'unseen artifact' => [new CardUnseenArtifact(), [], FactsMother::facts(provided: [ArtifactReachFacts::class => new ArtifactReachFacts(['a'])]), true];
+        yield 'no unseen artifact' => [new CardUnseenArtifact(), [], FactsMother::facts(provided: [ArtifactReachFacts::class => new ArtifactReachFacts([])]), false];
+
+        yield 'a person must review' => [new CardReviewNeedsPerson(), [], FactsMother::facts(provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]), true];
+        yield 'no person must review' => [new CardReviewNeedsPerson(), [], FactsMother::facts(provided: [HumanReviewFacts::class => new HumanReviewFacts(false)]), false];
 
         yield 'child' => [new CardParentExists(), [], self::card(isChild: true), true];
         yield 'not a child' => [new CardParentExists(), [], self::card(isChild: false), false];
