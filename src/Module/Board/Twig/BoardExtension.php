@@ -23,6 +23,8 @@ use App\Module\Board\Form\ReorderBoardColumnsFormType;
 use App\Module\Board\Form\ReorderBoardColumnsRequest;
 use App\Module\Board\Form\SaveBoardTerminalWindowFormType;
 use App\Module\Board\Form\SaveBoardTerminalWindowRequest;
+use App\Module\Board\Form\SetCardHumanReviewFormType;
+use App\Module\Board\Form\SetCardHumanReviewRequest;
 use App\Module\Board\Form\SetCardLaneFormType;
 use App\Module\Board\Form\SetCardLaneRequest;
 use App\Module\Board\Repository\BoardColumnRepository;
@@ -73,6 +75,7 @@ final class BoardExtension extends AbstractExtension
             new TwigFunction('card_move_form', $this->cardMoveForm(...)),
             new TwigFunction('board_move_form', $this->boardMoveForm(...)),
             new TwigFunction('card_lane_form', $this->cardLaneForm(...)),
+            new TwigFunction('card_human_review_form', $this->cardHumanReviewForm(...)),
             // The Backlog page writes this form by hand, so 25 rows build no column choices.
             new TwigFunction('backlog_move_form_name', MoveBacklogCardFormType::nameFor(...)),
             new TwigFunction('card_type', $this->cardType(...)),
@@ -127,6 +130,17 @@ final class BoardExtension extends AbstractExtension
                 SetCardLaneFormType::nameFor($card),
                 SetCardLaneFormType::class,
                 new SetCardLaneRequest($card->laneEnabled ? '0' : '1', $returnTo),
+            )
+            ->createView();
+    }
+
+    public function cardHumanReviewForm(Card $card): FormView
+    {
+        return $this->formFactory
+            ->createNamed(
+                SetCardHumanReviewFormType::nameFor((string) $card->id),
+                SetCardHumanReviewFormType::class,
+                new SetCardHumanReviewRequest($card->requiresHumanReview),
             )
             ->createView();
     }

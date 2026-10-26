@@ -7,6 +7,7 @@ namespace App\Module\Board\Command;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\HumanReviewCause;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
 
@@ -43,6 +44,11 @@ use App\Module\Workflow\Contract\CardEventCause;
  *
  * $cause says why the card moved, for the card's history: an app rule or an agent's run.
  * A move that opens an interactive run and names no cause names that run.
+ *
+ * $requiresHumanReview sets the human review switch. A value the card already holds changes nothing.
+ * $humanReviewCause and $humanReviewRuleId say why, for the card's history. With no cause, the actor decides.
+ *
+ * $onlyRaiseHumanReview refuses a command that lowers a switch the database holds on, read under the lock.
  *
  * $unmanageBy holds the card in the same transaction, for a caller that
  * checked the person may manage the project. A refused update holds nothing.
@@ -82,6 +88,10 @@ final readonly class UpdateCardCommand
         public bool $onlyFromOpenColumn = false,
         public ?CardEventCause $cause = null,
         public ?User $unmanageBy = null,
+        public ?bool $requiresHumanReview = null,
+        public ?HumanReviewCause $humanReviewCause = null,
+        public ?string $humanReviewRuleId = null,
+        public bool $onlyRaiseHumanReview = false,
     ) {
     }
 }

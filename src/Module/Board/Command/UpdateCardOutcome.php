@@ -29,6 +29,7 @@ final readonly class UpdateCardOutcome
         public ?WorkerRun $openedRun,
         /** Whether the update held the card, which is announced after the commit. */
         public bool $held,
+        public bool $humanReviewChanged = false,
     ) {
     }
 }

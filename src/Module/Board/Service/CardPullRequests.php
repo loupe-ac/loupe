@@ -66,6 +66,18 @@ final readonly class CardPullRequests
         return $this->cardPullRequests->findCurrentUrls($card);
     }
 
+    /**
+     * The pull requests of the children of the card that merged into the branch, as Forge tracks them.
+     *
+     * @return list<ForgePullRequest>
+     */
+    public function childrenMergedInto(Card $parent, string $baseBranch): array
+    {
+        $keys = $this->cardPullRequests->findKeysOfChildrenMergedInto($parent, $baseBranch);
+
+        return $this->forgePullRequests->findByKeys($parent->project->requireId(), $keys);
+    }
+
     /** The pull request of a child of the card that merged into the branch last, as Forge tracks it. */
     public function lastChildMergedInto(Card $parent, string $baseBranch): ?ForgePullRequest
     {

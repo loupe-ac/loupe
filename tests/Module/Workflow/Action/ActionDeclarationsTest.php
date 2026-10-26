@@ -12,6 +12,7 @@ use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\RequireHumanReview;
 use App\Module\Board\Workflow\StopWork;
 use App\Module\Workflow\Action\Ask;
 use App\Module\Workflow\Action\EvaluateChildren;
@@ -43,6 +44,7 @@ final class ActionDeclarationsTest extends TestCase
         yield 'approve-document' => [ApproveDocument::class, 'approve-document', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
         yield 'request-changes' => [RequestChanges::class, 'request-changes', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
         yield 'stop-work' => [StopWork::class, 'stop-work', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
+        yield 'require-human-review' => [RequireHumanReview::class, 'require-human-review', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
     }
 
