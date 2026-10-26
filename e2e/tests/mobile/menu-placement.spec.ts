@@ -66,7 +66,7 @@ test('a start-aligned menu stays on screen at enlarged text', async ({
     await enlargeText(page);
     await page.locator('.lp-revision-notes__trigger').click();
     await expectPanelOnScreen(
-        page.locator('#revision-notes-panel .lp-menu__panel'),
+        page.locator('#revision-notes-panel'),
         page,
     );
 });
@@ -82,7 +82,7 @@ test('an end-aligned menu stays on screen at enlarged text', async ({
         .first()
         .click();
     await expectPanelOnScreen(
-        page.locator('#diff-views-menu .lp-menu__panel'),
+        page.locator('#diff-views-menu'),
         page,
     );
 });
@@ -97,7 +97,7 @@ test('the stretch project switcher stays on screen at enlarged text', async ({
         .click();
     await page.locator('.lp-sidebar__switcher').click();
     await expectPanelOnScreen(
-        page.locator('#project-switcher-panel .lp-menu__panel'),
+        page.locator('#project-switcher-panel'),
         page,
     );
 });
