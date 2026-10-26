@@ -91,10 +91,12 @@
     .lp-redesign-rules .lp-filter-primary .lp-btn--icon {
         @apply shrink-0;
     }
-    /* The run and event filters sit on top of their table. */
-    .lp-redesign-runs .lp-list-filters,
-    .lp-redesign-events .lp-list-filters {
-        @apply mt-6 rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
+    /* A bar that no table follows is a box of its own, with its own bottom edge. */
+    .lp-redesign-runs
+        .lp-list-filters:not(:has(~ .lp-table-cue)):not(:has(~ * .lp-table-cue)):not(
+            :has(~ .lp-data-table)
+        ):not(:has(~ * .lp-data-table)) {
+        @apply mb-6 rounded-xl border border-line bg-surface-1 px-4 py-3;
     }
     .lp-redesign-runs .lp-filter-form > .lp-select {
         @apply max-w-full;
@@ -103,11 +105,14 @@
     /* A bar above a table joins it: the table loses its top edge, and the bar
        loses the page gap that would split them. */
     .lp-list-filters:has(~ * .lp-data-table),
-    .lp-list-filters:has(~ .lp-data-table) {
+    .lp-list-filters:has(~ .lp-data-table),
+    .lp-list-filters:has(~ .lp-table-cue) {
         @apply mb-0 rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
     }
     .lp-list-filters ~ .lp-data-table,
-    .lp-list-filters ~ * .lp-data-table {
+    .lp-list-filters ~ * .lp-data-table,
+    .lp-list-filters ~ .lp-table-cue,
+    .lp-list-filters ~ * .lp-table-cue {
         @apply mt-0 rounded-t-none;
     }
     .lp-list-filters ~ .lp-data-table .lp-data-table__header,
