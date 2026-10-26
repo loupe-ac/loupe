@@ -27,7 +27,8 @@
 #
 set -euo pipefail
 
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 
 # Optional second argument: the site-review widget context this preview carries.
 context="${2:-}"
@@ -45,7 +46,8 @@ context="${2:-}"
 if [ -n "${1:-}" ]; then
     root="$main/.worktrees/$1"
     legacy_root="$main/.claude/worktrees/$1"
-    if git -C "$main" worktree list --porcelain | grep -qxF "worktree $legacy_root"; then
+    registered=$(git -C "$main" worktree list --porcelain)
+    if grep -qxF "worktree $legacy_root" <<<"$registered"; then
         root=$legacy_root
     fi
     if [ ! -d "$root" ]; then
@@ -53,7 +55,7 @@ if [ -n "${1:-}" ]; then
         echo "Create it first: git worktree add .worktrees/$1 <branch>" >&2
         exit 1
     fi
-    if ! git -C "$main" worktree list --porcelain | grep -qxF "worktree $root"; then
+    if ! grep -qxF "worktree $root" <<<"$registered"; then
         echo ".worktrees/$1 exists but is not a registered git worktree." >&2
         echo "If it is a leftover directory, remove it and re-add it." >&2
         exit 1
