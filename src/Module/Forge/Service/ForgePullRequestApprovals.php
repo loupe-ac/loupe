@@ -8,6 +8,7 @@ use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Approves a pull request as Loupe, and dismisses that approval. A write stores the review it made on the row,
@@ -15,6 +16,8 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final readonly class ForgePullRequestApprovals
 {
+    private const string OVERTAKEN = 'Dismissed by Loupe: a new commit arrived while Loupe approved an earlier one.';
+
     public function __construct(
         private PullRequestApprovers $approvers,
         private ForgePullRequestRepository $forgePullRequests,
@@ -23,7 +26,10 @@ final readonly class ForgePullRequestApprovals
     }
 
     /**
-     * @return bool false when the pull request is no longer open or its head is not $headSha, so nothing was posted
+     * The forge's own head is read before and after the post, because the stored row can lag behind a push.
+     * An approval that a push overtook is dismissed at once.
+     *
+     * @return bool false when the pull request is no longer open or its head is not $headSha, so no approval stands
      *
      * @throws PullRequestWriteFailed
      */
@@ -37,7 +43,7 @@ final readonly class ForgePullRequestApprovals
 
             return null !== $row && PullRequestState::Open === $row->state && $row->headSha === $headSha;
         });
-        if (!$current) {
+        if (!$current || $approver->openHead($pullRequest) !== $headSha) {
             return false;
         }
 
@@ -49,8 +55,19 @@ final readonly class ForgePullRequestApprovals
                 $row->appApprovalSha = $approval->commitSha;
             }
         });
+        try {
+            if ($approver->openHead($pullRequest) === $headSha) {
+                return true;
+            }
+        } catch (PullRequestWriteFailed) {
+            // The approval was posted, and the row records it; only the check for a push during the post failed.
+            return true;
+        }
 
-        return true;
+        $approver->dismiss($pullRequest, $approval->reviewId, self::OVERTAKEN);
+        $this->forget($id, $approval->reviewId);
+
+        return false;
     }
 
     /**
@@ -69,6 +86,13 @@ final readonly class ForgePullRequestApprovals
         }
 
         $approver->dismiss($pullRequest, $reviewId, $message);
+        $this->forget($id, $reviewId);
+
+        return true;
+    }
+
+    private function forget(Uuid $id, string $reviewId): void
+    {
         $this->em->wrapInTransaction(function () use ($id, $reviewId): void {
             $row = $this->forgePullRequests->findForUpdate($id);
             if (null !== $row && $row->appApprovalId === $reviewId) {
@@ -76,8 +100,6 @@ final readonly class ForgePullRequestApprovals
                 $row->appApprovalSha = null;
             }
         });
-
-        return true;
     }
 
     public function canApprove(ForgePullRequest $pullRequest): bool

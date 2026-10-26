@@ -473,7 +473,7 @@ people only.
 
 | Write | Does |
 |---|---|
-| `approve` | Approves the head commit that the rule read, as the GitHub App, and writes an `auto-approved` row in the history of the card. A head that moved since then ends the write with no review, and the next evaluation decides again |
+| `approve` | Approves the head commit that the rule read, as the GitHub App, and writes an `auto-approved` row in the history of the card. Loupe reads the head from GitHub before the post. A head that moved since the rule read it ends the write with no review, and the next evaluation decides again. A push that lands during the post makes Loupe dismiss the new review at once |
 | `dismiss-approval` | Dismisses the approval that Loupe posted, and writes an `approval-dismissed` row in the history of the card. A refused dismissal backs off, retries and pauses the card |
 
 Two further writes come from the [rules the app adds](#rules-the-app-adds). They

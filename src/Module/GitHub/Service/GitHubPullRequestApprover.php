@@ -49,6 +49,25 @@ final readonly class GitHubPullRequestApprover implements PullRequestApprover
     }
 
     #[\Override]
+    public function openHead(ForgePullRequest $pullRequest): ?string
+    {
+        [$installationId, $path] = $this->installation($pullRequest);
+
+        try {
+            $read = $this->api->get($installationId, GitHubPullRequestInstallations::repositoryPath($path).'/pulls/'.$pullRequest->number);
+        } catch (GitHubAppApiFailed $e) {
+            throw self::failed($e);
+        }
+
+        $sha = $read['head']['sha'] ?? null;
+        if (!\is_string($sha) || '' === $sha) {
+            throw new PullRequestWriteFailed('malformed_body', permanent: false);
+        }
+
+        return 'open' === ($read['state'] ?? null) ? $sha : null;
+    }
+
+    #[\Override]
     public function approve(ForgePullRequest $pullRequest, string $headSha, string $body): PullRequestApproval
     {
         [$installationId, $path] = $this->installation($pullRequest);

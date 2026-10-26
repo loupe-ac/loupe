@@ -66,6 +66,35 @@ final class GitHubPullRequestApproverTest extends KernelTestCase
         self::assertFalse($this->approver()->canApprove($pullRequest));
     }
 
+    public function test_it_reads_the_head_from_github_past_the_stored_row(): void
+    {
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 73_020);
+        $pullRequest->headSha = 'stale1';
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['state' => 'open', 'head' => ['sha' => 'new456']]),
+            $this->answer(['state' => 'closed', 'head' => ['sha' => 'new456']]),
+        ];
+
+        $approver = $this->approver();
+
+        self::assertSame('new456', $approver->openHead($pullRequest));
+        self::assertNull($approver->openHead($pullRequest));
+        self::assertSame('GET', $this->requests[1]['method']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/pulls/604', $this->requests[1]['url']);
+    }
+
+    public function test_a_head_read_without_a_commit_is_a_transient_failure(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_021);
+        $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['state' => 'open'])];
+
+        $failure = $this->failure(fn () => $this->approver()->openHead($pullRequest));
+
+        self::assertSame('malformed_body', $failure->cause);
+        self::assertFalse($failure->permanent);
+    }
+
     public function test_it_posts_an_approval_of_the_exact_commit_and_returns_the_review_it_made(): void
     {
         $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 73_002);

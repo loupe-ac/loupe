@@ -26,6 +26,15 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
 
     public int $openedNumber = 900;
 
+    /** A failure that only dismiss() throws, after it records the call. */
+    public ?\Throwable $dismissFailure = null;
+
+    /** A failure that openHead() throws once the heads of $openHeads run out. */
+    public ?\Throwable $openHeadFailure = null;
+
+    /** @var list<?string> the heads that openHead() reports in turn, and the stored head once it runs out */
+    public array $openHeads = [];
+
     #[\Override]
     public function supports(string $forge): bool
     {
@@ -83,6 +92,19 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
     }
 
     #[\Override]
+    public function openHead(ForgePullRequest $pullRequest): ?string
+    {
+        if ([] !== $this->openHeads) {
+            return array_shift($this->openHeads);
+        }
+        if (null !== $this->openHeadFailure) {
+            throw $this->openHeadFailure;
+        }
+
+        return $pullRequest->headSha;
+    }
+
+    #[\Override]
     public function approve(ForgePullRequest $pullRequest, string $headSha, string $body): PullRequestApproval
     {
         $this->record(['approve', $pullRequest->number, $headSha, $body]);
@@ -94,6 +116,9 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
     public function dismiss(ForgePullRequest $pullRequest, string $reviewId, string $message): void
     {
         $this->record(['dismiss', $pullRequest->number, $reviewId, $message]);
+        if (null !== $this->dismissFailure) {
+            throw $this->dismissFailure;
+        }
     }
 
     /** @param list<int|string|bool> $call */

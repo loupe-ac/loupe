@@ -21,6 +21,13 @@ interface PullRequestApprover
     public function canApprove(ForgePullRequest $pullRequest): bool;
 
     /**
+     * The head commit that the forge reports now, read past the stored row, or null when the pull request is not open.
+     *
+     * @throws PullRequestWriteFailed when the forge does not answer
+     */
+    public function openHead(ForgePullRequest $pullRequest): ?string;
+
+    /**
      * Approves the named commit, so a later push cannot ride on the approval.
      *
      * @throws PullRequestWriteFailed when the forge does not take the review
