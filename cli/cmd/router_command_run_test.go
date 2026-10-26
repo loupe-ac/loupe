@@ -99,6 +99,16 @@ func withCommand(t *testing.T, timeout string) (*harness, *fakeCommand) {
 	return h, f
 }
 
+// entryArgv is the argv of the teardown entry inside a command, without the
+// removal of the bridge worktree that the rules add around it.
+func entryArgv(argv []string) []string {
+	if len(argv) > 5 && argv[0] == "sh" && strings.Contains(argv[2], "git worktree remove") {
+		return argv[5:]
+	}
+
+	return argv
+}
+
 // doneMoved offers a teardown work request for the card.
 func doneMoved(number int) string {
 	return offerPayload(number, "teardown")
@@ -139,7 +149,7 @@ func TestACommandRuleRunsItsCommand(t *testing.T) {
 	wantStates(t, sent, api.RunQueued, api.RunRunning, api.RunSucceeded)
 	wantCommandReports(t, sent)
 	specs := f.recorded()
-	if len(specs) != 1 || !slices.Equal(specs[0].argv, []string{"teardown", "87"}) || specs[0].dir != h.dir || specs[0].runID != sent[0].runID {
+	if len(specs) != 1 || !slices.Equal(entryArgv(specs[0].argv), []string{"teardown", "87"}) || specs[0].dir != h.dir || specs[0].runID != sent[0].runID {
 		t.Fatalf("command = %+v, want it in %s for run %s", specs, h.dir, sent[0].runID)
 	}
 	running, done := sent[1].report, sent[2].report
@@ -363,7 +373,7 @@ func TestAHandoverKeepsAQueuedCommand(t *testing.T) {
 	h2.router.adopt(st)
 	h2.router.wg.Wait()
 
-	if specs := f2.recorded(); len(specs) != 1 || !slices.Equal(specs[0].argv, []string{"teardown", "87"}) {
+	if specs := f2.recorded(); len(specs) != 1 || !slices.Equal(entryArgv(specs[0].argv), []string{"teardown", "87"}) {
 		t.Fatalf("command = %+v", specs)
 	}
 }
