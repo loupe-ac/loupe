@@ -341,7 +341,7 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertSame('PRR_app', $this->em()->getConnection()->fetchOne('SELECT app_approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
     }
 
-    public function test_approve_records_the_posted_approval_when_the_second_head_read_fails(): void
+    public function test_approve_dismisses_its_approval_and_retries_when_the_second_head_read_fails(): void
     {
         $card = $this->card($this->project(), 'in-review');
         $pullRequest = $this->pullRequest($card, headSha: 'abc123');
@@ -349,11 +349,59 @@ final class ForgeWriteTest extends KernelTestCase
         $this->writer->openHeadFailure = new PullRequestWriteFailed('api_failed_http_status_502', permanent: false);
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
 
-        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+        self::assertEquals(ActionOutcome::refused('api_failed_http_status_502'), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertSame(['approve', 'dismiss'], array_column($this->writer->calls, 0));
+        self::assertSame('PRR_app', $this->writer->calls[1][2]);
+        self::assertNull($this->em()->getConnection()->fetchOne('SELECT app_approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
+        $this->em()->flush();
+        self::assertSame([], $this->historyDetails($card, CardEventKind::AutoApproved));
+    }
+
+    public function test_a_failed_second_head_read_and_a_refused_dismissal_keep_the_approval_on_the_row(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc123');
+        $this->writer->openHeads = ['abc123'];
+        $this->writer->openHeadFailure = new PullRequestWriteFailed('api_failed_http_status_502', permanent: false);
+        $this->writer->dismissFailure = new PullRequestWriteFailed('api_failed_http_status_502', permanent: false);
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
+
+        self::assertEquals(ActionOutcome::refused('api_failed_http_status_502'), $this->write($card, 'approve', fallback: null, facts: $facts));
 
         self::assertSame('PRR_app', $this->em()->getConnection()->fetchOne('SELECT app_approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
+    }
+
+    public function test_approve_dismisses_a_stored_app_approval_of_an_older_commit_before_it_posts(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'new456');
+        $pullRequest->appApprovalId = 'PRR_old';
+        $pullRequest->appApprovalSha = 'abc123';
         $this->em()->flush();
-        self::assertCount(1, $this->historyDetails($card, CardEventKind::AutoApproved));
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'new456'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertSame(['dismiss', 'approve'], array_column($this->writer->calls, 0));
+        self::assertSame('PRR_old', $this->writer->calls[0][2]);
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT app_approval_id, app_approval_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]);
+        self::assertSame(['app_approval_id' => 'PRR_app', 'app_approval_sha' => 'new456'], $row);
+    }
+
+    public function test_approve_dismisses_a_stale_app_approval_even_when_the_rule_read_an_old_head(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'new456');
+        $pullRequest->appApprovalId = 'PRR_old';
+        $pullRequest->appApprovalSha = 'abc123';
+        $this->em()->flush();
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $pullRequest->id, headSha: 'abc123'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'approve', fallback: null, facts: $facts));
+
+        self::assertSame(['dismiss'], array_column($this->writer->calls, 0));
+        self::assertNull($this->em()->getConnection()->fetchOne('SELECT app_approval_id FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
     }
 
     public function test_approve_posts_nothing_on_a_pull_request_that_is_no_longer_open(): void

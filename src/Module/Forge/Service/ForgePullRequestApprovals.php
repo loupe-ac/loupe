@@ -17,6 +17,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class ForgePullRequestApprovals
 {
     private const string OVERTAKEN = 'Dismissed by Loupe: a new commit arrived while Loupe approved an earlier one.';
+    private const string UNCONFIRMED = 'Dismissed by Loupe: GitHub did not confirm that the approved commit is still the head.';
 
     public function __construct(
         private PullRequestApprovers $approvers,
@@ -27,7 +28,8 @@ final readonly class ForgePullRequestApprovals
 
     /**
      * The forge's own head is read before and after the post, because the stored row can lag behind a push.
-     * An approval that a push overtook is dismissed at once.
+     * An App approval on another commit is dismissed before the post, and one that a push overtook is dismissed at once.
+     * When the second read fails, the new approval is dismissed too and the failure is thrown, so the write is retried.
      *
      * @return bool false when the pull request is no longer open or its head is not $headSha, so no approval stands
      *
@@ -38,12 +40,21 @@ final readonly class ForgePullRequestApprovals
         $approver = $this->approvers->for($pullRequest->forge) ?? throw new PullRequestWriteFailed('no_writer', permanent: true);
         $id = $pullRequest->id ?? throw new \LogicException('A stored pull request has an id.');
 
-        $current = $this->em->wrapInTransaction(function () use ($id, $headSha): bool {
+        /** @var list{?string, ?string, ?string}|null $row */
+        $row = $this->em->wrapInTransaction(function () use ($id): ?array {
             $row = $this->forgePullRequests->findForUpdate($id);
 
-            return null !== $row && PullRequestState::Open === $row->state && $row->headSha === $headSha;
+            return null === $row || PullRequestState::Open !== $row->state ? null : [$row->headSha, $row->appApprovalId, $row->appApprovalSha];
         });
-        if (!$current || $approver->openHead($pullRequest) !== $headSha) {
+        if (null === $row) {
+            return false;
+        }
+        [$storedHead, $standingId, $standingSha] = $row;
+        $forgeHead = $approver->openHead($pullRequest);
+        if (null !== $standingId && null !== $forgeHead && $standingSha !== $forgeHead) {
+            $this->withdraw($approver, $pullRequest, $id, $standingId, self::OVERTAKEN);
+        }
+        if ($storedHead !== $headSha || $forgeHead !== $headSha) {
             return false;
         }
 
@@ -59,13 +70,13 @@ final readonly class ForgePullRequestApprovals
             if ($approver->openHead($pullRequest) === $headSha) {
                 return true;
             }
-        } catch (PullRequestWriteFailed) {
-            // The approval was posted, and the row records it; only the check for a push during the post failed.
-            return true;
+        } catch (PullRequestWriteFailed $e) {
+            $this->withdraw($approver, $pullRequest, $id, $approval->reviewId, self::UNCONFIRMED);
+
+            throw $e;
         }
 
-        $approver->dismiss($pullRequest, $approval->reviewId, self::OVERTAKEN);
-        $this->forget($id, $approval->reviewId);
+        $this->withdraw($approver, $pullRequest, $id, $approval->reviewId, self::OVERTAKEN);
 
         return false;
     }
@@ -89,6 +100,13 @@ final readonly class ForgePullRequestApprovals
         $this->forget($id, $reviewId);
 
         return true;
+    }
+
+    /** @throws PullRequestWriteFailed */
+    private function withdraw(PullRequestApprover $approver, ForgePullRequest $pullRequest, Uuid $id, string $reviewId, string $message): void
+    {
+        $approver->dismiss($pullRequest, $reviewId, $message);
+        $this->forget($id, $reviewId);
     }
 
     private function forget(Uuid $id, string $reviewId): void
