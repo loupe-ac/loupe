@@ -230,6 +230,9 @@ final class FactsMother
         bool $checksOnHead = false,
         bool $canMerge = false,
         bool $baseIsDefault = false,
+        bool $appApprovalCoversHead = false,
+        bool $appApprovalStands = false,
+        bool $appCanApprove = false,
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -258,6 +261,9 @@ final class FactsMother
             checksOnHead: $checksOnHead,
             canMerge: $canMerge,
             baseIsDefault: $baseIsDefault,
+            appApprovalCoversHead: $appApprovalCoversHead,
+            appApprovalStands: $appApprovalStands,
+            appCanApprove: $appCanApprove,
         );
     }
 

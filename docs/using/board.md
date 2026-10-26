@@ -1107,9 +1107,10 @@ carries `kind`, `occurredAt` and `actor`.
 
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
-`override-ended`, `document-verdict`, `verdict-failed` or `human-review-changed`.
-`actor` carries `kind` and `name`. Its `kind` is `human`, `agent`, `reviewer` or
-`system`. `name` is the current name of the person
+`override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
+`approval-dismissed` or `human-review-changed`. `actor` carries `kind` and
+`name`. Its `kind` is `human`, `agent`, `reviewer` or `system`. `name` is the
+current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
 
@@ -1140,6 +1141,10 @@ the app refused. Both set `document`, with `documentId`, `title` and `rule`. A
 `document-verdict` event also sets `verdict` and, for a withdrawal, `withdrawn`.
 A `verdict-failed` event sets `refusal`, a short code such as `verdict_stale`.
 The `rule` is null when a person wrote the verdict.
+
+An `auto-approved` event means that Loupe approved the pull request as the
+GitHub App. An `approval-dismissed` event means that Loupe dismissed that
+approval. Both set `pullRequest`.
 
 A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
 `ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
