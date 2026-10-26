@@ -1,7 +1,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{ 'app.name'|trans }}">
-<meta property="og:title" content="{{ title }}">
-<meta property="og:description" content="{{ description }}">
+<meta property="og:title" content="{{ title|raw }}">
+<meta property="og:description" content="{{ description|raw }}">
 <meta property="og:url" content="{{ public_url(app.request.pathInfo) }}">
 <meta property="og:image" content="{{ public_url(og_image_path()) }}">
 <meta property="og:image:width" content="1200">

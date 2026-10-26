@@ -6,7 +6,9 @@ namespace App\Tests\Module\Analytics\Twig;
 
 use App\Module\Account\Entity\User;
 use App\Module\Analytics\Twig\AnalyticsScript;
+use App\Site\SiteHost;
 use App\Tests\Support\AcceptedTerms;
+use App\Tests\Support\ComparisonFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -46,6 +48,31 @@ final class AnalyticsTagTest extends WebTestCase
         self::assertNotContains('/projects', $decoded);
     }
 
+    public function test_a_comparison_page_gets_the_tag_and_lists_its_own_path(): void
+    {
+        $previous = (string) ($_SERVER['SITE_HOST'] ?? '');
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = 'localhost';
+        $fixtures = '';
+        $client = $this->clientWithAnalytics(static function () use (&$fixtures): void {
+            $fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost('localhost', 'http://localhost'), 'http://localhost');
+        });
+
+        try {
+            $client->request(Request::METHOD_GET, '/compare/'.ComparisonFixtures::SLUG);
+
+            self::assertResponseIsSuccessful();
+            self::assertSelectorExists('head script[data-website-id="website-id"]');
+            $paths = $client->getCrawler()->filter('script[data-website-id]')->attr('data-public-paths');
+            self::assertIsString($paths);
+            $decoded = json_decode($paths, true, flags: \JSON_THROW_ON_ERROR);
+            self::assertContains('/compare', $decoded);
+            self::assertContains('/compare/'.ComparisonFixtures::SLUG, $decoded);
+        } finally {
+            $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $previous;
+            ComparisonFixtures::remove($fixtures);
+        }
+    }
+
     public function test_a_signed_in_user_gets_no_tag_on_a_public_page(): void
     {
         $client = $this->clientWithAnalytics();
@@ -76,10 +103,13 @@ final class AnalyticsTagTest extends WebTestCase
         self::assertSelectorNotExists('script[data-website-id]');
     }
 
-    private function clientWithAnalytics(): KernelBrowser
+    private function clientWithAnalytics(?\Closure $beforeFlag = null): KernelBrowser
     {
         $this->setAnalyticsEnv('https://analytics.test/script.js', 'website-id');
         $client = static::createClient();
+        if (null !== $beforeFlag) {
+            $beforeFlag();
+        }
         $em = $client->getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->persist(new FeatureFlag(name: AnalyticsScript::ENABLED_FLAG, type: FeatureFlagType::Bool, value: true));

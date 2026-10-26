@@ -24,6 +24,9 @@
                     <li><a href="{{ site_url('/#workflow') }}" class="lp-home-footer__link">{{ 'landing.nav.workflow'|trans }}</a></li>
                     <li><a href="{{ site_url('/#features') }}" class="lp-home-footer__link">{{ 'landing.nav.features'|trans }}</a></li>
                     <li><a href="{{ site_url('/#integrations') }}" class="lp-home-footer__link">{{ 'landing.nav.works_with'|trans }}</a></li>
+                    {% if has_comparisons() %}
+                        <li><a href="{{ site_url('/compare') }}" class="lp-home-footer__link">{{ 'landing.compare.footer_link'|trans }}</a></li>
+                    {% endif %}
                     <li><a href="{{ site_url(path('app_waitlist_join')) }}" class="lp-home-footer__link" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="footer">{{ 'landing.cta.join'|trans }}</a></li>
                 </ul>
             </nav>

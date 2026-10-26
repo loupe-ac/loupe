@@ -6,6 +6,8 @@ namespace App\Tests\Module\Landing\Command;
 
 use App\Module\Landing\Command\ShowSitemapHandler;
 use App\Module\Landing\Service\PublicPages;
+use App\Site\SiteHost;
+use App\Tests\Support\ComparisonFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -14,6 +16,8 @@ final class ShowSitemapHandlerTest extends KernelTestCase
     private string $docs = '';
 
     private string $previousSiteHost = '';
+
+    private string $fixtures = '';
 
     #[\Override]
     protected function setUp(): void
@@ -27,6 +31,9 @@ final class ShowSitemapHandlerTest extends KernelTestCase
     protected function tearDown(): void
     {
         new Filesystem()->remove($this->docs);
+        if ('' !== $this->fixtures) {
+            ComparisonFixtures::remove($this->fixtures);
+        }
         $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $this->previousSiteHost;
         parent::tearDown();
     }
@@ -48,6 +55,25 @@ final class ShowSitemapHandlerTest extends KernelTestCase
         foreach ($locations as $location) {
             self::assertStringNotContainsString('loupe.ac', $location);
         }
+    }
+
+    public function test_it_lists_the_comparison_list_and_one_url_per_page_and_no_bare_slash_entry(): void
+    {
+        $locations = $this->locations();
+
+        self::assertContains('https://site.example/compare', $locations);
+        self::assertSame(1, \count(array_filter($locations, static fn (string $location): bool => str_starts_with($location, 'https://site.example/compare/'))));
+        self::assertContains('https://site.example/compare/'.ComparisonFixtures::SLUG, $locations);
+        self::assertNotContains('https://site.example/compare/', $locations);
+    }
+
+    public function test_it_lists_no_comparison_url_without_a_site_host(): void
+    {
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = '';
+
+        $locations = $this->locations();
+
+        self::assertSame([], array_filter($locations, static fn (string $location): bool => str_contains($location, '/compare')));
     }
 
     public function test_a_missing_docs_folder_lists_the_site_pages_alone(): void
@@ -93,6 +119,10 @@ final class ShowSitemapHandlerTest extends KernelTestCase
     {
         self::ensureKernelShutdown();
         self::bootKernel();
+        if ('' !== $this->fixtures) {
+            ComparisonFixtures::remove($this->fixtures);
+        }
+        $this->fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost((string) $_SERVER['SITE_HOST'], 'http://localhost'), 'http://localhost');
         $publicPages = static::getContainer()->get(PublicPages::class);
         self::assertInstanceOf(PublicPages::class, $publicPages);
         $xml = simplexml_load_string((new ShowSitemapHandler($publicPages, $this->docs))());

@@ -6473,6 +6473,9 @@
     .lp-legal__updated {
         @apply text-sm text-fg-dim;
     }
+    .lp-legal__actions {
+        @apply flex flex-wrap gap-3 mt-4;
+    }
 
     /* ── Board ──────────────────────────────────────────────────────────
        Four columns side by side. The row scrolls rather than wraps: a column

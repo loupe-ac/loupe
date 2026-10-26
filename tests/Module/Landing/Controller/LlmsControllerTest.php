@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Landing\Controller;
 
 use App\Routing\PinnedUrlGenerator;
+use App\Site\SiteHost;
+use App\Tests\Support\ComparisonFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -35,6 +37,43 @@ final class LlmsControllerTest extends WebTestCase
         $body = (string) $client->getResponse()->getContent();
         self::assertStringContainsString(']('.$setupUrl.'): ', $body);
         self::assertStringContainsString(']('.rtrim($docsUrl, '/').'/): ', $body);
+    }
+
+    public function test_it_lists_each_comparison_page_on_the_site_origin_when_a_site_host_is_set(): void
+    {
+        $previous = (string) ($_SERVER['SITE_HOST'] ?? '');
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = 'loupe.example';
+        $client = static::createClient();
+        $fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost('loupe.example', 'http://localhost'), 'http://localhost');
+
+        try {
+            $client->request(Request::METHOD_GET, '/llms.txt', server: ['HTTP_HOST' => 'loupe.example']);
+
+            $body = (string) $client->getResponse()->getContent();
+            self::assertStringContainsString("\n## Compare\n", $body);
+            self::assertStringContainsString("- [Loupe vs Fixture's Rival](https://loupe.example/compare/".ComparisonFixtures::SLUG.'): '.ComparisonFixtures::DESCRIPTION, $body);
+        } finally {
+            $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $previous;
+            ComparisonFixtures::remove($fixtures);
+        }
+    }
+
+    public function test_it_has_no_compare_section_without_a_site_host(): void
+    {
+        $previous = (string) ($_SERVER['SITE_HOST'] ?? '');
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = '';
+        $client = static::createClient();
+        $fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost('', 'http://localhost'), 'http://localhost');
+
+        try {
+            $client->request(Request::METHOD_GET, '/llms.txt');
+
+            self::assertResponseIsSuccessful();
+            self::assertStringNotContainsString('## Compare', (string) $client->getResponse()->getContent());
+        } finally {
+            $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $previous;
+            ComparisonFixtures::remove($fixtures);
+        }
     }
 
     public function test_the_setup_link_names_the_configured_host_not_the_request_host(): void
