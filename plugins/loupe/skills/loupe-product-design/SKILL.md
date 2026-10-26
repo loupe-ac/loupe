@@ -41,7 +41,7 @@ Put each item in its section of the product document.
 - A decision that the owner defers goes in "Open questions" (Q8).
 - A deferred decision in "Open questions" gets the worked example of `../loupe-documents/references/design-structure.md` "Decisions", and no "How each option works" list. A question in chat gets no example.
 - The whole product document follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
-- The answers of the P7 pre-mortem go in "Risks".
+- The answer of the P7 human review question goes in "Decisions log". The session sets the switch with `card_update`.
 - The P8 scenarios go in "Scenarios".
 - The Design canvas link and the label of each pick go in "Decisions log", and the `R` entry they shaped cites both. When a Design canvas session ran, the product document also links the recap of the picks (C6).
 

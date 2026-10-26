@@ -40,10 +40,6 @@ Write only behaviour a user or an operator can observe. Name no class, table, en
 
 List what the change leaves out, including requests a reader can expect. Say for each entry whether it waits for later work or is refused.
 
-## Risks
-
-Answer the pre-mortem question: "This shipped and failed. Why?" Write each answer as one entry, and cite the `R` ID it threatens.
-
 ## Assumptions
 
 List each guess that the author made and nobody can check yet, such as how users will act. The tech design stage can then challenge it. A guess that the code, a doc, a command or the board history can check is not an assumption. Check it, and write the result in "Current behaviour".

@@ -273,6 +273,14 @@ field, so choose the value when you create the card.
 `card_list` takes `reporter` as a filter, and the filter reads all three values.
 Pass `reviewer` to read the cards the widget raised.
 
+## Set the human review switch
+
+A card has a "Requires human review" switch. With it off, the pull request of the card can approve itself once the agent review passes and the checks are green. With it on, a person approves the pull request.
+
+Pass `requiresHumanReview` to `card_create` or `card_update` to set it. Turn it on for a card that changes what a person sees and has a prototype. Leave it off for any other card.
+
+A bridge worker never turns the switch off. `card_update` refuses it for a worker session. A person lowers the switch on the card page, or in a product design session.
+
 ## A card asks somebody to do something
 
 The board is not a notepad. Every card names work with an addressee, and it ends
