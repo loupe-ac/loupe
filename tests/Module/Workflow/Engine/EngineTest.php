@@ -3135,15 +3135,27 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_paused_fix_rule_stays_paused_while_the_review_check_and_its_comment_are_posted(): void
     {
-        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-posts');
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-posts', [new AgentReviewFinding('src/A.php', 1, 2, AgentReviewSeverity::Important, 'Null read', 'Body.')]);
         $review = $this->service(AgentReviewRepository::class)->findOneBy(['card' => $card]);
         self::assertNotNull($review);
+        $uncommented = $this->service(UncommentedAgentReviews::class);
+        self::assertSame([], $uncommented->among([$review]), 'A check posted outside the comment window asks for no comment yet.');
 
-        $review->postedAt = new \DateTimeImmutable('2026-10-02 12:22:00');
+        $review->postedAt = new \DateTimeImmutable();
         $this->em()->flush();
         $this->evaluate($card, '2026-10-02 12:23:00');
 
+        self::assertSame([$review], $uncommented->among([$review]), 'The check is posted and its summary comment is due.');
         self::assertNull($pause->releasedAt, 'A post of the review check does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+
+        $this->em()->persist(new PullRequestNotice($card->project, $pullRequest->id ?? throw new \LogicException('Flushed.'), 'github', $pullRequest->repository, $pullRequest->number, AgentReviewNoticeBody::key($review->id ?? throw new \LogicException('Flushed.')), new \DateTimeImmutable()));
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:24:00');
+
+        self::assertSame([], $uncommented->among([$review]), 'The summary comment is posted.');
+        self::assertNull($pause->releasedAt, 'A post of the summary comment does not end the pause.');
         self::assertSame([], $this->liveKinds($card));
         self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
     }
@@ -3189,11 +3201,13 @@ final class EngineTest extends KernelTestCase
     /**
      * A lifecycle card whose fix round stopped for a person at 12:20, so the rule fix-agent-review is paused.
      *
+     * @param list<AgentReviewFinding> $findings
+     *
      * @return array{Card, ForgePullRequest, CardPause}
      */
-    private function pausedFixRule(string $slug): array
+    private function pausedFixRule(string $slug, array $findings = []): array
     {
-        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound($slug);
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound($slug, $findings);
         $this->refuse($this->liveRequestOfKind($card, 'fix'), 'needs-person', '2026-10-02 12:20:00');
         $this->evaluate($card, '2026-10-02 12:21:00');
         $pause = $this->activePause($card);
@@ -3206,9 +3220,11 @@ final class EngineTest extends KernelTestCase
     /**
      * A lifecycle card in Implementation whose review of HEAD_ONE failed at 12:04, with fix round 1 live.
      *
+     * @param list<AgentReviewFinding> $findings
+     *
      * @return array{Card, ForgePullRequest}
      */
-    private function failedAgentReviewWithFixRound(string $slug): array
+    private function failedAgentReviewWithFixRound(string $slug, array $findings = []): array
     {
         self::bootKernel();
         $project = $this->workflowProject($slug);
@@ -3220,7 +3236,7 @@ final class EngineTest extends KernelTestCase
         $this->evaluate($card);
 
         $this->finish($this->liveRequestOfKind($card, 'review'), '2026-10-02 12:05:00');
-        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:04:00');
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:04:00', $findings);
         $this->evaluate($card, '2026-10-02 12:06:00');
 
         $fix = $this->liveRequestOfKind($card, 'fix');
@@ -3230,9 +3246,10 @@ final class EngineTest extends KernelTestCase
         return [$card, $pullRequest];
     }
 
-    private function agentReview(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $at): void
+    /** @param list<AgentReviewFinding> $findings */
+    private function agentReview(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $at, array $findings = []): void
     {
-        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', $conclusion, [], createdAt: new \DateTimeImmutable($at));
+        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', $conclusion, $findings, createdAt: new \DateTimeImmutable($at));
         $review->postedAt = new \DateTimeImmutable($at);
         $this->em()->persist($review);
         $this->em()->flush();

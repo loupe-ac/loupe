@@ -7,6 +7,7 @@ namespace App\Tests\Module\Workflow\Fact;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewConclusionFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFactProvider;
@@ -154,6 +155,7 @@ final class FactsMother
         $documentReview = [...$given, ...$provided][DocumentReviewFacts::class];
         $prints[DocumentReviewFacts::class] = new \ReflectionClass(DocumentReviewFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($documentReview);
         $prints[AgentReviewFacts::class] = new \ReflectionClass(AgentReviewFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($agentReview);
+        $prints[AgentReviewPostingFacts::class] = new \ReflectionClass(AgentReviewPostingFactProvider::class)->newInstanceWithoutConstructor()->fingerprint([...$given, ...$provided][AgentReviewPostingFacts::class]);
 
         return new Facts(
             now: $now,
