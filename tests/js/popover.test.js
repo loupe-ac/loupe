@@ -84,3 +84,29 @@ it('leaves an open nested dialog in control of Escape', () => {
     expect(controller.panelTarget.hidden).toBe(false);
     expect(document.activeElement).toBe(input);
 });
+
+it('places the panel on open and stops listening for resize on close', () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    controller.open();
+    controller.panelTarget.style.setProperty('--lp-menu-shift', '9px');
+    expect(add).toHaveBeenCalledWith('resize', controller.onResize);
+    controller.onResize();
+    expect(
+        controller.panelTarget.style.getPropertyValue('--lp-menu-shift'),
+    ).toBe('');
+    controller.close();
+    expect(remove).toHaveBeenCalledWith('resize', controller.onResize);
+    add.mockRestore();
+    remove.mockRestore();
+});
+
+it('stops listening for resize when the controller disconnects', async () => {
+    const remove = vi.spyOn(window, 'removeEventListener');
+    controller.open();
+    const onResize = controller.onResize;
+    document.body.replaceChildren();
+    await settle();
+    expect(remove).toHaveBeenCalledWith('resize', onResize);
+    remove.mockRestore();
+});
