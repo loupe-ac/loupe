@@ -9,7 +9,8 @@ if ! [[ $number =~ ^[1-9][0-9]*$ ]]; then
     exit 1
 fi
 
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 
 # shellcheck source=bin/worktrees/slug.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/slug.sh"

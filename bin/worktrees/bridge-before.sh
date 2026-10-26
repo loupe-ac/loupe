@@ -31,7 +31,8 @@ if [ -n "$pr" ] && ! [[ $pr =~ ^[1-9][0-9]*$ ]]; then
     exit 1
 fi
 
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 name="card-$number"
 root="$main/.worktrees/$name"
 

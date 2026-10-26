@@ -60,7 +60,8 @@ worktree-down name:
 worktrees:
     #!/usr/bin/env bash
     set -euo pipefail
-    main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+    worktrees=$(git worktree list --porcelain)
+    main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
     . "$(pwd)/bin/worktrees/slug.sh"   # this checkout's copy; just runs from the justfile dir
     project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
     project=${project:-loupe}
@@ -81,7 +82,8 @@ worktrees:
 worktree-prune:
     #!/usr/bin/env bash
     set -euo pipefail
-    main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+    worktrees=$(git worktree list --porcelain)
+    main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
     . "$(pwd)/bin/worktrees/slug.sh"   # this checkout's copy; just runs from the justfile dir
     project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
     project=${project:-loupe}
@@ -100,7 +102,7 @@ worktree-prune:
             *) echo "worktree-prune: ignoring '$compose_project' (not a worktree project)" >&2; continue ;;
         esac
         slug=${compose_project#"${project}-wt-"}
-        if printf '%s\n' "$live" | grep -qx "$slug"; then
+        if grep -qx "$slug" <<<"$live"; then
             continue
         fi
         # This slug is about to drive a database drop, so make it prove it is
@@ -342,7 +344,8 @@ garage-reset:
 e2e-up:
     #!/usr/bin/env bash
     set -euo pipefail
-    main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+    worktrees=$(git worktree list --porcelain)
+    main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
     project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
     host="e2e.${project}.dev.localhost"
     db="app_e2e"
@@ -394,7 +397,8 @@ e2e-up:
 e2e-down:
     #!/usr/bin/env bash
     set -euo pipefail
-    main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+    worktrees=$(git worktree list --porcelain)
+    main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
     project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
     # Not optional: with these unset, `down` does NOT fail safely — it was
     # observed removing the MAIN stack's containers and deleting loupe_default,

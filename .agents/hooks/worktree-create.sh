@@ -43,13 +43,15 @@ case "$name" in
         ;;
 esac
 
-main=$(git -C "$cwd" worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git -C "$cwd" worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 root="$main/.worktrees/$name"
 
 created_worktree=0
 created_branch=0
 branch_created_at=
-if git -C "$main" worktree list --porcelain | grep -qxF "worktree $root"; then
+registered=$(git -C "$main" worktree list --porcelain)
+if grep -qxF "worktree $root" <<<"$registered"; then
     echo "worktree-create hook: '$name' already exists; re-provisioning it." >&2
 elif [ -e "$root" ]; then
     echo "worktree-create hook: $root exists but is not a registered worktree." >&2
