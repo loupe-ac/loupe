@@ -73,6 +73,8 @@ test('an end-aligned menu stays on screen at enlarged text', async ({
 }) => {
     await page.goto(`${await seedReviewPath(page)}/diff/1/2`);
     await enlargeText(page);
+    // On a phone the diff bar folds behind its summary line.
+    await page.locator('#diff-bar-line').click();
     await page
         .locator('.lp-diff-bar__views')
         .getByRole('button')
