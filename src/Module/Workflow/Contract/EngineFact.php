@@ -13,6 +13,7 @@ enum EngineFact: string
     case PullRequestSubject = 'pull-request-subject';
     case PullRequestHead = 'pull-request-head';
     case PullRequestMergeGate = 'pull-request-merge-gate';
+    case PullRequestAppApproval = 'pull-request-app-approval';
 
     /** Whether a rule that reads this group acts on one open pull request of the card. */
     public function bindsPullRequest(): bool

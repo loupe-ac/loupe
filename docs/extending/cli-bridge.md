@@ -1479,12 +1479,17 @@ prints wins. It does not apply to an interactive or a command entry. With
 A reload reads the option again, and a run that is already in progress keeps its
 folder.
 
-The bridge handles the `teardown` request of a card itself when `isolation` is
-`worktree` and the work map has no `teardown` entry. It runs
-`git worktree remove --force` for the card folder and then `git worktree prune`
-in the project folder, and starts no agent. A folder that is already gone is not
-an error. The run reports as a command run. A `teardown` entry of your own wins,
-including an entry with `action: command`.
+The bridge removes the worktree of a card on its `teardown` request when
+`isolation` is `worktree`. It runs `git worktree remove --force` for the card
+folder and then `git worktree prune` in the project folder. A folder that is
+already gone is not an error. The run reports as a command run.
+
+With no `teardown` entry, the bridge does the removal alone and starts no agent.
+A `teardown` entry with `action: command` runs first, and the removal follows
+whatever the command returned. A failed command keeps its exit code. A failed
+removal fails the run only when the command passed, and its git output is in the
+run output. A `teardown` entry that runs a worker or an interactive session
+replaces the removal, so the bridge then leaves the worktree in place.
 
 ## Worker folders
 
@@ -1533,8 +1538,9 @@ work:
 ```
 
 A command entry waits until a running worker of the same card ends. The bridge
-does not retry a failed command. With a bridge worktree and no `teardown`
-entry, the bridge removes the folder itself. [Before command](#before-command)
+does not retry a failed command. With a bridge worktree, the bridge also
+removes its own folder after a `teardown` command entry, or alone when the work
+map has no `teardown` entry. [Before command](#before-command)
 and [Command action](#command-action) give the details.
 
 ## Refresh and reset commands
@@ -1592,8 +1598,10 @@ work:
     run: ["bin/teardown.sh", "{cardNumber}"]
 ```
 
-`run` is an argv list, and no shell reads it. Each element takes the
-placeholders that a prompt takes. The command runs in the project's `dir`, with
+`run` is an argv list, and no shell reads it. Under worktree isolation, the
+bridge wraps the `run` of a `teardown` entry in `sh` to remove its worktree
+afterwards. It passes each element unchanged, and the removal shares the
+`timeout` of the entry. Each element takes the placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
 `permissions`, `variants`, `metrics`, `workerPool`, `before`, `refresh` and `reset` on a command
@@ -1787,8 +1795,9 @@ effort.
 Both shipped workflow templates
 request `teardown` each time a card reaches a terminal column. A `teardown`
 request that no bridge takes expires after the work timeout, and the card does
-not pause. With [worker isolation](#worker-isolation) on and no `teardown`
-entry, the bridge removes the worktree of the card without an agent.
+not pause. With [worker isolation](#worker-isolation) on, the bridge removes
+the worktree of the card without an agent. It does so after a `teardown`
+command entry, or alone when the work map has no `teardown` entry.
 
 The `review` kind runs the `loupe-stage-review` skill of the Loupe plugin. The
 worker reads the change of the pull request at its head commit, and sends its

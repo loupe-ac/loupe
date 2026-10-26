@@ -262,6 +262,30 @@ class CardPullRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every pull request that a child of the card links and that the last forge read found merged into the branch.
+     *
+     * @return list<array{forge: string, repository: string, number: int}>
+     */
+    public function findKeysOfChildrenMergedInto(Card $parent, string $baseBranch): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT DISTINCT pr.forge, pr.repository, pr.number
+            FROM board_cards c
+            JOIN board_card_pull_requests link ON link.card_id = c.id
+            JOIN forge_pull_requests pr ON pr.project_id = c.project_id AND pr.forge = link.forge
+                AND pr.repository = LOWER(link.repository) AND pr.number = link.number
+            WHERE c.parent_card_id = :parent AND pr.state = :merged AND pr.base_branch = :base',
+            [
+                'parent' => ($parent->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122(),
+                'merged' => PullRequestState::Merged->value,
+                'base' => $baseBranch,
+            ],
+        );
+
+        return array_map(static fn (array $row): array => ['forge' => (string) $row['forge'], 'repository' => (string) $row['repository'], 'number' => (int) $row['number']], $rows);
+    }
+
+    /**
      * Every pull request link URL of one card as the database holds it now, read past the identity map.
      *
      * @return list<string>

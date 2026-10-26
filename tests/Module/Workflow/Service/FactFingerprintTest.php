@@ -115,6 +115,18 @@ final class FactFingerprintTest extends TestCase
         }
     }
 
+    public function test_each_app_approval_fact_changes_its_own_group_and_leaves_the_shared_pull_request_group_as_it_was(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $plain = FactsMother::facts(pullRequest: FactsMother::pullRequest());
+        foreach (['appApprovalCoversHead', 'appApprovalStands', 'appCanApprove'] as $field) {
+            $changed = FactsMother::facts(pullRequest: FactsMother::pullRequest(...[$field => true]));
+
+            self::assertNotSame($fingerprint->of($plain, [EngineFact::PullRequestAppApproval]), $fingerprint->of($changed, [EngineFact::PullRequestAppApproval]), $field);
+            self::assertSame($fingerprint->of($plain, [EngineFact::PullRequest]), $fingerprint->of($changed, [EngineFact::PullRequest]), $field);
+        }
+    }
+
     public function test_a_contract_interface_reads_the_fingerprint_of_the_class_that_implements_it(): void
     {
         $fingerprint = new FactFingerprint();
@@ -167,6 +179,7 @@ final class FactFingerprintTest extends TestCase
         yield 'pull request' => [EngineFact::PullRequest, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed), pullRequests: self::all(), run: self::workRun())];
         yield 'pull request head' => [EngineFact::PullRequestHead, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, headSha: 'new-head'), pullRequests: self::all(), run: self::workRun())];
         yield 'pull request merge gate' => [EngineFact::PullRequestMergeGate, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, canMerge: true), pullRequests: self::all(), run: self::workRun())];
+        yield 'pull request app approval' => [EngineFact::PullRequestAppApproval, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, appApprovalStands: true), pullRequests: self::all(), run: self::workRun())];
         yield 'pull requests' => [PullRequestList::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: [self::primary()], run: self::workRun())];
         yield 'work requests' => [WorkRequestFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: self::all(), run: FactsMother::run(['implement'], 'no-capacity', self::WORKER_KINDS, self::PARENT_KINDS))];
         yield 'refusal' => [RefusalFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: self::all(), run: FactsMother::run(['implement', 'review'], 'no-bridge', self::WORKER_KINDS, self::PARENT_KINDS))];

@@ -613,6 +613,13 @@ card with a parent cannot change to such a type, and a card with children keeps
 its type. Both tools also take `laneEnabled`, which says whether the board draws
 a lane for a card of a type with the `lane` capability. It defaults to `true`.
 
+Both tools also take `requiresHumanReview`, which is true when a person must
+review the pull request of the card. A new card has it off. `card_create`
+accepts either value. `card_update` keeps the setting when you omit it. A
+bridge worker can only turn the switch on, so `card_update` refuses `false`
+from a worker session when the card has the switch on. A refused call changes
+nothing.
+
 Both tools also take `childDesign`, for a child of a parent whose tech design is
 approved. The value `inherit` links the tech design of the parent. The value
 `own` moves the card to Tech design, so a call that passes `own` passes no
@@ -626,11 +633,13 @@ the move. A refused call changes nothing.
 `card_list` takes `parentCardId` as a filter, which reads the children of one
 card. The full card, from `card_get` or from `card_list` with `full`, carries
 `state` on each entry of `pullRequests`, the last state Loupe read.
-[The board](board.md#the-mcp-tools) lists its keys. It also carries four more
-keys. `parent` holds `cardId`, `number`, `title` and `status`, or
-null. `laneEnabled` is a boolean. `children` lists the children of a card with
-the same four keys. `progress` holds `done` and `total` for a card of a type with
-the `children` capability, and null for any other card. A child counts as done when it sits in a terminal column.
+[The board](board.md#the-mcp-tools) lists its keys. It also carries five more
+keys: `parent`, `laneEnabled`, `requiresHumanReview`, `children` and `progress`.
+`parent` holds `cardId`, `number`, `title` and `status`, or null.
+`laneEnabled` and `requiresHumanReview` are booleans. `children` lists the
+children of a card with the same four keys. `progress` holds `done` and `total`
+for a card of a type with the `children` capability, and null for any other
+card. A child counts as done when it sits in a terminal column.
 
 The full card also carries `pause`, the active workflow pause of the card, or
 null. A pause holds `pauseId`, `kind`, `reason`, `ruleId` and `since`. The kind
