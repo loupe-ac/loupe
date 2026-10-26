@@ -92,7 +92,7 @@
         @apply shrink-0;
     }
     /* A bar that no table follows is a box of its own, with its own bottom edge. */
-    .lp-redesign-runs
+    :is(.lp-redesign-runs, .lp-redesign-events)
         .lp-list-filters:not(:has(~ .lp-table-cue--data)):not(
             :has(~ * .lp-table-cue--data)
         ):not(:has(~ .lp-data-table)):not(:has(~ * .lp-data-table)) {
