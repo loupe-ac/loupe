@@ -6,7 +6,7 @@ Each level and each phase has a stable ID, so a comment can cite it. The ID P3 i
 
 A card does not always need a full session. "Add a Claude design capability to Loupe" needs one. "Cards need tags" needs a much shorter one.
 
-1. L1: Light. Use it for a small addition to an existing feature. Run P0, then P1, P2, P5, P6, P12, P11, P8, P9 and P10. The document keeps the sections that the template lists for a Light document.
+1. L1: Light. Use it for a small addition to an existing feature. Run P0, then P1, P2, P5, P6, P7, P12, P11, P8, P9 and P10. The document keeps the sections that the template lists for a Light document.
 2. L2: Full. Use it for a new capability. Run every phase from P0 to P12, with P12 and then P11 after P7. The document uses every section of the template.
 3. L3: You propose the level. After intake, recommend a level with a one-line reason, and let the owner confirm it. Do not decide from the card title alone, because a small title can hide decisions. "Cards need tags" hides these decisions, and more:
    - Are tags per project, or shared?
@@ -75,4 +75,4 @@ A card that needs no product design does not use this skill. The owner moves it 
 
 ## When to stop asking
 
-Stop when no open decision is left, then run P12, P11 and P8 to P10. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the rules of `question-rules.md`. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).
+Stop when no open decision is left, then run P7 when it has not run, then P12, P11 and P8 to P10. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the rules of `question-rules.md`. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).
