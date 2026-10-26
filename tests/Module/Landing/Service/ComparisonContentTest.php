@@ -45,6 +45,26 @@ final class ComparisonContentTest extends KernelTestCase
         }
     }
 
+    public function test_every_citation_names_a_listed_source_from_a_permitted_kind_of_site(): void
+    {
+        $pages = static::getContainer()->get(ComparisonPages::class);
+        self::assertInstanceOf(ComparisonPages::class, $pages);
+
+        foreach ($pages->all() as $page) {
+            [$body, $sources] = explode('>Sources</h2>', $page->html, 2);
+            preg_match_all('/\[(\d+)\]/', $body, $cited);
+            $listed = substr_count($sources, '<li>');
+            foreach ($cited[1] as $number) {
+                self::assertLessThanOrEqual($listed, (int) $number, $page->slug.' cites ['.$number.'], which is not in its sources.');
+            }
+            self::assertDoesNotMatchRegularExpression(
+                '#href="https?://([a-z.]+\.)?(reddit\.com|news\.ycombinator\.com|x\.com|twitter\.com)#',
+                $sources,
+                $page->slug.' cites a discussion site, not the competitor site, README or a run.',
+            );
+        }
+    }
+
     public function test_no_content_file_runs_two_list_items_together(): void
     {
         $files = glob(\dirname(__DIR__, 4).'/src/Module/Landing/Resources/compare/*.md');
