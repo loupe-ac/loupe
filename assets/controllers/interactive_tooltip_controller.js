@@ -26,7 +26,21 @@ export default class extends Controller {
     connect() {
         this.closeTimer = null;
         this.returningFocus = false;
+        this.opened = false;
         this.onScroll = () => this.close();
+        // A morph of the lane head can replace the tooltip, which drops its open mark, its top layer and its placement.
+        this.onMorph = () => {
+            if (
+                this.opened &&
+                this.hasTooltipTarget &&
+                !this.tooltipTarget.hasAttribute('data-open')
+            ) {
+                this.showPopover();
+                this.place();
+                this.tooltipTarget.setAttribute('data-open', '');
+            }
+        };
+        document.addEventListener('turbo:morph-element', this.onMorph);
         this.onOutsidePress = (event) => {
             if (!this.element.contains(event.target)) {
                 this.close();
@@ -35,6 +49,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        document.removeEventListener('turbo:morph-element', this.onMorph);
         this.close();
     }
 
@@ -52,12 +67,14 @@ export default class extends Controller {
         this.showPopover();
         this.place();
         this.tooltipTarget.setAttribute('data-open', '');
+        this.opened = true;
         window.addEventListener('scroll', this.onScroll, true);
         document.addEventListener('pointerdown', this.onOutsidePress, true);
     }
 
     close(event) {
         this.cancelClose();
+        this.opened = false;
         window.removeEventListener('scroll', this.onScroll, true);
         document.removeEventListener('pointerdown', this.onOutsidePress, true);
         if (!this.hasTooltipTarget) {
