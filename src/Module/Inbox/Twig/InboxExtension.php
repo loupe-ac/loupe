@@ -92,7 +92,6 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_review_target', $this->reviewTargetLine(...)),
             new TwigFunction('inbox_card_watch', $this->cardWatch(...)),
             new TwigFunction('inbox_wait_line', $this->waitLine(...)),
-            new TwigFunction('inbox_wait_folded', $this->cardWaitText->isFolded(...)),
             new TwigFunction('inbox_review_withdrawal', $this->reviewWithdrawal(...)),
             new TwigFunction('inbox_review_version', $this->reviewVersion(...)),
             new TwigFunction('inbox_pull_request_review_form', $this->pullRequestReviewForm(...)),

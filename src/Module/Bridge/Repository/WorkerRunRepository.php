@@ -91,6 +91,32 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** The newest worker run of the card that ended without success at or before the time, for the rule when one is given. */
+    public function findLatestFailedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
+    {
+        $states = [...WorkerRunState::resumableStates(), WorkerRunState::NotStarted];
+        $qb = $this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
+            ->andWhere('r.kind = :kind')
+            ->andWhere('r.state IN (:states)')
+            ->andWhere('r.receivedAt <= :before')
+            ->setParameter('project', $project)
+            ->setParameter('cardId', $cardId, UuidType::NAME)
+            ->setParameter('cardSubject', WorkSubject::CARD)
+            ->setParameter('kind', WorkerRunKind::Worker->value)
+            ->setParameter('states', array_map(static fn (WorkerRunState $state): string => $state->value, $states))
+            ->setParameter('before', $before)
+            ->orderBy('r.receivedAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->setMaxResults(1);
+        if (null !== $ruleId) {
+            $qb->andWhere('r.ruleId IS NULL OR r.ruleId = :ruleId')->setParameter('ruleId', $ruleId);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
     /** The newest worker run of a claude session that the bridge ran, which a resume of the session continues. */
     public function findLatestOfSessionOnBridge(Project $project, Uuid $bridgeId, Uuid $sessionId): ?WorkerRun
     {
