@@ -26,7 +26,20 @@ export default class extends Controller {
     connect() {
         this.closeTimer = null;
         this.returningFocus = false;
-        this.onScroll = () => this.close();
+        this.opened = false;
+        this.onScroll = (event) => {
+            if (this.scrollMovesAnchor(event.target)) {
+                this.close();
+            }
+        };
+        // A morph of the lane head drops the open mark and the placement the server did not render.
+        this.onMorph = () => {
+            if (this.opened && this.hasTooltipTarget) {
+                this.tooltipTarget.setAttribute('data-open', '');
+                this.place();
+            }
+        };
+        document.addEventListener('turbo:morph-element', this.onMorph);
         this.onOutsidePress = (event) => {
             if (!this.element.contains(event.target)) {
                 this.close();
@@ -35,6 +48,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        document.removeEventListener('turbo:morph-element', this.onMorph);
         this.close();
     }
 
@@ -52,12 +66,14 @@ export default class extends Controller {
         this.showPopover();
         this.place();
         this.tooltipTarget.setAttribute('data-open', '');
+        this.opened = true;
         window.addEventListener('scroll', this.onScroll, true);
         document.addEventListener('pointerdown', this.onOutsidePress, true);
     }
 
     close(event) {
         this.cancelClose();
+        this.opened = false;
         window.removeEventListener('scroll', this.onScroll, true);
         document.removeEventListener('pointerdown', this.onOutsidePress, true);
         if (!this.hasTooltipTarget) {
@@ -72,6 +88,15 @@ export default class extends Controller {
         ) {
             this.returnFocus();
         }
+    }
+
+    /** Only a scroll of the page or of a box around the anchor moves it, so another box scrolling leaves the tooltip alone. */
+    scrollMovesAnchor(target) {
+        return (
+            !(target instanceof Node) ||
+            target === document ||
+            target.contains(this.element)
+        );
     }
 
     returnFocus() {

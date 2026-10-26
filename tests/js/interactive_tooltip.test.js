@@ -186,6 +186,50 @@ it('closes when a scroll moves the anchor', () => {
     expect(isOpen()).toBe(false);
 });
 
+it('stays open when a box that does not hold the anchor scrolls', () => {
+    anchor().dispatchEvent(new Event('pointerenter'));
+    document
+        .querySelector('#outside')
+        .dispatchEvent(new Event('scroll', { bubbles: false }));
+
+    expect(isOpen()).toBe(true);
+});
+
+it('closes when a box around the anchor scrolls', () => {
+    const box = document.createElement('div');
+    anchor().before(box);
+    box.append(anchor());
+    anchor().dispatchEvent(new Event('pointerenter'));
+    box.dispatchEvent(new Event('scroll'));
+
+    expect(isOpen()).toBe(false);
+});
+
+it('stays open when the tooltip itself scrolls', () => {
+    anchor().dispatchEvent(new Event('pointerenter'));
+    tooltip().dispatchEvent(new Event('scroll'));
+
+    expect(isOpen()).toBe(true);
+});
+
+it('opens again in place after a morph drops its open mark and placement', () => {
+    anchor().dispatchEvent(new Event('pointerenter'));
+    tooltip().removeAttribute('data-open');
+    tooltip().style.left = '';
+    tooltip().style.top = '';
+    anchor().dispatchEvent(new Event('turbo:morph-element', { bubbles: true }));
+
+    expect(isOpen()).toBe(true);
+    expect(tooltip().style.left).toBe('132px');
+    expect(tooltip().style.top).toBe('124px');
+});
+
+it('does not open on a morph while it is closed', () => {
+    anchor().dispatchEvent(new Event('turbo:morph-element', { bubbles: true }));
+
+    expect(isOpen()).toBe(false);
+});
+
 describe('in the top layer', () => {
     let calls;
 
