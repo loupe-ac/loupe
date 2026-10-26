@@ -85,6 +85,8 @@ export default class extends ModalController {
 
     /** A card link keeps its own click, which Turbo turns into the frame load. */
     prepare(event) {
+        // A modified click opens the link in a new tab or window, and Turbo leaves the frame alone.
+        if (isModifiedClick(event)) return;
         this.invoker = event.currentTarget;
         // The opener names what it opens, so the header draws before the frame loads.
         if (this.hasTitleTarget) {
@@ -231,7 +233,7 @@ export default class extends ModalController {
     #onOpenerClick = (event) => {
         const opener = event.target.closest?.('[data-card-drawer-opener]');
         if (!opener || event.defaultPrevented) return;
-        if (event.button !== 0 || event.metaKey || event.ctrlKey) return;
+        if (isModifiedClick(event)) return;
         this.prepare({ currentTarget: opener });
     };
 
@@ -250,4 +252,14 @@ export default class extends ModalController {
         this.#onClosed();
         this.invoker = null;
     }
+}
+
+function isModifiedClick(event) {
+    return (
+        event.button > 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+    );
 }
