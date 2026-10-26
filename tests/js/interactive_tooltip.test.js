@@ -256,6 +256,28 @@ describe('in the top layer', () => {
         expect(calls.filter((call) => call === 'show')).toHaveLength(1);
     });
 
+    it('shows a tooltip that a morph replaced in the top layer again before it places it', () => {
+        anchor().dispatchEvent(new Event('pointerenter'));
+        const replacement = tooltip().cloneNode(true);
+        replacement.removeAttribute('data-open');
+        replacement.showPopover = () => calls.push('show again');
+        replacement.getBoundingClientRect = () => {
+            calls.push('measure again');
+
+            return rectangle(0, 0, 288, 80);
+        };
+        tooltip().replaceWith(replacement);
+        anchor().dispatchEvent(
+            new Event('turbo:morph-element', { bubbles: true }),
+        );
+
+        expect(
+            calls.filter((call) => call.endsWith('again')).slice(0, 2),
+        ).toEqual(['show again', 'measure again']);
+        expect(isOpen()).toBe(true);
+        expect(tooltip().style.left).toBe('132px');
+    });
+
     it('keeps the fixed tooltip when the browser has no popover support', () => {
         delete tooltip().showPopover;
         delete tooltip().hidePopover;

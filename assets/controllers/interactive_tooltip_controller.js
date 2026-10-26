@@ -28,15 +28,16 @@ export default class extends Controller {
         this.returningFocus = false;
         this.opened = false;
         this.onScroll = () => this.close();
-        // A morph of the lane head drops the open mark and the placement the server did not render.
+        // A morph of the lane head can replace the tooltip, which drops its open mark, its top layer and its placement.
         this.onMorph = () => {
             if (
                 this.opened &&
                 this.hasTooltipTarget &&
                 !this.tooltipTarget.hasAttribute('data-open')
             ) {
-                this.tooltipTarget.setAttribute('data-open', '');
+                this.showPopover();
                 this.place();
+                this.tooltipTarget.setAttribute('data-open', '');
             }
         };
         document.addEventListener('turbo:morph-element', this.onMorph);
