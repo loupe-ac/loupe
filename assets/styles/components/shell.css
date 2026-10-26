@@ -15,17 +15,13 @@
        the sidebar is out of flow, so nothing balances it on the left and it
        reads as a stray black strip. */
     .lp-shell {
-        @apply flex flex-1 flex-col min-w-0 bg-app;
+        @apply flex flex-1 flex-col min-w-0 bg-surface-1;
     }
     /* overflow-x is auto, not hidden: from lg up the review block is 972px, and
        a window narrower than that must be able to scroll to the comment column
        rather than have it clipped away where nothing can reach it. */
     .lp-main {
-        @apply flex-1 min-h-0 bg-app overflow-x-auto overflow-y-auto;
-    }
-    /* A white ground, as the paper a document sits on. */
-    .lp-main--paper {
-        @apply bg-surface-1;
+        @apply flex-1 min-h-0 bg-surface-1 overflow-x-auto overflow-y-auto;
     }
     /* A column that clips its overflow, so a viewer takes the height the
        top bar leaves. */

@@ -270,12 +270,6 @@
         border-top: 1px solid var(--border-faint);
     }
 
-    /* The inbox pages sit straight on a white page, with no frame around them. */
-    .lp-main:has(.lp-core-inbox),
-    .lp-main:has(.lp-account-inbox) {
-        @apply bg-surface-1;
-    }
-
     /* Each pane scrolls on its own, so the page's top and bottom padding moves
        inside the panes, and the content scrolls up to the top bar and down to the window edge. */
     .lp-core-inbox.lp-workspace {
@@ -2225,7 +2219,7 @@
     }
 
     body {
-        @apply font-sans antialiased text-fg bg-app text-sm tracking-normal;
+        @apply font-sans antialiased text-fg bg-surface-1 text-sm tracking-normal;
     }
 
     button {

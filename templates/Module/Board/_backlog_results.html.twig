@@ -28,10 +28,14 @@
             <div class="lp-data-table__cell lp-document-row__main" role="cell">
                 <div class="lp-document-row__head">
                     <span class="lp-board-card__number">#{{ card.number }}</span>
-                    <a class="lp-backlog-row__title" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}">{{ card.title }}</a>
+                    <a class="lp-backlog-row__title"
+                       href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}"
+                       data-turbo-frame="card-drawer-frame"
+                       data-drawer-title="#{{ card.number }}"
+                       data-action="click->card-drawer#prepare">{{ card.title }}</a>
                 </div>
             </div>
-            <div class="lp-data-table__cell" role="cell">{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}{% include '@Board/_card_source_tag.html.twig' with {card: card} only %}</div>
+            <div class="lp-data-table__cell" role="cell">{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}</div>
             <span class="lp-data-table__cell lp-document-row__author lp-backlog-row__epic" role="cell">
                 {% if card.parent %}<span class="lp-board-card__number">#{{ card.parent.number }}</span> {{ card.parent.title }}{% else %}<span aria-label="{{ 'board.backlog.table.no_epic'|trans }}">—</span>{% endif %}
             </span>

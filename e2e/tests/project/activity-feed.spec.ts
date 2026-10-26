@@ -113,6 +113,11 @@ test('the events list links, searches and filters through the URL', async ({
         'No activity matches these filters.',
     );
     await expect(search).toBeVisible();
+    // With no table under it, the bar closes its own box.
+    await expect(page.locator('.lp-list-filters')).toHaveCSS(
+        'border-bottom-width',
+        '1px',
+    );
 
     await page
         .getByRole('combobox', { name: 'Filter by event family' })
