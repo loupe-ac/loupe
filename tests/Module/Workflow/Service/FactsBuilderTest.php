@@ -456,6 +456,43 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
     }
 
+    public function test_an_approval_of_the_app_counts_beside_a_persons_and_is_read_apart(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-app-approval');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card, base: 'main', head: 'feature');
+        $pullRequest->headSha = 'abc';
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->appApprovalId = 'PRR_app';
+        $pullRequest->appApprovalSha = 'abc';
+        $this->em()->flush();
+
+        $facts = $this->facts($card)->pullRequest;
+        self::assertNotNull($facts);
+        self::assertSame(1, $facts->approvalsCoveringHead);
+        self::assertSame(0, $facts->personApprovalsCoveringHead());
+        self::assertTrue($facts->appApprovalCoversHead);
+        self::assertTrue($facts->appApprovalStands);
+
+        $pullRequest->coveredSha = 'abc';
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest;
+        self::assertSame(2, $facts?->approvalsCoveringHead);
+        self::assertSame(1, $facts->personApprovalsCoveringHead());
+
+        $pullRequest->headSha = 'def';
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest;
+        self::assertFalse($facts?->appApprovalCoversHead, 'A push leaves the approval standing on the old commit.');
+        self::assertTrue($facts->appApprovalStands);
+        self::assertSame(0, $facts->approvalsCoveringHead);
+
+        $pullRequest->state = ForgePullRequestState::Closed;
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->appApprovalStands, 'A pull request that is not open holds no standing approval.');
+    }
+
     public function test_changes_are_requested_until_a_done_fix_run_that_opened_after_the_review_answers_them(): void
     {
         self::bootKernel();

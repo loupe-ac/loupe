@@ -91,7 +91,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertIsArray($body);
         self::assertSame(['owner' => 'Loupe-AC', 'name' => 'Loupe', 'n' => 604, 'after' => null], $body['variables']);
         self::assertIsString($body['query'] ?? null);
-        self::assertStringContainsString('latestOpinionatedReviews(first:100,writersOnly:true){nodes{id state submittedAt author{login} commit{oid}}}', $body['query']);
+        self::assertStringContainsString('latestOpinionatedReviews(first:100,writersOnly:true){nodes{id state submittedAt author{__typename login} commit{oid}}}', $body['query']);
         self::assertStringContainsString(' baseRepository{defaultBranchRef{name}} ', $body['query']);
         self::assertStringContainsString('commit{oid parents(first:3){nodes{oid}} statusCheckRollup', $body['query']);
         self::assertStringNotContainsString('reviews(last:1', $body['query']);
@@ -455,7 +455,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         return new GitHubPullRequestStateReader(
             new GitHubAppApi($client, new GitHubAppConfiguration(null, null, null, null, '123456', $pem), $this->clock),
             $installations,
-            new GitHubPullRequestStateMapper(),
+            new GitHubPullRequestStateMapper(new GitHubAppConfiguration('loupe-ac', null, null, null, null, null)),
             $this->clock,
             $this->logger,
         );

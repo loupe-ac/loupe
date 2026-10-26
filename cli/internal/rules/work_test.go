@@ -1,6 +1,9 @@
 package rules
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -260,9 +263,14 @@ func TestMatchWorkRunsACommand(t *testing.T) {
 	}
 }
 
-// A teardown is a command entry like any other: the app requests it when a card
-// reaches a terminal column.
+// A teardown is a command entry that the app requests when a card reaches a
+// terminal column. Under worktree isolation the bridge removes its own worktree
+// of the card after the command.
 func TestMatchWorkRunsATeardownCommand(t *testing.T) {
+	path, err := config.WorktreeDir("loupe", 87)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := checked(t, workFile+`
   teardown:
     action: command
@@ -273,7 +281,8 @@ func TestMatchWorkRunsATeardownCommand(t *testing.T) {
 	if m.Skip != Run || m.Rule != "work:teardown" || m.Action != ActionCommand || m.Prompt != "" || m.Command == nil {
 		t.Fatalf("match = %+v", m)
 	}
-	if !slices.Equal(m.Command.Argv, []string{"just", "worktree-down", "card-87"}) || m.Command.Timeout != DefaultCommandTimeout {
+	want := []string{"sh", "-c", teardownAfterScript, "sh", path, "just", "worktree-down", "card-87"}
+	if !slices.Equal(m.Command.Argv, want) || m.Command.Timeout != DefaultCommandTimeout {
 		t.Fatalf("command = %+v", m.Command)
 	}
 }
@@ -781,11 +790,75 @@ func TestMatchWorkLeavesTeardownToTheAppWhenTheBridgeDoesNotRemove(t *testing.T)
 			if m.Skip != tc.want {
 				t.Fatalf("Skip = %v, want %v (match %+v)", m.Skip, tc.want, m)
 			}
-			if name == "a teardown entry" && (m.Command == nil || m.Command.Argv[0] != "make") {
-				t.Fatalf("the user entry must win, got %+v", m.Command)
+			if name == "a teardown entry" && (m.Command == nil || !slices.Equal(m.Command.Argv[len(m.Command.Argv)-2:], []string{"make", "down"})) {
+				t.Fatalf("the user entry must run, got %+v", m.Command)
 			}
 			if name == "none + app prompt" && m.Command != nil {
 				t.Fatalf("isolation none must run the app prompt, got %+v", m.Command)
+			}
+		})
+	}
+}
+
+func TestMatchWorkRunsATeardownEntryAloneWhenTheBridgeDoesNotRemove(t *testing.T) {
+	onCards := workFile + "  teardown:\n    action: command\n    run: [make, down]\n"
+	noIsolation := strings.Replace(onCards, "account: claude\n", "account: claude\n  isolation: none\n", 1)
+	onAnalyses := onCards + "    subject: analysis\n"
+	onAnalysis := workRequest("teardown")
+	onAnalysis.SubjectType = "analysis"
+	byName := workRequest("teardown")
+	byName.Capability = CapabilityRunCommand
+	for name, tc := range map[string]struct {
+		body    string
+		request api.WorkRequest
+	}{
+		"isolation none": {noIsolation, workRequest("teardown")},
+		"no card":        {onAnalyses, onAnalysis},
+		"a run by name":  {onCards, byName},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := checked(t, tc.body).MatchKind(tc.request)
+			if m.Skip != Run || m.Command == nil || !slices.Equal(m.Command.Argv, []string{"make", "down"}) {
+				t.Fatalf("match = %+v, want the entry alone", m)
+			}
+		})
+	}
+}
+
+func TestTeardownAfterScriptKeepsTheExitCodeOfTheCommand(t *testing.T) {
+	bin := t.TempDir()
+	// The fake git fails a removal when GIT_FAILS is set.
+	fake := "#!/bin/sh\necho git \"$@\" >> \"$LOG\"\n[ -z \"$GIT_FAILS\" ] || [ \"$1 $2\" != \"worktree remove\" ] || exit 7\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(fake), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	present := t.TempDir()
+	for name, tc := range map[string]struct {
+		path, command, gitFails string
+		code                    int
+		calls                   []string
+	}{
+		"both pass":           {present, "true", "", 0, []string{"git worktree remove --force " + present, "git worktree prune"}},
+		"command fails":       {present, "false", "", 1, []string{"git worktree remove --force " + present, "git worktree prune"}},
+		"removal fails":       {present, "true", "1", 7, []string{"git worktree remove --force " + present}},
+		"both fail":           {present, "false", "1", 1, []string{"git worktree remove --force " + present}},
+		"folder already gone": {filepath.Join(present, "gone"), "true", "", 0, []string{"git worktree prune"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			log := filepath.Join(t.TempDir(), "log")
+			cmd := exec.Command("sh", "-c", teardownAfterScript, "sh", tc.path, tc.command)
+			cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), "LOG="+log, "GIT_FAILS="+tc.gitFails)
+			err := cmd.Run()
+			code := 0
+			if exit, ok := err.(*exec.ExitError); ok {
+				code = exit.ExitCode()
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			out, _ := os.ReadFile(log)
+			calls := strings.Split(strings.TrimSpace(string(out)), "\n")
+			if code != tc.code || !slices.Equal(calls, tc.calls) {
+				t.Fatalf("exit %d with git calls %q, want %d and %q", code, calls, tc.code, tc.calls)
 			}
 		})
 	}

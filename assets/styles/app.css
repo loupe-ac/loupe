@@ -2918,6 +2918,13 @@
     .lp-card-field dd {
         @apply m-0 text-sm font-semibold text-ink whitespace-nowrap;
     }
+    /* The review switch of a card, with the help mark that sits beside its label. */
+    .lp-card-review {
+        @apply flex items-center gap-1.5;
+    }
+    .lp-card-review__help {
+        @apply inline-flex cursor-help text-fg-mute;
+    }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {
         @apply whitespace-normal font-normal;

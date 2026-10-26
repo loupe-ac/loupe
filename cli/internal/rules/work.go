@@ -34,12 +34,18 @@ const (
 )
 
 // TeardownKind is the work kind that ends the work of a card. With worktree
-// isolation and no entry of its own, the bridge removes the card's worktree.
+// isolation, the bridge removes the card's worktree, after the command of a
+// teardown entry when the work map has one.
 const TeardownKind = "teardown"
 
 // teardownScript removes the worktree at $1 when its folder exists, then prunes
 // the entries of folders that are gone.
 const teardownScript = `if [ -e "$1" ]; then git worktree remove --force "$1" || exit; fi; git worktree prune`
+
+// teardownAfterScript runs the argv after $1, then removes the worktree at $1
+// whatever that command returned. A failed command keeps its exit code, so the
+// removal can fail the run only when the command passed.
+const teardownAfterScript = `path=$1; shift; "$@"; rc=$?; ( set -- "$path"; ` + teardownScript + ` ); removed=$?; [ "$rc" -ne 0 ] && exit "$rc"; exit "$removed"`
 
 // SessionKind is the work kind that starts an interactive session from an
 // inbox item. Its entry must be interactive.
@@ -399,6 +405,18 @@ func (s *Set) removesWorktree(w api.WorkRequest) bool {
 	return !mapped && w.Kind == TeardownKind && w.OnCard() && w.CardNumber >= 1 && s.Isolation() == IsolationWorktree
 }
 
+// removesAfterEntry is the worktree the bridge removes after the teardown
+// entry of the card of w. A person's run of the entry by name removes nothing,
+// because it can run in that worktree.
+func (s *Set) removesAfterEntry(w api.WorkRequest, slug string) (string, bool) {
+	if w.Kind != TeardownKind || !w.OnCard() || w.CardNumber < 1 || s.Isolation() != IsolationWorktree || runsCommand(w) {
+		return "", false
+	}
+	path, err := config.WorktreeDir(slug, w.CardNumber)
+
+	return path, err == nil
+}
+
 // validAppPrompt reports whether an app prompt holds text and only the
 // placeholders of a work entry.
 func validAppPrompt(prompt string) bool {
@@ -513,6 +531,9 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 		}
 	case ActionCommand:
 		m.Command = &Command{Argv: renderArgv(entry.Run, v), Timeout: entry.commandTimeout}
+		if path, removes := s.removesAfterEntry(w, slug); removes {
+			m.Command.Argv = append([]string{"sh", "-c", teardownAfterScript, "sh", path}, m.Command.Argv...)
+		}
 	}
 
 	return m

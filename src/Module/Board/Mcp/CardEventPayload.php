@@ -15,7 +15,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * or malformed key reads null rather than fail the whole page.
  *
  * @phpstan-type CardEventColumnSummary array{id: string, slug: string, label: string}
- * @phpstan-type CardEventSummary array{kind: string, occurredAt: string, actor: array{kind: string, name: ?string}, from: ?CardEventColumnSummary, to: ?CardEventColumnSummary, cause: ?array<mixed>, run: ?array<string, mixed>, reason: ?string, pullRequest: ?int, pause: ?array{kind: ?string, ruleId: ?string, releaseReason: ?string}, override: ?array{approver: ?string, headSha: ?string}, document: ?array{documentId: ?string, title: ?string, rule: ?string, verdict: ?string, withdrawn: ?string, refusal: ?string}}
+ * @phpstan-type CardEventSummary array{kind: string, occurredAt: string, actor: array{kind: string, name: ?string}, from: ?CardEventColumnSummary, to: ?CardEventColumnSummary, cause: ?array<mixed>, run: ?array<string, mixed>, reason: ?string, pullRequest: ?int, pause: ?array{kind: ?string, ruleId: ?string, releaseReason: ?string}, override: ?array{approver: ?string, headSha: ?string}, document: ?array{documentId: ?string, title: ?string, rule: ?string, verdict: ?string, withdrawn: ?string, refusal: ?string}, humanReview: ?array{value: ?bool, cause: ?string, ruleId: ?string}}
  */
 final readonly class CardEventPayload
 {
@@ -70,6 +70,11 @@ final readonly class CardEventPayload
                 'verdict' => CardEventKind::DocumentVerdict === $event->kind ? self::text($detail['verdict'] ?? null) : null,
                 'withdrawn' => CardEventKind::DocumentVerdict === $event->kind ? self::text($detail['withdrawn'] ?? null) : null,
                 'refusal' => CardEventKind::VerdictFailed === $event->kind ? self::text($detail['refusal'] ?? null) : null,
+            ] : null,
+            'humanReview' => CardEventKind::HumanReviewChanged === $event->kind ? [
+                'value' => \is_bool($detail['value'] ?? null) ? $detail['value'] : null,
+                'cause' => self::text($detail['cause'] ?? null),
+                'ruleId' => self::text($detail['ruleId'] ?? null),
             ] : null,
         ];
     }

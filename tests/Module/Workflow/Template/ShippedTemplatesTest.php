@@ -11,6 +11,7 @@ use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
+use App\Module\Board\Workflow\HumanReviewFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\Workflow\SessionFacts;
@@ -965,6 +966,46 @@ final class ShippedTemplatesTest extends KernelTestCase
         yield 'an approved pull request into the default branch merges through merge-ready' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review', isChild: true), pullRequest: $approvedIntoDefault, pullRequests: [$approvedIntoDefault]),
             ['merge-ready', 'merge-ready-epic-child'],
+            'merge-ready',
+        ];
+
+        $readyForApproval = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, appCanApprove: true);
+        yield 'a pull request that no person must review gets the approval of the App' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $readyForApproval, pullRequests: [$readyForApproval]),
+            ['pull-request-auto-approve', 'merge-ready'],
+            'pull-request-auto-approve',
+        ];
+
+        yield 'a pull request that a person must review gets no approval of the App' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $readyForApproval, pullRequests: [$readyForApproval], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
+            ['pull-request-auto-approve', 'merge-ready'],
+            null,
+        ];
+
+        $noInstallation = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true);
+        yield 'a repository with no App installation gets no approval of the App' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $noInstallation, pullRequests: [$noInstallation]),
+            ['pull-request-auto-approve', 'merge-ready'],
+            null,
+        ];
+
+        $approvedByApp = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, appApprovalCoversHead: true, appApprovalStands: true, appCanApprove: true);
+        yield 'a pull request that the App approved merges when no person must review it' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByApp, pullRequests: [$approvedByApp]),
+            ['pull-request-auto-approve', 'merge-ready'],
+            'merge-ready',
+        ];
+
+        yield 'a pull request that the App approved waits for a person when the card needs one' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByApp, pullRequests: [$approvedByApp], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
+            ['pull-request-auto-approve', 'merge-ready', 'dismiss-app-approval'],
+            'dismiss-app-approval',
+        ];
+
+        $approvedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, baseIsDefault: true);
+        yield 'a pull request that a person approved merges when the card needs a person' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByPerson, pullRequests: [$approvedByPerson], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
+            ['merge-ready', 'dismiss-app-approval'],
             'merge-ready',
         ];
 

@@ -92,6 +92,7 @@ final readonly class ReadPullRequestStateHandler
             }
 
             $latestApprovalBefore = $pullRequest->latestApprovalId;
+            $appApprovalBefore = $pullRequest->appApprovalId.'@'.$pullRequest->appApprovalSha;
             $coveredBefore = $pullRequest->coveredSha;
             $uncoveredBefore = $pullRequest->uncoveredSha;
             $changeBefore = $pullRequest->changeFingerprint;
@@ -112,7 +113,8 @@ final readonly class ReadPullRequestStateHandler
             // The snapshot leaves the approvals and the fingerprints out, so a change to either of them is compared here.
             $coverageChanged = $pullRequest->coveredSha !== $coveredBefore
                 || $pullRequest->uncoveredSha !== $uncoveredBefore
-                || $pullRequest->latestApprovalId !== $latestApprovalBefore;
+                || $pullRequest->latestApprovalId !== $latestApprovalBefore
+                || $pullRequest->appApprovalId.'@'.$pullRequest->appApprovalSha !== $appApprovalBefore;
             $fingerprintChanged = $pullRequest->changeFingerprint !== $changeBefore || $pullRequest->linesFingerprint !== $linesBefore;
             if (!$settled->equals($previous) || null !== $verdict || $coverageChanged || $fingerprintChanged) {
                 $this->events->dispatch(new PullRequestStateChanged($pullRequest, $previous, $settled, $verdict));
