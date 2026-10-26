@@ -27,14 +27,14 @@ export default class extends Controller {
         this.closeTimer = null;
         this.returningFocus = false;
         this.opened = false;
-        this.onScroll = (event) => {
-            if (this.scrollMovesAnchor(event.target)) {
-                this.close();
-            }
-        };
+        this.onScroll = () => this.close();
         // A morph of the lane head drops the open mark and the placement the server did not render.
         this.onMorph = () => {
-            if (this.opened && this.hasTooltipTarget) {
+            if (
+                this.opened &&
+                this.hasTooltipTarget &&
+                !this.tooltipTarget.hasAttribute('data-open')
+            ) {
                 this.tooltipTarget.setAttribute('data-open', '');
                 this.place();
             }
@@ -88,15 +88,6 @@ export default class extends Controller {
         ) {
             this.returnFocus();
         }
-    }
-
-    /** Only a scroll of the page or of a box around the anchor moves it, so another box scrolling leaves the tooltip alone. */
-    scrollMovesAnchor(target) {
-        return (
-            !(target instanceof Node) ||
-            target === document ||
-            target.contains(this.element)
-        );
     }
 
     returnFocus() {
