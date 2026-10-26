@@ -100,3 +100,13 @@ it('places the panel on open and stops listening for resize on close', () => {
     add.mockRestore();
     remove.mockRestore();
 });
+
+it('stops listening for resize when the controller disconnects', async () => {
+    const remove = vi.spyOn(window, 'removeEventListener');
+    controller.open();
+    const onResize = controller.onResize;
+    document.body.replaceChildren();
+    await settle();
+    expect(remove).toHaveBeenCalledWith('resize', onResize);
+    remove.mockRestore();
+});
