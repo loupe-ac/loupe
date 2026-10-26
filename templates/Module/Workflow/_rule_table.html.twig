@@ -5,7 +5,7 @@
     {label: 'workflow.settings.rules.conditions'|trans},
 ]">
     {% for rule in rules %}
-    <div class="lp-data-table__row" role="row" data-rule-id="{{ rule.id }}"{% if rule.missingConditions is not empty or rule.missingAction is not null %} data-rule-missing{% endif %}>
+    <div class="lp-data-table__row" role="row" id="rule-{{ rule.id }}" data-rule-id="{{ rule.id }}"{% if rule.missingConditions is not empty or rule.missingAction is not null %} data-rule-missing{% endif %}>
         <span class="lp-data-table__cell lp-data-table__title" role="cell">{{ rule.id }}</span>
         <span class="lp-data-table__cell" role="cell">{{ rule.appliesToKey|trans }}</span>
         <div class="lp-data-table__cell" role="cell" data-rule-actions>

@@ -152,6 +152,24 @@ final class CardGetHistoryToolTest extends KernelTestCase
         self::assertNull($creation['document']);
     }
 
+    public function test_a_human_review_row_reads_its_value_cause_and_rule(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-history-human-review'));
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->card($created['cardId']);
+        $this->events()->record($card, CardEventKind::HumanReviewChanged, Actor::System, null, ['value' => true, 'cause' => 'rule', 'ruleId' => 'human-review-on-artifact', 'artifactIds' => []], new \DateTimeImmutable('+1 minute'));
+        $this->events()->record($card, CardEventKind::HumanReviewChanged, Actor::Human, null, ['value' => false, 'cause' => 'person', 'ruleId' => null, 'artifactIds' => []], new \DateTimeImmutable('+2 minutes'));
+        $this->em->flush();
+
+        [$off, $on, $creation] = ($this->tool)($created['cardId'])['events'];
+
+        self::assertSame('human-review-changed', $on['kind']);
+        self::assertSame(['value' => true, 'cause' => 'rule', 'ruleId' => 'human-review-on-artifact'], $on['humanReview']);
+        self::assertSame(['value' => false, 'cause' => 'person', 'ruleId' => null], $off['humanReview']);
+        self::assertNull($on['cause']);
+        self::assertNull($creation['humanReview']);
+    }
+
     public function test_a_finished_run_passes_its_whole_detail_through(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-history-run'));

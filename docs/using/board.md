@@ -435,6 +435,16 @@ the newest commit shows **Approved** again.
 When an approval did not move the card because a blocker is open, the Workflow
 panel says what the card waits for.
 
+The **Details** tab has a **Pull request review** field beside **Status**. It
+holds the **Requires human review** switch, which is off for a new card. The
+switch records that a person must review the pull request of the card. Turn it
+on or off with the switch, and the page saves the change at once. A **?** icon
+after the label opens a tip with a **See the rules** link to the
+[Workflow](workflows.md) page. The card history shows each change with its
+cause: a person, an agent, a workflow rule or the rollout. An agent sets the
+switch with `requiresHumanReview` on `card_create` and `card_update`. A bridge
+worker can turn it on and never off.
+
 The card page and the drawer update live, with no reload. They update when the
 card moves, when one of its pull requests changes, when the automation acts,
 and when a worker run of the project changes. The open tab stays open. A form
@@ -970,12 +980,12 @@ An agent drives the board through the MCP endpoint. See
 | Tool | Arguments |
 |---|---|
 | `board_columns` | None. It also returns the card types of the project. |
-| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds`, `artifactIds` and `relatedCards` are optional. `origin` is the old name for `reporter` and is deprecated. |
+| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards` and `requiresHumanReview` are optional. `origin` is the old name for `reporter` and is deprecated. |
 | `card_list` | `status`, `type` and `reporter`, each optional, each a filter. `page`, `perPage` and `full` are optional as well. |
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
 | `card_get_history` | Exactly one of `cardId` and `number`. `page` and `perPage` are optional. |
-| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds` and `relatedCards` are optional. |
+| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards` and `requiresHumanReview` are optional. |
 | `card_run_open` | `sessionId`, `name` and exactly one of `cardId` and `number` are required. `status` is optional. |
 | `card_run_close` | `sessionId` and exactly one of `cardId` and `number` are required. |
 | `column_create` | `label` is required. |
@@ -1097,8 +1107,9 @@ carries `kind`, `occurredAt` and `actor`.
 
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
-`override-ended`, `document-verdict` or `verdict-failed`. `actor` carries `kind` and `name`. Its `kind` is `human`,
-`agent`, `reviewer` or `system`. `name` is the current name of the person
+`override-ended`, `document-verdict`, `verdict-failed` or `human-review-changed`.
+`actor` carries `kind` and `name`. Its `kind` is `human`, `agent`, `reviewer` or
+`system`. `name` is the current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
 
@@ -1129,6 +1140,11 @@ the app refused. Both set `document`, with `documentId`, `title` and `rule`. A
 `document-verdict` event also sets `verdict` and, for a withdrawal, `withdrawn`.
 A `verdict-failed` event sets `refusal`, a short code such as `verdict_stale`.
 The `rule` is null when a person wrote the verdict.
+
+A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
+`ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
+`rule` or `rollout`. `ruleId` names the workflow rule that set the switch, and
+is null for any other cause.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.

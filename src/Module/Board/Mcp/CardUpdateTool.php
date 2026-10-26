@@ -28,10 +28,11 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type CardSummary from CardPayload
  */
-#[McpTool(name: self::NAME, description: 'Change a card on the project board. Pass one of cardId or number to name the card. Every other field is optional, and a field you leave out keeps the value it has. status takes the slug of a column on this board. backlog is a status that always exists. The board does not draw Backlog as a column, and Backlog has its own page. Each board has its own columns, and board_columns lists them. A terminal column is where finished work goes. Moving a card to a terminal column stamps its completion time; moving it back to a column that is not terminal clears that stamp. A change of status appends the card to the end of the column it arrives in. pullRequestUrls, documentIds and artifactIds are the fields where leaving one out and sending an empty list differ: leave one out and those links stay, send an empty list and every link of that kind is removed. A documentId naming no document of this project is refused, and so is an artifactId naming no artifact of this project. relatedCards works the same way, and it replaces every link that touches the card, including links written from the other card. Send the whole set: the relatedCards of card_get goes back unchanged. Each entry takes a cardId and a kind (relates-to, blocks, blocked-by, has-follow-up or follow-up-of; a follow-up is a card with no parent that waits for the card it follows). type takes a type key from board_columns, and a type the project does not declare is refused. parentCardId puts the card under a card of this project: omit it to keep the parent, pass clearParent true to clear it (an empty string also clears it), or send the id of the new parent. Only a card of a type with the children capability can be a parent, such a card cannot have a parent, and it keeps its type while it has children. laneEnabled says whether the board draws a lane for a card of a type with the lane capability. Reporter cannot be changed, because it records who first raised the card. To finish a card, move it to a terminal column rather than asking for it to be deleted. childDesign says whether the tech design of the parent covers the card, for a card under a parent whose tech design is approved. Pass inherit to link that design: choose it for a fix inside a decision the design already made. Pass own for a card that asks an open question or changes a decision of the design: the card goes to Tech design, so pass no status with it. When the call sets parentCardId and the owner would get a question about the card, the call is refused until you pass the choice. The card number does not change, and you cannot set it. It is the short label that counts from 1 inside this project. This tool takes the cardId or the number, never both.')]
+#[McpTool(name: self::NAME, description: 'Change a card on the project board. Pass one of cardId or number to name the card. Every other field is optional, and a field you leave out keeps the value it has. status takes the slug of a column on this board. backlog is a status that always exists. The board does not draw Backlog as a column, and Backlog has its own page. Each board has its own columns, and board_columns lists them. A terminal column is where finished work goes. Moving a card to a terminal column stamps its completion time; moving it back to a column that is not terminal clears that stamp. A change of status appends the card to the end of the column it arrives in. pullRequestUrls, documentIds and artifactIds are the fields where leaving one out and sending an empty list differ: leave one out and those links stay, send an empty list and every link of that kind is removed. A documentId naming no document of this project is refused, and so is an artifactId naming no artifact of this project. relatedCards works the same way, and it replaces every link that touches the card, including links written from the other card. Send the whole set: the relatedCards of card_get goes back unchanged. Each entry takes a cardId and a kind (relates-to, blocks, blocked-by, has-follow-up or follow-up-of; a follow-up is a card with no parent that waits for the card it follows). type takes a type key from board_columns, and a type the project does not declare is refused. parentCardId puts the card under a card of this project: omit it to keep the parent, pass clearParent true to clear it (an empty string also clears it), or send the id of the new parent. Only a card of a type with the children capability can be a parent, such a card cannot have a parent, and it keeps its type while it has children. laneEnabled says whether the board draws a lane for a card of a type with the lane capability. Reporter cannot be changed, because it records who first raised the card. To finish a card, move it to a terminal column rather than asking for it to be deleted. childDesign says whether the tech design of the parent covers the card, for a card under a parent whose tech design is approved. Pass inherit to link that design: choose it for a fix inside a decision the design already made. Pass own for a card that asks an open question or changes a decision of the design: the card goes to Tech design, so pass no status with it. When the call sets parentCardId and the owner would get a question about the card, the call is refused until you pass the choice. The card number does not change, and you cannot set it. It is the short label that counts from 1 inside this project. requiresHumanReview says whether a person must review the pull request of the card: pass true to require it, and omit it to keep the setting. A bridge worker can only turn it on, and a call from a worker that passes false for a card with the switch on is refused. The card keeps its other fields when the call is refused. This tool takes the cardId or the number, never both.')]
 final readonly class CardUpdateTool
 {
     public const string NAME = 'card_update';
+    public const string WORKER_LOWER_REFUSAL = 'requiresHumanReview: A bridge worker can only turn the switch on. Only a person turns it off.';
 
     public function __construct(
         private BoardSubjectResolver $subjects,
@@ -42,6 +43,7 @@ final readonly class CardUpdateTool
         private AgentRunCause $runCause,
         private ChildDesignDecision $childDesign,
         private ChildDesignChoices $choices,
+        private AgentRunSource $runSource,
     ) {
     }
 
@@ -52,24 +54,25 @@ final readonly class CardUpdateTool
      * The null default is what lets an omitted list mean "leave the links
      * alone" while an empty list clears them.
      *
-     * @param string|null       $cardId          the id of the card to change, from card_list or card_create; pass it or number, never both
-     * @param int|null          $number          the card number, the short label that counts from 1 inside this project; pass it instead of cardId
-     * @param string|null       $title           a new title
-     * @param string|null       $body            a new Markdown body, replacing the old one
-     * @param string|null       $type            a new type key; board_columns lists the types this project declares
-     * @param string|null       $status          the slug of a new column on this board; board_columns lists the slugs
-     * @param string[]|null     $pullRequestUrls the full set of pull request URLs the card carries; omit to keep the current links, send an empty list to remove them all
-     * @param string[]|null     $documentIds     the full set of document ids the card carries; omit to keep the current links, send an empty list to remove them all
-     * @param string[]|null     $artifactIds     the full set of artifact ids the card carries; omit to keep the current links, send an empty list to remove them all
-     * @param array<mixed>|null $relatedCards    the full set of card links; omit to keep them, send an empty list to remove them all
-     * @param string|null       $parentCardId    the id of a card of this project whose type has the children capability; omit to keep the parent, pass clearParent to clear it
-     * @param bool|null         $clearParent     true removes the card from its parent; do not pass it with parentCardId
-     * @param bool|null         $laneEnabled     whether the board draws a lane for this card, when its type has the lane capability; omit to keep the setting
-     * @param string|null       $childDesign     inherit or own, for a card under a parent whose tech design is approved; inherit links that design, and own moves the card to Tech design
+     * @param string|null       $cardId              the id of the card to change, from card_list or card_create; pass it or number, never both
+     * @param int|null          $number              the card number, the short label that counts from 1 inside this project; pass it instead of cardId
+     * @param string|null       $title               a new title
+     * @param string|null       $body                a new Markdown body, replacing the old one
+     * @param string|null       $type                a new type key; board_columns lists the types this project declares
+     * @param string|null       $status              the slug of a new column on this board; board_columns lists the slugs
+     * @param string[]|null     $pullRequestUrls     the full set of pull request URLs the card carries; omit to keep the current links, send an empty list to remove them all
+     * @param string[]|null     $documentIds         the full set of document ids the card carries; omit to keep the current links, send an empty list to remove them all
+     * @param string[]|null     $artifactIds         the full set of artifact ids the card carries; omit to keep the current links, send an empty list to remove them all
+     * @param array<mixed>|null $relatedCards        the full set of card links; omit to keep them, send an empty list to remove them all
+     * @param string|null       $parentCardId        the id of a card of this project whose type has the children capability; omit to keep the parent, pass clearParent to clear it
+     * @param bool|null         $clearParent         true removes the card from its parent; do not pass it with parentCardId
+     * @param bool|null         $laneEnabled         whether the board draws a lane for this card, when its type has the lane capability; omit to keep the setting
+     * @param string|null       $childDesign         inherit or own, for a card under a parent whose tech design is approved; inherit links that design, and own moves the card to Tech design
+     * @param bool|null         $requiresHumanReview true when a person must review the pull request; a bridge worker can only turn it on; omit to keep the setting
      *
      * @return CardSummary
      */
-    public function __invoke(?string $cardId = null, #[Schema(minimum: 1)] ?int $number = null, ?string $title = null, ?string $body = null, ?string $type = null, ?string $status = null, ?array $pullRequestUrls = null, ?array $documentIds = null, ?array $artifactIds = null, #[Schema(items: BoardSubjectResolver::RELATED_CARD_ITEM)] ?array $relatedCards = null, ?string $parentCardId = null, ?bool $clearParent = null, ?bool $laneEnabled = null, #[Schema(enum: ChildDesignChoices::CHOICES)] ?string $childDesign = null): array
+    public function __invoke(?string $cardId = null, #[Schema(minimum: 1)] ?int $number = null, ?string $title = null, ?string $body = null, ?string $type = null, ?string $status = null, ?array $pullRequestUrls = null, ?array $documentIds = null, ?array $artifactIds = null, #[Schema(items: BoardSubjectResolver::RELATED_CARD_ITEM)] ?array $relatedCards = null, ?string $parentCardId = null, ?bool $clearParent = null, ?bool $laneEnabled = null, #[Schema(enum: ChildDesignChoices::CHOICES)] ?string $childDesign = null, ?bool $requiresHumanReview = null): array
     {
         try {
             if (true === $clearParent) {
@@ -81,6 +84,10 @@ final readonly class CardUpdateTool
 
             $card = $this->subjects->requireCardByIdOrNumber($cardId, $number, McpBoundProjectVoter::CARD_WRITE);
             $column = $this->subjects->optionalColumn($card->project, $status);
+            $workerSession = null !== $this->runSource->forProject($card->project);
+            if (false === $requiresHumanReview && $card->requiresHumanReview && $workerSession) {
+                throw new ToolCallException(self::WORKER_LOWER_REFUSAL);
+            }
 
             $choice = $this->childDesign->resolve(
                 $parentCardId,
@@ -104,6 +111,8 @@ final readonly class CardUpdateTool
                 parentCardId: $parentCardId,
                 laneEnabled: $laneEnabled,
                 cause: null === $column ? null : $this->runCause->forCard($card),
+                requiresHumanReview: $requiresHumanReview,
+                onlyRaiseHumanReview: $workerSession,
             ))->card;
             $card = null === $choice ? $update() : $this->choices->write($card->project, $update, $choice, $this->runCause->forCard($card), null === $parentCardId && null === $column ? $card : null);
 
@@ -117,6 +126,9 @@ final readonly class CardUpdateTool
         } catch (CardManaged $e) {
             throw new ToolCallException(CardManaged::AGENT_MESSAGE, previous: $e);
         } catch (DomainErrors $e) {
+            if (\in_array(UpdateCardHandler::HUMAN_REVIEW_RAISE_ONLY, $e->errors, true)) {
+                throw new ToolCallException(self::WORKER_LOWER_REFUSAL, previous: $e);
+            }
             throw $this->errorMessages->forAgent($e);
         } catch (ToolCallException $e) {
             throw $e;

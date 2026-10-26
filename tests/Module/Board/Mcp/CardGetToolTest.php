@@ -279,6 +279,16 @@ final class CardGetToolTest extends KernelTestCase
         $this->call($cardId, $number);
     }
 
+    public function test_a_card_reads_back_the_human_review_switch(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-get-switch'));
+        $off = ($this->createTool)('Off', 'Body', 'feature');
+        $on = ($this->createTool)('On', 'Body', 'feature', requiresHumanReview: true);
+
+        self::assertFalse($this->call($off['cardId'])['requiresHumanReview']);
+        self::assertTrue($this->call($on['cardId'])['requiresHumanReview']);
+    }
+
     public function test_a_card_reads_back_each_linked_feedback_item_in_full(): void
     {
         $project = $this->makeProject('card-get-feedback');
