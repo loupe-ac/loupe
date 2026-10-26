@@ -946,6 +946,26 @@ The app moves the card as Loupe, so an epic with open children moves back like a
 A project that updates to this version gets the two rules in its template copy. Each past withdrawal counts as handled,
 so no card moves when the update arrives. A withdrawal after the update moves the card.
 
+### Human review for a new artifact
+
+A card has a **Requires human review** switch (see [the card page](board.md)). The rule `human-review-on-artifact`
+turns the switch on when an artifact that the card has not seen reaches it. It has no slot, and it skips a card in a terminal column.
+
+An artifact reaches a card when it is linked to the card or to the parent of the card. A link inside a design document does not count.
+A new artifact on an epic also reaches each child of the epic, so each child gets its own check.
+
+| Condition or action | Does |
+|---|---|
+| `card.review.unseen_artifact` | True when an artifact that reaches the card is not in the seen list of the card. It is in the **Board** group |
+| `require-human-review` | Turns the switch on, stores the artifacts that reach the card in its seen list, and writes a `human-review-changed` row in the history of the card with the cause `rule`. A card whose switch is on changes nothing |
+
+You can turn the switch off while the artifact stays linked. The seen list then holds that artifact, so only a later new
+artifact turns the switch on again.
+
+A project that updates to this version gets the rule in its template copy. A migration also turns the switch on for each
+card outside a terminal column that an artifact reaches today, and writes one history row with the cause `rollout`.
+After the update, the rule fires only for an artifact that arrives later.
+
 ### Asking about an unplanned child
 
 A child that joins an epic after the epic design was approved may link no tech

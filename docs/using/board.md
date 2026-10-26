@@ -441,7 +441,7 @@ switch records that a person must review the pull request of the card. Turn it
 on or off with the switch, and the page saves the change at once. A **?** icon
 after the label opens a tip with a **See the rules** link to the
 [Workflow](workflows.md) page. The card history shows each change with its
-cause: a person, an agent, a workflow rule or the rollout. An agent sets the
+cause: a person, an agent, a workflow rule or the rollout. The switch turns on by itself when a new artifact is linked to the card or to its parent, as [Human review for a new artifact](workflows.md#human-review-for-a-new-artifact) says. An agent sets the
 switch with `requiresHumanReview` on `card_create` and `card_update`. A bridge
 worker can turn it on and never off.
 

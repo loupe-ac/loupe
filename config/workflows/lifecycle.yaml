@@ -1,5 +1,5 @@
 key: lifecycle
-version: 20
+version: 21
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -718,6 +718,14 @@ rules:
               - card.children.finished: {}
               - any: [{ not: { card.type: { types: [epic] } } }, { not: { card.run.worker_active: {} } }]
       then: { move: { to: '@terminal', outcome: merged } }
+
+    # No slot, so its truth outlives a move. A card turns the switch on once for each artifact that reaches it.
+    - id: human-review-on-artifact
+      when:
+          all:
+              - card.review.unseen_artifact: {}
+              - not: { card.in_slot: { slot: '@terminal' } }
+      then: { require-human-review: {} }
 
     # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
     # The truth outlives a move: a child that a person moves back to the Backlog makes no edge and stays parked.

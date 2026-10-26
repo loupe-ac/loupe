@@ -59,6 +59,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.pr.draft_open' => 'workflow.source.forge',
         'card.pr.linked' => 'workflow.source.forge',
         'card.quiet_for' => 'workflow.source.board',
+        'card.review.unseen_artifact' => 'workflow.source.board',
         'card.rule.held_by_blocker' => 'workflow.source.board',
         'card.run.asking' => 'workflow.source.inbox',
         'card.run.done_at_head' => 'workflow.source.board',

@@ -9,6 +9,7 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Event\BoardColumnsChanged;
+use App\Module\Board\Event\CardArtifactsChanged;
 use App\Module\Board\Event\CardBlockersChanged;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Event\CardDocumentsChanged;
@@ -366,6 +367,12 @@ final readonly class UpdateCardHandler
                 $card->id ?? throw new \LogicException('Card has no id.'),
                 CardChanged::UPDATED,
                 $outcome->contentChanged,
+            ));
+        }
+        if (null !== $command->artifactIds) {
+            $this->events->dispatch(new CardArtifactsChanged(
+                $card->project->id ?? throw new \LogicException('Project has no id.'),
+                $card->id ?? throw new \LogicException('Card has no id.'),
             ));
         }
         // An open blocker lends its title to the Waiting reason of each card it blocks.

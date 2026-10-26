@@ -12,6 +12,8 @@ use App\Module\AgentReview\Workflow\DocumentReviewFactProvider;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Entity\BoardAutomationSettings;
+use App\Module\Board\Workflow\ArtifactReachFactProvider;
+use App\Module\Board\Workflow\ArtifactReachFacts;
 use App\Module\Board\Workflow\BlockerFactProvider;
 use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardActivityFacts;
@@ -75,6 +77,7 @@ final class FactsMother
 {
     private const array PROVIDERS = [
         CardTypeFactProvider::class,
+        ArtifactReachFactProvider::class,
         BlockerFactProvider::class,
         ParentFactProvider::class,
         EpicBranchSyncFactProvider::class,
@@ -107,7 +110,7 @@ final class FactsMother
         $card ??= self::card();
         $run ??= self::run();
         $given = [
-            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true)),
+            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new ArtifactReachFacts([])),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
