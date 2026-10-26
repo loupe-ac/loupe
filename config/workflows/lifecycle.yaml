@@ -1,5 +1,5 @@
 key: lifecycle
-version: 21
+version: 22
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -54,6 +54,10 @@ facts:
             - pr.base_is_default: {}
             - not: { pr.approval_covers_head: { min: 1 } }
             - not: { card.run.worker_active: {} }
+            - any:
+                  - card.review.needs_person: {}
+                  - not: { pr.app_can_approve: {} }
+                  - agent_review.failed: {}
 rules:
     # These two come first and have no slot. A person who withdraws an approval undoes the stage it opened.
     # A card in a terminal column keeps its place, and a card already in the slot of the design has nothing to undo.
@@ -525,6 +529,24 @@ rules:
                     - pr.base_is_epic_branch: {}
       then: { forge-write: { write: update-branch, fallback: sync } }
 
+    # Loupe approves as the GitHub App once the agent review passed on the head and no person must review the card.
+    - id: pull-request-auto-approve
+      slot: in-review
+      when:
+          all:
+              - pr.open: {}
+              - not: { pr.draft: {} }
+              - pr.base_is_default: {}
+              - pr.checks_passed: {}
+              - pr.checks_on_head: {}
+              - pr.app_can_approve: {}
+              - not: { card.review.needs_person: {} }
+              - not: { pr.app_approval_covers_head: {} }
+              - not: { pr.conflicting: {} }
+              - not: { pr.changes_requested: {} }
+              - agent_review.passed: {}
+      then: { forge-write: { write: approve } }
+
     - id: merge-ready
       slot: in-review
       when:
@@ -534,6 +556,9 @@ rules:
               - not: { pr.draft: {} }
               - pr.checks_passed: {}
               - pr.approval_covers_head: { min: 1 }
+              - any:
+                    - not: { card.review.needs_person: {} }
+                    - pr.approval_covers_head: { min: 1, by: person }
               - pr.base_is_merge_target: {}
               - not: { pr.base_is_epic_branch: {} }
               - not: { pr.conflicting: {} }
@@ -726,6 +751,15 @@ rules:
               - card.review.unseen_artifact: {}
               - not: { card.in_slot: { slot: '@terminal' } }
       then: { require-human-review: {} }
+
+    # No slot, so it also runs while the card sits in another column. A switch that a person turns on cancels the approval of the App.
+    - id: dismiss-app-approval
+      when:
+          all:
+              - pr.open: {}
+              - pr.app_approval_stands: {}
+              - card.review.needs_person: {}
+      then: { forge-write: { write: dismiss-approval } }
 
     # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
     # The truth outlives a move: a child that a person moves back to the Backlog makes no edge and stays parked.
