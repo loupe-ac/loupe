@@ -34,7 +34,8 @@ cwd=$(read_field cwd)
 [ -n "$cwd" ] || cwd=$(pwd)
 [ -n "$worktree_path" ] || exit 0
 
-main=$(git -C "$cwd" worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git -C "$cwd" worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 
 case "$worktree_path" in
     "$main"/.worktrees/*) ;;
