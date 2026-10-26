@@ -91,6 +91,14 @@ test('the stretch project switcher stays on screen at enlarged text', async ({
     await page
         .getByRole('button', { name: 'Open navigation', exact: true })
         .click();
+    // The drawer slides in for 200 ms, and the panel is placed once on open.
+    await expect
+        .poll(() =>
+            page
+                .locator('.lp-sidebar--drawer')
+                .evaluate((element) => element.getBoundingClientRect().left),
+        )
+        .toBe(0);
     await page.locator('.lp-sidebar__switcher').click();
     await expectPanelOnScreen(page.locator('#project-switcher-panel'), page);
 });
