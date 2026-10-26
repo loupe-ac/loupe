@@ -11,7 +11,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
-import { expectFilterFocusRingVisible } from '../helpers';
+import { addBoardColumn, expectFilterFocusRingVisible } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eBoardColumns1!';
@@ -87,26 +87,6 @@ function slugs(page: Page): Promise<string[]> {
                 (column) => column.getAttribute('data-column-slug') ?? '',
             ),
         );
-}
-
-async function addColumnFromSettings(
-    page: Page,
-    projectId: string,
-    label: string,
-): Promise<void> {
-    await page.goto(`/projects/${projectId}/settings/columns`);
-    const settings = page.locator('[data-board-column-settings]');
-    await settings
-        .getByRole('button', { name: 'Add a column', exact: true })
-        .click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox').fill(label);
-    await dialog
-        .getByRole('button', { name: 'Add column', exact: true })
-        .click();
-    await expect(
-        settings.getByRole('heading', { name: label, exact: true }),
-    ).toBeVisible(ROUND_TRIP);
 }
 
 async function openSettingsDialog(
@@ -288,7 +268,7 @@ test('column settings fits long names and enlarged text', async ({
     board,
 }, testInfo) => {
     const label = 'A'.repeat(100);
-    await addColumnFromSettings(page, board.projectId, label);
+    await addBoardColumn(page, board.projectId, label);
     const settings = page.locator('[data-board-column-settings]');
     for (const fontSize of ['100%', '200%']) {
         await page.evaluate((size) => {
@@ -598,7 +578,7 @@ test('a card opens in a stable drawer and returns focus when closed', async ({
 });
 
 test('an owner adds a column after the last one', async ({ page, board }) => {
-    await addColumnFromSettings(page, board.projectId, 'Parked');
+    await addBoardColumn(page, board.projectId, 'Parked');
 
     await page.goto(board.boardUrl);
     expect(await slugs(page)).toEqual([

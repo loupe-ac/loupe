@@ -429,3 +429,24 @@ export async function registerAndVerify(
         await expect(page).toHaveURL('/projects');
     }
 }
+
+/** Adds a column at the end of the board from its settings page, and waits until the page lists it. */
+export async function addBoardColumn(
+    page: Page,
+    projectId: string,
+    label: string,
+): Promise<void> {
+    await page.goto(`/projects/${projectId}/settings/columns`);
+    const settings = page.locator('[data-board-column-settings]');
+    await settings
+        .getByRole('button', { name: 'Add a column', exact: true })
+        .click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('textbox').fill(label);
+    await dialog
+        .getByRole('button', { name: 'Add column', exact: true })
+        .click();
+    await expect(
+        settings.getByRole('heading', { name: label, exact: true }),
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
+}
