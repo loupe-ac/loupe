@@ -249,7 +249,8 @@ final readonly class CardWaitText
     /** The run that failed last before the pause, for a pause that a failure of work caused. */
     private function failedRun(InboxCardWait $wait, CardPause $pause): ?WorkerRun
     {
-        if (!\in_array($pause->kind, [PauseKind::Retries, PauseKind::WorkStopped], true)) {
+        // A refused action, such as a move, also pauses with the kind retries, and no run caused it.
+        if (!\in_array($pause->kind, [PauseKind::Retries, PauseKind::WorkStopped], true) || $this->pauseReasonText->forRefusal($pause->reason) !== $pause->reason) {
             return null;
         }
 

@@ -180,6 +180,8 @@ final class CardWaitTextTest extends KernelTestCase
         $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:07'), 'the before command exited with code 141');
         $repair = $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
         $this->workerRun($card->id, 'implement', WorkerRunState::Running, new \DateTimeImmutable('2026-10-26 19:04:39'));
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 19:05:00'), 'a later failure');
+        $this->workerRun($card->id, 'review', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:19'), 'a failure of another rule', ruleId: 'review');
         $wait = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, $pausedAt);
 
         self::assertSame('Paused: The repair worker could not fix the failure', $this->text->title([$wait], 'Ship it', 200));
@@ -220,6 +222,18 @@ final class CardWaitTextTest extends KernelTestCase
         self::assertNull($this->text->line($wait, false)->detail);
     }
 
+    public function test_a_pause_from_a_refused_action_names_no_run(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 36);
+        $em->flush();
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:00:00'), 'boom');
+        $wait = $this->pauseWait($card, 'move-refused', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 10:01:00'));
+
+        self::assertSame('Card 36 is paused. The board refused the move. Open the card and resume it.', $this->text->body([$wait]));
+        self::assertNull($this->text->line($wait, false)->detail);
+    }
+
     public function test_a_pause_that_is_gone_still_words_its_stored_code(): void
     {
         $wait = new InboxCardWait($this->wait->watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: Uuid::v7(), params: ['%reason%' => 'repair-failed']);
@@ -248,10 +262,10 @@ final class CardWaitTextTest extends KernelTestCase
         return $wait;
     }
 
-    private function workerRun(?Uuid $cardId, string $workKind, WorkerRunState $state, \DateTimeImmutable $at, ?string $failureReason = null, string $output = ''): WorkerRun
+    private function workerRun(?Uuid $cardId, string $workKind, WorkerRunState $state, \DateTimeImmutable $at, ?string $failureReason = null, string $output = '', string $ruleId = 'implement'): WorkerRun
     {
         $em = $this->em();
-        $run = new WorkerRun($this->wait->watch->project, Uuid::v7(), WorkSubject::CARD, $cardId ?? throw new \LogicException('The card is stored.'), 33, $workKind, $state, failureReason: $failureReason, output: $output, receivedAt: $at, ruleId: 'implement');
+        $run = new WorkerRun($this->wait->watch->project, Uuid::v7(), WorkSubject::CARD, $cardId ?? throw new \LogicException('The card is stored.'), 33, $workKind, $state, failureReason: $failureReason, output: $output, receivedAt: $at, ruleId: $ruleId);
         $em->persist($run);
         $em->flush();
 
