@@ -8,7 +8,7 @@ competitorVersion: "no tagged release; last push 2026-10-10"
 
 ## In short
 
-Curia is a single Python file that runs Claude Code agents as named seats with their own memory. It also runs offices that work a backlog overnight. Loupe is a web application with a board, workflow rules, document review and an owner inbox. Both aim at unattended agent work with a person in charge. Curia has deeper agent memory and overnight controls. Loupe has a web interface and supports more than one agent.
+Curia is a single Python file that runs Claude Code agents as named seats with their own memory. It also runs offices that work a backlog overnight. Loupe is a web application with a board, workflow rules, document review and an owner inbox. Both aim at unattended agent work with a person in charge. Curia has deeper agent memory and overnight controls. Loupe has a web interface, design review and live site review, and runs Codex as well as Claude Code.
 
 ## What Curia does well
 
