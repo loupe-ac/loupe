@@ -9,7 +9,7 @@ use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** True when a person must review the pull request of the card, because its "Requires human review" switch is on. */
+/** True when a person must review the pull request of the card: its switch is on, or, for an epic, a child needs a person. */
 final readonly class CardReviewNeedsPerson implements Condition
 {
     #[\Override]
