@@ -6,7 +6,9 @@ namespace App\Tests\Module\Board\Controller;
 
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Board\Command\ListBacklogCardsHandler;
+use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -237,6 +239,42 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         $notice = $crawler->filter('[data-controller~="backlog-live"] [data-backlog-live-target="notice"][hidden]');
         self::assertCount(1, $notice);
         self::assertSame($url.'?type=bug', $notice->filter('a')->attr('href'));
+    }
+
+    public function test_a_title_opens_the_card_drawer_and_the_row_shows_no_source_tag(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-drawer@example.com');
+        $project = $this->project($em, $owner);
+        $card = new Card(
+            project: $project,
+            column: $this->column($project, 'backlog'),
+            title: 'Reviewer note',
+            body: '',
+            number: 1,
+            type: 'feature',
+            origin: Actor::Reviewer,
+            position: 0,
+        );
+        $em->persist($card);
+        $em->flush();
+        $url = $this->backlogUrl($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $title = $crawler->filter('[data-backlog-card-id] a.lp-backlog-row__title');
+        self::assertCount(1, $title);
+        self::assertSame('card-drawer-frame', $title->attr('data-turbo-frame'));
+        self::assertSame('#1', $title->attr('data-drawer-title'));
+        self::assertSame('click->card-drawer#prepare', $title->attr('data-action'));
+        self::assertStringContainsString('/cards/', (string) $title->attr('href'));
+        self::assertCount(1, $crawler->filter('[data-controller~="card-drawer"] turbo-frame#card-drawer-frame'));
+        self::assertCount(1, $crawler->filter('[data-backlog-card-id] .lp-tag'), 'only the type tag stays');
     }
 
     public function test_a_stranger_is_forbidden(): void
