@@ -16,7 +16,8 @@
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 
 opts=()
 [ -t 0 ] || opts+=(-T)

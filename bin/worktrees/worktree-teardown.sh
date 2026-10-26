@@ -12,10 +12,12 @@
 set -euo pipefail
 
 name=${1:?usage: worktree-teardown.sh <name>}
-main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=$(git worktree list --porcelain)
+main=$(awk '/^worktree /{print $2; exit}' <<<"$worktrees")
 root="$main/.worktrees/$name"
 legacy_root="$main/.claude/worktrees/$name"
-if git -C "$main" worktree list --porcelain | grep -qxF "worktree $legacy_root"; then
+registered=$(git -C "$main" worktree list --porcelain)
+if grep -qxF "worktree $legacy_root" <<<"$registered"; then
     root=$legacy_root
 fi
 
