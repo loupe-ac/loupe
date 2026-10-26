@@ -389,6 +389,29 @@ final class CardHistoryEntryTest extends TestCase
         self::assertEquals(new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => 7, '%sha%' => 'abcdef1']), $entry->sentence);
     }
 
+    public function test_an_automatic_approval_names_the_pull_request_and_the_head(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::AutoApproved, Actor::System, null, ['pullRequest' => 7, 'headSha' => 'abcdef1234567890', 'rule' => 'pull-request-auto-approve']));
+
+        self::assertSame('lucide:shield-check', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.auto_approved', ['%pr%' => 7, '%sha%' => 'abcdef1']), $entry->sentence);
+    }
+
+    public function test_a_dismissed_approval_names_the_pull_request(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ApprovalDismissed, Actor::System, null, ['pullRequest' => 7, 'rule' => 'dismiss-app-approval']));
+
+        self::assertSame('lucide:shield-off', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.approval_dismissed', ['%pr%' => 7]), $entry->sentence);
+    }
+
+    public function test_an_approval_row_with_no_pull_request_reads_as_changed(): void
+    {
+        foreach ([CardEventKind::AutoApproved, CardEventKind::ApprovalDismissed] as $kind) {
+            self::assertSame('board.card.history.changed', CardHistoryEntry::of($this->event($kind, Actor::System, null, []))->sentence->getMessage());
+        }
+    }
+
     public function test_a_skipped_resume_names_the_question(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::ResumeSkipped, Actor::System, null, ['number' => 963, 'sessionId' => 'x']));

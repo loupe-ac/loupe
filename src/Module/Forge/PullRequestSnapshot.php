@@ -47,6 +47,9 @@ final readonly class PullRequestSnapshot
         public ?string $latestApproverLogin = null,
         /** The title as the forge showed it at this read. equals() leaves it out, so a rename announces no change. */
         public ?string $title = null,
+        /** The review id of the newest approval that the App posted and that stands. It stays apart from `approvalId`, which is a person's. */
+        public ?string $appApprovalId = null,
+        public ?string $appApprovalSha = null,
     ) {
     }
 

@@ -51,7 +51,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * @phpstan-type CardStateReasonSummary array{kind: string, code: string, reason: string, since: string}
  * @phpstan-type CardStateSummary array{kind: string, code: string, since: string, reason: string, others: list<CardStateReasonSummary>}
  * @phpstan-type CardListStateSummary array{kind: string, code: string, since: string}
- * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
+ * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, requiresHumanReview: bool, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
  * @phpstan-type CardListSummary array{cardId: string, number: int, title: string, type: string, status: string, reporter: string, parentCardId: ?string, updatedAt: string, state: ?CardListStateSummary}
  */
 final readonly class CardPayload
@@ -249,6 +249,7 @@ final readonly class CardPayload
             ),
             'parent' => null === $card->parent ? null : self::reference($card->parent),
             'laneEnabled' => $card->laneEnabled,
+            'requiresHumanReview' => $card->requiresHumanReview,
             'children' => array_map(self::reference(...), $children),
             'progress' => $progress,
             'pause' => null === $pause ? null : [

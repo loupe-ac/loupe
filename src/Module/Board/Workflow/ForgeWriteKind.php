@@ -19,4 +19,6 @@ enum ForgeWriteKind: string
     case AgentReviewCheck = 'agent-review-check';
     case ReviewReady = 'review-ready';
     case MergeMainIntoEpic = 'merge-main-into-epic';
+    case Approve = 'approve';
+    case DismissApproval = 'dismiss-approval';
 }
