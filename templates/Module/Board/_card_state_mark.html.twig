@@ -19,7 +19,7 @@
     {% if link and markerLink is not null %}
     <a class="lp-tooltip__link"
        draggable="false"
-       href="{{ path('app_project_agents', {id: card.project.id}) }}"
+       href="{{ marker_link_href(markerLink, card.project) }}"
        data-turbo-frame="_top"
        data-marker-link="{{ markerLink.value }}">{{ markerLink.translationKey|trans }}</a>
     {% endif %}

@@ -71,6 +71,16 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertCount(0, $this->renderRow($card, $markers)->filter('.lp-state-mark a'));
     }
 
+    public function test_a_ruleset_mismatch_marker_links_the_tile_tooltip_to_the_ruleset_setup_guide(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(MarkerMother::marker('ruleset_mismatch', MarkerKind::NeedsYou, ['%number%' => 9], link: MarkerLink::RulesetSetup));
+
+        $link = $this->renderTile($card, $markers)->filter('.lp-tooltip a')->first();
+        self::assertSame('Read how to set up the ruleset', trim($link->text()));
+        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
+    }
+
     public function test_a_link_on_another_marker_stays_off_the_tile_tooltip(): void
     {
         $tile = $this->tile(MarkerMother::markers(

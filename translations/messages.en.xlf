@@ -8622,6 +8622,7 @@
             <trans-unit id="github.system_status.hook_key.unreadable"><source>github.system_status.hook_key.unreadable</source><target>APP_ENCRYPTION_KEY is not set or is not a valid key, so no project can create or use a GitHub webhook. Set it to the base64 of 32 random bytes.</target></trans-unit>
             <trans-unit id="github.repositories.ruleset.requires_review"><source>github.repositories.ruleset.requires_review</source><target>The ruleset of the default branch still requires an approving review. The Loupe App cannot give that review on its own pull request. Remove the rule Require approvals.</target></trans-unit>
             <trans-unit id="github.repositories.ruleset.unpinned"><source>github.repositories.ruleset.unpinned</source><target>The ruleset requires the check Loupe / Approval but does not set the Loupe App as its source. Any other check with this name can pass it. Set the Loupe App as the source.</target></trans-unit>
+            <trans-unit id="github.repositories.ruleset.guide"><source>github.repositories.ruleset.guide</source><target>Read how to set up the ruleset</target></trans-unit>
             <trans-unit id="github.repositories.title"><source>github.repositories.title</source><target>Repositories</target></trans-unit>
             <trans-unit id="github.repositories.disabled"><source>github.repositories.disabled</source><target>The operator has not enabled forge connections on this instance.</target></trans-unit>
             <trans-unit id="github.repositories.empty"><source>github.repositories.empty</source><target>No repository is connected. Connect a repository, and a merge, a review or a check result in it will reach the cards that link its pull requests.</target></trans-unit>
@@ -9384,7 +9385,7 @@
             <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
             <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
             <trans-unit id="marker.ruleset_mismatch"><source>marker.ruleset_mismatch</source><target>Needs you: the ruleset of the default branch does not fit the approval check of pull request #%number%.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch.remedy"><source>marker.ruleset_mismatch.remedy</source><target>Remove the rule "Require approvals" from the ruleset. Set the Loupe App as the source of the required check Loupe / Approval. See "Set up the ruleset" in docs/using/workflows.md.</target></trans-unit>
+            <trans-unit id="marker.ruleset_mismatch.remedy"><source>marker.ruleset_mismatch.remedy</source><target>Remove the rule "Require approvals" from the ruleset. Set the Loupe App as the source of the required check Loupe / Approval.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
@@ -9400,6 +9401,7 @@
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
+            <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>

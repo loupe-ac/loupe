@@ -47,6 +47,9 @@
         {% if mismatch.unpinned ?? false %}
         <p class="lp-connect-hint" data-testid="forge-ruleset-unpinned" data-forge-repository-warning="{{ repository.id }}">{{ 'github.repositories.ruleset.unpinned'|trans }}</p>
         {% endif %}
+        {% if (mismatch.requiresReview ?? false) or (mismatch.unpinned ?? false) %}
+        <p class="lp-connect-hint" data-forge-repository-guide="{{ repository.id }}"><a href="{{ app_docs_url }}/using/workflows/#set-up-the-ruleset">{{ 'github.repositories.ruleset.guide'|trans }}</a></p>
+        {% endif %}
         {% endfor %}
         {% endif %}
 

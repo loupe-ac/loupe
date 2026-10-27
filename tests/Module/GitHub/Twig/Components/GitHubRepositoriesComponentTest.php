@@ -12,6 +12,7 @@ use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\HookSecretKey;
 use App\Tests\Module\GitHub\Controller\GitHubConnectionsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Response;
 use Ubermuda\DoctrineExtra\Encryption\EncryptionKeyProvider;
 
@@ -105,6 +106,9 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame(0, $row((string) $clean->id, 'forge-ruleset-unpinned'));
         self::assertCount(2, $section->filter('[data-forge-repository-warning]'));
         self::assertStringContainsString('Remove the rule Require approvals.', $section->filter('[data-testid="forge-ruleset-requires-review"]')->text());
+        $guides = $section->filter('[data-forge-repository-guide] a');
+        self::assertSame([(string) $review->id, (string) $unpinned->id], $section->filter('[data-forge-repository-guide]')->each(static fn (Crawler $guide): string => (string) $guide->attr('data-forge-repository-guide')));
+        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $guides->first()->attr('href'));
     }
 
     public function test_an_existing_hook_shows_its_url_and_health_but_never_its_secret(): void

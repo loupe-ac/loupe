@@ -504,6 +504,7 @@ final class ShippedMarkersTest extends KernelTestCase
             $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $mismatch, pullRequests: [$mismatch]));
 
             self::assertContains('ruleset-mismatch', $this->writtenKeys(), $field);
+            self::assertSame(MarkerLink::RulesetSetup, $this->written('ruleset-mismatch')->link, $field);
         }
     }
 

@@ -922,6 +922,7 @@ markers:
       kind: needs-you
       label: marker.ruleset_mismatch
       remedy: marker.ruleset_mismatch.remedy
+      link: ruleset-setup
       when:
           all:
               - pr.open: {}
