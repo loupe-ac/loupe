@@ -227,6 +227,53 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-card-state="stuck"] .lp-status-box__fields a'));
     }
 
+    public function test_the_card_view_links_a_ruleset_mismatch_to_the_ruleset_setup_guide(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-status-box-ruleset@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Ruleset');
+        $card->markers = [
+            ['key' => 'ruleset-mismatch', 'kind' => 'needs-you', 'label' => 'marker.ruleset_mismatch', 'remedy' => 'marker.ruleset_mismatch.remedy', 'params' => ['%number%' => 9], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM), 'link' => 'ruleset-setup'],
+        ];
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+        self::assertResponseIsSuccessful();
+        $link = $crawler->filter('[data-card-state="needs-you"] .lp-status-box__field--wide a');
+        self::assertCount(1, $link);
+        self::assertSame('Read how to set up the ruleset', trim($link->text()));
+        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
+    }
+
+    public function test_the_card_view_keeps_the_ruleset_setup_link_on_a_mismatch_after_the_state(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-status-box-ruleset-other@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Ruleset after merge block');
+        $since = new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM);
+        $card->markers = [
+            ['key' => 'merge-blocked', 'kind' => 'needs-you', 'label' => 'marker.merge_blocked', 'remedy' => 'marker.merge_blocked.remedy', 'params' => ['%number%' => 9], 'since' => $since],
+            ['key' => 'ruleset-mismatch', 'kind' => 'needs-you', 'label' => 'marker.ruleset_mismatch', 'remedy' => 'marker.ruleset_mismatch.remedy', 'params' => ['%number%' => 9], 'since' => $since, 'link' => 'ruleset-setup'],
+        ];
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+        self::assertResponseIsSuccessful();
+        $link = $crawler->filter('[data-card-state="needs-you"] .lp-status-box__other a');
+        self::assertCount(1, $link);
+        self::assertSame('Read how to set up the ruleset', trim($link->text()));
+        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
+        self::assertCount(0, $crawler->filter('[data-card-state="needs-you"] .lp-status-box__fields a'));
+    }
+
     public function test_a_card_with_only_chips_shows_a_neutral_status_box_with_the_chip_text(): void
     {
         $client = static::createClient();

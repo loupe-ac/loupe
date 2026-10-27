@@ -151,6 +151,12 @@ class ForgePullRequest
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $appApprovalSha = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    public bool $baseRequiresReview = false;
+
+    #[ORM\Column(options: ['default' => false])]
+    public bool $approvalCheckUnpinned = false;
+
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $approvalCheckRunId = null;
 
@@ -305,6 +311,8 @@ class ForgePullRequest
         $this->latestApproverLogin = $snapshot->latestApproverLogin;
         $this->appApprovalId = $snapshot->appApprovalId;
         $this->appApprovalSha = $snapshot->appApprovalSha;
+        $this->baseRequiresReview = $snapshot->baseRequiresReview;
+        $this->approvalCheckUnpinned = $snapshot->approvalCheckUnpinned;
         $this->defaultBranch = $snapshot->defaultBranch;
         $this->headParents = $snapshot->headParents;
     }
@@ -414,6 +422,8 @@ class ForgePullRequest
             $this->title,
             $this->appApprovalId,
             $this->appApprovalSha,
+            $this->baseRequiresReview,
+            $this->approvalCheckUnpinned,
         );
     }
 }

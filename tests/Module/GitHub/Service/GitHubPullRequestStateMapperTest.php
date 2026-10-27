@@ -694,6 +694,78 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertEquals(new GitHubBranchRules([], false), GitHubBranchRules::fromRules([]));
     }
 
+    /** @param list<array<string, mixed>> $rules */
+    #[DataProvider('rulesetFits')]
+    public function test_the_mapper_flags_a_ruleset_that_does_not_fit(array $rules, ?string $appId, bool $requiresReview, bool $unpinned): void
+    {
+        $node = self::pullRequest604();
+        $node['baseRepository']['defaultBranchRef']['name'] = $node['baseRefName'];
+        $snapshot = self::mapper('loupe-ac', $appId)->map($node, GitHubBranchRules::fromRules($rules), null);
+
+        self::assertSame($requiresReview, $snapshot->baseRequiresReview);
+        self::assertSame($unpinned, $snapshot->approvalCheckUnpinned);
+    }
+
+    /** @return iterable<string, array{list<array<string, mixed>>, ?string, bool, bool}> */
+    public static function rulesetFits(): iterable
+    {
+        $name = ForgePullRequest::APPROVAL_CHECK_NAME;
+        $checks = static fn (array $entries): array => ['type' => 'required_status_checks', 'parameters' => ['required_status_checks' => $entries]];
+        $review = static fn (mixed $count): array => ['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => $count]];
+
+        yield 'review count 0' => [[$review(0)], '42', false, false];
+        yield 'review count 1' => [[$review(1)], '42', true, false];
+        yield 'review count 2' => [[$review(2)], '42', true, false];
+        yield 'review count malformed' => [[$review('1'), ['type' => 'pull_request']], '42', false, false];
+        yield 'pinned to the App' => [[$checks([['context' => $name, 'integration_id' => 42]])], '42', false, false];
+        yield 'pinned to another id' => [[$checks([['context' => $name, 'integration_id' => 7]])], '42', false, true];
+        yield 'not pinned' => [[$checks([['context' => $name]])], '42', false, true];
+        yield 'pinned but the App id is unset' => [[$checks([['context' => $name, 'integration_id' => 42]])], null, false, true];
+        yield 'pinned but the App id is not a number' => [[$checks([['context' => $name, 'integration_id' => 42]])], 'abc', false, true];
+        yield 'check not required' => [[$checks([['context' => 'lint', 'integration_id' => 7]])], '42', false, false];
+        yield 'malformed entries are skipped' => [[$checks(['x', ['context' => 5], ['context' => $name, 'integration_id' => 'x']])], '42', false, true];
+        yield 'review and unpinned check together' => [[$review(1), $checks([['context' => $name]])], '42', true, true];
+        yield 'a pinned entry then an unpinned one' => [[$checks([['context' => $name, 'integration_id' => 42]]), $checks([['context' => $name]])], '42', false, true];
+        yield 'an unpinned entry then a pinned one' => [[$checks([['context' => $name]]), $checks([['context' => $name, 'integration_id' => 42]])], '42', false, true];
+        yield 'two entries pinned to the App' => [[$checks([['context' => $name, 'integration_id' => 42]]), $checks([['context' => $name, 'integration_id' => 42]])], '42', false, false];
+    }
+
+    public function test_the_mapper_flags_nothing_for_a_base_that_is_not_the_default_branch(): void
+    {
+        $node = self::pullRequest604();
+        $node['baseRepository']['defaultBranchRef']['name'] = 'not-'.$node['baseRefName'];
+        $rules = GitHubBranchRules::fromRules([
+            ['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => 1]],
+            ['type' => 'required_status_checks', 'parameters' => ['required_status_checks' => [['context' => ForgePullRequest::APPROVAL_CHECK_NAME]]]],
+        ]);
+
+        $snapshot = self::mapper('loupe-ac', '42')->map($node, $rules, null);
+
+        self::assertFalse($snapshot->baseRequiresReview);
+        self::assertFalse($snapshot->approvalCheckUnpinned);
+    }
+
+    public function test_the_mapper_flags_nothing_without_rules(): void
+    {
+        $snapshot = self::mapper()->map(self::pullRequest604(), null, null);
+
+        self::assertFalse($snapshot->baseRequiresReview);
+        self::assertFalse($snapshot->approvalCheckUnpinned);
+    }
+
+    public function test_the_rules_read_the_review_count_and_the_pinned_integration(): void
+    {
+        $rules = GitHubBranchRules::fromRules([
+            ['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => 1]],
+            ['type' => 'required_status_checks', 'parameters' => ['required_status_checks' => [['context' => ForgePullRequest::APPROVAL_CHECK_NAME, 'integration_id' => 42]]]],
+        ]);
+
+        self::assertTrue($rules->requiresReview);
+        self::assertSame([42], $rules->approvalSources);
+        self::assertTrue($rules->requiresApprovalCheck());
+        self::assertFalse(new GitHubBranchRules([], false)->requiresApprovalCheck());
+    }
+
     public function test_a_ruleset_answer_that_is_not_a_list_is_refused(): void
     {
         $this->expectException(\UnexpectedValueException::class);
@@ -701,9 +773,9 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         GitHubBranchRules::fromRules(['message' => 'Not Found']);
     }
 
-    private static function mapper(?string $slug = 'loupe-ac'): GitHubPullRequestStateMapper
+    private static function mapper(?string $slug = 'loupe-ac', ?string $appId = null): GitHubPullRequestStateMapper
     {
-        return new GitHubPullRequestStateMapper(new GitHubAppConfiguration($slug, null, null, null, null, null));
+        return new GitHubPullRequestStateMapper(new GitHubAppConfiguration($slug, null, null, null, $appId, null));
     }
 
     /** @return array<string, mixed> */

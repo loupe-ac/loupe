@@ -9,19 +9,21 @@ use Symfony\Component\Uid\Uuid;
 final readonly class PullRequestFacts
 {
     /**
-     * @param bool               $baseIsMergeTarget   the base is the default branch or the branch of the card's epic
-     * @param bool               $baseIsEpicBranch    the base is the branch of the card's epic
-     * @param ?Uuid              $id                  the id of the Forge pull request row
-     * @param ?string            $headSha             the head commit, read through EngineFact::PullRequestHead and never part of the shared fingerprint
-     * @param ?StackParent       $stackParent         null when the base is the default branch or the epic branch, or every pull request of the base finished
-     * @param bool               $waitsForApproval    open, ready for review, checks passed, based on the default branch, and no approval covers the head
-     * @param bool               $checksOnHead        the checks ran on the head commit, read through EngineFact::PullRequestMergeGate
-     * @param bool               $canMerge            the forge reads the pull request as mergeable, behind or blocked, read through EngineFact::PullRequestMergeGate
-     * @param bool               $baseIsDefault       the base is the default branch of the repository, read through EngineFact::PullRequestMergeGate
-     * @param list<ForgeRequest> $forgeRequests       the requests to the forge that the forge has not answered, expired ones included
-     * @param bool               $approvalCheckPassed Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
-     * @param bool               $canPostCheck        the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
-     * @param bool               $mergeBlocked        the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseIsMergeTarget     the base is the default branch or the branch of the card's epic
+     * @param bool               $baseIsEpicBranch      the base is the branch of the card's epic
+     * @param ?Uuid              $id                    the id of the Forge pull request row
+     * @param ?string            $headSha               the head commit, read through EngineFact::PullRequestHead and never part of the shared fingerprint
+     * @param ?StackParent       $stackParent           null when the base is the default branch or the epic branch, or every pull request of the base finished
+     * @param bool               $waitsForApproval      open, ready for review, checks passed, based on the default branch, and no approval covers the head
+     * @param bool               $checksOnHead          the checks ran on the head commit, read through EngineFact::PullRequestMergeGate
+     * @param bool               $canMerge              the forge reads the pull request as mergeable, behind or blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseIsDefault         the base is the default branch of the repository, read through EngineFact::PullRequestMergeGate
+     * @param list<ForgeRequest> $forgeRequests         the requests to the forge that the forge has not answered, expired ones included
+     * @param bool               $approvalCheckPassed   Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $canPostCheck          the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $mergeBlocked          the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseRequiresReview    the ruleset of the default branch requires an approving review, and the pull request is open on that branch, read through EngineFact::PullRequestRuleset
+     * @param bool               $approvalCheckUnpinned the ruleset of the default branch requires the approval check with no source, and the pull request is open on that branch, read through EngineFact::PullRequestRuleset
      */
     public function __construct(
         public PullRequestState $state,
@@ -53,6 +55,8 @@ final readonly class PullRequestFacts
         public bool $approvalCheckPassed = false,
         public bool $canPostCheck = false,
         public bool $mergeBlocked = false,
+        public bool $baseRequiresReview = false,
+        public bool $approvalCheckUnpinned = false,
     ) {
     }
 

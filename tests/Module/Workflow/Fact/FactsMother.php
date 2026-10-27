@@ -236,6 +236,8 @@ final class FactsMother
         bool $approvalCheckPassed = false,
         bool $canPostCheck = false,
         bool $mergeBlocked = false,
+        bool $baseRequiresReview = false,
+        bool $approvalCheckUnpinned = false,
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -267,6 +269,8 @@ final class FactsMother
             approvalCheckPassed: $approvalCheckPassed,
             canPostCheck: $canPostCheck,
             mergeBlocked: $mergeBlocked,
+            baseRequiresReview: $baseRequiresReview,
+            approvalCheckUnpinned: $approvalCheckUnpinned,
         );
     }
 

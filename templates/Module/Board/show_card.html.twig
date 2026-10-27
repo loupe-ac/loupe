@@ -56,7 +56,7 @@
                 {% set stateName = primary.kind.translationKey|trans %}
                 {% set stateFields = [{label: primary.kind.sinceLabelKey|trans, value: card_state_text('board.card_state.since_value', primary.since)}] %}
                 {% if primary.remedy is not null %}
-                {% set stateFields = stateFields|merge([{label: primary.kind.remedyLabelKey|trans, value: primary.remedy|trans(primary.params), wide: true, link: primary.link is null ? null : {href: path('app_project_agents', {id: card.project.id}), label: primary.link.translationKey|trans}}]) %}
+                {% set stateFields = stateFields|merge([{label: primary.kind.remedyLabelKey|trans, value: primary.remedy|trans(primary.params), wide: true, link: primary.link is null ? null : {href: marker_link_href(primary.link, card.project), label: primary.link.translationKey|trans}}]) %}
                 {% endif %}
                 <twig:Ds:StatusBox
                     :kind="primary.kind.value"
@@ -65,7 +65,7 @@
                     :lead="primary.label|trans(primary.params)"
                     :fields="stateFields"
                     :othersTitle="'board.card_state.others'|trans"
-                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since)})"
+                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since), link: other.link is null ? null : {href: marker_link_href(other.link, card.project), label: other.link.translationKey|trans}})"
                     data-card-state="{{ primary.kind.value }}"
                 />
                 {% endif %}

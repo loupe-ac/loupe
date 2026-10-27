@@ -121,6 +121,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             ));
         }
         $open = ForgePullRequestState::Open === $pullRequest->state;
+        $onDefaultBranch = $open && null !== $base && $base === $pullRequest->defaultBranch;
         $headSha = $pullRequest->headSha;
         $approvalCheckPassed = $open && null !== $headSha
             && 'success' === $pullRequest->approvalCheckConclusion
@@ -176,6 +177,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             approvalCheckPassed: $approvalCheckPassed,
             canPostCheck: $installed,
             mergeBlocked: PullRequestMergeability::Blocked === $pullRequest->mergeability,
+            baseRequiresReview: $onDefaultBranch && $pullRequest->baseRequiresReview,
+            approvalCheckUnpinned: $onDefaultBranch && $pullRequest->approvalCheckUnpinned,
         );
     }
 

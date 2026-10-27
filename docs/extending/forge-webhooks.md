@@ -184,13 +184,15 @@ install. Loupe refuses to store a connection when the App does not expire user
 authorization tokens, because it needs the refresh token to keep the
 connection alive.
 
-Grant these repository permissions. Pull requests, Checks, Contents and
-Workflows are read and write. The others are read-only. Loupe needs write
+Grant these repository permissions. Pull requests, Checks, Contents, Commit
+statuses and Workflows are read and write. The others are read-only. Loupe needs write
 access to Pull requests to post the fix-run comment, and to mark an epic pull
 request ready, convert it to draft or close it. It needs write access to
 Checks to report the `Loupe / Live review` check and the `Loupe / Agent review` check
 on a pull request. It needs write access to Contents to sync a branch that is
-behind its base.
+behind its base. It needs write access to Commit statuses for one reason only.
+GitHub lists the App as the source of a required check in a ruleset only when
+the App has that permission. Loupe posts no commit status.
 
 Loupe posts a review on a pull request as the GitHub account that a user
 connected, never as the App. That write uses the user token and needs no extra

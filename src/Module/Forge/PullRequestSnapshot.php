@@ -50,6 +50,10 @@ final readonly class PullRequestSnapshot
         /** The review id of the newest approval that the App posted and that stands. It stays apart from `approvalId`, which is a person's. */
         public ?string $appApprovalId = null,
         public ?string $appApprovalSha = null,
+        /** The base branch rules require a review. */
+        public bool $baseRequiresReview = false,
+        /** The base branch rules require the approval check without pinning it to the Loupe App. */
+        public bool $approvalCheckUnpinned = false,
     ) {
     }
 
@@ -62,6 +66,7 @@ final readonly class PullRequestSnapshot
 
     /**
      * Strict, because a loose `==` holds two numeric-looking commit hashes equal.
+     * The ruleset flags count, because the marker of a mismatch must follow a ruleset change with no other event.
      * The times and the approval, branch, author and title facts are left out, the newest approval with them, so a fact read first on a stored row announces no change.
      * A default branch that both reads know and that differs counts, because it decides whether the pull request waits for an approval.
      */
@@ -78,6 +83,8 @@ final readonly class PullRequestSnapshot
             && $this->review === $other->review
             && $this->readyToMerge === $other->readyToMerge
             && $this->changesRequestedAt == $other->changesRequestedAt
+            && $this->baseRequiresReview === $other->baseRequiresReview
+            && $this->approvalCheckUnpinned === $other->approvalCheckUnpinned
             && (null === $this->defaultBranch || null === $other->defaultBranch || $this->defaultBranch === $other->defaultBranch);
     }
 }
