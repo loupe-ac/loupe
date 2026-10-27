@@ -135,6 +135,55 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertSelectorNotExists('[data-marker-key]');
     }
 
+    public function test_the_metrics_of_the_template_are_listed_in_order(): void
+    {
+        $project = $this->workflowProject('workflow-page-metrics');
+        $shipped = static::getContainer()->get(ShippedTemplates::class);
+        self::assertInstanceOf(ShippedTemplates::class, $shipped);
+        $source = $shipped->source('simple');
+        $source['metrics'] = [
+            ['key' => 'conflicts', 'label' => 'Conflicts', 'description' => 'The conflicts of a card.', 'count' => ['reason' => 'conflict'], 'splitBy' => 'reason'],
+            ['key' => 'delivery-rate', 'label' => 'Delivery rate', 'description' => 'The share that merged.', 'rate' => ['outcome' => 'merged']],
+        ];
+        $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
+        $owner = $this->stampedOwner($project);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['conflicts', 'delivery-rate'], $crawler->filter('[data-workflow-metrics] [data-metric-key]')->extract(['data-metric-key']));
+        self::assertSelectorTextContains('[data-metric-key="conflicts"] [data-metric-label]', 'Conflicts');
+        self::assertSelectorTextContains('[data-metric-key="conflicts"] [data-metric-description]', 'The conflicts of a card.');
+        self::assertSelectorTextContains('[data-metric-key="conflicts"] [data-metric-id]', 'conflicts');
+        self::assertSelectorTextContains('[data-metric-key="conflicts"] [data-metric-type]', 'Count');
+        self::assertSelectorTextContains('[data-metric-key="delivery-rate"] [data-metric-type]', 'Rate');
+        self::assertSelectorTextContains('[data-metric-key="delivery-rate"] [data-metric-reads]', 'Finished cards that a move with outcome merged ended');
+        self::assertSame('Metrics', $crawler->filter('[data-workflow-metrics] .lp-data-table[role="table"]')->attr('aria-label'));
+        $crawler->filter('[data-workflow-metrics] [data-metric-key]')->each(static function (Crawler $row): void {
+            self::assertSame('row', $row->attr('role'));
+            self::assertSame(['cell', 'cell', 'cell', 'cell'], $row->children()->extract(['role']));
+        });
+    }
+
+    public function test_a_template_without_metrics_says_so(): void
+    {
+        $project = $this->workflowProject('workflow-page-no-metrics');
+        $shipped = static::getContainer()->get(ShippedTemplates::class);
+        self::assertInstanceOf(ShippedTemplates::class, $shipped);
+        $source = $shipped->source('simple');
+        unset($source['metrics']);
+        $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
+        $owner = $this->stampedOwner($project);
+
+        $this->client->loginUser($owner);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-workflow-metrics]', 'This template declares no metrics.');
+        self::assertSelectorNotExists('[data-metric-key]');
+    }
+
     public function test_a_rule_whose_condition_no_longer_exists_is_marked(): void
     {
         $project = $this->workflowProject('workflow-page-missing');

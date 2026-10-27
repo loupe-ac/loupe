@@ -110,6 +110,35 @@
         {% endif %}
     </section>
 
+    <section class="lp-workflow-section" data-workflow-metrics>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.metrics.heading'|trans }}</twig:Ds:SectionHeading>
+        <p class="lp-workspace-desc">{{ 'workflow.settings.metrics.description'|trans }}</p>
+        {% if template.metrics is not empty %}
+        <twig:Ds:DataTable modifier="metrics" :label="'workflow.settings.metrics.table.label'|trans" :columns="[
+            {label: 'workflow.settings.metrics.metric'|trans},
+            {label: 'workflow.settings.metrics.key'|trans},
+            {label: 'workflow.settings.metrics.type'|trans},
+            {label: 'workflow.settings.metrics.reads'|trans},
+        ]">
+            {% for metric in template.metrics %}
+            <div class="lp-data-table__row" role="row" data-metric-key="{{ metric.key }}">
+                <span class="lp-data-table__cell lp-data-table__cell--wrap" role="cell">
+                    <span class="lp-data-table__title" data-metric-label>{{ metric.label }}</span>
+                    <span class="lp-data-table__sub" data-metric-description>{{ metric.description }}</span>
+                </span>
+                <span class="lp-data-table__cell lp-data-table__cell--code" role="cell" data-metric-id>{{ metric.key }}</span>
+                <span class="lp-data-table__cell" role="cell" data-metric-type>
+                    <twig:Ds:Tag :tone="{count: 'blue', rate: 'teal', duration: 'purple'}[metric.type]">{{ ('workflow.settings.metrics.type.' ~ metric.type)|trans }}</twig:Ds:Tag>
+                </span>
+                <span class="lp-data-table__cell lp-data-table__cell--wrap" role="cell" data-metric-reads>{{ metric.reads }}</span>
+            </div>
+            {% endfor %}
+        </twig:Ds:DataTable>
+        {% else %}
+        <p class="lp-workspace-desc">{{ 'workflow.settings.metrics.none'|trans }}</p>
+        {% endif %}
+    </section>
+
     <section class="lp-workflow-section" data-workflow-template-rules>
         <twig:Ds:SectionHeading>{{ 'workflow.settings.rules.heading'|trans }}</twig:Ds:SectionHeading>
         {% include '@Workflow/_rule_table.html.twig' with {rules: template.rules} only %}
