@@ -70,6 +70,7 @@ final class GitHubBranchRulesTest extends TestCase
 
         yield 'a rule that is not an object' => [['x']];
         yield 'a rule with no type' => [[['ruleset_id' => 1]]];
+        yield 'a rule with an unknown type' => [[['type' => 'pull_request_v2', 'ruleset_id' => 1]]];
         yield 'a pull request rule with no parameters' => [[['type' => 'pull_request']]];
         yield 'a pull request rule with no review count' => [[['type' => 'pull_request', 'parameters' => []]]];
         yield 'a pull request rule with a text review count' => [[['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => '1']]]];
@@ -88,6 +89,8 @@ final class GitHubBranchRulesTest extends TestCase
             ['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => 1]],
             ['type' => 'required_status_checks', 'parameters' => ['required_status_checks' => [['context' => 'lint'], ['context' => 'test', 'integration_id' => 5]]]],
             ['type' => 'deletion'],
+            ['type' => 'required_signatures'],
+            ['type' => 'copilot_code_review', 'parameters' => ['review_on_push' => true]],
         ];
 
         self::assertEquals(GitHubBranchRules::fromRules($rules), GitHubBranchRules::fromCompleteRules($rules));

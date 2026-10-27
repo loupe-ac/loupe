@@ -199,6 +199,7 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
         yield 'the merge switches are missing' => ['merge_switches_unreadable', [$json(['default_branch' => 'main'])]];
         yield 'the rules answer is not a list' => ['malformed_body', [$json($repo), $json(['message' => 'x'])]];
         yield 'a pull request rule has no parameters' => ['malformed_body', [$json($repo), $json([['type' => 'pull_request', 'ruleset_id' => 7]])]];
+        yield 'a rule has an unknown type' => ['malformed_body', [$json($repo), $json([['type' => 'pull_request_v2', 'ruleset_id' => 7]])]];
         yield 'a status check rule has no check list' => ['malformed_body', [$json($repo), $json([['type' => 'required_status_checks', 'parameters' => []]])]];
         yield 'the rules read fails' => ['api_failed_http_status', [$json($repo), $json([], 500)]];
         yield 'a ruleset detail answers 500' => ['api_failed_http_status', [$json($repo), $json($rules), $json([], 500)]];

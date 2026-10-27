@@ -9,6 +9,15 @@ use App\Module\Forge\Entity\ForgePullRequest;
 /** The status check rules that apply to one branch, read from `GET /repos/{owner}/{repo}/rules/branches/{branch}`. */
 final readonly class GitHubBranchRules
 {
+    /** The rule types of the REST API description. A type outside it could stand in for a rule this read judges. */
+    private const array KNOWN_TYPES = [
+        'branch_name_pattern', 'code_coverage', 'code_quality', 'code_scanning', 'commit_author_email_pattern',
+        'commit_message_pattern', 'committer_email_pattern', 'copilot_code_review', 'creation', 'deletion',
+        'file_extension_restriction', 'file_path_restriction', 'license_compliance_scanning', 'max_file_path_length',
+        'max_file_size', 'merge_queue', 'non_fast_forward', 'pull_request', 'required_deployments',
+        'required_linear_history', 'required_signatures', 'required_status_checks', 'tag_name_pattern', 'update', 'workflows',
+    ];
+
     /**
      * @param list<string>                                                               $requiredChecks
      * @param list<positive-int|null>                                                    $approvalSources     the App id of each entry that requires the approval check, null for an entry with no App
@@ -34,8 +43,8 @@ final readonly class GitHubBranchRules
     }
 
     /**
-     * Reads the rules as fromRules() does, but refuses a rule whose data is incomplete,
-     * so that a partial answer never reads as a missing rule.
+     * Reads the rules as fromRules() does, but refuses a rule whose data is incomplete
+     * or whose type is unknown, so that an unclear answer never reads as a missing rule.
      *
      * @param array<mixed> $rules
      *
@@ -46,6 +55,9 @@ final readonly class GitHubBranchRules
         foreach (array_is_list($rules) ? $rules : [] as $rule) {
             if (!\is_array($rule) || !\is_string($rule['type'] ?? null)) {
                 throw new \UnexpectedValueException('A branch rule has no type.');
+            }
+            if (!\in_array($rule['type'], self::KNOWN_TYPES, true)) {
+                throw new \UnexpectedValueException(\sprintf('The branch rule type "%s" is unknown.', $rule['type']));
             }
             $parameters = $rule['parameters'] ?? null;
             if ('pull_request' === $rule['type'] && (!\is_array($parameters) || !\is_int($parameters['required_approving_review_count'] ?? null) || !self::isStringList($parameters['allowed_merge_methods'] ?? []))) {
