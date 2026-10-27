@@ -1023,7 +1023,7 @@ of a new commit opens no item. When `Loupe / Approval` passed and GitHub still b
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
 Loupe reads the rulesets of the default branch of the repository. When a ruleset requires an approving review, or
 requires `Loupe / Approval` without the Loupe App as its source, the marker `ruleset-mismatch` shows Needs you on the
-card of an open pull request into that branch, with a link to the steps below. The Connections page shows the same warning under the repository.
+card of an open pull request into that branch, with a link to the steps below. The Repositories tab of the project settings lists the settings that do not fit under each repository.
 Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
 
 #### Set up the ruleset

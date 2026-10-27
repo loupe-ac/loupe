@@ -1,0 +1,4 @@
+{#- Replaces one repository row. Props: row (RepositoryRow), project (Project). -#}
+<turbo-stream action="replace" target="{{ row.elementId }}">
+    <template>{% include '@GitHub/components/_repository_row.html.twig' with {row: row, project: project} only %}</template>
+</turbo-stream>

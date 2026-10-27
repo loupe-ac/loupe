@@ -1,162 +1,19 @@
 {% if visible %}
-<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories">
+{% do mercure_subscribe(topic) %}
+<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-controller="repository-checks-live">
     <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
 
-    {% if not appConfigured and not hookAvailable %}
+    {% if not connectionsAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
+    {% elseif rows is empty %}
+    <p class="lp-connect-hint" data-testid="forge-repositories-empty">{{ 'github.repositories.empty'|trans }}</p>
     {% else %}
-        {% if repositories is empty %}
-        <p class="lp-connect-hint" data-testid="forge-repositories-empty">{{ 'github.repositories.empty'|trans }}</p>
-        {% else %}
-        <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
-        {% for repository in repositories %}
-        {% set health = repository.health(now).value %}
-        <div class="lp-identity-row" data-forge-repository="{{ repository.id }}">
-            <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--md lp-identity-row__glyph" />
-            <span class="lp-identity-row__text">
-                <span class="lp-identity-row__name lp-identity-row__name--mono" data-testid="forge-repository-path">{{ repository.path }}</span>
-                <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="forge-repository-health">
-                    {%- if health == 'working' -%}
-                        {{ 'github.repositories.health.working'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
-                    {%- elseif health == 'quiet' -%}
-                        {{ 'github.repositories.health.quiet'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
-                    {%- else -%}
-                        {{ 'github.repositories.health.waiting'|trans }}
-                    {%- endif -%}
-                </span>
-            </span>
-            <div data-controller="modal">
-                <twig:Ds:Button variant="danger-ghost" size="sm" type="button"  data-action="click->modal#open">{{ 'github.repositories.remove.action'|trans }}</twig:Ds:Button>
-                <twig:Ds:Dialog aria-labelledby="remove-repository-title-{{ loop.index }}" data-action="cancel->modal#close">
-                    <h2 class="lp-dialog-title" id="remove-repository-title-{{ loop.index }}">{{ 'github.repositories.remove.title'|trans }}</h2>
-                    <p class="lp-dialog-desc">{{ 'github.repositories.remove.description'|trans({'%path%': repository.path}) }}</p>
-                    <form method="post" action="{{ path('app_forge_repository_remove', {id: project.id, repositoryId: repository.id}) }}">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('forge-repository-remove') }}">
-                        <twig:Ds:FormActions>
-                            <twig:Ds:Button variant="ghost" type="button"  data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
-                            <twig:Ds:Button variant="danger" type="submit">{{ 'github.repositories.remove.confirm'|trans }}</twig:Ds:Button>
-                        </twig:Ds:FormActions>
-                    </form>
-                </twig:Ds:Dialog>
-            </div>
-        </div>
-        {% set mismatch = rulesetMismatches[repository.id.toRfc4122] ?? null %}
-        {% if mismatch.requiresReview ?? false %}
-        <p class="lp-connect-hint" data-testid="forge-ruleset-requires-review" data-forge-repository-warning="{{ repository.id }}">{{ 'github.repositories.ruleset.requires_review'|trans }}</p>
-        {% endif %}
-        {% if mismatch.unpinned ?? false %}
-        <p class="lp-connect-hint" data-testid="forge-ruleset-unpinned" data-forge-repository-warning="{{ repository.id }}">{{ 'github.repositories.ruleset.unpinned'|trans }}</p>
-        {% endif %}
-        {% if (mismatch.requiresReview ?? false) or (mismatch.unpinned ?? false) %}
-        <p class="lp-connect-hint" data-forge-repository-guide="{{ repository.id }}"><a href="{{ app_docs_url }}/using/workflows/#set-up-the-ruleset">{{ 'github.repositories.ruleset.guide'|trans }}</a></p>
-        {% endif %}
+    <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
+    <div class="lp-repository-list">
+        {% for row in rows %}
+        {% include '@GitHub/components/_repository_row.html.twig' with {row: row, project: project} only %}
         {% endfor %}
-        {% endif %}
-
-        {% if appConfigured %}
-        <div class="lp-connect-block" id="github-app">
-            <p class="lp-eyebrow">{{ 'github.app.eyebrow'|trans }}</p>
-            <p class="lp-connect-hint">{{ 'github.app.purpose'|trans }}</p>
-            {% for installation in installations %}
-            <div class="lp-identity-row" data-github-installation="{{ installation.installationId }}">
-                <twig:ux:icon name="lucide:package" class="lp-icon lp-icon--md lp-identity-row__glyph" />
-                <span class="lp-identity-row__text">
-                    <span class="lp-identity-row__name" data-testid="github-installation-account">{{ installation.accountLogin }}</span>
-                    <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="github-installation-state">
-                        {%- if installation.removedAt is not null -%}
-                            {{ 'github.app.state.removed'|trans }}
-                        {%- else -%}
-                            {{ ('github.app.selection.' ~ installation.repositorySelection.value)|trans }}
-                            {%- if installation.suspendedAt is not null %} · {{ 'github.app.state.suspended'|trans }}{% endif -%}
-                        {%- endif -%}
-                    </span>
-                </span>
-            </div>
-            {% endfor %}
-            <p class="lp-connect-hint">{{ 'github.app.follows'|trans }}</p>
-            <twig:Ds:Button variant="primary" href="{{ path('app_github_app_install', {id: project.id}) }}" data-testid="github-app-install">
-                <twig:ux:icon name="lucide:external-link" />{{ 'github.app.install'|trans }}
-            </twig:Ds:Button>
-        </div>
-        {% endif %}
-
-        <div class="lp-connect-block" id="github-hook">
-            <p class="lp-eyebrow">{{ 'github.repositories.hook.eyebrow'|trans }}</p>
-            {% if hookAvailable %}
-            <p class="lp-connect-hint" data-testid="github-hook-no-automation">{{ 'github.repositories.hook.no_automation'|trans }}</p>
-            {% endif %}
-            {% if not hookAvailable %}
-            <p class="lp-connect-hint" data-testid="github-hook-disabled">{{ 'github.repositories.hook.unavailable'|trans }}</p>
-            {% elseif hook is null %}
-            <p class="lp-connect-hint">{{ 'github.repositories.hook.purpose'|trans }}</p>
-            <twig:Ds:ActionForm :action="path('app_github_hook_create', {id: project.id})" token="github-hook-create">
-                <twig:Ds:Button type="submit" variant="primary" data-testid="github-hook-create">
-                    <twig:ux:icon name="lucide:plug" />{{ 'github.repositories.hook.create'|trans }}
-                </twig:Ds:Button>
-            </twig:Ds:ActionForm>
-            {% else %}
-            {% set hookHealth = hook.health().value %}
-            <p class="lp-connect-hint" data-testid="github-hook-health">
-                {%- if hookHealth == 'failing' -%}
-                    {{ 'github.repositories.hook.health.failing'|trans({
-                        '%time%': hook.lastRefusedAt|date('j M Y, H:i'),
-                        '%reason%': (hook.lastRefusedReason in ['bad_signature', 'bad_payload']
-                            ? 'github.repositories.hook.reason.' ~ hook.lastRefusedReason
-                            : 'github.repositories.hook.reason.unknown')|trans,
-                    }) }}
-                {%- elseif hookHealth == 'working' -%}
-                    {{ 'github.repositories.hook.health.working'|trans({'%time%': hook.lastAcceptedAt|date('j M Y, H:i')}) }}
-                {%- else -%}
-                    {{ 'github.repositories.hook.health.waiting'|trans }}
-                {%- endif -%}
-            </p>
-
-            <p class="lp-connect-hint">{{ 'github.repositories.hook.instructions'|trans }}</p>
-
-            {% set hookUrl = url('webhook_forge_github_hook', {hookKey: hook.hookKey}) %}
-            <twig:Ds:CodeBlock
-                :label="'github.repositories.hook.url'|trans"
-                :text="hookUrl"
-                :copyLabel="'project.connect.copy'|trans"
-                :copiedLabel="'project.connect.copied'|trans"
-                testid="github-hook-url" />
-            <p class="lp-connect-hint">{{ 'github.repositories.hook.content_type'|trans({'%type%': 'application/json'}) }}</p>
-
-            {% if newSecret %}
-            <div class="lp-connect-secret">
-                <div class="lp-connect-alert">
-                    <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--md lp-connect-alert__icon" />
-                    <p class="lp-connect-alert__text">{{ 'github.repositories.hook.secret_once'|trans }}</p>
-                </div>
-                <twig:Ds:CodeBlock
-                    :label="'github.repositories.hook.secret'|trans"
-                    :text="newSecret"
-                    :copyLabel="'project.connect.copy'|trans"
-                    :copiedLabel="'project.connect.copied'|trans"
-                    testid="github-hook-secret" />
-            </div>
-            {% endif %}
-
-            <p class="lp-connect-hint">{{ 'github.repositories.hook.events'|trans }}</p>
-
-            <div data-controller="modal">
-                <twig:Ds:Button type="button" size="sm" data-action="click->modal#open" data-testid="github-hook-rotate">
-                    <twig:ux:icon name="lucide:rotate-cw" />{{ 'github.repositories.hook.rotate.action'|trans }}
-                </twig:Ds:Button>
-                <twig:Ds:Dialog aria-labelledby="rotate-hook-secret-title" data-action="cancel->modal#close">
-                    <h2 class="lp-dialog-title" id="rotate-hook-secret-title">{{ 'github.repositories.hook.rotate.title'|trans }}</h2>
-                    <p class="lp-dialog-desc">{{ 'github.repositories.hook.rotate.description'|trans }}</p>
-                    <form method="post" action="{{ path('app_github_hook_secret_rotate', {id: project.id}) }}">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('github-hook-secret-rotate') }}">
-                        <twig:Ds:FormActions>
-                            <twig:Ds:Button variant="ghost" type="button"  data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
-                            <twig:Ds:Button variant="primary" type="submit">{{ 'github.repositories.hook.rotate.confirm'|trans }}</twig:Ds:Button>
-                        </twig:Ds:FormActions>
-                    </form>
-                </twig:Ds:Dialog>
-            </div>
-            {% endif %}
-        </div>
+    </div>
     {% endif %}
 </twig:Ds:Panel>
 {% endif %}

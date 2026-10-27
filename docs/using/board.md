@@ -875,7 +875,7 @@ the links read back in the order they were added.
 ### What GitHub tells a card
 
 The project owner connects the project's GitHub repositories on the Connections
-tab. [Projects](projects.md#repositories) describes how. After that, a merge, a
+tab, and sees them on the Repositories tab. [Projects](projects.md#repositories) describes how. After that, a merge, a
 review or a check result in a connected repository reaches each card of that
 project which links the pull request. Your agent receives it as an event.
 

@@ -45,6 +45,6 @@ class CreateGitHubHookController extends AppController
             }
         }
 
-        return $this->redirectToRoute('app_project_connect', ['id' => (string) $project->id, '_fragment' => 'repositories']);
+        return $this->redirectToRoute('app_project_connect', ['id' => (string) $project->id, '_fragment' => 'github-hook']);
     }
 }
