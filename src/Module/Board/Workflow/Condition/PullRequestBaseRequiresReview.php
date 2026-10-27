@@ -9,13 +9,13 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** The approval that Loupe posted as the forge's App names the head commit. */
-final readonly class PullRequestAppApprovalCoversHead implements Condition
+/** The ruleset of the default branch requires an approving review. */
+final readonly class PullRequestBaseRequiresReview implements Condition
 {
     #[\Override]
     public static function key(): string
     {
-        return 'pr.app_approval_covers_head';
+        return 'pr.base_requires_review';
     }
 
     #[\Override]
@@ -33,18 +33,18 @@ final readonly class PullRequestAppApprovalCoversHead implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest, EngineFact::PullRequestAppApproval];
+        return [EngineFact::PullRequest, EngineFact::PullRequestRuleset];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return true === $facts->pullRequest?->appApprovalCoversHead;
+        return true === $facts->pullRequest?->baseRequiresReview;
     }
 
     #[\Override]
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
-        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_app_approval_covers_head' : 'workflow.waiting.pr_app_approval_covers_head');
+        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_base_requires_review' : 'workflow.waiting.pr_base_requires_review');
     }
 }

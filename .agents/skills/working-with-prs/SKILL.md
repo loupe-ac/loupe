@@ -41,7 +41,7 @@ locally is debugging, not gating" for the cases that still want a local run.
 
 Open the pull request as a draft. A review worker, which is never the worker
 that wrote the code, reads the whole change at the head commit. Loupe posts the
-result as the check `loupe/agent-review`, with each finding beside its line.
+result as the check `Loupe / Agent review`, with each finding beside its line.
 `docs/using/workflows.md` "Agent review" describes the flow.
 
 - A failed review asks for a fix at once. The fix round reads the findings of

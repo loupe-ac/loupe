@@ -29,6 +29,9 @@ class ForgePullRequest
 
     public const int ANNOUNCED_REVIEW_LIMIT = 50;
 
+    /** The name of the check run that Loupe posts when a pull request may merge. */
+    public const string APPROVAL_CHECK_NAME = 'Loupe / Approval';
+
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -147,6 +150,22 @@ class ForgePullRequest
     /** The commit that the App approval names. */
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $appApprovalSha = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    public bool $baseRequiresReview = false;
+
+    #[ORM\Column(options: ['default' => false])]
+    public bool $approvalCheckUnpinned = false;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $approvalCheckRunId = null;
+
+    /** The commit that the approval check run names. A new head has no run until Loupe posts one. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $approvalCheckSha = null;
+
+    #[ORM\Column(length: 32, nullable: true)]
+    public ?string $approvalCheckConclusion = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $coveredSha = null;
@@ -292,6 +311,8 @@ class ForgePullRequest
         $this->latestApproverLogin = $snapshot->latestApproverLogin;
         $this->appApprovalId = $snapshot->appApprovalId;
         $this->appApprovalSha = $snapshot->appApprovalSha;
+        $this->baseRequiresReview = $snapshot->baseRequiresReview;
+        $this->approvalCheckUnpinned = $snapshot->approvalCheckUnpinned;
         $this->defaultBranch = $snapshot->defaultBranch;
         $this->headParents = $snapshot->headParents;
     }
@@ -401,6 +422,8 @@ class ForgePullRequest
             $this->title,
             $this->appApprovalId,
             $this->appApprovalSha,
+            $this->baseRequiresReview,
+            $this->approvalCheckUnpinned,
         );
     }
 }

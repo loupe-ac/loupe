@@ -11,7 +11,7 @@ use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** The card is an epic, or every open pull request head has a review that passed. */
+/** Every open pull request head has a review that passed. */
 final readonly class AgentReviewPassed implements Condition
 {
     #[\Override]
@@ -42,10 +42,6 @@ final readonly class AgentReviewPassed implements Condition
     public function evaluate(Facts $facts, array $params): bool
     {
         $review = $facts->get(AgentReviewFacts::class);
-
-        if ($review->epic) {
-            return true;
-        }
 
         return [] !== $review->heads && array_all($review->heads, static fn (ReviewedHead $head): bool => AgentReviewConclusion::Success === $head->conclusion);
     }

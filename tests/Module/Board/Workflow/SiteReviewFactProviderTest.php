@@ -175,12 +175,14 @@ final class SiteReviewFactProviderTest extends KernelTestCase
         $card = $this->card($this->project);
         $pullRequest = $this->linkedPullRequest($card, 7);
         $pullRequest->headSha = 'sha-2';
-        $this->em->persist(new SiteReviewCheckState($pullRequest, 'sha-1', 'failure', 3, 99));
+        $state = new SiteReviewCheckState($pullRequest, 'sha-1', 'failure', 3, 99);
+        $state->checkName = 'Loupe / Live review';
+        $this->em->persist($state);
         $this->em->flush();
 
         $facts = $this->build($card);
 
-        self::assertEquals([(string) $pullRequest->id => new CheckWanted('sha-2', 'success', 0, 'sha-1', 'failure', 99, 3, $this->provider()->notesDigest([]), null)], $facts->checks);
+        self::assertEquals([(string) $pullRequest->id => new CheckWanted('sha-2', 'success', 0, 'sha-1', 'failure', 99, 3, $this->provider()->notesDigest([]), null, [], 'Loupe / Live review')], $facts->checks);
     }
 
     public function test_only_open_github_pull_requests_of_the_card_carry_a_check(): void

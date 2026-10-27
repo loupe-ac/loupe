@@ -60,7 +60,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
+        'document-in-review', 'waits-for-approval', 'merge-blocked', 'ruleset-mismatch', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
@@ -74,7 +74,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'ruleset-mismatch'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -475,6 +475,46 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame(['waits-for-approval', 'open-question'], $this->writtenKeys());
         self::assertSame(['%number%' => 6, '%title%' => 'Which way?'], $this->written('open-question')->params);
+    }
+
+    public function test_a_blocked_merge_after_the_approval_check_passed_needs_the_person_and_names_the_pull_request(): void
+    {
+        $blocked = FactsMother::pullRequest(checks: ChecksState::Passed, number: 9, approvalCheckPassed: true, mergeBlocked: true);
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $blocked, pullRequests: [$blocked]));
+
+        self::assertSame(['merge-blocked'], $this->writtenKeys());
+        self::assertSame(['%number%' => 9], $this->written('merge-blocked')->params);
+    }
+
+    public function test_a_blocked_merge_before_the_approval_check_passed_shows_no_blocked_marker(): void
+    {
+        $blocked = FactsMother::pullRequest(checks: ChecksState::Passed, number: 9, mergeBlocked: true);
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $blocked, pullRequests: [$blocked]));
+
+        self::assertNotContains('merge-blocked', $this->writtenKeys());
+    }
+
+    public function test_a_ruleset_that_does_not_fit_the_approval_check_needs_the_person(): void
+    {
+        foreach (['baseRequiresReview', 'approvalCheckUnpinned'] as $field) {
+            $mismatch = FactsMother::pullRequest(...[$field => true, 'number' => 9]);
+
+            $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $mismatch, pullRequests: [$mismatch]));
+
+            self::assertContains('ruleset-mismatch', $this->writtenKeys(), $field);
+            self::assertSame(MarkerLink::RulesetSetup, $this->written('ruleset-mismatch')->link, $field);
+        }
+    }
+
+    public function test_a_pull_request_with_a_fitting_ruleset_shows_no_ruleset_mismatch_marker(): void
+    {
+        $fitting = FactsMother::pullRequest(number: 9);
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $fitting, pullRequests: [$fitting]));
+
+        self::assertNotContains('ruleset-mismatch', $this->writtenKeys());
     }
 
     public function test_a_non_blocking_to_do_alone_needs_nobody_in_either_shipped_template(): void

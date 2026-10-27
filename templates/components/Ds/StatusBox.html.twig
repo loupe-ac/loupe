@@ -5,7 +5,7 @@
     chip         string   Translated chip text, the state and how long it has held.
     lead         string   Translated sentence that says why the card has the state.
     fields       list     Optional facts, each with a translated label and value, wide for a sentence, and link with href and label for a link after the value.
-    others       list     The other states that apply, each with kind, label, lead and since. Optional.
+    others       list     The other states that apply, each with kind, label, lead, since, and an optional link with href and label. Optional.
     othersTitle  string   Translated heading of the other-states list. Optional.
   Any other attribute, class included, is passed to the element.
 #}
@@ -35,7 +35,7 @@
             {% for other in others %}
             <li class="lp-status-box__other lp-status-box__other--{{ other.kind }}">
                 <span class="lp-status-box__dot"></span>
-                <span><strong>{{ other.label }}</strong>{% if other.since %} <span class="lp-status-box__since">{{ other.since }}</span>{% endif %}<br>{{ other.lead }}</span>
+                <span><strong>{{ other.label }}</strong>{% if other.since %} <span class="lp-status-box__since">{{ other.since }}</span>{% endif %}<br>{{ other.lead }}{% if other.link ?? null %} <a href="{{ other.link.href }}" data-turbo-frame="_top">{{ other.link.label }}</a>{% endif %}</span>
             </li>
             {% endfor %}
         </ul>

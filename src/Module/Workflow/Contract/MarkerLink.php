@@ -8,6 +8,7 @@ namespace App\Module\Workflow\Contract;
 enum MarkerLink: string
 {
     case Agents = 'agents';
+    case RulesetSetup = 'ruleset-setup';
 
     /** The translation key of the link text. */
     public function translationKey(): string

@@ -28,7 +28,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[AsAlias(AgentReviewCheck::class)]
 final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
 {
-    public const string NAME = 'loupe/agent-review';
+    public const string NAME = 'Loupe / Agent review';
 
     public const int MAX_LISTED_FINDINGS = 20;
 
@@ -98,6 +98,7 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
             $target->checkRunId = $runId;
             $target->checkConclusion = $conclusion;
             $target->checkApprover = $due->approver;
+            $target->checkName = self::NAME;
             $target->annotationsPosted = \count($annotations);
             $target->postedAt ??= \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();
