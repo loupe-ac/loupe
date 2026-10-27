@@ -20,6 +20,7 @@ final readonly class PublicPages
         'app_terms' => true,
         'app_ai_policy' => true,
         'app_compare_list' => true,
+        'app_faq' => true,
         'app_waitlist_join' => true,
         'app_login' => false,
         'app_register' => false,
@@ -33,6 +34,7 @@ final readonly class PublicPages
         'app_ai_policy',
         'app_compare_list',
         'app_compare',
+        'app_faq',
         'app_waitlist_join',
         'app_waitlist_notify',
         'app_waitlist_modal',
@@ -46,7 +48,7 @@ final readonly class PublicPages
     ];
 
     /** The routes that have one copy, on the site host, when the instance splits its hosts. */
-    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare'];
+    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare', 'app_faq'];
 
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
@@ -87,6 +89,18 @@ final readonly class PublicPages
     public function hasComparisons(): bool
     {
         return $this->siteHost->isSet() && [] !== $this->comparisonPages->all();
+    }
+
+    /** True when the instance has a site host, which is where the FAQ page answers. */
+    public function hasFaq(): bool
+    {
+        return $this->siteHost->isSet();
+    }
+
+    /** The absolute URL of the FAQ page, on the site origin. */
+    public function faqUrl(): string
+    {
+        return $this->absoluteUrl($this->urlGenerator->generate('app_faq'));
     }
 
     /** @return list<string> */
@@ -145,7 +159,7 @@ final readonly class PublicPages
     private function isRendered(string $route): bool
     {
         return match ($route) {
-            'app_home', 'app_compare_list' => $this->siteHost->isSet(),
+            'app_home', 'app_compare_list', 'app_faq' => $this->siteHost->isSet(),
             'app_waitlist_join' => $this->registrationGate->allowsNewAccounts() && !$this->registrationGate->isOpen(),
             default => true,
         };

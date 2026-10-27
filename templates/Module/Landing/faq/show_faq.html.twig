@@ -1,0 +1,20 @@
+{% extends 'marketing_base.html.twig' %}
+
+{% block title %}{{ faq.title }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block description %}{{ faq.description }}{% endblock %}
+
+{% block body %}
+<article class="lp-legal">
+    <h1 class="lp-legal__title">{{ faq.title }}</h1>
+    <p class="lp-legal__updated">{{ 'landing.faq.updated_on'|trans({'%date%': faq.updatedOn|date('F j, Y')}) }}</p>
+    <div class="prose lp-prose lp-legal__body lp-compare">
+        {{ faq.html|raw }}
+        <section>
+            <h2>{{ 'landing.compare.try_title'|trans }}</h2>
+            <p>{{ 'landing.compare.try_body'|trans }}</p>
+            {% include '@Landing/compare/_closing.html.twig' only %}
+        </section>
+    </div>
+</article>
+{% endblock %}

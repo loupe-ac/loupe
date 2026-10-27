@@ -27,6 +27,9 @@
                     {% if has_comparisons() %}
                         <li><a href="{{ site_url('/compare') }}" class="lp-home-footer__link">{{ 'landing.compare.footer_link'|trans }}</a></li>
                     {% endif %}
+                    {% if has_faq() %}
+                        <li><a href="{{ site_url('/faq') }}" class="lp-home-footer__link">{{ 'landing.faq.footer_link'|trans }}</a></li>
+                    {% endif %}
                     <li><a href="{{ site_url(path('app_waitlist_join')) }}" class="lp-home-footer__link" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="footer">{{ 'landing.cta.join'|trans }}</a></li>
                 </ul>
             </nav>
