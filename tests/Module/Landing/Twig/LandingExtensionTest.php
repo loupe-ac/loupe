@@ -70,6 +70,6 @@ final class LandingExtensionTest extends KernelTestCase
         $comparisons = static::getContainer()->get(ComparisonPages::class);
         self::assertInstanceOf(ComparisonPages::class, $comparisons);
         $pagePaths = array_map(static fn ($page): string => '/compare/'.$page->slug, $comparisons->all());
-        self::assertSame(['/', '/privacy', '/terms', '/ai-policy', '/compare', '/waitlist', '/login', '/register', ...$pagePaths], $paths);
+        self::assertSame(['/', '/privacy', '/terms', '/ai-policy', '/compare', '/faq', '/waitlist', '/login', '/register', ...$pagePaths], $paths);
     }
 }

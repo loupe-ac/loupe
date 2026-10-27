@@ -6,13 +6,13 @@ namespace App\Module\Forge\Service;
 
 use App\Mercure\LiveUpdatePublisher;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
-use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
+use App\Module\Forge\Messenger\ReconcileRepositoryHold;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -28,16 +28,16 @@ final readonly class RepositoryHoldSummaries
         private ForgeRepositoryCheckRepository $forgeRepositoryChecks,
         private ProjectRepository $projects,
         private EntityManagerInterface $em,
-        private EventDispatcherInterface $events,
+        private MessageBusInterface $bus,
         private LiveUpdatePublisher $publisher,
         private RepositoryCheckTopics $topics,
     ) {
     }
 
     /**
-     * Runs $write in a transaction under the project lock and flushes it. After
-     * the commit it dispatches the event when the summary changed, and queues a
-     * signal for each repository that $write named.
+     * Runs $write in a transaction under the project lock and flushes it. When
+     * the summary changed, it queues the reconciliation in the same transaction.
+     * After the commit it queues a signal for each repository that $write named.
      *
      * @template T
      *
@@ -48,26 +48,24 @@ final readonly class RepositoryHoldSummaries
     public function change(Project $project, callable $write): mixed
     {
         $change = new RepositoryChange();
-        $changed = false;
+        $projectId = $project->id ?? throw new \LogicException('A persisted project has an id.');
 
-        $result = $this->em->wrapInTransaction(function () use ($project, $write, $change, &$changed): mixed {
+        $result = $this->em->wrapInTransaction(function () use ($project, $projectId, $write, $change): mixed {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             $before = $this->current($project);
 
             $result = $write($change);
             $this->em->flush();
 
-            $changed = !$before->equals($this->current($project));
+            if (!$before->equals($this->current($project))) {
+                $this->bus->dispatch(new ReconcileRepositoryHold((string) $projectId));
+            }
 
             return $result;
         });
 
-        $projectId = $project->id ?? throw new \LogicException('A persisted project has an id.');
         foreach ($change->signals() as $repositoryId) {
             $this->signal($projectId, $repositoryId);
-        }
-        if ($changed) {
-            $this->events->dispatch(new ForgeRepositoryCheckChanged($projectId));
         }
 
         return $result;

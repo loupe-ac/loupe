@@ -5526,6 +5526,14 @@
                 <source>landing.compare.others_title</source>
                 <target>Other comparisons</target>
             </trans-unit>
+            <trans-unit id="landing.faq.footer_link">
+                <source>landing.faq.footer_link</source>
+                <target>FAQ</target>
+            </trans-unit>
+            <trans-unit id="landing.faq.updated_on">
+                <source>landing.faq.updated_on</source>
+                <target>Last updated on %date%.</target>
+            </trans-unit>
             <trans-unit id="landing.footer.tagline">
                 <source>landing.footer.tagline</source>
                 <target>A software factory for coding agents. Open source, and free to host yourself.</target>

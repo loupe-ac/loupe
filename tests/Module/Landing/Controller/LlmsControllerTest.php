@@ -51,6 +51,7 @@ final class LlmsControllerTest extends WebTestCase
 
             $body = (string) $client->getResponse()->getContent();
             self::assertStringContainsString("\n## Compare\n", $body);
+            self::assertStringContainsString("\n## FAQ\n\n- [Questions people ask about Loupe](https://loupe.example/faq): ", $body);
             self::assertStringContainsString("- [Loupe vs Fixture's Rival](https://loupe.example/compare/".ComparisonFixtures::SLUG.'): '.ComparisonFixtures::DESCRIPTION, $body);
         } finally {
             $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $previous;
@@ -70,6 +71,7 @@ final class LlmsControllerTest extends WebTestCase
 
             self::assertResponseIsSuccessful();
             self::assertStringNotContainsString('## Compare', (string) $client->getResponse()->getContent());
+            self::assertStringNotContainsString('## FAQ', (string) $client->getResponse()->getContent());
         } finally {
             $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $previous;
             ComparisonFixtures::remove($fixtures);
