@@ -147,10 +147,17 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
     {
         $rulesets = [];
         foreach ($rules->rulesets as $id => $origin) {
-            $ruleset = $this->api->get($installationId, $repositoryPath.'/rulesets/'.$id);
-            $name = $ruleset['name'] ?? null;
-            if (!\is_string($name) || '' === $name) {
-                throw new RepositorySettingsUnreadable('ruleset_unreadable');
+            $name = null;
+            try {
+                $name = $this->api->get($installationId, $repositoryPath.'/rulesets/'.$id)['name'] ?? null;
+                if (!\is_string($name) || '' === $name) {
+                    throw new RepositorySettingsUnreadable('ruleset_unreadable');
+                }
+            } catch (GitHubAppApiFailed $e) {
+                // An organization ruleset can hide its detail from the App. The id and the source still serve the guide.
+                if ('http_status' !== $e->reason || $e->rateLimited || !\in_array($e->status, [403, 404], true)) {
+                    throw $e;
+                }
             }
             $rulesets[] = new RepositoryRuleset($id, $name, $origin['sourceType'], $origin['source'], array_values(array_unique($origin['rules'])));
         }

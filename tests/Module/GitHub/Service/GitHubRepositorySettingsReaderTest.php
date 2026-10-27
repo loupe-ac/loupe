@@ -199,7 +199,7 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
         yield 'the merge switches are missing' => ['merge_switches_unreadable', [$json(['default_branch' => 'main'])]];
         yield 'the rules answer is not a list' => ['malformed_body', [$json($repo), $json(['message' => 'x'])]];
         yield 'the rules read fails' => ['api_failed_http_status', [$json($repo), $json([], 500)]];
-        yield 'a ruleset name cannot be read' => ['api_failed_http_status', [$json($repo), $json($rules), $json([], 403)]];
+        yield 'a ruleset detail answers 500' => ['api_failed_http_status', [$json($repo), $json($rules), $json([], 500)]];
         yield 'a ruleset has no name' => ['ruleset_unreadable', [$json($repo), $json($rules), $json(['id' => 7])]];
         yield 'the branch read fails' => ['api_failed_http_status', [$json($repo), $json([]), $json([], 404)]];
         yield 'the branch has no protection signal' => ['branch_unreadable', [$json($repo), $json([]), $json(['name' => 'main'])]];
@@ -226,6 +226,52 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
         self::assertTrue($settings->rules->forbidsDeletion);
         self::assertSame('https://api.github.com/repos/loupe-ac/loupe/rules/branches/main?per_page=100&page=2', $this->requests[3]['url']);
         self::assertSame(['creation', 'deletion'], $settings->rulesets[0]->rules);
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('hiddenRulesets')]
+    public function test_a_ruleset_whose_detail_is_refused_stays_in_the_list_without_a_name(int $status): void
+    {
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['default_branch' => 'main', 'allow_squash_merge' => true, 'allow_merge_commit' => true, 'allow_rebase_merge' => true]),
+            $this->answer($this->rules()),
+            $this->answer(['message' => 'x'], $status),
+            $this->answer(['id' => 7, 'name' => 'Org floor']),
+            $this->answer($this->branch(false)),
+            $this->answer($this->checksAnswer([])),
+        ];
+
+        $settings = $this->reader()->read($this->installed('loupe-ac/loupe', 80_011));
+
+        self::assertCount(2, $settings->rulesets);
+        self::assertSame(101, $settings->rulesets[0]->id);
+        self::assertNull($settings->rulesets[0]->name);
+        self::assertSame('Repository', $settings->rulesets[0]->sourceType);
+        self::assertSame('Org floor', $settings->rulesets[1]->name);
+        self::assertFalse($settings->classicProtection);
+
+        $stored = json_decode(json_encode($settings, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($stored);
+        self::assertEquals($settings, RepositorySettings::fromArray($stored));
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function hiddenRulesets(): iterable
+    {
+        yield '403' => [403];
+        yield '404' => [404];
+    }
+
+    public function test_a_rate_limited_ruleset_detail_is_unreadable(): void
+    {
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['default_branch' => 'main', 'allow_squash_merge' => true, 'allow_merge_commit' => true, 'allow_rebase_merge' => true]),
+            $this->answer($this->rules()),
+            new MockResponse('{}', ['http_code' => 403, 'response_headers' => ['x-ratelimit-remaining: 0']]),
+        ];
+
+        self::assertSame('api_failed_http_status', $this->unreadable($this->installed('loupe-ac/loupe', 80_012)));
     }
 
     public function test_an_app_without_a_numeric_id_is_unreadable(): void
