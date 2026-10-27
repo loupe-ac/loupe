@@ -1346,6 +1346,7 @@ final class ForgeWriteTest extends KernelTestCase
                 $forgePullRequests,
                 $this->service(EntityManagerInterface::class),
                 new MockClock('2026-10-02 12:00:00'),
+                $this->service(MessageBusInterface::class),
             ),
             $this->service(CardEventRepository::class),
             $forgePullRequests,

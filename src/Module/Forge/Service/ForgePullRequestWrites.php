@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Forge\Service;
 
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Messenger\RefreshPullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Asks the forge to merge a pull request, to change its base or to update its branch. A marker on
@@ -20,6 +23,9 @@ final readonly class ForgePullRequestWrites
     /** A transient failure keeps a marker that a read may never clear, so an older marker is stale. */
     public const int MARKER_LIFETIME_SECONDS = 600;
 
+    /** The forge sends no event when its mergeability answer settles, so a refused update reads the pull request again. */
+    private const int REFUSED_UPDATE_READ_DELAY_SECONDS = 10;
+
     public function __construct(
         private PullRequestMergers $mergers,
         private PullRequestBaseChangers $baseChangers,
@@ -27,6 +33,7 @@ final readonly class ForgePullRequestWrites
         private ForgePullRequestRepository $forgePullRequests,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -167,6 +174,12 @@ final readonly class ForgePullRequestWrites
                         $row->syncRequestedAt = null;
                     }
                 });
+            }
+            if ($e->permanent && 'refused' === $e->cause) {
+                $this->bus->dispatch(
+                    new RefreshPullRequestState((string) $id, $this->clock->now()->modify(\sprintf('+%d seconds', self::REFUSED_UPDATE_READ_DELAY_SECONDS))),
+                    [new DelayStamp(self::REFUSED_UPDATE_READ_DELAY_SECONDS * 1000)],
+                );
             }
 
             throw $e;

@@ -76,7 +76,7 @@ final class GitHubPullRequestStateReader implements PullRequestStateReader
             $rules = new GitHubBranchRules($defaultRules->requiredChecks, false, false, $defaultRules->approvalSources);
         }
         $behindBy = null;
-        if (true === $rules?->strict && 'OPEN' === ($node['state'] ?? null) && 'CONFLICTING' !== ($node['mergeable'] ?? null) && \is_string($node['headRefOid'] ?? null)) {
+        if (true === $rules?->strict && 'OPEN' === ($node['state'] ?? null) && !\in_array($node['mergeable'] ?? null, ['CONFLICTING', 'UNKNOWN'], true) && \is_string($node['headRefOid'] ?? null)) {
             $behindBy = $this->behindBy($installationId, $path, (string) $base, $node['headRefOid']);
         }
 

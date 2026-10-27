@@ -4714,6 +4714,7 @@ final class EngineTest extends KernelTestCase
             $this->service(ForgePullRequestRepository::class),
             $this->em(),
             new MockClock(self::NOON),
+            $this->service(MessageBusInterface::class),
         ));
         $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
         $pullRequest->mergeability = PullRequestMergeability::Behind;

@@ -229,6 +229,8 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         yield 'unstable' => ['MERGEABLE', 'UNSTABLE', null, PullRequestMergeability::Mergeable];
         yield 'not computed yet' => ['UNKNOWN', 'CLEAN', null, PullRequestMergeability::Unknown];
         yield 'unknown state' => ['MERGEABLE', 'UNKNOWN', null, PullRequestMergeability::Unknown];
+        yield 'not computed yet after a base move' => ['UNKNOWN', 'UNKNOWN', 3, PullRequestMergeability::Unknown];
+        yield 'not computed yet with a behind status' => ['UNKNOWN', 'BEHIND', null, PullRequestMergeability::Unknown];
     }
 
     #[DataProvider('mergeabilities')]
