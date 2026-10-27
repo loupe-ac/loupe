@@ -116,6 +116,31 @@ final class RotateSecretsTest extends TestCase
         self::assertStringContainsString("resuming a rotation at deploy {$failAt}", $process->getOutput());
     }
 
+    public function test_it_reads_a_quoted_key_that_has_an_inline_comment(): void
+    {
+        file_put_contents($this->dir.'/terraform.tfvars', "app_secret = \"keep-me\"\napp_encryption_key = \"".self::OLD_KEY."\" # the live key\n");
+
+        $process = $this->rotate([], "no\n");
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertStringContainsString("\napp_encryption_key_previous = \"".self::OLD_KEY."\"\n", (string) file_get_contents($this->dir.'/terraform.tfvars'));
+    }
+
+    public function test_it_replaces_the_file_by_rename_and_keeps_its_mode(): void
+    {
+        $file = $this->dir.'/terraform.tfvars';
+        chmod($file, 0o600);
+        $inode = fileinode($file);
+
+        $process = $this->rotate([], "yes\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        clearstatcache();
+        self::assertNotSame($inode, fileinode($file));
+        self::assertSame(0o600, fileperms($file) & 0o777);
+        self::assertSame([$file], glob($file.'*'));
+    }
+
     public function test_it_refuses_to_start_while_a_previous_key_is_set_with_no_saved_rotation(): void
     {
         file_put_contents($this->dir.'/terraform.tfvars', "app_encryption_key_previous = \"other\"\n", \FILE_APPEND);
