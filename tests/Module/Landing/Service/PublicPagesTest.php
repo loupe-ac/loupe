@@ -75,6 +75,19 @@ final class PublicPagesTest extends KernelTestCase
         self::assertSame([], array_filter($without, static fn (string $url): bool => str_contains($url, '/compare')));
     }
 
+    public function test_the_faq_is_a_public_site_only_route_and_is_in_the_sitemap_with_a_site_host_only(): void
+    {
+        $pages = $this->publicPages('site.example');
+
+        self::assertTrue($pages->isPublic('app_faq'));
+        self::assertTrue($pages->isSiteRoute('app_faq'));
+        self::assertTrue($pages->isSiteOnlyRoute('app_faq'));
+        self::assertContains('https://site.example/faq', $pages->sitemapUrls());
+        self::assertNotContains('/faq', array_map(static fn (string $url): string => (string) parse_url($url, \PHP_URL_PATH), $this->publicPages('')->sitemapUrls()));
+        self::assertTrue($pages->hasFaq());
+        self::assertFalse($this->publicPages('')->hasFaq());
+    }
+
     private function publicPages(string $host, ?ComparisonPages $comparisons = null): PublicPages
     {
         self::bootKernel();

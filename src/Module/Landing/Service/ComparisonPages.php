@@ -6,13 +6,7 @@ namespace App\Module\Landing\Service;
 
 use App\Module\Landing\ValueObject\ComparisonPage;
 use App\Site\SiteHost;
-use League\CommonMark\Environment\Environment;
-use League\CommonMark\Event\DocumentParsedEvent;
-use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
-use League\CommonMark\Extension\ExternalLink\ExternalLinkExtension;
-use League\CommonMark\Extension\FrontMatter\FrontMatterExtension;
 use League\CommonMark\Extension\FrontMatter\Output\RenderedContentWithFrontMatter;
-use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Finder\Finder;
@@ -129,28 +123,6 @@ final class ComparisonPages
 
     private function converter(): MarkdownConverter
     {
-        if (null === $this->converter) {
-            $environment = new Environment([
-                'html_input' => 'escape',
-                'allow_unsafe_links' => false,
-                'external_link' => [
-                    'internal_hosts' => array_values(array_filter([
-                        $this->siteHost->host,
-                        parse_url($this->appUrl, \PHP_URL_HOST) ?: null,
-                    ])),
-                    'open_in_new_window' => false,
-                    'noopener' => 'external',
-                    'noreferrer' => 'external',
-                ],
-            ]);
-            $environment->addExtension(new CommonMarkCoreExtension());
-            $environment->addExtension(new TableExtension());
-            $environment->addExtension(new FrontMatterExtension());
-            $environment->addExtension(new ExternalLinkExtension());
-            $environment->addEventListener(DocumentParsedEvent::class, new SourceCitations());
-            $this->converter = new MarkdownConverter($environment);
-        }
-
-        return $this->converter;
+        return $this->converter ??= PageMarkdown::converter($this->siteHost, $this->appUrl);
     }
 }
