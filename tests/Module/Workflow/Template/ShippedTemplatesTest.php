@@ -23,6 +23,9 @@ use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Contract\RepositorySuggestion;
+use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
@@ -69,6 +72,17 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach ($this->shipped()->keys() as $key) {
             self::assertSame($key, $this->template($key)->key);
         }
+    }
+
+    public function test_each_template_suggests_its_repository_settings(): void
+    {
+        self::assertEquals([
+            new RepositorySuggestion(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking),
+            new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning),
+            new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Warning),
+            new RepositorySuggestion(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking),
+        ], $this->template('lifecycle')->repositorySettings);
+        self::assertEquals([new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Warning)], $this->template('simple')->repositorySettings);
     }
 
     public function test_each_template_lists_its_inbox_markers_and_each_one_names_one_thing(): void
