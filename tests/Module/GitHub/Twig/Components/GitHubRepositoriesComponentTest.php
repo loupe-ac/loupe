@@ -43,7 +43,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $section = $crawler->filter('#repositories');
         self::assertCount(1, $section);
-        self::assertStringContainsString('reach the cards that link its pull requests', $section->text());
+        self::assertStringContainsString('No repository yet', $section->text());
         self::assertCount(0, $section->filter('[data-forge-repository]'));
         self::assertCount(0, $crawler->filter('#github-hook'));
     }
@@ -230,7 +230,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame('Install the GitHub App', trim($install->text()));
     }
 
-    public function test_the_empty_state_without_the_app_keeps_the_hint_and_offers_no_install(): void
+    public function test_the_empty_state_without_the_app_invites_to_connect_a_repository_on_connections(): void
     {
         $client = static::createClient();
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('', '', '', '', null, null));
@@ -241,7 +241,13 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $client->loginUser($owner);
         $crawler = $this->repositoriesPage($client, $project);
 
-        self::assertCount(1, $crawler->filter('#repositories [data-testid="forge-repositories-empty"]'));
+        $empty = $crawler->filter('#repositories [data-testid="forge-repositories-empty"]');
+        self::assertCount(1, $empty);
+        self::assertStringContainsString('No repository yet', $empty->text());
+        self::assertStringContainsString('Connect a repository with a webhook on the Connections page.', $empty->text());
+        $connect = $crawler->filter('#repositories a[data-testid="forge-repositories-connect"]');
+        self::assertSame('/projects/'.$project->id.'/connect', $connect->attr('href'));
+        self::assertSame('Connect a repository', trim($connect->text()));
         self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-install"]'));
     }
 
