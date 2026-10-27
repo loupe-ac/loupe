@@ -69,7 +69,7 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
             $this->answer($this->branch(false)),
             $this->answer($this->checksAnswer([
                 [['__typename' => 'CheckRun', 'name' => 'lint'], ['__typename' => 'StatusContext', 'context' => 'ci/legacy'], ['__typename' => 'CheckRun', 'name' => 'Loupe / Approval']],
-                [['__typename' => 'CheckRun', 'name' => 'lint'], ['__typename' => 'CheckRun', 'name' => '  e2e {a} ']],
+                [['__typename' => 'CheckRun', 'name' => 'lint'], ['__typename' => 'CheckRun', 'name' => '  e2e {a} "b" \\c ']],
             ])),
         ];
 
@@ -88,7 +88,7 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
         self::assertCount(2, $settings->rulesets);
         self::assertSame([101, 'Main gate', 'Repository', 'loupe-ac/loupe', ['pull_request', 'required_status_checks']], [$settings->rulesets[0]->id, $settings->rulesets[0]->name, $settings->rulesets[0]->sourceType, $settings->rulesets[0]->source, $settings->rulesets[0]->rules]);
         self::assertSame([7, 'Org floor', 'Organization', 'loupe-ac', ['non_fast_forward', 'deletion']], [$settings->rulesets[1]->id, $settings->rulesets[1]->name, $settings->rulesets[1]->sourceType, $settings->rulesets[1]->source, $settings->rulesets[1]->rules]);
-        self::assertSame(['lint', 'ci/legacy', 'e2e a'], $settings->recentChecks);
+        self::assertSame(['lint', 'ci/legacy', '  e2e {a} "b" \\c '], $settings->recentChecks);
         self::assertFalse($settings->classicProtection);
 
         self::assertSame(['POST', 'GET', 'GET', 'GET', 'GET', 'GET', 'POST'], array_column($this->requests, 'method'));

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Service;
 
 use App\Module\Forge\Entity\ForgeRepository;
-use App\Module\Forge\Service\FailedCheckNames;
 use App\Module\Forge\Service\RepositorySettingsReader;
 use App\Module\Forge\Service\RepositorySettingsUnreadable;
 use App\Module\Forge\Settings\RepositoryRules;
@@ -184,17 +183,13 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
             $contexts = \is_array($pullRequest) ? ($pullRequest['commits']['nodes'][0]['commit']['statusCheckRollup']['contexts']['nodes'] ?? []) : [];
             foreach (\is_array($contexts) ? $contexts : [] as $context) {
                 $contextName = \is_array($context) ? ($context['name'] ?? $context['context'] ?? null) : null;
-                if (\is_string($contextName) && !str_starts_with($contextName, self::LOUPE_CHECK_PREFIX)) {
+                if (\is_string($contextName) && '' !== $contextName && !str_starts_with($contextName, self::LOUPE_CHECK_PREFIX)) {
                     $names[$contextName] = true;
                 }
             }
         }
 
-        $cleaned = array_filter(
-            FailedCheckNames::clean(array_map(strval(...), array_keys($names))),
-            static fn (string $check): bool => !str_starts_with($check, self::LOUPE_CHECK_PREFIX),
-        );
-
-        return \array_slice(array_values(array_unique($cleaned)), 0, self::MAX_RECENT_CHECKS);
+        // A required check matches by its exact name, so the names stay as GitHub reports them.
+        return \array_slice(array_map(strval(...), array_keys($names)), 0, self::MAX_RECENT_CHECKS);
     }
 }
