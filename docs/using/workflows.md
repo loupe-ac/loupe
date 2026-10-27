@@ -503,6 +503,73 @@ summary of the agent, up to 20 finding titles, and links to the check and to the
 card. It leaves out the text of each finding. The comment goes out as the GitHub
 App, and it has no fallback. See [Agent review](#agent-review).
 
+## Outcomes and metrics
+
+A template declares the outcomes of its moves and the metrics about its work.
+Loupe checks both lists when it loads a template. The analytics pages and the
+experiment tables read the metrics from the stored data in a later release.
+
+### Outcomes
+
+The top-level `outcomes:` list names each outcome that a `move` may set. An entry
+is a key, or a map with a `key` and `delivered: true`. At most one outcome is
+delivered. A key is lowercase words joined with hyphens, at most 64 characters.
+
+```yaml
+outcomes:
+    - { key: merged, delivered: true }
+    - dropped
+```
+
+Both shipped templates declare `merged` as the delivered outcome.
+
+### Metrics
+
+The top-level `metrics:` list holds the metrics. Each metric has a `key`, a
+`label` and a `description`. The label and the description are plain English text
+and show as written. The label is at most 80 characters, and the description is
+at most 300. A key follows the rule of an outcome key. It cannot be the key of a
+metric that Loupe computes itself, such as `cost` or `runs`. Each metric has
+exactly one type: `count`, `rate` or `duration`.
+
+```yaml
+metrics:
+    - key: design-rounds
+      label: Design review rounds
+      description: The design revise rounds a finished card needed.
+      count: { role: design-revise }
+    - key: needed-fix
+      label: Cards that needed a fix
+      description: The share of finished cards with at least one fix round.
+      rate: { any: { role: fix } }
+    - key: hours-waiting-for-approval
+      label: Hours waiting for approval
+      description: The hours from the last agent review pass to ready to merge.
+      duration: { from: { last: agent-review-passed }, to: ready-to-merge }
+```
+
+A **count** counts the work requests of a card. Its filter takes `role`, `kind`
+and `reason`, alone or mixed. A count can add `splitBy` with one of these three
+names, to show one row for each value.
+
+A **rate** is the share of finished cards that match. `rate: { outcome: <key> }`
+matches a card when any of its moves set the outcome. `rate: { any: <filter> }`
+matches a card when the filter matches at least one of its work requests.
+
+A **duration** is the time from a start event to an end event. The events are
+`pr-opened`, `agent-review-passed`, `ready-to-merge` and `pr-merged`. The two
+slot events are `{ arrived: <slot> }` and `{ left: <slot> }`. The slot can be a
+slot key of the template, `@backlog` or `@terminal`. On `from`, `{ last: <event> }`
+starts at the last time the event happened.
+
+Loupe refuses a template that names a value which none of its rules can produce.
+The error lists the values it knows. A role, a kind and a reason must come from
+a `request` rule of the template. The fix reasons `conflict`, `checks-failed` and
+`changes-requested` are always known, and `unknown` is known when a `request` rule
+sets no reason. The event `agent-review-passed` needs a `request` rule of the kind
+`review`. A slot event needs a slot that the template declares. The Simple
+template has no `review` request and no slots, so it cannot use these events.
+
 ## The Lifecycle template
 
 Lifecycle has the slots Next, Product design, Tech design, Implementation and In
@@ -1235,11 +1302,12 @@ follows the project could take it. The card does not pause, and the module that
 owns the work reads the cause from the reason of the request. A request without
 the parameter waits for the work timeout instead.
 
-The `move` action takes the optional parameter `outcome`. It has one value,
-`merged`. A move that sets it records in the card history that the card moved
-because its pull request merged. The reports of an experiment count a merge
-from this value, whatever the id of the rule. The `merged` rule of the
-Lifecycle and Simple templates sets it.
+The `move` action takes the optional parameter `outcome`. Its value must be a
+key from the `outcomes:` list of the template, as [Outcomes and metrics](#outcomes-and-metrics)
+says. A move that sets it records the outcome in the card history. The `merged`
+rule of the Lifecycle and Simple templates sets `merged`. A template that
+sets an outcome which its list does not declare fails to load, and the error
+lists the outcomes it declares.
 
 A request rule can set the optional `cancelWhen` parameter. It holds a
 condition. While the condition is true, the engine withdraws the live request

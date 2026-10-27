@@ -20,7 +20,9 @@ use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ParameterType;
+use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\ReadsCardType;
+use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Module\Workflow\Contract\WorkKind;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
@@ -63,6 +65,7 @@ final readonly class TemplateParser
         private Conditions $conditions,
         private Actions $actions,
         private TemplatePrompts $prompts,
+        private TemplateMetricParser $metricParser,
     ) {
     }
 
@@ -251,6 +254,11 @@ final readonly class TemplateParser
         $childChoices = $this->childChoices($source['childChoices'] ?? null, $slotKeys, $types, $facts, $errors, $lenient);
         $manualMoves = $this->manualMoves(self::topLevelList($source, 'manualMoves', $errors), $slotKeys, $errors);
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $facts, $errors, $lenient, app: false);
+        $outcomes = $this->metricParser->outcomes($source['outcomes'] ?? null, $lenient, $errors);
+        if (!$lenient) {
+            array_push($errors, ...$this->unknownOutcomes($rules, $childChoices, $outcomes));
+        }
+        $metrics = $this->metricParser->metrics($source['metrics'] ?? null, $slotKeys, $outcomes, self::producedWork($rules, $childChoices, $onWorkFailed), $lenient, $errors);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
         $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
         if (!$lenient) {
@@ -283,7 +291,100 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics);
+    }
+
+    /**
+     * @param list<Rule>                      $rules
+     * @param array<string, list<ActionCall>> $childChoices
+     * @param list<TemplateOutcome>           $outcomes
+     *
+     * @return list<string>
+     */
+    private function unknownOutcomes(array $rules, array $childChoices, array $outcomes): array
+    {
+        $known = array_map(static fn (TemplateOutcome $outcome): string => $outcome->key, $outcomes);
+        $errors = [];
+        foreach ($rules as $rule) {
+            array_push($errors, ...$this->unknownOutcomesOf($rule->then, \sprintf('rules (%s)', $rule->id), $known));
+        }
+        foreach ($childChoices as $choice => $calls) {
+            array_push($errors, ...$this->unknownOutcomesOf($calls, 'childChoices.'.$choice, $known));
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param list<ActionCall> $calls
+     * @param list<string>     $known
+     *
+     * @return list<string>
+     */
+    private function unknownOutcomesOf(array $calls, string $where, array $known): array
+    {
+        $errors = [];
+        foreach (self::flatten($calls) as $call) {
+            foreach ($this->actions->get($call->key)::parameters() as $parameter) {
+                $value = $call->params[$parameter->name] ?? null;
+                if (ParameterType::Outcome === $parameter->type && null !== $value && !\in_array($value, $known, true)) {
+                    $errors[] = \sprintf('%s: unknown outcome "%s"%s', $where, $value, [] === $known ? '; the template declares no outcomes' : '; known outcomes: '.implode(', ', $known));
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param list<ActionCall> $calls
+     *
+     * @return list<ActionCall> the calls and the calls inside their ask options
+     */
+    private static function flatten(array $calls): array
+    {
+        $all = [];
+        foreach ($calls as $call) {
+            $all[] = $call;
+            foreach ($call->options as $option) {
+                array_push($all, ...self::flatten($option->actions));
+            }
+        }
+
+        return $all;
+    }
+
+    /**
+     * What the request calls can write on a work request. The fix reasons of a pull request are always known, and a
+     * call with no reason adds `unknown`. The repair kind of `onWorkFailed` is a kind too.
+     *
+     * @param list<Rule>                      $rules
+     * @param array<string, list<ActionCall>> $childChoices
+     */
+    private static function producedWork(array $rules, array $childChoices, ?WorkFailurePolicy $onWorkFailed): ProducedWork
+    {
+        $calls = [];
+        foreach ($rules as $rule) {
+            array_push($calls, ...self::flatten($rule->then));
+        }
+        foreach ($childChoices as $choiceCalls) {
+            array_push($calls, ...self::flatten($choiceCalls));
+        }
+        $kinds = null === $onWorkFailed?->repairKind ? [] : [$onWorkFailed->repairKind];
+        $roles = [];
+        $reasons = [];
+        foreach ($calls as $call) {
+            if ('request' !== $call->key) {
+                continue;
+            }
+            $kinds[] = (string) $call->params['kind'];
+            if (isset($call->params['role'])) {
+                $roles[] = (string) $call->params['role'];
+            }
+            $reasons[] = isset($call->params['reason']) ? (string) $call->params['reason'] : 'unknown';
+        }
+
+        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])));
     }
 
     /**

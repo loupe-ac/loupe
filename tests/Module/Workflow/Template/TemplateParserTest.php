@@ -22,6 +22,7 @@ use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Board\Workflow\StopWork;
+use App\Module\Bridge\Metric\BuiltInMetricKeys;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Inbox\Workflow\Condition\CardHasOpenQuestion;
 use App\Module\Workflow\Action\Actions;
@@ -50,6 +51,7 @@ use App\Module\Workflow\Template\AskOption;
 use App\Module\Workflow\Template\InvalidTemplate;
 use App\Module\Workflow\Template\ManualMoveActor;
 use App\Module\Workflow\Template\RuleOrigin;
+use App\Module\Workflow\Template\TemplateMetricParser;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\TemplatePrompts;
 use App\Tests\Module\Workflow\Action\ExpressionPluggedAction;
@@ -87,7 +89,12 @@ final class TemplateParserTest extends TestCase
             new PullRequestApprovalCoversHead(),
             new PullRequestOpen(),
             new RunWorkActive(),
-        ]), $this->actions, new TemplatePrompts(self::PROMPTS_FIXTURE));
+        ]), $this->actions, new TemplatePrompts(self::PROMPTS_FIXTURE), self::metricParser());
+    }
+
+    private static function metricParser(): TemplateMetricParser
+    {
+        return new TemplateMetricParser(new BuiltInMetricKeys());
     }
 
     /** @return array<string, mixed> */
@@ -452,7 +459,7 @@ final class TemplateParserTest extends TestCase
 
     public function test_the_parameters_of_an_action_come_from_its_declarations(): void
     {
-        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE));
+        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE), self::metricParser());
         $template = self::valid();
         $template['rules'] = [['id' => 'plugged', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['plugged' => ['from' => 'review', 'times' => 2, 'mode' => 'fast']]]];
 
@@ -469,7 +476,7 @@ final class TemplateParserTest extends TestCase
 
     public function test_an_action_cannot_declare_an_expression_parameter_that_a_call_drops(): void
     {
-        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new ExpressionPluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE));
+        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new ExpressionPluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE), self::metricParser());
         $template = self::valid();
         $template['rules'] = [['id' => 'expressive', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['expressive' => ['from' => 'review']]]];
 
@@ -482,7 +489,7 @@ final class TemplateParserTest extends TestCase
     #[DataProvider('pluggedActionErrors')]
     public function test_the_declared_parameters_of_an_action_are_checked(array $then, string $error): void
     {
-        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE));
+        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE), self::metricParser());
         $template = self::valid();
         $template['rules'] = [['id' => 'plugged', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['plugged' => $then]]];
 
