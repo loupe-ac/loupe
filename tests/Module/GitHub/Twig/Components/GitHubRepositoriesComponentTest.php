@@ -144,7 +144,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $owner = $this->signedUpUser('nokey');
         $project = $this->projectOf($owner);
         $this->em()->clear();
-        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider('')));
+        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider([''])));
 
         $client->loginUser($owner);
         $crawler = $this->connectPage($client, $project);
@@ -226,7 +226,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $owner = $this->signedUpUser('apponly');
         $project = $this->projectOf($owner);
         $this->em()->clear();
-        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider('')));
+        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider([''])));
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
 
         $client->loginUser($owner);

@@ -22,7 +22,7 @@ the first:
    [The backup job](#the-backup-job) below runs exactly that on a schedule and
    puts the result somewhere other than this host.
 
-2. **`APP_ENCRYPTION_KEY`.** Not in the dump, and not regenerable. **Restoring a
+2. **`APP_ENCRYPTION_KEY`.** Not in the dump, and not regenerable. You can [rotate it](rotating-encryption-key.md) while you hold it. **Restoring a
    database without the key that encrypted it leaves every `encrypted_string`
    column permanently unreadable** — the rows restore fine and simply cannot be
    decrypted, so losing the key is data loss rather than a configuration

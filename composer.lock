@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "40c2175dd7675c62b6e7a2d3b8aad1c4",
+    "content-hash": "e420b2857512f05c85a2c2f8a432062b",
     "packages": [
         {
             "name": "async-aws/core",
@@ -13296,20 +13296,23 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/ubermuda/doctrine-extra.git",
-                "reference": "ec867f3bf1ed362c201abbe152ac27447ec37526"
+                "reference": "21d12425430c914d813ac85de089dbac6d107437"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ubermuda/doctrine-extra/zipball/ec867f3bf1ed362c201abbe152ac27447ec37526",
-                "reference": "ec867f3bf1ed362c201abbe152ac27447ec37526",
+                "url": "https://api.github.com/repos/ubermuda/doctrine-extra/zipball/21d12425430c914d813ac85de089dbac6d107437",
+                "reference": "21d12425430c914d813ac85de089dbac6d107437",
                 "shasum": ""
             },
             "require": {
                 "doctrine/dbal": "^4.0",
                 "doctrine/doctrine-bundle": "^3.0",
+                "doctrine/orm": "^3.3",
+                "doctrine/persistence": "^3.0|^4.0",
                 "ext-sodium": "*",
                 "php": ">=8.5",
                 "symfony/config": "^6.4|^7.0|^8.0",
+                "symfony/console": "^7.3|^8.0",
                 "symfony/dependency-injection": "^6.4|^7.0|^8.0",
                 "symfony/http-kernel": "^6.4|^7.0|^8.0"
             },
@@ -13337,7 +13340,7 @@
                 "source": "https://github.com/ubermuda/doctrine-extra/tree/main",
                 "issues": "https://github.com/ubermuda/doctrine-extra/issues"
             },
-            "time": "2026-06-16T17:01:48+00:00"
+            "time": "2026-10-27T21:25:20+00:00"
         },
         {
             "name": "ubermuda/feature-flags-bundle",
