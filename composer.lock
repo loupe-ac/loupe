@@ -13320,6 +13320,7 @@
                 "phpstan/phpstan": "^2.0",
                 "phpunit/phpunit": "^13.0"
             },
+            "default-branch": true,
             "type": "symfony-bundle",
             "autoload": {
                 "psr-4": {
@@ -18730,14 +18731,7 @@
             "time": "2026-06-29T15:22:14+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "ubermuda/doctrine-extra",
-            "version": "dev-card-980-rotatable-keys",
-            "alias": "dev-main",
-            "alias_normalized": "dev-main"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
         "ubermuda/admin-bundle": 20,
