@@ -24,6 +24,9 @@ class ForgeRepositoryCheck
     public const string STATE_FITS = 'fits';
     public const string STATE_GAP = 'gap';
 
+    /** The key of the warning row that a branch with classic protection gets. No template suggests it. */
+    public const string KEY_CLASSIC_PROTECTION = 'classic-protection';
+
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]

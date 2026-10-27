@@ -19,6 +19,7 @@ final readonly class RepositorySuggestionCatalog
     public const string GAP_FORCE_PUSH_ALLOWED = 'force_push_allowed';
     public const string GAP_DELETION_ALLOWED = 'deletion_allowed';
     public const string GAP_NO_MERGE_METHOD = 'no_merge_method';
+    public const string GAP_CLASSIC_PROTECTION = 'classic_protection';
 
     private const string LOUPE_CHECK_PREFIX = 'Loupe / ';
 

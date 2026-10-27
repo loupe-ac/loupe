@@ -137,6 +137,24 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertSame([], $this->events->events());
     }
 
+    public function test_classic_protection_adds_a_warning_row_that_never_holds(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::clearWithClassicProtection()];
+
+        $this->check($repository, CheckTrigger::Hourly);
+
+        self::assertSame(
+            [
+                ['key' => 'branch-protection', 'mark' => 'blocking', 'state' => 'fits', 'gaps' => [], 'parameters' => []],
+                ['key' => 'classic-protection', 'mark' => 'warning', 'state' => 'gap', 'gaps' => ['classic_protection'], 'parameters' => []],
+            ],
+            $this->checkOf($repository)->items,
+        );
+        self::assertSame([], $this->summaries->current($repository->project)->blocking);
+        self::assertSame([], $this->events->events());
+    }
+
     public function test_a_failed_read_keeps_the_last_certain_items_and_sets_the_failure(): void
     {
         $repository = $this->repository();

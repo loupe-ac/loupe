@@ -36,6 +36,11 @@ final class FakeRepositorySettingsReader implements RepositorySettingsReader
         return self::settings(true);
     }
 
+    public static function clearWithClassicProtection(): RepositorySettings
+    {
+        return self::settings(true, true);
+    }
+
     #[\Override]
     public function supports(string $forge): bool
     {
@@ -56,8 +61,8 @@ final class FakeRepositorySettingsReader implements RepositorySettingsReader
         return $answer instanceof RepositorySettingsUnreadable ? throw $answer : $answer;
     }
 
-    private static function settings(bool $protected): RepositorySettings
+    private static function settings(bool $protected, bool $classicProtection = false): RepositorySettings
     {
-        return new RepositorySettings('main', ['squash'], null, new RepositoryRules(true, false, null, [], [], $protected, $protected), [], [], false);
+        return new RepositorySettings('main', ['squash'], null, new RepositoryRules(true, false, null, [], [], $protected, $protected), [], [], $classicProtection);
     }
 }

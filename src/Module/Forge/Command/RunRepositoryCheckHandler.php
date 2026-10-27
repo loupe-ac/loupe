@@ -16,6 +16,7 @@ use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestions;
+use App\Module\Workflow\Contract\SuggestionMark;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -122,6 +123,15 @@ final readonly class RunRepositoryCheckHandler
                 'mark' => $suggestion->mark->value,
                 'state' => $evaluation->fits() ? ForgeRepositoryCheck::STATE_FITS : ForgeRepositoryCheck::STATE_GAP,
                 'gaps' => $evaluation->gaps,
+                'parameters' => [],
+            ];
+        }
+        if ($settings->classicProtection) {
+            $items[] = [
+                'key' => ForgeRepositoryCheck::KEY_CLASSIC_PROTECTION,
+                'mark' => SuggestionMark::Warning->value,
+                'state' => ForgeRepositoryCheck::STATE_GAP,
+                'gaps' => [RepositorySuggestionCatalog::GAP_CLASSIC_PROTECTION],
                 'parameters' => [],
             ];
         }
