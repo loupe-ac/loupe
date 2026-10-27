@@ -5490,6 +5490,42 @@
                 <source>landing.closing.title</source>
                 <target>Put the first card on the board.</target>
             </trans-unit>
+            <trans-unit id="landing.compare.footer_link">
+                <source>landing.compare.footer_link</source>
+                <target>Compare</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.list_title">
+                <source>landing.compare.list_title</source>
+                <target>Compare Loupe with other tools</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.meta_description">
+                <source>landing.compare.meta_description</source>
+                <target>How Loupe differs from the tools closest to it, and who should pick which.</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.list_intro">
+                <source>landing.compare.list_intro</source>
+                <target>Each page sets Loupe beside one other tool. It shows the date of the comparison, the version of the other tool, the cost of each and the sources.</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.compared_on">
+                <source>landing.compare.compared_on</source>
+                <target>Compared on %date%. The facts about %competitor% come from %version%.</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.try_title">
+                <source>landing.compare.try_title</source>
+                <target>Try Loupe</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.try_body">
+                <source>landing.compare.try_body</source>
+                <target>Run Loupe on your own server, or join the waitlist.</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.self_host">
+                <source>landing.compare.self_host</source>
+                <target>Self-host Loupe</target>
+            </trans-unit>
+            <trans-unit id="landing.compare.others_title">
+                <source>landing.compare.others_title</source>
+                <target>Other comparisons</target>
+            </trans-unit>
             <trans-unit id="landing.footer.tagline">
                 <source>landing.footer.tagline</source>
                 <target>A software factory for coding agents. Open source, and free to host yourself.</target>

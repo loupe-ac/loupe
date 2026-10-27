@@ -11,9 +11,9 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 
-/** On a split instance the legal pages have one copy, on the site host. */
+/** On a split instance the legal and comparison pages have one copy, on the site host. */
 #[AsEventListener(priority: 16)]
-final readonly class RedirectLegalPagesToSiteHost
+final readonly class RedirectSiteOnlyPagesToSiteHost
 {
     public function __construct(
         private SiteHost $siteHost,
@@ -29,7 +29,7 @@ final readonly class RedirectLegalPagesToSiteHost
         }
 
         $route = $request->attributes->get('_route');
-        if (!\is_string($route) || !$this->publicPages->isLegalRoute($route)) {
+        if (!\is_string($route) || !$this->publicPages->isSiteOnlyRoute($route)) {
             return;
         }
 

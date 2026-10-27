@@ -1,0 +1,19 @@
+{% extends 'marketing_base.html.twig' %}
+
+{% block title %}{{ 'landing.compare.list_title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block description %}{{ 'landing.compare.meta_description'|trans }}{% endblock %}
+
+{% block body %}
+<article class="lp-legal">
+    <h1 class="lp-legal__title">{{ 'landing.compare.list_title'|trans }}</h1>
+    <div class="prose lp-prose lp-legal__body">
+        <p>{{ 'landing.compare.list_intro'|trans }}</p>
+        <ul>
+            {% for page in pages %}
+                <li><a href="{{ path('app_compare', {slug: page.slug}) }}">{{ page.title }}</a>: {{ page.description }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</article>
+{% endblock %}

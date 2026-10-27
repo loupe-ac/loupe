@@ -1,11 +1,11 @@
 import { Controller } from '@hotwired/stimulus';
-import { placeMenuPanel } from '../lib/menu_placement.js';
+import { followMenuPanel } from '../lib/menu_placement.js';
 
 export default class extends Controller {
     static targets = ['trigger', 'panel'];
 
     connect() {
-        this.onResize = () => placeMenuPanel(this.panelTarget);
+        this.stopFollowing = () => {};
         this.onDocumentClick = (event) => {
             if (!this.element.contains(event.target)) {
                 this.close();
@@ -30,7 +30,7 @@ export default class extends Controller {
     }
 
     disconnect() {
-        window.removeEventListener('resize', this.onResize);
+        this.stopFollowing();
         document.removeEventListener('click', this.onDocumentClick);
         this.element.removeEventListener('keydown', this.onKeydown);
         document.removeEventListener('turbo:before-cache', this.onBeforeCache);
@@ -49,8 +49,8 @@ export default class extends Controller {
     open() {
         this.panelTarget.hidden = false;
         this.#setExpanded(true);
-        placeMenuPanel(this.panelTarget);
-        window.addEventListener('resize', this.onResize);
+        this.stopFollowing();
+        this.stopFollowing = followMenuPanel(this.panelTarget);
     }
 
     close({ restoreFocus = true } = {}) {
@@ -59,7 +59,7 @@ export default class extends Controller {
         }
         const focusInside = this.panelTarget.contains(document.activeElement);
         this.panelTarget.hidden = true;
-        window.removeEventListener('resize', this.onResize);
+        this.stopFollowing();
         this.#setExpanded(false);
         if (restoreFocus && focusInside && this.hasTriggerTarget) {
             this.triggerTarget.focus();

@@ -8,7 +8,9 @@ use App\Module\Landing\Command\StampDocsCommand;
 use App\Module\Landing\Command\StampDocsHandler;
 use App\Module\Landing\Command\StampDocsResult;
 use App\Site\SiteChrome;
+use App\Site\SiteHost;
 use App\Site\SiteLinks;
+use App\Tests\Support\ComparisonFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
@@ -66,6 +68,33 @@ final class StampDocsHandlerTest extends KernelTestCase
         self::assertStringContainsString('.lp-home-nav { color: red; }', $html);
         self::assertStringNotContainsString('lp-unrelated', $html);
         self::assertStringContainsString(self::PAGE, (string) file_get_contents($this->work.'/build/getting-started/index.html'));
+    }
+
+    public function test_the_stamped_footer_links_the_comparison_list_when_a_site_host_is_set(): void
+    {
+        $fixtures = '';
+        $result = $this->stamp(null, static function () use (&$fixtures): void {
+            $fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost('site.example', 'https://app.example'), 'https://app.example');
+        });
+        ComparisonFixtures::remove($fixtures);
+
+        self::assertSame([], $result->problems);
+        $html = (string) file_get_contents($this->work.'/served/getting-started/index.html');
+        self::assertStringContainsString('href="https://site.example/compare"', $html);
+    }
+
+    public function test_the_stamped_footer_has_no_comparison_link_without_a_site_host(): void
+    {
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = '';
+        $fixtures = '';
+        $result = $this->stamp(null, static function () use (&$fixtures): void {
+            $fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost('', 'https://app.example'), 'https://app.example');
+        });
+        ComparisonFixtures::remove($fixtures);
+
+        self::assertSame([], $result->problems);
+        $html = (string) file_get_contents($this->work.'/served/getting-started/index.html');
+        self::assertStringNotContainsString('/compare', $html);
     }
 
     public function test_the_docs_bar_and_the_menu_link_the_discord_server_and_the_landing_bar_does_not(): void

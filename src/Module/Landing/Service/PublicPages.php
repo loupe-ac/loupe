@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Landing\Service;
 
 use App\Module\Account\Service\RegistrationGate;
+use App\Module\Landing\ValueObject\ComparisonPage;
 use App\Site\SiteHost;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -18,6 +19,7 @@ final readonly class PublicPages
         'app_privacy' => true,
         'app_terms' => true,
         'app_ai_policy' => true,
+        'app_compare_list' => true,
         'app_waitlist_join' => true,
         'app_login' => false,
         'app_register' => false,
@@ -29,6 +31,8 @@ final readonly class PublicPages
         'app_privacy',
         'app_terms',
         'app_ai_policy',
+        'app_compare_list',
+        'app_compare',
         'app_waitlist_join',
         'app_waitlist_notify',
         'app_waitlist_modal',
@@ -41,12 +45,14 @@ final readonly class PublicPages
         '_preview_error',
     ];
 
-    private const array LEGAL_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy'];
+    /** The routes that have one copy, on the site host, when the instance splits its hosts. */
+    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare'];
 
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
         private SiteHost $siteHost,
         private RegistrationGate $registrationGate,
+        private ComparisonPages $comparisonPages,
 
         #[Autowire(param: 'app.url')]
         private string $appUrl,
@@ -64,7 +70,7 @@ final readonly class PublicPages
 
     public function isPublic(?string $route): bool
     {
-        return null !== $route && \array_key_exists($route, self::PAGES);
+        return null !== $route && (\array_key_exists($route, self::PAGES) || 'app_compare' === $route);
     }
 
     public function isSiteRoute(?string $route): bool
@@ -72,15 +78,24 @@ final readonly class PublicPages
         return null !== $route && \in_array($route, self::SITE_ROUTES, true);
     }
 
-    public function isLegalRoute(string $route): bool
+    public function isSiteOnlyRoute(string $route): bool
     {
-        return \in_array($route, self::LEGAL_ROUTES, true);
+        return \in_array($route, self::SITE_ONLY_ROUTES, true);
+    }
+
+    /** True when the instance has a site host and at least one comparison page to show. */
+    public function hasComparisons(): bool
+    {
+        return $this->siteHost->isSet() && [] !== $this->comparisonPages->all();
     }
 
     /** @return list<string> */
     public function paths(): array
     {
-        return array_map($this->urlGenerator->generate(...), array_keys(self::PAGES));
+        return [
+            ...array_map($this->urlGenerator->generate(...), array_keys(self::PAGES)),
+            ...$this->comparisonPaths(),
+        ];
     }
 
     /** @return list<string> absolute URLs */
@@ -90,6 +105,11 @@ final readonly class PublicPages
         foreach (self::PAGES as $route => $listed) {
             if ($listed && $this->isRendered($route)) {
                 $urls[] = $this->absoluteUrl($this->urlGenerator->generate($route));
+            }
+        }
+        if ($this->siteHost->isSet()) {
+            foreach ($this->comparisonPages->all() as $page) {
+                $urls[] = $this->comparisonUrl($page);
             }
         }
         if ($this->hasBlog()) {
@@ -105,10 +125,27 @@ final readonly class PublicPages
         return ($this->siteHost->origin() ?? rtrim($this->appUrl, '/')).$path;
     }
 
+    /** The absolute URL of a comparison page, on the site origin. */
+    public function comparisonUrl(ComparisonPage $page): string
+    {
+        return $this->absoluteUrl($this->comparisonPath($page));
+    }
+
+    /** @return list<string> */
+    private function comparisonPaths(): array
+    {
+        return array_map($this->comparisonPath(...), $this->comparisonPages->all());
+    }
+
+    private function comparisonPath(ComparisonPage $page): string
+    {
+        return $this->urlGenerator->generate('app_compare', ['slug' => $page->slug]);
+    }
+
     private function isRendered(string $route): bool
     {
         return match ($route) {
-            'app_home' => $this->siteHost->isSet(),
+            'app_home', 'app_compare_list' => $this->siteHost->isSet(),
             'app_waitlist_join' => $this->registrationGate->allowsNewAccounts() && !$this->registrationGate->isOpen(),
             default => true,
         };

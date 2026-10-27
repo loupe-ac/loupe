@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Landing\Twig;
 
+use App\Module\Landing\Service\ComparisonPages;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +37,8 @@ final class LandingExtensionTest extends KernelTestCase
     public static function routes(): iterable
     {
         yield 'a public route' => ['app_privacy', true];
+        yield 'a comparison page' => ['app_compare', true];
+        yield 'the comparison list' => ['app_compare_list', true];
         yield 'the sign-in page' => ['app_login', true];
         yield 'an app route' => ['app_projects', false];
         yield 'no route' => [null, false];
@@ -64,6 +67,9 @@ final class LandingExtensionTest extends KernelTestCase
 
         $paths = json_decode($twig->createTemplate('{{ public_page_paths()|json_encode|raw }}')->render([]), true, flags: \JSON_THROW_ON_ERROR);
 
-        self::assertSame(['/', '/privacy', '/terms', '/ai-policy', '/waitlist', '/login', '/register'], $paths);
+        $comparisons = static::getContainer()->get(ComparisonPages::class);
+        self::assertInstanceOf(ComparisonPages::class, $comparisons);
+        $pagePaths = array_map(static fn ($page): string => '/compare/'.$page->slug, $comparisons->all());
+        self::assertSame(['/', '/privacy', '/terms', '/ai-policy', '/compare', '/waitlist', '/login', '/register', ...$pagePaths], $paths);
     }
 }

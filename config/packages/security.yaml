@@ -165,6 +165,9 @@ security:
         - { path: ^/privacy$,        roles: PUBLIC_ACCESS }
         - { path: ^/terms$,          roles: PUBLIC_ACCESS }
         - { path: ^/ai-policy$,      roles: PUBLIC_ACCESS }
+        # The comparison pages are public marketing pages. Both routes answer 404
+        # on an instance with no site host.
+        - { path: ^/compare(?:/|$), roles: PUBLIC_ACCESS }
         # Crawlers fetch these without a session. Both answer from the public page list.
         - { path: ^/robots\.txt$,    roles: PUBLIC_ACCESS }
         - { path: ^/sitemap\.xml$,   roles: PUBLIC_ACCESS }

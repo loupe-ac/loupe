@@ -91,6 +91,7 @@ test('the stretch project switcher stays on screen at enlarged text', async ({
     await page
         .getByRole('button', { name: 'Open navigation', exact: true })
         .click();
+    // The switcher opens while the drawer still slides in.
     await page.locator('.lp-sidebar__switcher').click();
     await expectPanelOnScreen(page.locator('#project-switcher-panel'), page);
 });

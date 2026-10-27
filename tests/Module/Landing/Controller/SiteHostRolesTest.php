@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Landing\Controller;
 
+use App\Site\SiteHost;
+use App\Tests\Support\ComparisonFixtures;
 use App\Tests\Support\InstalledInstance;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -17,6 +19,8 @@ final class SiteHostRolesTest extends WebTestCase
 
     private string $previousSiteHost = '';
 
+    private string $fixtures = '';
+
     #[\Override]
     protected function setUp(): void
     {
@@ -27,6 +31,9 @@ final class SiteHostRolesTest extends WebTestCase
     protected function tearDown(): void
     {
         $this->setSiteHost($this->previousSiteHost);
+        if ('' !== $this->fixtures) {
+            ComparisonFixtures::remove($this->fixtures);
+        }
         parent::tearDown();
     }
 
@@ -34,9 +41,15 @@ final class SiteHostRolesTest extends WebTestCase
     {
         $this->setSiteHost(self::SITE);
         $client = static::createClient();
+        $this->installComparisons();
         InstalledInstance::ensure(static::getContainer());
 
         return $client;
+    }
+
+    private function installComparisons(): void
+    {
+        $this->fixtures = ComparisonFixtures::install(static::getContainer(), new SiteHost($_SERVER['SITE_HOST'], 'http://localhost'), 'http://localhost');
     }
 
     /** @param array<string, string> $server */
@@ -52,6 +65,8 @@ final class SiteHostRolesTest extends WebTestCase
         yield 'privacy' => ['/privacy'];
         yield 'terms' => ['/terms'];
         yield 'ai policy' => ['/ai-policy'];
+        yield 'comparison list' => ['/compare'];
+        yield 'comparison page' => ['/compare/'.ComparisonFixtures::SLUG];
         yield 'sitemap' => ['/sitemap.xml'];
         yield 'robots' => ['/robots.txt'];
         yield 'llms' => ['/llms.txt'];
@@ -154,10 +169,12 @@ final class SiteHostRolesTest extends WebTestCase
         yield 'privacy' => ['/privacy'];
         yield 'terms' => ['/terms'];
         yield 'ai policy' => ['/ai-policy'];
+        yield 'comparison list' => ['/compare'];
+        yield 'comparison page' => ['/compare/'.ComparisonFixtures::SLUG];
     }
 
     #[DataProvider('legalPaths')]
-    public function test_the_app_host_redirects_a_legal_page_to_the_site_host(string $path): void
+    public function test_the_app_host_redirects_a_site_only_page_to_the_site_host(string $path): void
     {
         $client = $this->split();
 
@@ -197,6 +214,8 @@ final class SiteHostRolesTest extends WebTestCase
 
         $body = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('<loc>https://'.self::SITE.'/</loc>', $body);
+        self::assertStringContainsString('<loc>https://'.self::SITE.'/compare</loc>', $body);
+        self::assertStringContainsString('<loc>https://'.self::SITE.'/compare/'.ComparisonFixtures::SLUG.'</loc>', $body);
         self::assertStringNotContainsString('localhost', $body);
     }
 
