@@ -329,15 +329,31 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
     {
         $repository = $this->repository();
         $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::clear()];
+        $dispatcher = $this->service(EventDispatcherInterface::class);
+        $listeners = [];
+        foreach ($dispatcher->getListeners(ForgeRepositoryCheckChanged::class) as $listener) {
+            $listeners[] = [$listener, $dispatcher->getListenerPriority(ForgeRepositoryCheckChanged::class, $listener) ?? 0];
+            $dispatcher->removeListener(ForgeRepositoryCheckChanged::class, $listener);
+        }
+        $held = [];
+        $holdBack = static function (ForgeRepositoryCheckChanged $event) use (&$held): void {
+            $held[] = $event;
+        };
+        $dispatcher->addListener(ForgeRepositoryCheckChanged::class, $holdBack);
 
         $this->check($repository, CheckTrigger::CheckAgain);
         $this->check($repository, CheckTrigger::CheckAgain);
+        $dispatcher->removeListener(ForgeRepositoryCheckChanged::class, $holdBack);
+        foreach ($listeners as [$listener, $priority]) {
+            $dispatcher->addListener(ForgeRepositoryCheckChanged::class, $listener, $priority);
+        }
 
-        $events = $this->events->events();
-        self::assertCount(2, $events, 'Guard: the blocking check and the clear check each fired an event.');
-        self::assertEquals($repository->project->id, $events[0]->projectId);
-        self::assertEquals($events[0]->projectId, $events[1]->projectId);
-        // A listener that runs the event of the blocking check last reads the current summary, which the clear check emptied.
+        self::assertCount(2, $held, 'Guard: the blocking check and the clear check each fired an event.');
+        self::assertSame([], $this->events->events(), 'Guard: no listener saw an event before the reversed delivery.');
+        $dispatcher->dispatch($held[1]);
+        $dispatcher->dispatch($held[0]);
+
+        self::assertSame([$held[1], $held[0]], $this->events->events(), 'The listeners got the events in reversed order.');
         self::assertTrue($this->summaries->current($repository->project)->isEmpty());
     }
 
