@@ -107,7 +107,7 @@
         "twig/twig": "^2.12|^3.28",
         "ubermuda/admin-bundle": "dev-main#e1acfd023cc9f5330bb43d3ecc025c069ae4b2d7",
         "ubermuda/audit-bundle": "dev-main#50f6e01b8643322143d84849be525b0891aeeaf6",
-        "ubermuda/doctrine-extra": "dev-main#ec867f3bf1ed362c201abbe152ac27447ec37526",
+        "ubermuda/doctrine-extra": "dev-main#21d12425430c914d813ac85de089dbac6d107437",
         "ubermuda/feature-flags-bundle": "dev-main#d8934784a9545dc5ec648c68deb0b2d58757764f",
         "ubermuda/health-check-bundle": "dev-main#dacf874c2aeaf2f48ef7b0c3d1a22f7aad0f4352",
         "ubermuda/symfony-extra": "dev-main#690508f376fd9acf6a00fcab69172bd8590fe3c5"

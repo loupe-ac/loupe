@@ -81,7 +81,7 @@ final class RotateGitHubHookSecretControllerTest extends WebTestCase
         $owner = $this->signedUpUser('nokey');
         $project = $this->projectOf($owner);
         $this->em()->clear();
-        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider('')));
+        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider([''])));
 
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook/secret');

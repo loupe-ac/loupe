@@ -509,7 +509,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $owner = $this->signedUpUser('nokey');
         $project = $this->projectOf($owner);
         $this->em()->clear();
-        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider('')));
+        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider([''])));
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('', '', '', '', null, null));
 
         $client->loginUser($owner);
