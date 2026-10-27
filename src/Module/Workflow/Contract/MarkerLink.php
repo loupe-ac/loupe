@@ -9,6 +9,7 @@ enum MarkerLink: string
 {
     case Agents = 'agents';
     case RulesetSetup = 'ruleset-setup';
+    case Repositories = 'repositories';
 
     /** The translation key of the link text. */
     public function translationKey(): string

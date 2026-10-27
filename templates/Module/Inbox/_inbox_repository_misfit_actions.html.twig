@@ -1,0 +1,12 @@
+{# The ways out of a repository misfit notice: the guide, and Check again for each blocking repository.
+   The routes are named, because Inbox imports nothing from GitHub.
+   Params: item (InboxItem), misfit (InboxRepositoryMisfit). #}
+{% set several = misfit.repositories|length > 1 %}
+<div class="lp-inbox-item__buttons" data-inbox-repository-misfit>
+    <twig:Ds:Button variant="primary" size="sm" :href="path('app_project_repositories_settings', {id: item.project.id})" data-turbo-frame="_top" data-inbox-repository-misfit-guide>{{ 'inbox.repository_misfit.action.guide'|trans }}</twig:Ds:Button>
+    {% for repository in misfit.repositories %}
+        <twig:Ds:ActionForm :action="path('app_github_repository_check', {id: item.project.id, repositoryId: repository.id})" token="github-repository-check" frame="_top">
+            <twig:Ds:Button variant="ghost" size="sm" type="submit" data-inbox-repository-misfit-check="{{ repository.id }}">{{ (several ? 'inbox.repository_misfit.action.check_again_repository' : 'inbox.repository_misfit.action.check_again')|trans({'%repository%': repository.path}) }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+    {% endfor %}
+</div>

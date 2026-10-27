@@ -7,6 +7,7 @@ namespace App\Module\Forge\Workflow;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\RepositoryHoldSummaries;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Workflow\Contract\BlockingRepository;
 use App\Module\Workflow\Contract\WorkHold;
 use App\Module\Workflow\Contract\WorkHolds;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -35,13 +36,14 @@ final readonly class ForgeRepositoryWorkHolds implements WorkHolds
             return null;
         }
 
-        $paths = [];
+        $blocking = [];
         foreach ($this->forgeRepositories->findByProject($project) as $repository) {
-            if (isset($summary->blocking[(string) $repository->id])) {
-                $paths[] = $repository->path;
+            $gaps = $summary->blocking[(string) $repository->id] ?? null;
+            if (null !== $gaps) {
+                $blocking[] = new BlockingRepository((string) $repository->id, $repository->path, $gaps);
             }
         }
 
-        return new WorkHold($paths, array_sum($summary->blocking));
+        return new WorkHold($blocking);
     }
 }

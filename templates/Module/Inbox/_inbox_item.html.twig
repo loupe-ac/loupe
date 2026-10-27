@@ -19,6 +19,10 @@
     {% if not item.isAutomatic() and item.body|trim is not empty %}
         <div class="prose lp-prose lp-inbox-item__body">{{ item.body|inbox_markdown }}</div>
     {% endif %}
+    {% set misfit = home and open ? inbox_repository_misfit(item) : null %}
+    {% if misfit %}
+        {% include '@Inbox/_inbox_repository_misfit_actions.html.twig' with {item: item, misfit: misfit} only %}
+    {% endif %}
     {% set watch = item.isAutomatic() ? inbox_card_watch(item) : null %}
     {% if watch %}
         {% set threadReply = home and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow;
 
+use App\Module\Workflow\Contract\BlockingRepository;
 use App\Module\Workflow\Contract\WorkHold;
 use App\Module\Workflow\Contract\WorkHolds;
 use Symfony\Component\Uid\Uuid;
@@ -13,6 +14,9 @@ final class FakeWorkHolds implements WorkHolds
 {
     public bool $held = false;
 
+    /** The hold to return. A null value falls back to a one-repository hold while $held is true. */
+    public ?WorkHold $hold = null;
+
     public int $reads = 0;
 
     #[\Override]
@@ -20,6 +24,6 @@ final class FakeWorkHolds implements WorkHolds
     {
         ++$this->reads;
 
-        return $this->held ? new WorkHold(['acme/widgets'], 1) : null;
+        return $this->hold ?? ($this->held ? new WorkHold([new BlockingRepository('0197c8a0-0000-7000-8000-000000000001', 'acme/widgets', 1)]) : null);
     }
 }

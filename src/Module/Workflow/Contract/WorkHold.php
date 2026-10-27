@@ -7,10 +7,12 @@ namespace App\Module\Workflow\Contract;
 /** Why a project holds its new work: the repositories that block it, and the count of their blocking gaps. */
 final readonly class WorkHold
 {
-    /** @param list<string> $repositories the path of each blocking repository */
+    public int $blockingGaps;
+
+    /** @param list<BlockingRepository> $repositories */
     public function __construct(
         public array $repositories,
-        public int $blockingGaps,
     ) {
+        $this->blockingGaps = array_sum(array_map(static fn (BlockingRepository $repository): int => $repository->blockingGaps, $repositories));
     }
 }

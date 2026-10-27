@@ -81,6 +81,17 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
     }
 
+    public function test_a_repository_misfit_marker_links_the_tile_tooltip_to_the_repositories_page(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(MarkerMother::marker('repository_misfit', MarkerKind::NeedsYou, link: MarkerLink::Repositories));
+
+        $links = $this->renderTile($card, $markers)->filter('.lp-tooltip a');
+        self::assertSame(['Open Repositories', 'Open card'], $links->each(static fn (Crawler $link): string => trim($link->text())));
+        self::assertStringEndsWith('/projects/'.$card->project->id.'/settings/repositories', (string) $links->first()->attr('href'));
+        self::assertStringContainsString('New work is paused: a repository does not fit the workflow.', $this->renderTile($card, $markers)->filter('.lp-tooltip')->text());
+    }
+
     public function test_a_marker_after_the_state_keeps_its_link_in_the_tile_tooltip(): void
     {
         $card = $this->storedCard();

@@ -34,6 +34,7 @@ final class MarkerLinkExtension extends AbstractExtension
     {
         return match ($link) {
             MarkerLink::Agents => $this->urls->generate('app_project_agents', ['id' => $project->requireId()]),
+            MarkerLink::Repositories => $this->urls->generate('app_project_repositories_settings', ['id' => $project->requireId()]),
             MarkerLink::RulesetSetup => rtrim($this->docsUrl, '/').'/using/workflows/#set-up-the-ruleset',
         };
     }

@@ -44,6 +44,7 @@ use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
+use App\Module\Workflow\Fact\WorkHoldFacts;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
@@ -60,7 +61,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'merge-blocked', 'ruleset-mismatch', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
+        'document-in-review', 'waits-for-approval', 'merge-blocked', 'ruleset-mismatch', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
@@ -74,7 +75,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'ruleset-mismatch'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'ruleset-mismatch', 'repository-misfit'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -579,6 +580,16 @@ final class ShippedMarkersTest extends KernelTestCase
         $unknown = $ready(new StackParent('feature/a'));
         self::assertSame(['waits-for-parent-branch'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $unknown, pullRequests: [$unknown])));
         self::assertSame(['%number%' => 5, '%branch%' => 'feature/a'], $this->written('waits-for-parent-branch')->params);
+    }
+
+    public function test_a_card_held_by_the_work_hold_needs_the_person_and_links_to_the_repositories(): void
+    {
+        $held = FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: [WorkHoldFacts::class => new WorkHoldFacts(new \DateTimeImmutable('2026-10-01 10:00:00'))]);
+
+        self::assertSame(['repository-misfit'], $this->keys($held));
+        self::assertSame(MarkerKind::NeedsYou, $this->written('repository-misfit')->kind);
+        self::assertSame(MarkerLink::Repositories, $this->written('repository-misfit')->link);
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'))), 'A card that no hold stops shows no repository marker.');
     }
 
     public function test_a_card_in_a_terminal_column_shows_nothing(): void

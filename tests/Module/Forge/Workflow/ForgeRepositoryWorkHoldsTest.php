@@ -9,6 +9,7 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\BlockingRepository;
 use App\Module\Workflow\Contract\WorkHolds;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -56,7 +57,7 @@ final class ForgeRepositoryWorkHoldsTest extends KernelTestCase
         $hold = $this->holds->heldProject($project->id ?? throw new \LogicException('Persisted.'));
 
         self::assertNotNull($hold);
-        self::assertSame([$blocked->path], $hold->repositories);
+        self::assertEquals([new BlockingRepository((string) $blocked->id, $blocked->path, 2)], $hold->repositories);
         self::assertSame(2, $hold->blockingGaps);
     }
 

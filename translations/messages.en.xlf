@@ -6004,6 +6004,42 @@
                 <source>inbox.bridge_outage.closed</source>
                 <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
             </trans-unit>
+            <trans-unit id="inbox.repository_misfit.title.one">
+                <source>inbox.repository_misfit.title.one</source>
+                <target>%repository% does not fit the workflow</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.title.many">
+                <source>inbox.repository_misfit.title.many</source>
+                <target>%repositories% do not fit the workflow</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.intro">
+                <source>inbox.repository_misfit.body.intro</source>
+                <target>{0}New work is paused.|{1}New work is paused until the blocking gap is fixed.|]1,Inf[New work is paused until the %count% blocking gaps are fixed.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.repository">
+                <source>inbox.repository_misfit.body.repository</source>
+                <target>{0}%repository%: no blocking gap|{1}%repository%: 1 blocking gap|]1,Inf[%repository%: %count% blocking gaps</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.remedy">
+                <source>inbox.repository_misfit.body.remedy</source>
+                <target>Running work finishes. Open the guide to fix each gap. This item closes by itself when a check finds no blocking gap.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.closed">
+                <source>inbox.repository_misfit.closed</source>
+                <target>A check found no blocking gap, so Loupe takes new work again.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.guide">
+                <source>inbox.repository_misfit.action.guide</source>
+                <target>Open the guide</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.check_again">
+                <source>inbox.repository_misfit.action.check_again</source>
+                <target>Check again</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.check_again_repository">
+                <source>inbox.repository_misfit.action.check_again_repository</source>
+                <target>Check %repository% again</target>
+            </trans-unit>
             <trans-unit id="inbox.item.error.workflow_not_declinable">
                 <source>inbox.item.error.workflow_not_declinable</source>
                 <target>A workflow question takes an answer only. Pick an option.</target>
@@ -9532,6 +9568,18 @@
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
             <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
+            <trans-unit id="marker.repository_misfit">
+                <source>marker.repository_misfit</source>
+                <target>New work is paused: a repository does not fit the workflow.</target>
+            </trans-unit>
+            <trans-unit id="marker.repository_misfit.remedy">
+                <source>marker.repository_misfit.remedy</source>
+                <target>Fix the blocking gaps on the Repositories page. This card goes on when a check finds none.</target>
+            </trans-unit>
+            <trans-unit id="marker.link.repositories">
+                <source>marker.link.repositories</source>
+                <target>Open Repositories</target>
+            </trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>

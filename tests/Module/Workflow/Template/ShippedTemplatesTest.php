@@ -93,6 +93,7 @@ final class ShippedTemplatesTest extends KernelTestCase
                 'document-in-review' => MarkerSubjectType::Document,
                 'run-needs-you' => MarkerSubjectType::WorkerRun,
                 'paused' => MarkerSubjectType::CardPause,
+                'repository-misfit' => null,
             ],
             'simple' => [
                 'waits-for-approval' => MarkerSubjectType::PullRequest,
@@ -105,7 +106,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             $template = $this->template($key);
             self::assertSame(array_keys($subjects), $template->inbox, $key);
             foreach ($template->markers as $marker) {
-                if (isset($subjects[$marker->key])) {
+                if (\array_key_exists($marker->key, $subjects)) {
                     self::assertSame($subjects[$marker->key], MarkerSubjectClassifier::of($marker->when), $key.' '.$marker->key);
                 }
             }
