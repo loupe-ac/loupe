@@ -331,6 +331,8 @@ sheet open and shows a message in it.
 The Backlog page is at **`/projects/<project>/board/backlog`**. It lists the
 cards in Backlog, 25 to a page. Each row shows the card number and title, the
 type, the epic, the count of pending feedback and the date the card was added.
+Click a title to open the card in the card drawer, as on the board. A new tab
+from the same link opens the full card page.
 
 Above the list, search the title and the body, and filter by type and by epic. The type filter offers the types that the workflow
 template declares.
@@ -1337,7 +1339,7 @@ finding names a file, a range of lines and a severity. A finding of the category
 `spec`, a gap between the pull request and the approved design, can name no file,
 and then has no line note. The summary of the check lists the `spec` findings
 first. Loupe posts a check named
-`loupe/agent-review` on the commit that the worker reviewed, and on each later
+`Loupe / Agent review` on the commit that the worker reviewed, and on each later
 head that carries the review. The check puts one
 note beside the lines of each finding. An important finding shows as a failure,
 a nit as a warning, and a pre-existing finding as a notice. The check fails when

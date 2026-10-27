@@ -189,6 +189,23 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertSame(PullRequestMergeability::Behind, $this->reader()->read($pullRequest)->mergeability);
     }
 
+    public function test_a_mergeability_github_still_computes_reads_as_unknown_and_skips_the_compare(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_014);
+        $graphql = $this->fixture('graphql');
+        $graphql['data']['repository']['pullRequest']['mergeable'] = 'UNKNOWN';
+        $graphql['data']['repository']['pullRequest']['mergeStateStatus'] = 'UNKNOWN';
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($graphql),
+            $this->answer($this->fixture('rules')),
+            $this->answer(['ahead_by' => 8, 'behind_by' => 2, 'status' => 'diverged']),
+        ];
+
+        self::assertSame(PullRequestMergeability::Unknown, $this->reader()->read($pullRequest)->mergeability);
+        self::assertCount(3, $this->requests);
+    }
+
     public function test_the_branch_rules_are_cached_for_five_minutes(): void
     {
         $pullRequest = $this->tracked('loupe-ac/loupe', 70_003);

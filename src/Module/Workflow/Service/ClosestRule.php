@@ -32,7 +32,7 @@ final readonly class ClosestRule
     /** @return array{Facts, int} the facts bound to the open pull request with the fewest false conditions, and that count */
     private function bind(Rule $rule, Facts $facts): array
     {
-        $candidates = \in_array(EngineFact::PullRequest, $rule->when->reads(), true)
+        $candidates = array_any($rule->when->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest())
             ? array_values(array_filter($facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => PullRequestState::Open === $pullRequest->state))
             : [];
         $best = [$facts, $rule->when->countAgainst($facts, true)];

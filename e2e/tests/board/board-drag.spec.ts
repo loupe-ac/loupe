@@ -18,6 +18,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
+import { addBoardColumn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eBoardDrag1!';
@@ -328,11 +329,15 @@ test('a drag into another column lands where the marker stood', async ({
 
 test('the dragged card stays under the pointer on a scrolled board, and a ghost holds its slot', async ({
     page,
+    board,
 }) => {
     // Narrow and short, so a column scrolls its cards and the columns scroll
     // sideways. The dragged card is fixed to the viewport, so both offsets
     // must drop out of its position. Below 640px a phone shows one column per
-    // screen, so the width stays at that edge.
+    // screen, so the width stays at that edge, and a fourth column overflows it.
+    await addBoardColumn(page, board.projectId, 'Review');
+    await page.goto(board.boardUrl);
+    await waitForDragReady(page);
     await page.setViewportSize({ width: 640, height: 400 });
     // Below lg the sidebar turns into a drawer, which stays over the board
     // until its slide-out ends.

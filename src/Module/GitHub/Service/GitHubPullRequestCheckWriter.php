@@ -43,6 +43,18 @@ final readonly class GitHubPullRequestCheckWriter implements PullRequestCheckWri
     }
 
     #[\Override]
+    public function canPublish(ForgePullRequest $pullRequest): bool
+    {
+        try {
+            $this->installations->for($pullRequest);
+        } catch (GitHubInstallationUnavailable) {
+            return false;
+        }
+
+        return true;
+    }
+
+    #[\Override]
     public function publish(ForgePullRequest $pullRequest, string $name, string $sha, PullRequestCheckConclusion $conclusion, string $title, string $summary, ?int $runId, array $annotations): int
     {
         try {

@@ -42,7 +42,7 @@ final class HumanReviewRuleExtension extends AbstractExtension
             return null;
         }
 
-        $approving = array_find($rules, static fn (Rule $rule): bool => array_any($rule->then, static fn (ActionCall $call): bool => self::FORGE_WRITE === $call->key && 'approve' === ($call->params['write'] ?? null)));
+        $approving = array_find($rules, static fn (Rule $rule): bool => array_any($rule->then, static fn (ActionCall $call): bool => self::FORGE_WRITE === $call->key && 'approval-check' === ($call->params['write'] ?? null) && 'pass' === ($call->params['state'] ?? null)));
         $requiring = array_find($rules, static fn (Rule $rule): bool => array_any($rule->then, static fn (ActionCall $call): bool => self::REQUIRE_HUMAN_REVIEW === $call->key));
 
         return ($approving ?? $requiring)?->id;

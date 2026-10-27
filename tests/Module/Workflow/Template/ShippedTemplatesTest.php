@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Template;
 
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
@@ -510,7 +511,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             provided: [AgentReviewFacts::class => new AgentReviewFacts([
                 new ReviewedHead((string) $passed->id, str_repeat('a', 40), AgentReviewConclusion::Success),
                 new ReviewedHead((string) $needing->id, str_repeat('b', 40), $conclusion),
-            ], epic: false, unposted: false, uncommented: [])],
+            ]), AgentReviewPostingFacts::class => new AgentReviewPostingFacts(unposted: false, uncommented: [])],
         );
         $rule = array_find($this->lifecycle()->rulesFor('implementation'), static fn ($rule): bool => $ruleId === $rule->id);
         self::assertNotNull($rule);
@@ -543,8 +544,8 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [null])));
         self::assertNotContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [AgentReviewConclusion::Failure])));
         self::assertContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [AgentReviewConclusion::Success])));
-        self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [null], approvals: 1)));
-        self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], approvals: 1)));
+        self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [null], approved: true)));
+        self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], approved: true)));
     }
 
     public function test_an_approval_that_overrides_a_failed_agent_review_lets_the_card_go_on(): void
@@ -556,8 +557,8 @@ final class ShippedTemplatesTest extends KernelTestCase
         $implementation = self::withAgentReview('implementation', [AgentReviewConclusion::Failure], overriddenBy: 'ubermuda');
         self::assertContainsEquals($toReview, $this->actions($implementation));
         self::assertContainsEquals($ready, $this->actions(self::withAgentReview('implementation', [AgentReviewConclusion::Failure], draft: true, overriddenBy: 'ubermuda')));
-        self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Failure], approvals: 1, overriddenBy: 'ubermuda')));
-        self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Failure], approvals: 1)));
+        self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Failure], approved: true, overriddenBy: 'ubermuda')));
+        self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Failure], approved: true)));
         $fixes = array_filter($this->actions($implementation), static fn (ActionCall $action): bool => 'request' === $action->key && 'fix' === ($action->params['kind'] ?? null));
         self::assertSame([], array_values($fixes));
     }
@@ -585,17 +586,154 @@ final class ShippedTemplatesTest extends KernelTestCase
      * @param list<string>                     $activeWorkKinds
      * @param list<string>                     $waitingAskIds
      */
-    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null, array $waitingAskIds = []): Facts
+    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, bool $approved = false, bool $ready = false, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null, array $waitingAskIds = []): Facts
     {
         $id = Uuid::v7();
         $heads = array_map(static fn (?AgentReviewConclusion $conclusion): ReviewedHead => new ReviewedHead((string) $id, str_repeat('a', 40), $conclusion, overriddenBy: $overriddenBy), $conclusions);
 
         return FactsMother::facts(
             card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
-            pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, approvalsCoveringHead: $approvals, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id),
+            pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id, checksOnHead: $ready, baseIsDefault: $ready && !$epicBranch, approvalCheckPassed: $approved, canPostCheck: $ready),
             run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
-            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false, uncommented: []), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
+            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads), AgentReviewPostingFacts::class => new AgentReviewPostingFacts(unposted: false, uncommented: []), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
         );
+    }
+
+    #[DataProvider('reviewSlots')]
+    public function test_an_epic_pull_request_asks_for_an_agent_review(string $slot): void
+    {
+        $suffix = 'in-review' === $slot ? '-in-review' : '';
+
+        self::assertContains('agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [null], epic: true)));
+        self::assertNotContains('agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Success], epic: true)));
+        self::assertContains('fix-agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Failure], epic: true)));
+    }
+
+    public function test_an_epic_waits_for_its_own_agent_review_before_it_gets_the_approval_check_or_merges(): void
+    {
+        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $pass = $this->call('forge-write', ['write' => 'approval-check', 'state' => 'pass']);
+        $epic = static fn (?AgentReviewConclusion $conclusion, bool $approved): Facts => self::withAgentReview('in-review', [$conclusion], epic: true, approved: $approved, ready: true);
+
+        self::assertNotContainsEquals($pass, $this->actions($epic(null, false)));
+        self::assertNotContainsEquals($pass, $this->actions($epic(AgentReviewConclusion::Failure, false)));
+        self::assertContainsEquals($pass, $this->actions($epic(AgentReviewConclusion::Success, false)));
+        self::assertNotContainsEquals($merge, $this->actions($epic(null, true)));
+        self::assertContainsEquals($merge, $this->actions($epic(AgentReviewConclusion::Success, true)));
+    }
+
+    public function test_an_epic_in_review_with_a_draft_pull_request_still_skips_the_back_to_draft_rule(): void
+    {
+        self::assertNotContains('back-to-draft', $this->firingRuleIds(self::withAgentReview('in-review', [null], draft: true, epic: true)));
+        self::assertContains('back-to-draft', $this->firingRuleIds(self::withAgentReview('in-review', [null], draft: true)));
+    }
+
+    public function test_the_revoke_rule_has_no_slot_and_the_pass_rules_sit_in_review(): void
+    {
+        $rules = array_column($this->lifecycle()->rules, null, 'id');
+
+        self::assertNull($rules['approval-check-revoke']->slot);
+        self::assertEquals($this->call('forge-write', ['write' => 'approval-check', 'state' => 'revoke']), $rules['approval-check-revoke']->lead);
+        foreach (['approval-check-auto', 'approval-check-person'] as $id) {
+            self::assertSame('in-review', $rules[$id]->slot, $id);
+            self::assertEquals($this->call('forge-write', ['write' => 'approval-check', 'state' => 'pass']), $rules[$id]->lead, $id);
+        }
+        foreach (['pull-request-auto-approve', 'dismiss-app-approval'] as $removed) {
+            self::assertArrayNotHasKey($removed, $rules);
+        }
+    }
+
+    public function test_the_revoke_rule_fires_in_any_column_only_for_a_passed_check_that_no_person_backs(): void
+    {
+        $passed = FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true);
+        $byPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, approvalCheckPassed: true);
+        $needsPerson = [HumanReviewFacts::class => new HumanReviewFacts(true)];
+
+        foreach (['implementation', 'in-review', 'next'] as $slot) {
+            self::assertContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: $slot), pullRequest: $passed, pullRequests: [$passed], provided: $needsPerson)), $slot);
+        }
+        self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $passed, pullRequests: [$passed])));
+        self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $byPerson, pullRequests: [$byPerson], provided: $needsPerson)));
+        $failed = FactsMother::pullRequest(checks: ChecksState::Passed);
+        self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $failed, pullRequests: [$failed], provided: $needsPerson)));
+    }
+
+    public function test_the_person_rule_needs_green_checks_on_the_head_and_the_default_base(): void
+    {
+        $approved = static fn (array $overrides = []): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: FactsMother::pullRequest(...[...['checks' => ChecksState::Passed, 'approvalsCoveringHead' => 1, 'checksOnHead' => true, 'baseIsDefault' => true], ...$overrides]),
+        );
+
+        self::assertContains('approval-check-person', $this->firingRuleIds($approved()));
+        self::assertNotContains('approval-check-person', $this->firingRuleIds($approved(['checks' => ChecksState::Pending])));
+        self::assertNotContains('approval-check-person', $this->firingRuleIds($approved(['checksOnHead' => false])));
+        self::assertNotContains('approval-check-person', $this->firingRuleIds($approved(['baseIsDefault' => false])));
+        self::assertNotContains('approval-check-person', $this->firingRuleIds($approved(['draft' => true])));
+        self::assertNotContains('approval-check-person', $this->firingRuleIds($approved(['approvalsCoveringHead' => 0])));
+        self::assertNotContains('approval-check-person', $this->firingRuleIds($approved(['approvalCheckPassed' => true])));
+    }
+
+    public function test_a_behind_pull_request_updates_its_branch_once_the_approval_check_passed(): void
+    {
+        $update = $this->call('forge-write', ['write' => 'update-branch', 'fallback' => 'sync']);
+        $behind = static fn (bool $passed, int $approvals): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, behind: true, approvalsCoveringHead: $approvals, approvalCheckPassed: $passed),
+        );
+
+        self::assertContainsEquals($update, $this->actions($behind(true, 0)));
+        self::assertNotContainsEquals($update, $this->actions($behind(false, 1)));
+    }
+
+    public function test_the_merge_blocked_marker_shows_for_a_blocked_merge_after_the_approval_check_passed(): void
+    {
+        $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'merge-blocked' === $marker->key) ?? throw new \LogicException('merge-blocked');
+        $facts = static fn (array $overrides = [], ?RunInputs $run = null): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: FactsMother::pullRequest(...[...['checks' => ChecksState::Passed, 'approvalCheckPassed' => true, 'mergeBlocked' => true], ...$overrides]),
+            run: $run ?? FactsMother::run(),
+        );
+
+        self::assertSame('needs-you', $marker->kind->value);
+        self::assertSame(MarkerSubjectType::PullRequest, MarkerSubjectClassifier::of($marker->when));
+        self::assertTrue($marker->when->evaluate($facts()));
+        self::assertFalse($marker->when->evaluate($facts(['approvalCheckPassed' => false])));
+        self::assertFalse($marker->when->evaluate($facts(['checks' => ChecksState::Pending])));
+        self::assertFalse($marker->when->evaluate($facts(['mergeBlocked' => false])));
+        self::assertFalse($marker->when->evaluate($facts(['state' => PullRequestState::Closed])));
+        self::assertFalse($marker->when->evaluate($facts(run: FactsMother::run(activeWorkerKinds: ['fix']))));
+    }
+
+    public function test_the_ruleset_mismatch_marker_shows_for_an_open_pull_request_whose_ruleset_does_not_fit(): void
+    {
+        $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'ruleset-mismatch' === $marker->key) ?? throw new \LogicException('ruleset-mismatch');
+        $facts = static fn (array $overrides = [], ?RunInputs $run = null): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: FactsMother::pullRequest(...[...['baseRequiresReview' => true], ...$overrides]),
+            run: $run ?? FactsMother::run(),
+        );
+
+        self::assertSame('needs-you', $marker->kind->value);
+        self::assertSame(MarkerSubjectType::PullRequest, MarkerSubjectClassifier::of($marker->when));
+        self::assertTrue($marker->when->evaluate($facts()));
+        self::assertTrue($marker->when->evaluate($facts(['baseRequiresReview' => false, 'approvalCheckUnpinned' => true])));
+        self::assertFalse($marker->when->evaluate($facts(['baseRequiresReview' => false])));
+        self::assertFalse($marker->when->evaluate($facts(['state' => PullRequestState::Closed])));
+        self::assertFalse($marker->when->evaluate($facts(run: FactsMother::run(activeWorkerKinds: ['fix']))));
+    }
+
+    public function test_the_waits_for_approval_marker_follows_the_approval_check(): void
+    {
+        $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'waits-for-approval' === $marker->key) ?? throw new \LogicException('waits-for-approval');
+        $facts = static fn (array $overrides = []): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: FactsMother::pullRequest(...[...['checks' => ChecksState::Passed, 'checksOnHead' => true, 'canMerge' => true, 'baseIsDefault' => true, 'canPostCheck' => true], ...$overrides]),
+            provided: [HumanReviewFacts::class => new HumanReviewFacts(true)],
+        );
+
+        self::assertTrue($marker->when->evaluate($facts()));
+        self::assertFalse($marker->when->evaluate($facts(['approvalCheckPassed' => true])));
     }
 
     public function test_a_draft_in_review_moves_back_to_implementation(): void
@@ -612,7 +750,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $ready = FactsMother::facts(
             card: FactsMother::card(slot: 'in-review'),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
         $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
 
@@ -720,7 +858,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $facts = FactsMother::facts(
             card: FactsMother::card(slot: 'in-review', type: 'epic', childCount: 2),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
 
         self::assertContainsEquals($this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']), $this->actions($facts));
@@ -752,7 +890,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $facts = FactsMother::facts(
             card: FactsMother::card(slot: 'in-review', type: 'epic', childCount: 2, openChildCount: 1),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
 
         self::assertNotContainsEquals($this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']), $this->actions($facts));
@@ -942,14 +1080,14 @@ final class ShippedTemplatesTest extends KernelTestCase
             'fix-in-implementation',
         ];
 
-        $behind = FactsMother::pullRequest(checks: ChecksState::Passed, behind: true, approvalsCoveringHead: 1);
+        $behind = FactsMother::pullRequest(checks: ChecksState::Passed, behind: true, approvalCheckPassed: true);
         yield 'an approved pull request that is behind updates and does not merge' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $behind, pullRequests: [$behind]),
             ['merge-ready', 'update-behind'],
             'update-behind',
         ];
 
-        $approvedIntoEpic = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, baseIsEpicBranch: true);
+        $approvedIntoEpic = FactsMother::pullRequest(checks: ChecksState::Passed, baseIsEpicBranch: true, approvalCheckPassed: true);
         yield 'an approved pull request into the epic branch merges through the epic child rule' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review', isChild: true), pullRequest: $approvedIntoEpic, pullRequests: [$approvedIntoEpic]),
             ['merge-ready', 'merge-ready-epic-child'],
@@ -962,50 +1100,57 @@ final class ShippedTemplatesTest extends KernelTestCase
             null,
         ];
 
-        $approvedIntoDefault = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1);
+        $approvedIntoDefault = FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true);
         yield 'an approved pull request into the default branch merges through merge-ready' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review', isChild: true), pullRequest: $approvedIntoDefault, pullRequests: [$approvedIntoDefault]),
             ['merge-ready', 'merge-ready-epic-child'],
             'merge-ready',
         ];
 
-        $readyForApproval = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, appCanApprove: true);
-        yield 'a pull request that no person must review gets the approval of the App' => [
+        $readyForApproval = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, canPostCheck: true);
+        yield 'a pull request that no person must review gets the approval check' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $readyForApproval, pullRequests: [$readyForApproval]),
-            ['pull-request-auto-approve', 'merge-ready'],
-            'pull-request-auto-approve',
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
+            'approval-check-auto',
         ];
 
-        yield 'a pull request that a person must review gets no approval of the App' => [
+        yield 'a pull request that a person must review gets no approval check from Loupe' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $readyForApproval, pullRequests: [$readyForApproval], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
-            ['pull-request-auto-approve', 'merge-ready'],
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
             null,
         ];
 
         $noInstallation = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true);
-        yield 'a repository with no App installation gets no approval of the App' => [
+        yield 'a repository with no App installation gets no approval check' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $noInstallation, pullRequests: [$noInstallation]),
-            ['pull-request-auto-approve', 'merge-ready'],
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
             null,
         ];
 
-        $approvedByApp = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, appApprovalCoversHead: true, appApprovalStands: true, appCanApprove: true);
-        yield 'a pull request that the App approved merges when no person must review it' => [
-            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByApp, pullRequests: [$approvedByApp]),
-            ['pull-request-auto-approve', 'merge-ready'],
+        $checkPassed = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, approvalCheckPassed: true, canPostCheck: true);
+        yield 'a pull request whose approval check passed merges and posts no second check' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $checkPassed, pullRequests: [$checkPassed]),
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
             'merge-ready',
         ];
 
-        yield 'a pull request that the App approved waits for a person when the card needs one' => [
-            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByApp, pullRequests: [$approvedByApp], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
-            ['pull-request-auto-approve', 'merge-ready', 'dismiss-app-approval'],
-            'dismiss-app-approval',
+        yield 'a pull request whose approval check passed fails the check when the card needs a person' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $checkPassed, pullRequests: [$checkPassed], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
+            ['approval-check-auto', 'merge-ready', 'approval-check-revoke'],
+            'approval-check-revoke',
         ];
 
-        $approvedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, baseIsDefault: true);
-        yield 'a pull request that a person approved merges when the card needs a person' => [
+        $approvedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true);
+        yield 'a pull request that a person approved gets the approval check when the card needs a person' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByPerson, pullRequests: [$approvedByPerson], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
-            ['merge-ready', 'dismiss-app-approval'],
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
+            'approval-check-person',
+        ];
+
+        $personAndCheck = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, approvalCheckPassed: true);
+        yield 'a person approval keeps the passed check when the card needs a person' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $personAndCheck, pullRequests: [$personAndCheck], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
+            ['approval-check-person', 'merge-ready', 'approval-check-revoke'],
             'merge-ready',
         ];
 
@@ -1112,7 +1257,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         $intoDefault = FactsMother::pullRequest(checks: ChecksState::Passed, behind: true);
         self::assertNotContainsEquals($update, $this->actions(FactsMother::facts(card: $child, pullRequest: $intoDefault, pullRequests: [$intoDefault])));
 
-        $merged = FactsMother::pullRequest(state: PullRequestState::Merged, checks: ChecksState::Passed, behind: true, approvalsCoveringHead: 1, baseIsEpicBranch: true);
+        $merged = FactsMother::pullRequest(state: PullRequestState::Merged, checks: ChecksState::Passed, behind: true, baseIsEpicBranch: true, approvalCheckPassed: true);
         self::assertNotContainsEquals($update, $this->actions(FactsMother::facts(card: $child, pullRequest: $merged, pullRequests: [$merged])));
     }
 

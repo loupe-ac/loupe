@@ -5844,6 +5844,14 @@
                 <source>inbox.wait.fallback.card</source>
                 <target>Card %card% needs you.</target>
             </trans-unit>
+            <trans-unit id="inbox.wait.pause_code">
+                <source>inbox.wait.pause_code</source>
+                <target>The workflow paused the card with the code %code%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.pause_run_link">
+                <source>inbox.wait.pause_run_link</source>
+                <target>Open the failed run</target>
+            </trans-unit>
             <trans-unit id="inbox.wait.action.document">
                 <source>inbox.wait.action.document</source>
                 <target>Review the document</target>
@@ -7476,7 +7484,6 @@
             <trans-unit id="board.card.drawer.deleted"><source>board.card.drawer.deleted</source><target>This card was deleted.</target></trans-unit>
             <trans-unit id="nav.global_actions.label"><source>nav.global_actions.label</source><target>Global tools</target></trans-unit>
             <trans-unit id="nav.new_work"><source>nav.new_work</source><target>New work</target></trans-unit>
-            <trans-unit id="nav.activity.open"><source>nav.activity.open</source><target>Open project activity</target></trans-unit>
             <trans-unit id="board.card.drawer.sections"><source>board.card.drawer.sections</source><target>Card sections</target></trans-unit>
             <trans-unit id="board.card.tab.overview"><source>board.card.tab.overview</source><target>Overview</target></trans-unit>
             <trans-unit id="board.card.tab.conversation"><source>board.card.tab.conversation</source><target>Conversation</target></trans-unit>
@@ -7505,8 +7512,8 @@
             <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the live-review widget: %verdict%.</target></trans-unit>
             <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
-            <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe approved #%pr% at %sha% as the GitHub App.</target></trans-unit>
-            <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe dismissed its approval of #%pr% as the GitHub App, because a person must review it.</target></trans-unit>
+            <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe passed the approval check on #%pr% at %sha%.</target></trans-unit>
+            <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe withdrew its approval of #%pr%, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
@@ -7828,7 +7835,6 @@
                 <source>project.workshop.needs_you.action</source>
                 <target>Open inbox</target>
             </trans-unit>
-            <trans-unit id="project.workshop.activity.view_all"><source>project.workshop.activity.view_all</source><target>View all</target></trans-unit>
             <trans-unit id="activity.event_type.board.card_moved"><source>activity.event_type.board.card_moved</source><target>Card moved</target></trans-unit>
             <trans-unit id="activity.event_type.board.column_renamed"><source>activity.event_type.board.column_renamed</source><target>Column renamed</target></trans-unit>
             <trans-unit id="activity.event_type.board.column_deleted"><source>activity.event_type.board.column_deleted</source><target>Column deleted</target></trans-unit>
@@ -7848,7 +7854,6 @@
             <trans-unit id="activity.event_type.pull_request.merged"><source>activity.event_type.pull_request.merged</source><target>Pull request merged</target></trans-unit>
             <trans-unit id="activity.event_type.pull_request.repository_moved"><source>activity.event_type.pull_request.repository_moved</source><target>Repository moved</target></trans-unit>
             <trans-unit id="activity.event_type.document.review_submitted"><source>activity.event_type.document.review_submitted</source><target>Document review submitted</target></trans-unit>
-            <trans-unit id="project.workshop.activity.empty"><source>project.workshop.activity.empty</source><target>No recorded activity yet.</target></trans-unit>
             <trans-unit id="project.workshop.cards.empty"><source>project.workshop.cards.empty</source><target>Nothing in motion. A card shows here when a bridge queues it or a session works on it.</target></trans-unit>
             <trans-unit id="project.workshop.needs_you.disabled"><source>project.workshop.needs_you.disabled</source><target>The inbox is disabled on this instance.</target></trans-unit>
             <trans-unit id="project.workshop.needs_you.clear">
@@ -8306,11 +8311,6 @@
             <trans-unit id="analytics.metrics.chart.label"><source>analytics.metrics.chart.label</source><target>%metric%, %statistic%, %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.week"><source>analytics.metrics.chart.week</source><target>Week of %date%</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.bar"><source>analytics.metrics.chart.bar</source><target>%bucket%: %series%, %value%, %rows%</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.run"><source>analytics.metrics.table.run</source><target>Run</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.card"><source>analytics.metrics.table.card</source><target>Card</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.time"><source>analytics.metrics.table.time</source><target>Time</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.hidden.run"><source>analytics.metrics.table.hidden.run</source><target>{0}No more runs.|{1}1 more run is not shown.|]1,Inf[%count% more runs are not shown.</target></trans-unit>
-            <trans-unit id="analytics.metrics.table.hidden.card"><source>analytics.metrics.table.hidden.card</source><target>{0}No more cards.|{1}1 more card is not shown.|]1,Inf[%count% more cards are not shown.</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.title"><source>analytics.metrics.empty.title</source><target>No runs are recorded yet</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.description"><source>analytics.metrics.empty.description</source><target>The chart fills when a bridge reports worker runs. Connect a bridge on the Agents page, or pick a longer range.</target></trans-unit>
             <trans-unit id="insights.reports.start.title"><source>insights.reports.start.title</source><target>Analyse</target></trans-unit>
@@ -8460,11 +8460,6 @@
             <trans-unit id="search.pagination"><source>search.pagination</source><target>Search result pages</target></trans-unit>
             <trans-unit id="search.previous"><source>search.previous</source><target>Previous results</target></trans-unit>
             <trans-unit id="search.next"><source>search.next</source><target>Next results</target></trans-unit>
-            <trans-unit id="activity.recent.title"><source>activity.recent.title</source><target>Recent activity</target></trans-unit>
-            <trans-unit id="activity.recent.close"><source>activity.recent.close</source><target>Close activity</target></trans-unit>
-            <trans-unit id="activity.recent.loading"><source>activity.recent.loading</source><target>Loading recent activity…</target></trans-unit>
-            <trans-unit id="activity.recent.failed"><source>activity.recent.failed</source><target>Recent activity is unavailable. Reopen this panel to retry, or open the full Activity page.</target></trans-unit>
-            <trans-unit id="activity.recent.open"><source>activity.recent.open</source><target>Open activity</target></trans-unit>
             <trans-unit id="activity.delivery.delivered"><source>activity.delivery.delivered</source><target>Delivered</target></trans-unit>
             <trans-unit id="activity.delivery.failed"><source>activity.delivery.failed</source><target>Delivery failed</target></trans-unit>
             <trans-unit id="activity.delivery.pending"><source>activity.delivery.pending</source><target>Pending delivery</target></trans-unit>
@@ -8642,11 +8637,15 @@
             <trans-unit id="github.system_status.app_api.missing_comment_permission"><source>github.system_status.app_api.missing_comment_permission</source><target>The GitHub App cannot write to pull requests for the accounts %accounts%. Loupe cannot post fix run comments, or mark ready, draft or close an epic pull request. Grant Pull requests: read and write.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.missing_contents_write"><source>github.system_status.app_api.missing_contents_write</source><target>The GitHub App cannot write the contents of repositories for the accounts %accounts%. Loupe cannot sync a pull request branch that is behind its base for these accounts. Grant Contents: read and write to use the sync.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.missing_checks_write"><source>github.system_status.app_api.missing_checks_write</source><target>The GitHub App cannot write checks for the accounts %accounts%. Loupe cannot report the Loupe live review check on a pull request for these accounts. Grant Checks: read and write to use the check.</target></trans-unit>
+            <trans-unit id="github.system_status.app_api.missing_statuses_write"><source>github.system_status.app_api.missing_statuses_write</source><target>The GitHub App cannot write commit statuses for the accounts %accounts%. A ruleset cannot set the Loupe App as the source of the Loupe / Approval check until the owner of each account accepts Commit statuses: read and write.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.missing_workflows_write"><source>github.system_status.app_api.missing_workflows_write</source><target>The GitHub App cannot update workflow files for the accounts %accounts%. Loupe cannot merge or sync a pull request that changes a file under .github/workflows/ for these accounts. Grant Workflows: read and write.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.working"><source>github.system_status.app_api.working</source><target>{0}GitHub accepts the App key. No account has installed the App yet.|{1}GitHub accepts the App key, and its installation grants each permission Loupe reads.|]1,Inf[GitHub accepts the App key, and its %count% installations grant each permission Loupe reads.</target></trans-unit>
             <trans-unit id="check.github_hook_key.label"><source>check.github_hook_key.label</source><target>GitHub webhook secrets</target></trans-unit>
             <trans-unit id="github.system_status.hook_key.readable"><source>github.system_status.hook_key.readable</source><target>APP_ENCRYPTION_KEY is readable, so projects can create a GitHub webhook.</target></trans-unit>
             <trans-unit id="github.system_status.hook_key.unreadable"><source>github.system_status.hook_key.unreadable</source><target>APP_ENCRYPTION_KEY is not set or is not a valid key, so no project can create or use a GitHub webhook. Set it to the base64 of 32 random bytes.</target></trans-unit>
+            <trans-unit id="github.repositories.ruleset.requires_review"><source>github.repositories.ruleset.requires_review</source><target>The ruleset of the default branch still requires an approving review. The Loupe App cannot give that review on its own pull request. Remove the rule Require approvals.</target></trans-unit>
+            <trans-unit id="github.repositories.ruleset.unpinned"><source>github.repositories.ruleset.unpinned</source><target>The ruleset requires the check Loupe / Approval but does not set the Loupe App as its source. Any other check with this name can pass it. Set the Loupe App as the source.</target></trans-unit>
+            <trans-unit id="github.repositories.ruleset.guide"><source>github.repositories.ruleset.guide</source><target>Read how to set up the ruleset</target></trans-unit>
             <trans-unit id="github.repositories.title"><source>github.repositories.title</source><target>Repositories</target></trans-unit>
             <trans-unit id="github.repositories.disabled"><source>github.repositories.disabled</source><target>The operator has not enabled forge connections on this instance.</target></trans-unit>
             <trans-unit id="github.repositories.empty"><source>github.repositories.empty</source><target>No repository is connected. Connect a repository, and a merge, a review or a check result in it will reach the cards that link its pull requests.</target></trans-unit>
@@ -8863,6 +8862,16 @@
             <trans-unit id="workflow.waiting.not.pr_app_approval_stands"><source>workflow.waiting.not.pr_app_approval_stands</source><target>Waiting: an approval of Loupe stands on the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_app_can_approve"><source>workflow.waiting.pr_app_can_approve</source><target>Waiting: Loupe cannot post a review on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_app_can_approve"><source>workflow.waiting.not.pr_app_can_approve</source><target>Waiting: Loupe can post a review on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_approval_check_passed"><source>workflow.waiting.pr_approval_check_passed</source><target>Waiting: Loupe has not posted the approval check on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_approval_check_passed"><source>workflow.waiting.not.pr_approval_check_passed</source><target>Waiting: Loupe has posted the approval check on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_can_post_check"><source>workflow.waiting.pr_can_post_check</source><target>Waiting: Loupe cannot post a check run on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_base_requires_review"><source>workflow.waiting.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch requires an approving review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_base_requires_review"><source>workflow.waiting.not.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch does not require an approving review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_approval_check_unpinned"><source>workflow.waiting.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from any source.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_approval_check_unpinned"><source>workflow.waiting.not.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from the Loupe App alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
@@ -9118,6 +9127,19 @@
             <trans-unit id="workflow.panel.action.link_document"><source>workflow.panel.action.link_document</source><target>Link a document of the parent to the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.detach"><source>workflow.panel.action.detach</source><target>Remove the parent of the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.missing"><source>workflow.panel.action.missing</source><target>An action this version does not know</target></trans-unit>
+            <trans-unit id="workflow.pause.failed"><source>workflow.pause.failed</source><target>The work failed.</target></trans-unit>
+            <trans-unit id="workflow.pause.timeout"><source>workflow.pause.timeout</source><target>The work timed out.</target></trans-unit>
+            <trans-unit id="workflow.pause.still-true"><source>workflow.pause.still-true</source><target>The work ended, but the condition of its rule is still true.</target></trans-unit>
+            <trans-unit id="workflow.pause.mcp-unreachable"><source>workflow.pause.mcp-unreachable</source><target>The worker could not reach the Loupe MCP server.</target></trans-unit>
+            <trans-unit id="workflow.pause.needs-person"><source>workflow.pause.needs-person</source><target>The worker stopped because it needs a person.</target></trans-unit>
+            <trans-unit id="workflow.pause.not-started"><source>workflow.pause.not-started</source><target>The worker did not start.</target></trans-unit>
+            <trans-unit id="workflow.pause.blocked"><source>workflow.pause.blocked</source><target>The worker stopped as blocked.</target></trans-unit>
+            <trans-unit id="workflow.pause.gave-up"><source>workflow.pause.gave-up</source><target>The worker gave up.</target></trans-unit>
+            <trans-unit id="workflow.pause.no-result"><source>workflow.pause.no-result</source><target>The worker ended without a result.</target></trans-unit>
+            <trans-unit id="workflow.pause.unfinished"><source>workflow.pause.unfinished</source><target>The worker ended before it finished its work.</target></trans-unit>
+            <trans-unit id="workflow.pause.timed-out"><source>workflow.pause.timed-out</source><target>The bridge stopped hearing from the worker, and the run timed out.</target></trans-unit>
+            <trans-unit id="workflow.pause.lost"><source>workflow.pause.lost</source><target>The bridge lost the worker run.</target></trans-unit>
+            <trans-unit id="workflow.pause.stopped"><source>workflow.pause.stopped</source><target>A person or the bridge stopped the worker.</target></trans-unit>
             <trans-unit id="workflow.pause.no-bridge-took-work"><source>workflow.pause.no-bridge-took-work</source><target>No bridge took the requested work in time.</target></trans-unit>
             <trans-unit id="workflow.pause.repair-failed"><source>workflow.pause.repair-failed</source><target>The repair worker could not fix the failure.</target></trans-unit>
             <trans-unit id="workflow.pause.inbox-off"><source>workflow.pause.inbox-off</source><target>The inbox is off, so the workflow cannot ask the owner about this card. The pause ends when the inbox is on.</target></trans-unit>
@@ -9269,6 +9291,10 @@
             <trans-unit id="agent_review.comment.more"><source>agent_review.comment.more</source><target>{0} …and no more findings on the check.|{1} …and one more finding on the check.|]1,Inf[ …and %count% more findings on the check.</target></trans-unit>
             <trans-unit id="agent_review.comment.links"><source>agent_review.comment.links</source><target>[See the check](%check_url%) · [Open the card](%card_url%)</target></trans-unit>
             <trans-unit id="agent_review.comment.card_link"><source>agent_review.comment.card_link</source><target>[Open the card](%card_url%)</target></trans-unit>
+            <trans-unit id="board.approval_check.title_passed"><source>board.approval_check.title_passed</source><target>Approved by Loupe</target></trans-unit>
+            <trans-unit id="board.approval_check.summary_passed"><source>board.approval_check.summary_passed</source><target>The agent review passed or a person approved this commit, and the required checks are green.</target></trans-unit>
+            <trans-unit id="board.approval_check.title_revoked"><source>board.approval_check.title_revoked</source><target>A person must approve</target></trans-unit>
+            <trans-unit id="board.approval_check.summary_revoked"><source>board.approval_check.summary_revoked</source><target>This card needs a person to review the pull request. Loupe withdrew its approval of this commit.</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
             <trans-unit id="artifact.list.page.title"><source>artifact.list.page.title</source><target>Artifacts</target></trans-unit>
             <trans-unit id="artifact.list.heading"><source>artifact.list.heading</source><target>Artifacts</target></trans-unit>
@@ -9357,6 +9383,9 @@
             <trans-unit id="ds.relative_time.months"><source>ds.relative_time.months</source><target>%count%mo ago</target></trans-unit>
             <trans-unit id="ds.relative_time.years"><source>ds.relative_time.years</source><target>%count%y ago</target></trans-unit>
             <trans-unit id="marker.paused"><source>marker.paused</source><target>Paused: %reason%.</target></trans-unit>
+            <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
+            <trans-unit id="marker.paused.reason.title"><source>marker.paused.reason.title</source><target>Paused: %reason%</target></trans-unit>
+            <trans-unit id="marker.paused.run"><source>marker.paused.run</source><target>Card %card% is paused. %reason%. The last %worker% run failed: %failure%.</target></trans-unit>
             <trans-unit id="marker.paused.remedy"><source>marker.paused.remedy</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
             <trans-unit id="marker.run_stopped"><source>marker.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
             <trans-unit id="marker.run_stopped.remedy"><source>marker.run_stopped.remedy</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>
@@ -9376,6 +9405,10 @@
             <trans-unit id="marker.document_in_review.remedy"><source>marker.document_in_review.remedy</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="marker.waits_for_approval"><source>marker.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
             <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
+            <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
+            <trans-unit id="marker.ruleset_mismatch"><source>marker.ruleset_mismatch</source><target>Needs you: the ruleset of the default branch does not fit the approval check of pull request #%number%.</target></trans-unit>
+            <trans-unit id="marker.ruleset_mismatch.remedy"><source>marker.ruleset_mismatch.remedy</source><target>Remove the rule "Require approvals" from the ruleset. Set the Loupe App as the source of the required check Loupe / Approval.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
@@ -9391,6 +9424,7 @@
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
+            <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>

@@ -205,6 +205,60 @@ final class ForgePullRequestRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * Which ruleset problems the open rows on the default branch of the given repositories in one project show, in one query.
+     * A repository with no open row that shows a problem has no entry.
+     *
+     * @param list<array{forge: string, path: string}> $repositories
+     *
+     * @return array<string, array{requiresReview: bool, unpinned: bool}> keyed by repositoryKey()
+     */
+    public function findRulesetMismatches(Uuid $projectId, array $repositories): array
+    {
+        if ([] === $repositories) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('pr')
+            ->select('pr.forge', 'pr.repository', 'pr.baseRequiresReview', 'pr.approvalCheckUnpinned')
+            ->andWhere('pr.project = :project')
+            ->andWhere('pr.state = :open')
+            ->andWhere('pr.baseBranch = pr.defaultBranch')
+            ->andWhere('pr.forge IN (:forges)')
+            ->andWhere('pr.repository IN (:paths)')
+            ->andWhere('pr.baseRequiresReview = true OR pr.approvalCheckUnpinned = true')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->setParameter('open', PullRequestState::Open->value)
+            ->setParameter('forges', array_values(array_unique(array_column($repositories, 'forge'))))
+            ->setParameter('paths', array_values(array_unique(array_map(mb_strtolower(...), array_column($repositories, 'path')))))
+            ->getQuery()
+            ->getArrayResult();
+
+        $wanted = [];
+        foreach ($repositories as $repository) {
+            $wanted[self::repositoryKey($repository['forge'], $repository['path'])] = true;
+        }
+
+        $found = [];
+        foreach ($rows as $row) {
+            $key = self::repositoryKey((string) $row['forge'], (string) $row['repository']);
+            if (!isset($wanted[$key])) {
+                continue;
+            }
+            $found[$key] = [
+                'requiresReview' => ($found[$key]['requiresReview'] ?? false) || (bool) $row['baseRequiresReview'],
+                'unpinned' => ($found[$key]['unpinned'] ?? false) || (bool) $row['approvalCheckUnpinned'],
+            ];
+        }
+
+        return $found;
+    }
+
+    public static function repositoryKey(string $forge, string $repository): string
+    {
+        return $forge.' '.mb_strtolower($repository);
+    }
+
     /** Re-reads a row this entity manager already holds, so the lock never guards stale fields. */
     public function findForUpdate(Uuid $id): ?ForgePullRequest
     {

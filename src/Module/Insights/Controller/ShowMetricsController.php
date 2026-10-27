@@ -51,8 +51,6 @@ class ShowMetricsController extends AppController
             'query' => $query,
             'view' => $view->metrics,
             'groupLabels' => $view->groupLabels,
-            'keptRunIds' => $view->keptRunIds,
-            'rowLimit' => ShowMetricsHandler::ROW_LIMIT,
             'chart' => MetricChart::build($query->metric, $query->statistic, $query->bucket, $view->metrics->series),
             'metrics' => Metric::standalone(),
             'bucketNames' => $bucketNames,

@@ -84,7 +84,6 @@ The dollars are the API list price that claude reports. On a subscription, you
 do not pay this amount. A duration shows in milliseconds, seconds, minutes or
 hours. **Hours to merge** shows in hours. A rate shows as a percentage. With
 **Count**, the summary and the chart show a number of rows for every metric.
-The table still shows the value of each row in the type of its metric.
 
 **Stop rate** and **Merge rate** take only **Mean** and **Count**. **Merge
 rate**, **Fix rounds** and **Hours to merge** take only **By variant**, **By
@@ -129,7 +128,7 @@ The range is **30 days**, **90 days** or **All time**, back from now. A bucket
 starts at midnight UTC. A week starts on the ISO Monday, and a month starts on
 the first day of the month.
 
-## The summary, the chart and the table
+## The summary and the chart
 
 The summary shows one figure for each series: the statistic over all the rows
 of the series in the range. Below the figure, it shows the number of rows in
@@ -144,18 +143,9 @@ value axis of a rate stops at 100%, except with **Count**.
 Point at a bar, or move to it with the Tab key, to see its bucket, its series,
 its value and its number of rows with a known value.
 
-The table below the chart lists the rows of each series, newest first. A series
-shows its newest 100 rows, and a note says how many more it holds. A card row
-opens the card when the board is on. A run row opens the
-[Runs](worker-runs.md) tab, filtered to that run.
-
-The table does not show the **Estimated** and **n runs have no usage** marks.
-The [usage total](worker-runs.md#the-usage-total-of-a-card) of a card still
-shows them.
-
 ## Unknown values
 
-A row whose value is unknown shows **unknown** in the table. It stays out of
+A row whose value is unknown stays out of
 every statistic, and **Count** does not count it. A series with no known value
 shows **unknown** as its figure. With **Count**, it shows 0.
 

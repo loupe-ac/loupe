@@ -7,10 +7,6 @@ Open **Activity** in a project's sidebar, then the **Events** tab, to read its d
 The **Runs** tab lists the [worker runs](worker-runs.md).
 The [Analytics](analytics.md) page charts the metrics of the runs and compares the variants of each [experiment](experiments.md).
 
-The topbar bell opens the latest 12 events without leaving the current page.
-Closing the panel returns focus to the bell and keeps the page's unsaved fields.
-Reopening reloads the recent events. **Open activity** goes to the full list.
-
 ## What a row shows
 
 | Column | Meaning |

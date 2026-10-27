@@ -220,6 +220,8 @@ final class BindEveryProjectMigrationTest extends KernelTestCase
         $mergeable->mergeability = PullRequestMergeability::Mergeable;
         $mergeable->review = PullRequestReview::Approved;
         $mergeable->coveredSha = $mergeable->headSha;
+        $mergeable->approvalCheckSha = $mergeable->headSha;
+        $mergeable->approvalCheckConclusion = 'success';
         $passed = new AgentReview($project, $cards['mergeable'], $mergeable, $mergeable->headSha ?? '', 'Fine.', AgentReviewConclusion::Success, []);
         $passed->postedAt = new \DateTimeImmutable(self::NOW);
         $this->em()->persist($passed);

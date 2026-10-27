@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace App\Module\AgentReview\Workflow;
 
-use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\AgentReview\Service\AgentReviewOverride;
-use App\Module\AgentReview\Service\AgentReviewPosts;
-use App\Module\AgentReview\Service\UncommentedAgentReviews;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Workflow\Contract\CardSnapshot;
-use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Module\Workflow\Contract\FactProvider;
 
 final readonly class AgentReviewFactProvider implements FactProvider
@@ -25,11 +21,8 @@ final readonly class AgentReviewFactProvider implements FactProvider
         private CardRepository $cards,
         private CardPullRequests $trackedPullRequests,
         private AgentReviewRepository $agentReviews,
-        private AgentReviewPosts $posts,
         private AgentReviewOverride $override,
-        private UncommentedAgentReviews $uncommented,
         private WorkRequestRepository $workRequests,
-        private CardTypeCatalog $catalog,
     ) {
     }
 
@@ -49,7 +42,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
     public function build(CardSnapshot $snapshot): object
     {
         $card = $this->cards->find($snapshot->id) ?? throw new \LogicException('The card of the facts exists.');
-        $epic = $this->catalog->forProject($snapshot->projectId)->get($snapshot->type)->children;
 
         $open = array_values(array_filter(
             $this->trackedPullRequests->forCard($card),
@@ -72,9 +64,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
 
         return new AgentReviewFacts(
             $heads,
-            $epic,
-            [] !== $this->posts->dueForCard($card),
-            array_map(static fn (AgentReview $review): string => (string) $review->id, $this->uncommented->among($latest)),
         );
     }
 
@@ -86,9 +75,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
         }
 
         return [
-            $facts->epic,
-            $facts->unposted,
-            $facts->uncommented,
             array_map(static fn (ReviewedHead $head): array => [$head->pullRequestId, $head->headSha, $head->conclusion?->value, $head->answered, $head->overriddenBy], $facts->heads),
         ];
     }

@@ -13,7 +13,6 @@ use Symfony\Component\Translation\TranslatableMessage;
 /**
  * The head of the pull request the rule acts on has no agent review, or its failed review has been answered by a fix round that ended done.
  * An approval that overrides a failed review makes the head not due.
- * The card is not an epic.
  */
 final readonly class AgentReviewDue implements Condition
 {
@@ -38,7 +37,7 @@ final readonly class AgentReviewDue implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [AgentReviewFacts::class, EngineFact::PullRequest];
+        return [AgentReviewFacts::class, EngineFact::PullRequestSubject];
     }
 
     #[\Override]
@@ -48,7 +47,7 @@ final readonly class AgentReviewDue implements Condition
 
         $head = $review->boundHead($facts);
 
-        return !$review->epic && null !== $head && '' !== $head->headSha && null === $head->overriddenBy && (null === $head->conclusion || $head->answered);
+        return null !== $head && '' !== $head->headSha && null === $head->overriddenBy && (null === $head->conclusion || $head->answered);
     }
 
     #[\Override]

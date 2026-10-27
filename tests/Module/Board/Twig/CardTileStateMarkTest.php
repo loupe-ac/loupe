@@ -71,6 +71,39 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertCount(0, $this->renderRow($card, $markers)->filter('.lp-state-mark a'));
     }
 
+    public function test_a_ruleset_mismatch_marker_links_the_tile_tooltip_to_the_ruleset_setup_guide(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(MarkerMother::marker('ruleset_mismatch', MarkerKind::NeedsYou, ['%number%' => 9], link: MarkerLink::RulesetSetup));
+
+        $link = $this->renderTile($card, $markers)->filter('.lp-tooltip a')->first();
+        self::assertSame('Read how to set up the ruleset', trim($link->text()));
+        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
+    }
+
+    public function test_a_marker_after_the_state_keeps_its_link_in_the_tile_tooltip(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(
+            MarkerMother::marker('merge_blocked', MarkerKind::NeedsYou, ['%number%' => 9]),
+            MarkerMother::marker('ruleset_mismatch', MarkerKind::NeedsYou, ['%number%' => 9], link: MarkerLink::RulesetSetup),
+        );
+
+        $links = $this->renderTile($card, $markers)->filter('.lp-tooltip a');
+        self::assertSame(['Read how to set up the ruleset', 'Open card'], $links->each(static fn (Crawler $link): string => trim($link->text())));
+        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $links->first()->attr('href'));
+    }
+
+    public function test_two_markers_that_link_one_page_show_the_link_once(): void
+    {
+        $tile = $this->tile(MarkerMother::markers(
+            MarkerMother::marker('no_capable_bridge', MarkerKind::Stuck, link: MarkerLink::Agents),
+            MarkerMother::marker('no_bridge_online', MarkerKind::Stuck, link: MarkerLink::Agents),
+        ));
+
+        self::assertSame(['Open the Agents page', 'Open card'], $tile->filter('.lp-tooltip a')->each(static fn (Crawler $link): string => trim($link->text())));
+    }
+
     public function test_a_link_on_another_marker_stays_off_the_tile_tooltip(): void
     {
         $tile = $this->tile(MarkerMother::markers(

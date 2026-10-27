@@ -184,13 +184,15 @@ install. Loupe refuses to store a connection when the App does not expire user
 authorization tokens, because it needs the refresh token to keep the
 connection alive.
 
-Grant these repository permissions. Pull requests, Checks, Contents and
-Workflows are read and write. The others are read-only. Loupe needs write
+Grant these repository permissions. Pull requests, Checks, Contents, Commit
+statuses and Workflows are read and write. The others are read-only. Loupe needs write
 access to Pull requests to post the fix-run comment, and to mark an epic pull
 request ready, convert it to draft or close it. It needs write access to
-Checks to report the Loupe live review check and the `loupe/agent-review` check
+Checks to report the `Loupe / Live review` check and the `Loupe / Agent review` check
 on a pull request. It needs write access to Contents to sync a branch that is
-behind its base.
+behind its base. It needs write access to Commit statuses for one reason only.
+GitHub lists the App as the source of a required check in a ruleset only when
+the App has that permission. Loupe posts no commit status.
 
 Loupe posts a review on a pull request as the GitHub account that a user
 connected, never as the App. That write uses the user token and needs no extra
@@ -207,9 +209,9 @@ not cover this.
 | Permission | Why |
 |---|---|
 | Pull requests (read and write) | the merge and the review verdict; write lets Loupe post the fix-run comment, and mark an epic pull request ready, draft or closed |
-| Checks (read and write) | the aggregate check conclusion; write lets Loupe report the Loupe live review check and the agent review check |
+| Checks (read and write) | the aggregate check conclusion; write lets Loupe report the `Loupe / Live review` check and the `Loupe / Agent review` check |
 | Contents (read and write) | GitHub offers the Push event only with it; write lets Loupe sync a pull request branch with its base |
-| Commit statuses | the status of each check context |
+| Commit statuses (read and write) | the status of each check context; write lets a ruleset name the Loupe App as the source of the required check `Loupe / Approval`. Loupe posts no commit status with it |
 | Metadata | GitHub requires it, and it carries the Repository event |
 | Workflows (read and write) | the merge or sync of a pull request that changes a workflow file |
 

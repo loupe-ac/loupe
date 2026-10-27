@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
+use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\AgentReview\Service\AgentReviewNoticeBody;
 use App\Module\AgentReview\Service\UncommentedAgentReviews;
 use App\Module\Board\Command\PauseCardHandler;
@@ -3110,12 +3111,120 @@ final class EngineTest extends KernelTestCase
         self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
     }
 
+    public function test_a_paused_fix_rule_ignores_the_draft_flag_and_an_approval_that_overrides_the_review_asks_for_no_fix_round(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-approval');
+
+        $pullRequest->draft = false;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:22:00');
+        self::assertNull($pause->releasedAt, 'Marking the pull request ready does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->coveredSha = $pullRequest->headSha;
+        $pullRequest->latestApprovedAt = new \DateTimeImmutable('2026-10-02 12:23:00');
+        $pullRequest->latestApprovalId = 'PRR_latest';
+        $pullRequest->latestApproverLogin = 'ubermuda';
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:24:00');
+
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+        self::assertSame([], $this->liveKinds($card), 'The overridden review asks for no fix round.');
+    }
+
+    public function test_a_paused_fix_rule_stays_paused_while_the_review_check_and_its_comment_are_posted(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-posts', [new AgentReviewFinding('src/A.php', 1, 2, AgentReviewSeverity::Important, 'Null read', 'Body.')]);
+        $review = $this->service(AgentReviewRepository::class)->findOneBy(['card' => $card]);
+        self::assertNotNull($review);
+        $uncommented = $this->service(UncommentedAgentReviews::class);
+        self::assertSame([], $uncommented->among([$review]), 'A check posted outside the comment window asks for no comment yet.');
+
+        $review->postedAt = new \DateTimeImmutable();
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:23:00');
+
+        self::assertSame([$review], $uncommented->among([$review]), 'The check is posted and its summary comment is due.');
+        self::assertNull($pause->releasedAt, 'A post of the review check does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+
+        $this->em()->persist(new PullRequestNotice($card->project, $pullRequest->id ?? throw new \LogicException('Flushed.'), 'github', $pullRequest->repository, $pullRequest->number, AgentReviewNoticeBody::key($review->id ?? throw new \LogicException('Flushed.')), new \DateTimeImmutable()));
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:24:00');
+
+        self::assertSame([], $uncommented->among([$review]), 'The summary comment is posted.');
+        self::assertNull($pause->releasedAt, 'A post of the summary comment does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    public function test_a_paused_fix_rule_resumes_on_a_new_head_with_a_new_failed_review(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-head');
+
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:30:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertSame('facts-changed', $pause->releaseReason);
+        self::assertSame(['fix'], $this->liveKinds($card));
+        self::assertSame(2, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    public function test_a_review_request_waiting_for_its_retry_ignores_the_draft_flag(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('engine-review-retry-draft');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-progress');
+        $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
+        $pullRequest->draft = true;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $this->refuse($this->liveRequestOfKind($card, 'review'), 'failed', '2026-10-02 12:02:00');
+        $this->evaluate($card, '2026-10-02 12:03:00');
+        $state = $this->ruleState($card, 'agent-review');
+        $attempts = $state->attempts;
+        self::assertGreaterThan(0, $attempts);
+        self::assertGreaterThan(new \DateTimeImmutable('2026-10-02 12:03:00'), $state->dueAt);
+
+        $pullRequest->draft = false;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:03:30');
+
+        self::assertSame($attempts, $this->ruleState($card, 'agent-review')->attempts);
+        self::assertSame([], $this->liveKinds($card), 'The draft flag does not start the retry before its due time.');
+    }
+
+    /**
+     * A lifecycle card whose fix round stopped for a person at 12:20, so the rule fix-agent-review is paused.
+     *
+     * @param list<AgentReviewFinding> $findings
+     *
+     * @return array{Card, ForgePullRequest, CardPause}
+     */
+    private function pausedFixRule(string $slug, array $findings = []): array
+    {
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound($slug, $findings);
+        $this->refuse($this->liveRequestOfKind($card, 'fix'), 'needs-person', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $pause = $this->activePause($card);
+        self::assertNotNull($pause);
+        self::assertSame([PauseKind::WorkStopped, 'fix-agent-review'], [$pause->kind, $pause->ruleId]);
+
+        return [$card, $pullRequest, $pause];
+    }
+
     /**
      * A lifecycle card in Implementation whose review of HEAD_ONE failed at 12:04, with fix round 1 live.
      *
+     * @param list<AgentReviewFinding> $findings
+     *
      * @return array{Card, ForgePullRequest}
      */
-    private function failedAgentReviewWithFixRound(string $slug): array
+    private function failedAgentReviewWithFixRound(string $slug, array $findings = []): array
     {
         self::bootKernel();
         $project = $this->workflowProject($slug);
@@ -3127,7 +3236,7 @@ final class EngineTest extends KernelTestCase
         $this->evaluate($card);
 
         $this->finish($this->liveRequestOfKind($card, 'review'), '2026-10-02 12:05:00');
-        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:04:00');
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:04:00', $findings);
         $this->evaluate($card, '2026-10-02 12:06:00');
 
         $fix = $this->liveRequestOfKind($card, 'fix');
@@ -3137,9 +3246,10 @@ final class EngineTest extends KernelTestCase
         return [$card, $pullRequest];
     }
 
-    private function agentReview(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $at): void
+    /** @param list<AgentReviewFinding> $findings */
+    private function agentReview(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $at, array $findings = []): void
     {
-        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', $conclusion, [], createdAt: new \DateTimeImmutable($at));
+        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', $conclusion, $findings, createdAt: new \DateTimeImmutable($at));
         $review->postedAt = new \DateTimeImmutable($at);
         $this->em()->persist($review);
         $this->em()->flush();
@@ -3802,6 +3912,7 @@ final class EngineTest extends KernelTestCase
     {
         $epic = $this->epicInReview('engine-epic-preview-heads');
         $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
 
         $this->evaluate($epic);
         self::assertSame(['epic-preview'], $this->liveKinds($epic));
@@ -3812,16 +3923,32 @@ final class EngineTest extends KernelTestCase
         self::assertSame([], $this->liveKinds($epic), 'A refresh that ended well at the head covers it.');
 
         $pullRequest->headSha = self::HEAD_TWO;
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 12:29:00');
         $this->em()->flush();
         $this->evaluate($epic, '2026-10-02 12:30:00');
         self::assertSame(['epic-preview'], $this->liveKinds($epic), 'A fix round push is a new head.');
         self::assertSame(self::HEAD_TWO, $this->liveRequestOfKind($epic, 'epic-preview')->context->headSha);
     }
 
+    public function test_a_lifecycle_epic_in_review_asks_for_an_agent_review_before_it_refreshes_its_preview(): void
+    {
+        $epic = $this->epicInReview('engine-epic-review');
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+
+        $this->evaluate($epic);
+        self::assertSame(['review'], $this->liveKinds($epic));
+
+        $this->finish($this->liveRequestOfKind($epic, 'review'));
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 12:20:00');
+        $this->evaluate($epic, '2026-10-02 12:25:00');
+        self::assertSame(['epic-preview'], $this->liveKinds($epic));
+    }
+
     public function test_a_lifecycle_epic_in_review_waits_for_a_fix_request_and_a_worker_run_before_it_refreshes(): void
     {
         $epic = $this->epicInReview('engine-epic-preview-busy');
-        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
         $fix = new WorkRequest($epic->project, WorkSubject::CARD, $epic->id ?? throw new \LogicException('A flushed card has an id.'), $epic->number, 'fix', null, 'fix-in-review', new \DateTimeImmutable(self::NOON));
         $this->em()->persist($fix);
         $this->em()->flush();
@@ -3843,10 +3970,12 @@ final class EngineTest extends KernelTestCase
     {
         $epic = $this->epicInReview('engine-epic-preview-race');
         $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
         $this->evaluate($epic);
         $refresh = $this->liveRequestOfKind($epic, 'epic-preview');
 
         $pullRequest->headSha = self::HEAD_TWO;
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 12:09:00');
         $this->em()->flush();
         $this->evaluate($epic, '2026-10-02 12:10:00');
         $this->finish($refresh);
@@ -3859,7 +3988,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_epic_pauses_after_three_failed_refreshes_in_a_row(): void
     {
         $epic = $this->epicInReview('engine-epic-preview-limit');
-        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
 
         foreach (['12:00:00', '12:10:00', '12:20:00'] as $at) {
             $this->evaluate($epic, '2026-10-02 '.$at);
@@ -4584,6 +4714,7 @@ final class EngineTest extends KernelTestCase
             $this->service(ForgePullRequestRepository::class),
             $this->em(),
             new MockClock(self::NOON),
+            $this->service(MessageBusInterface::class),
         ));
         $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
         $pullRequest->mergeability = PullRequestMergeability::Behind;

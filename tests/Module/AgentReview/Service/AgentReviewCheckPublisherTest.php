@@ -71,7 +71,7 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertNull($result->failure);
         self::assertTrue($result->changed);
         self::assertSame(
-            [['loupe/agent-review', str_repeat('1', 40), PullRequestCheckConclusion::Success, null], ['loupe/agent-review', str_repeat('2', 40), PullRequestCheckConclusion::Failure, null]],
+            [['Loupe / Agent review', str_repeat('1', 40), PullRequestCheckConclusion::Success, null], ['Loupe / Agent review', str_repeat('2', 40), PullRequestCheckConclusion::Failure, null]],
             array_map(static fn (array $call): array => [$call['name'], $call['sha'], $call['conclusion'], $call['runId']], $this->writer->published),
         );
         self::assertSame([101, 102], [$first->checkRunId, $second->checkRunId]);
@@ -172,6 +172,45 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
 
         self::assertFalse($this->publisher()->publish($card)->changed);
         self::assertSame([], $this->writer->published);
+    }
+
+    public function test_a_current_check_under_another_name_posts_again_once_on_its_run(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $review = $this->stored($card, $pullRequest, $pullRequest->headSha ?? '', [$this->finding(AgentReviewSeverity::Important)]);
+        $review->checkRunId = 99;
+        $review->annotationsPosted = 1;
+        $review->postedAt = new \DateTimeImmutable('2026-10-09 11:00:00');
+        $review->checkName = 'loupe/agent-review';
+
+        self::assertTrue($this->publisher()->publish($card)->changed);
+        self::assertFalse($this->publisher()->publish($card)->changed);
+
+        self::assertCount(1, $this->writer->published);
+        self::assertSame('Loupe / Agent review', $this->writer->published[0]['name']);
+        self::assertSame(99, $this->writer->published[0]['runId']);
+        self::assertSame([], $this->writer->published[0]['annotations']);
+        self::assertSame('Loupe / Agent review', $review->checkName);
+        self::assertEquals(new \DateTimeImmutable('2026-10-09 11:00:00'), $review->postedAt);
+    }
+
+    public function test_a_carried_check_under_another_name_posts_again_on_its_run(): void
+    {
+        $card = $this->card($this->project);
+        [$review] = $this->carried($card, 'lines-1', []);
+        $this->publisher()->publish($card);
+        $post = $this->posts($review)[0];
+        $post->checkName = 'loupe/agent-review';
+        $this->writer->published = [];
+
+        self::assertTrue($this->publisher()->publish($card)->changed);
+
+        self::assertCount(1, $this->writer->published);
+        self::assertSame('Loupe / Agent review', $this->writer->published[0]['name']);
+        self::assertSame($post->checkRunId, $this->writer->published[0]['runId']);
+        self::assertSame('Loupe / Agent review', $post->checkName);
+        self::assertCount(1, $this->posts($review));
     }
 
     public function test_a_refusal_on_one_pull_request_does_not_stop_another(): void

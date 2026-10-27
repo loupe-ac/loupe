@@ -22,7 +22,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 /** Keeps the live review check of each open pull request of a card in line with the notes that the verdicts of every card on that pull request carried. */
 final readonly class SiteReviewCheckPublisher
 {
-    public const string NAME = 'Loupe live review';
+    public const string NAME = 'Loupe / Live review';
 
     private const int MAX_LISTED_NOTES = 20;
 
@@ -60,7 +60,7 @@ final readonly class SiteReviewCheckPublisher
                 continue;
             }
             $state = $this->siteReviewCheckStates->findOneByPullRequest($pullRequest);
-            $current = null !== $state && $state->headSha === $check->headSha && $state->conclusion === $check->wantedConclusion && $state->noteCount === $check->noteCount && $state->notesDigest === $check->notesDigest;
+            $current = null !== $state && $state->headSha === $check->headSha && $state->conclusion === $check->wantedConclusion && $state->noteCount === $check->noteCount && $state->notesDigest === $check->notesDigest && self::NAME === $state->checkName;
             if ($current && null !== $state->checkRunId) {
                 continue;
             }
@@ -99,6 +99,7 @@ final readonly class SiteReviewCheckPublisher
             $state->noteCount = $check->noteCount;
             $state->notesDigest = $check->notesDigest;
             $state->checkRunId = $runId;
+            $state->checkName = self::NAME;
             $state->postedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();
             $changed = true;
