@@ -453,6 +453,12 @@ alone decides each write, and the write happens when the rule fires. When the
 project has no GitHub App installation, the rule asks a bridge for the same work
 instead. See [Automation](board.md#automation).
 
+The `merge` write takes the parameter `methods`, a list of merge methods in order of preference. The Lifecycle
+template lists `squash`, `merge` and `rebase`. Loupe reads the merge switches of the repository and the merge
+methods that the rules of the base branch allow. It merges with the first method of the list that both allow. When
+the repository and its rules allow none of them, the write refuses with the cause `no_merge_method`, and a person
+changes the repository settings or the ruleset. A project that wants a different order edits the list in the template.
+
 The `merge-main-into-epic` write acts on a child in Next whose blocker outside
 its epic is done. It merges the default branch into the epic branch in each
 repository where such a blocker merged a pull request, then records on the

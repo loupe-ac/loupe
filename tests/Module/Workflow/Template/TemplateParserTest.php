@@ -139,7 +139,7 @@ final class TemplateParserTest extends TestCase
                     'id' => 'merge',
                     'slot' => 'review',
                     'when' => ['pr.approval_covers_head' => ['min' => 1]],
-                    'then' => ['forge-write' => ['write' => 'merge', 'fallback' => 'merge']],
+                    'then' => ['forge-write' => ['write' => 'merge', 'methods' => ['squash', 'merge', 'rebase'], 'fallback' => 'merge']],
                 ],
                 [
                     'id' => 'wait',
@@ -1221,6 +1221,21 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) then.forge-write: missing parameter "fallback"'];
+        yield 'merge with no methods' => [static function (array $t): array {
+            unset($t['rules'][2]['then']['forge-write']['methods']);
+
+            return $t;
+        }, 'rules[2] (merge) then.forge-write: missing parameter "methods"'];
+        yield 'merge with an unknown method' => [static function (array $t): array {
+            $t['rules'][2]['then']['forge-write']['methods'] = ['squash', 'fast-forward'];
+
+            return $t;
+        }, 'rules[2] (merge) then.forge-write: parameter "methods" does not take "fast-forward", only merge, squash, rebase'];
+        yield 'merge with an empty methods list' => [static function (array $t): array {
+            $t['rules'][2]['then']['forge-write']['methods'] = [];
+
+            return $t;
+        }, 'rules[2] (merge) then.forge-write: parameter "methods" must be a non-empty list of non-empty strings'];
         yield 'unknown work timeout behaviour' => [static function (array $t): array {
             $t['rules'][0]['then']['request']['onTimeout'] = 'drop';
 
