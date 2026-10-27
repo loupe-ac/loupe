@@ -34,6 +34,34 @@ final readonly class GitHubBranchRules
     }
 
     /**
+     * Reads the rules as fromRules() does, but refuses a rule whose data is incomplete,
+     * so that a partial answer never reads as a missing rule.
+     *
+     * @param array<mixed> $rules
+     *
+     * @throws \UnexpectedValueException when the answer is not a list of complete rules
+     */
+    public static function fromCompleteRules(array $rules): self
+    {
+        foreach (array_is_list($rules) ? $rules : [] as $rule) {
+            if (!\is_array($rule) || !\is_string($rule['type'] ?? null)) {
+                throw new \UnexpectedValueException('A branch rule has no type.');
+            }
+            $parameters = $rule['parameters'] ?? null;
+            if ('pull_request' === $rule['type'] && (!\is_array($parameters) || !\is_int($parameters['required_approving_review_count'] ?? null) || !self::isStringList($parameters['allowed_merge_methods'] ?? []))) {
+                throw new \UnexpectedValueException('A pull request rule has incomplete parameters.');
+            }
+            if ('required_status_checks' === $rule['type'] && (!\is_array($parameters) || !\is_array($parameters['required_status_checks'] ?? null) || !self::areCompleteChecks($parameters['required_status_checks']))) {
+                throw new \UnexpectedValueException('A status check rule has incomplete parameters.');
+            }
+        }
+
+        return self::fromRules($rules);
+    }
+
+    /**
+     * Reads the rules and skips the parts it cannot read.
+     *
      * @param array<mixed> $rules
      *
      * @throws \UnexpectedValueException when the answer is not a list of rules
@@ -102,5 +130,18 @@ final readonly class GitHubBranchRules
         }
 
         return new self(array_map(strval(...), array_keys($checks)), $strict, $requiresReview, $approvalSources, $pullRequestRule, $allowedMergeMethods, $forbidsForcePush, $forbidsDeletion, $rulesets);
+    }
+
+    private static function isStringList(mixed $value): bool
+    {
+        return \is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => \is_string($item));
+    }
+
+    /** @param array<mixed> $checks */
+    private static function areCompleteChecks(array $checks): bool
+    {
+        return array_all($checks, static fn (mixed $check): bool => \is_array($check)
+            && \is_string($check['context'] ?? null) && '' !== $check['context']
+            && (null === ($check['integration_id'] ?? null) || \is_int($check['integration_id'])));
     }
 }

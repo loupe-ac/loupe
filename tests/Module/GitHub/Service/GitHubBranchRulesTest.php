@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\GitHub\Service;
 
 use App\Module\GitHub\Service\GitHubBranchRules;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class GitHubBranchRulesTest extends TestCase
@@ -51,5 +52,44 @@ final class GitHubBranchRulesTest extends TestCase
         self::assertFalse($rules->forbidsForcePush);
         self::assertFalse($rules->forbidsDeletion);
         self::assertFalse($rules->pullRequestRule);
+    }
+
+    /** @param list<mixed> $rules */
+    #[DataProvider('incompleteRules')]
+    public function test_an_incomplete_rule_is_refused_by_the_complete_read(array $rules): void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+
+        GitHubBranchRules::fromCompleteRules($rules);
+    }
+
+    /** @return iterable<string, array{list<mixed>}> */
+    public static function incompleteRules(): iterable
+    {
+        $checks = static fn (mixed $entries): array => ['type' => 'required_status_checks', 'parameters' => ['required_status_checks' => $entries]];
+
+        yield 'a rule that is not an object' => [['x']];
+        yield 'a rule with no type' => [[['ruleset_id' => 1]]];
+        yield 'a pull request rule with no parameters' => [[['type' => 'pull_request']]];
+        yield 'a pull request rule with no review count' => [[['type' => 'pull_request', 'parameters' => []]]];
+        yield 'a pull request rule with a text review count' => [[['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => '1']]]];
+        yield 'a pull request rule with malformed methods' => [[['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => 1, 'allowed_merge_methods' => [1]]]]];
+        yield 'a status check rule with no parameters' => [[['type' => 'required_status_checks']]];
+        yield 'a status check rule with no check list' => [[['type' => 'required_status_checks', 'parameters' => []]]];
+        yield 'a check that is not an object' => [[$checks(['lint'])]];
+        yield 'a check with no context' => [[$checks([['integration_id' => 1]])]];
+        yield 'a check with an empty context' => [[$checks([['context' => '']])]];
+        yield 'a check with a text integration' => [[$checks([['context' => 'lint', 'integration_id' => 'x']])]];
+    }
+
+    public function test_complete_rules_read_as_the_lenient_read_does(): void
+    {
+        $rules = [
+            ['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => 1]],
+            ['type' => 'required_status_checks', 'parameters' => ['required_status_checks' => [['context' => 'lint'], ['context' => 'test', 'integration_id' => 5]]]],
+            ['type' => 'deletion'],
+        ];
+
+        self::assertEquals(GitHubBranchRules::fromRules($rules), GitHubBranchRules::fromCompleteRules($rules));
     }
 }

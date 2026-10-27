@@ -129,7 +129,7 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
             }
             $all = [...$all, ...$items];
             if (\count($items) < self::RULES_PER_PAGE) {
-                return GitHubBranchRules::fromRules($all);
+                return GitHubBranchRules::fromCompleteRules($all);
             }
         }
 
