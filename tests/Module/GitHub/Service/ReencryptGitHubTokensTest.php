@@ -22,8 +22,16 @@ final class ReencryptGitHubTokensTest extends KernelTestCase
 {
     private string $oldKey;
 
+    /** @var array{env: mixed, server: mixed, getenv: string|false} */
+    private array $previous;
+
     protected function setUp(): void
     {
+        $this->previous = [
+            'env' => $_ENV['APP_ENCRYPTION_KEY_PREVIOUS'] ?? null,
+            'server' => $_SERVER['APP_ENCRYPTION_KEY_PREVIOUS'] ?? null,
+            'getenv' => getenv('APP_ENCRYPTION_KEY_PREVIOUS'),
+        ];
         $this->oldKey = base64_encode(random_bytes(32));
         $_ENV['APP_ENCRYPTION_KEY_PREVIOUS'] = $_SERVER['APP_ENCRYPTION_KEY_PREVIOUS'] = $this->oldKey;
         putenv('APP_ENCRYPTION_KEY_PREVIOUS='.$this->oldKey);
@@ -32,9 +40,25 @@ final class ReencryptGitHubTokensTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        unset($_ENV['APP_ENCRYPTION_KEY_PREVIOUS'], $_SERVER['APP_ENCRYPTION_KEY_PREVIOUS']);
-        putenv('APP_ENCRYPTION_KEY_PREVIOUS');
         parent::tearDown();
+        self::restore($_ENV, $this->previous['env']);
+        self::restore($_SERVER, $this->previous['server']);
+        putenv(false === $this->previous['getenv'] ? 'APP_ENCRYPTION_KEY_PREVIOUS' : 'APP_ENCRYPTION_KEY_PREVIOUS='.$this->previous['getenv']);
+    }
+
+    /**
+     * Unsetting the variable instead would fail the boot of every later kernel in the process.
+     *
+     * @param array<string, mixed> $vars
+     */
+    private static function restore(array &$vars, mixed $value): void
+    {
+        if (null === $value) {
+            unset($vars['APP_ENCRYPTION_KEY_PREVIOUS']);
+
+            return;
+        }
+        $vars['APP_ENCRYPTION_KEY_PREVIOUS'] = $value;
     }
 
     public function test_a_token_made_under_the_old_key_moves_to_the_current_key(): void
