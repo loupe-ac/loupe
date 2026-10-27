@@ -371,11 +371,13 @@
 
 /* @group type */
 @theme inline {
-    /* Fonts */
+    /* Body text, labels and controls. The default face of the app. */
     --font-sans:
         'DM Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui,
         sans-serif;
+    /* Headings and card titles, in a heavier weight. */
     --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+    /* Card numbers, ids, code and other values a person copies. */
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
     /* Type scale: the Tailwind text sizes carry the scale, with the line height
@@ -435,7 +437,8 @@
     --duration-slow: 320ms;
     /* The default curve for a state change. */
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-    /* The deck fans out, and an epic lane opens and closes, on these curves. */
+    /* The Up next deck of an epic lane fans its cards out on this curve. */
     --ease-deck: cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* An epic lane opens and closes on this curve. */
     --ease-lane: cubic-bezier(0.3, 0.8, 0.2, 1);
 }

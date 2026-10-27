@@ -111,10 +111,6 @@ final class TokenReaderTest extends TestCase
 
         $checked = 0;
         foreach ($groups as $group) {
-            if (!\in_array($group->name, ['colour', 'spacing', 'radius', 'shadow'], true)) {
-                continue;
-            }
-
             $owners = [];
             foreach ($group->tokens as $token) {
                 self::assertNotSame('', $token->use, $token->name.' has no use');
