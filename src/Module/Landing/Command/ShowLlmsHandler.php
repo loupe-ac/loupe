@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Landing\Command;
 
 use App\Module\Landing\Service\ComparisonPages;
+use App\Module\Landing\Service\FaqPage;
 use App\Module\Landing\Service\PublicPages;
 use App\Routing\PinnedUrlGenerator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -17,6 +18,7 @@ final readonly class ShowLlmsHandler
         private TranslatorInterface $translator,
         private PublicPages $publicPages,
         private ComparisonPages $comparisonPages,
+        private FaqPage $faqPage,
 
         #[Autowire(param: 'app.docs_url')]
         private string $docsUrl,
@@ -43,6 +45,14 @@ final readonly class ShowLlmsHandler
             foreach ($this->comparisonPages->all() as $page) {
                 $lines[] = '- ['.$page->title.']('.$this->publicPages->comparisonUrl($page).'): '.$page->description;
             }
+        }
+
+        if ($this->publicPages->hasFaq()) {
+            $faq = $this->faqPage->content();
+            $lines[] = '';
+            $lines[] = '## FAQ';
+            $lines[] = '';
+            $lines[] = '- ['.$faq->title.']('.$this->publicPages->faqUrl().'): '.$faq->description;
         }
 
         return implode("\n", $lines)."\n";
