@@ -371,6 +371,7 @@ final readonly class TemplateParser
             array_push($calls, ...self::flatten($choiceCalls));
         }
         $kinds = null === $onWorkFailed?->repairKind ? [] : [$onWorkFailed->repairKind];
+        $requests = null === $onWorkFailed?->repairKind ? [] : [new ProducedRequest($onWorkFailed->repairKind, null, null)];
         $roles = [];
         $reasons = [];
         $outcomes = [];
@@ -386,9 +387,14 @@ final readonly class TemplateParser
                 $roles[] = (string) $call->params['role'];
             }
             $reasons[] = isset($call->params['reason']) ? (string) $call->params['reason'] : 'unknown';
+            $requests[] = new ProducedRequest(
+                (string) $call->params['kind'],
+                isset($call->params['role']) ? (string) $call->params['role'] : null,
+                isset($call->params['reason']) ? [(string) $call->params['reason']] : [...PullRequestFacts::FIX_REASONS, 'unknown'],
+            );
         }
 
-        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])), array_values(array_unique($outcomes)));
+        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])), array_values(array_unique($outcomes)), $requests);
     }
 
     /**
