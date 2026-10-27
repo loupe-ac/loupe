@@ -38,6 +38,15 @@
     {% if row.suggests %}
     {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
     <div class="lp-repository-check" data-testid="forge-repository-check">
+        {% if row.blocks %}
+        <twig:Ds:Flash severity="error" :title="'github.repositories.check.paused.title'|trans" data-testid="forge-repository-paused">
+            {%- if row.workflowLabelKey -%}
+                {{ 'github.repositories.check.paused.text'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+            {%- else -%}
+                {{ 'github.repositories.check.paused.text_unnamed'|trans }}
+            {%- endif -%}
+        </twig:Ds:Flash>
+        {% endif %}
         {% if check is not null and check.failure is not null %}
             {% if check.failure == 'no_installation' %}
             <twig:Ds:Flash severity="warning" data-testid="forge-repository-check-failed">{{ 'github.repositories.check.failed.no_installation'|trans }}</twig:Ds:Flash>

@@ -95,6 +95,11 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertNotSame('', (string) $form->filter('input[name="_csrf_token"]')->attr('value'));
         self::assertSame('Check again', trim($form->filter('button')->text()));
         self::assertStringContainsString('Loupe checks every hour. Check again after a fix to end the pause now.', $crawler->filter('[data-forge-repository]')->text());
+
+        $paused = $crawler->filter('[data-testid="forge-repository-check"] > [data-testid="forge-repository-paused"]');
+        self::assertCount(1, $paused);
+        self::assertSame('New work is paused.', trim($paused->filter('.lp-flash__title')->text()));
+        self::assertStringContainsString('workflow. Running work finishes.', $paused->text());
     }
 
     public function test_a_row_that_fits_has_no_guide_and_keeps_the_check_again_button(): void
@@ -116,6 +121,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $row = $crawler->filter('[data-forge-repository]')->text();
         self::assertStringContainsString('Loupe checks every hour. Check again after a change on GitHub to see it now.', $row);
         self::assertStringNotContainsString('pause', $row);
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-paused"]'));
     }
 
     public function test_a_row_with_only_a_warning_gap_does_not_mention_a_pause(): void
@@ -132,6 +138,8 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $crawler = $this->repositoriesPage($client, $project);
 
         self::assertStringContainsString('Check again after a change on GitHub to see it now.', $crawler->filter('.lp-repository-check__hint')->text());
+        self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-line"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-paused"]'));
     }
 
     public function test_the_failed_read_banner_names_the_time_and_carries_the_only_check_again_button(): void
@@ -465,6 +473,26 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertStringContainsString('Loupe could not check acme/app', $crawler->filter('[data-testid="forge-repository-check-failed"]')->text());
         self::assertStringNotContainsString('paused', $crawler->filter('[data-testid="forge-repository-check-failed"]')->text());
         self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-line"]'));
+    }
+
+    public function test_a_failed_read_keeps_the_pause_banner_of_the_last_certain_blocking_gap(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('failedgap');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $check = $this->checkOf($repository, [$this->item('approval-gate', 'blocking', [RepositorySuggestionCatalog::GAP_NO_PULL_REQUEST_RULE])], new \DateTimeImmutable('-1 hour'));
+        $check->attemptedAt = new \DateTimeImmutable('-1 minute');
+        $check->failure = 'api_failed_timeout';
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-failed"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="forge-repository-paused"]'));
     }
 
     public function test_the_repository_removal_dialog_keeps_its_form(): void
