@@ -34,7 +34,6 @@ final class AgentReviewConditionsTest extends TestCase
         $failure = self::head(AgentReviewConclusion::Failure);
         $headless = new ReviewedHead(self::BOUND, '', null);
 
-        yield 'due: epic' => [new AgentReviewDue(), self::review([$none], epic: true), false];
         yield 'due: no pull request head' => [new AgentReviewDue(), self::review([]), false];
         yield 'due: bound head without review' => [new AgentReviewDue(), self::review([self::head(AgentReviewConclusion::Success, self::OTHER), $none]), true];
         yield 'due: bound head reviewed, another head without review' => [new AgentReviewDue(), self::review([$success, self::head(null, self::OTHER)]), false];
@@ -43,7 +42,6 @@ final class AgentReviewConditionsTest extends TestCase
         $answered = self::head(AgentReviewConclusion::Failure, answered: true);
         yield 'due: failed review answered by a fix round' => [new AgentReviewDue(), self::review([$answered]), true];
         yield 'due: failed review answered on another head only' => [new AgentReviewDue(), self::review([$failure, self::head(AgentReviewConclusion::Failure, self::OTHER, true)]), false];
-        yield 'due: epic with an answered review' => [new AgentReviewDue(), self::review([$answered], epic: true), false];
         yield 'failed: failed review answered by a fix round' => [new AgentReviewFailed(), self::review([$answered]), false];
         yield 'passed: failed review answered by a fix round' => [new AgentReviewPassed(), self::review([$answered]), false];
         yield 'failed: head without review' => [new AgentReviewFailed(), self::review([$none]), false];
@@ -51,7 +49,6 @@ final class AgentReviewConditionsTest extends TestCase
         yield 'failed: bound head failed' => [new AgentReviewFailed(), self::review([self::head(AgentReviewConclusion::Success, self::OTHER), $failure]), true];
         yield 'failed: bound head passed, another head failed' => [new AgentReviewFailed(), self::review([$success, self::head(AgentReviewConclusion::Failure, self::OTHER)]), false];
 
-        yield 'passed: epic' => [new AgentReviewPassed(), self::review([], epic: true), true];
         yield 'passed: no pull request head' => [new AgentReviewPassed(), self::review([]), false];
         yield 'passed: head without review' => [new AgentReviewPassed(), self::review([$success, $none]), false];
         yield 'passed: a pull request without a head' => [new AgentReviewPassed(), self::review([$success, $headless]), false];
@@ -71,7 +68,6 @@ final class AgentReviewConditionsTest extends TestCase
         yield 'overridden: another head has no review' => [new AgentReviewOverridden(), self::review([$overridden, self::head(null, self::OTHER)]), false];
         yield 'overridden: a failed review nobody approved' => [new AgentReviewOverridden(), self::review([$failure]), false];
         yield 'overridden: no pull request head' => [new AgentReviewOverridden(), self::review([]), false];
-        yield 'overridden: epic' => [new AgentReviewOverridden(), self::review([$overridden], epic: true), false];
         yield 'unposted: all posted' => [new AgentReviewUnposted(), self::review([$success]), false];
         yield 'unposted: a review waits' => [new AgentReviewUnposted(), self::review([$success], unposted: true), true];
         yield 'uncommented: none waits' => [new AgentReviewUncommented(), self::review([$success]), false];
@@ -118,9 +114,9 @@ final class AgentReviewConditionsTest extends TestCase
      * @param list<ReviewedHead> $heads
      * @param list<string>       $uncommented
      */
-    private static function review(array $heads, bool $epic = false, bool $unposted = false, array $uncommented = []): AgentReviewFacts
+    private static function review(array $heads, bool $unposted = false, array $uncommented = []): AgentReviewFacts
     {
-        return new AgentReviewFacts($heads, $epic, $unposted, $uncommented);
+        return new AgentReviewFacts($heads, $unposted, $uncommented);
     }
 
     private static function facts(AgentReviewFacts $review): Facts

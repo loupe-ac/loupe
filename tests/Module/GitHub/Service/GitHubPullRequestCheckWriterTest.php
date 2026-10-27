@@ -56,6 +56,19 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         self::assertNull($writers->for('gitlab'));
     }
 
+    public function test_a_repository_with_an_installation_can_take_a_check_and_one_without_cannot(): void
+    {
+        self::assertTrue($this->writer()->canPublish($this->tracked('loupe-ac/loupe', 73_001)));
+
+        $project = $this->project();
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
+        $this->em->persist($pullRequest);
+        $this->em->flush();
+
+        self::assertFalse($this->writer()->canPublish($pullRequest));
+    }
+
     /** @return iterable<string, array{PullRequestCheckConclusion}> */
     public static function conclusions(): iterable
     {

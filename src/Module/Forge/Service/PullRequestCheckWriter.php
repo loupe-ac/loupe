@@ -14,6 +14,9 @@ interface PullRequestCheckWriter
     /** @param string $forge the forge's slug, such as `github` */
     public function supports(string $forge): bool;
 
+    /** Whether Loupe can post a check on this pull request now, for example because its repository has an active installation. */
+    public function canPublish(ForgePullRequest $pullRequest): bool;
+
     /**
      * Reports a finished check on $sha. A $runId updates the run the forge gave a past call, and null makes a new run.
      *

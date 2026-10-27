@@ -209,7 +209,7 @@ not cover this.
 | Pull requests (read and write) | the merge and the review verdict; write lets Loupe post the fix-run comment, and mark an epic pull request ready, draft or closed |
 | Checks (read and write) | the aggregate check conclusion; write lets Loupe report the `Loupe / Live review` check and the `Loupe / Agent review` check |
 | Contents (read and write) | GitHub offers the Push event only with it; write lets Loupe sync a pull request branch with its base |
-| Commit statuses | the status of each check context |
+| Commit statuses (read and write) | the status of each check context; write lets a ruleset name the Loupe App as the source of the required check `Loupe / Approval`. Loupe posts no commit status with it |
 | Metadata | GitHub requires it, and it carries the Repository event |
 | Workflows (read and write) | the merge or sync of a pull request that changes a workflow file |
 

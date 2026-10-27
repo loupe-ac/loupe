@@ -3802,6 +3802,7 @@ final class EngineTest extends KernelTestCase
     {
         $epic = $this->epicInReview('engine-epic-preview-heads');
         $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
 
         $this->evaluate($epic);
         self::assertSame(['epic-preview'], $this->liveKinds($epic));
@@ -3812,16 +3813,32 @@ final class EngineTest extends KernelTestCase
         self::assertSame([], $this->liveKinds($epic), 'A refresh that ended well at the head covers it.');
 
         $pullRequest->headSha = self::HEAD_TWO;
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 12:29:00');
         $this->em()->flush();
         $this->evaluate($epic, '2026-10-02 12:30:00');
         self::assertSame(['epic-preview'], $this->liveKinds($epic), 'A fix round push is a new head.');
         self::assertSame(self::HEAD_TWO, $this->liveRequestOfKind($epic, 'epic-preview')->context->headSha);
     }
 
+    public function test_a_lifecycle_epic_in_review_asks_for_an_agent_review_before_it_refreshes_its_preview(): void
+    {
+        $epic = $this->epicInReview('engine-epic-review');
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+
+        $this->evaluate($epic);
+        self::assertSame(['review'], $this->liveKinds($epic));
+
+        $this->finish($this->liveRequestOfKind($epic, 'review'));
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 12:20:00');
+        $this->evaluate($epic, '2026-10-02 12:25:00');
+        self::assertSame(['epic-preview'], $this->liveKinds($epic));
+    }
+
     public function test_a_lifecycle_epic_in_review_waits_for_a_fix_request_and_a_worker_run_before_it_refreshes(): void
     {
         $epic = $this->epicInReview('engine-epic-preview-busy');
-        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
         $fix = new WorkRequest($epic->project, WorkSubject::CARD, $epic->id ?? throw new \LogicException('A flushed card has an id.'), $epic->number, 'fix', null, 'fix-in-review', new \DateTimeImmutable(self::NOON));
         $this->em()->persist($fix);
         $this->em()->flush();
@@ -3843,10 +3860,12 @@ final class EngineTest extends KernelTestCase
     {
         $epic = $this->epicInReview('engine-epic-preview-race');
         $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
         $this->evaluate($epic);
         $refresh = $this->liveRequestOfKind($epic, 'epic-preview');
 
         $pullRequest->headSha = self::HEAD_TWO;
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 12:09:00');
         $this->em()->flush();
         $this->evaluate($epic, '2026-10-02 12:10:00');
         $this->finish($refresh);
@@ -3859,7 +3878,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_epic_pauses_after_three_failed_refreshes_in_a_row(): void
     {
         $epic = $this->epicInReview('engine-epic-preview-limit');
-        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->agentReview($epic, $pullRequest, AgentReviewConclusion::Success, '2026-10-02 11:50:00');
 
         foreach (['12:00:00', '12:10:00', '12:20:00'] as $at) {
             $this->evaluate($epic, '2026-10-02 '.$at);

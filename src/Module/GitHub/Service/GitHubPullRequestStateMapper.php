@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\GitHub\Service;
 
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
@@ -314,6 +315,8 @@ final readonly class GitHubPullRequestStateMapper
     }
 
     /**
+     * The approval check of Loupe never counts, because the gate waits on it and it would wait on itself.
+     * When it is required, it alone can explain a blocked merge, so a blocked merge proves no other check pending.
      * A check is required when the ruleset names it or the head flags it. The
      * ruleset finds a check that never ran, and the flag finds one that classic
      * branch protection requires.
@@ -326,12 +329,18 @@ final readonly class GitHubPullRequestStateMapper
     {
         $verdicts = [];
         $flags = [];
+        $approvalRequired = \in_array(ForgePullRequest::APPROVAL_CHECK_NAME, $rules->requiredChecks ?? [], true);
         foreach ($this->contexts($pullRequest) as $context) {
             [$type, $name, $verdict] = match ($context['__typename'] ?? null) {
                 'CheckRun' => ['CheckRun', $context['name'] ?? null, $this->checkRunVerdict($context)],
                 'StatusContext' => ['StatusContext', $context['context'] ?? null, $this->statusVerdict($context)],
                 default => [null, null, null],
             };
+            if (ForgePullRequest::APPROVAL_CHECK_NAME === $name) {
+                $approvalRequired = $approvalRequired || true === ($context['isRequired'] ?? null);
+
+                continue;
+            }
             if (null === $type || !\is_string($name) || '' === $name || null === $verdict) {
                 continue;
             }
@@ -342,9 +351,9 @@ final readonly class GitHubPullRequestStateMapper
         }
 
         $flaggedRequired = array_keys(array_filter($flags, static fn (array $byType): bool => \in_array(true, $byType, true)));
-        $required = array_values(array_unique([...$rules->requiredChecks ?? [], ...array_map(strval(...), $flaggedRequired)]));
+        $required = array_values(array_diff(array_unique([...$rules->requiredChecks ?? [], ...array_map(strval(...), $flaggedRequired)]), [ForgePullRequest::APPROVAL_CHECK_NAME]));
         if ([] === $required) {
-            return [$blocked ? PullRequestChecks::Pending : PullRequestChecks::Passed, []];
+            return [$blocked && !$approvalRequired ? PullRequestChecks::Pending : PullRequestChecks::Passed, []];
         }
 
         $failed = [];

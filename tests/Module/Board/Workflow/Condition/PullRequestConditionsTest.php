@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Workflow\Condition;
 
-use App\Module\Board\Workflow\Condition\PullRequestAppApprovalCoversHead;
-use App\Module\Board\Workflow\Condition\PullRequestAppApprovalStands;
-use App\Module\Board\Workflow\Condition\PullRequestAppCanApprove;
+use App\Module\Board\Workflow\Condition\PullRequestApprovalCheckPassed;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsDefault;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsEpicBranch;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsMergeTarget;
 use App\Module\Board\Workflow\Condition\PullRequestBehind;
 use App\Module\Board\Workflow\Condition\PullRequestCanMerge;
+use App\Module\Board\Workflow\Condition\PullRequestCanPostCheck;
 use App\Module\Board\Workflow\Condition\PullRequestChangesRequested;
 use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
 use App\Module\Board\Workflow\Condition\PullRequestChecksOnHead;
@@ -23,6 +22,7 @@ use App\Module\Board\Workflow\Condition\PullRequestDraft;
 use App\Module\Board\Workflow\Condition\PullRequestDraftOpen;
 use App\Module\Board\Workflow\Condition\PullRequestForgeRequestPending;
 use App\Module\Board\Workflow\Condition\PullRequestLinked;
+use App\Module\Board\Workflow\Condition\PullRequestMergeBlocked;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestParentMerged;
 use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
@@ -78,17 +78,14 @@ final class PullRequestConditionsTest extends TestCase
         yield 'approvals, enough' => [new PullRequestApprovalCoversHead(), ['min' => 2], self::current(approvalsCoveringHead: 2), true];
         yield 'approvals, too few' => [new PullRequestApprovalCoversHead(), ['min' => 2], self::current(approvalsCoveringHead: 1), false];
 
-        yield 'approvals by a person, the app alone' => [new PullRequestApprovalCoversHead(), ['min' => 1, 'by' => 'person'], self::current(approvalsCoveringHead: 1, appApprovalCoversHead: true), false];
-        yield 'approvals by a person, a person and the app' => [new PullRequestApprovalCoversHead(), ['min' => 1, 'by' => 'person'], self::current(approvalsCoveringHead: 2, appApprovalCoversHead: true), true];
         yield 'approvals by a person, a person alone' => [new PullRequestApprovalCoversHead(), ['min' => 1, 'by' => 'person'], self::current(approvalsCoveringHead: 1), true];
-        yield 'approvals of any kind, the app alone' => [new PullRequestApprovalCoversHead(), ['min' => 1], self::current(approvalsCoveringHead: 1, appApprovalCoversHead: true), true];
 
-        yield 'app approval covers head' => [new PullRequestAppApprovalCoversHead(), [], self::current(appApprovalCoversHead: true), true];
-        yield 'app approval does not cover head' => [new PullRequestAppApprovalCoversHead(), [], self::current(appApprovalCoversHead: false), false];
-        yield 'app approval stands' => [new PullRequestAppApprovalStands(), [], self::current(appApprovalStands: true), true];
-        yield 'no app approval stands' => [new PullRequestAppApprovalStands(), [], self::current(appApprovalStands: false), false];
-        yield 'app can approve' => [new PullRequestAppCanApprove(), [], self::current(appCanApprove: true), true];
-        yield 'app cannot approve' => [new PullRequestAppCanApprove(), [], self::current(appCanApprove: false), false];
+        yield 'approval check passed' => [new PullRequestApprovalCheckPassed(), [], self::current(approvalCheckPassed: true), true];
+        yield 'approval check not passed' => [new PullRequestApprovalCheckPassed(), [], self::current(approvalCheckPassed: false), false];
+        yield 'can post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: true), true];
+        yield 'cannot post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: false), false];
+        yield 'merge blocked' => [new PullRequestMergeBlocked(), [], self::current(mergeBlocked: true), true];
+        yield 'merge not blocked' => [new PullRequestMergeBlocked(), [], self::current(mergeBlocked: false), false];
 
         yield 'changes requested' => [new PullRequestChangesRequested(), [], self::current(changesRequested: true), true];
         yield 'no changes requested' => [new PullRequestChangesRequested(), [], self::current(changesRequested: false), false];
@@ -170,9 +167,9 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), []];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), []];
         yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), []];
-        yield 'pr.app_approval_covers_head' => [new PullRequestAppApprovalCoversHead(), []];
-        yield 'pr.app_approval_stands' => [new PullRequestAppApprovalStands(), []];
-        yield 'pr.app_can_approve' => [new PullRequestAppCanApprove(), []];
+        yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), []];
+        yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), []];
+        yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), []];
         yield 'pr.can_merge' => [new PullRequestCanMerge(), []];
         yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), []];
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), []];
@@ -214,9 +211,9 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.checks_failed' => [new PullRequestChecksFailed(), [], 'pr_checks_failed', [], $one];
         yield 'pr.conflicting' => [new PullRequestConflicting(), [], 'pr_conflicting', [], $one];
         yield 'pr.behind' => [new PullRequestBehind(), [], 'pr_behind', [], [EngineFact::PullRequest, EngineFact::PullRequestHead]];
-        yield 'pr.app_approval_covers_head' => [new PullRequestAppApprovalCoversHead(), [], 'pr_app_approval_covers_head', [], [EngineFact::PullRequest, EngineFact::PullRequestAppApproval]];
-        yield 'pr.app_approval_stands' => [new PullRequestAppApprovalStands(), [], 'pr_app_approval_stands', [], [EngineFact::PullRequest, EngineFact::PullRequestAppApproval]];
-        yield 'pr.app_can_approve' => [new PullRequestAppCanApprove(), [], 'pr_app_can_approve', [], [EngineFact::PullRequest, EngineFact::PullRequestAppApproval]];
+        yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), [], 'pr_approval_check_passed', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
+        yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), [], 'pr_can_post_check', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
+        yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), [], 'pr_merge_blocked', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), [], 'pr_base_is_merge_target', [], $one];
@@ -252,9 +249,9 @@ final class PullRequestConditionsTest extends TestCase
         bool $checksOnHead = false,
         bool $canMerge = false,
         bool $baseIsDefault = false,
-        bool $appApprovalCoversHead = false,
-        bool $appApprovalStands = false,
-        bool $appCanApprove = false,
+        bool $approvalCheckPassed = false,
+        bool $canPostCheck = false,
+        bool $mergeBlocked = false,
     ): Facts {
         $pullRequest = FactsMother::pullRequest(
             state: $state,
@@ -271,9 +268,9 @@ final class PullRequestConditionsTest extends TestCase
             checksOnHead: $checksOnHead,
             canMerge: $canMerge,
             baseIsDefault: $baseIsDefault,
-            appApprovalCoversHead: $appApprovalCoversHead,
-            appApprovalStands: $appApprovalStands,
-            appCanApprove: $appCanApprove,
+            approvalCheckPassed: $approvalCheckPassed,
+            canPostCheck: $canPostCheck,
+            mergeBlocked: $mergeBlocked,
         );
 
         return FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], now: new \DateTimeImmutable(self::NOW));

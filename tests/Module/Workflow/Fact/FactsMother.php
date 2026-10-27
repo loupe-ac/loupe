@@ -116,7 +116,7 @@ final class FactsMother
             ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new ArtifactReachFacts([]), new HumanReviewFacts(false)),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
-            ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
+            ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), unposted: false, uncommented: [])),
             ...self::byClass(new DocumentReviewFacts([]), new DocumentReviewConclusionFacts([], [])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
@@ -233,9 +233,9 @@ final class FactsMother
         bool $checksOnHead = false,
         bool $canMerge = false,
         bool $baseIsDefault = false,
-        bool $appApprovalCoversHead = false,
-        bool $appApprovalStands = false,
-        bool $appCanApprove = false,
+        bool $approvalCheckPassed = false,
+        bool $canPostCheck = false,
+        bool $mergeBlocked = false,
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -264,9 +264,9 @@ final class FactsMother
             checksOnHead: $checksOnHead,
             canMerge: $canMerge,
             baseIsDefault: $baseIsDefault,
-            appApprovalCoversHead: $appApprovalCoversHead,
-            appApprovalStands: $appApprovalStands,
-            appCanApprove: $appCanApprove,
+            approvalCheckPassed: $approvalCheckPassed,
+            canPostCheck: $canPostCheck,
+            mergeBlocked: $mergeBlocked,
         );
     }
 

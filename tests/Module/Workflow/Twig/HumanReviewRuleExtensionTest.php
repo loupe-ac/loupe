@@ -18,14 +18,14 @@ final class HumanReviewRuleExtensionTest extends TestCase
 {
     public function test_it_finds_the_rule_that_approves_a_pull_request(): void
     {
-        $extension = $this->extension($this->rule('other', 'merge'), $this->rule('approve-it', 'approve'));
+        $extension = $this->extension($this->rule('other', 'merge'), $this->rule('approve-it', 'approval-check', state: 'pass'));
 
         self::assertSame('approve-it', $extension->ruleId(Uuid::v4()));
     }
 
     public function test_the_approving_rule_wins_over_the_rule_that_requires_a_person(): void
     {
-        $extension = $this->extension($this->rule('hold', null, 'require-human-review'), $this->rule('approve-it', 'approve'));
+        $extension = $this->extension($this->rule('hold', null, 'require-human-review'), $this->rule('approve-it', 'approval-check', state: 'pass'));
 
         self::assertSame('approve-it', $extension->ruleId(Uuid::v4()));
     }
@@ -39,9 +39,16 @@ final class HumanReviewRuleExtensionTest extends TestCase
 
     public function test_it_returns_the_first_of_two_matching_rules(): void
     {
-        $extension = $this->extension($this->rule('first', 'approve'), $this->rule('second', 'approve'));
+        $extension = $this->extension($this->rule('first', 'approval-check', state: 'pass'), $this->rule('second', 'approval-check', state: 'pass'));
 
         self::assertSame('first', $extension->ruleId(Uuid::v4()));
+    }
+
+    public function test_a_rule_that_revokes_the_approval_check_does_not_approve(): void
+    {
+        $extension = $this->extension($this->rule('revoke-it', 'approval-check', state: 'revoke'));
+
+        self::assertNull($extension->ruleId(Uuid::v4()));
     }
 
     public function test_it_returns_null_when_no_rule_matches(): void
@@ -70,9 +77,12 @@ final class HumanReviewRuleExtensionTest extends TestCase
         self::assertNull(new HumanReviewRuleExtension($source)->ruleId($projectId));
     }
 
-    private function rule(string $id, ?string $write, string $action = 'forge-write'): Rule
+    private function rule(string $id, ?string $write, string $action = 'forge-write', ?string $state = null): Rule
     {
         $params = null === $write ? [] : ['write' => $write];
+        if (null !== $state) {
+            $params['state'] = $state;
+        }
 
         return new Rule($id, null, new AllOf([]), [new ActionCall($action, $params)]);
     }
