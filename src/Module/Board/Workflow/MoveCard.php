@@ -26,8 +26,6 @@ final readonly class MoveCard implements Action
 {
     public const string KEY = 'move';
 
-    public const string OUTCOME_MERGED = 'merged';
-
     public function __construct(
         private CardRepository $cards,
         private BoardColumnRepository $boardColumns,
@@ -53,7 +51,7 @@ final readonly class MoveCard implements Action
         return [
             new Parameter('to', ParameterType::Slot),
             new Parameter('from', ParameterType::Slot, required: false),
-            new Parameter('outcome', ParameterType::String, required: false, choices: [self::OUTCOME_MERGED]),
+            new Parameter('outcome', ParameterType::Outcome, required: false),
         ];
     }
 

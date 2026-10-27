@@ -2,6 +2,8 @@ key: lifecycle
 version: 24
 defaultType: feature
 epicBranch: 'epic/{number}'
+outcomes:
+    - { key: merged, delivered: true }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
 types:

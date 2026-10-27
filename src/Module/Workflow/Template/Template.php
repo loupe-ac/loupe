@@ -7,6 +7,8 @@ namespace App\Module\Workflow\Template;
 use App\Module\Workflow\Contract\EndsReviewLoop;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
+use App\Module\Workflow\Contract\TemplateMetric;
+use App\Module\Workflow\Contract\TemplateOutcome;
 
 final readonly class Template
 {
@@ -16,6 +18,9 @@ final readonly class Template
 
     /** A Git branch name that holds the epic number placeholder exactly once. */
     public const string EPIC_BRANCH_RULE = '/^(?!.*\{number\}.*\{number\})(?!.*\.\.)(?!.*\.lock(?:\/|$))(?=.*\{number\})(?:[A-Za-z0-9_]|\{number\})(?:[A-Za-z0-9._-]|\{number\}|\/(?![\/.-]))*(?<![.\/])$/D';
+
+    /** A metric or an outcome key: lowercase words joined with hyphens, at most 64 characters. */
+    public const string KEY_PATTERN = '/^(?=.{1,64}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/D';
 
     private const string REQUEST_ACTION = 'request';
 
@@ -38,6 +43,8 @@ final readonly class Template
      * @param list<TemplateMarker>            $markers                          the card markers, in template order
      * @param bool                            $approvalCoversConflictResolution whether an approval still covers a merge from the base that holds a conflict resolution
      * @param list<string>                    $inbox                            the keys of the markers that store one inbox entry per thing, in template order
+     * @param list<TemplateOutcome>           $outcomes                         the outcomes a move may set, in template order
+     * @param list<TemplateMetric>            $metrics                          the metrics the template declares, in template order
      */
     public function __construct(
         public string $key,
@@ -56,6 +63,8 @@ final readonly class Template
         public array $markers = [],
         public bool $approvalCoversConflictResolution = true,
         public array $inbox = [],
+        public array $outcomes = [],
+        public array $metrics = [],
     ) {
     }
 

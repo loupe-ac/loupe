@@ -2,6 +2,8 @@ key: simple
 version: 9
 defaultType: feature
 epicBranch: 'epic/{number}'
+outcomes:
+    - { key: merged, delivered: true }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }

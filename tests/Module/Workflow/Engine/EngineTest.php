@@ -118,6 +118,7 @@ use App\Module\Workflow\Service\PassMemo;
 use App\Module\Workflow\Service\WorkflowAutomation;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
+use App\Module\Workflow\Template\TemplateMetricParser;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\TemplatePrompts;
 use App\Outbox\OutboxWriter;
@@ -4904,7 +4905,7 @@ final class EngineTest extends KernelTestCase
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $this->parsingActions(), $this->service(TemplatePrompts::class)), $this->appRules ?? $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $this->parsingActions(), $this->service(TemplatePrompts::class), $this->service(TemplateMetricParser::class)), $this->appRules ?? $this->service(AppRules::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),
