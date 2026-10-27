@@ -10,14 +10,12 @@ use App\Module\Account\Entity\User;
 use App\Module\GitHub\Command\IssueGitTokenCommand;
 use App\Module\GitHub\Command\IssueGitTokenHandler;
 use App\Module\GitHub\Service\GitHubGitTokenRefused;
-use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
  * Hands a managed worker a GitHub App token that opens one repository of one
@@ -40,7 +38,6 @@ final class IssueGitTokenController extends AppController
     public function __construct(
         private readonly IssueGitTokenHandler $issueGitToken,
         public readonly CredentialRateLimitKey $rateLimitKey,
-        private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -56,7 +53,6 @@ final class IssueGitTokenController extends AppController
                 $user,
                 $handle,
                 $payload->repository ?? throw new \LogicException('repository required after validation'),
-                AuthenticatedCredential::of($this->tokenStorage->getToken())?->projectId,
             ));
         } catch (DomainErrors $e) {
             return isset($e->errors['handle'])

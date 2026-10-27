@@ -99,6 +99,13 @@ framework:
         agent_git_token:
             <<: *agent_per_token
 
+        # Bounds the requests that name a project other than the one a credential
+        # is bound to. A legitimate bound app makes none, so any limit above zero
+        # serves it, and the limit caps the audit rows a probing loop writes.
+        agent_bound_project_refusals:
+            <<: *agent_per_token
+            limit: 30
+
         # Bounds project creation from the CLI. A person creates a project a few
         # times in a lifetime, so the limit is far below the shared agent shape.
         agent_project_create:
