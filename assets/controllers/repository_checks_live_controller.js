@@ -10,6 +10,9 @@ export const DEBOUNCE_MILLISECONDS = 300;
 /** A read takes about two seconds, so a page that heard nothing in this time stops waiting. */
 export const CHECKING_TIMEOUT_MILLISECONDS = 60000;
 
+/** A failed row fetch tries again after each wait. */
+export const RETRY_MILLISECONDS = [1000, 3000, 9000];
+
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 
 /**
@@ -26,13 +29,18 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
  * the page fetches those rows once more, and drops "Checking…" from a row
  * whose fetch fails. Only the newest response of a row is applied. A row with
  * an open dialog keeps its markup until the dialog closes, then the page
- * fetches it again.
+ * fetches it again. A network error or a 5xx, 408 or 429 answer retries with a
+ * growing wait. After the last retry, or another failed answer, the page says
+ * that live updates stopped, until a later fetch of a row works.
  */
 export default class extends Controller {
-    static targets = ['populated', 'empty'];
+    static targets = ['populated', 'empty', 'status'];
+
+    static values = { stopped: String };
 
     connect() {
         this.pending = new Set();
+        this.retries = new Map();
         this.held = new Set();
         this.issued = new Map();
         this.applied = new Map();
@@ -55,6 +63,8 @@ export default class extends Controller {
     disconnect() {
         clearTimeout(this.timeout);
         clearTimeout(this.checkingTimeout);
+        this.retries.forEach((timer) => clearTimeout(timer));
+        this.retries.clear();
         this.element.removeEventListener('close', this.dialogClosed, true);
         this.unsubscribe?.();
         this.unsubscribe = undefined;
@@ -109,7 +119,9 @@ export default class extends Controller {
         await Promise.all(this.checkingIds().map((id) => this.refreshRow(id)));
     }
 
-    async refreshRow(repositoryId) {
+    async refreshRow(repositoryId, attempt = 0) {
+        clearTimeout(this.retries.get(repositoryId));
+        this.retries.delete(repositoryId);
         const row = this.rowFor(repositoryId);
         if (row === undefined) {
             return;
@@ -123,7 +135,7 @@ export default class extends Controller {
         const sequence = (this.issued.get(repositoryId) ?? 0) + 1;
         this.issued.set(repositoryId, sequence);
 
-        let status;
+        let status = null;
         let body = null;
         try {
             // eslint-disable-next-line no-restricted-syntax -- a read-only GET of a row that Turbo then applies, not a mutation.
@@ -136,11 +148,12 @@ export default class extends Controller {
                 body = await response.text();
             }
         } catch {
-            this.failed(repositoryId);
-
-            return;
+            body = null;
         }
 
+        if (sequence < this.issued.get(repositoryId)) {
+            return;
+        }
         if (sequence <= (this.applied.get(repositoryId) ?? 0)) {
             return;
         }
@@ -159,18 +172,21 @@ export default class extends Controller {
             return;
         }
         if (body === null) {
-            this.failed(repositoryId);
+            this.failed(repositoryId, status, attempt);
 
             return;
         }
 
         this.applied.set(repositoryId, sequence);
         renderStreamMessage(body);
+        this.clearStopped();
     }
 
     remove(repositoryId, row) {
         row.remove();
         [this.issued, this.applied].forEach((map) => map.delete(repositoryId));
+        clearTimeout(this.retries.get(repositoryId));
+        this.retries.delete(repositoryId);
         this.held.delete(repositoryId);
         if (
             this.element.querySelector('[data-forge-repository]') === null &&
@@ -183,14 +199,48 @@ export default class extends Controller {
         }
     }
 
+    /** A null status is a network error. */
+    failed(repositoryId, status, attempt) {
+        const transient =
+            status === null ||
+            status >= 500 ||
+            status === 408 ||
+            status === 429;
+        if (transient && attempt < RETRY_MILLISECONDS.length) {
+            this.retries.set(
+                repositoryId,
+                setTimeout(
+                    () => this.refreshRow(repositoryId, attempt + 1),
+                    RETRY_MILLISECONDS[attempt],
+                ),
+            );
+
+            return;
+        }
+        this.dropChecking(repositoryId);
+        this.showStopped();
+    }
+
     /** After the minute with no signal, a row that cannot be read stops saying "Checking…". */
-    failed(repositoryId) {
+    dropChecking(repositoryId) {
         if (!this.fallbackFired) {
             return;
         }
         this.rowFor(repositoryId)
             ?.querySelectorAll('[data-repository-checking]')
             .forEach((checking) => checking.remove());
+    }
+
+    showStopped() {
+        if (this.hasStatusTarget) {
+            this.statusTarget.textContent = this.stoppedValue;
+        }
+    }
+
+    clearStopped() {
+        if (this.hasStatusTarget) {
+            this.statusTarget.textContent = '';
+        }
     }
 
     dialogOpen(row) {

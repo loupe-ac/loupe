@@ -133,7 +133,8 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
 
         $banner = $crawler->filter('[data-testid="forge-repository-check-failed"]');
         self::assertSame('Loupe could not check acme/app.', trim($banner->filter('.lp-flash__title')->text()));
-        self::assertStringContainsString('GitHub did not answer at '.$check->attemptedAt->format('H:i').'. New work is not paused.', $banner->text());
+        self::assertStringContainsString('GitHub did not answer at '.$check->attemptedAt->format('H:i').'.', $banner->text());
+        self::assertStringNotContainsString('paused', $banner->text());
         self::assertCount(1, $banner->filter('[data-testid="forge-repository-check-again"]'));
         self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-again"]'));
         self::assertStringContainsString('The list below keeps the result of the last check that worked, with its time.', $crawler->filter('[data-testid="forge-repository-check-kept"]')->text());
@@ -437,7 +438,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
 
         self::assertSame([], $this->queuedChecks());
         self::assertStringContainsString('Loupe could not check acme/app', $crawler->filter('[data-testid="forge-repository-check-failed"]')->text());
-        self::assertStringContainsString('New work is not paused', $crawler->filter('[data-testid="forge-repository-check-failed"]')->text());
+        self::assertStringNotContainsString('paused', $crawler->filter('[data-testid="forge-repository-check-failed"]')->text());
         self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-line"]'));
     }
 

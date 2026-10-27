@@ -230,13 +230,50 @@ final class GitHubRepositoryGuideTest extends TestCase
         self::assertSame('https://github.com/acme/app/settings#merge-button-settings', $step->links[0]->href);
     }
 
-    public function test_a_rule_that_limits_the_merge_methods_is_named(): void
+    public function test_a_rule_that_limits_the_merge_methods_is_named_with_the_switch_of_an_allowed_method(): void
     {
         $guide = $this->guide([$this->item('merge-method', [Catalog::GAP_NO_MERGE_METHOD])], allowedMethods: ['rebase']);
 
         $step = $this->step($guide, GuideStep::MERGE_METHOD);
-        self::assertContains(self::G.'merge_method.rules', $this->textKeys($step));
-        self::assertSame('rebase', $step->texts[2]->parameters['%methods%']);
+        self::assertSame([self::G.'merge_method.rules', self::G.'merge_method.rules_path'], $this->textKeys($step));
+        self::assertSame('github.repositories.check.method.rebase', $step->texts[0]->parameters['%methods%']);
+        self::assertSame(self::G.'merge_method.switch.rebase', $step->texts[1]->parameters['%switch%']);
+        self::assertNotContains(self::G.'merge_method.path', $this->textKeys($step));
+    }
+
+    public function test_a_rule_that_limits_the_merge_methods_links_the_merge_settings_and_each_ruleset_with_a_pull_request_rule(): void
+    {
+        $guide = $this->guide(
+            [$this->item('merge-method', [Catalog::GAP_NO_MERGE_METHOD])],
+            rulesets: [
+                new RepositoryRuleset(12, 'main protection', 'Repository', 'acme/app', ['pull_request']),
+                new RepositoryRuleset(7, 'Org defaults', 'Organization', 'acme-org', ['pull_request']),
+                new RepositoryRuleset(9, 'checks only', 'Repository', 'acme/app', ['required_status_checks']),
+            ],
+            allowedMethods: ['rebase'],
+        );
+
+        $step = $this->step($guide, GuideStep::MERGE_METHOD);
+        self::assertSame([
+            'https://github.com/acme/app/settings#merge-button-settings',
+            'https://github.com/acme/app/rules/12',
+            'https://github.com/organizations/acme-org/settings/rules/7',
+        ], array_map(static fn (GuideLink $link): string => $link->href, $step->links));
+        self::assertContains(self::G.'merge_method.organization', $this->textKeys($step));
+        self::assertSame(['%ruleset%' => 'Org defaults', '%organization%' => 'acme-org'], $step->texts[2]->parameters);
+    }
+
+    public function test_rules_that_share_no_merge_method_send_the_owner_to_the_rulesets_alone(): void
+    {
+        $guide = $this->guide(
+            [$this->item('merge-method', [Catalog::GAP_NO_MERGE_METHOD])],
+            rulesets: [new RepositoryRuleset(12, 'main protection', 'Repository', 'acme/app', ['pull_request'])],
+            allowedMethods: [],
+        );
+
+        $step = $this->step($guide, GuideStep::MERGE_METHOD);
+        self::assertSame([self::G.'merge_method.rules_none'], $this->textKeys($step));
+        self::assertSame(['https://github.com/acme/app/rules/12'], array_map(static fn (GuideLink $link): string => $link->href, $step->links));
     }
 
     public function test_classic_protection_gets_a_link_and_no_step(): void

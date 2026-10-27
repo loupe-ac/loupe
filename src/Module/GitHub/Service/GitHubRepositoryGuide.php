@@ -27,6 +27,7 @@ final readonly class GitHubRepositoryGuide
     private const string ORGANIZATION_NAME = '/^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/';
     private const string RULE_PULL_REQUEST = 'pull_request';
     private const string RULE_REQUIRED_CHECKS = 'required_status_checks';
+    private const array MERGE_METHODS = ['squash', 'merge', 'rebase'];
 
     private const array IMPORT_GAPS = [
         Catalog::GAP_NO_PULL_REQUEST_RULE,
@@ -137,21 +138,30 @@ final readonly class GitHubRepositoryGuide
     /** One step for a ruleset: its own page when the repository owns it, and an owner warning when an organization does. */
     private function rulesetStep(string $kind, string $textPrefix, RepositoryRuleset $ruleset, string $repositoryPath): GuideStep
     {
-        $name = $ruleset->name ?? $this->translator->trans(self::PREFIX.'ruleset_unnamed');
+        $name = $this->rulesetName($ruleset);
+        $texts = $ruleset->isOrganization()
+            ? [new GuideText(self::PREFIX.$textPrefix.'.organization', ['%ruleset%' => $name, '%organization%' => $ruleset->source])]
+            : [new GuideText(self::PREFIX.$textPrefix.'.repository', ['%ruleset%' => $name])];
+        $href = $this->rulesetHref($ruleset, $repositoryPath);
+
+        return new GuideStep($kind, $texts, null === $href ? [] : [$this->rulesetLink($name, $href)]);
+    }
+
+    private function rulesetName(RepositoryRuleset $ruleset): string
+    {
+        return $ruleset->name ?? $this->translator->trans(self::PREFIX.'ruleset_unnamed');
+    }
+
+    /** The page of a ruleset, or null when the organization name is no organization name. */
+    private function rulesetHref(RepositoryRuleset $ruleset, string $repositoryPath): ?string
+    {
         if (!$ruleset->isOrganization()) {
-            return new GuideStep(
-                $kind,
-                [new GuideText(self::PREFIX.$textPrefix.'.repository', ['%ruleset%' => $name])],
-                [$this->rulesetLink($name, $repositoryPath.'/rules/'.$ruleset->id)],
-            );
+            return $repositoryPath.'/rules/'.$ruleset->id;
         }
 
-        $texts = [new GuideText(self::PREFIX.$textPrefix.'.organization', ['%ruleset%' => $name, '%organization%' => $ruleset->source])];
-        if (1 !== preg_match(self::ORGANIZATION_NAME, $ruleset->source)) {
-            return new GuideStep($kind, $texts);
-        }
-
-        return new GuideStep($kind, $texts, [$this->rulesetLink($name, self::HOST.'organizations/'.$ruleset->source.'/settings/rules/'.$ruleset->id)]);
+        return 1 === preg_match(self::ORGANIZATION_NAME, $ruleset->source)
+            ? self::HOST.'organizations/'.$ruleset->source.'/settings/rules/'.$ruleset->id
+            : null;
     }
 
     private function rulesetLink(string $name, string $href): GuideLink
@@ -159,15 +169,45 @@ final readonly class GitHubRepositoryGuide
         return new GuideLink(self::PREFIX.'link.ruleset', $href, true, ['%ruleset%' => $name]);
     }
 
+    /**
+     * A rule that limits the merge methods can cause the gap, so the step then
+     * names the switch of an allowed method and links each ruleset with a
+     * pull request rule. Rules that share no method leave only the rulesets.
+     */
     private function mergeMethodStep(?RepositorySettings $settings, string $repositoryPath): GuideStep
     {
-        $texts = [new GuideText(self::PREFIX.'merge_method.text'), new GuideText(self::PREFIX.'merge_method.path')];
+        $mergeSettings = new GuideLink(self::PREFIX.'link.merge_settings', $repositoryPath.'/settings#merge-button-settings', true);
         $allowed = $settings?->rules->allowedMergeMethods;
-        if (null !== $allowed && [] !== $allowed) {
-            $texts[] = new GuideText(self::PREFIX.'merge_method.rules', ['%methods%' => implode(', ', $allowed)]);
+        if (null === $allowed) {
+            return new GuideStep(GuideStep::MERGE_METHOD, [new GuideText(self::PREFIX.'merge_method.text'), new GuideText(self::PREFIX.'merge_method.path')], [$mergeSettings]);
         }
 
-        return new GuideStep(GuideStep::MERGE_METHOD, $texts, [new GuideLink(self::PREFIX.'link.merge_settings', $repositoryPath.'/settings#merge-button-settings', true)]);
+        $texts = [];
+        $links = [];
+        foreach ($this->rulesetsWith($settings, self::RULE_PULL_REQUEST) as $ruleset) {
+            $name = $this->rulesetName($ruleset);
+            if ($ruleset->isOrganization()) {
+                $texts[] = new GuideText(self::PREFIX.'merge_method.organization', ['%ruleset%' => $name, '%organization%' => $ruleset->source]);
+            }
+            $href = $this->rulesetHref($ruleset, $repositoryPath);
+            if (null !== $href) {
+                $links[] = $this->rulesetLink($name, $href);
+            }
+        }
+
+        $known = array_values(array_intersect(self::MERGE_METHODS, $allowed));
+        if ([] === $known) {
+            return new GuideStep(GuideStep::MERGE_METHOD, [new GuideText(self::PREFIX.'merge_method.rules_none'), ...$texts], $links);
+        }
+
+        $methods = implode(', ', array_map(fn (string $method): string => $this->translator->trans('github.repositories.check.method.'.$method), $known));
+        $switch = $this->translator->trans(self::PREFIX.'merge_method.switch.'.$known[0]);
+
+        return new GuideStep(
+            GuideStep::MERGE_METHOD,
+            [new GuideText(self::PREFIX.'merge_method.rules', ['%methods%' => $methods]), new GuideText(self::PREFIX.'merge_method.rules_path', ['%switch%' => $switch]), ...$texts],
+            [$mergeSettings, ...$links],
+        );
     }
 
     /** @return list<RepositoryRuleset> the rulesets that hold a rule of the type, each id once */

@@ -1,7 +1,8 @@
 {% if visible %}
 {% do mercure_subscribe(topic) %}
-<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-controller="repository-checks-live">
+<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-controller="repository-checks-live" data-repository-checks-live-stopped-value="{{ 'github.repositories.live_stopped'|trans }}">
     <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
+    <p class="lp-live-stopped" role="status" data-repository-checks-live-target="status" data-testid="forge-repositories-live-stopped"></p>
 
     {% if not connectionsAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
