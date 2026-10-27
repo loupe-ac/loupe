@@ -13,7 +13,7 @@ final class HookSecretKeyTest extends TestCase
 {
     public function test_a_base64_key_of_32_bytes_is_readable(): void
     {
-        self::assertTrue(new HookSecretKey(new EncryptionKeyProvider(base64_encode(random_bytes(32))))->isReadable());
+        self::assertTrue(new HookSecretKey(new EncryptionKeyProvider([base64_encode(random_bytes(32))]))->isReadable());
     }
 
     /** @return iterable<string, array{string}> */
@@ -27,6 +27,6 @@ final class HookSecretKeyTest extends TestCase
     #[DataProvider('unreadableKeys')]
     public function test_any_other_key_is_not_readable(string $key): void
     {
-        self::assertFalse(new HookSecretKey(new EncryptionKeyProvider($key))->isReadable());
+        self::assertFalse(new HookSecretKey(new EncryptionKeyProvider([$key]))->isReadable());
     }
 }

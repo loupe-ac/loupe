@@ -118,6 +118,8 @@ do_token             = "dop_v1_..."            # or export DIGITALOCEAN_TOKEN an
 registry_credentials = "you:ghp_xxxxxxxxxxxx" # GHCR "username:PAT" (read:packages); empty for DOCR
 app_secret           = "GENERATED_HEX_32"
 app_encryption_key   = "GENERATED_BASE64_32_BYTE_KEY"
+# Set only during a key rotation. See docs/operating/rotating-encryption-key.md.
+# app_encryption_key_previous = ""
 
 # --- Required: outbound mail ---
 # Email verification is mandatory, so an instance without working mail creates

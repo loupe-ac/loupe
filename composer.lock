@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "40c2175dd7675c62b6e7a2d3b8aad1c4",
+    "content-hash": "4a7604a5cb012b8aaa946ea9295b5900",
     "packages": [
         {
             "name": "async-aws/core",
@@ -13292,24 +13292,27 @@
         },
         {
             "name": "ubermuda/doctrine-extra",
-            "version": "dev-main",
+            "version": "dev-card-980-rotatable-keys",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ubermuda/doctrine-extra.git",
-                "reference": "ec867f3bf1ed362c201abbe152ac27447ec37526"
+                "reference": "4e44c2c02123acf25398967d257c0550fa12c0c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ubermuda/doctrine-extra/zipball/ec867f3bf1ed362c201abbe152ac27447ec37526",
-                "reference": "ec867f3bf1ed362c201abbe152ac27447ec37526",
+                "url": "https://api.github.com/repos/ubermuda/doctrine-extra/zipball/4e44c2c02123acf25398967d257c0550fa12c0c6",
+                "reference": "4e44c2c02123acf25398967d257c0550fa12c0c6",
                 "shasum": ""
             },
             "require": {
                 "doctrine/dbal": "^4.0",
                 "doctrine/doctrine-bundle": "^3.0",
+                "doctrine/orm": "^3.3",
+                "doctrine/persistence": "^3.0|^4.0",
                 "ext-sodium": "*",
                 "php": ">=8.5",
                 "symfony/config": "^6.4|^7.0|^8.0",
+                "symfony/console": "^7.3|^8.0",
                 "symfony/dependency-injection": "^6.4|^7.0|^8.0",
                 "symfony/http-kernel": "^6.4|^7.0|^8.0"
             },
@@ -13317,7 +13320,6 @@
                 "phpstan/phpstan": "^2.0",
                 "phpunit/phpunit": "^13.0"
             },
-            "default-branch": true,
             "type": "symfony-bundle",
             "autoload": {
                 "psr-4": {
@@ -13334,10 +13336,10 @@
             ],
             "description": "Extra Doctrine types for Symfony projects, starting with a libsodium-encrypted string type",
             "support": {
-                "source": "https://github.com/ubermuda/doctrine-extra/tree/main",
+                "source": "https://github.com/ubermuda/doctrine-extra/tree/card-980-rotatable-keys",
                 "issues": "https://github.com/ubermuda/doctrine-extra/issues"
             },
-            "time": "2026-06-16T17:01:48+00:00"
+            "time": "2026-10-27T21:16:37+00:00"
         },
         {
             "name": "ubermuda/feature-flags-bundle",
@@ -18728,7 +18730,14 @@
             "time": "2026-06-29T15:22:14+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "ubermuda/doctrine-extra",
+            "version": "dev-card-980-rotatable-keys",
+            "alias": "dev-main",
+            "alias_normalized": "dev-main"
+        }
+    ],
     "minimum-stability": "dev",
     "stability-flags": {
         "ubermuda/admin-bundle": 20,

@@ -53,6 +53,8 @@ x-app-environment: &app-environment
   APP_SECRET: "${APP_SECRET:?set it in docker/compose/prod.env — generate with openssl rand -hex 16}"
   # Only needed once an encrypted column is in use; empty is a valid answer.
   APP_ENCRYPTION_KEY: "${APP_ENCRYPTION_KEY:-}"
+  # Set only during a key rotation. See docs/operating/rotating-encryption-key.md.
+  APP_ENCRYPTION_KEY_PREVIOUS: "${APP_ENCRYPTION_KEY_PREVIOUS:-}"
 
   DATABASE_URL: "postgresql://${POSTGRES_USER:-loupe}:${POSTGRES_PASSWORD:?set it in docker/compose/prod.env}@database:5432/${POSTGRES_DB:-loupe}?serverVersion=${POSTGRES_VERSION:-16}&charset=utf8"
 

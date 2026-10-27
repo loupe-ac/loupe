@@ -7,7 +7,9 @@ description: "Putting a dump back, and the key that has to come with it."
 dump and cannot be regenerated. Restoring without the one that encrypted the data
 leaves every `encrypted_string` column permanently unreadable — the rows come
 back intact and simply cannot be decrypted. Find the key before you start, not
-after.
+after. If you rotated the key since the dump was taken, set the dump's key as
+`APP_ENCRYPTION_KEY_PREVIOUS`, restore, and run the re-encrypt command from
+[Rotating the encryption key](rotating-encryption-key.md).
 
 **No restore has been rehearsed for this project.** These steps are written from
 how the stack is built, not from a drill somebody ran. Rehearse yours on a
@@ -25,8 +27,8 @@ the provider's own snapshot; only the key half below applies.
   If it was empty then, it must be empty now. A different value is as bad as a
   missing one.
 - The rest of `docker/compose/prod.env`. Rotating `APP_SECRET` only invalidates
-  sessions and signed URLs; the encryption key is the one that cannot be
-  replaced.
+  sessions and signed URLs. The encryption key can be rotated, but a dump keeps
+  the key it was written with.
 
 ## Restoring
 

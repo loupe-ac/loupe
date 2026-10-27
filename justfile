@@ -856,6 +856,10 @@ tf-apply *args:
     cd terraform && { [ -f terraform.tfstate ] && cp -f terraform.tfstate terraform.tfstate.bak || true; }
     cd terraform && terraform apply "$@"
 
+# Rotate secrets in terraform/terraform.tfvars and apply. Names: app_encryption_key.
+rotate-secrets *names:
+    bin/rotate-secrets {{names}}
+
 # Read outputs, e.g. `just tf-output` or `just tf-output -raw app_id`.
 tf-output *args:
     cd terraform && terraform output "$@"
