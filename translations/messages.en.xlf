@@ -9009,10 +9009,6 @@
             <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_base_requires_review"><source>workflow.waiting.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch requires an approving review.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_base_requires_review"><source>workflow.waiting.not.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch does not require an approving review.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_approval_check_unpinned"><source>workflow.waiting.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from any source.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_approval_check_unpinned"><source>workflow.waiting.not.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from the Loupe App alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
@@ -9550,8 +9546,6 @@
             <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
             <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch"><source>marker.ruleset_mismatch</source><target>Needs you: the ruleset of the default branch does not fit the approval check of pull request #%number%.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch.remedy"><source>marker.ruleset_mismatch.remedy</source><target>Remove the rule "Require approvals" from the ruleset. Set the Loupe App as the source of the required check Loupe / Approval.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
@@ -9567,7 +9561,6 @@
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
-            <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
             <trans-unit id="marker.repository_misfit">
                 <source>marker.repository_misfit</source>
                 <target>New work is paused: a repository does not fit the workflow.</target>

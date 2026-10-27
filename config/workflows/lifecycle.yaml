@@ -923,18 +923,6 @@ markers:
               - pr.checks_passed: {}
               - pr.merge_blocked: {}
               - not: { card.run.worker_active: {} }
-    - key: ruleset-mismatch
-      kind: needs-you
-      label: marker.ruleset_mismatch
-      remedy: marker.ruleset_mismatch.remedy
-      link: ruleset-setup
-      when:
-          all:
-              - pr.open: {}
-              - any:
-                    - pr.base_requires_review: {}
-                    - pr.approval_check_unpinned: {}
-              - not: { card.run.worker_active: {} }
     - key: repository-misfit
       kind: needs-you
       label: marker.repository_misfit

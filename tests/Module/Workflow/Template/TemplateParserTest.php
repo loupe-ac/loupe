@@ -1879,8 +1879,8 @@ final class TemplateParserTest extends TestCase
         yield 'blank remedy' => [['remedy' => ''], 'markers[0] (m) remedy: must be a non-empty string'];
         yield 'fallback not a boolean' => [['fallback' => 'yes'], 'markers[0] (m) fallback: must be a boolean'];
         yield 'unknown key' => [['colour' => 'red'], 'markers[0] (m): unknown key "colour"'];
-        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents, ruleset-setup, repositories'];
-        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents, ruleset-setup, repositories'];
+        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents, repositories'];
+        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents, repositories'];
     }
 
     public function test_a_duplicate_marker_key_is_refused(): void

@@ -117,7 +117,7 @@ A marker has these parts:
 - A kind. See below.
 - A label. This is the reason that a reader sees.
 - A remedy. This is one line that says what clears the marker.
-- A link, optional. The value `agents` shows a link to the Agents page under the remedy. The value `ruleset-setup` shows a link to "Set up the ruleset" on this page.
+- A link, optional. The value `agents` shows a link to the Agents page under the remedy. The value `repositories` shows a link to the Repositories tab of the project settings.
 - Slots, optional. They name the slots where the marker applies.
 - A condition. The marker is on while the condition is true.
 
@@ -1021,9 +1021,7 @@ The wait item "Waits for approval" opens when a person must review the card, whe
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
 of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
-Loupe reads the rulesets of the default branch of the repository. When a ruleset requires an approving review, or
-requires `Loupe / Approval` without the Loupe App as its source, the marker `ruleset-mismatch` shows Needs you on the
-card of an open pull request into that branch, with a link to the steps below. The Repositories tab of the project settings lists the settings that do not fit under each repository.
+The Repositories tab of the project settings lists the settings of each repository that do not fit.
 Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
 
 #### Set up the ruleset
