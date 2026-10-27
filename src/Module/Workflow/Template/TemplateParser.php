@@ -52,7 +52,7 @@ final readonly class TemplateParser
     private const array MARKER_KEYS = ['key', 'kind', 'label', 'remedy', 'slots', 'when', 'fallback', 'link'];
 
     /** The names an action call keeps for the parameter types that have a field of their own. */
-    private const array KEPT_PARAMETERS = ['expression' => ['until', 'refill', 'cancelWhen'], 'list' => ['checks', 'tags'], 'options' => ['options']];
+    private const array KEPT_PARAMETERS = ['expression' => ['until', 'refill', 'cancelWhen'], 'list' => ['checks', 'tags', 'methods'], 'options' => ['options']];
 
     /** The parameters that hold the tag and the status of a request's `document` map. A template cannot write them. */
     public const string DOCUMENT_TAG = ParameterNames::DOCUMENT_TAG;
@@ -1026,6 +1026,11 @@ final readonly class TemplateParser
                     continue 2;
                 case ParameterType::List:
                     $list = self::checks($given, $where, $param, $errors);
+                    foreach ($list as $entry) {
+                        if (null !== $parameter->choices && !\in_array($entry, $parameter->choices, true)) {
+                            $errors[] = \sprintf('%s: parameter "%s" does not take "%s", only %s', $where, $param, $entry, implode(', ', $parameter->choices));
+                        }
+                    }
                     if ('checks' === $param) {
                         $checks = $list;
                     } else {
@@ -1051,7 +1056,7 @@ final readonly class TemplateParser
             }
         }
         if ($action instanceof ChecksParameters) {
-            foreach ($action::check($params) as $message) {
+            foreach ($action::check([...$params, ...$lists]) as $message) {
                 $errors[] = $where.': '.$message;
             }
         }

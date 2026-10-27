@@ -586,7 +586,7 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, fallback: merge } }
+      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
 
     - id: merge-ready-epic-child
       slot: in-review
@@ -604,7 +604,7 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, fallback: merge } }
+      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
 
     - id: epic-to-review
       slot: implementation
