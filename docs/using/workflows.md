@@ -167,6 +167,7 @@ The shipped markers are:
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
+| `repository-misfit` | Needs you | A rule of the card wants to ask for work, and the project holds new work because a repository has a blocking gap. The remedy line links to the Repositories tab |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
 | `waits-for-parent-branch` | Waiting | A pull request waits for a branch that no card owns |
 | `waiting-on-checks` | Waiting | The checks of a pull request run |
@@ -443,6 +444,30 @@ release the paused rule runs again with a fresh budget of retries and work. The
 card history records the pause and the release, with the person who released
 it. A pause that the workflow ends by itself shows in the history too, with
 Loupe as the actor and the reason. An agent ends a pause with the `card_pause_release` MCP tool.
+
+### Pause for a blocking repository gap
+
+The Repositories check of a project can find a blocking gap, which is a setting of
+a repository that contradicts the workflow, such as a review rule that the Loupe
+App cannot satisfy. While any repository of the project has a blocking gap, the
+project holds all new work:
+
+- A `request` rule of a card gets the outcome `held`. It writes no attempt, no
+  backoff and no pause. The card shows the `repository-misfit` marker, and the rule asks again by
+  itself when the hold ends.
+- A bridge cannot claim a request of the project. The claim is refused with
+  `project_held`, and the request does not show in the offers of a bridge.
+- When the hold starts, Loupe withdraws each open request of the project, so the
+  work timeout never pauses a card for the hold.
+- Work that a bridge already claimed, and a run that is under way, finishes.
+- Rules that start no worker still run: moves, writes to GitHub and merges.
+  A request for teardown or for the epic preview is held like any other.
+
+The hold follows the stored result of the check. A failed read keeps the last
+certain result, so a failed read neither starts nor ends the hold. A removed
+repository leaves the result at once. When no repository has a blocking gap
+any more, after a check or after a removal, the hold ends. Each held rule then asks
+for its work again, and the open work timeout starts over.
 
 ## Writes to GitHub
 
