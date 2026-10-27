@@ -15,6 +15,7 @@ use App\Module\Forge\Service\RepositoryChange;
 use App\Module\Forge\Service\RepositoryCheckTopics;
 use App\Module\Forge\Service\RepositoryHoldSummaries;
 use App\Module\Project\Entity\Project;
+use App\Tests\Module\Forge\QueuedHoldReconciliations;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
@@ -37,6 +38,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class RepositoryHoldSummariesTest extends KernelTestCase
 {
+    use QueuedHoldReconciliations;
+
     private EntityManagerInterface $em;
 
     private RepositoryHoldSummaries $summaries;
@@ -79,8 +82,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         $this->repositories->release($project, 'github', $repository->externalId);
 
-        self::assertCount(1, $this->events->events());
-        self::assertEquals($project->id, $this->events->events()[0]->projectId);
+        self::assertSame([(string) $project->id], $this->queuedReconciliations());
         self::assertTrue($this->summaries->current($project)->isEmpty());
         self::assertSame([], $this->signalledRepositories(), 'Nothing publishes before the terminate event.');
         $this->terminate();
@@ -98,7 +100,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         self::assertEqualsCanonicalizing(
             [(string) $first->id, (string) $second->id],
-            array_map(static fn (ForgeRepositoryCheckChanged $event): string => (string) $event->projectId, $this->events->events()),
+            $this->queuedReconciliations(),
         );
         self::assertTrue($this->summaries->current($first)->isEmpty());
         self::assertTrue($this->summaries->current($second)->isEmpty());
@@ -114,7 +116,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         $this->repositories->release($project, 'github', $repository->externalId);
 
-        self::assertSame([], $this->events->events());
+        self::assertSame([], $this->queuedReconciliations());
         $this->terminate();
         self::assertSame([$repositoryId], $this->signalledRepositories());
     }
@@ -127,7 +129,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         $this->change($project, $second, ['deletion_allowed']);
 
-        self::assertCount(1, $this->events->events());
+        self::assertCount(1, $this->queuedReconciliations());
         self::assertSame(2, \count($this->summaries->current($project)->blocking));
     }
 
@@ -139,7 +141,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         $this->change($project, $first, []);
 
-        self::assertCount(1, $this->events->events());
+        self::assertCount(1, $this->queuedReconciliations());
         self::assertCount(1, $this->summaries->current($project)->blocking);
     }
 
@@ -150,7 +152,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         $this->change($project, $repository, ['no_pull_request_rule', 'review_required']);
 
-        self::assertCount(1, $this->events->events());
+        self::assertCount(1, $this->queuedReconciliations());
         self::assertSame([(string) $repository->id => 2], $this->summaries->current($project)->blocking);
     }
 
@@ -164,7 +166,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
         $this->change($project, $repository, ['review_required']);
 
         self::assertTrue($before->equals($this->summaries->current($project)));
-        self::assertSame([], $this->events->events());
+        self::assertSame([], $this->queuedReconciliations());
         $this->terminate();
         self::assertSame([(string) $repository->id], $this->signalledRepositories());
     }
@@ -180,7 +182,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
         });
 
         self::assertTrue($this->summaries->current($project)->isEmpty());
-        self::assertSame([], $this->events->events());
+        self::assertSame([], $this->queuedReconciliations());
     }
 
     public function test_the_event_dispatches_after_the_commit_and_a_rolled_back_write_sends_nothing(): void
@@ -191,12 +193,14 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
 
         $this->change($project, $repository, ['no_pull_request_rule']);
 
+        self::assertSame([], $this->events->events(), 'The write queues the reconciliation and dispatches nothing itself.');
+        self::assertSame([], $this->deliverReconciliations());
         self::assertSame([$baseline], $this->events->transactionDepths());
         $this->terminate();
         self::assertCount(1, $this->published, 'Guard: a committed write does signal.');
 
-        $this->events = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckChanged::class);
         $this->published = [];
+        $queued = \count($this->queuedReconciliations());
         $failure = $this->failureOf(fn () => $this->summaries->change($project, static function (RepositoryChange $change): void {
             $change->signal(Uuid::v7());
             throw new \RuntimeException('The write fails.');
@@ -204,8 +208,39 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
         self::assertSame('The write fails.', $failure?->getMessage(), 'The failure reaches the caller.');
         $this->terminate();
 
-        self::assertSame([], $this->events->events());
+        self::assertCount($queued, $this->queuedReconciliations());
         self::assertSame([], $this->published);
+    }
+
+    public function test_a_check_change_whose_listener_fails_keeps_its_reconciliation_until_a_retry_succeeds(): void
+    {
+        $project = $this->project();
+        $repository = $this->blockingRepository($project, []);
+        $this->failNextListenerCall();
+
+        $this->change($project, $repository, ['no_pull_request_rule']);
+
+        self::assertCount(1, $this->deliverReconciliations(), 'Guard: the listener failed.');
+        self::assertFalse($this->summaries->current($project)->isEmpty(), 'The failure leaves the stored check in place.');
+        self::assertSame([], $this->deliverReconciliations(), 'The retry reconciles.');
+        self::assertSame([(string) $project->id, (string) $project->id], $this->deliveredProjects());
+        self::assertSame([], $this->deliverReconciliations(), 'Nothing is left to retry.');
+    }
+
+    public function test_a_removal_whose_listener_fails_keeps_its_reconciliation_until_a_retry_succeeds(): void
+    {
+        $project = $this->project();
+        $repository = $this->blockingRepository($project, ['no_pull_request_rule']);
+        $this->failNextListenerCall();
+
+        $this->repositories->release($project, 'github', $repository->externalId);
+        $this->repositories->release($project, 'github', $repository->externalId);
+
+        self::assertSame([(string) $project->id], $this->queuedReconciliations(), 'A repeated removal queues nothing more.');
+        self::assertCount(1, $this->deliverReconciliations(), 'Guard: the listener failed.');
+        self::assertTrue($this->summaries->current($project)->isEmpty(), 'The failure leaves the removal in place.');
+        self::assertSame([], $this->deliverReconciliations(), 'The retry reconciles.');
+        self::assertSame([(string) $project->id, (string) $project->id], $this->deliveredProjects());
     }
 
     public function test_the_signal_names_the_repository_on_a_private_topic_and_holds_no_content(): void
@@ -307,6 +342,23 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
         $this->em->flush();
 
         return $project;
+    }
+
+    private function failNextListenerCall(): void
+    {
+        $failed = false;
+        $this->service(EventDispatcherInterface::class)->addListener(ForgeRepositoryCheckChanged::class, static function () use (&$failed): void {
+            if (!$failed) {
+                $failed = true;
+                throw new \RuntimeException('The listener fails.');
+            }
+        }, -100);
+    }
+
+    /** @return list<string> */
+    private function deliveredProjects(): array
+    {
+        return array_map(static fn (ForgeRepositoryCheckChanged $event): string => (string) $event->projectId, $this->events->events());
     }
 
     private function failureOf(callable $run): ?\Throwable

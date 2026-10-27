@@ -24,6 +24,7 @@ use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\RepositorySuggestions;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Tests\Module\Forge\FakeRepositorySettingsReader;
+use App\Tests\Module\Forge\QueuedHoldReconciliations;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -38,10 +39,13 @@ use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
 use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Uid\Uuid;
 
 final class RunRepositoryCheckHandlerTest extends KernelTestCase
 {
+    use QueuedHoldReconciliations;
+
     private const string NOW = '2026-10-27 12:00:00';
 
     private EntityManagerInterface $em;
@@ -119,7 +123,7 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertSame('main', $check->settings['defaultBranch'] ?? null);
         self::assertSame(1, $check->acceptedReadTicket);
         self::assertSame([(string) $repository->id => 2], $this->summaries->current($repository->project)->blocking);
-        self::assertCount(1, $this->events->events());
+        self::assertCount(1, $this->queuedReconciliations());
         $this->terminate();
         self::assertSame([(string) $repository->id], $this->signalled());
     }
@@ -134,7 +138,7 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         $item = $this->checkOf($repository)->items[0];
         self::assertSame('fits', $item['state']);
         self::assertSame([], $item['gaps']);
-        self::assertSame([], $this->events->events());
+        self::assertSame([], $this->queuedReconciliations());
     }
 
     public function test_classic_protection_adds_a_warning_row_that_never_holds(): void
@@ -152,7 +156,7 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
             $this->checkOf($repository)->items,
         );
         self::assertSame([], $this->summaries->current($repository->project)->blocking);
-        self::assertSame([], $this->events->events());
+        self::assertSame([], $this->queuedReconciliations());
     }
 
     public function test_a_failed_read_keeps_the_last_certain_items_and_sets_the_failure(): void
@@ -229,13 +233,13 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         $this->terminate();
         $this->published = [];
         $ticket = $this->checkOf($repository)->nextReadTicket;
-        $events = \count($this->events->events());
+        $events = \count($this->queuedReconciliations());
 
         $this->check($repository, CheckTrigger::PageOpen);
 
         self::assertSame(1, $this->reader->reads);
         self::assertSame($ticket, $this->checkOf($repository)->nextReadTicket);
-        self::assertCount($events, $this->events->events());
+        self::assertCount($events, $this->queuedReconciliations());
         $this->terminate();
         self::assertSame([(string) $repository->id], $this->signalled());
     }
@@ -286,7 +290,7 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertSame(2, $check->acceptedReadTicket);
         self::assertSame(2, $check->nextReadTicket);
         self::assertTrue($this->summaries->current($repository->project)->isEmpty());
-        self::assertSame([], $this->events->events(), 'Neither read changed the summary of an empty project.');
+        self::assertSame([], $this->queuedReconciliations(), 'Neither read changed the summary of an empty project.');
         $this->terminate();
         self::assertSame([(string) $repository->id], $this->signalled(), 'Only the accepted read signals.');
     }
@@ -306,7 +310,7 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertNull($check->failure);
         self::assertNull($check->attemptedAt);
         self::assertSame('gap', $check->items[0]['state']);
-        self::assertCount(1, $this->events->events());
+        self::assertCount(1, $this->queuedReconciliations());
         $this->terminate();
         self::assertCount(1, $this->published);
     }
@@ -322,39 +326,47 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         $check = $this->checkOf($repository);
         self::assertSame('fits', $check->items[0]['state']);
         self::assertSame(2, $check->acceptedReadTicket);
-        self::assertCount(2, $this->events->events());
+        self::assertCount(2, $this->queuedReconciliations());
     }
 
     public function test_a_blocking_event_that_arrives_after_a_newer_clear_check_leaves_the_summary_empty(): void
     {
         $repository = $this->repository();
         $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::clear()];
-        $dispatcher = $this->service(EventDispatcherInterface::class);
-        $listeners = [];
-        foreach ($dispatcher->getListeners(ForgeRepositoryCheckChanged::class) as $listener) {
-            $listeners[] = [$listener, $dispatcher->getListenerPriority(ForgeRepositoryCheckChanged::class, $listener) ?? 0];
-            $dispatcher->removeListener(ForgeRepositoryCheckChanged::class, $listener);
-        }
-        $held = [];
-        $holdBack = static function (ForgeRepositoryCheckChanged $event) use (&$held): void {
-            $held[] = $event;
-        };
-        $dispatcher->addListener(ForgeRepositoryCheckChanged::class, $holdBack);
 
         $this->check($repository, CheckTrigger::CheckAgain);
         $this->check($repository, CheckTrigger::CheckAgain);
-        $dispatcher->removeListener(ForgeRepositoryCheckChanged::class, $holdBack);
-        foreach ($listeners as [$listener, $priority]) {
-            $dispatcher->addListener(ForgeRepositoryCheckChanged::class, $listener, $priority);
-        }
 
-        self::assertCount(2, $held, 'Guard: the blocking check and the clear check each fired an event.');
+        $queued = $this->pendingReconciliations();
+        self::assertCount(2, $queued, 'Guard: the blocking check and the clear check each queued a reconciliation.');
         self::assertSame([], $this->events->events(), 'Guard: no listener saw an event before the reversed delivery.');
-        $dispatcher->dispatch($held[1]);
-        $dispatcher->dispatch($held[0]);
+        $bus = $this->service(MessageBusInterface::class);
+        $bus->dispatch($queued[1]->with(new ReceivedStamp('jobs')));
+        $bus->dispatch($queued[0]->with(new ReceivedStamp('jobs')));
 
-        self::assertSame([$held[1], $held[0]], $this->events->events(), 'The listeners got the events in reversed order.');
+        self::assertCount(2, $this->events->events(), 'The listeners got both events, in reversed order.');
         self::assertTrue($this->summaries->current($repository->project)->isEmpty());
+    }
+
+    public function test_a_listener_failure_after_the_check_commit_is_retried_by_its_queued_reconciliation(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $failed = false;
+        $this->service(EventDispatcherInterface::class)->addListener(ForgeRepositoryCheckChanged::class, static function () use (&$failed): void {
+            if (!$failed) {
+                $failed = true;
+                throw new \RuntimeException('The listener fails.');
+            }
+        }, -100);
+
+        $this->check($repository, CheckTrigger::Hourly);
+        self::assertCount(1, $this->deliverReconciliations(), 'Guard: the listener failed.');
+        $this->check($repository, CheckTrigger::Hourly);
+
+        self::assertSame(1, $this->reader->reads, 'The second check reuses the fresh read, so only the queue can replay the change.');
+        self::assertSame([], $this->deliverReconciliations());
+        self::assertCount(2, $this->events->events());
     }
 
     public function test_a_project_with_no_suggestions_gets_no_row(): void
