@@ -6,6 +6,8 @@ namespace App\Tests\Module\Bridge\Metric;
 
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricKey;
+use App\Module\Workflow\Contract\TemplateMetricSet;
+use App\Tests\Support\TemplateMetricSets;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -14,18 +16,20 @@ final class MetricKeyTest extends TestCase
     public function test_a_standalone_key_parses_with_no_bucket_name(): void
     {
         foreach (Metric::standalone() as $metric) {
-            $key = MetricKey::tryParse($metric->value);
+            $key = MetricKey::tryParse($metric->value, new TemplateMetricSet());
 
             self::assertNotNull($key);
             self::assertSame($metric, $key->metric);
             self::assertNull($key->bucketName);
+            self::assertNull($key->templateKey);
+            self::assertFalse($key->isTemplate());
             self::assertSame($metric->value, $key->key());
         }
     }
 
     public function test_a_bucket_key_parses_with_its_bucket_name(): void
     {
-        $key = MetricKey::tryParse('bucket-time:git_push-2');
+        $key = MetricKey::tryParse('bucket-time:git_push-2', new TemplateMetricSet());
 
         self::assertNotNull($key);
         self::assertSame(Metric::BucketTime, $key->metric);
@@ -37,7 +41,33 @@ final class MetricKeyTest extends TestCase
     {
         $name = str_repeat('a', 64);
 
-        self::assertSame($name, MetricKey::tryParse('bucket-time:'.$name)?->bucketName);
+        self::assertSame($name, MetricKey::tryParse('bucket-time:'.$name, new TemplateMetricSet())?->bucketName);
+    }
+
+    public function test_a_key_of_the_template_set_parses_as_a_template_key(): void
+    {
+        $key = MetricKey::tryParse('merge-rate', TemplateMetricSets::all());
+
+        self::assertNotNull($key);
+        self::assertNull($key->metric);
+        self::assertNull($key->bucketName);
+        self::assertSame('merge-rate', $key->templateKey);
+        self::assertTrue($key->isTemplate());
+        self::assertSame('merge-rate', $key->key());
+    }
+
+    public function test_a_template_key_is_unknown_to_a_project_that_does_not_declare_it(): void
+    {
+        self::assertNull(MetricKey::tryParse('merge-rate', new TemplateMetricSet()));
+    }
+
+    public function test_a_built_in_key_wins_over_a_template_metric_of_the_same_key(): void
+    {
+        $key = MetricKey::tryParse('cost', new TemplateMetricSet([TemplateMetricSets::count('cost')]));
+
+        self::assertNotNull($key);
+        self::assertSame(Metric::Cost, $key->metric);
+        self::assertNull($key->templateKey);
     }
 
     /** @return iterable<string, array{string}> */
@@ -52,19 +82,29 @@ final class MetricKeyTest extends TestCase
         yield 'name with a new line' => ["bucket-time:tests\n"];
         yield 'name of 65 characters' => ['bucket-time:'.str_repeat('a', 65)];
         yield 'standalone metric with a name' => ['cost:tests'];
+        yield 'template metric with a name' => ['merge-rate:tests'];
     }
 
     #[DataProvider('invalidKeys')]
     public function test_an_invalid_key_gives_null(string $value): void
     {
-        self::assertNull(MetricKey::tryParse($value));
+        self::assertNull(MetricKey::tryParse($value, TemplateMetricSets::all()));
     }
 
     public function test_the_constructor_refuses_a_key_that_the_parser_refuses(): void
     {
-        foreach ([[Metric::BucketTime, null], [Metric::BucketTime, 'Tests'], [Metric::Cost, 'tests']] as [$metric, $name]) {
+        $refused = [
+            [Metric::BucketTime, null, null],
+            [Metric::BucketTime, 'Tests', null],
+            [Metric::Cost, 'tests', null],
+            [Metric::Cost, null, 'merge-rate'],
+            [null, null, null],
+            [null, null, ''],
+            [null, 'tests', 'merge-rate'],
+        ];
+        foreach ($refused as [$metric, $name, $templateKey]) {
             try {
-                new MetricKey($metric, $name);
+                new MetricKey($metric, $name, $templateKey);
                 self::fail('Expected a refusal.');
             } catch (\InvalidArgumentException) {
                 self::addToAssertionCount(1);

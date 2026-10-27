@@ -15,17 +15,20 @@ use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricRow;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\TemplateMetricSets;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -148,22 +151,10 @@ final class MetricQueryHandlerTest extends KernelTestCase
         $this->fact($unknown, endedAt: '2026-10-03 09:00:00');
         $this->fact($zero, endedAt: '2026-10-03 09:00:00', runId: $this->runWithBuckets(['other' => 9]));
 
-        $view = $this->query(MetricUnit::Card, Metric::BucketTime, MetricStatistic::Sum, bucketName: 'tests');
+        $view = $this->query(MetricUnit::Card, new MetricShape(new MetricKey(Metric::BucketTime, 'tests')), MetricStatistic::Sum);
 
         self::assertSame([3 => 0, 2 => null, 1 => 4000], array_column(array_map(static fn (MetricRow $row): array => ['n' => $row->cardNumber, 'v' => $row->value], $view->series[0]->rows), 'v', 'n'));
         self::assertEquals(new MetricPoint(null, 4000, 2), $view->series[0]->total);
-    }
-
-    public function test_a_bucket_time_query_needs_a_name_and_no_other_metric_takes_one(): void
-    {
-        foreach ([[Metric::BucketTime, null], [Metric::Cost, 'tests']] as [$metric, $name]) {
-            try {
-                $this->query(MetricUnit::Run, $metric, MetricStatistic::Sum, bucketName: $name);
-                self::fail('Expected a refusal.');
-            } catch (\LogicException) {
-                self::addToAssertionCount(1);
-            }
-        }
     }
 
     /**
@@ -225,17 +216,6 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertEquals(new MetricPoint(null, 1, 1), $view->series[1]->total);
     }
 
-    public function test_the_card_outcomes_give_the_merge_rate_and_the_fix_rounds(): void
-    {
-        $merged = $this->finishedCard(1, '2026-10-02 10:00:00');
-        $this->finishedCard(2, '2026-10-03 10:00:00');
-        $this->outcomes = [(string) $merged => new CardOutcome(fixRounds: ['conflict' => 2, 'review' => 1], merged: true)];
-
-        self::assertEquals(new MetricPoint(null, 0.5, 2), $this->query(MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean)->series[0]->total);
-        self::assertEquals(new MetricPoint(null, 3, 2), $this->query(MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum)->series[0]->total);
-        self::assertEquals(new MetricPoint(null, null, 0), $this->query(MetricUnit::Card, Metric::HoursToMerge, MetricStatistic::Mean)->series[0]->total);
-    }
-
     public function test_a_run_of_another_subject_counts_only_where_no_card_is_needed(): void
     {
         $card = $this->finishedCard(1, '2026-10-02 10:00:00');
@@ -293,23 +273,29 @@ final class MetricQueryHandlerTest extends KernelTestCase
         );
     }
 
-    /** @return iterable<string, array{MetricUnit, Metric, MetricStatistic, MetricGroup, string}> */
+    /** @return iterable<string, array{MetricUnit, MetricShape, MetricStatistic, MetricGroup, string}> */
     public static function refusals(): iterable
     {
-        yield 'a card metric on the run unit' => [MetricUnit::Run, Metric::Runs, MetricStatistic::Sum, MetricGroup::None, 'unit'];
-        yield 'the stop rate on the card unit' => [MetricUnit::Card, Metric::StopRate, MetricStatistic::Mean, MetricGroup::None, 'unit'];
-        yield 'a percentile of a ratio' => [MetricUnit::Run, Metric::StopRate, MetricStatistic::P90, MetricGroup::None, 'statistic'];
-        yield 'a sum of a ratio' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Sum, MetricGroup::None, 'statistic'];
-        yield 'a card outcome by stage' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::Stage, 'group'];
-        yield 'fix rounds by model' => [MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum, MetricGroup::Model, 'group'];
-        yield 'hours to merge by bridge' => [MetricUnit::Card, Metric::HoursToMerge, MetricStatistic::Median, MetricGroup::Bridge, 'group'];
-        yield 'the merge rate by harness' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::Harness, 'group'];
-        yield 'the merge rate by skill version' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::SkillVersion, 'group'];
-        yield 'fix rounds by account' => [MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum, MetricGroup::Account, 'group'];
+        $built = static fn (Metric $metric): MetricShape => new MetricShape(new MetricKey($metric));
+        $rate = MetricShape::template(TemplateMetricSets::rate());
+        $count = MetricShape::template(TemplateMetricSets::count());
+        $duration = MetricShape::template(TemplateMetricSets::duration());
+
+        yield 'a card metric on the run unit' => [MetricUnit::Run, $built(Metric::Runs), MetricStatistic::Sum, MetricGroup::None, 'unit'];
+        yield 'the stop rate on the card unit' => [MetricUnit::Card, $built(Metric::StopRate), MetricStatistic::Mean, MetricGroup::None, 'unit'];
+        yield 'a percentile of a ratio' => [MetricUnit::Run, $built(Metric::StopRate), MetricStatistic::P90, MetricGroup::None, 'statistic'];
+        yield 'a template metric on the run unit' => [MetricUnit::Run, $rate, MetricStatistic::Mean, MetricGroup::None, 'unit'];
+        yield 'a sum of a template rate' => [MetricUnit::Card, $rate, MetricStatistic::Sum, MetricGroup::None, 'statistic'];
+        yield 'a template rate by stage' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::Stage, 'group'];
+        yield 'a template count by model' => [MetricUnit::Card, $count, MetricStatistic::Sum, MetricGroup::Model, 'group'];
+        yield 'a template duration by bridge' => [MetricUnit::Card, $duration, MetricStatistic::Median, MetricGroup::Bridge, 'group'];
+        yield 'a template rate by harness' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::Harness, 'group'];
+        yield 'a template rate by skill version' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::SkillVersion, 'group'];
+        yield 'a template count by account' => [MetricUnit::Card, $count, MetricStatistic::Sum, MetricGroup::Account, 'group'];
     }
 
     #[DataProvider('refusals')]
-    public function test_it_refuses_a_combination_the_metric_does_not_allow(MetricUnit $unit, Metric $metric, MetricStatistic $statistic, MetricGroup $group, string $field): void
+    public function test_it_refuses_a_combination_the_metric_does_not_allow(MetricUnit $unit, MetricShape $metric, MetricStatistic $statistic, MetricGroup $group, string $field): void
     {
         try {
             $this->query($unit, $metric, $statistic, $group);
@@ -319,8 +305,9 @@ final class MetricQueryHandlerTest extends KernelTestCase
         }
     }
 
-    private function query(MetricUnit $unit, Metric $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None, ?string $bucketName = null): MetricQueryView
+    private function query(MetricUnit $unit, Metric|MetricShape $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None): MetricQueryView
     {
+        $shape = $metric instanceof MetricShape ? $metric : new MetricShape(new MetricKey($metric));
         $finished = new readonly class($this->finished) implements FinishedCardSourceInterface {
             /** @param list<FinishedCard> $cards */
             public function __construct(
@@ -375,7 +362,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertInstanceOf(WorkerRunBucketTimeRepository::class, $bucketTimes);
         $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes), new MockClock(self::NOW.' UTC'));
 
-        return $handler(new MetricQueryCommand($this->project, $unit, $metric, $statistic, $group, MetricRange::ThirtyDays, MetricBucket::Day, $bucketName));
+        return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, MetricRange::ThirtyDays, MetricBucket::Day));
     }
 
     private function finishedCard(int $number, string $completedAt): Uuid

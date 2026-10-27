@@ -9,8 +9,10 @@ use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRange;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use Symfony\Component\HttpFoundation\InputBag;
 
 /**
@@ -21,26 +23,25 @@ final readonly class MetricsQuery
 {
     public function __construct(
         public MetricUnit $unit = MetricUnit::Card,
-        public Metric $metric = Metric::Cost,
+        public MetricShape $metric = new MetricShape(new MetricKey(Metric::Cost)),
         public MetricStatistic $statistic = MetricStatistic::Median,
         public MetricGroup $group = MetricGroup::None,
         public MetricRange $range = MetricRange::NinetyDays,
         public MetricBucket $bucket = MetricBucket::Week,
-        /** The bucket of a bucket-time query, and null for every other metric. */
-        public ?string $bucketName = null,
     ) {
     }
 
     /**
      * An unknown value takes the default. A value the metric does not allow
      * takes the default when the metric allows it, or else the first it allows.
+     * A template metric the project no longer declares takes the default metric.
      *
      * @param InputBag<string> $query
      */
-    public static function fromQuery(InputBag $query): self
+    public static function fromQuery(InputBag $query, TemplateMetricSet $templates): self
     {
-        $key = MetricKey::tryParse($query->getString('metric')) ?? new MetricKey(Metric::Cost);
-        $metric = $key->metric;
+        $key = MetricKey::tryParse($query->getString('metric'), $templates) ?? new MetricKey(Metric::Cost);
+        $metric = MetricShape::of($key, $templates) ?? new MetricShape(new MetricKey(Metric::Cost));
 
         return new self(
             unit: self::allowed(MetricUnit::tryFrom($query->getString('unit')) ?? MetricUnit::Card, $metric->units()),
@@ -49,7 +50,6 @@ final readonly class MetricsQuery
             group: self::allowed(MetricGroup::tryFrom($query->getString('group')) ?? MetricGroup::None, $metric->groups(), MetricGroup::None),
             range: MetricRange::tryFrom($query->getString('range')) ?? MetricRange::NinetyDays,
             bucket: MetricBucket::tryFrom($query->getString('bucket')) ?? MetricBucket::Week,
-            bucketName: $key->bucketName,
         );
     }
 
@@ -60,8 +60,8 @@ final readonly class MetricsQuery
         if (MetricUnit::Card !== $this->unit) {
             $params['unit'] = $this->unit->value;
         }
-        if (Metric::Cost !== $this->metric) {
-            $params['metric'] = new MetricKey($this->metric, $this->bucketName)->key();
+        if (Metric::Cost->value !== $this->metric->key->key()) {
+            $params['metric'] = $this->metric->key->key();
         }
         if (MetricStatistic::Median !== $this->statistic) {
             $params['statistic'] = $this->statistic->value;

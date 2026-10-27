@@ -7,7 +7,6 @@ namespace App\Module\Bridge\Metric;
 use App\Module\Bridge\Cost\FinishedCard;
 use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Entity\WorkerRunFact;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
@@ -27,11 +26,16 @@ final readonly class MetricRowSource
     }
 
     /** @return list<MetricRow> */
-    public function rows(Project $project, MetricUnit $unit, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $bucketName = null): array
+    public function rows(Project $project, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from): array
     {
+        $metric = $shape->key->metric;
+        if (null === $metric) {
+            return [];
+        }
+
         return MetricUnit::Run === $unit
-            ? $this->runRows($project, $metric, $group, $from, $bucketName)
-            : $this->cardRows($project, $metric, $group, $from, $bucketName);
+            ? $this->runRows($project, $metric, $group, $from, $shape->key->bucketName)
+            : $this->cardRows($project, $metric, $group, $from, $shape->key->bucketName);
     }
 
     /** Reads the same runs as a run query with no stage grouping. */
@@ -75,13 +79,10 @@ final readonly class MetricRowSource
 
         $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
         $factsByCard = [];
-        if (!$metric->isCardOutcome() || $group->isRunGrouping()) {
-            foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
-                $factsByCard[(string) $fact->subjectId][] = $fact;
-            }
+        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
+            $factsByCard[(string) $fact->subjectId][] = $fact;
         }
         $times = $this->bucketTimesOf(array_merge(...array_values($factsByCard)), $bucketName);
-        $outcomes = $metric->isCardOutcome() ? $this->cardReports->outcomesFor($project, $ids) : [];
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
 
         $rows = [];
@@ -106,9 +107,7 @@ final readonly class MetricRowSource
                     $card->number,
                     $partition['group'],
                     $card->completedAt,
-                    $metric->isCardOutcome()
-                        ? self::outcomeValue($outcomes[$id] ?? new CardOutcome(), $metric)
-                        : self::cardValue($partition['facts'], $metric, $bucketName, $times),
+                    self::cardValue($partition['facts'], $metric, $bucketName, $times),
                 );
             }
         }
@@ -179,7 +178,7 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
-            Metric::Runs, Metric::MergeRate, Metric::FixRounds, Metric::HoursToMerge, Metric::BucketTime => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
+            Metric::Runs, Metric::BucketTime => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }
 
@@ -239,15 +238,5 @@ final readonly class MetricRowSource
     private static function inDollars(?int $value, Metric $metric): int|float|null
     {
         return Metric::Cost === $metric && null !== $value ? $value / 1_000_000.0 : $value;
-    }
-
-    private static function outcomeValue(CardOutcome $outcome, Metric $metric): int|float|null
-    {
-        return match ($metric) {
-            Metric::MergeRate => $outcome->merged ? 1 : 0,
-            Metric::FixRounds => $outcome->totalFixRounds(),
-            Metric::HoursToMerge => $outcome->hoursToMerge(),
-            default => throw new \LogicException(\sprintf('The metric %s is no card outcome.', $metric->value)),
-        };
     }
 }

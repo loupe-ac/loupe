@@ -12,7 +12,6 @@ use App\Module\Bridge\Experiment\ExperimentVariant;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
-use App\Module\Bridge\Metric\Metric;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
@@ -78,7 +77,7 @@ final readonly class ExperimentGetTool
                     'costUsd' => self::usd($variant->costMicros),
                 ], $report->variants),
                 'metrics' => array_values(array_map(
-                    static fn (ExperimentMetric $metric): array => self::metric($metric, Metric::from($metric->key)->valueType()->value),
+                    static fn (ExperimentMetric $metric): array => self::metric($metric, (ExperimentMetric::valueTypeOf($metric->key) ?? throw new \LogicException(\sprintf('The experiment metric %s has no value type.', $metric->key)))->value),
                     $report->metrics,
                 )),
                 'includedCards' => $report->includedCards,

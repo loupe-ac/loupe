@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Mcp;
 
+use App\Module\Bridge\Command\ListMetricsHandler;
+use App\Module\Bridge\Command\MetricQueryHandler;
+use App\Module\Bridge\Mcp\BridgeSubjectResolver;
 use App\Module\Bridge\Mcp\MetricListTool;
 use App\Module\Bridge\Mcp\MetricQueryTool;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\McpTokenScenario;
+use App\Tests\Support\TemplateMetricSets;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -42,6 +49,57 @@ final class MetricToolsTest extends KernelTestCase
             'groups' => ['stage', 'model', 'variant', 'card-type', 'bridge', 'harness', 'account', 'harness-version', 'cli-version', 'skill-version', 'none'],
             'description' => Metric::StopRate->description(),
         ], $stopRate);
+    }
+
+    public function test_the_list_adds_the_metrics_of_the_workflow_template_after_the_built_in_ones(): void
+    {
+        [$project] = $this->projects('metric-list-template');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $metrics = $this->listTool(TemplateMetricSets::all())()['metrics'];
+
+        self::assertSame(
+            [...array_map(static fn (Metric $metric): string => $metric->value, Metric::standalone()), 'merge-rate', 'fix-rounds', 'hours-to-merge'],
+            array_column($metrics, 'key'),
+        );
+        self::assertSame([
+            'label' => 'Merge rate',
+            'key' => 'merge-rate',
+            'units' => ['card'],
+            'valueType' => 'ratio',
+            'statistics' => ['mean', 'count'],
+            'groups' => ['variant', 'card-type', 'none'],
+            'description' => 'The share of cards that merged.',
+        ], array_column($metrics, null, 'key')['merge-rate']);
+        self::assertSame('duration', array_column($metrics, null, 'key')['hours-to-merge']['valueType']);
+        self::assertArrayNotHasKey('label', array_column($metrics, null, 'key')['cost']);
+    }
+
+    public function test_the_query_refuses_a_combination_a_template_metric_does_not_allow(): void
+    {
+        [$project] = $this->projects('metric-template-refusal');
+        $this->actAsMcpTokenBoundTo($project);
+
+        try {
+            $this->queryTool(TemplateMetricSets::all())(unit: 'run', metric: 'merge-rate', statistic: 'sum', group: 'stage');
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertSame(
+                'The metric merge-rate does not take the unit "run". Use one of: card. The metric merge-rate does not take the statistic "sum". Use one of: mean, count. The metric merge-rate does not take the group "stage". Use one of: variant, card-type, none. metric_list lists the valid combinations.',
+                $e->getMessage(),
+            );
+        }
+    }
+
+    public function test_a_template_key_is_unknown_to_a_project_that_does_not_declare_it(): void
+    {
+        [$project] = $this->projects('metric-template-unknown');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $message = $this->refusalWith(new TemplateMetricSet(), 'merge-rate');
+        self::assertStringStartsWith('Unknown metric "merge-rate". Use one of: cost,', $message);
+        self::assertStringNotContainsString('hours-to-merge', $message);
+        self::assertStringContainsString('hours-to-merge', $this->refusalWith(TemplateMetricSets::all(), 'speed'));
     }
 
     public function test_the_list_adds_one_entry_for_each_bucket_of_the_project(): void
@@ -126,7 +184,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, merge-rate, fix-rounds, hours-to-merge, bucket-time:<name>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time:<name>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(
@@ -257,19 +315,64 @@ final class MetricToolsTest extends KernelTestCase
         self::fail('Expected a refusal.');
     }
 
-    private function listTool(): MetricListTool
+    private function refusalWith(TemplateMetricSet $templates, string $metric): string
     {
-        $tool = self::getContainer()->get(MetricListTool::class);
-        self::assertInstanceOf(MetricListTool::class, $tool);
+        try {
+            $this->queryTool($templates)(unit: 'card', metric: $metric, statistic: 'sum');
+        } catch (ToolCallException $e) {
+            return $e->getMessage();
+        }
 
-        return $tool;
+        self::fail('Expected a refusal.');
     }
 
-    private function queryTool(): MetricQueryTool
+    private function listTool(?TemplateMetricSet $templates = null): MetricListTool
     {
-        $tool = self::getContainer()->get(MetricQueryTool::class);
-        self::assertInstanceOf(MetricQueryTool::class, $tool);
+        if (null === $templates) {
+            $tool = self::getContainer()->get(MetricListTool::class);
+            self::assertInstanceOf(MetricListTool::class, $tool);
 
-        return $tool;
+            return $tool;
+        }
+
+        $subjects = self::getContainer()->get(BridgeSubjectResolver::class);
+        self::assertInstanceOf(BridgeSubjectResolver::class, $subjects);
+        $buckets = self::getContainer()->get(WorkerRunBucketTimeRepository::class);
+        self::assertInstanceOf(WorkerRunBucketTimeRepository::class, $buckets);
+
+        return new MetricListTool($subjects, new ListMetricsHandler($buckets, self::templateMetrics($templates)));
+    }
+
+    private function queryTool(?TemplateMetricSet $templates = null): MetricQueryTool
+    {
+        if (null === $templates) {
+            $tool = self::getContainer()->get(MetricQueryTool::class);
+            self::assertInstanceOf(MetricQueryTool::class, $tool);
+
+            return $tool;
+        }
+
+        $subjects = self::getContainer()->get(BridgeSubjectResolver::class);
+        self::assertInstanceOf(BridgeSubjectResolver::class, $subjects);
+        $handler = self::getContainer()->get(MetricQueryHandler::class);
+        self::assertInstanceOf(MetricQueryHandler::class, $handler);
+
+        return new MetricQueryTool($subjects, $handler, self::templateMetrics($templates));
+    }
+
+    private static function templateMetrics(TemplateMetricSet $set): TemplateMetrics
+    {
+        return new readonly class($set) implements TemplateMetrics {
+            public function __construct(
+                private TemplateMetricSet $set,
+            ) {
+            }
+
+            #[\Override]
+            public function forProject(Uuid $projectId): TemplateMetricSet
+            {
+                return $this->set;
+            }
+        };
     }
 }

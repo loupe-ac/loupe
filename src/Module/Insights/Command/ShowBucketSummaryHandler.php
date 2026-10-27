@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRowSource;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Service\BucketRule;
@@ -58,7 +60,7 @@ final readonly class ShowBucketSummaryHandler
                 $median,
                 0 < $grandTotal ? $total / $grandTotal : null,
                 0 < $total
-                    ? new MetricsQuery(unit: MetricUnit::Run, metric: Metric::BucketTime, statistic: MetricStatistic::Median, range: $command->range, bucketName: $name)->routeParams()
+                    ? new MetricsQuery(unit: MetricUnit::Run, metric: new MetricShape(new MetricKey(Metric::BucketTime, $name)), statistic: MetricStatistic::Median, range: $command->range)->routeParams()
                     : null,
             );
         }

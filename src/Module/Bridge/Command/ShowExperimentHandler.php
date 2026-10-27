@@ -281,7 +281,7 @@ final readonly class ShowExperimentHandler
 
             return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $byVariant, $counts), array_values($parts));
         };
-        $bootstrap = static fn (Metric $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $merged, $experiment): array {
+        $bootstrap = static fn (MetricValueType $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $merged, $experiment): array {
             $values = array_values(array_filter(array_map($value, $merged[$name]), static fn (int|float|null $item): bool => null !== $item));
 
             return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values)];
@@ -289,32 +289,33 @@ final readonly class ShowExperimentHandler
 
         $metrics = [];
         foreach ($keys as $key) {
-            $of = Metric::from($key);
-            $metrics[$key] = match ($of) {
-                Metric::MergeRate => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
+            $metrics[$key] = match ($key) {
+                ExperimentMetric::MERGE_RATE => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
                     $values = array_map(static fn (array $row): int => $row['outcome']->merged ? 1 : 0, array_values(array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['finished'])));
 
-                    return [self::interval(Metric::MergeRate, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
+                    return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
                 }),
-                Metric::StopRate => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
-                    $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'runs')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
-                    $values = array_values(array_map(static fn (WorkerRun $run): int => $run->state->isStop() ? 1 : 0, $closed));
-
-                    return [self::interval(Metric::StopRate, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
-                }),
-                Metric::FixRounds => $metric(
+                ExperimentMetric::FIX_ROUNDS => $metric(
                     $key,
-                    $bootstrap($of, $key, static fn (array $row): int => $row['outcome']->totalFixRounds()),
+                    $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => $row['outcome']->totalFixRounds()),
                     array_map(
-                        static fn (string $reason): ExperimentMetric => $metric($reason, $bootstrap($of, $key.':'.$reason, static fn (array $row): int => $row['outcome']->fixRounds[$reason] ?? 0)),
+                        static fn (string $reason): ExperimentMetric => $metric($reason, $bootstrap(MetricValueType::Count, $key.':'.$reason, static fn (array $row): int => $row['outcome']->fixRounds[$reason] ?? 0)),
                         $reasons,
                     ),
                 ),
-                Metric::HoursToMerge => $metric($key, $bootstrap($of, $key, static fn (array $row): ?float => $row['outcome']->hoursToMerge())),
-                Metric::Runs => $metric($key, $bootstrap($of, $key, static fn (array $row): int => \count($row['runs']))),
-                Metric::Cost => $metric($key, $bootstrap($of, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
-                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $bootstrap($of, $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
-                Metric::BucketTime => throw new \LogicException('A bucket time needs a bucket name, so an experiment cannot compare it.'),
+                ExperimentMetric::HOURS_TO_MERGE => $metric($key, $bootstrap(MetricValueType::Duration, $key, static fn (array $row): ?float => $row['outcome']->hoursToMerge())),
+                default => match ($of = Metric::from($key)) {
+                    Metric::StopRate => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
+                        $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'runs')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
+                        $values = array_values(array_map(static fn (WorkerRun $run): int => $run->state->isStop() ? 1 : 0, $closed));
+
+                        return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
+                    }),
+                    Metric::Runs => $metric($key, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
+                    Metric::Cost => $metric($key, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
+                    Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
+                    Metric::BucketTime => throw new \LogicException('A bucket time needs a bucket name, so an experiment cannot compare it.'),
+                },
             };
         }
 
@@ -324,7 +325,8 @@ final readonly class ShowExperimentHandler
     /** A bucket time needs a bucket name, which an experiment key cannot give. */
     private static function isKnownMetric(string $key): bool
     {
-        return \in_array(Metric::tryFrom($key), Metric::standalone(), true);
+        return \in_array($key, [ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS, ExperimentMetric::HOURS_TO_MERGE], true)
+            || \in_array(Metric::tryFrom($key), Metric::standalone(), true);
     }
 
     /**
@@ -332,9 +334,9 @@ final readonly class ShowExperimentHandler
      *
      * @param list<int|float> $values
      */
-    private static function interval(Metric $metric, string $seed, array $values): ?Interval
+    private static function interval(MetricValueType $type, string $seed, array $values): ?Interval
     {
-        return MetricValueType::Ratio === $metric->valueType()
+        return MetricValueType::Ratio === $type
             ? Stats::wilson((int) array_sum($values), \count($values))
             : Stats::bootstrapMean($values, $seed);
     }
