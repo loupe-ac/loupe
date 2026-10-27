@@ -256,7 +256,9 @@ final readonly class TemplateParser
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $facts, $errors, $lenient, app: false);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
         $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
-        $repositorySettings = self::repositorySettings($source['repositorySettings'] ?? [], $lenient, $errors);
+        $repositorySettings = \array_key_exists('repositorySettings', $source)
+            ? self::repositorySettings($source['repositorySettings'], $lenient, $errors)
+            : [];
         if (!$lenient) {
             foreach ($rules as $rule) {
                 foreach ($rule->then as $call) {

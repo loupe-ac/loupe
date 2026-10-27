@@ -336,6 +336,7 @@ final class TemplateParserTest extends TestCase
     /** @return iterable<string, array{mixed, list<string>, int}> */
     public static function invalidRepositorySettings(): iterable
     {
+        yield 'an explicit null' => [null, ['repositorySettings: must be a list of suggestions'], 0];
         yield 'a string' => ['merge-method', ['repositorySettings: must be a list of suggestions'], 0];
         yield 'a map' => [['merge-method' => 'blocking'], ['repositorySettings: must be a list of suggestions'], 0];
         yield 'an unknown key' => [[['key' => 'signed-commits', 'mark' => 'warning'], ['key' => 'ci-checks', 'mark' => 'warning']], ['repositorySettings[0]: unknown key "signed-commits"'], 1];
