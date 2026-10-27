@@ -6,6 +6,7 @@ namespace App\Tests\Module\Forge\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Messenger\RefreshPullRequestState;
 use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\ForgePullRequestWrites;
@@ -22,6 +23,10 @@ use App\Tests\Module\Forge\FakePullRequestStateReader;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class ForgePullRequestWritesTest extends KernelTestCase
 {
@@ -47,6 +52,8 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $this->merger = new FakePullRequestMerger();
         $this->changer = new FakePullRequestBaseChanger();
         $this->updater = new FakePullRequestBranchUpdater();
+        $bus = $container->get(MessageBusInterface::class);
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
         $this->writes = new ForgePullRequestWrites(
             new PullRequestMergers([$this->merger]),
             new PullRequestBaseChangers([$this->changer]),
@@ -54,6 +61,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
             $forgePullRequests,
             $em,
             new MockClock(self::NOW),
+            $bus,
         );
     }
 
@@ -382,6 +390,33 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         self::assertSame([null, null], $this->storedSync($row));
     }
 
+    public function test_a_branch_update_the_forge_refuses_queues_a_read_once_the_forge_settles(): void
+    {
+        $row = $this->row();
+        $this->updater->failure = new PullRequestSyncFailed('refused', permanent: true);
+
+        $this->syncFailure(fn () => $this->writes->updateBranch($row));
+
+        $refreshes = $this->refreshes();
+        self::assertCount(1, $refreshes);
+        $message = $refreshes[0]->getMessage();
+        self::assertInstanceOf(RefreshPullRequestState::class, $message);
+        self::assertSame((string) $row->id, $message->pullRequestId);
+        self::assertEquals(new \DateTimeImmutable(self::NOW)->modify('+10 seconds'), $message->requestedAt);
+        self::assertSame(10_000, $refreshes[0]->last(DelayStamp::class)?->getDelay());
+    }
+
+    public function test_a_branch_update_refused_for_another_cause_queues_no_read(): void
+    {
+        $row = $this->row();
+        $this->updater->failure = new PullRequestSyncFailed('permission', permanent: true);
+
+        $this->syncFailure(fn () => $this->writes->updateBranch($row));
+
+        self::assertCount(1, $this->updater->updates);
+        self::assertSame([], $this->refreshes());
+    }
+
     public function test_a_transient_branch_update_failure_keeps_the_marker_and_rethrows(): void
     {
         $row = $this->row();
@@ -453,6 +488,15 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         self::assertSame('merge1', $row->coveredSha);
         self::assertSame('merge1', $row->syncedSha);
         self::assertNull($row->syncFromSha);
+    }
+
+    /** @return list<Envelope> */
+    private function refreshes(): array
+    {
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return array_values(array_filter([...$transport->getSent()], static fn (Envelope $envelope): bool => $envelope->getMessage() instanceof RefreshPullRequestState));
     }
 
     private function syncFailure(\Closure $call): PullRequestSyncFailed
