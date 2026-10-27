@@ -98,6 +98,7 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
             $target->checkRunId = $runId;
             $target->checkConclusion = $conclusion;
             $target->checkApprover = $due->approver;
+            $target->checkName = self::NAME;
             $target->annotationsPosted = \count($annotations);
             $target->postedAt ??= \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();

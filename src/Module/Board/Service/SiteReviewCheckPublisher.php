@@ -60,7 +60,7 @@ final readonly class SiteReviewCheckPublisher
                 continue;
             }
             $state = $this->siteReviewCheckStates->findOneByPullRequest($pullRequest);
-            $current = null !== $state && $state->headSha === $check->headSha && $state->conclusion === $check->wantedConclusion && $state->noteCount === $check->noteCount && $state->notesDigest === $check->notesDigest;
+            $current = null !== $state && $state->headSha === $check->headSha && $state->conclusion === $check->wantedConclusion && $state->noteCount === $check->noteCount && $state->notesDigest === $check->notesDigest && self::NAME === $state->checkName;
             if ($current && null !== $state->checkRunId) {
                 continue;
             }
@@ -99,6 +99,7 @@ final readonly class SiteReviewCheckPublisher
             $state->noteCount = $check->noteCount;
             $state->notesDigest = $check->notesDigest;
             $state->checkRunId = $runId;
+            $state->checkName = self::NAME;
             $state->postedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();
             $changed = true;

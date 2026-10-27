@@ -41,6 +41,10 @@ class AgentReviewPost
     #[ORM\Column(nullable: true)]
     public ?string $checkApprover = null;
 
+    /** The name the check run shows, so a renamed check is posted again. */
+    #[ORM\Column(nullable: true)]
+    public ?string $checkName = null;
+
     /** Lower-case, so one head has one row whatever case it came in. */
     #[ORM\Column(length: 64)]
     public readonly string $headSha;

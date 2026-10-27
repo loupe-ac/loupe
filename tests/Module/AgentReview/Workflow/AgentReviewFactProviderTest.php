@@ -402,7 +402,11 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $this->review($card, $pullRequest);
         self::assertTrue($this->build($card)->unposted);
 
-        $this->em->getConnection()->executeStatement('UPDATE agent_reviews SET posted_at = NOW()');
+        $this->em->getConnection()->executeStatement("UPDATE agent_reviews SET posted_at = NOW(), check_name = 'loupe/agent-review'");
+        $this->em->clear();
+        self::assertTrue($this->build($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
+
+        $this->em->getConnection()->executeStatement("UPDATE agent_reviews SET check_name = 'Loupe / Agent review'");
         $this->em->clear();
         self::assertFalse($this->build($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
     }

@@ -24,7 +24,7 @@ final readonly class AgentReviewPosts
     /**
      * The reviews of the card that no check shows on their own head, then the reviews of the card that the
      * current head of an open GitHub pull request carries and that no check shows on that head. A check that shows
-     * another conclusion or approver than its review now earns, such as after an override starts, ends or changes hands, is due again. Oldest review first.
+     * another conclusion, approver or name than its review now earns, such as after an override starts, ends or changes hands, is due again. Oldest review first.
      *
      * @return list<DuePost>
      */

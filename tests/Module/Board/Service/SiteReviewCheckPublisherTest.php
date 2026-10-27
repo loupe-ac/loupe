@@ -226,6 +226,22 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
         self::assertSame($wanted->notesDigest, $this->stateOf($pullRequest)->notesDigest);
     }
 
+    public function test_a_current_check_under_another_name_posts_again_on_its_run(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->openPullRequest($card, 7, 'sha-1');
+        $this->publish($card);
+        $this->stateOf($pullRequest)->checkName = 'Loupe live review';
+
+        $this->publish($card);
+        $this->publish($card);
+
+        self::assertCount(2, $this->writer->published);
+        self::assertSame('Loupe / Live review', $this->writer->published[1]['name']);
+        self::assertSame(101, $this->writer->published[1]['runId']);
+        self::assertSame('Loupe / Live review', $this->stateOf($pullRequest)->checkName);
+    }
+
     public function test_a_new_head_starts_a_new_run(): void
     {
         $card = $this->card($this->project);
