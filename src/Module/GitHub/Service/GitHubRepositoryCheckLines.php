@@ -122,7 +122,7 @@ final readonly class GitHubRepositoryCheckLines
             }
         }
 
-        return new RepositoryCheckLine($modifier, $stateKey, $prefix.'.title', ['%branch%' => $branch], $detailKey, $detailParameters);
+        return new RepositoryCheckLine($modifier, $stateKey, $prefix.'.title', ['%branch%' => $branch], $detailKey, $detailParameters, $gap);
     }
 
     /** @return list<string> */

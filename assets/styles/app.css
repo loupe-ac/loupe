@@ -5113,6 +5113,27 @@
     .lp-repository-check__checking {
         @apply m-0 text-xs text-fg-dim;
     }
+    .lp-repository-check__links {
+        @apply mt-1 flex flex-wrap gap-2;
+    }
+    .lp-repository-check__actions {
+        @apply flex flex-wrap items-center gap-2;
+    }
+    .lp-repository-check__hint {
+        @apply m-0 text-xs text-fg-dim;
+    }
+    .lp-repository-guide {
+        @apply flex flex-col gap-2.5 rounded-lg border border-line p-4;
+    }
+    .lp-repository-guide__title {
+        @apply m-0 text-sm font-semibold text-ink;
+    }
+    .lp-repository-guide__steps {
+        @apply m-0 flex flex-col gap-2.5 pl-5 text-sm text-ink;
+    }
+    .lp-repository-guide__links {
+        @apply mt-1.5 flex flex-wrap gap-2;
+    }
 
     /* A push device row wraps, so the two buttons drop under the label on a phone. */
     .lp-device-list {

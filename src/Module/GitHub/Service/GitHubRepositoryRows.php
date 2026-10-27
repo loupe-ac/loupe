@@ -7,6 +7,7 @@ namespace App\Module\GitHub\Service;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Service\RepositoryChecks;
+use App\Module\GitHub\View\RepositoryGuide;
 use App\Module\GitHub\View\RepositoryRow;
 use App\Module\Workflow\Contract\RepositorySuggestions;
 use App\Module\Workflow\Contract\WorkflowKeys;
@@ -22,6 +23,7 @@ final readonly class GitHubRepositoryRows
         private RepositorySuggestions $suggestions,
         private WorkflowKeys $workflowKeys,
         private GitHubRepositoryCheckLines $lines,
+        private GitHubRepositoryGuide $guide,
         private TranslatorInterface $translator,
         private ClockInterface $clock,
     ) {
@@ -44,6 +46,7 @@ final readonly class GitHubRepositoryRows
             null === $check ? [] : $this->lines->forCheck($check),
             $suggests,
             $suggests && $requestCheck && $this->checks->requestPageOpenCheck($repository),
+            null === $check ? new RepositoryGuide([]) : $this->guide->forCheck($check),
         );
     }
 

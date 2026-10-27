@@ -122,6 +122,12 @@ When a read fails, the row says so, and the lines keep the result of the last re
 Loupe checks only repositories of the GitHub App. A repository that a webhook connects, with no App installation, gets no read. Its row shows a warning that says so, and the warning never pauses work.
 The tab updates each row when a read ends. You do not need to reload it.
 
+When a row has a gap, a box named "Fix it on GitHub" lists the steps to close it, with buttons that open the right GitHub page.
+The first step can be an import of the Loupe ruleset. Select Download loupe-ruleset.json, then open Rules on GitHub and import the file.
+After the import, open the ruleset and check that Loupe / Approval shows the Loupe App as its source. If it shows Any source, pick the Loupe App.
+When an organization ruleset causes a gap, the step names the organization. Only an organization owner can change that ruleset.
+Select Check again after a fix. Loupe reads GitHub at once, so the row shows the new result and a pause can end. Loupe allows 6 reads a minute for each repository. A later click shows the time of the last read.
+
 Select Remove to disconnect a repository. Loupe stops updating cards from it.
 With a webhook, or with an App installation on "All repositories", the next delivery from that repository connects it again. So also remove the webhook, or remove the repository from the App on GitHub.
 With an App installation on selected repositories, Loupe ignores the repository until you remove it from the installation on GitHub and select it again.

@@ -16,6 +16,7 @@ final readonly class RepositoryRow
      * @param list<RepositoryCheckLine> $lines
      * @param bool                      $suggests         whether the workflow suggests any setting, so a check applies at all
      * @param bool                      $checking         whether a read that the page queued has not answered yet
+     * @param RepositoryGuide           $guide            the steps to fix the gaps of the stored check
      */
     public function __construct(
         public ForgeRepository $repository,
@@ -25,6 +26,7 @@ final readonly class RepositoryRow
         public array $lines,
         public bool $suggests,
         public bool $checking,
+        public RepositoryGuide $guide,
     ) {
     }
 

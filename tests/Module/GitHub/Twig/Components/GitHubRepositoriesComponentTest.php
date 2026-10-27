@@ -10,6 +10,7 @@ use App\Module\Forge\Messenger\CheckForgeRepository;
 use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Forge\Settings\RepositoryRules;
+use App\Module\Forge\Settings\RepositoryRuleset;
 use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\HookSecretKey;
@@ -60,6 +61,187 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
 
         self::assertCount(1, $crawler->filter('#repositories [data-repository-checks-live-target="populated"] [data-forge-repository]'));
         self::assertStringContainsString('forge-repositories-empty', $crawler->filter('#repositories template[data-repository-checks-live-target="empty"]')->html());
+    }
+
+    public function test_a_row_with_a_gap_draws_the_guide_with_its_buttons_and_the_check_again_form(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('guide');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $this->checkOf($repository, [$this->item('approval-gate', 'blocking', [RepositorySuggestionCatalog::GAP_NO_PULL_REQUEST_RULE])], new \DateTimeImmutable('-2 minutes'));
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $guide = $crawler->filter('[data-testid="forge-repository-guide"]');
+        self::assertCount(1, $guide);
+        self::assertSame('Fix it on GitHub', trim($guide->filter('h3')->text()));
+        self::assertCount(2, $guide->filter('li[data-testid="forge-repository-guide-step"]'));
+        $download = $guide->filter('a[href$="/loupe-ruleset.json"]');
+        self::assertCount(1, $download);
+        self::assertSame('/projects/'.$project->id.'/repositories/'.$repository->id.'/loupe-ruleset.json', $download->attr('href'));
+        self::assertSame('Download loupe-ruleset.json', trim($download->text()));
+        $rules = $guide->filter('a[href="https://github.com/acme/app/settings/rules"]');
+        self::assertCount(1, $rules);
+        self::assertSame('_blank', $rules->attr('target'));
+        self::assertSame('noopener noreferrer', $rules->attr('rel'));
+        self::assertStringContainsString('Check that Loupe / Approval shows the Loupe App as its source', $guide->text());
+
+        $form = $crawler->filter('[data-forge-repository] form[action$="/repositories/'.$repository->id.'/check"]');
+        self::assertCount(1, $form);
+        self::assertNotSame('', (string) $form->filter('input[name="_csrf_token"]')->attr('value'));
+        self::assertSame('Check again', trim($form->filter('button')->text()));
+        self::assertStringContainsString('Loupe checks every hour. Check again after a fix to end the pause now.', $crawler->filter('[data-forge-repository]')->text());
+    }
+
+    public function test_a_row_that_fits_has_no_guide_and_keeps_the_check_again_button(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('fits');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $this->checkOf($repository, [$this->item('merge-method', 'blocking', [])], new \DateTimeImmutable('-2 minutes'));
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-line"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-guide"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-again"]'));
+    }
+
+    public function test_the_failed_read_banner_names_the_time_and_carries_the_only_check_again_button(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('banner');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $check = $this->checkOf($repository, [$this->item('merge-method', 'blocking', [])], new \DateTimeImmutable('-1 hour'));
+        $check->attemptedAt = new \DateTimeImmutable('-1 minute');
+        $check->failure = 'api_failed_timeout';
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $banner = $crawler->filter('[data-testid="forge-repository-check-failed"]');
+        self::assertSame('Loupe could not check acme/app.', trim($banner->filter('.lp-flash__title')->text()));
+        self::assertStringContainsString('GitHub did not answer at '.$check->attemptedAt->format('H:i').'. New work is not paused.', $banner->text());
+        self::assertCount(1, $banner->filter('[data-testid="forge-repository-check-again"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-again"]'));
+        self::assertStringContainsString('The list below keeps the result of the last check that worked, with its time.', $crawler->filter('[data-testid="forge-repository-check-kept"]')->text());
+    }
+
+    public function test_a_webhook_only_repository_gets_the_warning_and_no_check_again_button(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('hook');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $check = new ForgeRepositoryCheck($repository, $project);
+        $check->attemptedAt = new \DateTimeImmutable('-1 minute');
+        $check->failure = 'no_installation';
+        $this->em()->persist($check);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertStringContainsString('Loupe checks only repositories of the GitHub App', $crawler->filter('[data-testid="forge-repository-check-failed"]')->text());
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-check-again"]'));
+    }
+
+    public function test_classic_protection_gets_a_link_to_the_branch_protection_page_and_no_guide(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('classic');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $this->checkOf($repository, [
+            $this->item('merge-method', 'blocking', []),
+            $this->item(ForgeRepositoryCheck::KEY_CLASSIC_PROTECTION, 'warning', [RepositorySuggestionCatalog::GAP_CLASSIC_PROTECTION]),
+        ], new \DateTimeImmutable('-2 minutes'));
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $link = $crawler->filter('[data-testid="forge-repository-check-line"] a[href="https://github.com/acme/app/settings/branches"]');
+        self::assertCount(1, $link);
+        self::assertSame('Open branch protection on GitHub', trim($link->text()));
+        self::assertSame('noopener noreferrer', $link->attr('rel'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-guide"]'));
+    }
+
+    public function test_a_ruleset_name_with_markup_and_a_foreign_source_stay_plain_text_and_off_the_links(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking);
+        $owner = $this->signedUpUser('markup');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $settings = new RepositorySettings('main', ['squash'], 15368, new RepositoryRules(true, true, null, ['Loupe / Approval'], [15368], true, true), [
+            new RepositoryRuleset(12, '<img src=x onerror=alert(1)>', 'Repository', 'evil.example/phish', ['pull_request']),
+            new RepositoryRuleset(13, '<b>org</b>', 'Organization', 'acme-org', ['pull_request']),
+        ], [], false);
+        $this->checkOf($repository, [$this->item('approval-gate', 'blocking', [RepositorySuggestionCatalog::GAP_REVIEW_REQUIRED])], new \DateTimeImmutable('-2 minutes'), $settings);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('<img src=x', $html);
+        self::assertStringNotContainsString('<b>org</b>', $html);
+        $guide = $crawler->filter('[data-testid="forge-repository-guide"]');
+        self::assertStringContainsString('<img src=x onerror=alert(1)>', $guide->text());
+        self::assertStringContainsString('Only an organization owner can change it', $guide->text());
+        $hrefs = $guide->filter('a')->each(static fn ($link): string => (string) $link->attr('href'));
+        self::assertSame(['https://github.com/acme/app/rules/12', 'https://github.com/organizations/acme-org/settings/rules/13'], $hrefs);
+    }
+
+    public function test_the_empty_state_with_the_app_invites_to_install_it(): void
+    {
+        $client = static::createClient();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-app', 'client', 'secret', 'hook', null, null));
+        $owner = $this->signedUpUser('install');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $empty = $crawler->filter('#repositories [data-testid="forge-repositories-empty"]');
+        self::assertCount(1, $empty);
+        self::assertStringContainsString('Install the GitHub App on a repository. Loupe then checks that it fits the workflow.', $empty->text());
+        $install = $crawler->filter('#repositories a[data-testid="forge-repositories-install"]');
+        self::assertSame('/projects/'.$project->id.'/github/install', $install->attr('href'));
+        self::assertSame('Install the GitHub App', trim($install->text()));
+    }
+
+    public function test_the_empty_state_without_the_app_keeps_the_hint_and_offers_no_install(): void
+    {
+        $client = static::createClient();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('', '', '', '', null, null));
+        $owner = $this->signedUpUser('noapp');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('#repositories [data-testid="forge-repositories-empty"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-install"]'));
     }
 
     public function test_a_stranger_cannot_open_the_page_of_another_project(): void
@@ -358,12 +540,12 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
     /**
      * @param list<array{key: string, mark: string, state: string, gaps: list<string>, parameters: array<string, mixed>}> $items
      */
-    private function checkOf(ForgeRepository $repository, array $items, \DateTimeImmutable $checkedAt): ForgeRepositoryCheck
+    private function checkOf(ForgeRepository $repository, array $items, \DateTimeImmutable $checkedAt, ?RepositorySettings $settings = null): ForgeRepositoryCheck
     {
         $check = new ForgeRepositoryCheck($repository, $repository->project);
         $check->items = $items;
         $check->checkedAt = $checkedAt;
-        $settings = new RepositorySettings('main', ['squash'], 15368, new RepositoryRules(true, false, null, [], [], true, true), [], [], false);
+        $settings ??= new RepositorySettings('main', ['squash'], 15368, new RepositoryRules(true, false, null, [], [], true, true), [], [], false);
         $check->settings = json_decode(json_encode($settings, \JSON_THROW_ON_ERROR), true, 512, \JSON_THROW_ON_ERROR);
         $this->em()->persist($check);
         $this->em()->flush();

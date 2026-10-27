@@ -6,7 +6,7 @@
     {% if not connectionsAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
     {% elseif rows is empty %}
-    {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project} only %}
+    {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project, appConfigured: appConfigured} only %}
     {% else %}
     <div data-repository-checks-live-target="populated">
         <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
@@ -17,7 +17,7 @@
         </div>
     </div>
     <template data-repository-checks-live-target="empty">
-        {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project} only %}
+        {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project, appConfigured: appConfigured} only %}
     </template>
     {% endif %}
 </twig:Ds:Panel>

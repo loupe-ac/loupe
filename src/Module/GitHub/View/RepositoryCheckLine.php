@@ -12,6 +12,7 @@ final readonly class RepositoryCheckLine
      * @param string               $stateKey         the translation key of the chip label
      * @param array<string,string> $titleParameters
      * @param array<string,string> $detailParameters
+     * @param string|null          $gap              the gap code of a gap line, null for a line that fits
      */
     public function __construct(
         public string $modifier,
@@ -20,6 +21,7 @@ final readonly class RepositoryCheckLine
         public array $titleParameters,
         public string $detailKey,
         public array $detailParameters,
+        public ?string $gap = null,
     ) {
     }
 }

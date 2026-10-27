@@ -32,6 +32,8 @@ final class GitHubRepositoriesComponent
 
     public bool $connectionsAvailable = false;
 
+    public bool $appConfigured = false;
+
     /** @var list<RepositoryRow> */
     public array $rows = [];
 
@@ -55,7 +57,8 @@ final class GitHubRepositoriesComponent
             return;
         }
 
-        $this->connectionsAvailable = $this->appConfiguration->isConfigured() || $this->hookSecretKey->isReadable();
+        $this->appConfigured = $this->appConfiguration->isConfigured();
+        $this->connectionsAvailable = $this->appConfigured || $this->hookSecretKey->isReadable();
         $this->topic = $this->topics->forProject($project->id ?? throw new \LogicException('A persisted project has an id.'));
         foreach ($this->forgeRepositories->findByProject($project) as $repository) {
             $this->rows[] = $this->repositoryRows->forRepository($repository, requestCheck: true);
