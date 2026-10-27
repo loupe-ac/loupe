@@ -258,14 +258,25 @@ An agent cannot run the checks below. Give them to the owner:
 - Start a data export, then follow the download link in the email to a ZIP. That proves the worker and the archive path.
 - Do each deploy-note check that needs a browser or a session.
 
-Report in this shape:
+Report as Markdown in the shape of the pre-deploy summary:
 
-```text
-Live:      <sha> (<matches target | DOES NOT match target>)
-Checked:   <each check, with ok or FAILED and one line of evidence>
-Not checked: <each check that you could not run, and why>
-For you:   <each step the owner must do, in order>
+```markdown
+**Deploy of `<target sha>`: <live | live, with <N> warnings | FAILED>**
+
+Production runs `<live sha>`, which <matches | DOES NOT match> the target. The deployment `<id>` is `<phase>` with cause `<cause>`.
+
+**Checked**
+- <each check that passed, with one line of evidence>
+- <each check that failed or is not OK, in bold, with its evidence>
+
+**Not checked**
+- <each check that you could not run, and why>
+
+**For you**
+1. <each step the owner must do, in order>
 ```
+
+Write each empty section as a sentence, such as "Every check ran".
 
 ## Symptoms and causes
 
