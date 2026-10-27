@@ -169,6 +169,30 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame(PullRequestChecks::Passed === $expected ? self::HEAD : null, $snapshot->checksSha);
     }
 
+    /** @return iterable<string, array{GitHubBranchRules, list<array<string, mixed>>}> */
+    public static function approvalOnlyRequiredSets(): iterable
+    {
+        $name = ForgePullRequest::APPROVAL_CHECK_NAME;
+
+        yield 'named by the ruleset, not posted' => [new GitHubBranchRules([$name], false), []];
+        yield 'named by the ruleset, revoked' => [new GitHubBranchRules([$name], false), [self::checkRun($name, 'COMPLETED', 'FAILURE')]];
+        yield 'flagged on the head, revoked' => [new GitHubBranchRules([], false), [self::checkRun($name, 'COMPLETED', 'FAILURE')]];
+    }
+
+    /** @param list<array<string, mixed>> $contexts */
+    #[DataProvider('approvalOnlyRequiredSets')]
+    public function test_a_merge_blocked_only_by_the_approval_check_reads_as_passed(GitHubBranchRules $rules, array $contexts): void
+    {
+        $node = self::withContexts(self::pullRequest604(), $contexts);
+        $node['mergeStateStatus'] = 'BLOCKED';
+
+        $snapshot = self::mapper()->map($node, $rules, null);
+
+        self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
+        self::assertSame(self::HEAD, $snapshot->checksSha);
+        self::assertSame(PullRequestMergeability::Blocked, $snapshot->mergeability);
+    }
+
     public function test_status_contexts_count_like_check_runs(): void
     {
         $mapper = self::mapper();
