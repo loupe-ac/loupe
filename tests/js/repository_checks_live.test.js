@@ -37,11 +37,27 @@ function row(id, { checking = false } = {}) {
     return `<div id="forge-repository-${id}" data-forge-repository="${id}" data-repository-row-url="/projects/p/repositories/${id}/row">
         <span>acme/${id.slice(-1)}</span>
         ${checking ? '<p data-repository-checking>Checking…</p>' : ''}
+        <dialog data-testid="remove-${id}"></dialog>
     </div>`;
 }
 
-async function mount(rows) {
-    document.body.innerHTML = `<section data-controller="repository-checks-live">${rows.join('')}</section>`;
+function emptyStateMount(rows) {
+    return `<div data-repository-checks-live-target="populated">${rows.join('')}</div>
+        <template data-repository-checks-live-target="empty"><p data-testid="empty">No repository</p></template>`;
+}
+
+function deferred() {
+    let resolve;
+    const promise = new Promise((done) => {
+        resolve = done;
+    });
+
+    return { promise, resolve };
+}
+
+async function mount(rows, { withEmptyState = false } = {}) {
+    const content = withEmptyState ? emptyStateMount(rows) : rows.join('');
+    document.body.innerHTML = `<section data-controller="repository-checks-live">${content}</section>`;
     await vi.advanceTimersByTimeAsync(0);
 }
 
@@ -209,7 +225,7 @@ it('keeps the row when the network fails', async () => {
     ).not.toBeNull();
 });
 
-it('drops "Checking…" after 60 seconds when no signal arrived', async () => {
+it('drops "Checking…" after 60 seconds when no signal arrived and the fetch fails', async () => {
     await mount([
         row(FIRST, { checking: true }),
         row(SECOND, { checking: true }),
@@ -224,9 +240,152 @@ it('drops "Checking…" after 60 seconds when no signal arrived', async () => {
     expect(
         document.querySelectorAll('[data-repository-checking]'),
     ).toHaveLength(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(
         document.querySelector(`[data-forge-repository="${FIRST}"]`),
     ).not.toBeNull();
+});
+
+it('fetches the rows that still say "Checking…" when the 60 seconds end, so the fresh result shows', async () => {
+    await mount([row(FIRST, { checking: true }), row(SECOND)]);
+    answer(200, '<turbo-stream action="replace"></turbo-stream>');
+
+    await vi.advanceTimersByTimeAsync(CHECKING_TIMEOUT_MILLISECONDS);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe(
+        `/projects/p/repositories/${FIRST}/row`,
+    );
+    expect(turbo.rendered).toHaveLength(1);
+    expect(
+        document.querySelectorAll('[data-repository-checking]'),
+    ).toHaveLength(1);
+});
+
+it('fetches the rows that say "Checking…" when the connection first opens', async () => {
+    await mount([row(FIRST, { checking: true }), row(SECOND)]);
+    answer(200);
+
+    subscription().options.onOpen();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe(
+        `/projects/p/repositories/${FIRST}/row`,
+    );
+    expect(turbo.rendered).toHaveLength(1);
+});
+
+it('keeps "Checking…" when the first open fetch fails, before the 60 seconds end', async () => {
+    await mount([row(FIRST, { checking: true })]);
+    answer(500);
+
+    subscription().options.onOpen();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(
+        document.querySelectorAll('[data-repository-checking]'),
+    ).toHaveLength(1);
+});
+
+it('fetches nothing on open when no row waits', async () => {
+    await mount([row(FIRST)]);
+
+    subscription().options.onOpen();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(fetch).not.toHaveBeenCalled();
+});
+
+it('holds a row while its dialog is open and fetches it when the dialog closes', async () => {
+    await mount([row(FIRST)]);
+    const dialog = document.querySelector(`[data-testid="remove-${FIRST}"]`);
+    dialog.setAttribute('open', '');
+
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(turbo.rendered).toEqual([]);
+
+    answer(200);
+    dialog.removeAttribute('open');
+    dialog.dispatchEvent(new Event('close'));
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(turbo.rendered).toHaveLength(1);
+});
+
+it('holds the response of a fetch when the dialog opened during it', async () => {
+    await mount([row(FIRST)]);
+    const dialog = document.querySelector(`[data-testid="remove-${FIRST}"]`);
+    const slow = deferred();
+    fetch.mockImplementationOnce(() => slow.promise);
+
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    dialog.setAttribute('open', '');
+    slow.resolve({ ok: true, status: 200, text: async () => '<one/>' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(turbo.rendered).toEqual([]);
+
+    answer(200, '<two/>');
+    dialog.removeAttribute('open');
+    dialog.dispatchEvent(new Event('close'));
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(turbo.rendered).toEqual(['<two/>']);
+});
+
+it('does not drop a row that answers 404 while its dialog is open', async () => {
+    await mount([row(FIRST)]);
+    document
+        .querySelector(`[data-testid="remove-${FIRST}"]`)
+        .setAttribute('open', '');
+
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(
+        document.querySelector(`[data-forge-repository="${FIRST}"]`),
+    ).not.toBeNull();
+});
+
+it('applies only the newest response when fetches of one row overlap', async () => {
+    await mount([row(FIRST)]);
+    const older = deferred();
+    const newer = deferred();
+    fetch.mockImplementationOnce(() => older.promise);
+    fetch.mockImplementationOnce(() => newer.promise);
+
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    newer.resolve({ ok: true, status: 200, text: async () => '<newer/>' });
+    await vi.advanceTimersByTimeAsync(0);
+    older.resolve({ ok: true, status: 200, text: async () => '<older/>' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turbo.rendered).toEqual(['<newer/>']);
+});
+
+it('shows the empty state when the last row is dropped', async () => {
+    await mount([row(FIRST), row(SECOND)], { withEmptyState: true });
+    answer(404);
+    answer(404);
+
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(document.querySelector('[data-testid="empty"]')).toBeNull();
+
+    signal(SECOND);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(document.querySelector('[data-testid="empty"]')).not.toBeNull();
+    expect(document.querySelector('[data-forge-repository]')).toBeNull();
 });
 
 it('stops listening and timing when it leaves the page', async () => {

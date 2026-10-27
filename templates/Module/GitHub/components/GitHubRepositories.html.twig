@@ -6,14 +6,19 @@
     {% if not connectionsAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
     {% elseif rows is empty %}
-    <p class="lp-connect-hint" data-testid="forge-repositories-empty">{{ 'github.repositories.empty'|trans }}</p>
+    {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project} only %}
     {% else %}
-    <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
-    <div class="lp-repository-list">
-        {% for row in rows %}
-        {% include '@GitHub/components/_repository_row.html.twig' with {row: row, project: project} only %}
-        {% endfor %}
+    <div data-repository-checks-live-target="populated">
+        <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
+        <div class="lp-repository-list">
+            {% for row in rows %}
+            {% include '@GitHub/components/_repository_row.html.twig' with {row: row, project: project} only %}
+            {% endfor %}
+        </div>
     </div>
+    <template data-repository-checks-live-target="empty">
+        {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project} only %}
+    </template>
     {% endif %}
 </twig:Ds:Panel>
 {% endif %}

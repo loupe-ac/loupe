@@ -119,7 +119,7 @@ Loupe reads the settings with the permissions that the GitHub App has. It never 
 Loupe reads again when you open the tab, unless the last read is less than 5 minutes old. While a read runs, the row says Checking…
 The row shows the time of the last read, such as Checked 2m ago.
 When a read fails, the row says so, and the lines keep the result of the last read that worked.
-A repository that a webhook connects, with no App installation, gets no check.
+Loupe checks only repositories of the GitHub App. A repository that a webhook connects, with no App installation, gets no read. Its row shows a warning that says so, and the warning never pauses work.
 The tab updates each row when a read ends. You do not need to reload it.
 
 Select Remove to disconnect a repository. Loupe stops updating cards from it.

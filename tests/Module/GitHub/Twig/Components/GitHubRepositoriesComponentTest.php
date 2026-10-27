@@ -47,6 +47,21 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#github-hook'));
     }
 
+    public function test_a_page_with_rows_carries_the_empty_state_for_the_last_removal(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('lastrow');
+        $project = $this->projectOf($owner);
+        $this->repositoryOf($project, 'acme/app');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('#repositories [data-repository-checks-live-target="populated"] [data-forge-repository]'));
+        self::assertStringContainsString('forge-repositories-empty', $crawler->filter('#repositories template[data-repository-checks-live-target="empty"]')->html());
+    }
+
     public function test_a_stranger_cannot_open_the_page_of_another_project(): void
     {
         $client = static::createClient();
