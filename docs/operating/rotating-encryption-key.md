@@ -42,6 +42,8 @@ On App Platform, `just rotate-secrets app_encryption_key` runs steps 1 to 6 for 
 
 The script asks you to run the command in step 4 yourself, because it cannot reach a console in an App Platform container.
 
+When the recipe stops, because an apply fails or you answer no, run it again. It saves its progress in `terraform/terraform.tfvars.rotating`, and resumes with the same two keys. It refuses to start while `app_encryption_key_previous` is set and no progress is saved.
+
 ## On Docker Compose
 
 Set the two variables in `docker/compose/prod.env`, and recreate the `web` and `worker` containers for each deploy. Run step 4 with `docker compose exec web bin/console doctrine-extra:reencrypt`.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Bin;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 
@@ -26,7 +27,10 @@ final class RotateSecretsTest extends TestCase
             prev=$(awk -F'"' '/^app_encryption_key_previous[ \t]*=/ {print $2}' "$f")
             old=T0xELEtFWS1PTEQtS0VZLU9MRC1LRVktT0xELUtFWS1PTA==
             label() { if [ -z "$1" ]; then echo none; elif [ "$1" = "$old" ]; then echo old; else echo new; fi; }
-            echo "current=$(label "$cur") previous=$(label "$prev")" >> "$(dirname "$0")/applies.log"
+            log="$(dirname "$0")/applies.log"
+            echo "current=$(label "$cur") previous=$(label "$prev")" >> "$log"
+            fail="$(dirname "$0")/fail-at"
+            [ ! -f "$fail" ] || [ "$(wc -l < "$log")" -ne "$(cat "$fail")" ] || { rm "$fail"; exit 1; }
             SH);
         chmod($this->dir.'/apply.sh', 0o755);
     }
@@ -69,6 +73,58 @@ final class RotateSecretsTest extends TestCase
         );
         self::assertStringContainsString('app_encryption_key_previous = "'.self::OLD_KEY.'"', (string) file_get_contents($this->dir.'/terraform.tfvars'));
         self::assertStringNotContainsString(self::OLD_KEY, $process->getOutput().$process->getErrorOutput());
+    }
+
+    public function test_a_rerun_after_the_operator_stops_resumes_and_keeps_the_old_key(): void
+    {
+        $this->rotate([], "no\n");
+        $process = $this->rotate([], "yes\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(
+            ['current=old previous=new', 'current=new previous=old', 'current=new previous=old', 'current=new previous=none'],
+            file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES),
+        );
+        self::assertStringContainsString('resuming a rotation at deploy 2', $process->getOutput());
+        self::assertFileDoesNotExist($this->dir.'/terraform.tfvars.rotating');
+    }
+
+    /**
+     * @return iterable<string, array{int, list<string>}>
+     */
+    public static function failedApplies(): iterable
+    {
+        yield 'deploy 1' => [1, ['current=old previous=new', 'current=old previous=new', 'current=new previous=old', 'current=new previous=none']];
+        yield 'deploy 2' => [2, ['current=old previous=new', 'current=new previous=old', 'current=new previous=old', 'current=new previous=none']];
+        yield 'deploy 3' => [3, ['current=old previous=new', 'current=new previous=old', 'current=new previous=none', 'current=new previous=none']];
+    }
+
+    /**
+     * @param list<string> $applies
+     */
+    #[DataProvider('failedApplies')]
+    public function test_a_rerun_after_a_failed_apply_resumes_with_the_same_two_keys(int $failAt, array $applies): void
+    {
+        file_put_contents($this->dir.'/fail-at', (string) $failAt);
+        $first = $this->rotate([], "yes\n");
+        self::assertNotSame(0, $first->getExitCode());
+
+        $process = $this->rotate([], "yes\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame($applies, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
+        self::assertStringContainsString("resuming a rotation at deploy {$failAt}", $process->getOutput());
+    }
+
+    public function test_it_refuses_to_start_while_a_previous_key_is_set_with_no_saved_rotation(): void
+    {
+        file_put_contents($this->dir.'/terraform.tfvars', "app_encryption_key_previous = \"other\"\n", \FILE_APPEND);
+
+        $process = $this->rotate([], "yes\n");
+
+        self::assertSame(1, $process->getExitCode());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+        self::assertStringContainsString('no rotation is saved', $process->getErrorOutput());
     }
 
     public function test_it_refuses_an_unknown_secret_before_any_apply(): void
