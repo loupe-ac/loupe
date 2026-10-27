@@ -7,6 +7,7 @@ namespace App\Module\Landing\Service;
 use App\Module\Landing\ValueObject\ComparisonPage;
 use App\Site\SiteHost;
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Event\DocumentParsedEvent;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\ExternalLink\ExternalLinkExtension;
 use League\CommonMark\Extension\FrontMatter\FrontMatterExtension;
@@ -77,7 +78,11 @@ final class ComparisonPages
             throw new \UnexpectedValueException(sprintf('The comparison file %s must have a name that matches %s.', $filename, self::SLUG_PATTERN));
         }
 
-        $rendered = $this->converter()->convert($markdown);
+        try {
+            $rendered = $this->converter()->convert($markdown);
+        } catch (\UnexpectedValueException $exception) {
+            throw new \UnexpectedValueException(sprintf('The comparison file %s %s.', $filename, $exception->getMessage()), 0, $exception);
+        }
         if (!$rendered instanceof RenderedContentWithFrontMatter) {
             throw new \UnexpectedValueException(sprintf('The comparison file %s has no front matter.', $filename));
         }
@@ -142,6 +147,7 @@ final class ComparisonPages
             $environment->addExtension(new TableExtension());
             $environment->addExtension(new FrontMatterExtension());
             $environment->addExtension(new ExternalLinkExtension());
+            $environment->addEventListener(DocumentParsedEvent::class, new SourceCitations());
             $this->converter = new MarkdownConverter($environment);
         }
 

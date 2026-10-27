@@ -94,6 +94,39 @@ final class ComparisonPagesTest extends TestCase
         self::assertDoesNotMatchRegularExpression('#<a [^>]*rel=[^>]*href="/privacy"#', $html);
     }
 
+    public function test_a_citation_links_to_its_numbered_source_and_the_source_carries_the_target_id(): void
+    {
+        $this->write('alpha', $this->frontMatter()."A claim. [2]\n\n| A | B |\n|---|---|\n| x [1] | y |\n\n## Sources\n\nRead today.\n\n1. [One](https://one.example)\n2. [Two](https://two.example)\n");
+
+        $html = $this->pages()->all()[0]->html;
+
+        self::assertStringContainsString('A claim. <a data-turbo="false" href="#source-2">[2]</a>', $html);
+        self::assertStringContainsString('x <a data-turbo="false" href="#source-1">[1]</a>', $html);
+        self::assertStringContainsString('<li id="source-1">', $html);
+        self::assertStringContainsString('<li id="source-2">', $html);
+    }
+
+    public function test_a_bracketed_number_in_code_or_in_a_link_stays_as_it_is(): void
+    {
+        $this->write('alpha', $this->frontMatter()."`list[1]` and [[1]](https://x.example)\n\n## Sources\n\n1. [One](https://one.example)\n");
+
+        $html = $this->pages()->all()[0]->html;
+
+        self::assertStringContainsString('<code>list[1]</code>', $html);
+        self::assertStringContainsString('href="https://x.example">[1]</a>', $html);
+        self::assertStringNotContainsString('href="#source-1"', $html);
+    }
+
+    public function test_a_citation_with_no_listed_source_fails_with_the_file_name(): void
+    {
+        $this->write('alpha', $this->frontMatter()."A claim. [3]\n\n## Sources\n\n1. [One](https://one.example)\n");
+
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('alpha.md cites [3]');
+
+        $this->pages()->all();
+    }
+
     /** @return iterable<string, array{string}> */
     public static function missingFields(): iterable
     {

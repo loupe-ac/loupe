@@ -8918,3 +8918,42 @@
 .lp-run-output__log {
     @apply text-sm text-accent-ink underline underline-offset-2;
 }
+
+/* ── Comparison pages ───────────────────────────────────────────────
+   The side-by-side table of a comparison page: a framed grid with a tinted
+   header row, banded rows and a semibold first column, so each dimension reads
+   across. Unlayered, because the typography plugin styles tables in a later
+   layer. A narrow screen scrolls the table inside its own box. */
+.lp-compare table {
+    @apply my-6 block w-full max-w-full overflow-x-auto rounded-lg border border-line border-separate border-spacing-0 text-sm leading-normal;
+}
+@media (width >= 40rem) {
+    .lp-compare table {
+        display: table;
+    }
+}
+.lp-compare :is(th, td) {
+    @apply px-3.5 py-2.5 text-left align-top;
+}
+.lp-compare thead th {
+    @apply border-b border-line-strong bg-surface-2 font-semibold text-ink;
+}
+.lp-compare tbody td {
+    @apply border-b border-line;
+}
+.lp-compare tbody tr:last-child td {
+    @apply border-b-0;
+}
+.lp-compare tbody tr:nth-child(even) td {
+    @apply bg-surface-1;
+}
+.lp-compare tbody td:first-child {
+    @apply w-1/4 border-r border-line font-semibold text-ink;
+}
+.lp-compare thead th:first-child {
+    @apply border-r border-line;
+}
+/* The source a citation link points at. */
+.lp-compare li:target {
+    @apply rounded-sm bg-accent-soft;
+}

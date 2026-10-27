@@ -53,7 +53,7 @@ final class ComparisonContentTest extends KernelTestCase
         foreach ($pages->all() as $page) {
             [$body, $sources] = explode('>Sources</h2>', $page->html, 2);
             preg_match_all('/\[(\d+)\]/', $body, $cited);
-            $listed = substr_count($sources, '<li>');
+            $listed = preg_match_all('/<li[ >]/', $sources);
             foreach ($cited[1] as $number) {
                 self::assertLessThanOrEqual($listed, (int) $number, $page->slug.' cites ['.$number.'], which is not in its sources.');
             }
@@ -62,6 +62,21 @@ final class ComparisonContentTest extends KernelTestCase
                 $sources,
                 $page->slug.' cites a discussion site, not the competitor site, README or a run.',
             );
+        }
+    }
+
+    public function test_every_citation_is_a_link_to_a_source_on_the_same_page(): void
+    {
+        $pages = static::getContainer()->get(ComparisonPages::class);
+        self::assertInstanceOf(ComparisonPages::class, $pages);
+
+        foreach ($pages->all() as $page) {
+            $unlinked = preg_replace('#<a [^>]*href="\#source-\d+">\[\d+\]</a>#', '', $page->html);
+            self::assertDoesNotMatchRegularExpression('/\[\d+\]/', strip_tags((string) $unlinked), $page->slug.' has a citation that links nowhere.');
+            preg_match_all('/href="#(source-\d+)"/', $page->html, $targets);
+            foreach (array_unique($targets[1]) as $target) {
+                self::assertStringContainsString('id="'.$target.'"', $page->html, $page->slug.' links to a missing '.$target.'.');
+            }
         }
     }
 

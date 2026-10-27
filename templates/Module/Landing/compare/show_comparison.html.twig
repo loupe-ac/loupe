@@ -8,7 +8,7 @@
 <article class="lp-legal">
     <h1 class="lp-legal__title">{{ page.title }}</h1>
     <p class="lp-legal__updated">{{ 'landing.compare.compared_on'|trans({'%date%': page.comparedOn|date('F j, Y'), '%competitor%': page.competitor, '%version%': page.competitorVersion}) }}</p>
-    <div class="prose lp-prose lp-legal__body">
+    <div class="prose lp-prose lp-legal__body lp-compare">
         {{ page.html|raw }}
         <section>
             <h2>{{ 'landing.compare.try_title'|trans }}</h2>

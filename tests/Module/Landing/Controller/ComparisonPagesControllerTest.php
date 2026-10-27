@@ -55,13 +55,24 @@ final class ComparisonPagesControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', "Loupe vs Fixture's Rival");
         self::assertSelectorTextContains('.lp-legal__updated', 'November 2, 2026');
         self::assertSelectorTextContains('.lp-legal__updated', 'v1.0.0 (2026-10-01)');
-        self::assertSelectorExists('.lp-legal__body table');
+        self::assertSelectorExists('.lp-compare table');
         self::assertSelectorExists('.lp-legal__body a[rel="noopener noreferrer"][href="https://rival.example/readme"]');
         self::assertCount(2, $client->getCrawler()->filter('.lp-legal__actions a[data-analytics-button-param="compare"]'));
         self::assertSelectorTextContains('.lp-legal__actions', 'Self-host Loupe');
         self::assertSelectorTextContains('.lp-legal__actions', 'Join the waitlist');
         self::assertSelectorExists('.lp-legal__actions a[href$="/operating/install/docker-compose/"]');
         self::assertSelectorExists('.lp-legal__actions a[href="/waitlist"]');
+    }
+
+    public function test_every_design_system_button_inside_the_prose_opts_out_of_the_prose_link_style(): void
+    {
+        $client = $this->clientWithSiteHost('localhost');
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/compare/'.ComparisonFixtures::SLUG);
+
+        $crawler = $client->getCrawler();
+        self::assertGreaterThan(0, $crawler->filter('.prose .lp-btn')->count());
+        self::assertSame($crawler->filter('.prose .lp-btn')->count(), $crawler->filter('.prose .not-prose .lp-btn')->count());
     }
 
     public function test_a_page_fills_the_meta_description_and_open_graph_description(): void
