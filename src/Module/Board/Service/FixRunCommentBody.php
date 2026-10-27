@@ -8,6 +8,7 @@ use App\Module\Board\Entity\PullRequestComment;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Service\FailedCheckNames;
 use App\Module\Workflow\Contract\RuleBudgets;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
