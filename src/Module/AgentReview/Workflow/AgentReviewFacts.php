@@ -11,13 +11,11 @@ final readonly class AgentReviewFacts
 {
     /**
      * @param list<ReviewedHead> $heads       the open pull requests of the card that have a head commit
-     * @param bool               $epic        whether the card type may have children, so its pull request needs no review
      * @param bool               $unposted    whether a review of the card has no check on the forge yet
      * @param list<string>       $uncommented the ids of the reviews that need a summary comment on the pull request
      */
     public function __construct(
         public array $heads,
-        public bool $epic,
         public bool $unposted,
         public array $uncommented,
     ) {

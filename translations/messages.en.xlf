@@ -9374,6 +9374,8 @@
             <trans-unit id="marker.document_in_review.remedy"><source>marker.document_in_review.remedy</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="marker.waits_for_approval"><source>marker.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
             <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
+            <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>

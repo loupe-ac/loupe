@@ -59,7 +59,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(22, $template->version);
+        self::assertSame(23, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -96,7 +96,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             new WorkflowConditionGroupView('workflow.source.bridge', [new WorkflowConditionView('card.run.worker_active', true, '')]),
         ], $rules['merged']->whenGroups);
         self::assertEquals([
-            new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('pr.open', false, ''), new WorkflowConditionView('pr.behind', false, ''), new WorkflowConditionView('pr.approval_covers_head', false, 'min: 1'), new WorkflowConditionView('pr.base_is_epic_branch', false, '')]),
+            new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('pr.open', false, ''), new WorkflowConditionView('pr.behind', false, ''), new WorkflowConditionView('pr.approval_check_passed', false, ''), new WorkflowConditionView('pr.base_is_epic_branch', false, '')]),
         ], $rules['update-behind']->whenGroups);
         self::assertEquals([
             new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.approved', false, 'tag: tech-design'), new WorkflowConditionView('card.document.changes_requested', true, 'tag: tech-design'), new WorkflowConditionView('card.blocker.open', true, ''), new WorkflowConditionView('card.blocker.closed', true, '')]),

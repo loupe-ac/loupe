@@ -221,15 +221,14 @@ A marker reads the same conditions as a rule. These conditions suit markers:
 - `pr.can_merge`: the forge reads the pull request as mergeable, behind or
   blocked.
 - `pr.base_is_default`: the pull request targets the default branch.
-- `pr.approval_covers_head` with a `min`: at least that many approvals cover
-  the head commit. An approval that Loupe posted as the GitHub App counts as
-  one. Set `by: person` to count the approvals of people only.
-- `pr.app_approval_covers_head`: the approval that Loupe posted as the GitHub
-  App names the head commit.
-- `pr.app_approval_stands`: an approval that Loupe posted as the GitHub App
-  still stands on the open pull request, on any commit.
-- `pr.app_can_approve`: Loupe can post and dismiss a review on the pull request,
-  because its repository has an active GitHub App installation.
+- `pr.approval_covers_head` with a `min`: at least that many approvals of people
+  cover the head commit. Set `by: person` to say so in the rule. Loupe no longer
+  posts a review, so only people count.
+- `pr.approval_check_passed`: Loupe posted the check `Loupe / Approval` with the
+  conclusion success on the head commit, and has not revoked it.
+- `pr.can_post_check`: Loupe can post a check run on the pull request, because its
+  repository has an active GitHub App installation.
+- `pr.merge_blocked`: GitHub reads the merge state of the pull request as blocked.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
@@ -465,16 +464,16 @@ again later asks for a new merge. That work merges in one repository, so when
 the code lives in several repositories and Loupe cannot merge in one of them,
 the write refuses, and a person merges by hand.
 
-Two writes post and dismiss a review as the GitHub App. They need an
-active installation on the repository, and they never ask a bridge for work.
-Loupe stores the approval of the App apart from the approvals of people. The
-stale-approval comment and the agent review override read the approvals of
-people only.
+The write `approval-check` posts the check `Loupe / Approval` as the GitHub App. It needs an
+active installation on the repository, and it never asks a bridge for work. It takes the parameter `state`.
+A check run belongs to one commit, so a push leaves the new head with no `Loupe / Approval`.
+Loupe never posts an incomplete run, because GitHub counts an incomplete run as stale after 14 days.
+Loupe stores the run id, the commit and the conclusion on the pull request, and reads that record.
 
 | Write | Does |
 |---|---|
-| `approve` | Approves the head commit that the rule read, as the GitHub App, and writes an `auto-approved` row in the history of the card. Loupe reads the head from GitHub before the post. A head that moved since the rule read it ends the write with no review, and the next evaluation decides again. A push that lands during the post makes Loupe dismiss the new review at once. When Loupe cannot read the head after the post, it dismisses the new review and the write tries again later. Before it posts, Loupe dismisses an earlier App approval of another commit |
-| `dismiss-approval` | Dismisses the approval that Loupe posted, and writes an `approval-dismissed` row in the history of the card. A refused dismissal backs off, retries and pauses the card |
+| `approval-check` with `state: pass` | Posts `Loupe / Approval` with the conclusion success on the head commit that the rule read, and writes an `auto-approved` row in the history of the card. A head that moved since the rule read it ends the write with no post, and the next evaluation decides again |
+| `approval-check` with `state: revoke` | Changes the stored run on the current head to the conclusion failure, with the title "A person must approve", and writes an `approval-dismissed` row in the history of the card. It does nothing when the run is not a success on the current head |
 
 Two further writes come from the [rules the app adds](#rules-the-app-adds). They
 act on a live-review verdict, and they never ask a bridge for work:
@@ -986,42 +985,51 @@ A project that updates to this version gets the rule in its template copy. A mig
 card outside a terminal column that an artifact reaches today, and writes one history row with the cause `rollout`.
 After the update, the rule fires only for an artifact that arrives later.
 
-### Automatic approval of a pull request
+### Approval of a pull request
 
-A pull request into the default branch can approve itself. Loupe then posts the approval as the GitHub App, and the
-`merge-ready` rule merges the pull request without a person. The rule `pull-request-auto-approve` sits in the
-`in-review` slot, right before `merge-ready`. It fires when all of these are true:
+Loupe opens most pull requests as its GitHub App, and GitHub refuses a review from the author of a pull request.
+So Loupe gates a pull request with a check run that it owns, `Loupe / Approval`. The `merge-ready` rule merges a
+pull request into the default branch only when `pr.approval_check_passed` is true.
 
-1. The pull request is open, it is not a draft, and its base is the default branch.
-2. The checks passed on the head commit.
-3. The agent review passed.
-4. The repository has an active GitHub App installation (`pr.app_can_approve`).
-5. The card does not require a human review (`card.review.needs_person`).
-6. The pull request has no conflict, no change request, and no App approval on the head commit.
+Two rules post the check. Both sit in the `in-review` slot, before `merge-ready`.
 
-The approval names the head commit that the rule read. A push after it makes the rule fire again once the agent review
-passed on the new head.
+1. `approval-check-auto` fires when the pull request is open, it is not a draft, its base is the default branch, the
+   checks passed on the head commit, the agent review passed, Loupe can post a check (`pr.can_post_check`), the card
+   does not require a human review (`card.review.needs_person`), and the pull request has no conflict, no change
+   request and no passed `Loupe / Approval` on the head commit.
+2. `approval-check-person` fires when a person approved the head commit on GitHub and the checks passed. It posts the
+   same success, so a person's approval opens the same gate.
 
-A card with the **Requires human review** switch on never gets this approval. If an App approval already stands,
-the rule `dismiss-app-approval` dismisses it. It has no slot, so it also runs while the card sits in another column.
-The `merge-ready` rule needs the approval of a person when the card requires a human review, so an App approval never
-merges such a pull request.
+A card with the **Requires human review** switch on never gets the automatic check. If a success already stands on the
+head, the rule `approval-check-revoke` changes it to failure. It has no slot, so it also runs while the card sits in
+another column. A person's approval on GitHub then posts the success again.
 
 | Condition | True when |
 |---|---|
 | `card.review.needs_person` | The **Requires human review** switch of the card is on. For an epic it is also true when the switch of a child is on, or when a child pull request merged into the epic branch without a passed or overridden agent review. It is in the **Board** group |
 
-An epic pull request approves itself under the same rule. It needs a person when the epic or any of its children has the
-switch on. It also needs a person when a child pull request merged into the epic branch and its newest agent review of the
-last head did not pass and no person overrode it. A child with no merged pull request counts as reviewed. A change of the
-switch of a child writes a history row, so the epic is evaluated again.
+An epic pull request into the default branch gets its own agent review, and then the same rules. The agent review of the
+epic covers the whole change, also the merges of the default branch into the epic branch and their conflict fixes.
 
-The wait item "Waits for approval" opens when a person must review the card, when Loupe cannot post a review on the
+The wait item "Waits for approval" opens when a person must review the card, when Loupe cannot post a check on the
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
-of a new commit opens no item.
+of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
+`merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
 
-A project that updates to this version gets the two rules in its template copy. A pull request that is open at that time
-gets the approval of the App when it meets the conditions above.
+#### Set up the ruleset
+
+The check only gates a merge when the repository ruleset requires it. Change the ruleset of the default branch once:
+
+1. Accept the new **Commit statuses: read and write** permission of the Loupe GitHub App on each installation.
+   GitHub lists the App as a source only with that permission. See [forge webhooks](../extending/forge-webhooks.md).
+2. Wait for the first `Loupe / Approval` run. GitHub offers the App as a source only after the App posted a check run
+   recently.
+3. In the ruleset, add the required status check `Loupe / Approval`, and set the **Loupe** GitHub App as its source.
+   Without the source, any CI job or commit status can post the same name and forge the approval.
+4. Remove the rule **Require approvals** from the ruleset. The App cannot give that approval on its own pull request.
+
+A project that updates to this version gets the new rules in its template copy. A ruleset that still requires an
+approving review blocks the merge of a pull request that the App opened, until the owner changes the ruleset.
 
 ### Asking about an unplanned child
 
