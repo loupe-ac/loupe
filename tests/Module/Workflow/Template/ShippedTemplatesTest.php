@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Template;
 
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
@@ -510,7 +511,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             provided: [AgentReviewFacts::class => new AgentReviewFacts([
                 new ReviewedHead((string) $passed->id, str_repeat('a', 40), AgentReviewConclusion::Success),
                 new ReviewedHead((string) $needing->id, str_repeat('b', 40), $conclusion),
-            ], epic: false, unposted: false, uncommented: [])],
+            ], epic: false), AgentReviewPostingFacts::class => new AgentReviewPostingFacts(unposted: false, uncommented: [])],
         );
         $rule = array_find($this->lifecycle()->rulesFor('implementation'), static fn ($rule): bool => $ruleId === $rule->id);
         self::assertNotNull($rule);
@@ -594,7 +595,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
             pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, approvalsCoveringHead: $approvals, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id),
             run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
-            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false, uncommented: []), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
+            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic), AgentReviewPostingFacts::class => new AgentReviewPostingFacts(unposted: false, uncommented: []), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
         );
     }
 

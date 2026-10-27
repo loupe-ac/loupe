@@ -29,7 +29,7 @@ final readonly class RuleSubject
         $readable = null === $when->unreadable($facts);
         $candidates = $this->candidates($when, $facts);
         if ([] === $candidates) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), \in_array(EngineFact::PullRequest, $when->reads(), true));
+            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), array_any($when->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest()));
         }
         foreach ($candidates as $candidate) {
             $bound = $facts->withPullRequest($candidate);
@@ -57,7 +57,7 @@ final readonly class RuleSubject
     /** @return list<PullRequestFacts> */
     private function candidates(Expression $when, Facts $facts): array
     {
-        if (!\in_array(EngineFact::PullRequest, $when->reads(), true)) {
+        if (!array_any($when->reads(), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest())) {
             return [];
         }
 

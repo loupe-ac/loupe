@@ -208,7 +208,7 @@ final class PullRequestConditionsTest extends TestCase
     public static function waiting(): iterable
     {
         $one = [EngineFact::PullRequest];
-        yield 'pr.open' => [new PullRequestOpen(), [], 'pr_open', [], $one];
+        yield 'pr.open' => [new PullRequestOpen(), [], 'pr_open', [], [EngineFact::PullRequestSubject]];
         yield 'pr.draft' => [new PullRequestDraft(), [], 'pr_draft', [], $one];
         yield 'pr.checks_passed' => [new PullRequestChecksPassed(), [], 'pr_checks_passed', [], $one];
         yield 'pr.checks_failed' => [new PullRequestChecksFailed(), [], 'pr_checks_failed', [], $one];

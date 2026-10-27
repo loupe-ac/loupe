@@ -38,7 +38,7 @@ final readonly class AgentReviewDue implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [AgentReviewFacts::class, EngineFact::PullRequest];
+        return [AgentReviewFacts::class, EngineFact::PullRequestSubject];
     }
 
     #[\Override]
