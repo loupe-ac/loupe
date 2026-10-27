@@ -969,7 +969,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             'merge-ready',
         ];
 
-        $readyForApproval = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, appCanApprove: true);
+        $readyForApproval = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, canPostCheck: true);
         yield 'a pull request that no person must review gets the approval of the App' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $readyForApproval, pullRequests: [$readyForApproval]),
             ['pull-request-auto-approve', 'merge-ready'],
@@ -989,7 +989,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             null,
         ];
 
-        $approvedByApp = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, appApprovalCoversHead: true, appApprovalStands: true, appCanApprove: true);
+        $approvedByApp = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, canPostCheck: true);
         yield 'a pull request that the App approved merges when no person must review it' => [
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $approvedByApp, pullRequests: [$approvedByApp]),
             ['pull-request-auto-approve', 'merge-ready'],

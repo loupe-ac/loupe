@@ -7477,8 +7477,8 @@
             <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the live-review widget: %verdict%.</target></trans-unit>
             <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
-            <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe approved #%pr% at %sha% as the GitHub App.</target></trans-unit>
-            <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe dismissed its approval of #%pr% as the GitHub App, because a person must review it.</target></trans-unit>
+            <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe passed the approval check on #%pr% at %sha%.</target></trans-unit>
+            <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe withdrew its approval of #%pr%, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
@@ -9260,6 +9260,10 @@
             <trans-unit id="agent_review.comment.more"><source>agent_review.comment.more</source><target>{0} …and no more findings on the check.|{1} …and one more finding on the check.|]1,Inf[ …and %count% more findings on the check.</target></trans-unit>
             <trans-unit id="agent_review.comment.links"><source>agent_review.comment.links</source><target>[See the check](%check_url%) · [Open the card](%card_url%)</target></trans-unit>
             <trans-unit id="agent_review.comment.card_link"><source>agent_review.comment.card_link</source><target>[Open the card](%card_url%)</target></trans-unit>
+            <trans-unit id="board.approval_check.title_passed"><source>board.approval_check.title_passed</source><target>Approved by Loupe</target></trans-unit>
+            <trans-unit id="board.approval_check.summary_passed"><source>board.approval_check.summary_passed</source><target>The agent review passed or a person approved this commit, and the required checks are green.</target></trans-unit>
+            <trans-unit id="board.approval_check.title_revoked"><source>board.approval_check.title_revoked</source><target>A person must approve</target></trans-unit>
+            <trans-unit id="board.approval_check.summary_revoked"><source>board.approval_check.summary_revoked</source><target>This card needs a person to review the pull request. Loupe withdrew its approval of this commit.</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
             <trans-unit id="artifact.list.page.title"><source>artifact.list.page.title</source><target>Artifacts</target></trans-unit>
             <trans-unit id="artifact.list.heading"><source>artifact.list.heading</source><target>Artifacts</target></trans-unit>
