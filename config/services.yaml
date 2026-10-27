@@ -77,6 +77,8 @@ parameters:
     app.observability.queue_depth_schedule: '* * * * *'
     # The backstop for a forge delivery that never arrived.
     app.forge.sweep_schedule: '*/10 * * * *'
+    # Hourly, off the hour, so it clears the other jobs that start on it.
+    app.forge.repository_check_schedule: '7 * * * *'
     # The backstop for a card wait that no event reported.
     app.inbox.card_wait_sweep_schedule: '*/15 * * * *'
     # Every minute, so the notice closes soon after a bridge is back.

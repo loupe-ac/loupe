@@ -26,6 +26,12 @@ framework:
             limit: 300
             interval: '1 minute'
 
+        # Bounds Check again, which reads the forge in the request. Keyed per repository.
+        forge_repository_check:
+            policy: 'sliding_window'
+            limit: 6
+            interval: '1 minute'
+
         # Bounds the whole MCP endpoint, not only writes: every JSON-RPC message
         # rides POST, including initialize, tools/list and ping. Keyed per token
         # alone, unlike the widget limiter above — see RateLimitMcpRequests.
@@ -200,6 +206,10 @@ when@dev:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'
+            forge_repository_check:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
             mercure_authorize:
                 policy: 'sliding_window'
                 limit: 100000
@@ -245,6 +255,10 @@ when@test:
                 limit: 100000
                 interval: '1 minute'
             forge_hook_deliveries:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            forge_repository_check:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'

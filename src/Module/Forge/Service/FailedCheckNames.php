@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Module\Board\Service;
+namespace App\Module\Forge\Service;
 
 /**
  * Cleans the failed check names a forge gives, so the bridge accepts them. The

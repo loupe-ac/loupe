@@ -9,17 +9,31 @@ use App\Module\Forge\Entity\ForgePullRequest;
 /** The status check rules that apply to one branch, read from `GET /repos/{owner}/{repo}/rules/branches/{branch}`. */
 final readonly class GitHubBranchRules
 {
+    /** The rule types of the REST API description. A type outside it could stand in for a rule this read judges. */
+    private const array KNOWN_TYPES = [
+        'branch_name_pattern', 'code_coverage', 'code_quality', 'code_scanning', 'commit_author_email_pattern',
+        'commit_message_pattern', 'committer_email_pattern', 'copilot_code_review', 'creation', 'deletion',
+        'file_extension_restriction', 'file_path_restriction', 'license_compliance_scanning', 'max_file_path_length',
+        'max_file_size', 'merge_queue', 'non_fast_forward', 'pull_request', 'required_deployments',
+        'required_linear_history', 'required_signatures', 'required_status_checks', 'tag_name_pattern', 'update', 'workflows',
+    ];
+
     /**
-     * @param list<string>            $requiredChecks
-     * @param list<positive-int|null> $approvalSources     the App id of each entry that requires the approval check, null for an entry with no App
-     * @param ?list<string>           $allowedMergeMethods the merge methods every pull request rule of the branch allows, or null when no rule limits them
+     * @param list<string>                                                               $requiredChecks
+     * @param list<positive-int|null>                                                    $approvalSources     the App id of each entry that requires the approval check, null for an entry with no App
+     * @param list<string>|null                                                          $allowedMergeMethods the methods that every pull request rule listing methods allows, null when no rule lists any
+     * @param array<int, array{sourceType: string, source: string, rules: list<string>}> $rulesets            the ruleset behind each rule, by ruleset id
      */
     public function __construct(
         public array $requiredChecks,
         public bool $strict,
         public bool $requiresReview = false,
         public array $approvalSources = [],
+        public bool $pullRequestRule = false,
         public ?array $allowedMergeMethods = null,
+        public bool $forbidsForcePush = false,
+        public bool $forbidsDeletion = false,
+        public array $rulesets = [],
     ) {
     }
 
@@ -29,6 +43,37 @@ final readonly class GitHubBranchRules
     }
 
     /**
+     * Reads the rules as fromRules() does, but refuses a rule whose data is incomplete
+     * or whose type is unknown, so that an unclear answer never reads as a missing rule.
+     *
+     * @param array<mixed> $rules
+     *
+     * @throws \UnexpectedValueException when the answer is not a list of complete rules
+     */
+    public static function fromCompleteRules(array $rules): self
+    {
+        foreach (array_is_list($rules) ? $rules : [] as $rule) {
+            if (!\is_array($rule) || !\is_string($rule['type'] ?? null)) {
+                throw new \UnexpectedValueException('A branch rule has no type.');
+            }
+            if (!\in_array($rule['type'], self::KNOWN_TYPES, true)) {
+                throw new \UnexpectedValueException(\sprintf('The branch rule type "%s" is unknown.', $rule['type']));
+            }
+            $parameters = $rule['parameters'] ?? null;
+            if ('pull_request' === $rule['type'] && (!\is_array($parameters) || !\is_int($parameters['required_approving_review_count'] ?? null) || !self::isStringList($parameters['allowed_merge_methods'] ?? []))) {
+                throw new \UnexpectedValueException('A pull request rule has incomplete parameters.');
+            }
+            if ('required_status_checks' === $rule['type'] && (!\is_array($parameters) || !\is_array($parameters['required_status_checks'] ?? null) || !self::areCompleteChecks($parameters['required_status_checks']))) {
+                throw new \UnexpectedValueException('A status check rule has incomplete parameters.');
+            }
+        }
+
+        return self::fromRules($rules);
+    }
+
+    /**
+     * Reads the rules and skips the parts it cannot read.
+     *
      * @param array<mixed> $rules
      *
      * @throws \UnexpectedValueException when the answer is not a list of rules
@@ -43,23 +88,43 @@ final readonly class GitHubBranchRules
         $strict = false;
         $requiresReview = false;
         $approvalSources = [];
+        $pullRequestRule = false;
         $allowedMergeMethods = null;
+        $forbidsForcePush = false;
+        $forbidsDeletion = false;
+        $rulesets = [];
         foreach ($rules as $rule) {
-            if (!\is_array($rule) || !\is_array($rule['parameters'] ?? null)) {
+            if (!\is_array($rule)) {
                 continue;
             }
-            if ('pull_request' === ($rule['type'] ?? null)) {
+            $type = $rule['type'] ?? null;
+            $rulesetId = $rule['ruleset_id'] ?? null;
+            if (\is_string($type) && \is_int($rulesetId)) {
+                $rulesets[$rulesetId] ??= [
+                    'sourceType' => \is_string($rule['ruleset_source_type'] ?? null) ? $rule['ruleset_source_type'] : '',
+                    'source' => \is_string($rule['ruleset_source'] ?? null) ? $rule['ruleset_source'] : '',
+                    'rules' => [],
+                ];
+                $rulesets[$rulesetId]['rules'][] = $type;
+            }
+            $forbidsForcePush = $forbidsForcePush || 'non_fast_forward' === $type;
+            $forbidsDeletion = $forbidsDeletion || 'deletion' === $type;
+            $pullRequestRule = $pullRequestRule || 'pull_request' === $type;
+            if (!\is_array($rule['parameters'] ?? null)) {
+                continue;
+            }
+            if ('pull_request' === $type) {
                 $count = $rule['parameters']['required_approving_review_count'] ?? null;
                 $requiresReview = $requiresReview || (\is_int($count) && $count >= 1);
-                $allowed = $rule['parameters']['allowed_merge_methods'] ?? null;
-                if (\is_array($allowed)) {
-                    $allowed = array_values(array_filter($allowed, \is_string(...)));
-                    $allowedMergeMethods = null === $allowedMergeMethods ? $allowed : array_values(array_intersect($allowedMergeMethods, $allowed));
+                $methods = $rule['parameters']['allowed_merge_methods'] ?? null;
+                if (\is_array($methods)) {
+                    $methods = array_values(array_filter($methods, \is_string(...)));
+                    $allowedMergeMethods = null === $allowedMergeMethods ? $methods : array_values(array_intersect($allowedMergeMethods, $methods));
                 }
 
                 continue;
             }
-            if ('required_status_checks' !== ($rule['type'] ?? null)) {
+            if ('required_status_checks' !== $type) {
                 continue;
             }
 
@@ -76,6 +141,19 @@ final readonly class GitHubBranchRules
             }
         }
 
-        return new self(array_map(strval(...), array_keys($checks)), $strict, $requiresReview, $approvalSources, $allowedMergeMethods);
+        return new self(array_map(strval(...), array_keys($checks)), $strict, $requiresReview, $approvalSources, $pullRequestRule, $allowedMergeMethods, $forbidsForcePush, $forbidsDeletion, $rulesets);
+    }
+
+    private static function isStringList(mixed $value): bool
+    {
+        return \is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => \is_string($item));
+    }
+
+    /** @param array<mixed> $checks */
+    private static function areCompleteChecks(array $checks): bool
+    {
+        return array_all($checks, static fn (mixed $check): bool => \is_array($check)
+            && \is_string($check['context'] ?? null) && '' !== $check['context']
+            && (null === ($check['integration_id'] ?? null) || \is_int($check['integration_id'])));
     }
 }
