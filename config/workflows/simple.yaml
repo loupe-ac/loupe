@@ -1,7 +1,9 @@
 key: simple
-version: 9
+version: 10
 defaultType: feature
 epicBranch: 'epic/{number}'
+repositorySettings:
+    - { key: branch-protection, mark: warning }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }

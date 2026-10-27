@@ -1,9 +1,14 @@
 key: lifecycle
-version: 24
+version: 25
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
+repositorySettings:
+    - { key: approval-gate, mark: blocking }
+    - { key: ci-checks, mark: warning }
+    - { key: branch-protection, mark: warning }
+    - { key: merge-method, mark: blocking }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }

@@ -7,6 +7,7 @@ namespace App\Module\Workflow\Template;
 use App\Module\Workflow\Contract\EndsReviewLoop;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
+use App\Module\Workflow\Contract\RepositorySuggestion;
 
 final readonly class Template
 {
@@ -38,6 +39,7 @@ final readonly class Template
      * @param list<TemplateMarker>            $markers                          the card markers, in template order
      * @param bool                            $approvalCoversConflictResolution whether an approval still covers a merge from the base that holds a conflict resolution
      * @param list<string>                    $inbox                            the keys of the markers that store one inbox entry per thing, in template order
+     * @param list<RepositorySuggestion>      $repositorySettings               the settings the template suggests for a connected repository, in template order
      */
     public function __construct(
         public string $key,
@@ -56,6 +58,7 @@ final readonly class Template
         public array $markers = [],
         public bool $approvalCoversConflictResolution = true,
         public array $inbox = [],
+        public array $repositorySettings = [],
     ) {
     }
 
