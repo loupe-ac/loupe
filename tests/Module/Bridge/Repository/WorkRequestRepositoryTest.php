@@ -141,10 +141,10 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $this->seedWorkRequest($em, $this->project($em, $owner, 'Not Followed'), createdAt: $at('11:00:00'));
         $projects = [(string) $followed->id, (string) $alsoFollowed->id];
 
-        self::assertSame([$older, $newer, $interactive], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests', 'interactive'], 10));
-        self::assertSame([$older, $newer], $this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10));
-        self::assertSame([$older], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['interactive'], 1));
-        self::assertSame([], $this->repository()->findOpenOffers(Uuid::v4(), [], ['interactive'], 10));
+        self::assertSame([$older, $newer, $interactive], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests', 'interactive'], 10, []));
+        self::assertSame([$older, $newer], $this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10, []));
+        self::assertSame([$older], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['interactive'], 1, []));
+        self::assertSame([], $this->repository()->findOpenOffers(Uuid::v4(), [], ['interactive'], 10, []));
     }
 
     public function test_a_request_with_a_target_is_offered_to_that_bridge_alone(): void
@@ -159,8 +159,8 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $targeted = $this->seedWorkRequest($em, $project, kind: 'design-export', capability: 'run-command', createdAt: $at('12:01:00'), targetBridgeId: $target, branch: 'main', params: ['out' => 'var/x']);
         $projects = [(string) $project->id];
 
-        self::assertSame([$untargeted, $targeted], $this->repository()->findOpenOffers($target, $projects, ['run-command'], 10));
-        self::assertSame([$untargeted], $this->repository()->findOpenOffers($other, $projects, ['run-command'], 10));
+        self::assertSame([$untargeted, $targeted], $this->repository()->findOpenOffers($target, $projects, ['run-command'], 10, []));
+        self::assertSame([$untargeted], $this->repository()->findOpenOffers($other, $projects, ['run-command'], 10, []));
         $em->clear();
         $stored = $em->find(WorkRequest::class, $targeted->id);
         self::assertInstanceOf(WorkRequest::class, $stored);
@@ -180,7 +180,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->persist(new CardHold($project, $heldCard, $owner, new \DateTimeImmutable('2026-10-01 12:03:00')));
         $em->flush();
 
-        self::assertSame([$free, $subject], $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10));
+        self::assertSame([$free, $subject], $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, []));
     }
 
     public function test_open_requests_of_a_card_leave_out_settled_and_claimed_ones(): void
@@ -208,8 +208,8 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $this->seedWorkRequest($em, $project, capability: 'interactive', createdAt: $at('12:02:00'), prompt: 'Run it.');
         $projects = [(string) $project->id];
 
-        self::assertSame([$withPrompt], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests', 'app-prompts'], 10));
-        self::assertSame([], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests'], 10));
+        self::assertSame([$withPrompt], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests', 'app-prompts'], 10, []));
+        self::assertSame([], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests'], 10, []));
     }
 
     public function test_the_sweep_reopens_the_claims_whose_lease_lapsed(): void
@@ -221,7 +221,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $held = $this->claimed($project, Uuid::v4(), Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:01'));
         $open = $this->seedWorkRequest($em, $project);
 
-        $reopened = $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $reopened = $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), []);
 
         self::assertSame([$lapsed], $reopened);
         self::assertSame(WorkRequestState::Open, $lapsed->state);
@@ -233,7 +233,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->clear();
         self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $held->id)?->state);
         self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $open->id)?->state);
-        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00')));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), []));
     }
 
     public function test_live_rule_id_reads_the_rule_of_the_open_and_claimed_requests_of_a_card_and_kind(): void
@@ -430,14 +430,35 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $holds->hold($project, $heldCard, $owner);
         $em->clear();
 
-        self::assertSame([(string) $offered->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10)));
-        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00')));
+        self::assertSame([(string) $offered->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, [])));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), []));
 
         $holds->release($project, [$heldCard]);
 
-        self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'))));
+        self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [])));
         // The hold cancelled the open request of the card, so the release offers the reopened claim alone.
-        self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10)));
+        self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, [])));
+    }
+
+    public function test_the_card_requests_of_a_held_project_have_no_offer_and_no_reopened_claim(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'held-project-offers@example.com');
+        $held = $this->project($em, $owner, 'Held Project Offers');
+        $free = $this->project($em, $owner, 'Free Project Offers');
+        $this->seedWorkRequest($em, $held);
+        $analysis = $this->seedWorkRequest($em, $held, subject: new WorkSubject('analysis', Uuid::v7()));
+        $offered = $this->seedWorkRequest($em, $free);
+        $lapsed = $this->claimed($held, Uuid::v4(), Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'), Uuid::v7(), 'review');
+        $projects = [(string) $held->id, (string) $free->id];
+        $heldIds = [(string) $held->id];
+        $ids = static fn (array $requests): array => array_map(static fn (WorkRequest $request): string => (string) $request->id, $requests);
+
+        self::assertEqualsCanonicalizing([(string) $analysis->id, (string) $offered->id], $ids($this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10, $heldIds)));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), $heldIds));
+        self::assertSame([(string) $held->id], $this->repository()->findProjectIdsOfLapsedCardClaims(new \DateTimeImmutable('2026-10-01 12:30:00')));
+        self::assertSame([(string) $lapsed->id], $ids($this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [])));
     }
 
     public function test_the_done_fixes_are_told_apart_by_repository_state_and_role(): void

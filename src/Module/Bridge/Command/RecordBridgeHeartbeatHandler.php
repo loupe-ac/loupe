@@ -15,6 +15,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CliCompatibility;
+use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\HostSampling;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
@@ -58,6 +59,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private Auditor $auditor,
         private EventDispatcherInterface $events,
         private ClockInterface $clock,
+        private HeldProjects $heldProjects,
     ) {
     }
 
@@ -182,7 +184,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $lostClaims = array_values(array_diff($named, $renewed));
             }
             $workRequests = $bridge->takesWorkRequests()
-                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS)
+                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS, $this->heldProjects->among($bridge->projects))
                 : [];
 
             // Read under the lock a new command takes, so the reply misses no command stored before it.

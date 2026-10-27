@@ -31,4 +31,10 @@ final readonly class WorkflowRuleRearmer implements WorkflowRuleStates
         $this->workflowRuleStates->resetForCards($cardIds, $now);
         $this->workflowPendingBaselines->unmarkCards($cardIds);
     }
+
+    #[\Override]
+    public function releaseWorkHolds(Uuid $projectId, \DateTimeImmutable $now): array
+    {
+        return $this->workflowRuleStates->clearWorkHoldsOfProject($projectId, $now);
+    }
 }

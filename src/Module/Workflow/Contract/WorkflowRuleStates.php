@@ -18,4 +18,12 @@ interface WorkflowRuleStates
      * @param non-empty-list<Uuid> $cardIds
      */
     public function rearmCards(array $cardIds, \DateTimeImmutable $now): void;
+
+    /**
+     * Clears the mark that a project work hold put on its rule states, so each held rule asks for its work again.
+     * Answers the cards that had a mark, and none when no rule state held.
+     *
+     * @return list<Uuid>
+     */
+    public function releaseWorkHolds(Uuid $projectId, \DateTimeImmutable $now): array;
 }

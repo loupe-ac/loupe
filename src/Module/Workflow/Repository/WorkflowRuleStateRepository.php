@@ -50,6 +50,25 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
     }
 
     /**
+     * Clears the work hold stamp of every rule state of the project, in one statement, so it joins a caller's transaction.
+     * A managed state is stale after it.
+     *
+     * @return list<Uuid> the cards that had a stamp
+     */
+    public function clearWorkHoldsOfProject(Uuid $projectId, \DateTimeImmutable $now): array
+    {
+        /** @var list<string> $cardIds */
+        $cardIds = $this->getEntityManager()->getConnection()->executeQuery(
+            'UPDATE workflow_rule_states SET held_by_work_hold_since = NULL, updated_at = :now
+             WHERE project_id = :project AND held_by_work_hold_since IS NOT NULL RETURNING card_id',
+            ['now' => $now, 'project' => $projectId->toRfc4122()],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        )->fetchFirstColumn();
+
+        return array_map(Uuid::fromString(...), array_values(array_unique($cardIds)));
+    }
+
+    /**
      * The cards among $cardIds that a move rule holds for an open blocker alone, with the blocker of the lowest number.
      * A card that has no open blocker now is left out, whatever the stamp says.
      *

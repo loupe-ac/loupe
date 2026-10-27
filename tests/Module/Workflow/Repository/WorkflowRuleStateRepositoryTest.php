@@ -194,6 +194,27 @@ final class WorkflowRuleStateRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository()->findWorkHoldsSince([(string) $card->id]));
     }
 
+    public function test_clear_work_holds_of_project_clears_the_marks_of_that_project_alone_and_names_each_card_once(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('rule-state-clear-work-hold');
+        $other = $this->workflowProject('rule-state-clear-work-hold-other');
+        $marked = $this->card($project);
+        $plain = $this->card($project);
+        $elsewhere = $this->card($other);
+        $this->state($marked, 'a', heldByWorkHold: true);
+        $this->state($marked, 'b', heldByWorkHold: true);
+        $this->state($plain, 'a');
+        $this->state($elsewhere, 'a', heldByWorkHold: true);
+
+        $cleared = $this->repository()->clearWorkHoldsOfProject($project->id ?? throw new \LogicException('A flushed project has an id.'), new \DateTimeImmutable());
+
+        self::assertSame([(string) $marked->id], array_map(strval(...), $cleared));
+        self::assertSame([], $this->repository()->findWorkHoldsSince([(string) $marked->id]));
+        self::assertSame([(string) $elsewhere->id], array_keys($this->repository()->findWorkHoldsSince([(string) $elsewhere->id])));
+        self::assertSame([], $this->repository()->clearWorkHoldsOfProject($project->id, new \DateTimeImmutable()));
+    }
+
     public function test_reset_clears_the_memory_of_a_rule(): void
     {
         $state = new WorkflowRuleState(Uuid::v7(), $this->createStub(Project::class), 'start-design');

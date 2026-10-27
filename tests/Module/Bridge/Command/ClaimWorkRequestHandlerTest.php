@@ -15,16 +15,19 @@ use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
 
 final class ClaimWorkRequestHandlerTest extends KernelTestCase
 {
+    use BlockingRepositories;
     use BridgeScenario;
 
     private const string NOW = '2026-10-01T12:30:00+00:00';
@@ -143,6 +146,60 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
 
         self::assertNull($result->refusal);
         self::assertSame(WorkRequestState::Claimed, $result->request?->state);
+    }
+
+    public function test_a_card_request_of_a_project_that_holds_its_new_work_is_refused_and_stays_open(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-project-held', WorkRequestState::Open);
+        $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
+        $this->repositoryWithGaps($request->project);
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertNull($result->request);
+        self::assertSame(WorkRequestRefusal::ProjectHeld, $result->refusal);
+        self::assertSame('project_held', $result->refusal->code());
+        self::assertSame(409, $result->refusal->httpStatus());
+        self::assertSame([], $changes->events());
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_a_claim_that_commits_before_the_gap_is_stored_goes_on_and_a_later_one_is_refused(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-project-sequence', WorkRequestState::Open);
+        $second = $this->seedWorkRequest($this->em(), $request->project, kind: 'fix');
+
+        $first = $this->claim($owner, $bridge, $request);
+        $this->repositoryWithGaps($request->project);
+        $later = $this->claim($owner, $bridge, $second);
+
+        self::assertNull($first->refusal);
+        self::assertSame(WorkRequestState::Claimed, $first->request?->state);
+        self::assertSame(WorkRequestRefusal::ProjectHeld, $later->refusal);
+    }
+
+    public function test_a_claim_takes_the_key_share_lock_of_the_project_before_it_reads_the_stored_checks(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-project-lock', WorkRequestState::Open);
+        $this->repositoryWithGaps($request->project, []);
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $this->claim($owner, $bridge, $request);
+
+        $statements = [];
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $statements[] = trim((string) $query['sql']);
+            }
+        }
+        $lock = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'FROM projects') && str_ends_with($sql, 'FOR KEY SHARE'));
+        $read = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'forge_repository_checks') && str_starts_with($sql, 'SELECT'));
+        self::assertNotNull($lock);
+        self::assertNotNull($read);
+        self::assertLessThan($read, $lock);
     }
 
     public function test_a_request_of_another_card_is_claimed_while_a_card_is_held(): void
