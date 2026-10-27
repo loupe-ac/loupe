@@ -98,7 +98,8 @@ A new key pair makes every issued access token invalid. The apps then refresh, s
 
 | Variable | Purpose | Add by hand? |
 |---|---|---|
-| `APP_ENCRYPTION_KEY` | Encrypts `encrypted_string` columns. The secret of a per-project GitHub webhook is one, and so are the GitHub tokens of a user who connects a GitHub account. While the key is unset no project can create a webhook. **Losing it makes existing encrypted columns unreadable.** | No |
+| `APP_ENCRYPTION_KEY` | Encrypts `encrypted_string` columns. The secret of a per-project GitHub webhook is one, and so are the GitHub tokens of a user who connects a GitHub account. While the key is unset no project can create a webhook. **Losing it makes existing encrypted columns unreadable.** To replace it, follow [Rotating the encryption key](../operating/rotating-encryption-key.md). | No |
+| `APP_ENCRYPTION_KEY_PREVIOUS` | The key the instance used before a rotation. The app still reads values made with it, and writes new values with `APP_ENCRYPTION_KEY`. Leave it empty outside a rotation. **Secret.** | No |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Billing. Nothing instantiates the Stripe client until the `billing.enabled` feature flag is on. | No |
 | `SENTRY_DSN` | Sends errors, traces and profiles to Sentry, from web requests, worker messages and console commands. **Secret.** Optional and off by default: while it is empty, nothing goes to Sentry. [Sentry](../operating/sentry.md) says what it receives. | No |
 | `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE` | The share of web requests, worker messages and console commands that Sentry traces, and the share of traced ones that it profiles, from `0.0` to `1.0`. The traces rate defaults to `0.25` and the profiles rate to `1.0`. Nothing is sent while `SENTRY_DSN` is empty. Profiling also needs the Excimer PHP extension, which the production image ships. | No |
@@ -203,7 +204,7 @@ bin/console app:notifications:generate-keys
 In development and in a worktree, `league:oauth2-server:generate-keypair --skip-if-exists` writes a key pair into `var/oauth/`. Worktree provisioning and `just e2e-up` run it for you. The test suite uses the key pair in `tests/Support/oauth/`, which is for tests only.
 
 **Losing `APP_ENCRYPTION_KEY` makes existing encrypted columns unreadable.**
-There is no recovery.
+There is no recovery. To replace a key you still hold, for example after a leak, see [Rotating the encryption key](../operating/rotating-encryption-key.md).
 
 For App Platform, inject them as `TF_VAR_*`:
 

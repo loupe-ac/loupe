@@ -47,7 +47,7 @@ final class TokenReaderTest extends TestCase
         self::assertSame('--radius-lg', $groups[0]->tokens[0]->name);
         self::assertSame('0.5rem', $groups[0]->tokens[0]->value);
         self::assertSame('Buttons and inputs.', $groups[0]->tokens[0]->use);
-        self::assertSame('Cards.', $groups[0]->tokens[1]->use);
+        self::assertSame('Cards. Also panels.', $groups[0]->tokens[1]->use);
         self::assertSame("'DM Sans', sans-serif", $groups[1]->tokens[0]->value);
         self::assertSame('', $groups[1]->tokens[0]->use);
     }
@@ -103,5 +103,23 @@ final class TokenReaderTest extends TestCase
                 self::assertNotSame('', $token->use, $token->name.' has no use');
             }
         }
+    }
+
+    public function test_each_token_of_the_artifact_has_a_use_of_its_own(): void
+    {
+        $groups = new TokenReader(dirname(__DIR__, 3).'/assets/styles/tokens.css')->groups();
+
+        $checked = 0;
+        foreach ($groups as $group) {
+            $owners = [];
+            foreach ($group->tokens as $token) {
+                self::assertNotSame('', $token->use, $token->name.' has no use');
+                self::assertArrayNotHasKey($token->use, $owners, sprintf('%s shares its use with %s', $token->name, $owners[$token->use] ?? ''));
+                $owners[$token->use] = $token->name;
+                ++$checked;
+            }
+        }
+
+        self::assertGreaterThan(100, $checked);
     }
 }

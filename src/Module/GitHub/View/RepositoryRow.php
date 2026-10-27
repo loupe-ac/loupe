@@ -35,6 +35,11 @@ final readonly class RepositoryRow
         return self::elementIdOf($this->repository);
     }
 
+    public function blocks(): bool
+    {
+        return null !== $this->check && ForgeRepositoryCheck::countBlockingGaps($this->check->items) > 0;
+    }
+
     public static function elementIdOf(ForgeRepository $repository): string
     {
         return 'forge-repository-'.$repository->id;

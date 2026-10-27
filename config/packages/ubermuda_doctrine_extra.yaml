@@ -1,0 +1,6 @@
+ubermuda_doctrine_extra:
+    # The first key encrypts. Every key decrypts. The second is empty outside a
+    # rotation.
+    encryption_keys:
+        - '%env(APP_ENCRYPTION_KEY)%'
+        - '%env(APP_ENCRYPTION_KEY_PREVIOUS)%'

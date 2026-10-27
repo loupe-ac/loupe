@@ -8777,8 +8777,12 @@
             <trans-unit id="github.repositories.guide.link.merge_settings"><source>github.repositories.guide.link.merge_settings</source><target>Open merge settings on GitHub</target></trans-unit>
             <trans-unit id="github.repositories.guide.link.branches"><source>github.repositories.guide.link.branches</source><target>Open branch protection on GitHub</target></trans-unit>
             <trans-unit id="github.repositories.live_stopped"><source>github.repositories.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="github.repositories.check.paused.title"><source>github.repositories.check.paused.title</source><target>New work is paused.</target></trans-unit>
+            <trans-unit id="github.repositories.check.paused.text"><source>github.repositories.check.paused.text</source><target>The repository does not fit the %workflow% workflow. Running work finishes.</target></trans-unit>
+            <trans-unit id="github.repositories.check.paused.text_unnamed"><source>github.repositories.check.paused.text_unnamed</source><target>The repository does not fit the workflow. Running work finishes.</target></trans-unit>
             <trans-unit id="github.repositories.check.again"><source>github.repositories.check.again</source><target>Check again</target></trans-unit>
             <trans-unit id="github.repositories.check.again_hint"><source>github.repositories.check.again_hint</source><target>Loupe checks every hour. Check again after a fix to end the pause now.</target></trans-unit>
+            <trans-unit id="github.repositories.check.again_hint_no_pause"><source>github.repositories.check.again_hint_no_pause</source><target>Loupe checks every hour. Check again after a change on GitHub to see it now.</target></trans-unit>
             <trans-unit id="github.repositories.check.failed.title"><source>github.repositories.check.failed.title</source><target>Loupe could not check %path%.</target></trans-unit>
             <trans-unit id="github.repositories.check.failed.kept"><source>github.repositories.check.failed.kept</source><target>The list below keeps the result of the last check that worked, with its time.</target></trans-unit>
             <trans-unit id="github.repositories.empty_state.title"><source>github.repositories.empty_state.title</source><target>No repository yet</target></trans-unit>

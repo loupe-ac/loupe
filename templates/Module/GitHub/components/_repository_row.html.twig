@@ -38,6 +38,15 @@
     {% if row.suggests %}
     {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
     <div class="lp-repository-check" data-testid="forge-repository-check">
+        {% if row.blocks %}
+        <twig:Ds:Flash severity="error" :title="'github.repositories.check.paused.title'|trans" data-testid="forge-repository-paused">
+            {%- if row.workflowLabelKey -%}
+                {{ 'github.repositories.check.paused.text'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+            {%- else -%}
+                {{ 'github.repositories.check.paused.text_unnamed'|trans }}
+            {%- endif -%}
+        </twig:Ds:Flash>
+        {% endif %}
         {% if check is not null and check.failure is not null %}
             {% if check.failure == 'no_installation' %}
             <twig:Ds:Flash severity="warning" data-testid="forge-repository-check-failed">{{ 'github.repositories.check.failed.no_installation'|trans }}</twig:Ds:Flash>
@@ -114,7 +123,7 @@
             <twig:Ds:ActionForm :action="checkAgainUrl" token="github-repository-check" frame="_top">
                 <twig:Ds:Button variant="primary" size="sm" type="submit" data-testid="forge-repository-check-again">{{ 'github.repositories.check.again'|trans }}</twig:Ds:Button>
             </twig:Ds:ActionForm>
-            <span class="lp-repository-check__hint">{{ 'github.repositories.check.again_hint'|trans }}</span>
+            <span class="lp-repository-check__hint">{{ (row.blocks ? 'github.repositories.check.again_hint' : 'github.repositories.check.again_hint_no_pause')|trans }}</span>
         </div>
         {% endif %}
         {% if row.checking %}
