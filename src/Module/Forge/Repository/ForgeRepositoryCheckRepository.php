@@ -10,6 +10,7 @@ use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<ForgeRepositoryCheck> */
 final class ForgeRepositoryCheckRepository extends ServiceEntityRepository
@@ -44,5 +45,29 @@ final class ForgeRepositoryCheckRepository extends ServiceEntityRepository
         }
 
         return $byRepository;
+    }
+
+    /**
+     * Takes the next read ticket of a repository in one statement, so two
+     * overlapping checks get distinct tickets. The first check inserts the row.
+     */
+    public function takeReadTicket(ForgeRepository $repository): int
+    {
+        $ticket = $this->getEntityManager()->getConnection()->fetchOne(
+            <<<'SQL'
+                INSERT INTO forge_repository_checks (id, repository_id, project_id, items, next_read_ticket, accepted_read_ticket)
+                VALUES (:id, :repository, :project, '[]', 1, 0)
+                ON CONFLICT (repository_id) DO UPDATE SET next_read_ticket = forge_repository_checks.next_read_ticket + 1
+                RETURNING next_read_ticket
+                SQL,
+            [
+                'id' => Uuid::v7(),
+                'repository' => $repository->id,
+                'project' => $repository->project->id,
+            ],
+            ['id' => UuidType::NAME, 'repository' => UuidType::NAME, 'project' => UuidType::NAME],
+        );
+
+        return \is_int($ticket) ? $ticket : throw new \LogicException('The ticket statement returns a row.');
     }
 }
