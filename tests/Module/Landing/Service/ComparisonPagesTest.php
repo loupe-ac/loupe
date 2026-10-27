@@ -106,6 +106,28 @@ final class ComparisonPagesTest extends TestCase
         self::assertStringContainsString('<li id="source-2">', $html);
     }
 
+    public function test_a_loupe_citation_links_to_the_bullet_source_that_opens_with_its_key(): void
+    {
+        $this->write('alpha', $this->frontMatter()."A claim. [L2] [1]\n\n## Sources\n\n1. [One](https://one.example)\n\nLoupe sources.\n\n- L1. [Docs](https://docs.example/a)\n- L2. [Docs](https://docs.example/b)\n");
+
+        $html = $this->pages()->all()[0]->html;
+
+        self::assertStringContainsString('A claim. <a data-turbo="false" href="#source-L2">[L2]</a> <a data-turbo="false" href="#source-1">[1]</a>', $html);
+        self::assertStringContainsString('<li id="source-1">', $html);
+        self::assertStringContainsString('<li id="source-L1">', $html);
+        self::assertStringContainsString('<li id="source-L2">', $html);
+    }
+
+    public function test_a_loupe_citation_with_no_listed_source_fails_with_the_file_name(): void
+    {
+        $this->write('alpha', $this->frontMatter()."A claim. [L3]\n\n## Sources\n\n- L1. [Docs](https://docs.example/a)\n");
+
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('alpha.md cites [L3]');
+
+        $this->pages()->all();
+    }
+
     public function test_a_bracketed_number_in_code_or_in_a_link_stays_as_it_is(): void
     {
         $this->write('alpha', $this->frontMatter()."`list[1]` and [[1]](https://x.example)\n\n## Sources\n\n1. [One](https://one.example)\n");

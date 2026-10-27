@@ -91,11 +91,11 @@ Competitor sources were read on 2026-10-26.
 7. [Multica LICENSE](https://github.com/multica-ai/multica/blob/main/LICENSE)
 8. [Multica releases](https://api.github.com/repos/multica-ai/multica/releases?per_page=6)
 
-Loupe sources are in the Loupe repository, read on 2026-10-26.
+Loupe sources are the Loupe landing page and documentation, read on 2026-10-26.
 
-- L1. Landing page, workflow section. `docs/using/workflows.md`.
-- L2. `docs/using/documents.md`.
-- L3. `docs/using/inbox.md`.
-- L4. Landing page, works-with section. `docs/using/mcp.md`.
-- L5. `docs/using/analytics.md`.
-- L6. Landing page, requirements and open-source sections. `docs/operating/install/index.md`. `docs/using/billing.md`.
+- L1. [Landing page, workflow section](/#workflow). [Docs: workflows](https://loupe.ac/docs/using/workflows/).
+- L2. [Docs: documents](https://loupe.ac/docs/using/documents/).
+- L3. [Docs: inbox](https://loupe.ac/docs/using/inbox/).
+- L4. [Landing page, works-with section](/#integrations). [Docs: MCP](https://loupe.ac/docs/using/mcp/).
+- L5. [Docs: analytics](https://loupe.ac/docs/using/analytics/).
+- L6. Landing page, [requirements](/#requirements) and [open-source](/#opensource) sections. [Docs: install](https://loupe.ac/docs/operating/install/). [Docs: billing](https://loupe.ac/docs/using/billing/).

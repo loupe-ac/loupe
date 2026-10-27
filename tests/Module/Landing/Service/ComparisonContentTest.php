@@ -71,11 +71,26 @@ final class ComparisonContentTest extends KernelTestCase
         self::assertInstanceOf(ComparisonPages::class, $pages);
 
         foreach ($pages->all() as $page) {
-            $unlinked = preg_replace('#<a [^>]*href="\#source-\d+">\[\d+\]</a>#', '', $page->html);
-            self::assertDoesNotMatchRegularExpression('/\[\d+\]/', strip_tags((string) $unlinked), $page->slug.' has a citation that links nowhere.');
-            preg_match_all('/href="#(source-\d+)"/', $page->html, $targets);
+            $unlinked = preg_replace('#<a [^>]*href="\#source-(L?\d+)">\[\1\]</a>#', '', $page->html);
+            self::assertDoesNotMatchRegularExpression('/\[L?\d+\]/', strip_tags((string) $unlinked), $page->slug.' has a citation that links nowhere.');
+            preg_match_all('/href="#(source-L?\d+)"/', $page->html, $targets);
             foreach (array_unique($targets[1]) as $target) {
                 self::assertStringContainsString('id="'.$target.'"', $page->html, $page->slug.' links to a missing '.$target.'.');
+            }
+        }
+    }
+
+    public function test_every_listed_source_links_to_where_it_is(): void
+    {
+        $pages = static::getContainer()->get(ComparisonPages::class);
+        self::assertInstanceOf(ComparisonPages::class, $pages);
+
+        foreach ($pages->all() as $page) {
+            preg_match_all('#<li id="(source-L?\d+)">(.*?)</li>#s', $page->html, $items, \PREG_SET_ORDER);
+            self::assertNotEmpty($items, $page->slug.' lists no source.');
+            foreach ($items as [, $id, $item]) {
+                self::assertStringContainsString('<a ', $item, $page->slug.' lists '.$id.' with no link.');
+                self::assertDoesNotMatchRegularExpression('#<code>[^<]*\.md</code>#', $item, $page->slug.' names a file in '.$id.' instead of linking it.');
             }
         }
     }

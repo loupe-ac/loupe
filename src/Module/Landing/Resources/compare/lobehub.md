@@ -96,10 +96,10 @@ Competitor sources were read on 2026-10-26.
 7. [LobeHub pricing](https://lobehub.com/pricing)
 8. [LobeHub LICENSE](https://github.com/lobehub/lobehub/blob/main/LICENSE)
 
-Loupe sources are in the Loupe repository, read on 2026-10-26.
+Loupe sources are the Loupe landing page and documentation, read on 2026-10-26.
 
-- L1. Landing page, workflow section. `docs/using/workflows.md`.
-- L2. `docs/using/documents.md`.
-- L3. `docs/using/inbox.md`, `docs/using/notifications.md`.
-- L4. `docs/using/analytics.md`.
-- L5. Landing page, requirements and open-source sections. `docs/operating/install/index.md`. `docs/using/billing.md`.
+- L1. [Landing page, workflow section](/#workflow). [Docs: workflows](https://loupe.ac/docs/using/workflows/).
+- L2. [Docs: documents](https://loupe.ac/docs/using/documents/).
+- L3. [Docs: inbox](https://loupe.ac/docs/using/inbox/), [Docs: notifications](https://loupe.ac/docs/using/notifications/).
+- L4. [Docs: analytics](https://loupe.ac/docs/using/analytics/).
+- L5. Landing page, [requirements](/#requirements) and [open-source](/#opensource) sections. [Docs: install](https://loupe.ac/docs/operating/install/). [Docs: billing](https://loupe.ac/docs/using/billing/).

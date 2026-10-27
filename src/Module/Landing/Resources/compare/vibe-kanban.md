@@ -101,11 +101,11 @@ Competitor sources were read on 2026-10-26.
 9. [Vibe Kanban pricing](https://www.vibekanban.com/pricing)
 10. [Workspace routes at release v0.1.44](https://github.com/BloopAI/vibe-kanban/tree/v0.1.44-20260424091429/packages/local-web/src/routes): `/workspaces/create` and `/workspaces/$workspaceId` mount the [workspace layout](https://github.com/BloopAI/vibe-kanban/blob/v0.1.44-20260424091429/packages/web-core/src/pages/workspaces/WorkspacesLayout.tsx) with its changes panel and preview browser. Pull request 3387 changed only the project pages.
 
-Loupe sources are in the Loupe repository, read on 2026-10-26.
+Loupe sources are the Loupe landing page and documentation, read on 2026-10-26.
 
-- L1. Landing page, board feature text.
-- L2. Landing page, workflow section. `docs/using/workflows.md`.
-- L3. `docs/using/documents.md`.
-- L4. `docs/using/inbox.md`.
-- L5. `docs/using/analytics.md`.
-- L6. Landing page, requirements and open-source sections. `docs/operating/install/index.md`. `docs/using/billing.md`.
+- L1. [Landing page, board feature text](/#features).
+- L2. [Landing page, workflow section](/#workflow). [Docs: workflows](https://loupe.ac/docs/using/workflows/).
+- L3. [Docs: documents](https://loupe.ac/docs/using/documents/).
+- L4. [Docs: inbox](https://loupe.ac/docs/using/inbox/).
+- L5. [Docs: analytics](https://loupe.ac/docs/using/analytics/).
+- L6. Landing page, [requirements](/#requirements) and [open-source](/#opensource) sections. [Docs: install](https://loupe.ac/docs/operating/install/). [Docs: billing](https://loupe.ac/docs/using/billing/).
