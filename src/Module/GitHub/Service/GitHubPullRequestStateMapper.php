@@ -50,9 +50,10 @@ final readonly class GitHubPullRequestStateMapper
         [$checks, $failedChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus);
         $mergeability = match (true) {
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
+            // GitHub answers UNKNOWN for a few seconds after the base moves, and only the retry of an unknown read learns of a conflict.
+            'UNKNOWN' === $mergeable => PullRequestMergeability::Unknown,
             'BEHIND' === $mergeStateStatus, $behindBy > 0 => PullRequestMergeability::Behind,
             'BLOCKED' === $mergeStateStatus => PullRequestMergeability::Blocked,
-            'UNKNOWN' === $mergeable => PullRequestMergeability::Unknown,
             \in_array($mergeStateStatus, self::MERGEABLE_STATES, true) => PullRequestMergeability::Mergeable,
             default => PullRequestMergeability::Unknown,
         };
