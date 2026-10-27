@@ -48,6 +48,7 @@ final readonly class GitHubPullRequestStateMapper
         [$approvedAt, $approvalSha, $approvalId] = $this->approval($pullRequest);
         [$latestApprovedAt, $latestApprovalId, $latestApproverLogin] = $this->latestApproval($pullRequest);
         [$appApprovalSha, $appApprovalId] = $this->appApproval($pullRequest);
+        $onDefaultBranch = $baseBranch === $this->defaultBranch($pullRequest);
         [$checks, $failedChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus);
         $mergeability = match (true) {
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
@@ -86,7 +87,18 @@ final readonly class GitHubPullRequestStateMapper
             title: $this->title($pullRequest),
             appApprovalId: $appApprovalId,
             appApprovalSha: $appApprovalSha,
+            baseRequiresReview: $onDefaultBranch && true === $rules?->requiresReview,
+            approvalCheckUnpinned: $onDefaultBranch && $this->approvalCheckUnpinned($rules),
         );
+    }
+
+    private function approvalCheckUnpinned(?GitHubBranchRules $rules): bool
+    {
+        if (null === $rules || !$rules->requiresApprovalCheck()) {
+            return false;
+        }
+
+        return array_any($rules->approvalSources, fn (?int $source): bool => null === $source || (string) $source !== $this->app->appId);
     }
 
     /**

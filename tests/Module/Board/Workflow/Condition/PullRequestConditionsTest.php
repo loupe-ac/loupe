@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCheckPassed;
+use App\Module\Board\Workflow\Condition\PullRequestApprovalCheckUnpinned;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsDefault;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsEpicBranch;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsMergeTarget;
+use App\Module\Board\Workflow\Condition\PullRequestBaseRequiresReview;
 use App\Module\Board\Workflow\Condition\PullRequestBehind;
 use App\Module\Board\Workflow\Condition\PullRequestCanMerge;
 use App\Module\Board\Workflow\Condition\PullRequestCanPostCheck;
@@ -86,6 +88,10 @@ final class PullRequestConditionsTest extends TestCase
         yield 'cannot post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: false), false];
         yield 'merge blocked' => [new PullRequestMergeBlocked(), [], self::current(mergeBlocked: true), true];
         yield 'merge not blocked' => [new PullRequestMergeBlocked(), [], self::current(mergeBlocked: false), false];
+        yield 'base requires review' => [new PullRequestBaseRequiresReview(), [], self::current(baseRequiresReview: true), true];
+        yield 'base requires no review' => [new PullRequestBaseRequiresReview(), [], self::current(baseRequiresReview: false), false];
+        yield 'approval check unpinned' => [new PullRequestApprovalCheckUnpinned(), [], self::current(approvalCheckUnpinned: true), true];
+        yield 'approval check pinned' => [new PullRequestApprovalCheckUnpinned(), [], self::current(approvalCheckUnpinned: false), false];
 
         yield 'changes requested' => [new PullRequestChangesRequested(), [], self::current(changesRequested: true), true];
         yield 'no changes requested' => [new PullRequestChangesRequested(), [], self::current(changesRequested: false), false];
@@ -170,6 +176,8 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), []];
         yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), []];
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), []];
+        yield 'pr.base_requires_review' => [new PullRequestBaseRequiresReview(), []];
+        yield 'pr.approval_check_unpinned' => [new PullRequestApprovalCheckUnpinned(), []];
         yield 'pr.can_merge' => [new PullRequestCanMerge(), []];
         yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), []];
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), []];
@@ -214,6 +222,8 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), [], 'pr_approval_check_passed', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), [], 'pr_can_post_check', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), [], 'pr_merge_blocked', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
+        yield 'pr.base_requires_review' => [new PullRequestBaseRequiresReview(), [], 'pr_base_requires_review', [], [EngineFact::PullRequest, EngineFact::PullRequestRuleset]];
+        yield 'pr.approval_check_unpinned' => [new PullRequestApprovalCheckUnpinned(), [], 'pr_approval_check_unpinned', [], [EngineFact::PullRequest, EngineFact::PullRequestRuleset]];
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), [], 'pr_base_is_merge_target', [], $one];
@@ -252,6 +262,8 @@ final class PullRequestConditionsTest extends TestCase
         bool $approvalCheckPassed = false,
         bool $canPostCheck = false,
         bool $mergeBlocked = false,
+        bool $baseRequiresReview = false,
+        bool $approvalCheckUnpinned = false,
     ): Facts {
         $pullRequest = FactsMother::pullRequest(
             state: $state,
@@ -271,6 +283,8 @@ final class PullRequestConditionsTest extends TestCase
             approvalCheckPassed: $approvalCheckPassed,
             canPostCheck: $canPostCheck,
             mergeBlocked: $mergeBlocked,
+            baseRequiresReview: $baseRequiresReview,
+            approvalCheckUnpinned: $approvalCheckUnpinned,
         );
 
         return FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], now: new \DateTimeImmutable(self::NOW));

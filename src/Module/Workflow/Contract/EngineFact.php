@@ -13,4 +13,5 @@ enum EngineFact: string
     case PullRequestHead = 'pull-request-head';
     case PullRequestMergeGate = 'pull-request-merge-gate';
     case PullRequestApprovalCheck = 'pull-request-approval-check';
+    case PullRequestRuleset = 'pull-request-ruleset';
 }

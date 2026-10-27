@@ -40,6 +40,13 @@
                 </twig:Ds:Dialog>
             </div>
         </div>
+        {% set mismatch = rulesetMismatches[repository.id.toRfc4122] ?? null %}
+        {% if mismatch.requiresReview ?? false %}
+        <p class="lp-connect-hint" data-testid="forge-ruleset-requires-review" data-forge-repository-warning="{{ repository.id }}">{{ 'github.repositories.ruleset.requires_review'|trans }}</p>
+        {% endif %}
+        {% if mismatch.unpinned ?? false %}
+        <p class="lp-connect-hint" data-testid="forge-ruleset-unpinned" data-forge-repository-warning="{{ repository.id }}">{{ 'github.repositories.ruleset.unpinned'|trans }}</p>
+        {% endif %}
         {% endfor %}
         {% endif %}
 

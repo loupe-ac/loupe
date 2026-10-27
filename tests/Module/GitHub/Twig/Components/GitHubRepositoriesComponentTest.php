@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Twig\Components;
 
+use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
@@ -72,6 +74,37 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame('Waiting for the first delivery', $rows['acme/waiting']);
         self::assertStringStartsWith('Working', $rows['acme/working']);
         self::assertStringStartsWith('Quiet', $rows['acme/quiet']);
+    }
+
+    public function test_a_ruleset_warning_shows_under_the_repository_with_an_open_flagged_pull_request_only(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('ruleset');
+        $project = $this->projectOf($owner);
+        $review = $this->repositoryOf($project, 'acme/review');
+        $unpinned = $this->repositoryOf($project, 'acme/unpinned');
+        $clean = $this->repositoryOf($project, 'acme/clean');
+        $this->flagPullRequest($project->id, 'acme/review', 1, requiresReview: true);
+        $this->flagPullRequest($project->id, 'acme/unpinned', 2, unpinned: true);
+
+        $other = $this->projectOf($this->signedUpUser('ruleset-other'));
+        $this->repositoryOf($other, 'acme/clean');
+        $this->flagPullRequest($other->id, 'acme/clean', 3, requiresReview: true, unpinned: true);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->connectPage($client, $project);
+
+        $section = $crawler->filter('#repositories');
+        $row = static fn (string $id, string $testId): int => $section->filter(\sprintf('[data-forge-repository-warning="%s"][data-testid="%s"]', $id, $testId))->count();
+        self::assertSame(1, $row((string) $review->id, 'forge-ruleset-requires-review'));
+        self::assertSame(0, $row((string) $review->id, 'forge-ruleset-unpinned'));
+        self::assertSame(0, $row((string) $unpinned->id, 'forge-ruleset-requires-review'));
+        self::assertSame(1, $row((string) $unpinned->id, 'forge-ruleset-unpinned'));
+        self::assertSame(0, $row((string) $clean->id, 'forge-ruleset-requires-review'));
+        self::assertSame(0, $row((string) $clean->id, 'forge-ruleset-unpinned'));
+        self::assertCount(2, $section->filter('[data-forge-repository-warning]'));
+        self::assertStringContainsString('Remove the rule Require approvals.', $section->filter('[data-testid="forge-ruleset-requires-review"]')->text());
     }
 
     public function test_an_existing_hook_shows_its_url_and_health_but_never_its_secret(): void
@@ -201,5 +234,18 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(0, $section->filter('[data-testid="github-hook-create"]'));
         self::assertCount(1, $section->filter('#github-hook'));
         self::assertCount(0, $section->filter('[data-testid="github-hook-no-automation"]'));
+    }
+
+    private function flagPullRequest(?\Symfony\Component\Uid\Uuid $projectId, string $repository, int $number, bool $requiresReview = false, bool $unpinned = false): void
+    {
+        $pullRequests = self::getContainer()->get(ForgePullRequestRepository::class);
+        self::assertInstanceOf(ForgePullRequestRepository::class, $pullRequests);
+        $id = $pullRequests->insertIfMissing($projectId ?? throw new \LogicException('The project is persisted.'), 'github', $repository, $number);
+        $row = $this->em()->find(ForgePullRequest::class, $id) ?? throw new \LogicException('The row exists.');
+        $row->baseRequiresReview = $requiresReview;
+        $row->approvalCheckUnpinned = $unpinned;
+        $row->baseBranch = 'main';
+        $row->defaultBranch = 'main';
+        $this->em()->flush();
     }
 }

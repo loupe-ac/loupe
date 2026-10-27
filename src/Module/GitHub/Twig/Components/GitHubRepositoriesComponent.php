@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Twig\Components;
 
 use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Entity\GitHubHook;
 use App\Module\GitHub\Entity\GitHubInstallation;
@@ -43,6 +44,9 @@ final class GitHubRepositoriesComponent
     /** @var list<ForgeRepository> */
     public array $repositories = [];
 
+    /** @var array<string, array{requiresReview: bool, unpinned: bool}> keyed by repository id */
+    public array $rulesetMismatches = [];
+
     /** @var list<GitHubInstallation> */
     public array $installations = [];
 
@@ -51,6 +55,7 @@ final class GitHubRepositoriesComponent
     public function __construct(
         private readonly Security $security,
         private readonly ForgeRepositoryRepository $forgeRepositories,
+        private readonly ForgePullRequestRepository $forgePullRequests,
         private readonly GitHubHookRepository $gitHubHooks,
         private readonly GitHubInstallationRepository $gitHubInstallations,
         private readonly GitHubAppConfiguration $appConfiguration,
@@ -71,6 +76,7 @@ final class GitHubRepositoriesComponent
         $this->appConfigured = $this->appConfiguration->isConfigured();
         $this->hookAvailable = $this->hookSecretKey->isReadable();
         $this->repositories = $this->forgeRepositories->findByProject($project);
+        $this->mountRulesetMismatches($project);
         if ($this->appConfigured) {
             $this->installations = $this->gitHubInstallations->findByProject($project);
         }
@@ -86,6 +92,21 @@ final class GitHubRepositoriesComponent
             }
 
             $this->newSecret = $this->oneTimeHookSecret->take($project);
+        }
+    }
+
+    private function mountRulesetMismatches(Project $project): void
+    {
+        $projectId = $project->id ?? throw new \LogicException('A persisted project has an id.');
+        $found = $this->forgePullRequests->findRulesetMismatches($projectId, array_map(
+            static fn (ForgeRepository $repository): array => ['forge' => $repository->forge, 'path' => $repository->path],
+            $this->repositories,
+        ));
+        foreach ($this->repositories as $repository) {
+            $mismatch = $found[ForgePullRequestRepository::repositoryKey($repository->forge, $repository->path)] ?? null;
+            if (null !== $mismatch && null !== $repository->id) {
+                $this->rulesetMismatches[(string) $repository->id] = $mismatch;
+            }
         }
     }
 }

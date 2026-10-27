@@ -704,6 +704,24 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertFalse($marker->when->evaluate($facts(run: FactsMother::run(activeWorkerKinds: ['fix']))));
     }
 
+    public function test_the_ruleset_mismatch_marker_shows_for_an_open_pull_request_whose_ruleset_does_not_fit(): void
+    {
+        $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'ruleset-mismatch' === $marker->key) ?? throw new \LogicException('ruleset-mismatch');
+        $facts = static fn (array $overrides = [], ?RunInputs $run = null): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: FactsMother::pullRequest(...[...['baseRequiresReview' => true], ...$overrides]),
+            run: $run ?? FactsMother::run(),
+        );
+
+        self::assertSame('needs-you', $marker->kind->value);
+        self::assertSame(MarkerSubjectType::PullRequest, MarkerSubjectClassifier::of($marker->when));
+        self::assertTrue($marker->when->evaluate($facts()));
+        self::assertTrue($marker->when->evaluate($facts(['baseRequiresReview' => false, 'approvalCheckUnpinned' => true])));
+        self::assertFalse($marker->when->evaluate($facts(['baseRequiresReview' => false])));
+        self::assertFalse($marker->when->evaluate($facts(['state' => PullRequestState::Closed])));
+        self::assertFalse($marker->when->evaluate($facts(run: FactsMother::run(activeWorkerKinds: ['fix']))));
+    }
+
     public function test_the_waits_for_approval_marker_follows_the_approval_check(): void
     {
         $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'waits-for-approval' === $marker->key) ?? throw new \LogicException('waits-for-approval');

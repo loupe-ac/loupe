@@ -1,5 +1,5 @@
 key: lifecycle
-version: 23
+version: 24
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -917,6 +917,17 @@ markers:
               - pr.approval_check_passed: {}
               - pr.checks_passed: {}
               - pr.merge_blocked: {}
+              - not: { card.run.worker_active: {} }
+    - key: ruleset-mismatch
+      kind: needs-you
+      label: marker.ruleset_mismatch
+      remedy: marker.ruleset_mismatch.remedy
+      when:
+          all:
+              - pr.open: {}
+              - any:
+                    - pr.base_requires_review: {}
+                    - pr.approval_check_unpinned: {}
               - not: { card.run.worker_active: {} }
     - key: open-question
       kind: needs-you

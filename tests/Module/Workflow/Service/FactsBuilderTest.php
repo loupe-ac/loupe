@@ -912,6 +912,33 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertFalse($this->facts($card)->pullRequest->mergeBlocked);
     }
 
+    public function test_the_ruleset_flags_reach_the_facts_only_for_an_open_pull_request_on_the_default_branch(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-ruleset');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->baseRequiresReview = true;
+        $pullRequest->approvalCheckUnpinned = true;
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertTrue($facts->baseRequiresReview);
+        self::assertTrue($facts->approvalCheckUnpinned);
+
+        $pullRequest->baseBranch = 'epic/7';
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertFalse($facts->baseRequiresReview);
+        self::assertFalse($facts->approvalCheckUnpinned);
+
+        $pullRequest->baseBranch = 'main';
+        $pullRequest->state = ForgePullRequestState::Merged;
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertFalse($facts->baseRequiresReview);
+        self::assertFalse($facts->approvalCheckUnpinned);
+    }
+
     public function test_the_requests_to_the_forge_of_an_open_pull_request_expire_when_loupe_would_ask_again(): void
     {
         self::bootKernel();

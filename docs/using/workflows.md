@@ -1015,6 +1015,10 @@ The wait item "Waits for approval" opens when a person must review the card, whe
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
 of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
+Loupe reads the rulesets of the default branch of the repository. When a ruleset requires an approving review, or
+requires `Loupe / Approval` without the Loupe App as its source, the marker `ruleset-mismatch` shows Needs you on the
+card of an open pull request into that branch. The Connections page shows the same warning under the repository.
+Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
 
 #### Set up the ruleset
 
