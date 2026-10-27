@@ -213,7 +213,7 @@ reach `/mcp` or `/api`.
 
 A connection carries one scope. The `mcp` scope binds to the one project you
 pick on the consent page, so every tool call knows which project it acts on.
-The `agent` scope reaches the CLI endpoints and binds to no project. The
+The `agent` scope reaches the CLI endpoints. A connection bound to one project stays in that project on those endpoints too, and a request for another project of yours gets `404 project_not_found`. A sign-in that covers every project, such as `loupe login`, keeps them all. The
 `site-review` scope reaches the comments of one project, which is what the
 live-review widget uses. See [Connected apps](connected-apps.md) for the whole
 table and for how to revoke a connection.

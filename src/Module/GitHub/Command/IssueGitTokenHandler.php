@@ -15,8 +15,7 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Issues a push token limited to one repository of one of the caller's
- * projects. A credential bound to one project reaches that project alone. A
- * project that keeps its own git setup gets none.
+ * projects. A project that keeps its own git setup gets none.
  */
 final readonly class IssueGitTokenHandler
 {
@@ -34,7 +33,7 @@ final readonly class IssueGitTokenHandler
     public function __invoke(IssueGitTokenCommand $command): GitHubScopedToken
     {
         $project = $this->projects->findOneByIdOrSlugForOwner($command->handle, $command->owner);
-        if (null === $project || (null !== $command->boundProjectId && !$command->boundProjectId->equals($project->id))) {
+        if (null === $project) {
             throw new DomainErrors(['handle' => 'github.git_token.error.project_not_found']);
         }
 
