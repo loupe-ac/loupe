@@ -64,6 +64,18 @@ final class ComparisonPagesControllerTest extends WebTestCase
         self::assertSelectorExists('.lp-legal__actions a[href="/waitlist"]');
     }
 
+    public function test_the_waitlist_is_the_only_primary_action_of_the_closing(): void
+    {
+        $client = $this->clientWithSiteHost('localhost');
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/compare/'.ComparisonFixtures::SLUG);
+
+        $primary = $client->getCrawler()->filter('.lp-legal__actions .lp-btn--primary');
+        self::assertCount(1, $primary);
+        self::assertSame('/waitlist', $primary->attr('href'));
+        self::assertSame('/waitlist', $client->getCrawler()->filter('.lp-legal__actions a')->first()->attr('href'));
+    }
+
     public function test_every_design_system_button_inside_the_prose_opts_out_of_the_prose_link_style(): void
     {
         $client = $this->clientWithSiteHost('localhost');
