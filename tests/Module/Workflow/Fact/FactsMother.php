@@ -7,6 +7,8 @@ namespace App\Tests\Module\Workflow\Fact;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFactProvider;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewConclusionFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFactProvider;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
@@ -116,7 +118,8 @@ final class FactsMother
             ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new ArtifactReachFacts([]), new HumanReviewFacts(false)),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
-            ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
+            ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false)),
+            ...self::byClass(new AgentReviewPostingFacts(unposted: false, uncommented: [])),
             ...self::byClass(new DocumentReviewFacts([]), new DocumentReviewConclusionFacts([], [])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
@@ -158,6 +161,7 @@ final class FactsMother
         $documentReview = [...$given, ...$provided][DocumentReviewFacts::class];
         $prints[DocumentReviewFacts::class] = new \ReflectionClass(DocumentReviewFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($documentReview);
         $prints[AgentReviewFacts::class] = new \ReflectionClass(AgentReviewFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($agentReview);
+        $prints[AgentReviewPostingFacts::class] = new \ReflectionClass(AgentReviewPostingFactProvider::class)->newInstanceWithoutConstructor()->fingerprint([...$given, ...$provided][AgentReviewPostingFacts::class]);
 
         return new Facts(
             now: $now,

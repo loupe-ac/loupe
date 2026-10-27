@@ -37,7 +37,7 @@ final readonly class PullRequestOpen implements Condition, MarkerEvidence, Names
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest];
+        return [EngineFact::PullRequestSubject];
     }
 
     #[\Override]
