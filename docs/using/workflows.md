@@ -567,9 +567,9 @@ The error lists the values it knows. A role, a kind and a reason must come from
 a `request` rule of the template. A filter that mixes fields must match one
 `request` rule as a whole, so `{ role: fix, kind: review }` needs a single rule
 with both. The outcome of a rate must come from a `move`
-of the template. The fix reasons `conflict`, `checks-failed` and
-`changes-requested` are always known, and `unknown` is known when a `request` rule
-sets no reason. The event `agent-review-passed` needs a `request` rule of the kind
+of the template. A `request` rule that sets no reason makes the fix reasons
+`conflict`, `checks-failed` and `changes-requested` known, and `unknown` too. A
+template whose `request` rules all set a reason knows only those reasons. The event `agent-review-passed` needs a `request` rule of the kind
 `review`. A slot event needs a slot that the template declares. The Simple
 template has no `review` request and no slots, so it cannot use these events.
 

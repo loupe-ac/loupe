@@ -175,6 +175,14 @@ final class TemplateMetricParserTest extends TestCase
         self::assertEquals(new CountFilter(role: 'fix', kind: 'fix', reason: 'agent-review'), $template->metrics[0]->filter);
     }
 
+    public function test_a_template_whose_requests_all_set_a_reason_knows_no_pull_request_reason(): void
+    {
+        $source = self::withMetric(['count' => ['reason' => 'checks-failed']]);
+        $source['rules'] = array_values(array_filter($source['rules'], static fn (array $rule): bool => 'review' !== $rule['id']));
+
+        self::assertContains('metrics[0] (my-metric) count reason: unknown reason "checks-failed"; known reasons: agent-review', $this->errorsOf($source));
+    }
+
     public function test_the_repair_request_takes_any_known_reason(): void
     {
         $source = self::withMetric(['count' => ['kind' => 'repair', 'reason' => 'agent-review']]);

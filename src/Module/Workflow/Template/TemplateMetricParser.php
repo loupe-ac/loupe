@@ -341,7 +341,7 @@ final readonly class TemplateMetricParser
             return null;
         }
         $filter = new CountFilter($values['role'] ?? null, $values['kind'] ?? null, $values['reason'] ?? null);
-        if (\count($values) > 1 && !array_any($produced->requests, static fn (ProducedRequest $request): bool => $request->matches($filter->role, $filter->kind, $filter->reason))) {
+        if (!array_any($produced->requests, static fn (ProducedRequest $request): bool => $request->matches($filter->role, $filter->kind, $filter->reason))) {
             $errors[] = \sprintf('%s: no request of the template writes %s together', $where, implode(', ', array_map(static fn (string $field, string $value): string => \sprintf('%s "%s"', $field, $value), array_keys($values), $values)));
 
             return null;

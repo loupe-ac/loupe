@@ -355,8 +355,8 @@ final readonly class TemplateParser
     }
 
     /**
-     * What the request calls can write on a work request, and the outcomes the move calls can set. The fix reasons of a
-     * pull request are always known, and a call with no reason adds `unknown`. The repair kind of `onWorkFailed` is a kind too.
+     * What the request calls can write on a work request, and the outcomes the move calls can set. A call with no reason
+     * adds the fix reasons of a pull request and `unknown`. The repair kind of `onWorkFailed` is a kind too.
      *
      * @param list<Rule>                      $rules
      * @param array<string, list<ActionCall>> $childChoices
@@ -373,7 +373,6 @@ final readonly class TemplateParser
         $kinds = null === $onWorkFailed?->repairKind ? [] : [$onWorkFailed->repairKind];
         $requests = null === $onWorkFailed?->repairKind ? [] : [new ProducedRequest($onWorkFailed->repairKind, null, null)];
         $roles = [];
-        $reasons = [];
         $outcomes = [];
         foreach ($calls as $call) {
             if ('move' === $call->key && isset($call->params['outcome'])) {
@@ -386,7 +385,6 @@ final readonly class TemplateParser
             if (isset($call->params['role'])) {
                 $roles[] = (string) $call->params['role'];
             }
-            $reasons[] = isset($call->params['reason']) ? (string) $call->params['reason'] : 'unknown';
             $requests[] = new ProducedRequest(
                 (string) $call->params['kind'],
                 isset($call->params['role']) ? (string) $call->params['role'] : null,
@@ -394,7 +392,9 @@ final readonly class TemplateParser
             );
         }
 
-        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])), array_values(array_unique($outcomes)), $requests);
+        $reasons = array_merge(...array_map(static fn (ProducedRequest $request): array => $request->reasons ?? [], $requests));
+
+        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique($reasons)), array_values(array_unique($outcomes)), $requests);
     }
 
     /**
