@@ -188,7 +188,7 @@ Grant these repository permissions. Pull requests, Checks, Contents and
 Workflows are read and write. The others are read-only. Loupe needs write
 access to Pull requests to post the fix-run comment, and to mark an epic pull
 request ready, convert it to draft or close it. It needs write access to
-Checks to report the Loupe live review check and the `loupe/agent-review` check
+Checks to report the `Loupe / Live review` check and the `Loupe / Agent review` check
 on a pull request. It needs write access to Contents to sync a branch that is
 behind its base.
 
@@ -207,7 +207,7 @@ not cover this.
 | Permission | Why |
 |---|---|
 | Pull requests (read and write) | the merge and the review verdict; write lets Loupe post the fix-run comment, and mark an epic pull request ready, draft or closed |
-| Checks (read and write) | the aggregate check conclusion; write lets Loupe report the Loupe live review check and the agent review check |
+| Checks (read and write) | the aggregate check conclusion; write lets Loupe report the `Loupe / Live review` check and the `Loupe / Agent review` check |
 | Contents (read and write) | GitHub offers the Push event only with it; write lets Loupe sync a pull request branch with its base |
 | Commit statuses (read and write) | the status of each check context; write lets a ruleset name the Loupe App as the source of the required check `Loupe / Approval`. Loupe posts no commit status with it |
 | Metadata | GitHub requires it, and it carries the Repository event |

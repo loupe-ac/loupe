@@ -41,7 +41,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 ## Code review
 
 1. Run no Codex review before the push. A separate review worker reviews the draft pull request after the push, as `working-with-prs` "The agent review" says.
-2. The gate has no review step to pass. The review worker posts the check `loupe/agent-review`, and a fix round answers its findings.
+2. The gate has no review step to pass. The review worker posts the check `Loupe / Agent review`, and a fix round answers its findings.
 3. The reviewers that a plan task dispatches inside the implementation run stay.
 4. Read the largest change of the diff yourself before you push, because no reviewer has read it yet.
 
