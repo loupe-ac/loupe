@@ -35,11 +35,14 @@ final readonly class DuePost
         };
     }
 
-    /** Whether the check shows another conclusion than the review now earns, or names another approver. */
+    /** Whether the check shows another conclusion than the review now earns, names another approver, or carries an old name. */
     public function stale(): bool
     {
+        $target = $this->carried ? $this->post : $this->review;
+
         return $this->shown() !== $this->conclusion()
-            || ($this->carried ? $this->post?->checkApprover : $this->review->checkApprover) !== $this->approver;
+            || $target?->checkApprover !== $this->approver
+            || AgentReviewCheckPublisher::NAME !== $target?->checkName;
     }
 
     /** What the check of this review shows now. A check posted before overrides existed shows the review conclusion. */

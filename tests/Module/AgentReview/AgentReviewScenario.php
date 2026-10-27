@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
+use App\Module\AgentReview\Service\AgentReviewCheckPublisher;
 use App\Module\Board\Entity\Card;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
@@ -47,6 +48,7 @@ trait AgentReviewScenario
             findings: [new AgentReviewFinding('src/Foo.php', 3, 5, AgentReviewSeverity::Important, 'Null read', 'The value can be null here.')],
         );
         $review->postedAt = $postedAt;
+        $review->checkName = null === $postedAt ? null : AgentReviewCheckPublisher::NAME;
         $this->em->persist($review);
 
         return $review;

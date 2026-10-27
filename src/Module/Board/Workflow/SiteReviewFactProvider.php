@@ -80,6 +80,7 @@ final readonly class SiteReviewFactProvider implements FactProvider
                 $this->notesDigest($notes),
                 $posted?->notesDigest,
                 $notes,
+                $posted?->checkName,
             );
         }
 

@@ -50,6 +50,10 @@ class AgentReview
     #[ORM\Column(nullable: true)]
     public ?string $checkApprover = null;
 
+    /** The name the check run of $checkRunId shows, so a renamed check is posted again. */
+    #[ORM\Column(nullable: true)]
+    public ?string $checkName = null;
+
     /** The id of the newest approval that the history announced as an override of this review, or null when none stands announced. */
     #[ORM\Column(nullable: true)]
     public ?string $overrideAnnouncedFor = null;

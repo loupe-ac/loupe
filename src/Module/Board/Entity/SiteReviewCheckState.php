@@ -22,6 +22,10 @@ class SiteReviewCheckState
     #[ORM\Id]
     public private(set) ?Uuid $id = null;
 
+    /** The name the check run shows, so a renamed check is posted again. */
+    #[ORM\Column(nullable: true)]
+    public ?string $checkName = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         #[ORM\OneToOne(targetEntity: ForgePullRequest::class)]
