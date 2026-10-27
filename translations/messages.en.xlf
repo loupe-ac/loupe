@@ -8835,6 +8835,12 @@
             <trans-unit id="workflow.waiting.not.pr_app_approval_stands"><source>workflow.waiting.not.pr_app_approval_stands</source><target>Waiting: an approval of Loupe stands on the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_app_can_approve"><source>workflow.waiting.pr_app_can_approve</source><target>Waiting: Loupe cannot post a review on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_app_can_approve"><source>workflow.waiting.not.pr_app_can_approve</source><target>Waiting: Loupe can post a review on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_approval_check_passed"><source>workflow.waiting.pr_approval_check_passed</source><target>Waiting: Loupe has not posted the approval check on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_approval_check_passed"><source>workflow.waiting.not.pr_approval_check_passed</source><target>Waiting: Loupe has posted the approval check on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_can_post_check"><source>workflow.waiting.pr_can_post_check</source><target>Waiting: Loupe cannot post a check run on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Service;
 
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
@@ -72,6 +73,28 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame(PullRequestChecks::Pending, $snapshot->checks);
         self::assertNull($snapshot->checksSha);
         self::assertSame([], $snapshot->failedChecks);
+    }
+
+    public function test_the_approval_check_of_loupe_counts_neither_as_a_ruleset_check_nor_as_a_flagged_one(): void
+    {
+        $name = ForgePullRequest::APPROVAL_CHECK_NAME;
+        $node = self::allPassed(self::pullRequest604());
+        $node = self::withContext($node, self::checkRun($name, 'COMPLETED', 'FAILURE'));
+        $rules = new GitHubBranchRules([...self::rules604()->requiredChecks, $name], false);
+
+        $snapshot = self::mapper()->map($node, $rules, null);
+
+        self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
+        self::assertSame([], $snapshot->failedChecks);
+
+        $pending = self::withContext(self::allPassed(self::pullRequest604()), self::checkRun($name, 'IN_PROGRESS', null));
+        self::assertSame(PullRequestChecks::Passed, self::mapper()->map($pending, $rules, null)->checks);
+
+        $flagged = self::withContexts(self::pullRequest604(), [self::checkRun($name, 'COMPLETED', 'FAILURE')]);
+        $flagged['mergeStateStatus'] = 'CLEAN';
+        $flaggedSnapshot = self::mapper()->map($flagged, new GitHubBranchRules([], false), null);
+        self::assertSame(PullRequestChecks::Passed, $flaggedSnapshot->checks);
+        self::assertSame([], $flaggedSnapshot->failedChecks);
     }
 
     public function test_neutral_and_skipped_conclusions_pass(): void

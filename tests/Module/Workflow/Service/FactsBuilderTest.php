@@ -840,7 +840,7 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-02 08:03:00'), $facts->conflictingSince);
     }
 
-    public function test_a_green_pull_request_into_the_default_branch_waits_for_approval_until_one_covers_the_head(): void
+    public function test_a_green_pull_request_into_the_default_branch_waits_for_approval_until_the_approval_check_passes_on_the_head(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('facts-pr-waits-approval');
@@ -854,13 +854,27 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->review = PullRequestReview::Approved;
         $pullRequest->approvalId = 'review-1';
         $pullRequest->coveredSha = 'abc';
+        $pullRequest->appApprovalId = 'PRR_app';
+        $pullRequest->appApprovalSha = 'abc';
+        $this->em()->flush();
+        self::assertTrue($this->waitsForApproval($card), 'A review waits for the check, which a person approval makes.');
+
+        $pullRequest->approvalCheckRunId = '99';
+        $pullRequest->approvalCheckSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'success';
         $this->em()->flush();
         self::assertFalse($this->waitsForApproval($card));
 
         $pullRequest->headSha = 'def';
         $this->em()->flush();
-        self::assertTrue($this->waitsForApproval($card), 'A stale approval covers no head.');
+        self::assertTrue($this->waitsForApproval($card), 'A check on an earlier head covers no head.');
 
+        $pullRequest->headSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'failure';
+        $this->em()->flush();
+        self::assertTrue($this->waitsForApproval($card), 'A revoked check passes nothing.');
+
+        $pullRequest->approvalCheckConclusion = 'success';
         $pullRequest->draft = true;
         $this->em()->flush();
         self::assertFalse($this->waitsForApproval($card));
@@ -869,6 +883,47 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->baseBranch = 'epic/1';
         $this->em()->flush();
         self::assertFalse($this->waitsForApproval($card));
+    }
+
+    public function test_the_approval_check_passes_only_with_a_success_on_the_head(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-approval-check');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->headSha = 'abc';
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->approvalCheckPassed);
+
+        $pullRequest->approvalCheckRunId = '99';
+        $pullRequest->approvalCheckSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'success';
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest->approvalCheckPassed);
+
+        $pullRequest->headSha = 'def';
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->approvalCheckPassed);
+
+        $pullRequest->headSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'failure';
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest->approvalCheckPassed);
+    }
+
+    public function test_a_pull_request_reads_as_blocked_when_the_forge_blocks_the_merge(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-merge-blocked');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->mergeability = PullRequestMergeability::Blocked;
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest?->mergeBlocked);
+
+        $pullRequest->mergeability = PullRequestMergeability::Mergeable;
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest->mergeBlocked);
     }
 
     public function test_the_requests_to_the_forge_of_an_open_pull_request_expire_when_loupe_would_ask_again(): void

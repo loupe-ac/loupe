@@ -124,6 +124,10 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
         $headSha = $pullRequest->headSha;
         $appApprovalStands = $open && null !== $pullRequest->appApprovalId;
         $appApprovalCoversHead = $appApprovalStands && null !== $headSha && $pullRequest->appApprovalSha === $headSha;
+        $approvalCheckPassed = $open && null !== $headSha
+            && 'success' === $pullRequest->approvalCheckConclusion
+            && $pullRequest->approvalCheckSha === $headSha;
+        $installed = $open && $this->approvals->canApprove($pullRequest);
         $personApprovalCoversHead = PullRequestReview::Approved === $pullRequest->review
             && null !== $pullRequest->coveredSha
             && $pullRequest->coveredSha === $headSha;
@@ -161,8 +165,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
                 && PullRequestChecks::Passed === $pullRequest->checks
                 && null !== $pullRequest->defaultBranch
                 && $base === $pullRequest->defaultBranch
-                && !(PullRequestReview::Approved === $pullRequest->review && null !== $pullRequest->approvalId && !$pullRequest->approvalIsStale())
-                && !$appApprovalCoversHead,
+                && !$approvalCheckPassed,
             readyToMerge: $pullRequest->readyToMerge,
             readySince: $pullRequest->readySince,
             checksFailedSince: $pullRequest->checksFailedSince,
@@ -174,7 +177,10 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             baseIsDefault: null !== $base && $base === $pullRequest->defaultBranch,
             appApprovalCoversHead: $appApprovalCoversHead,
             appApprovalStands: $appApprovalStands,
-            appCanApprove: $open && $this->approvals->canApprove($pullRequest),
+            appCanApprove: $installed,
+            approvalCheckPassed: $approvalCheckPassed,
+            canPostCheck: $installed,
+            mergeBlocked: PullRequestMergeability::Blocked === $pullRequest->mergeability,
         );
     }
 
