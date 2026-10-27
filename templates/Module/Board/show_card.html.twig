@@ -65,7 +65,7 @@
                     :lead="primary.label|trans(primary.params)"
                     :fields="stateFields"
                     :othersTitle="'board.card_state.others'|trans"
-                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since)})"
+                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since), link: other.link is null ? null : {href: marker_link_href(other.link, card.project), label: other.link.translationKey|trans}})"
                     data-card-state="{{ primary.kind.value }}"
                 />
                 {% endif %}

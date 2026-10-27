@@ -1,5 +1,5 @@
 {# The one mark a card shows, with its tooltip. Props: card (Card), markers (StoredCardMarkers), link (bool): whether the tooltip ends
-   with the links of the state marker and the card, which a list row, itself a link, leaves out. A card with only chips draws the neutral mark. #}
+   with the links of the markers it lists, each page once, and the card, which a list row, itself a link, leaves out. A card with only chips draws the neutral mark. #}
 {% set state = markers.state %}
 {% set title = (state is null ? 'board.card_state.chip' : state.kind.translationKey)|trans %}
 <twig:Ds:StateMark :kind="state is null ? 'chip' : state.kind.value" :label="title">
@@ -15,15 +15,18 @@
     <span data-marker-key="{{ other.key }}">{% if other.kind.value != 'chip' %}<strong>{{ other.kind.translationKey|trans }}.</strong> {% endif %}{{ other.label|trans(other.params) }}</span>
     <span class="lp-tooltip__line--quiet">{{ card_state_text(other.kind.sinceKey, other.since) }}</span>
     {% endfor %}
-    {% set markerLink = state.link ?? null %}
-    {% if link and markerLink is not null %}
+    {% if link %}
+    {% set markerLinks = [] %}
+    {% for marker in [state]|merge(markers.alsoApplies) %}
+    {% if marker is not null and marker.link is not null and marker.link not in markerLinks %}
+    {% set markerLinks = markerLinks|merge([marker.link]) %}
     <a class="lp-tooltip__link"
        draggable="false"
-       href="{{ marker_link_href(markerLink, card.project) }}"
+       href="{{ marker_link_href(marker.link, card.project) }}"
        data-turbo-frame="_top"
-       data-marker-link="{{ markerLink.value }}">{{ markerLink.translationKey|trans }}</a>
+       data-marker-link="{{ marker.link.value }}">{{ marker.link.translationKey|trans }}</a>
     {% endif %}
-    {% if link %}
+    {% endfor %}
     <a class="lp-tooltip__link"
        draggable="false"
        href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}"
