@@ -47,11 +47,24 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
     public function test_a_blocking_summary_withdraws_the_open_card_requests_and_leaves_claimed_work_alone(): void
     {
         [$project, $open, $claimed, $other] = $this->heldProjectWithRequests();
+        $tracking = $this->track($project, $open, 'tracking-open');
+        $trackingClaimed = $this->track($project, $claimed, 'tracking-claimed');
 
         $this->deliver($project);
 
         $this->em()->clear();
         self::assertSame(WorkRequestState::Cancelled, $this->em()->find(WorkRequest::class, $open->id)?->state);
+        $state = $this->em()->find(WorkflowRuleState::class, $tracking->id);
+        self::assertNotNull($state);
+        self::assertNotNull($state->heldByWorkHoldSince, 'The rule of a withdrawn request is marked, so the hold end evaluates it.');
+        self::assertFalse($state->truth);
+        self::assertNull($state->workRequestId);
+        self::assertSame(0, $state->fires);
+        $kept = $this->em()->find(WorkflowRuleState::class, $trackingClaimed->id);
+        self::assertNotNull($kept);
+        self::assertNull($kept->heldByWorkHoldSince, 'Claimed work goes on, so its rule is not marked.');
+        self::assertTrue($kept->truth);
+        self::assertEquals($claimed->id, $kept->workRequestId);
         self::assertSame(WorkRequestState::Claimed, $this->em()->find(WorkRequest::class, $claimed->id)?->state);
         self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $other->id)?->state, 'A request of another project stays open.');
         self::assertSame([], $this->evaluations->evaluated);
@@ -182,6 +195,18 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         $this->repositoryWithGaps($project);
 
         return $project;
+    }
+
+    private function track(Project $project, WorkRequest $request, string $ruleId): WorkflowRuleState
+    {
+        $state = new WorkflowRuleState($request->subjectId, $project, $ruleId);
+        $state->truth = true;
+        $state->fires = 1;
+        $state->workRequestId = $request->id;
+        $this->em()->persist($state);
+        $this->em()->flush();
+
+        return $state;
     }
 
     private function stamp(Project $project, Uuid $cardId, string $ruleId = 'implement-on-entry'): void

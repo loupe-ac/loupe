@@ -50,13 +50,15 @@ final readonly class ReconcileWorkOnWorkHoldChanged
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             if (null !== $this->workHolds->heldProject($event->projectId)) {
+                $withdrawn = [];
                 foreach ($this->workRequests->findOpenCardRequestsOfProject($project) as $request) {
-                    ($this->withdraw)(new WithdrawWorkRequestCommand(
-                        $request->id ?? throw new \LogicException('A stored request has an id.'),
-                        WorkRequestState::Cancelled,
-                        onlyIfOpen: true,
-                    ));
+                    $id = $request->id ?? throw new \LogicException('A stored request has an id.');
+                    if (($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Cancelled, onlyIfOpen: true))) {
+                        $withdrawn[] = $id;
+                    }
                 }
+                // The rule that opened a withdrawn request still tracks it as live work, so the release of the hold would not ask again.
+                $this->ruleStates->holdForWithdrawnRequests($withdrawn, $this->clock->now());
 
                 return [];
             }

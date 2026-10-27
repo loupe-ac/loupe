@@ -50,6 +50,28 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
     }
 
     /**
+     * Turns the rule states that track one of the requests false and stamps them with the work hold, in one statement,
+     * so it joins a caller's transaction. The request counted toward the work limit and did no work, so the count gives it back.
+     * A managed state is stale after it.
+     *
+     * @param list<Uuid> $requestIds
+     */
+    public function holdForRequests(array $requestIds, \DateTimeImmutable $now): void
+    {
+        if ([] === $requestIds) {
+            return;
+        }
+
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE workflow_rule_states SET truth = false, work_request_id = NULL, causes_at_open = NULL, due_at = NULL,
+             fires = GREATEST(fires - 1, 0), held_by_work_hold_since = COALESCE(held_by_work_hold_since, :now), updated_at = :now
+             WHERE work_request_id IN (:requestIds)',
+            ['now' => $now, 'requestIds' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $requestIds)],
+            ['now' => Types::DATETIME_IMMUTABLE, 'requestIds' => ArrayParameterType::STRING],
+        );
+    }
+
+    /**
      * Clears the work hold stamp of every rule state of the project, in one statement, so it joins a caller's transaction.
      * A managed state is stale after it.
      *

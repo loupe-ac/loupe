@@ -33,6 +33,12 @@ final readonly class WorkflowRuleRearmer implements WorkflowRuleStates
     }
 
     #[\Override]
+    public function holdForWithdrawnRequests(array $requestIds, \DateTimeImmutable $now): void
+    {
+        $this->workflowRuleStates->holdForRequests($requestIds, $now);
+    }
+
+    #[\Override]
     public function releaseWorkHolds(Uuid $projectId, \DateTimeImmutable $now): array
     {
         return $this->workflowRuleStates->clearWorkHoldsOfProject($projectId, $now);
