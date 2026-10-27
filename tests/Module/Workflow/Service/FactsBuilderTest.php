@@ -456,41 +456,27 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
     }
 
-    public function test_an_approval_of_the_app_counts_beside_a_persons_and_is_read_apart(): void
+    public function test_the_stored_app_approval_of_an_old_review_no_longer_counts(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('facts-pr-app-approval');
         $card = $this->card($project, 'in-review');
         $pullRequest = $this->pullRequest($card, base: 'main', head: 'feature');
         $pullRequest->headSha = 'abc';
-        $pullRequest->review = PullRequestReview::Approved;
         $pullRequest->appApprovalId = 'PRR_app';
         $pullRequest->appApprovalSha = 'abc';
         $this->em()->flush();
 
-        $facts = $this->facts($card)->pullRequest;
-        self::assertNotNull($facts);
-        self::assertSame(1, $facts->approvalsCoveringHead);
-        self::assertSame(0, $facts->personApprovalsCoveringHead());
-        self::assertTrue($facts->appApprovalCoversHead);
-        self::assertTrue($facts->appApprovalStands);
+        self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
 
+        $pullRequest->review = PullRequestReview::Approved;
         $pullRequest->coveredSha = 'abc';
         $this->em()->flush();
-        $facts = $this->facts($card)->pullRequest;
-        self::assertSame(2, $facts?->approvalsCoveringHead);
-        self::assertSame(1, $facts->personApprovalsCoveringHead());
+        self::assertSame(1, $this->facts($card)->pullRequest->approvalsCoveringHead);
 
         $pullRequest->headSha = 'def';
         $this->em()->flush();
-        $facts = $this->facts($card)->pullRequest;
-        self::assertFalse($facts?->appApprovalCoversHead, 'A push leaves the approval standing on the old commit.');
-        self::assertTrue($facts->appApprovalStands);
-        self::assertSame(0, $facts->approvalsCoveringHead);
-
-        $pullRequest->state = ForgePullRequestState::Closed;
-        $this->em()->flush();
-        self::assertFalse($this->facts($card)->pullRequest?->appApprovalStands, 'A pull request that is not open holds no standing approval.');
+        self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
     }
 
     public function test_changes_are_requested_until_a_done_fix_run_that_opened_after_the_review_answers_them(): void
@@ -840,7 +826,7 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-02 08:03:00'), $facts->conflictingSince);
     }
 
-    public function test_a_green_pull_request_into_the_default_branch_waits_for_approval_until_one_covers_the_head(): void
+    public function test_a_green_pull_request_into_the_default_branch_waits_for_approval_until_the_approval_check_passes_on_the_head(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('facts-pr-waits-approval');
@@ -854,13 +840,27 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->review = PullRequestReview::Approved;
         $pullRequest->approvalId = 'review-1';
         $pullRequest->coveredSha = 'abc';
+        $pullRequest->appApprovalId = 'PRR_app';
+        $pullRequest->appApprovalSha = 'abc';
+        $this->em()->flush();
+        self::assertTrue($this->waitsForApproval($card), 'A review waits for the check, which a person approval makes.');
+
+        $pullRequest->approvalCheckRunId = '99';
+        $pullRequest->approvalCheckSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'success';
         $this->em()->flush();
         self::assertFalse($this->waitsForApproval($card));
 
         $pullRequest->headSha = 'def';
         $this->em()->flush();
-        self::assertTrue($this->waitsForApproval($card), 'A stale approval covers no head.');
+        self::assertTrue($this->waitsForApproval($card), 'A check on an earlier head covers no head.');
 
+        $pullRequest->headSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'failure';
+        $this->em()->flush();
+        self::assertTrue($this->waitsForApproval($card), 'A revoked check passes nothing.');
+
+        $pullRequest->approvalCheckConclusion = 'success';
         $pullRequest->draft = true;
         $this->em()->flush();
         self::assertFalse($this->waitsForApproval($card));
@@ -869,6 +869,74 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->baseBranch = 'epic/1';
         $this->em()->flush();
         self::assertFalse($this->waitsForApproval($card));
+    }
+
+    public function test_the_approval_check_passes_only_with_a_success_on_the_head(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-approval-check');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->headSha = 'abc';
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->approvalCheckPassed);
+
+        $pullRequest->approvalCheckRunId = '99';
+        $pullRequest->approvalCheckSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'success';
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest->approvalCheckPassed);
+
+        $pullRequest->headSha = 'def';
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->approvalCheckPassed);
+
+        $pullRequest->headSha = 'abc';
+        $pullRequest->approvalCheckConclusion = 'failure';
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest->approvalCheckPassed);
+    }
+
+    public function test_a_pull_request_reads_as_blocked_when_the_forge_blocks_the_merge(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-merge-blocked');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->mergeability = PullRequestMergeability::Blocked;
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest?->mergeBlocked);
+
+        $pullRequest->mergeability = PullRequestMergeability::Mergeable;
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest->mergeBlocked);
+    }
+
+    public function test_the_ruleset_flags_reach_the_facts_only_for_an_open_pull_request_on_the_default_branch(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-ruleset');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->baseRequiresReview = true;
+        $pullRequest->approvalCheckUnpinned = true;
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertTrue($facts->baseRequiresReview);
+        self::assertTrue($facts->approvalCheckUnpinned);
+
+        $pullRequest->baseBranch = 'epic/7';
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertFalse($facts->baseRequiresReview);
+        self::assertFalse($facts->approvalCheckUnpinned);
+
+        $pullRequest->baseBranch = 'main';
+        $pullRequest->state = ForgePullRequestState::Merged;
+        $this->em()->flush();
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertFalse($facts->baseRequiresReview);
+        self::assertFalse($facts->approvalCheckUnpinned);
     }
 
     public function test_the_requests_to_the_forge_of_an_open_pull_request_expire_when_loupe_would_ask_again(): void

@@ -133,6 +133,9 @@ final class ActionDeclarationsTest extends TestCase
         self::assertSame(['missing parameter "fallback"'], ForgeWrite::check([]));
         self::assertSame(['missing parameter "comment"'], ForgeWrite::check(['write' => 'comment']));
         self::assertSame([], ForgeWrite::check(['write' => 'comment', 'comment' => 'fix-run']));
+        self::assertSame(['missing parameter "state"'], ForgeWrite::check(['write' => 'approval-check']));
+        self::assertSame([], ForgeWrite::check(['write' => 'approval-check', 'state' => 'pass']));
+        self::assertSame([], ForgeWrite::check(['write' => 'approval-check', 'state' => 'revoke']));
     }
 
     /**

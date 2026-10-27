@@ -72,7 +72,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertCount(1, $this->writer->published);
         $call = $this->writer->published[0];
-        self::assertSame(['Loupe live review', 'sha-1', PullRequestCheckConclusion::Success, null], [$call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
+        self::assertSame(['Loupe / Live review', 'sha-1', PullRequestCheckConclusion::Success, null], [$call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
         self::assertSame('No open live review notes', $call['title']);
         $state = $this->stateOf($pullRequest);
         self::assertSame(['sha-1', 'success', 0, 101], [$state->headSha, $state->conclusion, $state->noteCount, $state->checkRunId]);
@@ -221,9 +221,25 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertNull($wanted->postedNotesDigest);
         self::assertCount(2, $this->writer->published);
-        self::assertSame('Loupe live review', $this->writer->published[1]['name']);
+        self::assertSame('Loupe / Live review', $this->writer->published[1]['name']);
         self::assertSame(101, $this->writer->published[1]['runId']);
         self::assertSame($wanted->notesDigest, $this->stateOf($pullRequest)->notesDigest);
+    }
+
+    public function test_a_current_check_under_another_name_posts_again_on_its_run(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->openPullRequest($card, 7, 'sha-1');
+        $this->publish($card);
+        $this->stateOf($pullRequest)->checkName = 'Loupe live review';
+
+        $this->publish($card);
+        $this->publish($card);
+
+        self::assertCount(2, $this->writer->published);
+        self::assertSame('Loupe / Live review', $this->writer->published[1]['name']);
+        self::assertSame(101, $this->writer->published[1]['runId']);
+        self::assertSame('Loupe / Live review', $this->stateOf($pullRequest)->checkName);
     }
 
     public function test_a_new_head_starts_a_new_run(): void
@@ -284,7 +300,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertCount(1, $this->writer->published);
         $call = $this->writer->published[0];
-        self::assertSame([7, 'Loupe live review', 'sha-1', PullRequestCheckConclusion::Neutral, 101], [$call['number'], $call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
+        self::assertSame([7, 'Loupe / Live review', 'sha-1', PullRequestCheckConclusion::Neutral, 101], [$call['number'], $call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
         self::assertSame('Loupe no longer keeps this check', $call['title']);
         self::assertSame('No card links this pull request any more, so this check does not block it.', $call['summary']);
     }

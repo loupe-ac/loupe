@@ -1164,7 +1164,7 @@ final class TemplateParserTest extends TestCase
             $t['rules'][2]['then']['forge-write']['write'] = 'squash';
 
             return $t;
-        }, 'rules[2] (merge) then.forge-write: parameter "write" must be one of merge, update-branch, change-base, comment, draft, ready, close, open-epic, post-review, site-review-check, agent-review-check, review-ready, merge-main-into-epic, approve, dismiss-approval'];
+        }, 'rules[2] (merge) then.forge-write: parameter "write" must be one of merge, update-branch, change-base, comment, draft, ready, close, open-epic, post-review, site-review-check, agent-review-check, review-ready, merge-main-into-epic, approval-check'];
         yield 'merge with no fallback' => [static function (array $t): array {
             unset($t['rules'][2]['then']['forge-write']['fallback']);
 
@@ -1813,8 +1813,8 @@ final class TemplateParserTest extends TestCase
         yield 'blank remedy' => [['remedy' => ''], 'markers[0] (m) remedy: must be a non-empty string'];
         yield 'fallback not a boolean' => [['fallback' => 'yes'], 'markers[0] (m) fallback: must be a boolean'];
         yield 'unknown key' => [['colour' => 'red'], 'markers[0] (m): unknown key "colour"'];
-        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents'];
-        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents'];
+        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents, ruleset-setup'];
+        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents, ruleset-setup'];
     }
 
     public function test_a_duplicate_marker_key_is_refused(): void

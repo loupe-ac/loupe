@@ -1,5 +1,5 @@
 key: lifecycle
-version: 22
+version: 24
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -52,11 +52,11 @@ facts:
             - pr.checks_on_head: {}
             - pr.can_merge: {}
             - pr.base_is_default: {}
-            - not: { pr.approval_covers_head: { min: 1 } }
+            - not: { pr.approval_check_passed: {} }
             - not: { card.run.worker_active: {} }
             - any:
                   - card.review.needs_person: {}
-                  - not: { pr.app_can_approve: {} }
+                  - not: { pr.can_post_check: {} }
                   - agent_review.failed: {}
 rules:
     # These two come first and have no slot. A person who withdraws an approval undoes the stage it opened.
@@ -378,7 +378,6 @@ rules:
       slot: implementation
       when:
           all:
-              - not: { card.type: { types: [epic] } }
               - pr.open: {}
               - agent_review.due: {}
               - not: { card.run.work_active: { kind: implement } }
@@ -465,7 +464,6 @@ rules:
       slot: in-review
       when:
           all:
-              - not: { card.type: { types: [epic] } }
               - pr.open: {}
               - agent_review.due: {}
               - not: { card.run.work_active: { kind: implement } }
@@ -525,12 +523,12 @@ rules:
               - pr.open: {}
               - pr.behind: {}
               - any:
-                    - pr.approval_covers_head: { min: 1 }
+                    - pr.approval_check_passed: {}
                     - pr.base_is_epic_branch: {}
       then: { forge-write: { write: update-branch, fallback: sync } }
 
-    # Loupe approves as the GitHub App once the agent review passed on the head and no person must review the card.
-    - id: pull-request-auto-approve
+    # Loupe posts the Loupe / Approval check once the agent review passed on the head and no person must review the card.
+    - id: approval-check-auto
       slot: in-review
       when:
           all:
@@ -539,13 +537,29 @@ rules:
               - pr.base_is_default: {}
               - pr.checks_passed: {}
               - pr.checks_on_head: {}
-              - pr.app_can_approve: {}
+              - pr.can_post_check: {}
               - not: { card.review.needs_person: {} }
-              - not: { pr.app_approval_covers_head: {} }
+              - not: { pr.approval_check_passed: {} }
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
               - agent_review.passed: {}
-      then: { forge-write: { write: approve } }
+      then: { forge-write: { write: approval-check, state: pass } }
+
+    # A person's approval of the head also passes the check.
+    - id: approval-check-person
+      slot: in-review
+      when:
+          all:
+              - pr.open: {}
+              - not: { pr.draft: {} }
+              - pr.base_is_default: {}
+              - pr.checks_passed: {}
+              - pr.checks_on_head: {}
+              - pr.approval_covers_head: { min: 1, by: person }
+              - not: { pr.approval_check_passed: {} }
+              - not: { pr.conflicting: {} }
+              - not: { pr.changes_requested: {} }
+      then: { forge-write: { write: approval-check, state: pass } }
 
     - id: merge-ready
       slot: in-review
@@ -555,7 +569,7 @@ rules:
               - pr.open: {}
               - not: { pr.draft: {} }
               - pr.checks_passed: {}
-              - pr.approval_covers_head: { min: 1 }
+              - pr.approval_check_passed: {}
               - any:
                     - not: { card.review.needs_person: {} }
                     - pr.approval_covers_head: { min: 1, by: person }
@@ -752,14 +766,15 @@ rules:
               - not: { card.in_slot: { slot: '@terminal' } }
       then: { require-human-review: {} }
 
-    # No slot, so it also runs while the card sits in another column. A switch that a person turns on cancels the approval of the App.
-    - id: dismiss-app-approval
+    # No slot, so it also runs while the card sits in another column. A switch that a person turns on fails the check.
+    - id: approval-check-revoke
       when:
           all:
               - pr.open: {}
-              - pr.app_approval_stands: {}
+              - pr.approval_check_passed: {}
               - card.review.needs_person: {}
-      then: { forge-write: { write: dismiss-approval } }
+              - not: { pr.approval_covers_head: { min: 1, by: person } }
+      then: { forge-write: { write: approval-check, state: revoke } }
 
     # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
     # The truth outlives a move: a child that a person moves back to the Backlog makes no edge and stays parked.
@@ -892,6 +907,29 @@ markers:
       label: marker.waits_for_approval
       remedy: marker.waits_for_approval.remedy
       when: { fact.pr-waits-for-approval: {} }
+    - key: merge-blocked
+      kind: needs-you
+      label: marker.merge_blocked
+      remedy: marker.merge_blocked.remedy
+      when:
+          all:
+              - pr.open: {}
+              - pr.approval_check_passed: {}
+              - pr.checks_passed: {}
+              - pr.merge_blocked: {}
+              - not: { card.run.worker_active: {} }
+    - key: ruleset-mismatch
+      kind: needs-you
+      label: marker.ruleset_mismatch
+      remedy: marker.ruleset_mismatch.remedy
+      link: ruleset-setup
+      when:
+          all:
+              - pr.open: {}
+              - any:
+                    - pr.base_requires_review: {}
+                    - pr.approval_check_unpinned: {}
+              - not: { card.run.worker_active: {} }
     - key: open-question
       kind: needs-you
       label: marker.open_question

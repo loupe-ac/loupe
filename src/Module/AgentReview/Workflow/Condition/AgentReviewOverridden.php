@@ -43,8 +43,7 @@ final readonly class AgentReviewOverridden implements Condition
     {
         $review = $facts->get(AgentReviewFacts::class);
 
-        return !$review->epic
-            && array_any($review->heads, static fn (ReviewedHead $head): bool => null !== $head->overriddenBy)
+        return array_any($review->heads, static fn (ReviewedHead $head): bool => null !== $head->overriddenBy)
             && array_all($review->heads, static fn (ReviewedHead $head): bool => AgentReviewConclusion::Success === $head->conclusion || null !== $head->overriddenBy);
     }
 

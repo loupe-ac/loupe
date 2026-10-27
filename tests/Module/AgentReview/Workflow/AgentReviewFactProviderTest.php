@@ -70,7 +70,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $card = $this->card($this->project);
         $this->em->flush();
 
-        self::assertEquals(new AgentReviewFacts([], false), $this->build($card));
+        self::assertEquals(new AgentReviewFacts([]), $this->build($card));
     }
 
     public function test_an_open_pull_request_head_without_a_review_has_no_conclusion(): void
@@ -404,18 +404,13 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $this->review($card, $pullRequest);
         self::assertTrue($this->posting($card)->unposted);
 
-        $this->em->getConnection()->executeStatement('UPDATE agent_reviews SET posted_at = NOW()');
+        $this->em->getConnection()->executeStatement("UPDATE agent_reviews SET posted_at = NOW(), check_name = 'loupe/agent-review'");
+        $this->em->clear();
+        self::assertTrue($this->posting($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
+
+        $this->em->getConnection()->executeStatement("UPDATE agent_reviews SET check_name = 'Loupe / Agent review'");
         $this->em->clear();
         self::assertFalse($this->posting($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
-    }
-
-    public function test_a_card_type_with_children_is_an_epic(): void
-    {
-        $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Epic', '', 3, type: 'epic');
-        $this->em->persist($card);
-
-        self::assertTrue($this->build($card)->epic);
-        self::assertFalse($this->build($this->card($this->project, 4))->epic);
     }
 
     public function test_the_fingerprint_changes_with_the_head_and_the_conclusion(): void

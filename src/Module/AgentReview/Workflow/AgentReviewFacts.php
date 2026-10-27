@@ -11,11 +11,9 @@ final readonly class AgentReviewFacts
 {
     /**
      * @param list<ReviewedHead> $heads the open pull requests of the card that have a head commit
-     * @param bool               $epic  whether the card type may have children, so its pull request needs no review
      */
     public function __construct(
         public array $heads,
-        public bool $epic,
     ) {
     }
 

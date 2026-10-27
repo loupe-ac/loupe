@@ -13,7 +13,6 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Workflow\Contract\CardSnapshot;
-use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Module\Workflow\Contract\FactProvider;
 
 final readonly class AgentReviewFactProvider implements FactProvider
@@ -24,7 +23,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
         private AgentReviewRepository $agentReviews,
         private AgentReviewOverride $override,
         private WorkRequestRepository $workRequests,
-        private CardTypeCatalog $catalog,
     ) {
     }
 
@@ -44,7 +42,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
     public function build(CardSnapshot $snapshot): object
     {
         $card = $this->cards->find($snapshot->id) ?? throw new \LogicException('The card of the facts exists.');
-        $epic = $this->catalog->forProject($snapshot->projectId)->get($snapshot->type)->children;
 
         $open = array_values(array_filter(
             $this->trackedPullRequests->forCard($card),
@@ -67,7 +64,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
 
         return new AgentReviewFacts(
             $heads,
-            $epic,
         );
     }
 
@@ -79,7 +75,6 @@ final readonly class AgentReviewFactProvider implements FactProvider
         }
 
         return [
-            $facts->epic,
             array_map(static fn (ReviewedHead $head): array => [$head->pullRequestId, $head->headSha, $head->conclusion?->value, $head->answered, $head->overriddenBy], $facts->heads),
         ];
     }

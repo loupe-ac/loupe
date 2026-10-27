@@ -6,6 +6,7 @@ namespace App\Tests\Module\AgentReview\Service;
 
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewPost;
+use App\Module\AgentReview\Service\AgentReviewCheckPublisher;
 use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\AgentReview\Service\DuePost;
 use App\Module\Board\Entity\Card;
@@ -57,9 +58,29 @@ final class AgentReviewPostsTest extends KernelTestCase
         [, $review] = $this->carried($card);
         $post = new AgentReviewPost($review, strtoupper(self::MERGED), true);
         $post->postedAt = new \DateTimeImmutable();
+        $post->checkName = AgentReviewCheckPublisher::NAME;
         $this->em->persist($post);
 
         self::assertSame([], $this->due($card));
+    }
+
+    public function test_a_check_of_the_current_head_under_another_name_is_due_again(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $current = $pullRequest->headSha;
+        $pullRequest->headSha = self::REVIEWED;
+        $this->review($card, $pullRequest, new \DateTimeImmutable())->checkName = 'loupe/agent-review';
+        $pullRequest->headSha = $current;
+        $review = $this->review($card, $pullRequest, new \DateTimeImmutable());
+        self::assertCount(0, $this->due($card));
+
+        $review->checkName = 'loupe/agent-review';
+        $due = $this->due($card);
+
+        self::assertCount(1, $due);
+        self::assertSame($review, $due[0]->review);
+        self::assertFalse($due[0]->carried);
     }
 
     public function test_a_post_that_did_not_go_out_is_due_again_with_its_row(): void

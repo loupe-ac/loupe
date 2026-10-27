@@ -64,6 +64,32 @@ final class PullRequestSnapshotTest extends TestCase
         self::assertNull($pullRequest->title);
     }
 
+    public function test_apply_stores_the_ruleset_flags_and_snapshot_reads_them_back(): void
+    {
+        $pullRequest = $this->pullRequest();
+
+        $pullRequest->apply(new PullRequestSnapshot(baseRequiresReview: true, approvalCheckUnpinned: true));
+
+        self::assertTrue($pullRequest->baseRequiresReview);
+        self::assertTrue($pullRequest->approvalCheckUnpinned);
+        self::assertTrue($pullRequest->snapshot()->baseRequiresReview);
+        self::assertTrue($pullRequest->snapshot()->approvalCheckUnpinned);
+
+        $pullRequest->apply(new PullRequestSnapshot());
+
+        self::assertFalse($pullRequest->baseRequiresReview);
+        self::assertFalse($pullRequest->approvalCheckUnpinned);
+    }
+
+    public function test_a_change_of_a_ruleset_flag_makes_the_snapshots_differ(): void
+    {
+        $read = new PullRequestSnapshot();
+
+        self::assertTrue($read->equals(new PullRequestSnapshot()));
+        self::assertFalse($read->equals(new PullRequestSnapshot(baseRequiresReview: true)));
+        self::assertFalse($read->equals(new PullRequestSnapshot(approvalCheckUnpinned: true)));
+    }
+
     public function test_apply_copies_every_field_and_snapshot_reads_them_back(): void
     {
         $pullRequest = $this->pullRequest();

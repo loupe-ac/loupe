@@ -15,8 +15,8 @@ use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState as ForgePullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
-use App\Module\Forge\Service\ForgePullRequestApprovals;
 use App\Module\Forge\Service\ForgePullRequestWrites;
+use App\Module\Forge\Service\PullRequestCheckWriters;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\EpicBranches;
@@ -38,7 +38,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
         private EpicBranches $epicBranches,
         private CardPullRequestRepository $cardPullRequests,
         private WorkRequestRepository $workRequests,
-        private ForgePullRequestApprovals $approvals,
+        private PullRequestCheckWriters $checkWriters,
     ) {
     }
 
@@ -121,9 +121,12 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             ));
         }
         $open = ForgePullRequestState::Open === $pullRequest->state;
+        $onDefaultBranch = $open && null !== $base && $base === $pullRequest->defaultBranch;
         $headSha = $pullRequest->headSha;
-        $appApprovalStands = $open && null !== $pullRequest->appApprovalId;
-        $appApprovalCoversHead = $appApprovalStands && null !== $headSha && $pullRequest->appApprovalSha === $headSha;
+        $approvalCheckPassed = $open && null !== $headSha
+            && 'success' === $pullRequest->approvalCheckConclusion
+            && $pullRequest->approvalCheckSha === $headSha;
+        $installed = $open && ($this->checkWriters->for($pullRequest->forge)?->canPublish($pullRequest) ?? false);
         $personApprovalCoversHead = PullRequestReview::Approved === $pullRequest->review
             && null !== $pullRequest->coveredSha
             && $pullRequest->coveredSha === $headSha;
@@ -138,7 +141,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             },
             conflicting: PullRequestMergeability::Conflicting === $pullRequest->mergeability,
             behind: PullRequestMergeability::Behind === $pullRequest->mergeability,
-            approvalsCoveringHead: ($personApprovalCoversHead ? 1 : 0) + ($appApprovalCoversHead ? 1 : 0),
+            approvalsCoveringHead: $personApprovalCoversHead ? 1 : 0,
             changesRequested: $pullRequest->changesRequestOpen($pullRequest->lastFixOpenedAt($fixes)),
             baseIsMergeTarget: $baseIsEpicBranch || (null !== $base && $base === $pullRequest->defaultBranch),
             baseIsEpicBranch: $baseIsEpicBranch,
@@ -161,8 +164,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
                 && PullRequestChecks::Passed === $pullRequest->checks
                 && null !== $pullRequest->defaultBranch
                 && $base === $pullRequest->defaultBranch
-                && !(PullRequestReview::Approved === $pullRequest->review && null !== $pullRequest->approvalId && !$pullRequest->approvalIsStale())
-                && !$appApprovalCoversHead,
+                && !$approvalCheckPassed,
             readyToMerge: $pullRequest->readyToMerge,
             readySince: $pullRequest->readySince,
             checksFailedSince: $pullRequest->checksFailedSince,
@@ -172,9 +174,11 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             checksOnHead: null !== $pullRequest->headSha && $pullRequest->checksSha === $pullRequest->headSha,
             canMerge: \in_array($pullRequest->mergeability, [PullRequestMergeability::Mergeable, PullRequestMergeability::Behind, PullRequestMergeability::Blocked], true),
             baseIsDefault: null !== $base && $base === $pullRequest->defaultBranch,
-            appApprovalCoversHead: $appApprovalCoversHead,
-            appApprovalStands: $appApprovalStands,
-            appCanApprove: $open && $this->approvals->canApprove($pullRequest),
+            approvalCheckPassed: $approvalCheckPassed,
+            canPostCheck: $installed,
+            mergeBlocked: PullRequestMergeability::Blocked === $pullRequest->mergeability,
+            baseRequiresReview: $onDefaultBranch && $pullRequest->baseRequiresReview,
+            approvalCheckUnpinned: $onDefaultBranch && $pullRequest->approvalCheckUnpinned,
         );
     }
 

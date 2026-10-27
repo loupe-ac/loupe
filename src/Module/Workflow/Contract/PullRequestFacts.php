@@ -19,9 +19,11 @@ final readonly class PullRequestFacts
      * @param bool               $canMerge              the forge reads the pull request as mergeable, behind or blocked, read through EngineFact::PullRequestMergeGate
      * @param bool               $baseIsDefault         the base is the default branch of the repository, read through EngineFact::PullRequestMergeGate
      * @param list<ForgeRequest> $forgeRequests         the requests to the forge that the forge has not answered, expired ones included
-     * @param bool               $appApprovalCoversHead the approval that Loupe posted as the forge's App names the head commit, read through EngineFact::PullRequestAppApproval
-     * @param bool               $appApprovalStands     an approval that Loupe posted as the forge's App still stands, on any commit, read through EngineFact::PullRequestAppApproval
-     * @param bool               $appCanApprove         the repository has an active installation, so Loupe can post and dismiss a review, read through EngineFact::PullRequestAppApproval
+     * @param bool               $approvalCheckPassed   Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $canPostCheck          the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $mergeBlocked          the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseRequiresReview    the ruleset of the default branch requires an approving review, and the pull request is open on that branch, read through EngineFact::PullRequestRuleset
+     * @param bool               $approvalCheckUnpinned the ruleset of the default branch requires the approval check with no source, and the pull request is open on that branch, read through EngineFact::PullRequestRuleset
      */
     public function __construct(
         public PullRequestState $state,
@@ -50,16 +52,12 @@ final readonly class PullRequestFacts
         public bool $checksOnHead = false,
         public bool $canMerge = false,
         public bool $baseIsDefault = false,
-        public bool $appApprovalCoversHead = false,
-        public bool $appApprovalStands = false,
-        public bool $appCanApprove = false,
+        public bool $approvalCheckPassed = false,
+        public bool $canPostCheck = false,
+        public bool $mergeBlocked = false,
+        public bool $baseRequiresReview = false,
+        public bool $approvalCheckUnpinned = false,
     ) {
-    }
-
-    /** The approvals of people that cover the head. `approvalsCoveringHead` adds the approval of the App to it. */
-    public function personApprovalsCoveringHead(): int
-    {
-        return $this->approvalsCoveringHead - ($this->appApprovalCoversHead ? 1 : 0);
     }
 
     public function mergeInFlight(\DateTimeImmutable $now): bool

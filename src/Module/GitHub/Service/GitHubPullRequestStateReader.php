@@ -73,7 +73,7 @@ final class GitHubPullRequestStateReader implements PullRequestStateReader
         if ($child && [] === $rules->requiredChecks) {
             // A base with no ruleset, such as an epic branch, still waits for the checks of the default branch.
             $defaultRules = $this->rules($installationId, $path, $default) ?? throw new PullRequestUnreadable('default_branch_rules_unreadable', transient: true);
-            $rules = new GitHubBranchRules($defaultRules->requiredChecks, false);
+            $rules = new GitHubBranchRules($defaultRules->requiredChecks, false, false, $defaultRules->approvalSources);
         }
         $behindBy = null;
         if (true === $rules?->strict && 'OPEN' === ($node['state'] ?? null) && !\in_array($node['mergeable'] ?? null, ['CONFLICTING', 'UNKNOWN'], true) && \is_string($node['headRefOid'] ?? null)) {

@@ -12,7 +12,7 @@ use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** At least `min` approvals cover the head commit. With `by: person`, the approval that Loupe posted as the forge's App does not count. */
+/** At least `min` approvals cover the head commit. Only people approve a pull request, so `by: person` gives the same answer. */
 final readonly class PullRequestApprovalCoversHead implements Condition
 {
     private const string BY_PERSON = 'person';
@@ -41,7 +41,7 @@ final readonly class PullRequestApprovalCoversHead implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return self::BY_PERSON === ParameterValue::optionalString($params, 'by') ? [EngineFact::PullRequest, EngineFact::PullRequestAppApproval] : [EngineFact::PullRequest];
+        return [EngineFact::PullRequest];
     }
 
     #[\Override]
@@ -52,9 +52,8 @@ final readonly class PullRequestApprovalCoversHead implements Condition
         if (null === $pullRequest) {
             return false;
         }
-        $covering = self::BY_PERSON === ParameterValue::optionalString($params, 'by') ? $pullRequest->personApprovalsCoveringHead() : $pullRequest->approvalsCoveringHead;
 
-        return $covering >= ParameterValue::int($params, 'min');
+        return $pullRequest->approvalsCoveringHead >= ParameterValue::int($params, 'min');
     }
 
     #[\Override]

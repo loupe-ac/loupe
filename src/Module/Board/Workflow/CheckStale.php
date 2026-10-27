@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Workflow;
 
+use App\Module\Board\Service\SiteReviewCheckPublisher;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
@@ -45,7 +46,8 @@ final readonly class CheckStale implements Condition
                 || $check->postedConclusion !== $check->wantedConclusion
                 || $check->postedNoteCount !== $check->noteCount
                 || $check->postedNotesDigest !== $check->notesDigest
-                || null === $check->postedRunId) {
+                || null === $check->postedRunId
+                || SiteReviewCheckPublisher::NAME !== $check->postedName) {
                 return true;
             }
         }
