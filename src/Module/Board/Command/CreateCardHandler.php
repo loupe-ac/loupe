@@ -28,6 +28,7 @@ use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
 use App\Module\Board\Service\CardSearchIndexer;
 use App\Module\Board\Service\DocumentLinkResolver;
+use App\Module\Board\Service\HumanReviewSwitch;
 use App\Module\Board\Service\PullRequestTracking;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Project\Repository\ProjectRepository;
@@ -59,6 +60,7 @@ final readonly class CreateCardHandler
         private EventDispatcherInterface $events,
         private CardEventRepository $cardEvents,
         private CardEventActor $eventActor,
+        private HumanReviewSwitch $humanReviewSwitch,
     ) {
     }
 
@@ -149,6 +151,9 @@ final readonly class CreateCardHandler
                 'column' => CardEvent::columnDetail($column),
                 'type' => $card->type,
             ], $card->createdAt);
+            if (null !== $command->requiresHumanReview) {
+                $this->humanReviewSwitch->set($card, $command->requiresHumanReview, $actor);
+            }
             $blockersChanged = $this->cardLinkSync->sync($card, $relatedCards);
             $this->em->flush();
 

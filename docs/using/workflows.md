@@ -221,6 +221,15 @@ A marker reads the same conditions as a rule. These conditions suit markers:
 - `pr.can_merge`: the forge reads the pull request as mergeable, behind or
   blocked.
 - `pr.base_is_default`: the pull request targets the default branch.
+- `pr.approval_covers_head` with a `min`: at least that many approvals cover
+  the head commit. An approval that Loupe posted as the GitHub App counts as
+  one. Set `by: person` to count the approvals of people only.
+- `pr.app_approval_covers_head`: the approval that Loupe posted as the GitHub
+  App names the head commit.
+- `pr.app_approval_stands`: an approval that Loupe posted as the GitHub App
+  still stands on the open pull request, on any commit.
+- `pr.app_can_approve`: Loupe can post and dismiss a review on the pull request,
+  because its repository has an active GitHub App installation.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
@@ -420,9 +429,9 @@ saw a new head, asks for a review of the current head again.
 
 A work request that no bridge takes within 2 hours pauses the card with "no
 bridge took the work". A teardown request is the exception: it expires with no
-pause. The inbox then shows the item **Card paused: no bridge took its work in
-time**. It tells you to check that a bridge is online, then to open the card and
-resume it. Before that, work that waits 10 minutes with no online bridge opens
+pause. The inbox then shows the item **Paused: No bridge took the requested
+work in time**. It tells you to open the card and resume it. Start a bridge
+before you resume it. Before that, work that waits 10 minutes with no online bridge opens
 the notice **No bridge can take work**, as [the inbox guide](inbox.md#notices)
 says.
 
@@ -456,7 +465,18 @@ again later asks for a new merge. That work merges in one repository, so when
 the code lives in several repositories and Loupe cannot merge in one of them,
 the write refuses, and a person merges by hand.
 
-Two more writes come from the [rules the app adds](#rules-the-app-adds). They
+Two writes post and dismiss a review as the GitHub App. They need an
+active installation on the repository, and they never ask a bridge for work.
+Loupe stores the approval of the App apart from the approvals of people. The
+stale-approval comment and the agent review override read the approvals of
+people only.
+
+| Write | Does |
+|---|---|
+| `approve` | Approves the head commit that the rule read, as the GitHub App, and writes an `auto-approved` row in the history of the card. Loupe reads the head from GitHub before the post. A head that moved since the rule read it ends the write with no review, and the next evaluation decides again. A push that lands during the post makes Loupe dismiss the new review at once. When Loupe cannot read the head after the post, it dismisses the new review and the write tries again later. Before it posts, Loupe dismisses an earlier App approval of another commit |
+| `dismiss-approval` | Dismisses the approval that Loupe posted, and writes an `approval-dismissed` row in the history of the card. A refused dismissal backs off, retries and pauses the card |
+
+Two further writes come from the [rules the app adds](#rules-the-app-adds). They
 act on a live-review verdict, and they never ask a bridge for work:
 
 | Write | Does |
@@ -945,6 +965,63 @@ The app moves the card as Loupe, so an epic with open children moves back like a
 
 A project that updates to this version gets the two rules in its template copy. Each past withdrawal counts as handled,
 so no card moves when the update arrives. A withdrawal after the update moves the card.
+
+### Human review for a new artifact
+
+A card has a **Requires human review** switch (see [the card page](board.md)). The rule `human-review-on-artifact`
+turns the switch on when an artifact that the card has not seen reaches it. It has no slot, and it skips a card in a terminal column.
+
+An artifact reaches a card when it is linked to the card or to the parent of the card. A link inside a design document does not count.
+A new artifact on an epic also reaches each child of the epic, so each child gets its own check.
+
+| Condition or action | Does |
+|---|---|
+| `card.review.unseen_artifact` | True when an artifact that reaches the card is not in the seen list of the card. It is in the **Board** group |
+| `require-human-review` | Turns the switch on, stores the artifacts that reach the card in its seen list, and writes a `human-review-changed` row in the history of the card with the cause `rule`. A card whose switch is on changes nothing |
+
+You can turn the switch off while the artifact stays linked. The seen list then holds that artifact, so only a later new
+artifact turns the switch on again.
+
+A project that updates to this version gets the rule in its template copy. A migration also turns the switch on for each
+card outside a terminal column that an artifact reaches today, and writes one history row with the cause `rollout`.
+After the update, the rule fires only for an artifact that arrives later.
+
+### Automatic approval of a pull request
+
+A pull request into the default branch can approve itself. Loupe then posts the approval as the GitHub App, and the
+`merge-ready` rule merges the pull request without a person. The rule `pull-request-auto-approve` sits in the
+`in-review` slot, right before `merge-ready`. It fires when all of these are true:
+
+1. The pull request is open, it is not a draft, and its base is the default branch.
+2. The checks passed on the head commit.
+3. The agent review passed.
+4. The repository has an active GitHub App installation (`pr.app_can_approve`).
+5. The card does not require a human review (`card.review.needs_person`).
+6. The pull request has no conflict, no change request, and no App approval on the head commit.
+
+The approval names the head commit that the rule read. A push after it makes the rule fire again once the agent review
+passed on the new head.
+
+A card with the **Requires human review** switch on never gets this approval. If an App approval already stands,
+the rule `dismiss-app-approval` dismisses it. It has no slot, so it also runs while the card sits in another column.
+The `merge-ready` rule needs the approval of a person when the card requires a human review, so an App approval never
+merges such a pull request.
+
+| Condition | True when |
+|---|---|
+| `card.review.needs_person` | The **Requires human review** switch of the card is on. For an epic it is also true when the switch of a child is on, or when a child pull request merged into the epic branch without a passed or overridden agent review. It is in the **Board** group |
+
+An epic pull request approves itself under the same rule. It needs a person when the epic or any of its children has the
+switch on. It also needs a person when a child pull request merged into the epic branch and its newest agent review of the
+last head did not pass and no person overrode it. A child with no merged pull request counts as reviewed. A change of the
+switch of a child writes a history row, so the epic is evaluated again.
+
+The wait item "Waits for approval" opens when a person must review the card, when Loupe cannot post a review on the
+repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
+of a new commit opens no item.
+
+A project that updates to this version gets the two rules in its template copy. A pull request that is open at that time
+gets the approval of the App when it meets the conditions above.
 
 ### Asking about an unplanned child
 

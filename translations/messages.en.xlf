@@ -4856,7 +4856,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.site_review.text">
                 <source>landing.workflow.step.site_review.text</source>
-                <target>Try the change on a preview. Leave notes on the page with the widget, then approve.</target>
+                <target>Try the change on a preview. Leave notes on the page with the widget, then approve. When the GitHub App is installed on the repository and the card does not require your review, the pull request approves itself after the agent review and the checks pass.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.done.title">
                 <source>landing.workflow.step.done.title</source>
@@ -4948,7 +4948,7 @@
             </trans-unit>
             <trans-unit id="landing.features.agent_review.text">
                 <source>landing.features.agent_review.text</source>
-                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design.</target>
+                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design. When the GitHub App is installed on the repository and the card does not require your review, the pull request approves itself once the agent review passes and the checks are green.</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.caption">
                 <source>landing.features.agent_review.caption</source>
@@ -5807,6 +5807,14 @@
             <trans-unit id="inbox.wait.fallback.card">
                 <source>inbox.wait.fallback.card</source>
                 <target>Card %card% needs you.</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.pause_code">
+                <source>inbox.wait.pause_code</source>
+                <target>The workflow paused the card with the code %code%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.pause_run_link">
+                <source>inbox.wait.pause_run_link</source>
+                <target>Open the failed run</target>
             </trans-unit>
             <trans-unit id="inbox.wait.action.document">
                 <source>inbox.wait.action.document</source>
@@ -7468,6 +7476,8 @@
             <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the live-review widget: %verdict%.</target></trans-unit>
             <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
+            <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe approved #%pr% at %sha% as the GitHub App.</target></trans-unit>
+            <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe dismissed its approval of #%pr% as the GitHub App, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
@@ -7507,6 +7517,9 @@
             <trans-unit id="board.card.history.change_request_withdrawn"><source>board.card.history.change_request_withdrawn</source><target>%actor% withdrew the change request on %document%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed"><source>board.card.history.verdict_failed</source><target>The %rule% workflow rule did not approve %document%.</target></trans-unit>
             <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
+            <trans-unit id="board.card.history.human_review_on"><source>board.card.history.human_review_on</source><target>%actor% turned on human review.</target></trans-unit>
+            <trans-unit id="board.card.history.human_review_off"><source>board.card.history.human_review_off</source><target>%actor% turned off human review.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.human_review_rollout"><source>board.card.history.cause.human_review_rollout</source><target>Set when the human review switch shipped, because an artifact reached the card.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.decisions_unanswered"><source>board.card.history.verdict_failed_cause.decisions_unanswered</source><target>A decision in the document has no answer.</target></trans-unit>
@@ -7607,6 +7620,12 @@
             <trans-unit id="board.card.children.progress"><source>board.card.children.progress</source><target>%done%/%total% done</target></trans-unit>
             <trans-unit id="board.card.children.progress_tooltip"><source>board.card.children.progress_tooltip</source><target>%done% of %total% child cards are done</target></trans-unit>
             <trans-unit id="board.card.children.empty"><source>board.card.children.empty</source><target>This epic has no child cards yet.</target></trans-unit>
+            <trans-unit id="board.card.human_review.field"><source>board.card.human_review.field</source><target>Pull request review</target></trans-unit>
+            <trans-unit id="board.card.human_review.label"><source>board.card.human_review.label</source><target>Requires human review</target></trans-unit>
+            <trans-unit id="board.card.human_review.help_label"><source>board.card.human_review.help_label</source><target>About this setting</target></trans-unit>
+            <trans-unit id="board.card.human_review.tooltip"><source>board.card.human_review.tooltip</source><target>On: the pull request waits for your approval. Off: the workflow can approve it.</target></trans-unit>
+            <trans-unit id="board.card.human_review.rules_link"><source>board.card.human_review.rules_link</source><target>See the rules</target></trans-unit>
+            <trans-unit id="board.card.human_review.error.not_saved"><source>board.card.human_review.error.not_saved</source><target>The review setting was not saved. Reload the page and try again.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.error.not_saved"><source>board.card.lane.error.not_saved</source><target>The lane setting was not saved. Reload the page and try again.</target></trans-unit>
@@ -8767,6 +8786,10 @@
             <trans-unit id="workflow.waiting.not.card_child_merged_into_epic_branch"><source>workflow.waiting.not.card_child_merged_into_epic_branch</source><target>Waiting: a child pull request merged into the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_children"><source>workflow.waiting.card_has_children</source><target>Waiting: the card has no child cards.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_has_children"><source>workflow.waiting.not.card_has_children</source><target>Waiting: the card has child cards.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_review_unseen_artifact"><source>workflow.waiting.card_review_unseen_artifact</source><target>Waiting: no new artifact has reached the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_review_unseen_artifact"><source>workflow.waiting.not.card_review_unseen_artifact</source><target>Waiting: a new artifact has reached the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_review_needs_person"><source>workflow.waiting.card_review_needs_person</source><target>Waiting: neither the card nor a child of it requires a human review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_review_needs_person"><source>workflow.waiting.not.card_review_needs_person</source><target>Waiting: the card or a child of it requires a human review.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_children_finished"><source>workflow.waiting.card_children_finished</source><target>Waiting: a child card is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_children_finished"><source>workflow.waiting.not.card_children_finished</source><target>Waiting: no child card is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_children_marked"><source>workflow.waiting.card_children_marked</source><target>Waiting: no open child card has a %kind% marker.</target></trans-unit>
@@ -8793,6 +8816,12 @@
             <trans-unit id="workflow.waiting.not.pr_behind"><source>workflow.waiting.not.pr_behind</source><target>Waiting: the pull request is behind its base.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_approval_covers_head"><source>workflow.waiting.pr_approval_covers_head</source><target>Waiting: fewer than %min% approvals cover the head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_approval_covers_head"><source>workflow.waiting.not.pr_approval_covers_head</source><target>Waiting: %min% or more approvals cover the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_app_approval_covers_head"><source>workflow.waiting.pr_app_approval_covers_head</source><target>Waiting: the approval of Loupe does not cover the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_app_approval_covers_head"><source>workflow.waiting.not.pr_app_approval_covers_head</source><target>Waiting: the approval of Loupe covers the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_app_approval_stands"><source>workflow.waiting.pr_app_approval_stands</source><target>Waiting: no approval of Loupe stands on the pull request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_app_approval_stands"><source>workflow.waiting.not.pr_app_approval_stands</source><target>Waiting: an approval of Loupe stands on the pull request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_app_can_approve"><source>workflow.waiting.pr_app_can_approve</source><target>Waiting: Loupe cannot post a review on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_app_can_approve"><source>workflow.waiting.not.pr_app_can_approve</source><target>Waiting: Loupe can post a review on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
@@ -8971,6 +9000,7 @@
             <trans-unit id="workflow.settings.action.approve_document"><source>workflow.settings.action.approve_document</source><target>Approve the documents that passed the entry check</target></trans-unit>
             <trans-unit id="workflow.settings.action.request_changes"><source>workflow.settings.action.request_changes</source><target>Request changes on the documents</target></trans-unit>
             <trans-unit id="workflow.settings.action.stop_work"><source>workflow.settings.action.stop_work</source><target>Stop the work of the card</target></trans-unit>
+            <trans-unit id="workflow.settings.action.require_human_review"><source>workflow.settings.action.require_human_review</source><target>Turn on human review for the card</target></trans-unit>
             <trans-unit id="workflow.settings.action.publish_documents"><source>workflow.settings.action.publish_documents</source><target>Publish the draft documents</target></trans-unit>
             <trans-unit id="workflow.settings.action.forge_write"><source>workflow.settings.action.forge_write</source><target>Forge write: %kind%</target></trans-unit>
             <trans-unit id="workflow.settings.action.pause"><source>workflow.settings.action.pause</source><target>Pause the card</target></trans-unit>
@@ -9035,6 +9065,7 @@
             <trans-unit id="workflow.panel.action.request"><source>workflow.panel.action.request</source><target>Request %kind% work from a bridge</target></trans-unit>
             <trans-unit id="workflow.panel.action.approve_document"><source>workflow.panel.action.approve_document</source><target>Approve the documents of the card that passed the entry check</target></trans-unit>
             <trans-unit id="workflow.panel.action.stop_work"><source>workflow.panel.action.stop_work</source><target>Stop the work of the card</target></trans-unit>
+            <trans-unit id="workflow.panel.action.require_human_review"><source>workflow.panel.action.require_human_review</source><target>Turn on human review for the card</target></trans-unit>
             <trans-unit id="workflow.stop_work.reason"><source>workflow.stop_work.reason</source><target>Stopped by the %rule% workflow rule.</target></trans-unit>
             <trans-unit id="workflow.panel.action.request_changes"><source>workflow.panel.action.request_changes</source><target>Request changes on the documents of the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.publish_documents"><source>workflow.panel.action.publish_documents</source><target>Publish the draft documents of the card for review</target></trans-unit>
@@ -9046,6 +9077,19 @@
             <trans-unit id="workflow.panel.action.link_document"><source>workflow.panel.action.link_document</source><target>Link a document of the parent to the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.detach"><source>workflow.panel.action.detach</source><target>Remove the parent of the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.missing"><source>workflow.panel.action.missing</source><target>An action this version does not know</target></trans-unit>
+            <trans-unit id="workflow.pause.failed"><source>workflow.pause.failed</source><target>The work failed.</target></trans-unit>
+            <trans-unit id="workflow.pause.timeout"><source>workflow.pause.timeout</source><target>The work timed out.</target></trans-unit>
+            <trans-unit id="workflow.pause.still-true"><source>workflow.pause.still-true</source><target>The work ended, but the condition of its rule is still true.</target></trans-unit>
+            <trans-unit id="workflow.pause.mcp-unreachable"><source>workflow.pause.mcp-unreachable</source><target>The worker could not reach the Loupe MCP server.</target></trans-unit>
+            <trans-unit id="workflow.pause.needs-person"><source>workflow.pause.needs-person</source><target>The worker stopped because it needs a person.</target></trans-unit>
+            <trans-unit id="workflow.pause.not-started"><source>workflow.pause.not-started</source><target>The worker did not start.</target></trans-unit>
+            <trans-unit id="workflow.pause.blocked"><source>workflow.pause.blocked</source><target>The worker stopped as blocked.</target></trans-unit>
+            <trans-unit id="workflow.pause.gave-up"><source>workflow.pause.gave-up</source><target>The worker gave up.</target></trans-unit>
+            <trans-unit id="workflow.pause.no-result"><source>workflow.pause.no-result</source><target>The worker ended without a result.</target></trans-unit>
+            <trans-unit id="workflow.pause.unfinished"><source>workflow.pause.unfinished</source><target>The worker ended before it finished its work.</target></trans-unit>
+            <trans-unit id="workflow.pause.timed-out"><source>workflow.pause.timed-out</source><target>The bridge stopped hearing from the worker, and the run timed out.</target></trans-unit>
+            <trans-unit id="workflow.pause.lost"><source>workflow.pause.lost</source><target>The bridge lost the worker run.</target></trans-unit>
+            <trans-unit id="workflow.pause.stopped"><source>workflow.pause.stopped</source><target>A person or the bridge stopped the worker.</target></trans-unit>
             <trans-unit id="workflow.pause.no-bridge-took-work"><source>workflow.pause.no-bridge-took-work</source><target>No bridge took the requested work in time.</target></trans-unit>
             <trans-unit id="workflow.pause.repair-failed"><source>workflow.pause.repair-failed</source><target>The repair worker could not fix the failure.</target></trans-unit>
             <trans-unit id="workflow.pause.inbox-off"><source>workflow.pause.inbox-off</source><target>The inbox is off, so the workflow cannot ask the owner about this card. The pause ends when the inbox is on.</target></trans-unit>
@@ -9285,6 +9329,9 @@
             <trans-unit id="ds.relative_time.months"><source>ds.relative_time.months</source><target>%count%mo ago</target></trans-unit>
             <trans-unit id="ds.relative_time.years"><source>ds.relative_time.years</source><target>%count%y ago</target></trans-unit>
             <trans-unit id="marker.paused"><source>marker.paused</source><target>Paused: %reason%.</target></trans-unit>
+            <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
+            <trans-unit id="marker.paused.reason.title"><source>marker.paused.reason.title</source><target>Paused: %reason%</target></trans-unit>
+            <trans-unit id="marker.paused.run"><source>marker.paused.run</source><target>Card %card% is paused. %reason%. The last %worker% run failed: %failure%.</target></trans-unit>
             <trans-unit id="marker.paused.remedy"><source>marker.paused.remedy</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
             <trans-unit id="marker.run_stopped"><source>marker.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
             <trans-unit id="marker.run_stopped.remedy"><source>marker.run_stopped.remedy</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>

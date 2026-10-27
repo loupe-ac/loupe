@@ -5,7 +5,7 @@
 {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
 {% set todoButtons = todoButtons ?? null %}
 {% set withNote = (withNote ?? true) and not todoButtons %}
-{% set shownWaits = watch is null ? [] : watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
+{% set shownWaits = watch is null ? [] : watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null)) %}
 {% set statuses = reply ? inbox_action_statuses(item) : [] %}
 {% set lastStatus = statuses|last %}
 {# Another open wait, or an expired or cancelled action, brings the reply card back. #}
@@ -41,6 +41,9 @@
                         <div class="prose lp-prose lp-review-doc__prose">{{ line.detail|inbox_markdown }}</div>
                     {%- else %}
                         <p class="lp-comment-body">{{ line.pageKey|trans(line.params) }}</p>
+                        {%- if line.detail %}
+                            <div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail>{{ line.detail|inbox_markdown }}</div>
+                        {%- endif %}
                     {%- endif %}
                     {%- if wait.endedAt %}
                         <twig:Ds:Hint>{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</twig:Ds:Hint>

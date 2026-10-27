@@ -6,7 +6,7 @@ Each level and each phase has a stable ID, so a comment can cite it. The ID P3 i
 
 A card does not always need a full session. "Add a Claude design capability to Loupe" needs one. "Cards need tags" needs a much shorter one.
 
-1. L1: Light. Use it for a small addition to an existing feature. Run P0, then P1, P2, P5, P6, P12, P11, P8, P9 and P10. The document keeps the sections that the template lists for a Light document.
+1. L1: Light. Use it for a small addition to an existing feature. Run P0, then P1, P2, P5, P6, P7, P12, P11, P8, P9 and P10. The document keeps the sections that the template lists for a Light document.
 2. L2: Full. Use it for a new capability. Run every phase from P0 to P12, with P12 and then P11 after P7. The document uses every section of the template.
 3. L3: You propose the level. After intake, recommend a level with a one-line reason, and let the owner confirm it. Do not decide from the card title alone, because a small title can hide decisions. "Cards need tags" hides these decisions, and more:
    - Are tags per project, or shared?
@@ -44,7 +44,12 @@ A card that needs no product design does not use this skill. The owner moves it 
 5. P5: Scope. Fix the first slice, which is the smallest end-to-end slice that works. Fix the no-gos, and what waits for later.
    - In a Full session, then name two or three trade-offs that this feature faces. Ask the owner to pick a side on each (Q7). The answers go in "Priorities".
 6. P6: Behaviour. Settle the main journeys, the empty and error states, and who may act. Work through the coverage checklist of `question-rules.md`. Ask about docs and the landing page here when the profile is missing.
-7. P7: Pre-mortem. Ask one question: "This shipped and failed. Why?" The answers go in "Risks".
+7. P7: Human review. Ask one question: "Must a person review the pull request for this card?"
+   - Ask with AskUserQuestion, with the options "Yes, a person reviews it" and "No, the agent review is enough". Recommend "Yes" when the change alters what a person sees and the session made or linked a prototype. Recommend "No" otherwise. Mark the recommended option "(Recommended)".
+   - Read the card with `card_get` before you ask. When `requiresHumanReview` is already true, say so in the question, and keep "Yes" as the first option.
+   - Set the switch with `card_update`, passing `requiresHumanReview` and no other field. Do it when the owner answers, and never lower a switch that is on without the owner's "No".
+   - A linked prototype turns the switch on by itself later. A "No" answer is the owner's word, so the card keeps it until a new artifact reaches the card.
+   - The question and the answer go in "Decisions log".
 8. P12: Prototype check. Compare the answers with the prototype before the recap. Skip it when the session made or linked no prototype. A prototype is a claude.ai artifact, a Design canvas, or a library artifact. An ASCII sketch (C5) is not one.
    - Read the current prototype as C9 of `claude-design.md` says. Compare only the option that the owner picked, by the label of the "Decisions log" entry.
    - Compare each entry of the "Decisions log" with it. A conflict is a field, an order, a label or a state that an answer and a shown screen contradict, or a state that an answer adds to a screen the prototype shows. A screen that the prototype never draws is not a conflict.
@@ -70,4 +75,4 @@ A card that needs no product design does not use this skill. The owner moves it 
 
 ## When to stop asking
 
-Stop when no open decision is left, then run P12, P11 and P8 to P10. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the rules of `question-rules.md`. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).
+Stop when no open decision is left, then run P7 when it has not run, then P12, P11 and P8 to P10. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the rules of `question-rules.md`. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).

@@ -38,6 +38,8 @@ final readonly class CreateCardCommand
         public ?Actor $actor = null,
         /** Null derives the source from the reporter. */
         public ?CardSource $source = null,
+        /** Null keeps the default, which is off. */
+        public ?bool $requiresHumanReview = null,
     ) {
     }
 }

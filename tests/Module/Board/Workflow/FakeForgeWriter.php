@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Workflow;
 
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Service\PullRequestApproval;
+use App\Module\Forge\Service\PullRequestApprover;
 use App\Module\Forge\Service\PullRequestBaseChanger;
 use App\Module\Forge\Service\PullRequestBranchUpdater;
 use App\Module\Forge\Service\PullRequestMerger;
@@ -12,7 +14,7 @@ use App\Module\Forge\Service\PullRequestOpener;
 use App\Module\Forge\Service\PullRequestStateWriter;
 
 /** Records each write to a `github` pull request, and throws the failure it holds. */
-final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger, PullRequestBranchUpdater, PullRequestStateWriter, PullRequestOpener
+final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger, PullRequestBranchUpdater, PullRequestStateWriter, PullRequestOpener, PullRequestApprover
 {
     /** @var list<list<int|string|bool>> the call, the pull request number, then the arguments */
     public array $calls = [];
@@ -23,6 +25,15 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
     public array $failingNumbers = [];
 
     public int $openedNumber = 900;
+
+    /** A failure that only dismiss() throws, after it records the call. */
+    public ?\Throwable $dismissFailure = null;
+
+    /** A failure that openHead() throws once the heads of $openHeads run out. */
+    public ?\Throwable $openHeadFailure = null;
+
+    /** @var list<?string> the heads that openHead() reports in turn, and the stored head once it runs out */
+    public array $openHeads = [];
 
     #[\Override]
     public function supports(string $forge): bool
@@ -72,6 +83,42 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
     public function url(ForgePullRequest $from, int $number): string
     {
         return 'https://github.com/'.$from->repository.'/pull/'.$number;
+    }
+
+    #[\Override]
+    public function canApprove(ForgePullRequest $pullRequest): bool
+    {
+        return true;
+    }
+
+    #[\Override]
+    public function openHead(ForgePullRequest $pullRequest): ?string
+    {
+        if ([] !== $this->openHeads) {
+            return array_shift($this->openHeads);
+        }
+        if (null !== $this->openHeadFailure) {
+            throw $this->openHeadFailure;
+        }
+
+        return $pullRequest->headSha;
+    }
+
+    #[\Override]
+    public function approve(ForgePullRequest $pullRequest, string $headSha, string $body): PullRequestApproval
+    {
+        $this->record(['approve', $pullRequest->number, $headSha, $body]);
+
+        return new PullRequestApproval('PRR_app', $headSha);
+    }
+
+    #[\Override]
+    public function dismiss(ForgePullRequest $pullRequest, string $reviewId, string $message): void
+    {
+        $this->record(['dismiss', $pullRequest->number, $reviewId, $message]);
+        if (null !== $this->dismissFailure) {
+            throw $this->dismissFailure;
+        }
     }
 
     /** @param list<int|string|bool> $call */
