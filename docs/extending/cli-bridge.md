@@ -2248,7 +2248,7 @@ typed comes back as typed. `project.slug` is the project's slug.
 | 200 | the object above | the user owns the project |
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 429 | | more than 60 reads in one minute from one token |
 
 ## Card endpoint
@@ -2274,7 +2274,7 @@ columns endpoint, and `cardId` is the card's uuid.
 | 200 | the object above | the user owns the project and the project holds the card |
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 404 | `{"error":"card_not_found"}` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
 | 429 | | more than 60 reads in one minute from one token, counted together with the columns endpoint |
 
@@ -2308,7 +2308,7 @@ for every project. With the setting off, the endpoint hands out no token.
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
 | 403 | `{"error":"git_identity_not_managed"}` | the setting is off for the project |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
 | 409 | `{"error":"no_repository","missing":[]}` | the project has installed repositories, and the named one is not among them |
 | 422 | | the body names no repository, or a value that is not `owner/name` |

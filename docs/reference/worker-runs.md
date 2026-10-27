@@ -288,7 +288,7 @@ exception. It writes a new history row, and the server answers 201.
 | 200 | `{"id":"<uuid>"}` | the run already held this state, and the report changed nothing |
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 404 | | agent push is switched off on the instance |
 | 422 | `{"error":"invalid_run_id"}` | `runId` is not a uuid |
 | 422 | a problem object with a `violations` list | the body is invalid, and each violation names its field in `propertyPath` |
@@ -395,7 +395,7 @@ unknown id count as no run, so the server writes nothing and answers 409 with
 | 200 | `{"runs":2,"updated":1}` | the counts match. `updated` counts the runs whose usage changed |
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 404 | | agent push is switched off on the instance, or the server has no such endpoint |
 | 409 | `{"error":"process_count_mismatch"}` | the session has another count of started worker runs, or `runId` names no ended interactive run of the session, and the server wrote nothing |
 | 409 | `{"error":"ambiguous_start_order"}` | two started worker runs of the session start in the same second, and the server wrote nothing |
@@ -471,7 +471,7 @@ the others. A retry is therefore safe, and it answers 200 with a lower
 | 200 | `{"stored":12}` | the request is taken. `stored` counts the calls the server stored for the first time |
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 404 | `{"error":"run_not_found"}` | the project has no run with that `runId`, or two runs of the project share it |
 | 404 | | agent push is switched off on the instance, or the server has no such endpoint |
 | 422 | `{"error":"invalid_run_id"}` | `runId` is not a uuid |
@@ -628,7 +628,7 @@ Two first calls for one card get the same answer, because the first pin stays.
 | 415 | a problem object | the `Content-Type` is not `application/json` |
 | 401 | | the request carries no token |
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
 | 404 | | agent push is switched off on the instance, or the server has no such endpoint |
 | 422 | `{"error":"invalid_card_id"}` | `cardId` is not a uuid |
 | 422 | `{"error":"invalid_experiment"}` | `experiment` breaks the name pattern |

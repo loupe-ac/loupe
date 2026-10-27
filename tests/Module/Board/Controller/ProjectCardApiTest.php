@@ -55,6 +55,23 @@ final class ProjectCardApiTest extends WebTestCase
         self::assertTrue($body['held'] ?? null);
     }
 
+    public function test_a_credential_bound_to_the_project_reads_its_card_by_id_and_by_slug(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'card-api-bound@example.com');
+        $project = $this->project($em, $owner, 'Card Bound');
+        $this->project($em, $owner, 'Card Elsewhere');
+        $card = $this->card($em, $project, 'Bound');
+        $raw = AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $project);
+
+        foreach ([(string) $project->id, 'card-bound'] as $handle) {
+            $this->get($client, '/api/projects/'.$handle.'/board/cards/'.$card->id, $raw);
+
+            self::assertResponseIsSuccessful($handle);
+        }
+    }
+
     /** The card of another project of the same owner is not a card of this project. */
     public function test_a_card_of_another_project_is_not_found(): void
     {
