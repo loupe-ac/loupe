@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4a7604a5cb012b8aaa946ea9295b5900",
+    "content-hash": "e420b2857512f05c85a2c2f8a432062b",
     "packages": [
         {
             "name": "async-aws/core",
@@ -13292,16 +13292,16 @@
         },
         {
             "name": "ubermuda/doctrine-extra",
-            "version": "dev-card-980-rotatable-keys",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ubermuda/doctrine-extra.git",
-                "reference": "4e44c2c02123acf25398967d257c0550fa12c0c6"
+                "reference": "21d12425430c914d813ac85de089dbac6d107437"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ubermuda/doctrine-extra/zipball/4e44c2c02123acf25398967d257c0550fa12c0c6",
-                "reference": "4e44c2c02123acf25398967d257c0550fa12c0c6",
+                "url": "https://api.github.com/repos/ubermuda/doctrine-extra/zipball/21d12425430c914d813ac85de089dbac6d107437",
+                "reference": "21d12425430c914d813ac85de089dbac6d107437",
                 "shasum": ""
             },
             "require": {
@@ -13336,10 +13336,10 @@
             ],
             "description": "Extra Doctrine types for Symfony projects, starting with a libsodium-encrypted string type",
             "support": {
-                "source": "https://github.com/ubermuda/doctrine-extra/tree/card-980-rotatable-keys",
+                "source": "https://github.com/ubermuda/doctrine-extra/tree/main",
                 "issues": "https://github.com/ubermuda/doctrine-extra/issues"
             },
-            "time": "2026-10-27T21:16:37+00:00"
+            "time": "2026-10-27T21:25:20+00:00"
         },
         {
             "name": "ubermuda/feature-flags-bundle",
