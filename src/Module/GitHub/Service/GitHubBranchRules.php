@@ -11,13 +11,15 @@ final readonly class GitHubBranchRules
 {
     /**
      * @param list<string>            $requiredChecks
-     * @param list<positive-int|null> $approvalSources the App id of each entry that requires the approval check, null for an entry with no App
+     * @param list<positive-int|null> $approvalSources     the App id of each entry that requires the approval check, null for an entry with no App
+     * @param ?list<string>           $allowedMergeMethods the merge methods every pull request rule of the branch allows, or null when no rule limits them
      */
     public function __construct(
         public array $requiredChecks,
         public bool $strict,
         public bool $requiresReview = false,
         public array $approvalSources = [],
+        public ?array $allowedMergeMethods = null,
     ) {
     }
 
@@ -41,6 +43,7 @@ final readonly class GitHubBranchRules
         $strict = false;
         $requiresReview = false;
         $approvalSources = [];
+        $allowedMergeMethods = null;
         foreach ($rules as $rule) {
             if (!\is_array($rule) || !\is_array($rule['parameters'] ?? null)) {
                 continue;
@@ -48,6 +51,11 @@ final readonly class GitHubBranchRules
             if ('pull_request' === ($rule['type'] ?? null)) {
                 $count = $rule['parameters']['required_approving_review_count'] ?? null;
                 $requiresReview = $requiresReview || (\is_int($count) && $count >= 1);
+                $allowed = $rule['parameters']['allowed_merge_methods'] ?? null;
+                if (\is_array($allowed)) {
+                    $allowed = array_values(array_filter($allowed, \is_string(...)));
+                    $allowedMergeMethods = null === $allowedMergeMethods ? $allowed : array_values(array_intersect($allowedMergeMethods, $allowed));
+                }
 
                 continue;
             }
@@ -68,6 +76,6 @@ final readonly class GitHubBranchRules
             }
         }
 
-        return new self(array_map(strval(...), array_keys($checks)), $strict, $requiresReview, $approvalSources);
+        return new self(array_map(strval(...), array_keys($checks)), $strict, $requiresReview, $approvalSources, $allowedMergeMethods);
     }
 }

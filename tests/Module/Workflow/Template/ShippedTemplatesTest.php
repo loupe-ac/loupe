@@ -539,7 +539,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     public function test_a_card_waits_in_implementation_and_in_review_until_the_agent_review_passed(): void
     {
         $toReview = $this->call('move', ['to' => 'in-review']);
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         self::assertNotContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [null])));
         self::assertNotContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [AgentReviewConclusion::Failure])));
@@ -552,7 +552,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $toReview = $this->call('move', ['to' => 'in-review']);
         $ready = $this->call('forge-write', ['write' => 'review-ready']);
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         $implementation = self::withAgentReview('implementation', [AgentReviewConclusion::Failure], overriddenBy: 'ubermuda');
         self::assertContainsEquals($toReview, $this->actions($implementation));
@@ -565,7 +565,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_an_epic_child_waits_for_the_agent_review_before_it_merges_into_the_epic_branch(): void
     {
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [null], epicBranch: true)));
         self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], epicBranch: true)));
@@ -611,7 +611,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_an_epic_waits_for_its_own_agent_review_before_it_gets_the_approval_check_or_merges(): void
     {
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
         $pass = $this->call('forge-write', ['write' => 'approval-check', 'state' => 'pass']);
         $epic = static fn (?AgentReviewConclusion $conclusion, bool $approved): Facts => self::withAgentReview('in-review', [$conclusion], epic: true, approved: $approved, ready: true);
 
@@ -752,7 +752,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             card: FactsMother::card(slot: 'in-review'),
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         self::assertContainsEquals($merge, $this->actions($ready));
 
@@ -861,7 +861,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
 
-        self::assertContainsEquals($this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']), $this->actions($facts));
+        self::assertContainsEquals($this->mergeWrite(), $this->actions($facts));
     }
 
     #[DataProvider('shippedKeys')]
@@ -893,7 +893,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
 
-        self::assertNotContainsEquals($this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']), $this->actions($facts));
+        self::assertNotContainsEquals($this->mergeWrite(), $this->actions($facts));
     }
 
     public function test_a_child_whose_pull_requests_closed_unmerged_stays_in_its_column(): void
@@ -1233,7 +1233,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_an_epic_child_pull_request_merges_into_the_epic_branch_with_no_approval(): void
     {
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
         $child = FactsMother::card(slot: 'in-review', isChild: true);
 
         $intoEpic = FactsMother::pullRequest(checks: ChecksState::Passed, baseIsEpicBranch: true);
@@ -1292,6 +1292,14 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
 
         self::assertSame(['product-design-revise' => ['product-design', 'changes-requested'], 'tech-design-revise' => ['tech-design', 'changes-requested']], $params);
+    }
+
+    private function mergeWrite(): ActionCall
+    {
+        $actions = self::getContainer()->get(Actions::class);
+        self::assertInstanceOf(Actions::class, $actions);
+
+        return $actions->call('forge-write', ['write' => 'merge', 'fallback' => 'merge'], lists: ['methods' => ['squash', 'merge', 'rebase']]);
     }
 
     /** @param array<string, int|string> $params */
