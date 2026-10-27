@@ -1028,7 +1028,10 @@ Loupe reads rulesets only. It does not read classic branch protection. The steps
 
 #### Set up the ruleset
 
-The check only gates a merge when the repository ruleset requires it. Change the ruleset of the default branch once:
+The check only gates a merge when the repository ruleset requires it. The Repositories tab of the project settings
+writes these steps for each repository, with a `loupe-ruleset.json` file that you can import on GitHub. After the
+import, open the ruleset and check that `Loupe / Approval` shows the Loupe App as its source. Select **Check again**
+after a change. The same steps by hand:
 
 1. Accept the new **Commit statuses: read and write** permission of the Loupe GitHub App on each installation.
    GitHub lists the App as a source only with that permission. See [forge webhooks](../extending/forge-webhooks.md).
