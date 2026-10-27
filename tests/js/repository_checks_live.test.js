@@ -259,6 +259,38 @@ it('clears the stopped notice when a later fetch of a row works', async () => {
     expect(stoppedText()).toBe('');
 });
 
+it('keeps the stopped notice while another row that failed is still stale', async () => {
+    await mount([row(FIRST), row(SECOND)]);
+    answer(403);
+    signal(SECOND);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(stoppedText()).toBe(STOPPED);
+
+    answer(200);
+    signal(FIRST);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(stoppedText()).toBe(STOPPED);
+
+    answer(200);
+    signal(SECOND);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(stoppedText()).toBe('');
+});
+
+it('clears the stopped notice when the only row that failed is gone', async () => {
+    await mount([row(FIRST), row(SECOND)]);
+    answer(403);
+    signal(SECOND);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(stoppedText()).toBe(STOPPED);
+
+    answer(404);
+    signal(SECOND);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    expect(stoppedText()).toBe('');
+});
+
 it('drops a waiting retry when a new signal fetches the row', async () => {
     await mount([row(FIRST)]);
     answer(500);

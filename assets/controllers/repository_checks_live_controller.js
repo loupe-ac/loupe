@@ -31,7 +31,7 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
  * an open dialog keeps its markup until the dialog closes, then the page
  * fetches it again. A network error or a 5xx, 408 or 429 answer retries with a
  * growing wait. After the last retry, or another failed answer, the page says
- * that live updates stopped, until a later fetch of a row works.
+ * that live updates stopped, until each row that failed works or is gone.
  */
 export default class extends Controller {
     static targets = ['populated', 'empty', 'status'];
@@ -44,6 +44,7 @@ export default class extends Controller {
         this.held = new Set();
         this.issued = new Map();
         this.applied = new Map();
+        this.stale = new Set();
         this.everyRow = false;
         this.fallbackFired = false;
         this.dialogClosed = (event) => this.closed(event);
@@ -179,7 +180,7 @@ export default class extends Controller {
 
         this.applied.set(repositoryId, sequence);
         renderStreamMessage(body);
-        this.clearStopped();
+        this.recovered(repositoryId);
     }
 
     remove(repositoryId, row) {
@@ -188,6 +189,7 @@ export default class extends Controller {
         clearTimeout(this.retries.get(repositoryId));
         this.retries.delete(repositoryId);
         this.held.delete(repositoryId);
+        this.recovered(repositoryId);
         if (
             this.element.querySelector('[data-forge-repository]') === null &&
             this.hasPopulatedTarget &&
@@ -218,6 +220,7 @@ export default class extends Controller {
             return;
         }
         this.dropChecking(repositoryId);
+        this.stale.add(repositoryId);
         this.showStopped();
     }
 
@@ -237,8 +240,9 @@ export default class extends Controller {
         }
     }
 
-    clearStopped() {
-        if (this.hasStatusTarget) {
+    recovered(repositoryId) {
+        this.stale.delete(repositoryId);
+        if (this.stale.size === 0 && this.hasStatusTarget) {
             this.statusTarget.textContent = '';
         }
     }
