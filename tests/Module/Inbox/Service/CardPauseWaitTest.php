@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardPause;
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Mcp\InboxItemPayload;
 use App\Module\Inbox\Messenger\ReconcileCardWaits;
 use App\Module\Inbox\Messenger\ReconcileCardWaitsHandler;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
@@ -17,6 +22,7 @@ use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\MarkerSubjectType;
+use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -93,6 +99,25 @@ final class CardPauseWaitTest extends KernelTestCase
         $reconciler->reconcile($this->project, null);
 
         self::assertSame('paused', $this->onlyWait($this->onlyWatch())->markerKey);
+    }
+
+    public function test_inbox_get_reads_the_pause_reason_and_the_failed_run_link_in_the_body(): void
+    {
+        $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $this->cardId(), 7, 'repair', WorkerRunState::Failed, failureReason: 'the before command exited with code 141', receivedAt: new \DateTimeImmutable('2026-10-26 18:57:17'), ruleId: 'implement');
+        $pause = new CardPause($this->card, $this->project, 'repair-failed', 'implement', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+        $this->em->persist($run);
+        $this->em->persist($pause);
+        $this->em->flush();
+        $this->store($pause->id ?? throw new \LogicException('The pause is stored.'));
+        $this->drain();
+
+        $payload = self::getContainer()->get(InboxItemPayload::class);
+        self::assertInstanceOf(InboxItemPayload::class, $payload);
+        $item = $payload->forItem($this->onlyWatch()->item, []);
+
+        self::assertSame('Paused: The repair worker could not fix the failure', $item['title']);
+        self::assertStringContainsString('The last repair worker run failed: the before command exited with code 141.', $item['body'] ?? '');
+        self::assertMatchesRegularExpression('~\[Open the failed run\]\(https?://[^)]+search='.preg_quote($run->id?->toRfc4122() ?? '', '~').'\)~', $item['body'] ?? '');
     }
 
     public function test_a_card_entry_opens_a_wait_for_one_spell_and_its_removal_ends_it(): void
