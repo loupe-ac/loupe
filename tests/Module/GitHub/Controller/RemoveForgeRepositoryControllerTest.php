@@ -6,8 +6,7 @@ namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
-use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
-use App\Tests\Support\DispatchedEvents;
+use App\Tests\Module\Forge\QueuedHoldReconciliations;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +15,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 final class RemoveForgeRepositoryControllerTest extends WebTestCase
 {
     use GitHubConnectionsScenario;
+    use QueuedHoldReconciliations;
 
     public function test_the_owner_releases_a_repository(): void
     {
@@ -38,7 +38,7 @@ final class RemoveForgeRepositoryControllerTest extends WebTestCase
         self::assertSame(AuditOutcome::Success, $audit->record('github.repository_removed')->outcome);
     }
 
-    /** Removing the last blocking repository goes through the summary writer, so the event that ends a hold goes out. */
+    /** Removing the last blocking repository goes through the summary writer, so the reconciliation that ends a hold is queued. */
     public function test_removing_a_blocking_repository_drops_its_check_and_changes_the_summary(): void
     {
         $client = static::createClient();
@@ -53,7 +53,6 @@ final class RemoveForgeRepositoryControllerTest extends WebTestCase
         $this->em()->flush();
         $checkId = $check->id;
         $this->em()->clear();
-        $events = DispatchedEvents::of(static::getContainer(), ForgeRepositoryCheckChanged::class);
 
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/repositories/'.$repository->id.'/remove');
@@ -61,7 +60,7 @@ final class RemoveForgeRepositoryControllerTest extends WebTestCase
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         $this->em()->clear();
         self::assertNull($this->em()->find(ForgeRepositoryCheck::class, $checkId));
-        self::assertCount(1, $events->events());
+        self::assertSame([(string) $project->id], $this->queuedReconciliations());
     }
 
     /** A foreign id answers like an unknown one, so the route tells nobody that the row exists. */
