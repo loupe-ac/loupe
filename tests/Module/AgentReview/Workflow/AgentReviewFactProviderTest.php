@@ -9,6 +9,8 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Service\AgentReviewNoticeBody;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFactProvider;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewOverridden;
@@ -68,7 +70,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $card = $this->card($this->project);
         $this->em->flush();
 
-        self::assertEquals(new AgentReviewFacts([], false, []), $this->build($card));
+        self::assertEquals(new AgentReviewFacts([]), $this->build($card));
     }
 
     public function test_an_open_pull_request_head_without_a_review_has_no_conclusion(): void
@@ -278,7 +280,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
     {
         return FactsMother::facts(
             pullRequest: FactsMother::pullRequest(id: $pullRequest->id ?? throw new \LogicException('The pull request is flushed.')),
-            provided: [AgentReviewFacts::class => $this->build($card)],
+            provided: [AgentReviewFacts::class => $this->build($card), AgentReviewPostingFacts::class => $this->posting($card)],
         );
     }
 
@@ -288,7 +290,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $pullRequest = $this->linked($card, 7);
         $review = $this->review($card, $pullRequest, new \DateTimeImmutable('-10 minutes'));
 
-        $facts = $this->build($card);
+        $facts = $this->posting($card);
 
         self::assertSame([(string) $review->id], $facts->uncommented);
         self::assertTrue(new AgentReviewUncommented()->evaluate($this->factsOf($pullRequest, $facts), []));
@@ -302,7 +304,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $review->postedAt = new \DateTimeImmutable();
         $this->em->persist($review);
 
-        self::assertSame([], $this->build($card)->uncommented);
+        self::assertSame([], $this->posting($card)->uncommented);
     }
 
     public function test_a_review_with_no_check_of_its_own_needs_no_comment(): void
@@ -311,7 +313,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $pullRequest = $this->linked($card, 7);
         $this->review($card, $pullRequest);
 
-        self::assertSame([], $this->build($card)->uncommented);
+        self::assertSame([], $this->posting($card)->uncommented);
     }
 
     public function test_a_review_whose_check_is_older_than_an_hour_needs_no_comment(): void
@@ -320,7 +322,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $pullRequest = $this->linked($card, 7);
         $this->review($card, $pullRequest, new \DateTimeImmutable('-61 minutes'));
 
-        self::assertSame([], $this->build($card)->uncommented);
+        self::assertSame([], $this->posting($card)->uncommented);
     }
 
     public function test_a_review_that_has_its_notice_needs_no_comment(): void
@@ -331,7 +333,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $this->em->flush();
         $this->em->persist(new PullRequestNotice($this->project, $pullRequest->id ?? throw new \LogicException('Flushed.'), 'github', $pullRequest->repository, $pullRequest->number, AgentReviewNoticeBody::key($review->id ?? throw new \LogicException('Flushed.')), new \DateTimeImmutable()));
 
-        self::assertSame([], $this->build($card)->uncommented);
+        self::assertSame([], $this->posting($card)->uncommented);
     }
 
     public function test_a_review_carried_to_a_later_head_needs_no_comment(): void
@@ -343,10 +345,8 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $pullRequest->headSha = $pullRequest->changeFingerprintSha = str_repeat('e', 40);
         $pullRequest->changeFingerprint = 'change-1';
 
-        $facts = $this->build($card);
-
-        self::assertSame(AgentReviewConclusion::Failure, $facts->heads[0]->conclusion);
-        self::assertSame([], $facts->uncommented);
+        self::assertSame(AgentReviewConclusion::Failure, $this->build($card)->heads[0]->conclusion);
+        self::assertSame([], $this->posting($card)->uncommented);
     }
 
     public function test_only_the_newest_review_of_a_head_counts(): void
@@ -358,26 +358,28 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $newer->postedAt = new \DateTimeImmutable('-5 minutes');
         $this->em->persist($newer);
 
-        self::assertSame([(string) $newer->id], $this->build($card)->uncommented);
+        self::assertSame([(string) $newer->id], $this->posting($card)->uncommented);
     }
 
-    public function test_the_fingerprint_changes_when_a_review_needs_a_comment(): void
+    public function test_a_post_changes_the_posting_fingerprint_and_leaves_the_review_fingerprint_alone(): void
     {
         $card = $this->card($this->project);
         $pullRequest = $this->linked($card, 7);
         $review = $this->review($card, $pullRequest);
-        $before = $this->fingerprint($card);
+        $reviewBefore = $this->fingerprint($card);
+        $postingBefore = $this->postingFingerprint($card);
 
         $review->postedAt = new \DateTimeImmutable();
 
-        self::assertNotEquals($before, $this->fingerprint($card));
+        self::assertEquals($reviewBefore, $this->fingerprint($card));
+        self::assertNotEquals($postingBefore, $this->postingFingerprint($card));
     }
 
-    private function factsOf(ForgePullRequest $pullRequest, AgentReviewFacts $facts): Facts
+    private function factsOf(ForgePullRequest $pullRequest, AgentReviewPostingFacts $facts): Facts
     {
         return FactsMother::facts(
             pullRequest: FactsMother::pullRequest(id: $pullRequest->id ?? throw new \LogicException('The pull request is flushed.')),
-            provided: [AgentReviewFacts::class => $facts],
+            provided: [AgentReviewPostingFacts::class => $facts],
         );
     }
 
@@ -397,18 +399,18 @@ final class AgentReviewFactProviderTest extends KernelTestCase
     {
         $card = $this->card($this->project);
         $pullRequest = $this->linked($card, 7);
-        self::assertFalse($this->build($card)->unposted);
+        self::assertFalse($this->posting($card)->unposted);
 
         $this->review($card, $pullRequest);
-        self::assertTrue($this->build($card)->unposted);
+        self::assertTrue($this->posting($card)->unposted);
 
         $this->em->getConnection()->executeStatement("UPDATE agent_reviews SET posted_at = NOW(), check_name = 'loupe/agent-review'");
         $this->em->clear();
-        self::assertTrue($this->build($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
+        self::assertTrue($this->posting($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
 
         $this->em->getConnection()->executeStatement("UPDATE agent_reviews SET check_name = 'Loupe / Agent review'");
         $this->em->clear();
-        self::assertFalse($this->build($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
+        self::assertFalse($this->posting($this->em->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.'))->unposted);
     }
 
     public function test_the_fingerprint_changes_with_the_head_and_the_conclusion(): void
@@ -444,6 +446,28 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertInstanceOf(AgentReviewFacts::class, $facts);
 
         return $facts;
+    }
+
+    private function posting(Card $card): AgentReviewPostingFacts
+    {
+        $this->em->flush();
+        $facts = $this->postingProvider()->build($card->snapshot());
+        self::assertInstanceOf(AgentReviewPostingFacts::class, $facts);
+
+        return $facts;
+    }
+
+    private function postingFingerprint(Card $card): mixed
+    {
+        return $this->postingProvider()->fingerprint($this->posting($card));
+    }
+
+    private function postingProvider(): AgentReviewPostingFactProvider
+    {
+        $provider = self::getContainer()->get(AgentReviewPostingFactProvider::class);
+        self::assertInstanceOf(AgentReviewPostingFactProvider::class, $provider);
+
+        return $provider;
     }
 
     private function fingerprint(Card $card): mixed

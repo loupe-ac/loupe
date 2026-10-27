@@ -200,7 +200,7 @@ final class ConditionCatalogueTest extends KernelTestCase
 
         foreach (self::catalogueKeys($conditions) as $key) {
             $condition = $conditions->get($key);
-            if ($condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $condition->reads([]), true)) {
+            if ($condition instanceof MarkerEvidence && array_any($condition->reads([]), static fn (EngineFact|string $key): bool => $key instanceof EngineFact && $key->bindsPullRequest())) {
                 self::assertInstanceOf(NamesMarkerSubject::class, $condition, \sprintf('"%s" gives pull request evidence and names no subject type.', $key));
                 self::assertSame(MarkerSubjectType::PullRequest, $condition->subjectType(), $key);
             }

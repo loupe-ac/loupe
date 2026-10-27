@@ -123,7 +123,7 @@ The Workspace takes `width`, which is `default`, `narrow` or `full`, and wraps t
 </twig:Ds:Workspace>
 ```
 
-The shell has one width option. A page whose frame must reach the window edge, such as the board, sets `{% block shell_width %}full{% endblock %}`, which adds `lp-shell--full`. A page that needs a different ground sets `{% block main_surface %}` to `paper` (white) or `fill` (a column that clips its overflow).
+The shell has one width option. A page whose frame must reach the window edge, such as the board, sets `{% block shell_width %}full{% endblock %}`, which adds `lp-shell--full`. Every page has a white ground. A page whose main column must clip its overflow sets `{% block main_surface %}` to `fill`.
 
 The ListRow takes `title`, `subtitle`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
 
@@ -296,7 +296,7 @@ These are the documented shell classes.
 | `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
 | `lp-topbar__global-actions` | The tools at the right end of the bar |
 | `lp-topbar__new-work` and its `__label` part | The New work button. It is a `Ds:Button` with this class added. Below 1024 px the label stays for screen readers only |
-| `lp-main` | The main column. It is the only scroll container of the page. `--paper` gives it a white ground, and `--fill` makes it a column that clips its overflow |
+| `lp-main` | The main column. It is the only scroll container of the page. `--fill` makes it a column that clips its overflow |
 ## The marketing shell
 
 A public page for a signed-out visitor extends `templates/marketing_base.html.twig`. The base draws the site bar (`landing/_nav.html.twig`), the page body and the site footer (`landing/_footer.html.twig`) inside `lp-home`. A page fills `block body`, or swaps `marketing_header`, `marketing_main` and `marketing_footer` when it draws its own. Every link of the bar and footer is a full address, because the docs pages draw the same two templates. A signed-in visitor gets the app shell instead.

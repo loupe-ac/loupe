@@ -1,9 +1,9 @@
 ---
 title: Workshop
-description: "See open requests, cards in motion, and recent project activity."
+description: "See open requests and cards in motion."
 ---
 
-Open a project to see its Workshop. It shows the requests, the cards in motion and the recent activity of that project.
+Open a project to see its Workshop. It shows the requests and the cards in motion of that project.
 A disabled inbox shows an explanation instead of an empty list.
 The project owner can also see a [readiness guide](#the-readiness-guide), which can take the place of these sections.
 
@@ -34,10 +34,6 @@ Select a tile to open the card drawer without leaving Workshop.
 Escape closes the drawer and returns focus to the tile.
 If a card fails to load, Retry loads it again. Close card returns to Workshop.
 Open board shows the full board, including the cards that are not in motion.
-
-Recent activity shows the four latest recorded project events, or an empty state when there are none.
-An event links to its related card when that card remains available.
-Other events link to Activity, which shows the full event details and delivery state.
 
 Your crew lists the connected bridges and links to the Agents page. With no bridge connected, its row links to the connection guide.
 Workshop does not infer running agents from open cards or bridge heartbeats.

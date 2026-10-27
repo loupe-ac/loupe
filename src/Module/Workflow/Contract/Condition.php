@@ -20,6 +20,9 @@ interface Condition
     public static function parameters(): array;
 
     /**
+     * Read PullRequestSubject, not PullRequest, when the condition needs only which pull request it acts on and whether it is open.
+     * The wide group hashes the draft flag, the checks and the mergeability too, so a change of those ends a pause.
+     *
      * @param array<string, mixed> $params
      *
      * @return list<EngineFact|class-string> an EngineFact for a group the engine builds, a facts class for the facts of a provider

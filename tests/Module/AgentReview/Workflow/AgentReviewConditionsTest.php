@@ -6,6 +6,7 @@ namespace App\Tests\Module\AgentReview\Workflow;
 
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewOverridden;
@@ -68,10 +69,22 @@ final class AgentReviewConditionsTest extends TestCase
         yield 'overridden: another head has no review' => [new AgentReviewOverridden(), self::review([$overridden, self::head(null, self::OTHER)]), false];
         yield 'overridden: a failed review nobody approved' => [new AgentReviewOverridden(), self::review([$failure]), false];
         yield 'overridden: no pull request head' => [new AgentReviewOverridden(), self::review([]), false];
-        yield 'unposted: all posted' => [new AgentReviewUnposted(), self::review([$success]), false];
-        yield 'unposted: a review waits' => [new AgentReviewUnposted(), self::review([$success], unposted: true), true];
-        yield 'uncommented: none waits' => [new AgentReviewUncommented(), self::review([$success]), false];
-        yield 'uncommented: a review waits' => [new AgentReviewUncommented(), self::review([$success], uncommented: ['review-1']), true];
+    }
+
+    /** @return iterable<string, array{Condition, AgentReviewPostingFacts, bool}> */
+    public static function postingCases(): iterable
+    {
+        yield 'unposted: all posted' => [new AgentReviewUnposted(), new AgentReviewPostingFacts(false, []), false];
+        yield 'unposted: a review waits' => [new AgentReviewUnposted(), new AgentReviewPostingFacts(true, []), true];
+        yield 'uncommented: none waits' => [new AgentReviewUncommented(), new AgentReviewPostingFacts(false, []), false];
+        yield 'uncommented: a review waits' => [new AgentReviewUncommented(), new AgentReviewPostingFacts(false, ['review-1']), true];
+    }
+
+    #[DataProvider('postingCases')]
+    public function test_the_posting_conditions_read_the_posting_facts(Condition $condition, AgentReviewPostingFacts $posting, bool $expected): void
+    {
+        self::assertSame([AgentReviewPostingFacts::class], $condition->reads([]));
+        self::assertSame($expected, $condition->evaluate(FactsMother::facts(provided: [AgentReviewPostingFacts::class => $posting]), []));
     }
 
     #[DataProvider('cases')]
@@ -83,8 +96,8 @@ final class AgentReviewConditionsTest extends TestCase
 
     public function test_due_and_failed_read_the_bound_pull_request(): void
     {
-        self::assertSame([AgentReviewFacts::class, EngineFact::PullRequest], new AgentReviewDue()->reads([]));
-        self::assertSame([AgentReviewFacts::class, EngineFact::PullRequest], new AgentReviewFailed()->reads([]));
+        self::assertSame([AgentReviewFacts::class, EngineFact::PullRequestSubject], new AgentReviewDue()->reads([]));
+        self::assertSame([AgentReviewFacts::class, EngineFact::PullRequestSubject], new AgentReviewFailed()->reads([]));
         self::assertSame([AgentReviewFacts::class], new AgentReviewPassed()->reads([]));
     }
 
@@ -112,11 +125,10 @@ final class AgentReviewConditionsTest extends TestCase
 
     /**
      * @param list<ReviewedHead> $heads
-     * @param list<string>       $uncommented
      */
-    private static function review(array $heads, bool $unposted = false, array $uncommented = []): AgentReviewFacts
+    private static function review(array $heads): AgentReviewFacts
     {
-        return new AgentReviewFacts($heads, $unposted, $uncommented);
+        return new AgentReviewFacts($heads);
     }
 
     private static function facts(AgentReviewFacts $review): Facts

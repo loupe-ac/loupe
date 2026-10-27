@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\AgentReview\Workflow\Condition;
 
-use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
@@ -33,13 +33,13 @@ final readonly class AgentReviewUncommented implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [AgentReviewFacts::class];
+        return [AgentReviewPostingFacts::class];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        $review = $facts->get(AgentReviewFacts::class);
+        $review = $facts->get(AgentReviewPostingFacts::class);
 
         return [] !== $review->uncommented;
     }

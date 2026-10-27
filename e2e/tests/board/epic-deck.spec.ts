@@ -14,6 +14,7 @@ import {
     type Page,
 } from '@playwright/test';
 import { accessToken, signedInPage } from '../fixtures';
+import { addBoardColumn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eEpicDeck1!';
@@ -145,6 +146,7 @@ async function settled(element: Locator): Promise<void> {
 
 interface Board {
     page: Page;
+    projectId: string;
     boardUrl: string;
     create: CreateCard;
 }
@@ -169,6 +171,7 @@ const test = base.extend<{ board: Board }>({
 
         await use({
             page,
+            projectId,
             boardUrl: `/projects/${projectId}/board`,
             create: await mcpCards(page, projectId),
         });
@@ -400,6 +403,8 @@ test('the deck stays in view while the lanes scroll sideways, and a long title w
         { type: 'epic', status: 'next' },
     );
     await board.create(`Pinned waiting ${RUN}`, { parent: epic });
+    // Three columns fit 640px, so a fourth makes the lanes scroll sideways.
+    await addBoardColumn(page, board.projectId, 'Review');
 
     await page.goto(board.boardUrl);
     await expect(page.locator(READY)).toBeAttached();

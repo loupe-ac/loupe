@@ -20,15 +20,13 @@ final class AppShellTopbarParityTest extends KernelTestCase
         return $translator->trans($key, [], null, 'en');
     }
 
-    public function test_the_specimen_and_the_export_label_the_bell_and_new_work_as_the_app_does(): void
+    public function test_the_specimen_and_the_export_label_new_work_as_the_app_does(): void
     {
         $jsx = self::componentJsx('AppShell');
         $specimen = (string) file_get_contents(static::getContainer()->getParameter('kernel.project_dir').'/templates/Module/DesignSystem/specimen/appshell.html.twig');
-        $bell = self::translate('nav.activity.open');
         $newWork = self::translate('nav.new_work');
 
         foreach (['export' => $jsx, 'specimen' => $specimen] as $name => $source) {
-            self::assertStringContainsString('aria-label="'.$bell.'"', $source, $name);
             self::assertStringContainsString('aria-label="'.$newWork.'"', $source, $name);
         }
     }

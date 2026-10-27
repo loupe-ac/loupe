@@ -331,6 +331,8 @@ sheet open and shows a message in it.
 The Backlog page is at **`/projects/<project>/board/backlog`**. It lists the
 cards in Backlog, 25 to a page. Each row shows the card number and title, the
 type, the epic, the count of pending feedback and the date the card was added.
+Click a title to open the card in the card drawer, as on the board. A new tab
+from the same link opens the full card page.
 
 Above the list, search the title and the body, and filter by type and by epic. The type filter offers the types that the workflow
 template declares.

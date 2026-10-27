@@ -186,6 +186,37 @@ it('closes when a scroll moves the anchor', () => {
     expect(isOpen()).toBe(false);
 });
 
+it('opens again in place after a morph drops its open mark and placement', () => {
+    anchor().dispatchEvent(new Event('pointerenter'));
+    tooltip().removeAttribute('data-open');
+    tooltip().style.left = '';
+    tooltip().style.top = '';
+    anchor().dispatchEvent(new Event('turbo:morph-element', { bubbles: true }));
+
+    expect(isOpen()).toBe(true);
+    expect(tooltip().style.left).toBe('132px');
+    expect(tooltip().style.top).toBe('124px');
+});
+
+it('restores a morph once, and leaves the later morph events of the same update alone', () => {
+    anchor().dispatchEvent(new Event('pointerenter'));
+    tooltip().removeAttribute('data-open');
+    const place = vi.spyOn(tooltip(), 'getBoundingClientRect');
+    anchor().dispatchEvent(new Event('turbo:morph-element', { bubbles: true }));
+    const restored = place.mock.calls.length;
+    anchor().dispatchEvent(new Event('turbo:morph-element', { bubbles: true }));
+
+    expect(isOpen()).toBe(true);
+    expect(restored).toBeGreaterThan(0);
+    expect(place.mock.calls.length).toBe(restored);
+});
+
+it('does not open on a morph while it is closed', () => {
+    anchor().dispatchEvent(new Event('turbo:morph-element', { bubbles: true }));
+
+    expect(isOpen()).toBe(false);
+});
+
 describe('in the top layer', () => {
     let calls;
 
@@ -223,6 +254,28 @@ describe('in the top layer', () => {
         anchor().dispatchEvent(new Event('pointerenter'));
 
         expect(calls.filter((call) => call === 'show')).toHaveLength(1);
+    });
+
+    it('shows a tooltip that a morph replaced in the top layer again before it places it', () => {
+        anchor().dispatchEvent(new Event('pointerenter'));
+        const replacement = tooltip().cloneNode(true);
+        replacement.removeAttribute('data-open');
+        replacement.showPopover = () => calls.push('show again');
+        replacement.getBoundingClientRect = () => {
+            calls.push('measure again');
+
+            return rectangle(0, 0, 288, 80);
+        };
+        tooltip().replaceWith(replacement);
+        anchor().dispatchEvent(
+            new Event('turbo:morph-element', { bubbles: true }),
+        );
+
+        expect(
+            calls.filter((call) => call.endsWith('again')).slice(0, 2),
+        ).toEqual(['show again', 'measure again']);
+        expect(isOpen()).toBe(true);
+        expect(tooltip().style.left).toBe('132px');
     });
 
     it('keeps the fixed tooltip when the browser has no popover support', () => {

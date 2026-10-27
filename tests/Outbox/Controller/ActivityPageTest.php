@@ -19,40 +19,6 @@ use Symfony\Component\Uid\Uuid;
 
 final class ActivityPageTest extends WebTestCase
 {
-    public function test_recent_activity_is_bounded_and_permission_scoped(): void
-    {
-        $client = static::createClient();
-        $em = $this->em();
-        $owner = $this->user($em, 'recent-activity@example.com');
-        $outsider = $this->user($em, 'recent-outsider@example.com');
-        $project = new Project($owner, 'Recent activity');
-        $empty = new Project($owner, 'Empty activity');
-        $foreign = new Project($outsider, 'Foreign activity');
-        foreach ([$project, $empty, $foreign] as $entity) {
-            $em->persist($entity);
-        }
-        for ($index = 0; $index < 14; ++$index) {
-            $em->persist(new OutboxEvent($project, 'event.'.$index, 'topic', '{}', new \DateTimeImmutable('-'.$index.' minutes')));
-        }
-        $em->persist(new OutboxEvent($foreign, 'foreign.secret', 'topic', '{}'));
-        $em->flush();
-        $em->clear();
-        $client->loginUser($owner);
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity/recent');
-        self::assertResponseIsSuccessful();
-        self::assertCount(12, $crawler->filter('#recent-activity-frame [data-activity-event-id]'));
-        self::assertStringContainsString('event.0', $crawler->text());
-        self::assertStringNotContainsString('event.13', $crawler->text());
-        self::assertStringNotContainsString('foreign.secret', $crawler->text());
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$empty->id.'/activity/recent');
-        self::assertResponseIsSuccessful();
-        self::assertCount(0, $crawler->filter('[data-activity-event-id]'));
-        self::assertSelectorExists('#recent-activity-frame');
-        $client->loginUser($outsider);
-        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity/recent');
-        self::assertResponseStatusCodeSame(403);
-    }
-
     public function test_card_links_resolve_only_existing_cards_in_the_event_project(): void
     {
         $client = static::createClient();

@@ -46,6 +46,10 @@ final readonly class FactFingerprint
     {
         $groups = [];
         foreach ($keys as $key) {
+            // The wide group already holds the state the narrow one reads, so a rule that reads both hashes as before.
+            if (EngineFact::PullRequestSubject === $key && \in_array(EngineFact::PullRequest, $keys, true)) {
+                continue;
+            }
             if ($key instanceof EngineFact) {
                 $groups[$key->value] = $this->engineGroup($facts, $key);
                 continue;
@@ -65,6 +69,7 @@ final readonly class FactFingerprint
             EngineFact::Slot => $facts->slot,
             EngineFact::ParentSlot => $facts->parentSlot,
             EngineFact::PullRequest => $facts->pullRequest?->fingerprint(),
+            EngineFact::PullRequestSubject => $facts->pullRequest?->state->value,
             EngineFact::PullRequestHead => $facts->pullRequest?->headSha,
             EngineFact::PullRequestMergeGate => null === $facts->pullRequest ? null : [$facts->pullRequest->checksOnHead, $facts->pullRequest->canMerge, $facts->pullRequest->baseIsDefault, $facts->pullRequest->mergeBlocked],
             EngineFact::PullRequestApprovalCheck => null === $facts->pullRequest ? null : [$facts->pullRequest->approvalCheckPassed, $facts->pullRequest->canPostCheck],
