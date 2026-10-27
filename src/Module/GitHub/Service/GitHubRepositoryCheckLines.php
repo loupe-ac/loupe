@@ -120,9 +120,26 @@ final readonly class GitHubRepositoryCheckLines
                 $detailKey = $prefix.'.detail_seen';
                 $detailParameters['%checks%'] = implode(', ', \array_slice($names, 0, self::MAX_LISTED));
             }
+        } elseif (RepositorySuggestionCatalog::GAP_NO_MERGE_METHOD === $gap && null !== $settings) {
+            $detailKey = $prefix.'.detail_named';
+            $detailParameters['%repository%'] = $this->methodList($settings->mergeMethods);
+            $detailParameters['%rulesets%'] = null === $settings->rules->allowedMergeMethods
+                ? $this->translator->trans(self::KEY_PREFIX.'method.any')
+                : $this->methodList($settings->rules->allowedMergeMethods);
         }
 
         return new RepositoryCheckLine($modifier, $stateKey, $prefix.'.title', ['%branch%' => $branch], $detailKey, $detailParameters, $gap);
+    }
+
+    /** @param list<string> $methods */
+    private function methodList(array $methods): string
+    {
+        $known = array_values(array_intersect(RepositorySettings::MERGE_METHODS, $methods));
+        if ([] === $known) {
+            return $this->translator->trans(self::KEY_PREFIX.'method.none');
+        }
+
+        return implode(', ', array_map(fn (string $method): string => $this->translator->trans(self::KEY_PREFIX.'method.'.$method), $known));
     }
 
     /** @return list<string> */

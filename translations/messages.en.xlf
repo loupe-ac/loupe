@@ -8671,6 +8671,8 @@
             <trans-unit id="github.repositories.check.method.squash"><source>github.repositories.check.method.squash</source><target>squash</target></trans-unit>
             <trans-unit id="github.repositories.check.method.merge"><source>github.repositories.check.method.merge</source><target>a merge commit</target></trans-unit>
             <trans-unit id="github.repositories.check.method.rebase"><source>github.repositories.check.method.rebase</source><target>rebase</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.none"><source>github.repositories.check.method.none</source><target>no method</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.any"><source>github.repositories.check.method.any</source><target>any method</target></trans-unit>
             <trans-unit id="github.repositories.check.failed.read"><source>github.repositories.check.failed.read</source><target>GitHub did not answer at %time%.</target></trans-unit>
             <trans-unit id="github.repositories.check.failed.no_installation"><source>github.repositories.check.failed.no_installation</source><target>Loupe checks only repositories of the GitHub App. Install the App on this repository to check it.</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.title"><source>github.repositories.check.unknown.title</source><target>A setting does not fit</target></trans-unit>
@@ -8704,6 +8706,7 @@
             <trans-unit id="github.repositories.check.merge-method.fits.detail_unnamed"><source>github.repositories.check.merge-method.fits.detail_unnamed</source><target>This repository allows a merge method that Loupe can use.</target></trans-unit>
             <trans-unit id="github.repositories.check.merge-method.no_merge_method.title"><source>github.repositories.check.merge-method.no_merge_method.title</source><target>No merge method is usable</target></trans-unit>
             <trans-unit id="github.repositories.check.merge-method.no_merge_method.detail"><source>github.repositories.check.merge-method.no_merge_method.detail</source><target>The merge settings of the repository and the rules of %branch% leave no method for Loupe. No pull request can merge.</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.no_merge_method.detail_named"><source>github.repositories.check.merge-method.no_merge_method.detail_named</source><target>The repository allows %repository%. The rulesets of %branch% allow %rulesets%. No method is in both, so no pull request can merge.</target></trans-unit>
             <trans-unit id="github.repositories.check.classic-protection.classic_protection.title"><source>github.repositories.check.classic-protection.classic_protection.title</source><target>%branch% uses classic branch protection</target></trans-unit>
             <trans-unit id="github.repositories.check.classic-protection.classic_protection.detail"><source>github.repositories.check.classic-protection.classic_protection.detail</source><target>Loupe cannot check classic branch protection, so a review rule there can still block merges. Move its rules to a ruleset.</target></trans-unit>
             <trans-unit id="github.repositories.guide.title"><source>github.repositories.guide.title</source><target>Fix it on GitHub</target></trans-unit>

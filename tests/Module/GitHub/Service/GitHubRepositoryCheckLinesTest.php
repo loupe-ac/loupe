@@ -79,6 +79,33 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
         self::assertSame(self::P.'ci-checks.no_ci_check.detail', $this->lines()->forCheck($without)[0]->detailKey);
     }
 
+    public function test_the_merge_method_gap_names_what_the_repository_and_its_rulesets_allow(): void
+    {
+        $settings = $this->settings(mergeMethods: ['merge', 'squash'], allowedMergeMethods: ['rebase']);
+        $check = $this->check([$this->item('merge-method', 'blocking', [RepositorySuggestionCatalog::GAP_NO_MERGE_METHOD])], $settings);
+
+        $line = $this->lines()->forCheck($check)[0];
+
+        self::assertSame(self::P.'merge-method.no_merge_method.detail_named', $line->detailKey);
+        self::assertSame(self::P.'method.squash, '.self::P.'method.merge', $line->detailParameters['%repository%']);
+        self::assertSame(self::P.'method.rebase', $line->detailParameters['%rulesets%']);
+    }
+
+    public function test_the_merge_method_gap_says_when_a_side_allows_nothing_or_sets_no_limit(): void
+    {
+        $settings = $this->settings(mergeMethods: []);
+        $check = $this->check([$this->item('merge-method', 'blocking', [RepositorySuggestionCatalog::GAP_NO_MERGE_METHOD])], $settings);
+
+        $line = $this->lines()->forCheck($check)[0];
+
+        self::assertSame(self::P.'method.none', $line->detailParameters['%repository%']);
+        self::assertSame(self::P.'method.any', $line->detailParameters['%rulesets%']);
+        self::assertSame(
+            self::P.'merge-method.no_merge_method.detail',
+            $this->lines()->forCheck($this->check([$this->item('merge-method', 'blocking', [RepositorySuggestionCatalog::GAP_NO_MERGE_METHOD])], null))[0]->detailKey,
+        );
+    }
+
     public function test_a_fitting_item_is_an_ok_line(): void
     {
         $settings = $this->settings(requiredChecks: ['Loupe / Approval', 'lint', 'phpunit'], mergeMethods: ['merge', 'squash']);
@@ -165,9 +192,10 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
      * @param list<string>            $requiredChecks
      * @param list<string>            $mergeMethods
      * @param list<RepositoryRuleset> $rulesets
+     * @param list<string>|null       $allowedMergeMethods
      */
-    private function settings(array $recentChecks = [], array $requiredChecks = [], array $mergeMethods = ['squash'], array $rulesets = []): RepositorySettings
+    private function settings(array $recentChecks = [], array $requiredChecks = [], array $mergeMethods = ['squash'], array $rulesets = [], ?array $allowedMergeMethods = null): RepositorySettings
     {
-        return new RepositorySettings('main', $mergeMethods, 15368, new RepositoryRules(true, false, null, $requiredChecks, [], true, true), $rulesets, $recentChecks, false);
+        return new RepositorySettings('main', $mergeMethods, 15368, new RepositoryRules(true, false, $allowedMergeMethods, $requiredChecks, [], true, true), $rulesets, $recentChecks, false);
     }
 }
