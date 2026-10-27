@@ -482,7 +482,7 @@ act on a live-review verdict, and they never ask a bridge for work:
 | Write | Does |
 |---|---|
 | `post-review` | Posts each unsent verdict as a review on the open GitHub pull requests that the reviewer picked. The review goes out under the reviewer's own GitHub account |
-| `site-review-check` | Keeps a check named "Loupe live review" on each open GitHub pull request of the card. The check counts the notes of every card that links the pull request. The check goes out as the GitHub App |
+| `site-review-check` | Keeps a check named `Loupe / Live review` on each open GitHub pull request of the card. The check counts the notes of every card that links the pull request. The check goes out as the GitHub App |
 
 A review that the reviewer sends on their own pull request becomes a comment,
 because GitHub refuses a review from the author of a pull request.
@@ -492,7 +492,7 @@ ready for review. It skips a closed or merged pull request. It has no fallback.
 
 The `agent-review-check` write posts the reviews that a `review` worker sent
 with the `agent_review_submit` MCP tool. A review of an open GitHub pull request
-of the card gets a new check named `loupe/agent-review` on the commit it
+of the card gets a new check named `Loupe / Agent review` on the commit it
 reviewed. The check fails when a finding has a severity that the template
 counts as failing. Each finding shows as a note on its lines. The write has no
 fallback. A project with no GitHub App installation gets no check, and its

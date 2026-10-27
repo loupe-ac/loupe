@@ -71,7 +71,7 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertNull($result->failure);
         self::assertTrue($result->changed);
         self::assertSame(
-            [['loupe/agent-review', str_repeat('1', 40), PullRequestCheckConclusion::Success, null], ['loupe/agent-review', str_repeat('2', 40), PullRequestCheckConclusion::Failure, null]],
+            [['Loupe / Agent review', str_repeat('1', 40), PullRequestCheckConclusion::Success, null], ['Loupe / Agent review', str_repeat('2', 40), PullRequestCheckConclusion::Failure, null]],
             array_map(static fn (array $call): array => [$call['name'], $call['sha'], $call['conclusion'], $call['runId']], $this->writer->published),
         );
         self::assertSame([101, 102], [$first->checkRunId, $second->checkRunId]);

@@ -72,7 +72,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertCount(1, $this->writer->published);
         $call = $this->writer->published[0];
-        self::assertSame(['Loupe live review', 'sha-1', PullRequestCheckConclusion::Success, null], [$call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
+        self::assertSame(['Loupe / Live review', 'sha-1', PullRequestCheckConclusion::Success, null], [$call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
         self::assertSame('No open live review notes', $call['title']);
         $state = $this->stateOf($pullRequest);
         self::assertSame(['sha-1', 'success', 0, 101], [$state->headSha, $state->conclusion, $state->noteCount, $state->checkRunId]);
@@ -221,7 +221,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertNull($wanted->postedNotesDigest);
         self::assertCount(2, $this->writer->published);
-        self::assertSame('Loupe live review', $this->writer->published[1]['name']);
+        self::assertSame('Loupe / Live review', $this->writer->published[1]['name']);
         self::assertSame(101, $this->writer->published[1]['runId']);
         self::assertSame($wanted->notesDigest, $this->stateOf($pullRequest)->notesDigest);
     }
@@ -284,7 +284,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertCount(1, $this->writer->published);
         $call = $this->writer->published[0];
-        self::assertSame([7, 'Loupe live review', 'sha-1', PullRequestCheckConclusion::Neutral, 101], [$call['number'], $call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
+        self::assertSame([7, 'Loupe / Live review', 'sha-1', PullRequestCheckConclusion::Neutral, 101], [$call['number'], $call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
         self::assertSame('Loupe no longer keeps this check', $call['title']);
         self::assertSame('No card links this pull request any more, so this check does not block it.', $call['summary']);
     }

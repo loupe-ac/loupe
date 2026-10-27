@@ -1294,7 +1294,7 @@ final class ForgeWriteTest extends KernelTestCase
 
         self::assertEquals(ActionOutcome::done(), $this->write($card, 'agent-review-check', fallback: null));
 
-        self::assertSame([[$pullRequest->number, 'loupe/agent-review', str_repeat('a', 40)]], array_map(static fn (array $call): array => [$call['number'], $call['name'], $call['sha']], $this->checkWriter->published));
+        self::assertSame([[$pullRequest->number, 'Loupe / Agent review', str_repeat('a', 40)]], array_map(static fn (array $call): array => [$call['number'], $call['name'], $call['sha']], $this->checkWriter->published));
         self::assertSame(101, $review->checkRunId);
         self::assertEquals([new EvaluateCard((string) $card->id)], $this->queuedEvaluations());
     }

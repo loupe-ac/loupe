@@ -28,7 +28,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[AsAlias(AgentReviewCheck::class)]
 final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
 {
-    public const string NAME = 'loupe/agent-review';
+    public const string NAME = 'Loupe / Agent review';
 
     public const int MAX_LISTED_FINDINGS = 20;
 
