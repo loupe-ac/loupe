@@ -28,7 +28,6 @@ use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Template\ShippedTemplates;
-use App\Outbox\Entity\OutboxEvent;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
@@ -41,32 +40,6 @@ use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 final class ShowWorkshopControllerTest extends WebTestCase
 {
     use BoardColumnFixtures;
-
-    public function test_recent_activity_reads_only_the_latest_project_events(): void
-    {
-        $client = self::createClient();
-        $em = self::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'workshop-events@example.com');
-        $project = new Project($owner, 'Event workshop');
-        $project->readinessGuideHiddenAt = new \DateTimeImmutable();
-        $foreign = new Project($owner, 'Other events');
-        $em->persist($project);
-        $em->persist($foreign);
-        $events = [];
-        for ($index = 1; $index <= 6; ++$index) {
-            $event = new OutboxEvent($project, 'inbox.event_'.$index, 'urn:workshop', '{}', new \DateTimeImmutable('2026-01-0'.$index));
-            $em->persist($event);
-            $events[] = $event;
-        }
-        $em->persist(new OutboxEvent($foreign, 'inbox.foreign', 'urn:workshop', '{}'));
-        $em->flush();
-        $em->clear();
-        $client->loginUser($owner);
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id);
-        self::assertResponseIsSuccessful();
-        self::assertSame(array_map(static fn (OutboxEvent $event): string => (string) $event->id, array_reverse(array_slice($events, 2))), $crawler->filter('[data-workshop-event]')->extract(['data-workshop-event']));
-        self::assertSelectorTextContains('[data-workshop-event]', 'inbox.event_6');
-    }
 
     public function test_in_motion_shows_the_cards_with_an_open_run_and_targets_the_shared_drawer(): void
     {
@@ -377,7 +350,6 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-workshop-summary');
         self::assertSelectorNotExists('#workshop-in-motion');
         self::assertSelectorNotExists('.lp-workshop-crew');
-        self::assertSelectorNotExists('.lp-workshop-recent');
         self::assertSelectorTextNotContains('[data-workshop]', 'Needs you');
         self::assertCount(1, $crawler->filter('#card-drawer-frame'));
     }

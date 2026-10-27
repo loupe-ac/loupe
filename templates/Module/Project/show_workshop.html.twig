@@ -88,20 +88,6 @@
                 </a>
                 {% endfor %}
             </section>
-
-            <section class="lp-workshop-recent">
-                <twig:Ds:SectionHeading>{{ 'nav.link.activity'|trans }}
-                    <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_activity', {id: workshop.project.id}) }}">{{ 'project.workshop.activity.view_all'|trans }}</a></twig:block>
-                </twig:Ds:SectionHeading>
-                {% for entry in workshop.activity %}
-                <a class="lp-workshop-recent__row" href="{{ entry.link ? entry.link.url : path('app_project_activity', {id: workshop.project.id}) }}" data-workshop-event="{{ entry.event.id }}">
-                    <span><twig:ux:icon name="lucide:activity" /></span>
-                    <span><strong>{% include 'outbox/_event_type_label.html.twig' with {type: entry.event.type} only %}</strong><small>{% if entry.link %}{{ entry.link.label }} · {% endif %}<twig:Ds:RelativeTime :datetime="entry.event.createdAt" /></small></span>
-                </a>
-                {% else %}
-                <twig:Ds:EmptyState compact onCard icon="lucide:activity" :body="'project.workshop.activity.empty'|trans" />
-                {% endfor %}
-            </section>
         </aside>
     </div>
     {% endif %}

@@ -166,7 +166,7 @@
     .lp-core-board .lp-board__columns {
         display: grid;
         grid-auto-flow: column;
-        grid-auto-columns: minmax(calc(var(--spacing) * 52), 1fr);
+        grid-auto-columns: minmax(calc(var(--spacing) * 44), 1fr);
         gap: calc(var(--spacing) * 3.5);
         align-items: stretch;
         overflow-x: auto;
@@ -174,7 +174,7 @@
     }
 
     .lp-core-board .lp-board__column {
-        min-width: calc(var(--spacing) * 52);
+        min-width: calc(var(--spacing) * 44);
         padding: calc(var(--spacing) * 2.5);
         /* The card list carries the rest of this inset, so its scrollbar clears
            the cards without a short column looking inset on one side. */
@@ -268,12 +268,6 @@
     .lp-core-board .lp-board-card__meta {
         padding-top: calc(var(--spacing) * 2.5);
         border-top: 1px solid var(--border-faint);
-    }
-
-    /* The inbox pages sit straight on a white page, with no frame around them. */
-    .lp-main:has(.lp-core-inbox),
-    .lp-main:has(.lp-account-inbox) {
-        @apply bg-surface-1;
     }
 
     /* Each pane scrolls on its own, so the page's top and bottom padding moves
@@ -2225,7 +2219,7 @@
     }
 
     body {
-        @apply font-sans antialiased text-fg bg-app text-sm tracking-normal;
+        @apply font-sans antialiased text-fg bg-surface-1 text-sm tracking-normal;
     }
 
     button {
@@ -6612,9 +6606,15 @@
     .lp-board-lane__tool {
         @apply text-fg-dim cursor-pointer;
     }
-    /* The Move button of a lane epic, 44 px like the one on a card face. */
+    /* The Move button of a lane epic: 28 px for a mouse, 44 px for touch. The minimum
+       height is set too, because every button has a 36 px minimum. */
     .lp-board-lane__move {
-        @apply size-11 shrink-0 cursor-pointer text-fg-dim;
+        @apply size-7 min-h-7 shrink-0 cursor-pointer text-fg-dim;
+    }
+    @media (pointer: coarse) {
+        .lp-board-lane__move {
+            @apply size-11 min-h-11;
+        }
     }
     /* The lane sheet button. A phone shows it, and the other widths keep the buttons of the head. */
     .lp-board-lane__head .lp-board-lane__menu {
@@ -6671,10 +6671,10 @@
         @apply size-0.75 shrink-0 rounded-full bg-line-strong;
     }
     .lp-board-lane__bar {
-        @apply block w-11 h-1 shrink-0 overflow-hidden rounded-full border-0 bg-surface-3 appearance-none;
+        @apply block w-11 h-1 shrink-0 overflow-hidden rounded-full border-0 bg-line-strong appearance-none;
     }
     .lp-board-lane__bar::-webkit-progress-bar {
-        @apply rounded-full bg-surface-3;
+        @apply rounded-full bg-line-strong;
     }
     .lp-board-lane__bar::-webkit-progress-value {
         @apply rounded-full bg-accent-ink;
@@ -7086,10 +7086,18 @@
     .lp-board-card__documents {
         @apply inline-flex items-center gap-1 text-xs font-semibold text-fg-mute;
     }
-    /* The Move button: 44 px at every width, at the right of the identity row. Its margin
-       lets it reach past the card padding, so the row keeps its height. */
+    /* The Move button: 28 px for a mouse, 44 px for touch, at the right of the identity row.
+       The touch size reaches past the card padding with a negative margin, so the row keeps its height. */
     .lp-board-card__move {
-        @apply -mt-2 -mr-2 -mb-1 ml-auto size-11 shrink-0 cursor-pointer text-fg-dim;
+        @apply ml-auto size-7 min-h-7 shrink-0 cursor-pointer text-fg-dim;
+    }
+    .lp-board-card__identity .lp-state-mark ~ .lp-board-card__move {
+        @apply ml-0;
+    }
+    @media (pointer: coarse) {
+        .lp-board-card__move {
+            @apply -mt-2 -mr-2 -mb-1 size-11 min-h-11;
+        }
     }
 
     /* The Move sheet: the title of the card, then one 48 px row for the Backlog and for each column. */
@@ -8403,8 +8411,7 @@
     .lp-workshop-supporting {
         @apply min-w-0;
     }
-    .lp-workshop-crew,
-    .lp-workshop-recent {
+    .lp-workshop-crew {
         @apply rounded-xl border border-line bg-white p-5;
     }
     .lp-workshop-icon-link {
@@ -8430,27 +8437,6 @@
     }
     .lp-workshop-crew__status {
         @apply ml-auto text-xs font-semibold text-accent-ink;
-    }
-    .lp-workshop-recent {
-        @apply mt-6;
-    }
-    .lp-workshop-recent__row {
-        @apply flex items-start gap-3 mt-1 pt-4 border-t border-line-faint no-underline;
-    }
-    .lp-workshop-recent__row > span:first-child {
-        @apply grid place-items-center w-8 h-8 shrink-0 rounded-lg border border-line bg-white text-fg-dim;
-    }
-    .lp-workshop-recent__row svg {
-        @apply w-4 h-4;
-    }
-    .lp-workshop-recent__row > span:last-child {
-        @apply flex flex-col min-w-0;
-    }
-    .lp-workshop-recent__row strong {
-        @apply text-xs font-semibold text-ink;
-    }
-    .lp-workshop-recent__row small {
-        @apply text-xs text-fg-dim;
     }
     /* Readiness guide: the whole Workshop body on a quiet project, or the top card of the support rail. */
     .lp-readiness-guide {

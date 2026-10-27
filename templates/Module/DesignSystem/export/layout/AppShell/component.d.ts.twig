@@ -46,8 +46,8 @@ export interface {{ entry.name }}Props {
     admin?: boolean;
     /** `full` drops the frame inset, for a page that reaches the window edge, such as the board. */
     shellWidth?: 'default' | 'full';
-    /** The ground of the main column. `paper` is white, and `fill` is a column that clips its overflow. */
-    mainSurface?: 'app' | 'paper' | 'fill';
+    /** The ground of the main column. `fill` is a column that clips its overflow. */
+    mainSurface?: 'app' | 'fill';
     className?: string;
     /** The page. It fills the main column. */
     children?: ReactNode;
