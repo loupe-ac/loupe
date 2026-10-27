@@ -113,6 +113,25 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-line"]'));
         self::assertCount(0, $crawler->filter('[data-testid="forge-repository-guide"]'));
         self::assertCount(1, $crawler->filter('[data-testid="forge-repository-check-again"]'));
+        $row = $crawler->filter('[data-forge-repository]')->text();
+        self::assertStringContainsString('Loupe checks every hour. Check again after a change on GitHub to see it now.', $row);
+        self::assertStringNotContainsString('pause', $row);
+    }
+
+    public function test_a_row_with_only_a_warning_gap_does_not_mention_a_pause(): void
+    {
+        $client = static::createClient();
+        $this->suggest(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning);
+        $owner = $this->signedUpUser('warnonly');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $this->checkOf($repository, [$this->item('ci-checks', 'warning', [RepositorySuggestionCatalog::GAP_NO_CI_CHECK])], new \DateTimeImmutable('-2 minutes'));
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertStringContainsString('Check again after a change on GitHub to see it now.', $crawler->filter('.lp-repository-check__hint')->text());
     }
 
     public function test_the_failed_read_banner_names_the_time_and_carries_the_only_check_again_button(): void

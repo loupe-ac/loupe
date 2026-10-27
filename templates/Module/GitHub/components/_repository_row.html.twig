@@ -114,7 +114,7 @@
             <twig:Ds:ActionForm :action="checkAgainUrl" token="github-repository-check" frame="_top">
                 <twig:Ds:Button variant="primary" size="sm" type="submit" data-testid="forge-repository-check-again">{{ 'github.repositories.check.again'|trans }}</twig:Ds:Button>
             </twig:Ds:ActionForm>
-            <span class="lp-repository-check__hint">{{ 'github.repositories.check.again_hint'|trans }}</span>
+            <span class="lp-repository-check__hint">{{ (row.blocks ? 'github.repositories.check.again_hint' : 'github.repositories.check.again_hint_no_pause')|trans }}</span>
         </div>
         {% endif %}
         {% if row.checking %}
