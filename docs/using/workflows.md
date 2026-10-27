@@ -564,7 +564,8 @@ starts at the last time the event happened.
 
 Loupe refuses a template that names a value which none of its rules can produce.
 The error lists the values it knows. A role, a kind and a reason must come from
-a `request` rule of the template. The fix reasons `conflict`, `checks-failed` and
+a `request` rule of the template. The outcome of a rate must come from a `move`
+of the template. The fix reasons `conflict`, `checks-failed` and
 `changes-requested` are always known, and `unknown` is known when a `request` rule
 sets no reason. The event `agent-review-passed` needs a `request` rule of the kind
 `review`. A slot event needs a slot that the template declares. The Simple

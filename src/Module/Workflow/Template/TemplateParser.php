@@ -355,8 +355,8 @@ final readonly class TemplateParser
     }
 
     /**
-     * What the request calls can write on a work request. The fix reasons of a pull request are always known, and a
-     * call with no reason adds `unknown`. The repair kind of `onWorkFailed` is a kind too.
+     * What the request calls can write on a work request, and the outcomes the move calls can set. The fix reasons of a
+     * pull request are always known, and a call with no reason adds `unknown`. The repair kind of `onWorkFailed` is a kind too.
      *
      * @param list<Rule>                      $rules
      * @param array<string, list<ActionCall>> $childChoices
@@ -373,7 +373,11 @@ final readonly class TemplateParser
         $kinds = null === $onWorkFailed?->repairKind ? [] : [$onWorkFailed->repairKind];
         $roles = [];
         $reasons = [];
+        $outcomes = [];
         foreach ($calls as $call) {
+            if ('move' === $call->key && isset($call->params['outcome'])) {
+                $outcomes[] = (string) $call->params['outcome'];
+            }
             if ('request' !== $call->key) {
                 continue;
             }
@@ -384,7 +388,7 @@ final readonly class TemplateParser
             $reasons[] = isset($call->params['reason']) ? (string) $call->params['reason'] : 'unknown';
         }
 
-        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])));
+        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])), array_values(array_unique($outcomes)));
     }
 
     /**

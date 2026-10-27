@@ -249,6 +249,11 @@ final readonly class TemplateMetricParser
 
             return null;
         }
+        if (!\in_array($outcome, $produced->outcomes, true)) {
+            $errors[] = \sprintf('%s outcome: no move sets the outcome "%s"%s', $where, $outcome, [] === $produced->outcomes ? '; no move sets an outcome' : '; moves set: '.implode(', ', $produced->outcomes));
+
+            return null;
+        }
 
         return ['outcome' => $outcome];
     }

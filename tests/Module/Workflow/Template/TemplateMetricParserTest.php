@@ -222,6 +222,7 @@ final class TemplateMetricParserTest extends TestCase
         yield 'splitBy on a rate' => [['rate' => ['outcome' => 'merged'], 'splitBy' => 'reason'], 'metrics[0] (my-metric) splitBy: only a count takes it, and it must be one of role, kind, reason'];
         yield 'an unknown splitBy' => [['count' => ['role' => 'fix'], 'splitBy' => 'colour'], 'metrics[0] (my-metric) splitBy: only a count takes it, and it must be one of role, kind, reason'];
         yield 'an unknown rate outcome' => [['rate' => ['outcome' => 'shipped']], 'metrics[0] (my-metric) rate outcome: unknown outcome "shipped"; known outcomes: merged, dropped'];
+        yield 'a rate outcome that no move sets' => [['rate' => ['outcome' => 'dropped']], 'metrics[0] (my-metric) rate outcome: no move sets the outcome "dropped"; moves set: merged'];
         yield 'a rate with both forms' => [['rate' => ['outcome' => 'merged', 'any' => ['role' => 'fix']]], 'metrics[0] (my-metric) rate: must be a map with exactly one of outcome and any'];
         yield 'a duration with no end' => [['duration' => ['from' => 'pr-opened']], 'metrics[0] (my-metric) duration: must be a map with "from" and "to"'];
         yield 'an unknown event' => [['duration' => ['from' => 'pr-closed', 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from: must be one of pr-opened, agent-review-passed, ready-to-merge, pr-merged, or a map with "arrived" or "left" and a slot'];
