@@ -23,6 +23,11 @@ The App must be installed for the repository of the project, with write access
 to Contents and Pull requests. See [The GitHub App](../using/projects.md#the-github-app)
 for the install steps.
 
+The Repositories tab of the project settings shows whether each repository fits
+the workflow of the project. It also writes the steps to fix a repository, such as
+the ruleset that makes `Loupe / Approval` gate a merge. See
+[Repositories](../using/projects.md#repositories).
+
 ## The Git identity panel
 
 The Connect page of the project has a Git identity panel. Open **Project

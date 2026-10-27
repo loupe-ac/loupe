@@ -38,7 +38,7 @@ class InstallGitHubAppController extends AppController
                 $this->addFlash('error', $this->translator->trans($translationKey));
             }
 
-            return $this->redirectToRoute('app_project_connect', ['id' => (string) $project->id, '_fragment' => 'repositories']);
+            return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
         }
     }
 }

@@ -1023,12 +1023,15 @@ of a new commit opens no item. When `Loupe / Approval` passed and GitHub still b
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
 Loupe reads the rulesets of the default branch of the repository. When a ruleset requires an approving review, or
 requires `Loupe / Approval` without the Loupe App as its source, the marker `ruleset-mismatch` shows Needs you on the
-card of an open pull request into that branch, with a link to the steps below. The Connections page shows the same warning under the repository.
+card of an open pull request into that branch, with a link to the steps below. The Repositories tab of the project settings lists the settings that do not fit under each repository.
 Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
 
 #### Set up the ruleset
 
-The check only gates a merge when the repository ruleset requires it. Change the ruleset of the default branch once:
+The check only gates a merge when the repository ruleset requires it. The Repositories tab of the project settings
+writes these steps for each repository, with a `loupe-ruleset.json` file that you can import on GitHub. After the
+import, open the ruleset and check that `Loupe / Approval` shows the Loupe App as its source. Select **Check again**
+after a change. The same steps by hand:
 
 1. Accept the new **Commit statuses: read and write** permission of the Loupe GitHub App on each installation.
    GitHub lists the App as a source only with that permission. See [forge webhooks](../extending/forge-webhooks.md).

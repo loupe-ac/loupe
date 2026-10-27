@@ -5078,6 +5078,63 @@
         @apply shrink-0 whitespace-nowrap;
     }
 
+    /* The Repositories section: a row for each repository, then its check list. */
+    .lp-repository-list {
+        @apply flex flex-col gap-6;
+    }
+    .lp-repository {
+        @apply flex flex-col gap-3;
+    }
+    .lp-repository-check {
+        @apply flex flex-col gap-2 px-4;
+    }
+    .lp-repository-check__head {
+        @apply flex items-baseline justify-between gap-3;
+    }
+    .lp-repository-check__title {
+        @apply m-0 text-sm font-semibold text-ink;
+    }
+    .lp-repository-check__time {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-repository-check__line {
+        @apply flex items-start gap-2.5 border-t border-line-faint py-2.5;
+    }
+    .lp-repository-check__state {
+        @apply w-35 shrink-0;
+    }
+    .lp-repository-check__text {
+        @apply flex min-w-0 grow flex-col gap-0.5;
+    }
+    .lp-repository-check__line-title {
+        @apply text-sm text-ink;
+    }
+    .lp-repository-check__detail,
+    .lp-repository-check__checking {
+        @apply m-0 text-xs text-fg-dim;
+    }
+    .lp-repository-check__links {
+        @apply mt-1 flex flex-wrap gap-2;
+    }
+    .lp-repository-check__actions {
+        @apply flex flex-wrap items-center gap-2;
+    }
+    .lp-repository-check__hint {
+        @apply m-0 text-xs text-fg-dim;
+    }
+    .lp-repository-guide {
+        @apply flex flex-col gap-2.5 rounded-lg border border-line p-4;
+    }
+    .lp-repository-guide__title {
+        @apply m-0 text-sm font-semibold text-ink;
+    }
+    .lp-repository-guide__steps {
+        @apply m-0 flex flex-col gap-2.5 pl-5 text-sm text-ink;
+    }
+    .lp-repository-guide__links {
+        @apply mt-1.5 flex flex-wrap gap-2;
+    }
+
     /* A push device row wraps, so the two buttons drop under the label on a phone. */
     .lp-device-list {
         @apply flex flex-col gap-2;
