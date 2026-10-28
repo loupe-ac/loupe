@@ -5680,6 +5680,10 @@
             <trans-unit id="inbox.action.retry-card.work_limit.label"><source>inbox.action.retry-card.work_limit.label</source><target>Retry: %rounds% more %work% rounds</target></trans-unit>
             <trans-unit id="inbox.action.open-pull-request.label"><source>inbox.action.open-pull-request.label</source><target>Open the pull request</target></trans-unit>
             <trans-unit id="inbox.action.open-pull-request.effect"><source>inbox.action.open-pull-request.effect</source><target>Opens the pull request of the paused rule on the forge.</target></trans-unit>
+            <trans-unit id="inbox.action.approve-pull-request.label"><source>inbox.action.approve-pull-request.label</source><target>Approve on GitHub</target></trans-unit>
+            <trans-unit id="inbox.action.approve-pull-request.effect"><source>inbox.action.approve-pull-request.effect</source><target>Opens the review page of the pull request. An approval there overrides the failed agent review.</target></trans-unit>
+            <trans-unit id="inbox.action.hold-card.label"><source>inbox.action.hold-card.label</source><target>Hold the card</target></trans-unit>
+            <trans-unit id="inbox.action.hold-card.effect"><source>inbox.action.hold-card.effect</source><target>Makes the card unmanaged, so no rule and no worker acts on it until you release it.</target></trans-unit>
             <trans-unit id="inbox.action.retry-card.effect"><source>inbox.action.retry-card.effect</source><target>Releases the pause so the workflow runs the rule again.</target></trans-unit>
             <trans-unit id="inbox.action.send-agent.label"><source>inbox.action.send-agent.label</source><target>Send an agent</target></trans-unit>
             <trans-unit id="inbox.action.send-agent.effect"><source>inbox.action.send-agent.effect</source><target>Starts a worker for the stage work of the card.</target></trans-unit>
@@ -5778,6 +5782,7 @@
             <trans-unit id="inbox.action.status.preparing"><source>inbox.action.status.preparing</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.resumed"><source>inbox.action.status.resumed</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.retried"><source>inbox.action.status.retried</source><target>Retried at %time%</target></trans-unit>
+            <trans-unit id="inbox.action.status.held"><source>inbox.action.status.held</source><target>Held at %time%</target></trans-unit>
             <trans-unit id="inbox.action.status.added"><source>inbox.action.status.added</source><target>Added to rules.yaml</target></trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>
@@ -6094,6 +6099,10 @@
             <trans-unit id="inbox.flash.retried">
                 <source>inbox.flash.retried</source>
                 <target>The card of item %number% is released.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.held">
+                <source>inbox.flash.held</source>
+                <target>The card of item %number% is held.</target>
             </trans-unit>
             <trans-unit id="inbox.flash.agent_sent">
                 <source>inbox.flash.agent_sent</source>
@@ -7779,6 +7788,7 @@
             <trans-unit id="inbox.status.verb.reviewed"><source>inbox.status.verb.reviewed</source><target>Review recorded</target></trans-unit>
             <trans-unit id="inbox.status.verb.resumed"><source>inbox.status.verb.resumed</source><target>Resume queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.retried"><source>inbox.status.verb.retried</source><target>Card released</target></trans-unit>
+            <trans-unit id="inbox.status.verb.held"><source>inbox.status.verb.held</source><target>Card held</target></trans-unit>
             <trans-unit id="inbox.status.verb.agent-sent"><source>inbox.status.verb.agent-sent</source><target>Agent queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.session-started"><source>inbox.status.verb.session-started</source><target>Session queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.command-queued"><source>inbox.status.verb.command-queued</source><target>Command queued</target></trans-unit>

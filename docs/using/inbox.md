@@ -418,6 +418,12 @@ The actions are:
   pause, the action says what it grants, such as "Retry: 10 more fix rounds".
 - "Open the pull request" opens the pull request of the rule on GitHub. It
   fits a work-limit pause whose rule acts on a pull request.
+- "Approve on GitHub" opens the review page of that pull request. It fits a
+  work-limit pause whose latest agent review failed. An approval that comes
+  after the failed review overrides it.
+- "Hold the card" makes the card unmanaged, as `card_hold` does. No rule and
+  no worker acts on the card until you release it. It fits a work-limit pause
+  of a card that is not held already.
 - "Review" opens the review page of the document, or the pull request on
   GitHub, for a review wait.
 - "Send an agent" starts a new worker for the stage work of the card, such as

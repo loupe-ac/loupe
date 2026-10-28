@@ -63,7 +63,7 @@ final readonly class InboxThreadActionBuilder
         return match ($action->kind) {
             InboxActionKind::Open => $this->openRow($item, $action, $hostCardId),
             InboxActionKind::Review => $this->reviewRow($item, $action),
-            InboxActionKind::OpenPullRequest => null === $action->href ? null : new ThreadAction($action, $action->href, external: true),
+            InboxActionKind::OpenPullRequest, InboxActionKind::ApprovePullRequest => null === $action->href ? null : new ThreadAction($action, $action->href, external: true),
             default => new ThreadAction($action),
         };
     }

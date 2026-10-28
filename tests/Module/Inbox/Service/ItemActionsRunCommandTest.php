@@ -12,6 +12,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Repository\WorkerRunOutputChunkRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -843,6 +844,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $waitText = self::getContainer()->get(CardWaitText::class);
         self::assertInstanceOf(CardWaitText::class, $waitText);
 
+        $holds = self::getContainer()->get(CardHoldRepository::class);
+        self::assertInstanceOf(CardHoldRepository::class, $holds);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -855,6 +859,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             $this->resolver($liveness),
             new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
             $waitText,
+            $holds,
         );
     }
 

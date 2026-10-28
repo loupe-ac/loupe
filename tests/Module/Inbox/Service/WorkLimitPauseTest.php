@@ -12,9 +12,12 @@ use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Inbox\Command\RunInboxActionCommand;
+use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
@@ -125,6 +128,42 @@ final class WorkLimitPauseTest extends KernelTestCase
         self::assertSame([InboxActionKind::OpenPullRequest, 'https://github.com/loupe-ac/loupe/pull/1302', true], [$main?->action->kind, $main?->href, $main?->external]);
     }
 
+    public function test_a_failed_agent_review_offers_its_approval_on_github_and_a_hold(): void
+    {
+        $wait = $this->workLimitWait();
+
+        $actions = $this->service(ItemActions::class)->forItem($wait->watch->item);
+
+        self::assertSame('https://github.com/loupe-ac/loupe/pull/1302/files', self::action($actions, InboxActionKind::ApprovePullRequest)->href);
+        self::action($actions, InboxActionKind::HoldCard);
+        $rows = $this->service(InboxThreadActionBuilder::class)->build($wait->watch->item)->menu;
+        $approve = array_find($rows, static fn ($row): bool => InboxActionKind::ApprovePullRequest === $row->action->kind);
+        self::assertSame(['https://github.com/loupe-ac/loupe/pull/1302/files', true], [$approve?->href, $approve?->external]);
+    }
+
+    public function test_the_hold_makes_the_card_unmanaged_and_leaves_the_menu(): void
+    {
+        $wait = $this->workLimitWait();
+        $item = $wait->watch->item;
+
+        $action = $this->service(RunInboxActionHandler::class)(new RunInboxActionCommand($item, InboxActionKind::HoldCard, 'Children first', $this->project->owner));
+
+        self::assertSame(InboxActionKind::HoldCard, $action?->kind);
+        self::assertTrue($this->service(CardHoldRepository::class)->existsForCard($this->project, $this->epic->id ?? throw new \LogicException('The card is stored.')));
+        $kinds = array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->service(ItemActions::class)->forItem($item));
+        self::assertNotContains(InboxActionKind::HoldCard, $kinds);
+    }
+
+    public function test_a_passed_agent_review_offers_no_approval(): void
+    {
+        $wait = $this->workLimitWait(conclusion: AgentReviewConclusion::Success);
+
+        $kinds = array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->service(ItemActions::class)->forItem($wait->watch->item));
+
+        self::assertNotContains(InboxActionKind::ApprovePullRequest, $kinds);
+        self::assertContains(InboxActionKind::HoldCard, $kinds);
+    }
+
     public function test_the_retry_stays_the_default_when_the_last_run_succeeded(): void
     {
         $wait = $this->workLimitWait(lastState: WorkerRunState::Succeeded);
@@ -141,11 +180,14 @@ final class WorkLimitPauseTest extends KernelTestCase
         self::assertSame('Paused: The rule requested the most work that it may request for this card', $this->service(CardWaitText::class)->title([$wait], 'Ship it', 200));
         $actions = $this->service(ItemActions::class)->forItem($wait->watch->item);
         self::assertSame('inbox.action.retry-card.label', self::action($actions, InboxActionKind::RetryCard)->labelKey);
-        self::assertNotContains(InboxActionKind::OpenPullRequest, array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $actions));
+        $kinds = array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $actions);
+        self::assertNotContains(InboxActionKind::OpenPullRequest, $kinds);
+        self::assertNotContains(InboxActionKind::ApprovePullRequest, $kinds);
+        self::assertNotContains(InboxActionKind::HoldCard, $kinds);
     }
 
     /** The 1108 sequence: 2 succeeded, 5 waiting on the forge and 3 blocked fix runs, the newest blocked, then the pause. */
-    private function workLimitWait(string $ruleId = 'fix-agent-review', WorkerRunState $lastState = WorkerRunState::Blocked, ?string $lastOutput = null, ?string $lastTitle = null): InboxCardWait
+    private function workLimitWait(string $ruleId = 'fix-agent-review', WorkerRunState $lastState = WorkerRunState::Blocked, ?string $lastOutput = null, ?string $lastTitle = null, AgentReviewConclusion $conclusion = AgentReviewConclusion::Failure): InboxCardWait
     {
         $em = $this->em();
         $cardId = $this->epic->id ?? throw new \LogicException('The card is stored.');
@@ -166,7 +208,7 @@ final class WorkLimitPauseTest extends KernelTestCase
         }
         $em->persist(new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'review', WorkerRunState::Failed, receivedAt: $at, ruleId: 'agent-review'));
 
-        $review = new AgentReview($this->project, $this->epic, $this->pullRequest, $this->pullRequest->headSha ?? '', 'The B3 and B5 deliverables remain absent.', AgentReviewConclusion::Failure, [
+        $review = new AgentReview($this->project, $this->epic, $this->pullRequest, $this->pullRequest->headSha ?? '', 'The B3 and B5 deliverables remain absent.', $conclusion, [
             new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, 'The epic head still lacks B3 and B5', 'Merge B3 and B5.', AgentReviewCategory::Spec),
             new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, 'Preview: the Workflow Metrics page has no proven link', 'Add a link.', AgentReviewCategory::Spec),
         ], createdAt: new \DateTimeImmutable('2026-10-28 01:03:39'));

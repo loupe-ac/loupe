@@ -7,6 +7,7 @@ namespace App\Module\Inbox\Service;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\View\WorkerRunAction;
@@ -43,6 +44,7 @@ final readonly class ItemActions
         private RunCommandResolver $runCommands,
         private RunCommandRuns $runCommandRuns,
         private CardWaitText $cardWaitText,
+        private CardHoldRepository $cardHolds,
     ) {
     }
 
@@ -169,7 +171,7 @@ final readonly class ItemActions
     /**
      * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
      * One bridge read per project that has an item with a card, and one read of the live requests of their cards.
-     * A work-limit pause reads the story of its rule, with a few reads per such item.
+     * A work-limit pause reads the story of its rule and the hold of its card, with a few reads per such item.
      *
      * @param list<InboxItem> $items
      *
@@ -228,7 +230,8 @@ final readonly class ItemActions
                 ? null
                 : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
             $story = $item->isAutomatic() ? $this->workLimitStoryOf($waits) : null;
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand, null !== $story?->pullRequestUrl);
+            $holdable = null !== $story && null !== ($watchedCards[self::key($item)] ?? null) && !$this->cardHolds->existsForCard($item->project, $watchedCards[self::key($item)]);
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand, $story, $holdable);
             if (self::offersOnlySuggestions($item)) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
             }
@@ -260,16 +263,19 @@ final readonly class ItemActions
      * @param bool                $sendAgent        Send an agent has a card and a stage work that are free now
      * @param bool                $sessionFits      the item has a card, and no session request of that card is live
      * @param bool                $runCommand       the item has a run-command suggestion, which the action shows even when it is off
-     * @param bool                $pullRequest      a work-limit pause of the item names the pull request of its rule
+     * @param WorkLimitStory|null $story            the story of a work-limit pause of the item, which names the pull request of its rule
+     * @param bool                $holdable         the item has a work-limit pause, and its card has no hold
      *
      * @return list<InboxActionKind>
      */
-    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand, bool $pullRequest): array
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand, ?WorkLimitStory $story, bool $holdable): array
     {
         $fits = [
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
-            [InboxActionKind::OpenPullRequest, $pullRequest],
+            [InboxActionKind::OpenPullRequest, null !== $story?->pullRequestUrl],
+            [InboxActionKind::ApprovePullRequest, null !== $story?->approveUrl()],
+            [InboxActionKind::HoldCard, $holdable],
             [InboxActionKind::Review, self::fitsReview($waits)],
             [InboxActionKind::SendAgent, $sendAgent],
             [InboxActionKind::Open, self::fitsOpen($item)],
@@ -504,13 +510,14 @@ final readonly class ItemActions
         return null;
     }
 
-    /** A work-limit pause says what a retry grants, and gives the address of the pull request of its rule. */
+    /** A work-limit pause says what a retry grants, and gives the addresses of the pull request of its rule and of its approval. */
     private static function forStory(ItemAction $action, ?WorkLimitStory $story): ItemAction
     {
         return match (true) {
             null === $story => $action,
             InboxActionKind::RetryCard === $action->kind => $action->labelled('inbox.action.retry-card.work_limit.label', ['%rounds%' => $story->limit, '%work%' => $story->work()]),
             InboxActionKind::OpenPullRequest === $action->kind => new ItemAction($action->kind, $action->labelKey, $action->effectKey, $action->default, href: $story->pullRequestUrl),
+            InboxActionKind::ApprovePullRequest === $action->kind => new ItemAction($action->kind, $action->labelKey, $action->effectKey, $action->default, href: $story->approveUrl()),
             default => $action,
         };
     }

@@ -23,7 +23,7 @@
 {% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
 {# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
 {% set addEntryDialog = runCommand and runCommand.canAddEntry and not answering %}
-{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
+{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', held: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
 <div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% elseif addEntryDialog %} data-controller="modal"{% endif %}>
     <ul class="lp-inbox-thread__messages" data-inbox-waits>
         {% for wait in shownWaits %}

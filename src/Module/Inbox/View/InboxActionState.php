@@ -14,6 +14,7 @@ enum InboxActionState: string
     case Resumed = 'resumed';
     case Preparing = 'preparing';
     case Retried = 'retried';
+    case Held = 'held';
     case Running = 'running';
     case Added = 'added';
 
@@ -22,7 +23,7 @@ enum InboxActionState: string
     {
         return match ($this) {
             self::Queued, self::Resumed, self::Preparing, self::Retried, self::Running => true,
-            self::Added, self::Expired, self::Refused, self::Cancelled => false,
+            self::Held, self::Added, self::Expired, self::Refused, self::Cancelled => false,
         };
     }
 }

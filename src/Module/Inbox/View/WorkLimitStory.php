@@ -50,6 +50,12 @@ final readonly class WorkLimitStory
         return array_find($this->runs, static fn (WorkerRun $run): bool => \in_array($run->state, [WorkerRunState::Blocked, WorkerRunState::WaitingForPerson], true));
     }
 
+    /** The page where the owner approves the pull request on GitHub, which overrides a failed agent review, or null. */
+    public function approveUrl(): ?string
+    {
+        return $this->reviewFailed && null !== $this->pullRequestUrl ? $this->pullRequestUrl.'/files' : null;
+    }
+
     /** An epic whose agent review failed while some of its children are open: the review asks for the work of those children. */
     public function waitsForChildren(): bool
     {
