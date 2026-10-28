@@ -11,7 +11,7 @@
          data-board-lane-epic-value="{{ epic.id }}"
          aria-label="#{{ epic.number }} {{ epic.title }}"{% else %}aria-label="{{ 'board.lane.other'|trans }}"{% endif %}>
     {% if epic %}
-    {% include '@Board/_board_lane_head.html.twig' with {epic: epic, progress: board.progress[epic.id ~ ''], deck: board.decks[epic.id ~ '']|default(null), markers: board.markers[epic.id ~ '']|default(null)} only %}
+    {% include '@Board/_board_lane_head.html.twig' with {epic: epic, progress: board.progress[epic.id ~ ''], deck: board.decks[epic.id ~ '']|default(null), markers: board.markers[epic.id ~ '']|default(null), inboxItem: board.openInboxItems[epic.id ~ '']|default(null)} only %}
     {% else %}
     <header class="lp-board-lane__head">
         <h2 class="lp-board-lane__title">{{ 'board.lane.other'|trans }}</h2>
@@ -34,7 +34,7 @@
                  data-rankable="{{ view.column.terminal ? '0' : '1' }}">
                 {% if withCards ?? true %}
                 {% for card in cards %}
-                    {% include '@Board/_card.html.twig' with {card: card, pendingComments: board.pendingComments[card.id ~ '']|default(0), documentCount: board.documentCounts[card.id ~ '']|default(0), progress: board.progress[card.id ~ '']|default(null), inLane: epic is not null, runWarning: runWarnings[card.id ~ '']|default(null), markers: board.markers[card.id ~ '']|default(null)} only %}
+                    {% include '@Board/_card.html.twig' with {card: card, pendingComments: board.pendingComments[card.id ~ '']|default(0), documentCount: board.documentCounts[card.id ~ '']|default(0), progress: board.progress[card.id ~ '']|default(null), inLane: epic is not null, runWarning: runWarnings[card.id ~ '']|default(null), markers: board.markers[card.id ~ '']|default(null), inboxItem: board.openInboxItems[card.id ~ '']|default(null)} only %}
                 {% endfor %}
                 {% endif %}
             </div>

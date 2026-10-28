@@ -13,6 +13,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 
 /** The board reads every Up next deck at once, so more lanes and a bigger Backlog cost it no more queries. */
 final class ShowBoardQueryCountTest extends KernelTestCase
@@ -33,6 +34,11 @@ final class ShowBoardQueryCountTest extends KernelTestCase
         $queries = self::getContainer()->get('doctrine.debug_data_holder');
         self::assertInstanceOf(DebugDataHolder::class, $queries);
         $this->queries = $queries;
+
+        // The flag reader loads every flag once per request, so the first board read would count that query alone.
+        $flags = self::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(FeatureFlagReaderInterface::class, $flags);
+        $flags->all();
     }
 
     public function test_more_lanes_and_a_bigger_backlog_cost_the_board_no_more_queries(): void

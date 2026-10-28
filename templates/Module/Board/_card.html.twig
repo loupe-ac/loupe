@@ -2,9 +2,10 @@
    Props: card (Card), pendingComments (int), documentCount (int), static (bool, optional): a card shown outside the board,
    which does not drag, skips the prefetch and names its column. progress (CardProgress, optional) shows on an epic.
    inLane (bool, optional) hides the parent tag its lane gives. markers (?StoredCardMarkers, optional) draws the one state mark.
-   runWarning and markers feed the digest. #}
+   inboxItem (?int, optional) is the number of its open inbox item, which the mark links. runWarning, markers and inboxItem feed the digest. #}
 {% set static = static ?? false %}
 {% set markers = markers ?? null %}
+{% set inboxItem = inboxItem ?? null %}
 {% set progress = progress ?? null %}
 {% set inLane = inLane ?? false %}
 {% set runWarning = runWarning ?? null %}
@@ -14,7 +15,7 @@
          data-board-filter-target="card"
          data-action="pointerdown->board-drag#press mouseenter->card-prefetch#enter mouseleave->card-prefetch#leave focusin->card-prefetch#enter"
          id="board-card-{{ card.id }}"
-         data-card-digest="{{ card_digest(card, pendingComments, documentCount, progress, runWarning, markers) }}"{% endif %}
+         data-card-digest="{{ card_digest(card, pendingComments, documentCount, progress, runWarning, markers, inboxItem) }}"{% endif %}
          data-card-id="{{ card.id }}"
          data-card-type="{{ card.type }}"
          data-card-lane="{{ card_type(card).lane ? 'true' : 'false' }}"
@@ -36,7 +37,7 @@
         {% endembed %}
         {% endif %}
         {% if markers is not null %}
-        {% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, link: true} only %}
+        {% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, inboxItem: inboxItem, link: true} only %}
         {% endif %}
         {% if not static %}
         <twig:Ds:Button variant="ghost icon"

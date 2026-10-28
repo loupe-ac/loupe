@@ -40,6 +40,8 @@ final readonly class CardPlacementView
         public ?string $deckEpic = null,
         /** Null for a card with no marker, and for a card in a terminal column. */
         public ?StoredCardMarkers $markers = null,
+        /** The number of the oldest open inbox item of the card, or null when it has none. */
+        public ?int $inboxItem = null,
     ) {
     }
 }
