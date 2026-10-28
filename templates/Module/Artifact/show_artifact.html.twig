@@ -100,7 +100,7 @@
                         {% for card in cards %}
                         <twig:Ds:MenuItem :href="path('app_board_card', {projectId: project.id, cardId: card.id})" data-artifact-card-link>
                             <span class="lp-artifact-menu__number">#{{ card.number }}</span>
-                            <span class="lp-artifact-menu__card-title">{{ card.title }}</span>
+                            <span class="lp-artifact-menu__card-title">{{ card.title|reference_plain }}</span>
                         </twig:Ds:MenuItem>
                         {% else %}
                         <p class="lp-artifact-menu__none">{{ 'artifact.viewer.cards.none'|trans }}</p>

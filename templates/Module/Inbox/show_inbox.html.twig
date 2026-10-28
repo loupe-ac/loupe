@@ -100,7 +100,7 @@
                             <twig:ux:icon name="lucide:check" class="lp-inbox-status__icon" />
                             {% if status.ask %}
                                 <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb}) }}</span>
-                                <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title}) }}</span>
+                                <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title|reference_plain}) }}</span>
                                 <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
                             {% elseif status.left > 0 %}
                                 <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>

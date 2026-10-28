@@ -28,7 +28,7 @@
                  data-card-id="{{ card.id }}"
                  data-card-type="{{ card.type }}"
                  data-card-lane="{{ card_type(card).lane ? 'true' : 'false' }}"
-                 data-card-title="{{ card.title }}">
+                 data-card-title="{{ card.title|reference_plain }}">
             <div class="lp-board-card__identity">
                 <span class="lp-board-card__number">#{{ card.number }}</span>
                 {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
@@ -38,7 +38,7 @@
                href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}"
                data-turbo-frame="card-drawer-frame"
                data-drawer-title="#{{ card.number }}"
-               data-action="click->card-drawer#prepare">{{ card.title }}</a>
+               data-action="click->card-drawer#prepare">{{ card.title|reference_plain }}</a>
         </article>
         {% endfor %}
         <a class="lp-deck__card lp-deck__more"

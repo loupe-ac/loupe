@@ -9,7 +9,7 @@
          {% if epic %}data-controller="board-lane"
          data-board-lane-project-value="{{ board.project.id }}"
          data-board-lane-epic-value="{{ epic.id }}"
-         aria-label="#{{ epic.number }} {{ epic.title }}"{% else %}aria-label="{{ 'board.lane.other'|trans }}"{% endif %}>
+         aria-label="#{{ epic.number }} {{ epic.title|reference_plain }}"{% else %}aria-label="{{ 'board.lane.other'|trans }}"{% endif %}>
     {% if epic %}
     {% include '@Board/_board_lane_head.html.twig' with {epic: epic, progress: board.progress[epic.id ~ ''], deck: board.decks[epic.id ~ '']|default(null), markers: board.markers[epic.id ~ '']|default(null), inboxItem: board.openInboxItems[epic.id ~ '']|default(null)} only %}
     {% else %}

@@ -9,7 +9,7 @@
 {% block topbar_crumbs %}
     <twig:Ds:Breadcrumbs :items="[
         {label: 'nav.link.board'|trans, url: path('app_project_board', {id: card.project.id})},
-        {label: card.title, url: path('app_board_card', {projectId: card.project.id, cardId: card.id})},
+        {label: card.title|reference_plain, url: path('app_board_card', {projectId: card.project.id, cardId: card.id})},
         {label: 'board.card.edit.page.title'|trans},
     ]" />
 {% endblock %}

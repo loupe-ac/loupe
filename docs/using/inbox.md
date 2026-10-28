@@ -44,6 +44,7 @@ plain prose such as "card 1116", "PR #1295" and "pull request 1295".
 - A pull request link opens the page of the code host in a new tab.
 - The link shows the title on hover. A card also shows its column and state. A
   pull request also shows its state.
+- A title and a push notification show a reference as plain text, such as "card #1116", with no link.
 - A card number that matches no card stays plain text.
 - A prose pull request reference links only when the project watches exactly
   one repository. A `pr:` token names its repository, so it needs no such rule.
