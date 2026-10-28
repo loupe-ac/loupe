@@ -189,6 +189,13 @@ variable "app_encryption_key" {
   description = "APP_ENCRYPTION_KEY: base64-encoded 32-byte libsodium secret-box key. Inject via TF_VAR_app_encryption_key."
 }
 
+variable "app_encryption_key_previous" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "APP_ENCRYPTION_KEY_PREVIOUS: the key the instance used before a rotation. Empty outside a rotation."
+}
+
 variable "mailer_dsn" {
   type        = string
   sensitive   = true

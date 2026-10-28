@@ -7,7 +7,9 @@ description: "Putting a dump back, and the key that has to come with it."
 dump and cannot be regenerated. Restoring without the one that encrypted the data
 leaves every `encrypted_string` column permanently unreadable — the rows come
 back intact and simply cannot be decrypted. Find the key before you start, not
-after.
+after. If you rotated the key since the dump was taken, keep the current key,
+and give the dump's key as `APP_ENCRYPTION_KEY_PREVIOUS` for the restore only.
+Step 3 and step 6 below say how.
 
 **No restore has been rehearsed for this project.** These steps are written from
 how the stack is built, not from a drill somebody ran. Rehearse yours on a
@@ -23,10 +25,12 @@ the provider's own snapshot; only the key half below applies.
   writes one to your bucket on a schedule; anything you made by hand works too.
 - **The `APP_ENCRYPTION_KEY` the instance was running when that dump was taken.**
   If it was empty then, it must be empty now. A different value is as bad as a
-  missing one.
+  missing one. If you [rotated the key](rotating-encryption-key.md) since the
+  dump, you need the current key as well. The dump's key then goes into
+  `APP_ENCRYPTION_KEY_PREVIOUS`, never back into `APP_ENCRYPTION_KEY`.
 - The rest of `docker/compose/prod.env`. Rotating `APP_SECRET` only invalidates
-  sessions and signed URLs; the encryption key is the one that cannot be
-  replaced.
+  sessions and signed URLs. The encryption key can be rotated, but a dump keeps
+  the key it was written with.
 
 ## Restoring
 
@@ -60,8 +64,12 @@ the profile.
 dc --profile backup stop web worker backup
 ```
 
-**3. Put `APP_ENCRYPTION_KEY` back in `docker/compose/prod.env`,** matching the
-value in force when the dump was taken.
+**3. Set the keys in `docker/compose/prod.env`.** With no rotation since the
+dump, set `APP_ENCRYPTION_KEY` to the value in force when the dump was taken,
+and leave `APP_ENCRYPTION_KEY_PREVIOUS` empty. After a rotation, keep the
+current key in `APP_ENCRYPTION_KEY`, and set `APP_ENCRYPTION_KEY_PREVIOUS` to
+the dump's key. Never put a retired key back as `APP_ENCRYPTION_KEY`: the
+re-encrypt command in step 6 would then write every value under it.
 
 **4. Replace the database.** Restore inside the `database` container so the
 `pg_restore` version matches the server:
@@ -84,7 +92,19 @@ under a newer release leaves the schema behind the code:
 dc run --rm web docker/prod/release.sh
 ```
 
-**6. Start the app.** Carry the same profiles you normally run with, or the
+**6. Re-encrypt, after a rotation only.** Move every value of the dump to the
+current key, as [Rotating the encryption key](rotating-encryption-key.md) says:
+
+```bash
+dc run --rm web bin/console doctrine-extra:reencrypt
+```
+
+Check that every `unreadable` count is 0. Then clear
+`APP_ENCRYPTION_KEY_PREVIOUS` in `docker/compose/prod.env`, so the retired key
+leaves the environment before the app starts. Skip this step when you did not
+rotate.
+
+**7. Start the app.** Carry the same profiles you normally run with, or the
 services you stopped in step 2 stay stopped.
 
 ```bash

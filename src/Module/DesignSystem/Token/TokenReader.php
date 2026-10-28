@@ -7,9 +7,9 @@ namespace App\Module\DesignSystem\Token;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Reads the token stylesheet. A `@group` comment starts a group. A comment
- * above a run of declarations is the use of each token in that run, up to the
- * next blank line. The colour group lists the raw values only, because the
+ * Reads the token stylesheet. A `@group` comment starts a group. A comment,
+ * whole, is the use of each declaration below it, up to the next comment or
+ * blank line. The colour group lists the raw values only, because the
  * `--color-*` entries are Tailwind names for those same values.
  */
 final readonly class TokenReader
@@ -105,9 +105,7 @@ final readonly class TokenReader
     private function useOf(string $comment): string
     {
         $text = trim(preg_replace('~^/\*|\*/$~', '', trim($comment)) ?? '');
-        $text = trim(preg_replace('/\s+/', ' ', $text) ?? '');
-        $end = strpos($text, '. ');
 
-        return false === $end ? $text : substr($text, 0, $end + 1);
+        return trim(preg_replace('/\s+/', ' ', $text) ?? '');
     }
 }
