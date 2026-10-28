@@ -368,9 +368,9 @@ it('moves the active row with the arrow keys, the footer included, and keeps the
 
     expect(key('ArrowDown').defaultPrevented).toBe(true);
     expect(selected()).toEqual(['One']);
-    expect(
-        controller.fieldTarget.getAttribute('aria-activedescendant'),
-    ).toBe('topbar-search-option-0');
+    expect(controller.fieldTarget.getAttribute('aria-activedescendant')).toBe(
+        'topbar-search-option-0',
+    );
     key('ArrowDown');
     key('ArrowDown');
     expect(selected()).toEqual(['All']);

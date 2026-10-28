@@ -365,6 +365,8 @@ export const KEPT_CSS_WORDS = new Set([
     'lp-board-card-changed',
     'lp-dialog-backdrop-in',
     'lp-progress-slide',
+    'lp-topsearch-conceal',
+    'lp-topsearch-reveal',
     'mandatory',
     'max-content',
     'max-width',

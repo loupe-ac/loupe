@@ -70,7 +70,11 @@ export default class extends Controller {
             const step = event.key === 'ArrowDown' ? 1 : -1;
             const next = index + step;
             this.#activate(
-                next < -1 ? options.length - 1 : next >= options.length ? -1 : next,
+                next < -1
+                    ? options.length - 1
+                    : next >= options.length
+                      ? -1
+                      : next,
             );
             return;
         }
