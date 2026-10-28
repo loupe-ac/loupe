@@ -45,8 +45,10 @@ device.
 Set both variables in the environment of the web container and the worker.
 [Environment variables](../reference/environment.md) describes them.
 
-- With Terraform, set `vapid_public_key` and `vapid_private_key` in
-  `terraform.tfvars`, then run `terraform apply`.
+- With Terraform, set `vapid_public_key` in `terraform.tfvars`. Put
+  `vapid_private_key` in the secret store with
+  `printf '%s' "$KEY" | bin/tf-secrets set TF_VAR_vapid_private_key`, or in `terraform.tfvars` when
+  you use no store. Then run `just tf-apply`.
 - With the compose stack, set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in
   `prod.env`, then restart the stack.
 

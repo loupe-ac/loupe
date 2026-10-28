@@ -21,13 +21,18 @@ speaks plain S3 and can be pointed at AWS, MinIO or R2 by setting
 ```bash
 just build-prod && just deploy    # build linux/amd64 image, push, roll out
 
-# terraform (from this dir):
-cp terraform.tfvars.example terraform.tfvars     # values that are not secret
-export TF_VAR_app_secret=$(openssl rand -hex 16)
-export TF_VAR_app_encryption_key=$(php -r 'echo base64_encode(sodium_crypto_secretbox_keygen());')
+# terraform (from the repository root):
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars   # values that are not secret
+just tf-init        # fetches the pinned module
+just tf-apply       # loads the secrets from the store, then runs terraform apply
+```
 
-terraform init      # fetches the pinned module
-terraform apply
+`just tf-apply` runs `terraform apply` through `bin/tf-secrets exec`. A bare `terraform apply` gets no secret from the
+store. Put the secrets in the store first, as the "Secrets" section says. A first install generates the two app keys:
+
+```bash
+printf '%s' "$(openssl rand -hex 16)" | bin/tf-secrets set TF_VAR_app_secret
+printf '%s' "$(php -r 'echo base64_encode(sodium_crypto_secretbox_keygen());')" | bin/tf-secrets set TF_VAR_app_encryption_key
 ```
 
 ## Secrets
@@ -39,7 +44,7 @@ terraform apply
   command as `TF_VAR_*` variables. The `just tf-*` recipes, `just deploy`, `just logs-prod` and `just healthz` call it for you.
   `terraform.tfvars` then holds only values that are not secret: placement, domains, client ids and URLs.
 - **Without a store.** When `secrets.enc.yaml` does not exist, `bin/tf-secrets exec` runs the command as is. Put the
-  secrets in `terraform.tfvars`, or export them as `TF_VAR_*` variables, as in the Deploy section above.
+  secrets in `terraform.tfvars`, or export them as `TF_VAR_*` variables before `just tf-apply`.
 
 Set up the store once:
 
