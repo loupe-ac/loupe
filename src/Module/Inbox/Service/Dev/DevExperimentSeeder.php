@@ -14,12 +14,16 @@ use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEventCause;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
@@ -94,10 +98,10 @@ final readonly class DevExperimentSeeder
                 $this->run($project, $card, $variant, $at, $minutes, $cost);
             }
             foreach ($fixReasons as $reason) {
-                $this->cardEvents->record($card, CardEventKind::FixRequested, Actor::System, null, ['reason' => $reason], $at->modify('+1 hour'));
+                $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
             }
             if ($merged) {
-                $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => ['type' => 'merged', 'pullRequest' => $card->number]], $at->modify('+2 hours'));
+                $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
             }
             if ($column->terminal) {
                 $card->completedAt = $at->modify('+2 hours');
@@ -116,6 +120,26 @@ final readonly class DevExperimentSeeder
         $this->cardEvents->record($card, CardEventKind::Created, Actor::Agent, null, [], $createdAt);
 
         return $card;
+    }
+
+    /** A settled fix request, which the experiment counts as a fix round of the reason. */
+    private function fixRequest(Project $project, Card $card, string $reason, \DateTimeImmutable $at): void
+    {
+        $request = new WorkRequest(
+            project: $project,
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            kind: 'fix',
+            capability: null,
+            ruleId: 'fix-on-failure',
+            createdAt: $at,
+        );
+        $request->role = 'fix';
+        $request->context = new WorkRequestContext(reason: $reason);
+        $request->state = WorkRequestState::Done;
+        $request->settledAt = $at->modify('+10 minutes');
+        $this->em->persist($request);
     }
 
     /** WorkerRunFactListener writes the fact row of the run on flush. */

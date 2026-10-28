@@ -36,7 +36,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(8, $form->filter('select[name="metric"] option'));
+        self::assertCount(10, $form->filter('select[name="metric"] option'));
         self::assertCount(1, $form->filter('noscript'));
 
         $empty = $crawler->filter('[data-metrics-empty]');
@@ -186,7 +186,7 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(8, $select->children('option'));
+        self::assertCount(10, $select->children('option'));
         $group = $select->filter('optgroup');
         self::assertCount(1, $group);
         self::assertSame('Time buckets', $group->attr('label'));

@@ -1,9 +1,18 @@
 key: simple
-version: 9
+version: 10
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
     - { key: merged, delivered: true }
+metrics:
+    - key: merge-rate
+      label: Merge rate
+      description: The share of finished cards that the merge rule ended.
+      rate: { outcome: merged }
+    - key: hours-to-merge
+      label: Hours to merge
+      description: The hours from the first pull request opening to the merge.
+      duration: { from: pr-opened, to: pr-merged }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }

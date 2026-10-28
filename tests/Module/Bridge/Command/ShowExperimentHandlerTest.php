@@ -14,7 +14,6 @@ use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Experiment\CardColumn;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\ExperimentCard;
-use App\Module\Bridge\Experiment\ExperimentCardOutcome;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
 use App\Module\Bridge\Experiment\Interval;
@@ -22,6 +21,7 @@ use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
 use App\Module\Bridge\Metric\CardMilestone;
 use App\Module\Bridge\Metric\CardMilestoneSourceInterface;
+use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
@@ -35,7 +35,10 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\CardTitleSourceInterface;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\CountFilter;
 use App\Module\Workflow\Contract\DurationEvent;
+use App\Module\Workflow\Contract\MetricType;
+use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Module\Workflow\Contract\TemplateOutcome;
@@ -55,7 +58,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     private \DateTimeImmutable $start;
     private ?\DateTimeImmutable $historyStart;
 
-    /** @var array<string, ExperimentCardOutcome> */
+    /** @var array<string, CardOutcomeFixture> */
     private array $outcomes = [];
 
     /** @var array<string, CardColumn> */
@@ -67,6 +70,11 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     /** @var array<string, list<CardMilestone>> */
     private array $milestones = [];
 
+    private TemplateMetricSet $templateSet;
+
+    /** The outcome a merged fixture card carries. */
+    private string $outcomeKey = 'merged';
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -75,6 +83,20 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->project = $this->project($this->em, $owner, 'Experiment');
         $this->start = new \DateTimeImmutable('2026-09-01 10:00:00');
         $this->historyStart = $this->start->modify('-30 days');
+        $this->templateSet = self::lifecycleSet();
+    }
+
+    /** The outcomes and metrics of the lifecycle template, as the experiment table reads them. */
+    private static function lifecycleSet(): TemplateMetricSet
+    {
+        return new TemplateMetricSet(
+            [
+                new TemplateMetric('fix-rounds', 'Fix rounds', 'The fix rounds a finished card needed.', MetricType::Count, new CountFilter(role: 'fix'), 'reason'),
+                new TemplateMetric('merge-rate', 'Merge rate', 'The share of finished cards that the merge rule ended.', MetricType::Rate, outcome: 'merged'),
+                new TemplateMetric('hours-to-merge', 'Hours to merge', 'The hours from the first pull request opening to the merge.', MetricType::Duration, from: new DurationEvent(DurationEvent::PR_OPENED), to: new DurationEvent(DurationEvent::PR_MERGED)),
+            ],
+            [new TemplateOutcome('merged', true)],
+        );
     }
 
     public function test_an_experiment_with_no_run_and_no_pin_has_no_report(): void
@@ -166,7 +188,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $card = Uuid::v7();
         $this->em->persist(new ExperimentPin($this->project, $card, self::EXPERIMENT, 'a'));
         $this->em->flush();
-        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
 
         $withHistory = $this->show();
         $this->historyStart = null;
@@ -187,8 +209,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->seedUsage($this->em, $this->experimentRun($withUsage, 'a', at: '+1 hour'), costUsd: '1.000000');
         $noUsage = Uuid::v7();
         $this->experimentRun($noUsage, 'a', at: '+2 hours');
-        $this->outcomes[(string) $withUsage] = new ExperimentCardOutcome(fixRounds: ['conflict' => 2], merged: true);
-        $this->outcomes[(string) $noUsage] = new ExperimentCardOutcome(merged: true);
+        $this->outcomes[(string) $withUsage] = new CardOutcomeFixture(fixRounds: ['conflict' => 2], merged: true);
+        $this->outcomes[(string) $noUsage] = new CardOutcomeFixture(merged: true);
 
         $view = $this->show();
 
@@ -230,7 +252,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     {
         $card = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
-        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
 
         $view = $this->show(withMetrics: false);
 
@@ -244,7 +266,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     public function test_it_compares_the_variants_on_each_metric(): void
     {
         $this->em->persist(new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 70], ['name' => 'b', 'weight' => 30]]));
-        $merged = static fn (array $fixRounds, ?float $hours = 2.0): ExperimentCardOutcome => new ExperimentCardOutcome(
+        $merged = static fn (array $fixRounds, ?float $hours = 2.0): CardOutcomeFixture => new CardOutcomeFixture(
             fixRounds: $fixRounds,
             merged: true,
             hoursToMerge: $hours,
@@ -339,7 +361,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->seedUsage($this->em, $this->experimentRun($two, 'a', at: '+2 hours'), costUsd: '1.000000');
         $this->experimentRun($two, 'a', at: '+3 hours', state: WorkerRunState::Failed);
         foreach ([$one, $two] as $card) {
-            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
         }
         $this->em->flush();
 
@@ -361,7 +383,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         foreach (['a' => '2.000000', 'b' => '1.000000'] as $variant => $cost) {
             $card = Uuid::v7();
             $this->seedUsage($this->em, $this->experimentRun($card, $variant), costUsd: $cost);
-            $this->outcomes[(string) $card] = new ExperimentCardOutcome(fixRounds: ['conflict' => 1], merged: true);
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(fixRounds: ['conflict' => 1], merged: true);
         }
         $this->em->flush();
 
@@ -380,7 +402,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     {
         $card = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
-        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
 
         $view = $this->show();
 
@@ -396,7 +418,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->em->persist($definition);
         $card = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
-        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
 
         $view = $this->show();
 
@@ -418,7 +440,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->seedUsage($this->em, $tokenRun, costUsd: '1.000000');
         $this->seedUsage($this->em, $tokenRun, model: 'claude-sonnet-5', costUsd: '2.000000');
         foreach ([$noTokens, $withTokens] as $card) {
-            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
         }
 
         $view = $this->show();
@@ -451,7 +473,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             for ($i = 0; $i < Stats::MIN_FINISHED_CARDS - 1; ++$i) {
                 $card = Uuid::v7();
                 $this->seedUsage($this->em, $this->experimentRun($card, $variant, at: \sprintf('+%d hours', $i + 1)), costUsd: $cost);
-                $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+                $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
             }
         }
         $this->em->flush();
@@ -477,7 +499,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
                 if (0 === $i) {
                     $this->seedUsage($this->em, $run, costUsd: $cost);
                 }
-                $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true, hoursToMerge: 0 === $i ? ('a' === $variant ? 2.0 : 1.0) : null);
+                $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true, hoursToMerge: 0 === $i ? ('a' === $variant ? 2.0 : 1.0) : null);
             }
         }
         $this->em->flush();
@@ -526,7 +548,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $onlyUnpriced = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($onlyUnpriced, 'b', at: '+3 hours'), model: 'unpriced-model', costUsd: null);
         foreach ([$unpriced, $priced, $onlyUnpriced] as $card) {
-            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
         }
         $this->em->flush();
 
@@ -572,7 +594,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         for ($i = 0; $i < 6; ++$i) {
             $card = Uuid::v7();
             $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: \sprintf('+%d hours', $i + 1)), costUsd: '1.000000');
-            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
         }
         $this->em->flush();
 
@@ -620,11 +642,157 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame([(string) $leftOut], array_map(static fn (ExperimentCard $card): string => (string) $card->cardId, $onlyLeftOut->cards));
     }
 
+    public function test_the_per_card_sample_keeps_the_cards_that_ended_with_the_delivered_outcome(): void
+    {
+        $this->templateSet = new TemplateMetricSet(
+            [new TemplateMetric('hours-to-ship', 'Hours to ship', 'Hours to ship.', MetricType::Duration, from: new DurationEvent(DurationEvent::PR_OPENED), to: new DurationEvent(DurationEvent::PR_MERGED))],
+            [new TemplateOutcome('shipped', true), new TemplateOutcome('merged')],
+        );
+        $this->outcomeKey = 'shipped';
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['cost', 'hours-to-ship'];
+        $this->em->persist($definition);
+        $shipped = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($shipped, 'a', at: '+1 hour'), costUsd: '3.000000');
+        $this->outcomes[(string) $shipped] = new CardOutcomeFixture(merged: true, hoursToMerge: 5.0);
+        $open = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($open, 'a', at: '+2 hours'), costUsd: '9.000000');
+        $this->outcomes[(string) $open] = new CardOutcomeFixture(hoursToMerge: 7.0);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertEquals(new Interval(3.0, 3.0, 3.0), $view->metrics[ExperimentMetric::COST]->for('a'));
+        self::assertEquals(new Interval(5.0, 5.0, 5.0), $view->metrics['hours-to-ship']->for('a'));
+        self::assertSame(1, $view->variants[0]->finishedCards);
+    }
+
+    public function test_a_template_with_no_delivered_outcome_has_no_cards_in_the_per_card_sample(): void
+    {
+        $this->templateSet = new TemplateMetricSet(
+            [new TemplateMetric('hours-to-merge', 'Hours to merge', 'Hours to merge.', MetricType::Duration, from: new DurationEvent(DurationEvent::PR_OPENED), to: new DurationEvent(DurationEvent::PR_MERGED))],
+            [new TemplateOutcome('merged')],
+        );
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true, hoursToMerge: 2.0);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNull($view->metrics[ExperimentMetric::COST]->for('a'));
+        self::assertNull($view->metrics['hours-to-merge']->for('a'));
+        self::assertSame(0, $view->variants[0]->finishedCards);
+    }
+
+    public function test_a_default_metric_that_the_template_does_not_declare_drops_out_without_a_note(): void
+    {
+        $this->templateSet = new TemplateMetricSet(
+            [new TemplateMetric('merge-rate', 'Merge rate', 'The share of merged cards.', MetricType::Rate, outcome: 'merged')],
+            [new TemplateOutcome('merged', true)],
+        );
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame(['merge-rate', 'stop-rate', 'cost', 'output-tokens'], array_keys($view->metrics));
+        self::assertSame([], $view->unknownMetrics);
+        self::assertSame('Merge rate', $view->metrics['merge-rate']->label);
+        self::assertNull($view->metrics['cost']->label);
+    }
+
+    public function test_a_declared_key_that_the_template_does_not_declare_is_unknown(): void
+    {
+        $this->templateSet = new TemplateMetricSet([], [new TemplateOutcome('merged', true)]);
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['fix-rounds', 'cost'];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame(['cost'], array_keys($view->metrics));
+        self::assertSame(['fix-rounds'], $view->unknownMetrics);
+        self::assertNotNull($view->headline);
+        self::assertFalse($view->headline->qualitySettled);
+    }
+
+    public function test_a_count_that_splits_by_reason_gets_one_row_per_reason(): void
+    {
+        $this->templateSet = new TemplateMetricSet(
+            [new TemplateMetric('design-rounds', 'Design rounds', 'Rounds of design review.', MetricType::Count, new CountFilter(role: 'design-revise'), 'reason')],
+            [new TemplateOutcome('merged', true)],
+        );
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['design-rounds'];
+        $this->em->persist($definition);
+        $project = $this->managedProject();
+        $perCard = [['conflict' => 2], ['conflict' => 1, 'checks-failed' => 1]];
+        foreach ($perCard as $i => $reasons) {
+            $card = Uuid::v7();
+            $this->experimentRun($card, 'a', at: \sprintf('+%d hours', $i + 1));
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+            foreach ($reasons as $reason => $rounds) {
+                for ($n = 0; $n < $rounds; ++$n) {
+                    $request = $this->seedWorkRequest($this->em, $project, $card, 'design', state: WorkRequestState::Done);
+                    $request->role = 'design-revise';
+                    $request->context = new WorkRequestContext(reason: $reason);
+                }
+            }
+            // A fix request is no design round.
+            $other = $this->seedWorkRequest($this->em, $project, $card, 'fix', state: WorkRequestState::Done);
+            $other->role = 'fix';
+            $other->context = new WorkRequestContext(reason: 'agent-review');
+        }
+        $this->em->flush();
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        $rounds = $view->metrics['design-rounds'];
+        self::assertSame('Design rounds', $rounds->label);
+        self::assertSame(MetricValueType::Count, $rounds->valueType());
+        self::assertEquals(Stats::bootstrapMean([2, 2], 'model-test:design-rounds:a'), $rounds->for('a'));
+        self::assertSame(['checks-failed', 'conflict'], array_map(static fn (ExperimentMetric $part): string => $part->key, $rounds->parts));
+        self::assertNull($rounds->parts[0]->label);
+        self::assertNull($rounds->parts[0]->shape);
+        self::assertEquals(Stats::bootstrapMean([0, 1], 'model-test:design-rounds:checks-failed:a'), $rounds->parts[0]->for('a'));
+        self::assertEquals(Stats::bootstrapMean([2, 1], 'model-test:design-rounds:conflict:a'), $rounds->parts[1]->for('a'));
+    }
+
+    public function test_a_count_that_splits_by_role_labels_its_rows_with_the_role(): void
+    {
+        $this->templateSet = new TemplateMetricSet(
+            [new TemplateMetric('requests', 'Requests', 'Every fix or design request.', MetricType::Count, new CountFilter(kind: 'fix'), 'role')],
+            [new TemplateOutcome('merged', true)],
+        );
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['requests'];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $this->experimentRun($card, 'a');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(fixRounds: ['conflict' => 2], merged: true);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        $parts = $view->metrics['requests']->parts;
+        self::assertSame(['fix'], array_map(static fn (ExperimentMetric $part): string => $part->key, $parts));
+        self::assertSame('fix', $parts[0]->label);
+        self::assertSame(2.0, $parts[0]->for('a')?->point);
+    }
+
     private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true): ?ExperimentReportView
     {
         $this->storeOutcomes();
         $this->em->clear();
-        $reports = new readonly class($this->columns, $this->historyStart, array_map(static fn (ExperimentCardOutcome $outcome): array => $outcome->merged ? ['merged'] : [], $this->outcomes)) implements CardReportSourceInterface {
+        $reports = new readonly class($this->columns, $this->historyStart, array_map(fn (CardOutcomeFixture $outcome): array => $outcome->merged ? [$this->outcomeKey] : [], $this->outcomes)) implements CardReportSourceInterface {
             /**
              * @param array<string, CardColumn>   $columns
              * @param array<string, list<string>> $outcomes
@@ -674,7 +842,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             }
         };
         $templates = $this->createStub(TemplateMetrics::class);
-        $templates->method('forProject')->willReturn(new TemplateMetricSet(outcomes: [new TemplateOutcome('merged', true)]));
+        $templates->method('forProject')->willReturn($this->templateSet);
         $titles = new readonly class implements CardTitleSourceInterface {
             #[\Override]
             public function titlesFor(Project $project, array $cardIds): array
@@ -740,7 +908,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->experimentRun($queued, 'a', at: '+5 hours', state: WorkerRunState::Stopped)->startedAt = null;
         $this->em->flush();
         foreach ([$partial, $queued] as $card) {
-            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
         }
 
         $view = $this->show();

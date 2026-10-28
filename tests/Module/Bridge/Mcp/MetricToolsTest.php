@@ -39,7 +39,7 @@ final class MetricToolsTest extends KernelTestCase
 
         $metrics = $this->listTool()()['metrics'];
 
-        self::assertSame(array_map(static fn (Metric $metric): string => $metric->value, Metric::standalone()), array_column($metrics, 'key'));
+        self::assertSame([...array_map(static fn (Metric $metric): string => $metric->value, Metric::standalone()), 'merge-rate', 'hours-to-merge'], array_column($metrics, 'key'));
         $stopRate = array_column($metrics, null, 'key')['stop-rate'];
         self::assertSame([
             'key' => 'stop-rate',
@@ -184,7 +184,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time:<name>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, merge-rate, hours-to-merge, bucket-time:<name>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(

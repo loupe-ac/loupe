@@ -56,6 +56,7 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['cost', 'merge-rate'], array_column($result['metrics'], 'key'));
         self::assertSame([
             'key' => 'cost',
+            'label' => 'Cost per merged card',
             'valueType' => 'money',
             'clear' => true,
             'byVariant' => [
@@ -87,6 +88,7 @@ final class ExperimentGetToolTest extends KernelTestCase
     {
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get-parts@example.com'));
+        $this->bindLifecycle($em, $project);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1]]);
         $definition->metrics = ['fix-rounds'];
         $em->persist($definition);
@@ -98,9 +100,12 @@ final class ExperimentGetToolTest extends KernelTestCase
         $metric = $this->tool()('model-test')['metrics'][0];
 
         self::assertSame('fix-rounds', $metric['key']);
+        self::assertSame('Fix rounds', $metric['label']);
+        self::assertSame('count', $metric['valueType']);
         self::assertFalse($metric['clear']);
         self::assertSame([[
             'key' => 'conflict',
+            'label' => 'conflict',
             'valueType' => 'count',
             'clear' => false,
             'byVariant' => ['a' => ['point' => 1.0, 'low' => 1.0, 'high' => 1.0]],

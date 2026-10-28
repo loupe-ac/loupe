@@ -11,11 +11,13 @@ final readonly class ProducedWork
      * @param list<string> $kinds
      * @param list<string> $roles
      * @param list<string> $reasons
+     * @param list<string> $outcomes the outcomes some move call sets
      */
     public function __construct(
         public array $kinds,
         public array $roles,
         public array $reasons,
+        public array $outcomes = [],
     ) {
     }
 }

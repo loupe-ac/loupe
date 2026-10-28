@@ -59,10 +59,10 @@ final class ShowMetricsControllerTemplateMetricsTest extends WebTestCase
         $project->owner->emailVerifiedAt = new \DateTimeImmutable();
         AcceptedTerms::stamp($project->owner, static::getContainer());
         $binding = $this->bindLifecycle($project);
-        $binding->definition = $binding->definition + ['metrics' => [
+        $binding->definition = array_replace($binding->definition, ['metrics' => [
             ['key' => 'design-rounds', 'label' => 'Design rounds', 'description' => 'The design revise rounds.', 'count' => ['role' => 'design-revise']],
             ['key' => 'merge-rate', 'label' => 'Merge <rate>', 'description' => 'The share of cards that merged.', 'rate' => ['outcome' => 'merged']],
-        ]];
+        ]]);
         $this->em()->flush();
 
         return $project;

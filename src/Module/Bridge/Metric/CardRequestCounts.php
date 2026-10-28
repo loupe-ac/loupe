@@ -39,16 +39,31 @@ final readonly class CardRequestCounts
      */
     public function byReason(string $cardId, CountFilter $filter): array
     {
-        $reasons = [];
+        return $this->split($cardId, $filter, 'reason');
+    }
+
+    /**
+     * The same requests, by the value of one field of the filter: role, kind or reason. A request with no role has no key.
+     *
+     * @return array<string, int> value => requests, in value order
+     */
+    public function split(string $cardId, CountFilter $filter, string $field): array
+    {
+        $field = match ($field) {
+            'role', 'kind', 'reason' => $field,
+            default => throw new \InvalidArgumentException(\sprintf('A count splits by role, kind or reason, not by "%s".', $field)),
+        };
+        $parts = [];
         foreach ($this->byCard[$cardId] ?? [] as $row) {
             if ((null === $filter->role || $filter->role === $row['role'])
                 && (null === $filter->kind || $filter->kind === $row['kind'])
-                && (null === $filter->reason || $filter->reason === $row['reason'])) {
-                $reasons[$row['reason']] = ($reasons[$row['reason']] ?? 0) + $row['count'];
+                && (null === $filter->reason || $filter->reason === $row['reason'])
+                && null !== $row[$field]) {
+                $parts[$row[$field]] = ($parts[$row[$field]] ?? 0) + $row['count'];
             }
         }
-        ksort($reasons, \SORT_STRING);
+        ksort($parts, \SORT_STRING);
 
-        return $reasons;
+        return $parts;
     }
 }

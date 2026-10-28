@@ -81,9 +81,9 @@
             <tbody>
                 {% for metric in report.metrics %}
                     {% set format = metric.format %}
-                    {{ experimentRows.metric_row(metric, ('bridge.experiments.metric.' ~ metric.key)|trans, format, report.variants, false) }}
+                    {{ experimentRows.metric_row(metric, metric.label ?? ('bridge.experiments.metric.' ~ metric.key)|trans, format, report.variants, false) }}
                     {% for part in metric.parts %}
-                        {{ experimentRows.metric_row(part, part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key}), format, report.variants, true) }}
+                        {{ experimentRows.metric_row(part, part.label ?? (part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key})), format, report.variants, true) }}
                     {% endfor %}
                 {% endfor %}
             </tbody>

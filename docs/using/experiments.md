@@ -43,7 +43,10 @@ The variants table shows, for each variant:
 | Cost | the cost of those runs |
 
 The metrics table has one row per metric. Each variant has two columns: the
-value, and the **Likely range** around it.
+value, and the **Likely range** around it. By default the table shows the merge
+rate and the fix rounds. It leaves out a key that the workflow template of the
+project does not declare. An experiment can name other metrics, and a template
+metric shows with the label from the template.
 
 | Metric | Meaning |
 |---|---|
@@ -53,7 +56,11 @@ value, and the **Likely range** around it.
 | Cost per merged card | the cost of the experiment runs of a merged card |
 | Output tokens per merged card | the output tokens of the experiment runs of a merged card |
 | Hours from open to merge | the time from the first pull request of a merged card to the last merge |
+| Design review rounds | the design revise requests of a finished card. The Lifecycle template declares it |
+| Hours to agent review pass | the time from the pull request opening to the first agent review pass. The Lifecycle template declares it |
 
+The rows for the merge rate, the fix rounds and the times exist only when the
+workflow template of the project declares them.
 The cost and the output tokens use only the merged cards whose experiment runs
 reported usage. A card with no usage is not a card that cost nothing, so it
 stays out of these two samples. The same applies when one run of the card
@@ -61,9 +68,9 @@ started and reported no usage, because the sum of the others is too low. It stil
 with a usage row for a model that has no price has an unknown cost, so it
 stays out of the cost sample and the variant total.
 
-A card counts as merged only when the workflow moved it because its pull
-request merged. A card that a person moved to a terminal column is finished, but it
-is not merged.
+The per-card figures use the cards that ended with the outcome that the template
+marks as delivered, which is `merged` in the shipped templates. A card that a person
+moved to a terminal column is finished, but it did not end with that outcome.
 
 ## The likely range
 

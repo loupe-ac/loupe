@@ -258,7 +258,7 @@ final readonly class TemplateParser
         if (!$lenient) {
             array_push($errors, ...$this->unknownOutcomes($rules, $childChoices, $outcomes));
         }
-        $metrics = $this->metricParser->metrics($source['metrics'] ?? null, $slotKeys, $outcomes, self::producedWork($rules, $childChoices, $onWorkFailed), $lenient, $errors);
+        $metrics = $this->metricParser->metrics($source['metrics'] ?? null, $slotKeys, $outcomes, $this->producedWork($rules, $childChoices, $onWorkFailed), $lenient, $errors);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
         $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
         if (!$lenient) {
@@ -355,13 +355,13 @@ final readonly class TemplateParser
     }
 
     /**
-     * What the request calls can write on a work request. The fix reasons of a pull request are always known, and a
+     * What the request calls can write on a work request, and the outcomes the move calls set. The fix reasons of a pull request are always known, and a
      * call with no reason adds `unknown`. The repair kind of `onWorkFailed` is a kind too.
      *
      * @param list<Rule>                      $rules
      * @param array<string, list<ActionCall>> $childChoices
      */
-    private static function producedWork(array $rules, array $childChoices, ?WorkFailurePolicy $onWorkFailed): ProducedWork
+    private function producedWork(array $rules, array $childChoices, ?WorkFailurePolicy $onWorkFailed): ProducedWork
     {
         $calls = [];
         foreach ($rules as $rule) {
@@ -373,7 +373,14 @@ final readonly class TemplateParser
         $kinds = null === $onWorkFailed?->repairKind ? [] : [$onWorkFailed->repairKind];
         $roles = [];
         $reasons = [];
+        $outcomes = [];
         foreach ($calls as $call) {
+            foreach ($this->actions->get($call->key)::parameters() as $parameter) {
+                $value = $call->params[$parameter->name] ?? null;
+                if (ParameterType::Outcome === $parameter->type && \is_string($value)) {
+                    $outcomes[] = $value;
+                }
+            }
             if ('request' !== $call->key) {
                 continue;
             }
@@ -384,7 +391,7 @@ final readonly class TemplateParser
             $reasons[] = isset($call->params['reason']) ? (string) $call->params['reason'] : 'unknown';
         }
 
-        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])));
+        return new ProducedWork(array_values(array_unique($kinds)), array_values(array_unique($roles)), array_values(array_unique([...PullRequestFacts::FIX_REASONS, ...$reasons])), array_values(array_unique($outcomes)));
     }
 
     /**

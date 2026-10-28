@@ -21,6 +21,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'experiment-owner@example.com');
         $project = $this->boardProject($em, $owner);
+        $this->bindLifecycle($em, $project);
         $em->persist(new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 3], ['name' => 'b', 'weight' => 1]]));
         // Every run of a fails and every run of b succeeds, so the stop rate gives a clear answer.
         for ($i = 1; $i <= 5; ++$i) {
@@ -56,6 +57,8 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertStringContainsString('The merge rate and the fix rounds do not give a clear answer yet.', $headline);
 
         self::assertSame(['a', 'Likely range', 'b', 'Likely range'], \array_slice($this->cells($crawler->filter('[data-experiment-metrics] thead tr')), 1));
+        self::assertStringStartsWith('Fix rounds', $this->cells($crawler->filter('[data-metric="fix-rounds"]'))[0]);
+        self::assertStringStartsWith('Merge rate', $this->cells($crawler->filter('[data-metric="merge-rate"]'))[0]);
         self::assertSame(['Cost per merged card', '$2.00', '$2.00–$2.00', '$1.00', '$1.00–$1.00'], $this->cells($crawler->filter('[data-metric="cost"]')));
         self::assertSame('100%', $this->cells($crawler->filter('[data-metric="merge-rate"]'))[1]);
         self::assertSame('100%', $this->cells($crawler->filter('[data-metric="stop-rate"]'))[1]);
