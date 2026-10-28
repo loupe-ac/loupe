@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 
 final class TemplateMetricValuesTest extends TestCase
 {
-    public function test_a_duration_starts_at_the_first_start_event_and_ends_at_the_first_end_event_after_it(): void
+    public function test_a_duration_starts_at_the_first_start_event_and_ends_at_the_last_end_event_after_it(): void
     {
         $milestones = [
             new CardMilestone(DurationEvent::PR_MERGED, self::at('06:00')),
@@ -23,7 +23,7 @@ final class TemplateMetricValuesTest extends TestCase
             new CardMilestone(DurationEvent::PR_MERGED, self::at('14:00')),
         ];
 
-        self::assertSame(4.0, TemplateMetricValues::hours($milestones, self::duration(DurationEvent::PR_OPENED, DurationEvent::PR_MERGED)));
+        self::assertSame(6.0, TemplateMetricValues::hours($milestones, self::duration(DurationEvent::PR_OPENED, DurationEvent::PR_MERGED)));
     }
 
     public function test_a_duration_that_starts_at_the_last_event_takes_the_last_occurrence(): void
@@ -38,8 +38,23 @@ final class TemplateMetricValuesTest extends TestCase
         $first = self::duration(DurationEvent::ARRIVED, DurationEvent::LEFT, 'review', fromLast: false);
         $last = self::duration(DurationEvent::ARRIVED, DurationEvent::LEFT, 'review', fromLast: true);
 
-        self::assertSame(1.0, TemplateMetricValues::hours($milestones, $first));
+        self::assertSame(2.5, TemplateMetricValues::hours($milestones, $first));
         self::assertSame(0.5, TemplateMetricValues::hours($milestones, $last));
+    }
+
+    public function test_a_bounce_through_the_agent_review_reads_from_the_first_open_to_the_last_pass(): void
+    {
+        $milestones = [
+            new CardMilestone(DurationEvent::PR_OPENED, self::at('09:00')),
+            new CardMilestone(DurationEvent::AGENT_REVIEW_PASSED, self::at('11:00')),
+            new CardMilestone(DurationEvent::AGENT_REVIEW_PASSED, self::at('15:00')),
+            new CardMilestone(DurationEvent::READY_TO_MERGE, self::at('16:00')),
+        ];
+        $toAgentPass = self::duration(DurationEvent::PR_OPENED, DurationEvent::AGENT_REVIEW_PASSED);
+        $waitingForApproval = self::duration(DurationEvent::AGENT_REVIEW_PASSED, DurationEvent::READY_TO_MERGE, fromLast: true);
+
+        self::assertSame(6.0, TemplateMetricValues::hours($milestones, $toAgentPass));
+        self::assertSame(1.0, TemplateMetricValues::hours($milestones, $waitingForApproval));
     }
 
     public function test_a_card_with_no_start_or_no_end_after_the_start_has_no_value(): void
