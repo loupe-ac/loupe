@@ -1942,7 +1942,7 @@ final class EngineTest extends KernelTestCase
         $card = $this->boundCard([self::requestRule('work', self::IDLE)], onWorkFailed: self::RETRY_ONCE);
         $this->evaluate($card);
         $this->evaluate($card, '2026-10-02 12:05:00');
-        $this->refuse($this->liveRequests($card)[0], 'needs-person', '2026-10-02 12:20:00');
+        $this->refuse($this->liveRequests($card)[0], 'blocked', '2026-10-02 12:20:00');
         $this->evaluate($card, '2026-10-02 12:21:00');
         $pause = $this->activePause($card);
         self::assertNotNull($pause);
@@ -1954,6 +1954,23 @@ final class EngineTest extends KernelTestCase
         self::assertNull($this->activePause($card));
         self::assertCount(1, $this->liveRequests($card));
         self::assertCount(2, $this->requestRuleIds($card));
+    }
+
+    public function test_a_needs_person_pause_stays_when_a_fact_the_rule_reads_changes(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::IDLE)], onWorkFailed: self::RETRY_ONCE);
+        $this->evaluate($card);
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->refuse($this->liveRequests($card)[0], 'needs-person', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $pause = $this->activePause($card);
+        self::assertNotNull($pause);
+
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertNull($pause->releasedAt);
+        self::assertSame([], $this->liveRequests($card));
     }
 
     public function test_a_rule_pause_releases_when_its_until_is_met(): void
@@ -3274,17 +3291,52 @@ final class EngineTest extends KernelTestCase
         self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
     }
 
-    public function test_a_paused_fix_rule_resumes_on_a_new_head_with_a_new_failed_review(): void
+    public function test_a_fix_rule_that_stopped_for_a_person_stays_paused_on_a_new_head_with_a_new_failed_review(): void
     {
         [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-head');
 
         $pullRequest->headSha = self::HEAD_TWO;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:25:00');
+        self::assertNull($pause->releasedAt, 'A new head with no review yet does not end the pause.');
+        self::assertSame([], $this->liveKinds($card), 'The paused card asks for no review of the new head.');
+
         $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:30:00');
         $this->evaluate($card, '2026-10-02 12:31:00');
 
-        self::assertSame('facts-changed', $pause->releaseReason);
-        self::assertSame(['fix'], $this->liveKinds($card));
-        self::assertSame(2, $this->ruleState($card, 'fix-agent-review')->fires);
+        self::assertNull($pause->releasedAt, 'A new failed review with the same findings does not end the pause.');
+        self::assertSame([], $this->liveKinds($card));
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+
+        $this->releaseByPerson($card);
+        $this->evaluate($card, '2026-10-02 12:40:00');
+
+        self::assertSame('released-by-person', $pause->releaseReason);
+        self::assertSame(['fix'], $this->liveKinds($card), 'A person ends the pause, and the fix rule runs again.');
+    }
+
+    public function test_a_fix_rule_that_stopped_for_a_person_is_released_when_its_pull_request_merges(): void
+    {
+        [$card, $pullRequest, $pause] = $this->pausedFixRule('engine-paused-fix-merged');
+
+        $pullRequest->state = PullRequestState::Merged;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertSame('pull-request-closed', $pause->releaseReason);
+        self::assertNull($this->activePause($card));
+        self::assertNotContains('fix', $this->liveKinds($card));
+    }
+
+    public function test_a_fix_rule_that_stopped_for_a_person_is_released_when_the_card_leaves_its_slot(): void
+    {
+        [$card, , $pause] = $this->pausedFixRule('engine-paused-fix-moved');
+
+        $this->moveTo($card, 'backlog');
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertSame('left-slot', $pause->releaseReason);
+        self::assertNull($this->activePause($card));
     }
 
     public function test_a_review_request_waiting_for_its_retry_ignores_the_draft_flag(): void

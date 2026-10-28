@@ -860,6 +860,14 @@ tf-apply *args:
 rotate-secrets *names:
     bin/rotate-secrets {{names}}
 
+# List the variable names that terraform.tfvars and docker/compose/prod.env set. Never prints a value.
+tfvars-names:
+    bin/tfvars-names
+
+# Read the live version from /healthz of the production app. Never prints the probe token.
+healthz:
+    bin/healthz-probe
+
 # Read outputs, e.g. `just tf-output` or `just tf-output -raw app_id`.
 tf-output *args:
     cd terraform && terraform output "$@"
