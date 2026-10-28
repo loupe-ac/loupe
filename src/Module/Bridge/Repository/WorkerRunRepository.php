@@ -91,10 +91,10 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** The newest worker run of the card that ended without success at or before the time, for the rule when one is given. */
+    /** The newest worker run of the card that failed at or before the time, for the rule when one is given. A run that stopped for a person did not fail. */
     public function findLatestFailedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
     {
-        $states = [...WorkerRunState::resumableStates(), WorkerRunState::NotStarted];
+        $states = [WorkerRunState::Failed, WorkerRunState::NotStarted, WorkerRunState::NoResult, WorkerRunState::Unfinished, WorkerRunState::TimedOut, WorkerRunState::Lost];
         $qb = $this->createQueryBuilder('r')
             ->andWhere('r.project = :project')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')

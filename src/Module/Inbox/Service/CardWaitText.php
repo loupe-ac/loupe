@@ -7,7 +7,6 @@ namespace App\Module\Inbox\Service;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Bridge\Entity\WorkerRun;
-use App\Module\Bridge\Mcp\WorkerRunPayload;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
@@ -83,20 +82,44 @@ final readonly class CardWaitText
     }
 
     /**
-     * One sentence for each wait the page shows, with its action.
+     * One sentence for each wait the page shows, with its action, led by the wait the title names.
      *
      * @param list<InboxCardWait> $open
      */
     public function body(array $open): string
     {
         $lines = [];
-        foreach ($open as $wait) {
+        foreach ($this->inOrder($open) as $wait) {
             $line = $this->line($wait, false);
             $sentence = rtrim($this->translator->trans($line->key, $line->params, null, $this->locale), '.').'. '.$this->translator->trans($line->actionKey(), $line->params, null, $this->locale).'.';
             $lines[] = InboxCardWaitType::CardPause === $wait->type && null !== $line->detail ? $sentence.' '.$line->detail : $sentence;
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * The open waits led by the one the title names, then the ended waits.
+     *
+     * @param iterable<InboxCardWait> $waits
+     *
+     * @return list<InboxCardWait>
+     */
+    public function inOrder(iterable $waits): array
+    {
+        $open = [];
+        $ended = [];
+        foreach ($waits as $wait) {
+            if (null === $wait->endedAt) {
+                $open[] = $wait;
+            } else {
+                $ended[] = $wait;
+            }
+        }
+        $main = $this->mainWait($open);
+        $rest = array_values(array_filter($open, static fn (InboxCardWait $wait): bool => $wait !== $main));
+
+        return null === $main ? [...$open, ...$ended] : [$main, ...$rest, ...$ended];
     }
 
     /**
@@ -252,11 +275,13 @@ final readonly class CardWaitText
         }
         $params = [...$params, ...RunOutputText::params($run->workKind, '')];
         unset($params['%headline%']);
-        $params['%failure%'] = rtrim(WorkerRunPayload::reasonOf($run) ?? $run->state->value, '.');
+        $failure = trim($run->failureReason ?? '');
+        $params['%failure%'] = rtrim($failure, '.');
+        $params['%state%'] = mb_strtolower($this->translator->trans($run->state->translationKey(), [], null, $this->locale));
         $href = $this->urls->generate('app_project_worker_runs', ['id' => $wait->watch->project->id, 'search' => $run->id?->toRfc4122()], UrlGeneratorInterface::ABSOLUTE_URL);
         $link = \sprintf('[%s](%s)', $this->translator->trans('inbox.wait.pause_run_link', [], null, $this->locale), $href);
 
-        return [self::PAUSE_LABEL.'.run', $params, $link];
+        return ['' === $failure ? self::PAUSE_LABEL.'.run_state' : self::PAUSE_LABEL.'.run', $params, $link];
     }
 
     /** The story of a work-limit pause, or null for another pause or when the template no longer names its rule. */
