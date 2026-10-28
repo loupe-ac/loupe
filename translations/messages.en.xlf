@@ -7206,6 +7206,7 @@
             <trans-unit id="bridge.worker_runs.control.stop"><source>bridge.worker_runs.control.stop</source><target>Stop</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun"><source>bridge.worker_runs.control.rerun</source><target>Run again</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.cancel"><source>bridge.worker_runs.control.cancel</source><target>Cancel request</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.control.close"><source>bridge.worker_runs.control.close</source><target>Close session</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.resume_requested"><source>bridge.worker_runs.control.resume_requested</source><target>Resume requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.stop_requested"><source>bridge.worker_runs.control.stop_requested</source><target>Stop requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun_requested"><source>bridge.worker_runs.control.rerun_requested</source><target>Run again requested</target></trans-unit>
@@ -7475,10 +7476,6 @@
             <trans-unit id="bridge.worker_runs.running_for">
                 <source>bridge.worker_runs.running_for</source>
                 <target>running for %duration%</target>
-            </trans-unit>
-            <trans-unit id="bridge.worker_runs.close_session">
-                <source>bridge.worker_runs.close_session</source>
-                <target>Close session</target>
             </trans-unit>
             <trans-unit id="bridge.worker_runs.output.toggle">
                 <source>bridge.worker_runs.output.toggle</source>

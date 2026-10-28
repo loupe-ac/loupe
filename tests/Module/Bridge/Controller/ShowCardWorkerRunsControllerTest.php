@@ -79,14 +79,14 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs/card/'.$cardId);
 
         self::assertResponseIsSuccessful();
-        $forms = $crawler->filter('[data-card-runs] form[data-card-run-close]');
+        $forms = $crawler->filter('[data-card-runs] form[data-worker-run-control="close"]');
         self::assertCount(1, $forms);
         self::assertSame('/projects/'.$projectId.'/worker-runs/'.$openId.'/close', $forms->attr('action'));
         self::assertSame('card-worker-runs', $forms->attr('data-turbo-frame'));
         self::assertNotEmpty($forms->filter('input[name="_csrf_token"]')->attr('value'));
 
         $openRow = $crawler->filter('[data-card-run-row="'.$openId.'"]');
-        self::assertCount(1, $openRow->filter('form[data-card-run-close]'));
+        self::assertCount(1, $openRow->filter('form[data-worker-run-control="close"]'));
         self::assertStringContainsString('loupe:product-design', $openRow->text());
         self::assertStringContainsString('Interactive session', $openRow->text());
         self::assertStringContainsString('running for', $openRow->text());

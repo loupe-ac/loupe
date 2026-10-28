@@ -145,6 +145,39 @@ final class ListWorkerRunsControllerTest extends WebTestCase
     }
 
     /** The output shows on every run, in its drawer, not on failures only. */
+    public function test_an_open_interactive_run_offers_close_in_its_row_and_drawer(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-close-owner@example.com');
+        $project = $this->project($em, $owner, 'List close');
+        $open = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $closed = $this->seedRun($em, $project, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
+        $worker = $this->seedRun($em, $project, state: WorkerRunState::Succeeded);
+
+        $projectId = (string) $project->id;
+        $openId = (string) $open->id;
+        $closedId = (string) $closed->id;
+        $workerId = (string) $worker->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs?outcome=&search=');
+
+        self::assertResponseIsSuccessful();
+        $icon = $crawler->filter('[data-worker-run-id="'.$openId.'"] .lp-worker-run-outcome form[data-worker-run-control="close"]');
+        self::assertCount(1, $icon);
+        self::assertSame('worker-runs-frame', $icon->attr('data-turbo-frame'));
+        self::assertStringStartsWith('/projects/'.$projectId.'/worker-runs/'.$openId.'/close', (string) $icon->attr('action'));
+        $drawer = $crawler->filter('[data-worker-run-id="'.$openId.'"] dialog form[data-worker-run-control="close"]');
+        self::assertCount(1, $drawer);
+        self::assertSame('_top', $drawer->attr('data-turbo-frame'));
+        self::assertStringContainsString('Close session', $drawer->text());
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$closedId.'"] form[data-worker-run-control="close"]'));
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$workerId.'"] form[data-worker-run-control="close"]'));
+    }
+
     public function test_a_successful_run_shows_its_output_in_the_drawer(): void
     {
         $client = static::createClient();
