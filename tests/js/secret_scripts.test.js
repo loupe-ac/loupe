@@ -106,6 +106,7 @@ describe('bin/healthz-probe', () => {
             `cat > "${dir}/tf.stdin"
 printf '%s\\n' "$*" > "${dir}/tf.args"
 echo 'Warning: something on stdout'
+echo 'Error: health_probe_token = "${TOKEN}"' >&2
 if grep -q health_probe_token "${dir}/tf.stdin"; then echo '"${TOKEN}"'; else echo '"app.example.test"'; fi
 exit ${env.TF_EXIT ?? 0}`,
         );
@@ -145,9 +146,12 @@ echo '{"status":"ok","version":"abc1234"}'`,
         );
     });
 
-    it('stops when terraform fails', () => {
+    it('stops when terraform fails, and never prints its diagnostics', () => {
         const result = run({ TF_EXIT: 1 });
 
         expect(result.status).not.toBe(0);
+        expect(result.stdout).not.toContain(TOKEN);
+        expect(result.stderr).not.toContain(TOKEN);
+        expect(result.stderr).toContain('cannot read health_probe_token');
     });
 });

@@ -19,9 +19,10 @@ if [ -z "$tf" ]; then
 fi
 
 # The console prints warnings on standard output, so only the last line counts.
+# Its parse errors on standard error quote tfvars lines, so they are dropped.
 console() {
     local value
-    value=$(printf '%s\n' "$1" | terraform -chdir="$tf" console -no-color | tail -1) || return 1
+    value=$(printf '%s\n' "$1" | terraform -chdir="$tf" console -no-color 2>/dev/null | tail -1) || return 1
     value=${value#\"}
     printf '%s' "${value%\"}"
 }
