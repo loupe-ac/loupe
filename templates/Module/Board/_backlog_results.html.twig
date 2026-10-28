@@ -32,12 +32,12 @@
                        href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}"
                        data-turbo-frame="card-drawer-frame"
                        data-drawer-title="#{{ card.number }}"
-                       data-action="click->card-drawer#prepare">{{ card.title }}</a>
+                       data-action="click->card-drawer#prepare">{{ card.title|reference_plain }}</a>
                 </div>
             </div>
             <div class="lp-data-table__cell" role="cell">{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}</div>
             <span class="lp-data-table__cell lp-document-row__author lp-backlog-row__epic" role="cell">
-                {% if card.parent %}<span class="lp-board-card__number">#{{ card.parent.number }}</span> {{ card.parent.title }}{% else %}<span aria-label="{{ 'board.backlog.table.no_epic'|trans }}">—</span>{% endif %}
+                {% if card.parent %}<span class="lp-board-card__number">#{{ card.parent.number }}</span> {{ card.parent.title|reference_plain }}{% else %}<span aria-label="{{ 'board.backlog.table.no_epic'|trans }}">—</span>{% endif %}
             </span>
             <span class="lp-data-table__cell lp-document-row__linked-card" role="cell">{{ view.pendingComments[card.id ~ '']|default(0) ?: '—' }}</span>
             <twig:Ds:RelativeTime :datetime="card.createdAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />

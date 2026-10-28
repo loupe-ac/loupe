@@ -30,6 +30,7 @@ final class SearchProjectControllerTest extends WebTestCase
         $em->flush();
         $create = self::getContainer()->get(CreateDocumentHandler::class);
         $document = $create(new CreateDocumentCommand($project, 'Visible document', 'quartz'));
+        $create(new CreateDocumentCommand($project, 'Garnet notes for card:9001', 'garnet'));
         $em->clear();
         $client->loginUser($owner);
         $url = '/projects/'.$project->id.'/search';
@@ -46,6 +47,9 @@ final class SearchProjectControllerTest extends WebTestCase
         self::assertSelectorExists('#project-search-results [data-search-kind="document"]');
         self::assertSelectorNotExists('.lp-sidebar');
         self::assertResponseHeaderSame('Vary', 'Turbo-Frame');
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'garnet']);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('[data-search-kind="document"] span', 'Garnet notes for card #9001');
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => str_repeat('x', 201)]);
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorNotExists('[data-search-kind]');

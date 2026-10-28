@@ -15,6 +15,7 @@ use App\Module\Notification\NotificationEvent;
 use App\Module\Notification\PushContent;
 use App\Module\Notification\Service\Notifier;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Service\ReferenceTokens;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -35,6 +36,7 @@ final readonly class NotifyInboxOwnerHandler
         private Notifier $notifier,
         private UrlGeneratorInterface $urlGenerator,
         private TranslatorInterface $translator,
+        private ReferenceTokens $tokens,
 
         #[Autowire(param: 'app.url')]
         private string $appUrl,
@@ -71,7 +73,7 @@ final readonly class NotifyInboxOwnerHandler
             return;
         }
 
-        $body = $shown[0]->title;
+        $body = $this->tokens->plain($shown[0]->title);
         $more = [] === $questions ? 0 : \count($questions) - 1;
         if ($more > 0) {
             $body .= ' '.$this->translator->trans('inbox.push.more_questions', ['%count%' => $more], null, $this->locale);
@@ -95,7 +97,7 @@ final readonly class NotifyInboxOwnerHandler
 
         $this->send(
             $item->project,
-            $item->title,
+            $this->tokens->plain($item->title),
             ['id' => (string) $item->project->id, 'item' => $item->number],
             InboxOpenPushTags::itemTag($itemId),
             NotificationEvent::OtherInboxItem,

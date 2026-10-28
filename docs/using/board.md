@@ -844,6 +844,24 @@ The other tools take no number. `card_create`, `card_list` and `card_search`
 report both `cardId` and `number` in what they return. The card page URL still
 takes the UUID alone.
 
+### Card and pull request references
+
+Loupe turns a reference to a card or a pull request into a link in the body of
+a card. The same links work in the inbox and in documents.
+
+Write `card:1116` for a card, and `pr:owner/repo#1295` for a pull request. The
+page shows "card #1116" and "owner/repo#1295". Loupe also links plain prose
+such as "card 1116", "PR #1295" and "pull request 1295".
+
+A card link opens the card drawer. On a page with no drawer, it opens the card
+page. A pull request link opens the page of the code host in a new tab. The link
+shows the title on hover. A card also shows its column and state. A pull request
+also shows its state.
+
+A card number that matches no card stays plain text. A prose pull request
+reference links only when the project watches exactly one repository. A bare
+`#1116` stays plain text. Text in a code span or a code block stays as written.
+
 ## Pull request links
 
 A card links to any number of pull requests. Nothing about a link is

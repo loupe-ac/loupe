@@ -31,6 +31,26 @@ An **ask** is the set of items that one agent session hands over at once. The
 agent writes a short context for the ask, and the page shows that context above
 the items. An item that blocks the agent carries a **Blocking** label.
 
+### Card and pull request links
+
+Loupe turns a reference to a card or a pull request into a link. This works in
+the context of an ask, in the body of an item, and in the thread of an item.
+
+An agent writes `card:1116` for a card, and `pr:owner/repo#1295` for a pull
+request. The page shows "card #1116" and "owner/repo#1295". Loupe also links
+plain prose such as "card 1116", "PR #1295" and "pull request 1295".
+
+- A card link opens the card in the card drawer.
+- A pull request link opens the page of the code host in a new tab.
+- The link shows the title on hover. A card also shows its column and state. A
+  pull request also shows its state.
+- A title and a push notification show a reference as plain text, such as "card #1116", with no link.
+- A card number that matches no card stays plain text.
+- A prose pull request reference links only when the project watches exactly
+  one repository. A `pr:` token names its repository, so it needs no such rule.
+- A bare `#1116` stays plain text.
+- Text in a code span or a code block stays as written.
+
 ## The inbox page
 
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
@@ -354,9 +374,12 @@ the sentence, with the stage protocol text and the reason tag removed.
 A pause wait says the reason of the pause in words, such as "Card 1033 is
 paused. The repair worker could not fix the failure." When failed work caused
 the pause, the sentence also names the last run that failed before it, with
-its kind and its failure reason or the last line of its output. Below the
+its kind and its failure reason, or the state of the run when it has no
+reason. A run that stopped for a person did not fail, so the pause names no
+run, and the run wait says what the run needs. Below the
 sentence, the "Open the failed run" link opens that run on the worker runs
-page. The title of the item reads "Paused:" and the reason.
+page. The title of the item reads "Paused:" and the reason. The first message
+of the panel is the wait that the title names.
 
 A pause after a rule reached its work limit says what looped. The title
 names the work, the limit and the pull request, such as "10 fix rounds did not
@@ -673,8 +696,7 @@ The `waits-for-approval` marker is on when all of these are true:
 
 - The pull request is open, and it is not a draft.
 - Its checks passed on its head commit.
-- It has no conflict, and no change request is open.
-- The forge reads it as mergeable, behind its base or blocked.
+- It has no conflict, and no change request is open. A pull request whose mergeability the forge still computes, such as just after a merge into its base, keeps its wait.
 - Its base is the default branch.
 - No worker run of the card is active.
 - No approval covers its head commit.

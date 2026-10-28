@@ -9420,6 +9420,7 @@
             <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
             <trans-unit id="marker.paused.reason.title"><source>marker.paused.reason.title</source><target>Paused: %reason%</target></trans-unit>
             <trans-unit id="marker.paused.run"><source>marker.paused.run</source><target>Card %card% is paused. %reason%. The last %worker% run failed: %failure%.</target></trans-unit>
+            <trans-unit id="marker.paused.run_state"><source>marker.paused.run_state</source><target>Card %card% is paused. %reason%. The last %worker% run ended as %state%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review"><source>marker.paused.work_limit.agent_review</source><target>Card %card% is paused. %count% %work% rounds did not pass the agent review of PR #%number%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review.title"><source>marker.paused.work_limit.agent_review.title</source><target>%count% %work% rounds did not pass the agent review of PR #%number%</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.pull_request"><source>marker.paused.work_limit.pull_request</source><target>Card %card% is paused. %count% %work% rounds did not settle PR #%number%.</target></trans-unit>

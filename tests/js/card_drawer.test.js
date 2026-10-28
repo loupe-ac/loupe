@@ -416,6 +416,27 @@ it('targets the drawer frame from a top bar opener only while a drawer exists', 
     expect(opener.dataset.turboFrame).toBeUndefined();
 });
 
+it('targets the drawer frame from an opener added after connect, and lets it go on disconnect', async () => {
+    const opener = document.createElement('a');
+    opener.href = '/projects/1/board/cards/2';
+    opener.dataset.cardDrawerOpener = '';
+    document.body.append(opener);
+    expect(opener.dataset.turboFrame).toBeUndefined();
+    const stayOnPage = (event) => event.preventDefault();
+    window.addEventListener('click', stayOnPage);
+    opener.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true }),
+    );
+    window.removeEventListener('click', stayOnPage);
+    expect(opener.dataset.turboFrame).toBe('card-drawer-frame');
+    const host = controller.element;
+    host.remove();
+    await settle();
+    expect(opener.dataset.turboFrame).toBeUndefined();
+    document.body.append(host);
+    await settle();
+});
+
 it.each([
     ['metaKey', { metaKey: true }],
     ['ctrlKey', { ctrlKey: true }],

@@ -176,6 +176,35 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of a project with these numbers, each joined to its column, in
+     * one query. A number with no card is missing from the answer.
+     *
+     * @param list<int> $numbers
+     *
+     * @return array<int, Card> keyed by number, in number order
+     */
+    public function findByProjectAndNumbers(Project $project, array $numbers): array
+    {
+        if ([] === $numbers) {
+            return [];
+        }
+
+        /** @var array<int, Card> $cards */
+        $cards = $this->createQueryBuilder('c', 'c.number')
+            ->join('c.column', 'k')
+            ->addSelect('k')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.number IN (:numbers)')
+            ->setParameter('project', $project)
+            ->setParameter('numbers', array_values(array_unique($numbers)))
+            ->orderBy('c.number', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $cards;
+    }
+
+    /**
      * Open cards of a project for the widget's picker, newest first, optionally
      * narrowed by a substring of the title or by a card number such as `12` or `#12`.
      *

@@ -585,6 +585,25 @@ the entry. A definition in the document itself always wins.
 The marks show in the reading view of every version. A comparison of two
 versions does not show them. An ID that nothing defines stays plain text.
 
+## Card and pull request links
+
+A document can refer to a card or a pull request. Write `card:1116` for a card,
+and `pr:owner/repo#1295` for a pull request. The page shows "card #1116" and
+"owner/repo#1295". Loupe also links plain prose such as "card 1116", "PR #1295"
+and "pull request 1295".
+
+A card link opens the card drawer. A pull request link opens the page of the
+code host in a new tab. The link shows the title on hover. A card also shows its
+column and state. A pull request also shows its state.
+
+A card number that matches no card stays plain text. A prose pull request
+reference links only when the project watches exactly one repository. A bare
+`#1116` stays plain text. Text in a code span or a code block stays as written.
+
+Loupe changes the text of a token when it saves the document version. The
+version stores "card #1116", so comments keep their place. The links and the
+tooltips update each time the page shows.
+
 ## Series
 
 Tags say that documents belong together. A **series** also says in what order

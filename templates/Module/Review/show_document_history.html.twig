@@ -6,7 +6,7 @@
 {% block topbar_crumbs %}
     <twig:Ds:Breadcrumbs :items="[
         {label: 'nav.link.documents'|trans, url: path('app_project_documents', {id: document.project.id})},
-        {label: document.title, url: path('app_document_review', {projectId: document.project.id, documentId: document.id})},
+        {label: document.title|reference_plain, url: path('app_document_review', {projectId: document.project.id, documentId: document.id})},
         {label: 'review.document.history.page.title'|trans},
     ]" />
 {% endblock %}

@@ -8,6 +8,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Security\ProjectVoter;
+use App\Module\Review\Service\ReferenceTokens;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -33,6 +34,7 @@ final class CardParentAutocompleteField extends AbstractType
     public function __construct(
         private readonly ProjectRepository $projects,
         private readonly CardTypeCatalog $catalog,
+        private readonly ReferenceTokens $tokens,
     ) {
     }
 
@@ -47,7 +49,7 @@ final class CardParentAutocompleteField extends AbstractType
     {
         $resolver->setDefaults([
             'class' => Card::class,
-            'choice_label' => static fn (Card $card): string => '#'.$card->number.' '.$card->title,
+            'choice_label' => fn (Card $card): string => '#'.$card->number.' '.$this->tokens->plain($card->title),
             'choice_translation_domain' => false,
             'max_results' => self::MAX_RESULTS,
             // Also the choice list a submitted id must be in, so a card that is

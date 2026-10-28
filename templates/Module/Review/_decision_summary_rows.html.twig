@@ -9,7 +9,7 @@
        {%- if documentUrl is null %} data-action="click->metadata-tabs#jump click->contents-rail#jump"{% endif %}>
         <span class="lp-decision-summary__tag{{ row.answered ? ' lp-decision-summary__tag--answered' }}">{{ row.tag }}</span>
         <span class="lp-decision-summary__text">
-            <span class="lp-decision-summary__title">{{ row.title }}</span>
+            <span class="lp-decision-summary__title">{{ row.title|reference_plain }}</span>
             {% if not row.answered %}
             <span class="lp-decision-summary__pending">{{ 'review.document.decisions.pending'|trans }}</span>
             {% else %}
