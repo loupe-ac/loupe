@@ -65,6 +65,7 @@ export default class extends Controller {
         if (this.#query() === '') return;
         this.#showPanel();
         if (this.#answeredQuery() === this.#query()) return;
+        clearTimeout(this.timer);
         this.#showPending();
         this.#load();
     }

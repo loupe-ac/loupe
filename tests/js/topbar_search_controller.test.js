@@ -271,3 +271,14 @@ it('reopens the panel and asks again when the field regains focus after a failed
     expect(controller.statusTarget.hidden).toBe(false);
     expect(reload).toHaveBeenCalledOnce();
 });
+
+it('asks once when the field regains focus while the wait after a key runs', async () => {
+    vi.useFakeTimers();
+    type('pag');
+    controller.focus();
+    expect(controller.frameTarget.getAttribute('src')).toContain('query=pag');
+    const reload = vi.fn();
+    controller.frameTarget.reload = reload;
+    await vi.advanceTimersByTimeAsync(300);
+    expect(reload).not.toHaveBeenCalled();
+});
