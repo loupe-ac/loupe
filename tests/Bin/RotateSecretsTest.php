@@ -598,6 +598,35 @@ final class RotateSecretsTest extends TestCase
         self::assertFileDoesNotExist($this->dir.'/.rotate-secrets.webhook-since');
     }
 
+    #[DataProvider('webhookFailures')]
+    public function test_a_webhook_failure_after_the_apply_still_lists_the_old_vendor_credentials(string $failure): void
+    {
+        $this->vars("do_token = \"old-do\"\ngithub_app_webhook_secret = \"old-webhook-secret\"\ngithub_app_id = \"12345\"\ngithub_app_private_key = ".$this->hcl($this->pem())."\n");
+        $this->deliveries([[]]);
+        if ('patch' === $failure) {
+            $this->deployments(['dep-old', 'dep-new'], [['dep-new', 'ACTIVE', '2099-01-01T00:00:00Z']]);
+            touch($this->dir.'/patch-fail');
+        } else {
+            $this->deployments(['dep-old'], [['dep-bad', 'ERROR', '2099-01-01T00:00:00Z'], ['dep-old', 'ACTIVE', '2000-01-01T00:00:00Z']]);
+        }
+
+        $process = $this->rotate(['do_token', 'github_app_webhook_secret'], "new-do\n");
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertSame('new-do', $this->value('do_token'));
+        self::assertSame(1, substr_count($process->getOutput(), 'Revoke by hand:'));
+        [, $revoke] = explode('Revoke by hand:', $process->getOutput()) + [1 => ''];
+        self::assertStringContainsString('do_token', $revoke);
+        self::assertStringNotContainsString('old-do', $process->getOutput().$process->getErrorOutput());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function webhookFailures(): iterable
+    {
+        yield 'GitHub refuses the new secret' => ['patch'];
+        yield 'the new deployment fails' => ['deployment'];
+    }
+
     public function test_the_webhook_secret_needs_the_app_id_and_key_before_anything_is_written(): void
     {
         $this->vars("github_app_webhook_secret = \"old-webhook-secret\"\n");
