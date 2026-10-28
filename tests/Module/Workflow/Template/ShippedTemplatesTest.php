@@ -601,13 +601,13 @@ final class ShippedTemplatesTest extends KernelTestCase
      * @param list<string>                     $activeWorkKinds
      * @param list<string>                     $waitingAskIds
      */
-    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, bool $approved = false, bool $ready = false, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null, array $waitingAskIds = []): Facts
+    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, bool $approved = false, bool $ready = false, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null, array $waitingAskIds = [], int $openChildren = 0): Facts
     {
         $id = Uuid::v7();
         $heads = array_map(static fn (?AgentReviewConclusion $conclusion): ReviewedHead => new ReviewedHead((string) $id, str_repeat('a', 40), $conclusion, overriddenBy: $overriddenBy), $conclusions);
 
         return FactsMother::facts(
-            card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
+            card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature', childCount: $openChildren, openChildCount: $openChildren),
             pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id, checksOnHead: $ready, baseIsDefault: $ready && !$epicBranch, approvalCheckPassed: $approved, canPostCheck: $ready),
             run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
             provided: [AgentReviewFacts::class => new AgentReviewFacts($heads), AgentReviewPostingFacts::class => new AgentReviewPostingFacts(unposted: false, uncommented: []), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
@@ -622,6 +622,12 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertContains('agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [null], epic: true)));
         self::assertNotContains('agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Success], epic: true)));
         self::assertContains('fix-agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Failure], epic: true)));
+    }
+
+    public function test_an_epic_with_an_open_child_asks_for_no_agent_review_and_no_fix_round(): void
+    {
+        self::assertNotContains('agent-review', $this->firingRuleIds(self::withAgentReview('implementation', [null], epic: true, openChildren: 1)));
+        self::assertNotContains('fix-agent-review', $this->firingRuleIds(self::withAgentReview('implementation', [AgentReviewConclusion::Failure], epic: true, openChildren: 1)));
     }
 
     public function test_an_epic_waits_for_its_own_agent_review_before_it_gets_the_approval_check_or_merges(): void

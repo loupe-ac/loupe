@@ -207,13 +207,16 @@ Hover the mark, or focus it, to read the tooltip. The tooltip gives these items:
 
 - The reason the card has the state.
 - The time the reason began.
-- The other markers that ask you to act: every **Stuck** and **Needs you** marker, and chips. A **Working** or **Waiting** marker shows only when it is the main state.
 - On a board tile, an **Open the Agents page** link when no bridge can take
   the work of the card, or the only bridge that can is paused.
-- On a board tile, an **Open card** link. A list row leaves both links out,
+- On a board tile, an **Open inbox item** link when the card has an open
+  inbox item. The link opens the oldest open item that names the card, or
+  that waits on it.
+- On a board tile, an **Open card** link. A list row leaves all the links out,
   because the row itself opens the card.
 
-The card page shows the remedy line, which says what clears the state.
+The tooltip shows the main state only. The card page shows every other marker
+that applies, and the remedy line, which says what clears the state.
 
 The tooltip stays open while the pointer moves into it.
 
