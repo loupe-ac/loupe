@@ -103,7 +103,7 @@ metric shows with the label from the template.
 | Output tokens per merged card | the output tokens of the experiment runs of a merged card |
 | Hours from open to merge | the time from the first pull request of a merged card to the last merge |
 | Design review rounds | the design revise requests of a finished card. The Lifecycle template declares it |
-| Hours to agent review pass | the time from the pull request opening to the first agent review pass. The Lifecycle template declares it |
+| Hours to agent review pass | the time from the first pull request opening to the last agent review pass. The Lifecycle template declares it |
 
 The rows for the merge rate, the fix rounds and the times exist only when the
 workflow template of the project declares them.

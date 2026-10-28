@@ -24,7 +24,7 @@ metrics:
       duration: { from: pr-opened, to: pr-merged }
     - key: hours-to-agent-pass
       label: Hours to agent review pass
-      description: The hours from the pull request opening to the first agent review pass.
+      description: The hours from the first pull request opening to the last agent review pass.
       duration: { from: pr-opened, to: agent-review-passed }
     - key: hours-waiting-for-approval
       label: Hours waiting for approval
