@@ -74,12 +74,12 @@ test('a resume that gave up shows its place in the series and the run it resumes
     const row = page.locator(`[data-worker-run-id="${resumeId}"]`);
     await expect(
         page.locator(
-            `[data-worker-run-id="${resumeId}"] > .lp-worker-run-outcome > .lp-status-chip`,
+            `[data-worker-run-id="${resumeId}"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip`,
         ),
     ).toHaveText('Gave up');
     await expect(
         page.locator(
-            `[data-worker-run-id="${firstId}"] > .lp-worker-run-outcome > .lp-status-chip`,
+            `[data-worker-run-id="${firstId}"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip`,
         ),
     ).toHaveText('Unfinished');
 
@@ -184,7 +184,7 @@ test('completed reports retain outcomes and escaped output at enlarged text size
     for (const [index, report] of reports.entries()) {
         const row = page.locator(`[data-worker-run-id="${ids[index]}"]`);
         const chip = page.locator(
-            `[data-worker-run-id="${ids[index]}"] > .lp-worker-run-outcome > .lp-status-chip`,
+            `[data-worker-run-id="${ids[index]}"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip`,
         );
         await expect(chip).toContainText(report.outcome);
         // The row shows a failure reason only in the chip's tooltip.
@@ -259,7 +259,7 @@ test('completed reports retain outcomes and escaped output at enlarged text size
                 .boundingBox();
             for (const chip of await list
                 .locator(
-                    '[data-worker-run-id] > .lp-worker-run-outcome > .lp-status-chip',
+                    '[data-worker-run-id] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip',
                 )
                 .all()) {
                 expect(
@@ -277,7 +277,7 @@ test('completed reports retain outcomes and escaped output at enlarged text size
             );
             const outcome = page
                 .locator(
-                    '[data-worker-run-id] > .lp-worker-run-outcome > .lp-status-chip',
+                    '[data-worker-run-id] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip',
                 )
                 .first();
             const badge = await outcome.evaluate((element) => {

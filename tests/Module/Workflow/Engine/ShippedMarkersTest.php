@@ -506,6 +506,16 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['%number%' => 6, '%title%' => 'Which way?'], $this->written('open-question')->params);
     }
 
+    #[DataProvider('shippedKeys')]
+    public function test_a_pull_request_still_waits_for_approval_while_the_forge_computes_its_mergeability(string $template): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, checksOnHead: true, canMerge: false, baseIsDefault: true);
+
+        $this->pass($this->template($template), FactsMother::facts(card: FactsMother::card(slot: 'lifecycle' === $template ? 'in-review' : null), pullRequest: $pullRequest, pullRequests: [$pullRequest]));
+
+        self::assertContains('waits-for-approval', $this->writtenKeys());
+    }
+
     public function test_a_blocked_merge_after_the_approval_check_passed_needs_the_person_and_names_the_pull_request(): void
     {
         $blocked = FactsMother::pullRequest(checks: ChecksState::Passed, number: 9, approvalCheckPassed: true, mergeBlocked: true);

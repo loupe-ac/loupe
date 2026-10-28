@@ -24,7 +24,6 @@ framework:
             - github-repository-check
             - site-review-comment-action
             - board-card-delete
-            - worker-run-close
             - worker-run-command
             - insights-proposal-accept
             - insights-bucket-rule-delete

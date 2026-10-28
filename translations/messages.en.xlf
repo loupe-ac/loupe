@@ -7222,6 +7222,12 @@
             <trans-unit id="bridge.worker_runs.details.switched_from"><source>bridge.worker_runs.details.switched_from</source><target>switched from %variant%</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_status"><source>bridge.worker_runs.details.result_status</source><target>Result status</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_reason"><source>bridge.worker_runs.details.result_reason</source><target>Reason</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.close_reason"><source>bridge.worker_runs.details.close_reason</source><target>Closed because</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-ended"><source>bridge.worker_runs.close_reason.session-ended</source><target>The session ended</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.person"><source>bridge.worker_runs.close_reason.person</source><target>A person closed it</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.card-moved"><source>bridge.worker_runs.close_reason.card-moved</source><target>The card moved to another column</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.stale"><source>bridge.worker_runs.close_reason.stale</source><target>No sign of life for too long</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-gone"><source>bridge.worker_runs.close_reason.session-gone</source><target>The session process is gone</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.resume_skipped"><source>bridge.worker_runs.details.resume_skipped</source><target>Resume skipped</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metrics"><source>bridge.worker_runs.details.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cost"><source>bridge.worker_runs.details.metric.cost</source><target>Cost</target></trans-unit>
@@ -7242,6 +7248,7 @@
             <trans-unit id="bridge.worker_runs.control.stop"><source>bridge.worker_runs.control.stop</source><target>Stop</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun"><source>bridge.worker_runs.control.rerun</source><target>Run again</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.cancel"><source>bridge.worker_runs.control.cancel</source><target>Cancel request</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.control.close"><source>bridge.worker_runs.control.close</source><target>Close session</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.resume_requested"><source>bridge.worker_runs.control.resume_requested</source><target>Resume requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.stop_requested"><source>bridge.worker_runs.control.stop_requested</source><target>Stop requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun_requested"><source>bridge.worker_runs.control.rerun_requested</source><target>Run again requested</target></trans-unit>
@@ -7511,10 +7518,6 @@
             <trans-unit id="bridge.worker_runs.running_for">
                 <source>bridge.worker_runs.running_for</source>
                 <target>running for %duration%</target>
-            </trans-unit>
-            <trans-unit id="bridge.worker_runs.close_session">
-                <source>bridge.worker_runs.close_session</source>
-                <target>Close session</target>
             </trans-unit>
             <trans-unit id="bridge.worker_runs.output.toggle">
                 <source>bridge.worker_runs.output.toggle</source>
@@ -9547,6 +9550,7 @@
             <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
             <trans-unit id="marker.paused.reason.title"><source>marker.paused.reason.title</source><target>Paused: %reason%</target></trans-unit>
             <trans-unit id="marker.paused.run"><source>marker.paused.run</source><target>Card %card% is paused. %reason%. The last %worker% run failed: %failure%.</target></trans-unit>
+            <trans-unit id="marker.paused.run_state"><source>marker.paused.run_state</source><target>Card %card% is paused. %reason%. The last %worker% run ended as %state%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review"><source>marker.paused.work_limit.agent_review</source><target>Card %card% is paused. %count% %work% rounds did not pass the agent review of PR #%number%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review.title"><source>marker.paused.work_limit.agent_review.title</source><target>%count% %work% rounds did not pass the agent review of PR #%number%</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.pull_request"><source>marker.paused.work_limit.pull_request</source><target>Card %card% is paused. %count% %work% rounds did not settle PR #%number%.</target></trans-unit>

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Service;
 
+use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Messenger\CollectSessionUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -234,6 +236,7 @@ final readonly class InteractiveRuns
         return $this->closeLocked(
             fn (): ?WorkerRun => $this->workerRuns->findOpenInteractiveForUpdate($project, $cardId, $sessionId),
             fn (): ?WorkerRun => $this->workerRuns->findLatestInteractive($project, $cardId, $sessionId),
+            WorkerRunCloseReason::SessionEnded,
         );
     }
 
@@ -243,7 +246,56 @@ final readonly class InteractiveRuns
         return $this->closeLocked(
             fn (): ?WorkerRun => $this->workerRuns->findOpenInteractiveByIdForUpdate($project, $runId),
             fn (): ?WorkerRun => $this->workerRuns->findInteractiveById($project, $runId),
+            WorkerRunCloseReason::Person,
         )[0];
+    }
+
+    /**
+     * Closes every open run of the session in every project of the owner, and returns how many it closed. One
+     * `loupe mcp` session can switch projects while it runs, so the exit hook names no project.
+     */
+    public function closeSession(User $owner, Uuid $sessionId, WorkerRunCloseReason $reason): int
+    {
+        return \count($this->closeFound(
+            fn (): array => $this->workerRuns->findOpenInteractiveOfOwnerSessionForUpdate($owner, $sessionId),
+            $reason,
+        ));
+    }
+
+    /**
+     * Closes the open runs with no sign of life since $quietBefore, at most $limit of them, and returns them.
+     *
+     * @return list<WorkerRun>
+     */
+    public function closeStale(\DateTimeImmutable $quietBefore, int $limit): array
+    {
+        return $this->closeFound(
+            fn (): array => $this->workerRuns->findQuietOpenInteractiveForUpdate($quietBefore, $limit),
+            WorkerRunCloseReason::Stale,
+        );
+    }
+
+    /**
+     * Closes the open run of the session that the bridge launched, in any project of the owner, when it started
+     * before $startedBefore. The grace period keeps a reading that predates the launch from closing a new run. A run
+     * of a harness that the bridge cannot find in the process list, such as Codex, stays open.
+     */
+    public function closeLaunched(Uuid $bridgeId, User $owner, Uuid $sessionId, \DateTimeImmutable $startedBefore, WorkerRunCloseReason $reason): int
+    {
+        return \count($this->closeFound(
+            fn (): array => array_values(array_filter(
+                $this->workerRuns->findOpenInteractiveOfBridgeForUpdate($bridgeId, $owner, [$sessionId]),
+                static fn (WorkerRun $run): bool => null !== $run->startedAt && $run->startedAt < $startedBefore
+                    && \in_array($run->harness ?? '', WorkerRun::PROCESS_CHECKED_HARNESSES, true),
+            )),
+            $reason,
+        ));
+    }
+
+    /** Stamps the open runs of the session in the project with a sign of life. */
+    public function touch(Project $project, Uuid $sessionId, \DateTimeImmutable $at): void
+    {
+        $this->workerRuns->touchOpenInteractive($project, $sessionId, $at);
     }
 
     /**
@@ -264,7 +316,7 @@ final readonly class InteractiveRuns
             $runs = $this->workerRuns->findOpenInteractiveOfCardsForUpdate($project, $cardIds);
             $at = $this->clock->now();
             foreach ($runs as $run) {
-                $this->closeRun($run, $at);
+                $this->closeRun($run, $at, WorkerRunCloseReason::CardMoved);
             }
             $this->em->flush();
 
@@ -291,10 +343,10 @@ final readonly class InteractiveRuns
      *
      * @return array{?WorkerRun, bool}
      */
-    private function closeLocked(\Closure $findOpenLocked, \Closure $findAny): array
+    private function closeLocked(\Closure $findOpenLocked, \Closure $findAny, WorkerRunCloseReason $reason): array
     {
         /** @var array{?WorkerRun, bool} $outcome */
-        $outcome = $this->em->wrapInTransaction(function () use ($findOpenLocked, $findAny): array {
+        $outcome = $this->em->wrapInTransaction(function () use ($findOpenLocked, $findAny, $reason): array {
             $run = $findOpenLocked();
             if (null === $run) {
                 $run = $findAny();
@@ -307,7 +359,7 @@ final readonly class InteractiveRuns
                 return [$run, false];
             }
 
-            $this->closeRun($run, $this->clock->now());
+            $this->closeRun($run, $this->clock->now(), $reason);
             $this->em->flush();
 
             return [$run, true];
@@ -322,6 +374,39 @@ final readonly class InteractiveRuns
         return $outcome;
     }
 
+    /**
+     * @param \Closure(): list<WorkerRun> $findLocked
+     *
+     * @return list<WorkerRun>
+     */
+    private function closeFound(\Closure $findLocked, WorkerRunCloseReason $reason): array
+    {
+        /** @var list<WorkerRun> $closed */
+        $closed = $this->em->wrapInTransaction(function () use ($findLocked, $reason): array {
+            $runs = $findLocked();
+            $at = $this->clock->now();
+            foreach ($runs as $run) {
+                $this->closeRun($run, $at, $reason);
+            }
+            $this->em->flush();
+
+            return $runs;
+        });
+
+        $projects = [];
+        foreach ($closed as $run) {
+            $projects[(string) $run->project->id] = $run->project;
+        }
+        foreach ($projects as $project) {
+            $this->publisher->runsChanged($project);
+        }
+        if ([] !== $closed) {
+            $this->announce($closed);
+        }
+
+        return $closed;
+    }
+
     /** @param list<WorkerRun> $runs */
     private function announce(array $runs): void
     {
@@ -330,10 +415,11 @@ final readonly class InteractiveRuns
         }
     }
 
-    private function closeRun(WorkerRun $run, \DateTimeImmutable $at): void
+    private function closeRun(WorkerRun $run, \DateTimeImmutable $at, WorkerRunCloseReason $reason): void
     {
         $run->moveTo(WorkerRunState::Closed);
         $run->endedAt = $at;
+        $run->closeReason = $reason;
         $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Closed, $at, $at));
         $this->bus->dispatch(new CollectSessionUsage((string) $run->project->id, (string) $run->id));
     }

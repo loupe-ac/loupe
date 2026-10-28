@@ -29,7 +29,6 @@ facts:
         all:
             - fact.pr-reviewable: {}
             - pr.checks_on_head: {}
-            - pr.can_merge: {}
             - pr.base_is_default: {}
             - not: { pr.approval_covers_head: { min: 1 } }
             - not: { card.run.worker_active: {} }

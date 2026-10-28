@@ -84,6 +84,8 @@ type fakeHeartbeats struct {
 	cliRange string
 	paused   *bool
 	commands []api.Command
+	// watch is the watch list each successful answer carries.
+	watch []string
 }
 
 func (f *fakeHeartbeats) Heartbeat(_ context.Context, bridgeID string, hb api.Heartbeat) (api.HeartbeatReply, error) {
@@ -92,7 +94,7 @@ func (f *fakeHeartbeats) Heartbeat(_ context.Context, bridgeID string, hb api.He
 	f.sent = append(f.sent, hb)
 	f.ids = append(f.ids, bridgeID)
 	if len(f.errors) == 0 {
-		return api.HeartbeatReply{CLIRange: f.cliRange, Paused: f.paused, Commands: f.commands}, nil
+		return api.HeartbeatReply{CLIRange: f.cliRange, Paused: f.paused, Commands: f.commands, WatchSessions: f.watch}, nil
 	}
 	err := f.errors[0]
 	f.errors = f.errors[1:]
@@ -674,5 +676,73 @@ func TestHeartbeatReadsTheRepositoriesWhenItGoesOut(t *testing.T) {
 		if !slices.Equal(hb.Repositories, rows) {
 			t.Errorf("heartbeat %d repositories = %+v", i, hb.Repositories)
 		}
+	}
+}
+
+// The ids a reply watches get a reading in the next heartbeat, and a bridge
+// with an empty watch list sends none.
+func TestTheNextHeartbeatReadsTheSessionsTheReplyWatches(t *testing.T) {
+	client := &fakeHeartbeats{watch: []string{"s1", "s2"}}
+	var asked [][]string
+	alive := true
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) {
+		h.sessions = func(_ context.Context, ids []string) []api.InteractiveSessionReading {
+			if len(ids) == 0 {
+				return nil
+			}
+			asked = append(asked, ids)
+			out := make([]api.InteractiveSessionReading, 0, len(ids))
+			for _, id := range ids {
+				out = append(out, api.InteractiveSessionReading{SessionID: id, Alive: &alive})
+			}
+
+			return out
+		}
+	})
+	hh.tick(t, time.Minute)
+	client.mu.Lock()
+	client.watch = nil
+	client.mu.Unlock()
+	hh.tick(t, time.Minute)
+	hh.tick(t, time.Minute)
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.sent) != 4 {
+		t.Fatalf("%d heartbeats, want 4", len(client.sent))
+	}
+	if len(client.sent[0].InteractiveSessions) != 0 {
+		t.Fatalf("first heartbeat = %+v", client.sent[0].InteractiveSessions)
+	}
+	if got := client.sent[1].InteractiveSessions; len(got) != 2 || got[0].SessionID != "s1" || got[1].SessionID != "s2" {
+		t.Fatalf("second heartbeat = %+v", got)
+	}
+	if len(client.sent[3].InteractiveSessions) != 0 || len(asked) != 2 {
+		t.Fatalf("after an empty watch list: sent %+v, asked %v", client.sent[3].InteractiveSessions, asked)
+	}
+}
+
+// A failed heartbeat keeps the watch list, so the next one still reads it.
+func TestAFailedHeartbeatKeepsTheWatchList(t *testing.T) {
+	client := &fakeHeartbeats{watch: []string{"s1"}}
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) {
+		h.sessions = func(_ context.Context, ids []string) []api.InteractiveSessionReading {
+			if len(ids) == 0 {
+				return nil
+			}
+
+			return []api.InteractiveSessionReading{{SessionID: ids[0]}}
+		}
+	})
+	client.mu.Lock()
+	client.errors = []error{errors.New("down")}
+	client.mu.Unlock()
+	hh.tick(t, time.Minute)
+	hh.tick(t, time.Minute)
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.sent[1].InteractiveSessions) != 1 || len(client.sent[2].InteractiveSessions) != 1 {
+		t.Fatalf("sent = %+v", client.sent)
 	}
 }

@@ -77,7 +77,7 @@ final class WorkerRunListItemTest extends TestCase
         self::assertSame([], new WorkerRunListItem($this->queuedRun(), new \DateTimeImmutable(), [], null)->resultFields());
     }
 
-    public function test_only_a_running_interactive_run_can_be_closed(): void
+    public function test_only_an_interactive_run_is_marked_interactive(): void
     {
         $now = new \DateTimeImmutable();
         $open = $this->interactiveRun(WorkerRunState::Running);
@@ -86,11 +86,8 @@ final class WorkerRunListItemTest extends TestCase
         $worker->markRunning(Uuid::v4(), $now);
 
         self::assertTrue(new WorkerRunListItem($open, $now, [], null)->interactive);
-        self::assertTrue(new WorkerRunListItem($open, $now, [], null)->closable);
         self::assertTrue(new WorkerRunListItem($closed, $now, [], null)->interactive);
-        self::assertFalse(new WorkerRunListItem($closed, $now, [], null)->closable);
         self::assertFalse(new WorkerRunListItem($worker, $now, [], null)->interactive);
-        self::assertFalse(new WorkerRunListItem($worker, $now, [], null)->closable);
     }
 
     public function test_a_command_run_is_marked_as_a_command(): void
@@ -112,7 +109,6 @@ final class WorkerRunListItemTest extends TestCase
 
         self::assertTrue($item->command);
         self::assertFalse($item->interactive);
-        self::assertFalse($item->closable);
         self::assertFalse(new WorkerRunListItem($this->queuedRun(), $now, [], null)->command);
         self::assertFalse(new WorkerRunListItem($this->interactiveRun(WorkerRunState::Running), $now, [], null)->command);
     }

@@ -106,7 +106,7 @@ runs to a page.
 | **Never started** | the worker process never ran |
 | **Timed out** | the bridge stopped sending its heartbeat while the run was open |
 | **Lost** | the bridge reconnected, and it no longer holds the run |
-| **Closed** | the interactive session ended, or its card moved to another column |
+| **Closed** | the interactive session ended, a person closed it, its card moved to another column, or Loupe found no sign of life from it. The drawer shows the reason |
 
 Queued, Resumed, Preparing, Running and Stopping are open states. A bridge that dies cannot close
 its runs, so Loupe closes them. **Timed out** is a guess: a bridge can go quiet
@@ -143,14 +143,16 @@ The project owner can control a run from the runs section of a card page and
 from the drawer of a run. The card page lists only the runs in progress, so it
 offers **Stop** and **Cancel request** for a stop. Resume an ended run, or run
 a command again, from this page. Other people see the labels and no controls.
-An interactive run has no controls, and its owner uses **Close session**
-instead.
+An interactive run offers **Close session** in place of the other controls. It
+shows in the runs section of a card, in the drawer of the run, and as a small
+close icon in the **Outcome** cell of the row in the list.
 
 | Control | When it shows | What it does |
 |---|---|---|
 | **Stop** | the run is Queued, Resumed, Preparing or Running | asks the bridge to stop the run |
 | **Resume** | the run ended as Blocked, Gave up, Failed, No result, Unfinished, Timed out, Lost, Stopped or Waiting for a person, and it has a session | asks the bridge to continue the session as a new run |
 | **Run again** | a command run ended as Failed, Timed out or Lost | asks the bridge to run the command again as a new run |
+| **Close session** | an interactive run is Running | closes the session at once and shows it as **Closed**. It sends nothing to a bridge, and the terminal of the session stays open |
 | **Cancel request** | a stop, a resume or a rerun still waits for the bridge | withdraws the request |
 
 A request waits until the bridge takes it. The row then shows the label of the
@@ -318,10 +320,13 @@ These actions close an open interactive run, and it then shows **Closed**:
 
 - The session calls `card_run_close` when it ends.
 - The owner selects **Close session** on the running row, in the runs section
-  of the card.
+  of the card, in the **Runs** list, or in the drawer of the run. In the list,
+  the view keeps its search, filters and page. A filter that leaves out
+  **Closed**, such as **Open runs**, drops the row.
 - The card moves to another column. A move inside the same column closes
   nothing. The delete of a column moves its cards, so it closes their runs.
 - A person deletes the card.
+- Loupe finds the session gone or quiet, as [Stale sessions](#stale-sessions) says.
 
 Each of these closes makes Loupe ask the bridges that follow the project for
 the usage of the run. The bridge that holds the session transcript sums the
@@ -331,11 +336,40 @@ total counts it. A bridge older than this feature never gets the request. While
 the run has no usage, each later `card_run_close` call from the session asks
 again. A run with no bridge that holds its transcript keeps no usage.
 
-No timeout closes the run. A session that stops with no call leaves its run open
-until the owner closes it or the card moves. An agent can close it with
-`worker_run_stop`, which marks the run closed in Loupe. The terminal of the
-session stays open, because no bridge holds it. See
-[the command-line bridge](../extending/cli-bridge.md#events-endpoint).
+### Stale sessions
+
+A session that crashes, or a terminal that someone kills, cannot close its own
+run. Loupe closes such a run from three signals. Each closed run shows its
+reason in its row of the Runs list, and in the drawer under **Closed because**.
+
+1. **The session ended.** The Loupe plugin for Claude Code runs a `SessionEnd`
+   hook. On a clean exit the hook starts `loupe session end`, which closes every
+   open run of the session in every project of your account. This needs the
+   `loupe` command-line tool on the machine, signed in. The exit hook gives the
+   reason **The session ended**.
+2. **The session process is gone.** A bridge checks each interactive session
+   that it launched, once a minute. When the Claude process of the session no
+   longer runs, Loupe closes the run, with the reason **The session process is
+   gone**. A run younger than two minutes stays open. The bridge cannot find a
+   Codex process by its session, so a Codex session never closes this way. The
+   bridge reports when its session file last changed instead, as a sign of life.
+3. **No sign of life for too long.** Loupe closes an open interactive run that
+   shows no sign of life for 12 hours, with the reason **No sign of life for too
+   long**. The `bridge.interactive_stale_close_enabled` feature flag switches
+   this check on and off, and it starts on. Any Loupe tool call that the session
+   makes through `loupe mcp` is a sign of life. A bridge that sees the Claude
+   process running, or the transcript change, also counts. A session that
+   reaches Loupe only through the claude.ai connector sends no session header,
+   so only its explicit `card_run_open` and `card_run_close` calls count.
+
+A wrong close costs little. The next `card_run_open` call of the session opens a
+new run. A workflow rule that waits for "no session open" reacts to the close as
+it does to any other close, and a card in Product design can then ask for a new
+session.
+
+An agent can also close a run with `worker_run_stop`, which marks the run closed
+in Loupe. The terminal of the session stays open, because no bridge holds it.
+See [the command-line bridge](../extending/cli-bridge.md#events-endpoint).
 
 ## A missing record means unknown
 

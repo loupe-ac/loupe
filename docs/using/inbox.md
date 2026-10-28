@@ -354,9 +354,12 @@ the sentence, with the stage protocol text and the reason tag removed.
 A pause wait says the reason of the pause in words, such as "Card 1033 is
 paused. The repair worker could not fix the failure." When failed work caused
 the pause, the sentence also names the last run that failed before it, with
-its kind and its failure reason or the last line of its output. Below the
+its kind and its failure reason, or the state of the run when it has no
+reason. A run that stopped for a person did not fail, so the pause names no
+run, and the run wait says what the run needs. Below the
 sentence, the "Open the failed run" link opens that run on the worker runs
-page. The title of the item reads "Paused:" and the reason.
+page. The title of the item reads "Paused:" and the reason. The first message
+of the panel is the wait that the title names.
 
 A pause after a rule reached its work limit says what looped. The title
 names the work, the limit and the pull request, such as "10 fix rounds did not
@@ -685,8 +688,7 @@ The `waits-for-approval` marker is on when all of these are true:
 
 - The pull request is open, and it is not a draft.
 - Its checks passed on its head commit.
-- It has no conflict, and no change request is open.
-- The forge reads it as mergeable, behind its base or blocked.
+- It has no conflict, and no change request is open. A pull request whose mergeability the forge still computes, such as just after a merge into its base, keeps its wait.
 - Its base is the default branch.
 - No worker run of the card is active.
 - No approval covers its head commit.

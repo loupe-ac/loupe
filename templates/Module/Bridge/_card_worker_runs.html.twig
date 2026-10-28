@@ -36,10 +36,6 @@
             </a>
             {% if canManage and control and control.action %}
             {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: item.run, control: control, frame: 'card-worker-runs', compact: true} only %}
-            {% elseif canManage and item.closable %}
-            <twig:Ds:ActionForm :action="path('app_project_worker_run_close', {id: project.id, runId: item.run.id})" token="worker-run-close" frame="card-worker-runs" class="lp-card-run__action" data-card-run-close>
-                <twig:Ds:Button variant="icon compact" type="submit"  title="{{ 'bridge.worker_runs.close_session'|trans }}" aria-label="{{ 'bridge.worker_runs.close_session'|trans }}"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" /></twig:Ds:Button>
-            </twig:Ds:ActionForm>
             {% endif %}
         </div>
         <twig:Ds:StatusChip :modifier="item.state.chipModifier()" :dot="false">{{ item.state.translationKey()|trans }}</twig:Ds:StatusChip>
