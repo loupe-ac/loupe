@@ -17,9 +17,11 @@ ts_absolute() { printf '%s/%s' "$(cd "$(dirname "$1")" && pwd)" "$(basename "$1"
 
 # The store file: its own checkout first, then the main checkout, because a
 # worktree has no gitignored file of its own. Prints nothing when none exists.
+# sops exec-env takes the format from the extension alone, so the name ends .yaml.
 store_file() {
     local own main
     if [ -n "${TF_SECRETS_STORE:-}" ]; then
+        [[ $TF_SECRETS_STORE == *.yaml ]] || ts_fail "the store file name must end in .yaml."
         [ -f "$TF_SECRETS_STORE" ] && printf '%s' "$TF_SECRETS_STORE"
         return 0
     fi
@@ -54,7 +56,7 @@ store_b64() {
     local file=${2:-}
     [ -n "$file" ] || file=$(store_file)
     [ -n "$file" ] || ts_fail "no secret store is set up."
-    sops decrypt --output-type json "$file" | jq -j --arg n "$1" '.[$n] // empty' | openssl base64 -A
+    sops decrypt --input-type yaml --output-type json "$file" | jq -j --arg n "$1" '.[$n] // empty' | openssl base64 -A
 }
 
 # The names the store holds. The keys of a sops file are not encrypted.
@@ -68,32 +70,34 @@ store_names() {
 # Writes name and value pairs in one rename. Each value reaches sops on
 # standard input. A pair is read back before the rename.
 store_set_many() {
-    local file tmp i n names=() values=() bad=() dir created=0
+    local file tmp tmpdir i n names=() values=() bad=() dir created=0
     while [ $# -gt 1 ]; do names+=("$1"); values+=("$2"); shift 2; done
     n=${#names[@]}
     [ "$n" -gt 0 ] && [ $# -eq 0 ] || ts_fail "store_set_many takes name and value pairs."
     file=$(store_file)
     if [ -z "$file" ]; then file=$(store_target); created=1; fi
     dir=$(dirname "$file")
-    tmp=$(mktemp "$dir/.rotate-secrets.tmp.XXXXXX")
+    tmpdir=$(mktemp -d "$dir/.rotate-secrets.tmp.XXXXXX")
+    tmp=$tmpdir/secrets.enc.yaml
     if [ "$created" = 1 ]; then
         printf '{}' | sops encrypt --input-type json --output-type yaml --filename-override "$file" /dev/stdin > "$tmp" \
-            || { rm -f -- "$tmp"; ts_fail "could not start the secret store. Set SOPS_AGE_RECIPIENTS or add a .sops.yaml."; }
+            || { rm -rf -- "$tmpdir"; ts_fail "could not start the secret store. Set SOPS_AGE_RECIPIENTS or add a .sops.yaml."; }
     else
-        cp -p "$file" "$tmp"
+        cp -p "$file" "$tmp" || { rm -rf -- "$tmpdir"; ts_fail "could not copy the store."; }
     fi
     for ((i = 0; i < n; i++)); do
-        printf '%s' "${values[i]}" | jq -Rs . | sops set --value-stdin "$tmp" "[\"${names[i]}\"]" \
-            || { rm -f -- "$tmp"; ts_fail "could not write ${names[i]}. The store is unchanged."; }
+        printf '%s' "${values[i]}" | jq -Rs . | sops set --input-type yaml --output-type yaml --value-stdin "$tmp" "[\"${names[i]}\"]" \
+            || { rm -rf -- "$tmpdir"; ts_fail "could not write ${names[i]}. The store is unchanged."; }
     done
     for ((i = 0; i < n; i++)); do
         [ "$(store_b64 "${names[i]}" "$tmp")" = "$(printf '%s' "${values[i]}" | openssl base64 -A)" ] || bad+=("${names[i]}")
     done
     if [ ${#bad[@]} -gt 0 ]; then
-        rm -f -- "$tmp"
+        rm -rf -- "$tmpdir"
         ts_fail "${bad[*]} did not read back the same. The store is unchanged."
     fi
     mv -f "$tmp" "$file"
+    rmdir -- "$tmpdir"
 }
 
 # Placeholders for the required secrets, so that a read of a non-secret input

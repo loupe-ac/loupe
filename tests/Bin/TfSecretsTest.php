@@ -138,6 +138,27 @@ final class TfSecretsTest extends TestCase
         self::assertSame("TF_VAR_app_secret\n", $names->getOutput());
     }
 
+    public function test_set_gives_sops_a_yaml_temporary_file_and_removes_it(): void
+    {
+        $this->tfvars('app_secret = "x"');
+
+        $set = $this->tf(['set', 'TF_VAR_app_secret'], [], 'v1');
+
+        self::assertSame(0, $set->getExitCode(), $set->getErrorOutput());
+        self::assertSame('v1', $this->stored('TF_VAR_app_secret'));
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.*'));
+    }
+
+    public function test_a_store_file_whose_name_does_not_end_in_yaml_is_refused(): void
+    {
+        rename($this->dir.'/store.yaml', $this->dir.'/store.enc');
+
+        $exec = $this->tf(['exec', '--', 'true'], ['TF_SECRETS_STORE' => $this->dir.'/store.enc']);
+
+        self::assertSame(1, $exec->getExitCode());
+        self::assertStringContainsString('must end in .yaml', $exec->getErrorOutput());
+    }
+
     public function test_set_refuses_a_name_that_is_not_listed(): void
     {
         $set = $this->tf(['set', 'NOT_LISTED'], input: 'v');

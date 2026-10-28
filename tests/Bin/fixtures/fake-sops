@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # A stand-in for sops in tests. The "encrypted" file holds one `NAME: <JSON string>` line per
 # value. It logs its arguments to $FAKE_SOPS_LOG, so a test can check that no value is in one.
+# Like sops, it takes the format from --input-type or else the extension, and refuses the rest.
 set -euo pipefail
 
 [ -z "${FAKE_SOPS_LOG:-}" ] || printf '%s\n' "$*" >> "$FAKE_SOPS_LOG"
@@ -15,22 +16,37 @@ object() {
     printf '%s' "$out"
 }
 
-case $1 in
-    decrypt) object "${@: -1}" ;;
+cmd=$1
+shift
+type="" args=()
+while [ $# -gt 0 ]; do
+    case $1 in
+        --input-type) type=$2; shift 2 ;;
+        --output-type | --filename-override) shift 2 ;;
+        --value-stdin) shift ;;
+        *) args+=("$1"); shift ;;
+    esac
+done
+[ "$cmd" = encrypt ] || [ "$type" = yaml ] || [[ ${args[0]} == *.yaml ]] \
+    || { echo "fake-sops: cannot tell the format of ${args[0]}" >&2; exit 8; }
+
+case $cmd in
+    decrypt) object "${args[0]}" ;;
     encrypt) cat > /dev/null ;;
     set)
-        file=$3
-        name=$(sed -e 's/^\["//' -e 's/"\]$//' <<< "$4")
+        file=${args[0]}
+        name=$(sed -e 's/^\["//' -e 's/"\]$//' <<< "${args[1]}")
         value=$(cat)
         [ -z "${FAKE_SOPS_CORRUPT:-}" ] || value='"corrupt"'
         { grep -v "^$name: " "$file" || true; } > "$file.next"
         printf '%s: %s\n' "$name" "$value" >> "$file.next"
         mv "$file.next" "$file" ;;
     exec-env)
+        [ -z "$type" ] || { echo "fake-sops: exec-env takes no --input-type" >&2; exit 9; }
         while IFS= read -r line; do
             k=${line%%: *}
             export "$k=$(jq -j --argjson v "${line#*: }" -n '$v')"
-        done < "$2"
-        exec sh -c "$3" ;;
-    *) echo "fake-sops: unsupported $1" >&2; exit 9 ;;
+        done < "${args[0]}"
+        exec sh -c "${args[1]}" ;;
+    *) echo "fake-sops: unsupported $cmd" >&2; exit 9 ;;
 esac
