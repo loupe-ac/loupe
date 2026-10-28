@@ -79,12 +79,33 @@ final class WorkLimitPauseTest extends KernelTestCase
         self::assertStringStartsWith('Card 1108 is paused. 10 fix rounds did not pass the agent review of PR #1302. Fix the cause, then retry the card. The latest agent review of PR #1302 found:', $body);
         self::assertStringContainsString("- The epic head still lacks B3 and B5\n- Preview: the Workflow Metrics page has no proven link", $body);
         self::assertStringContainsString('The last 10 fix runs ended: 5 waiting on the forge, 3 blocked, 2 succeeded.', $body);
-        self::assertStringContainsString('The last blocked fix run said: A fix round cannot build child work.', $body);
+        self::assertStringContainsString("The last blocked fix run said:\n\n> A fix round cannot build child work. Merge the children first.", $body);
         self::assertStringContainsString('Wait for cards 1124 and 1126 to merge into `epic/1108`, then retry the card.', $body);
         self::assertStringContainsString('[Open pull request #1302](https://github.com/loupe-ac/loupe/pull/1302)', $body);
         self::assertStringContainsString('[Open the agent review](https://github.com/loupe-ac/loupe/runs/4242)', $body);
         self::assertMatchesRegularExpression('~\[Open the last run\]\(https?://[^)]+search=[0-9a-f-]{36}\)~', $body);
         self::assertStringNotContainsString('1125', $body, 'A done child is not waited for.');
+    }
+
+    public function test_the_body_quotes_the_whole_summary_of_the_last_stopped_run(): void
+    {
+        $wait = $this->workLimitWait(lastOutput: "The children are open.\n\n1. Merge card 1124.\n2. Retry the card.");
+
+        self::assertStringContainsString("The last blocked fix run said:\n\n> The children are open.\n>\n> 1. Merge card 1124.\n> 2. Retry the card.", $this->service(CardWaitText::class)->body([$wait]));
+    }
+
+    public function test_the_body_reads_the_stage_result_of_an_older_run(): void
+    {
+        $wait = $this->workLimitWait(lastOutput: 'STAGE RESULT: blocked: spec finding needs the owner [reason: needs-person] Answer the question in the inbox.');
+
+        self::assertStringContainsString("said:\n\n> spec finding needs the owner Answer the question in the inbox.", $this->service(CardWaitText::class)->body([$wait]));
+    }
+
+    public function test_the_body_leads_with_a_title_that_differs_from_the_summary(): void
+    {
+        $wait = $this->workLimitWait(lastOutput: 'Card 1124 holds the B3 work.', lastTitle: 'Merge the children first');
+
+        self::assertStringContainsString("said:\n\n> Merge the children first\n>\n> Card 1124 holds the B3 work.", $this->service(CardWaitText::class)->body([$wait]));
     }
 
     public function test_the_retry_says_what_it_grants_and_is_not_the_default_after_a_blocked_run(): void
@@ -124,7 +145,7 @@ final class WorkLimitPauseTest extends KernelTestCase
     }
 
     /** The 1108 sequence: 2 succeeded, 5 waiting on the forge and 3 blocked fix runs, the newest blocked, then the pause. */
-    private function workLimitWait(string $ruleId = 'fix-agent-review', WorkerRunState $lastState = WorkerRunState::Blocked): InboxCardWait
+    private function workLimitWait(string $ruleId = 'fix-agent-review', WorkerRunState $lastState = WorkerRunState::Blocked, ?string $lastOutput = null, ?string $lastTitle = null): InboxCardWait
     {
         $em = $this->em();
         $cardId = $this->epic->id ?? throw new \LogicException('The card is stored.');
@@ -136,7 +157,11 @@ final class WorkLimitPauseTest extends KernelTestCase
         $states = [WorkerRunState::Succeeded, WorkerRunState::Succeeded, WorkerRunState::Blocked, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::Blocked, $lastState];
         $at = new \DateTimeImmutable('2026-10-27 22:20:00');
         foreach ($states as $i => $runState) {
-            $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'fix', $runState, output: 'A fix round cannot build child work. Merge the children first.', receivedAt: $at->modify(\sprintf('+%d minutes', $i * 10)), ruleId: 'fix-agent-review');
+            $last = 9 === $i;
+            $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'fix', $runState, output: $last && null !== $lastOutput ? $lastOutput : 'A fix round cannot build child work. Merge the children first.', receivedAt: $at->modify(\sprintf('+%d minutes', $i * 10)), ruleId: 'fix-agent-review');
+            if ($last && null !== $lastTitle) {
+                $run->resultFields = ['title' => $lastTitle];
+            }
             $em->persist($run);
         }
         $em->persist(new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'review', WorkerRunState::Failed, receivedAt: $at, ruleId: 'agent-review'));

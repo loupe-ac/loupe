@@ -300,9 +300,9 @@ final readonly class CardWaitText
         }
         $stop = $story->lastStop();
         if (null !== $stop) {
-            $said = RunSuggestions::title($stop) ?? RunOutputText::headline($stop->output);
+            $said = self::runSaid($stop);
             if ('' !== $said) {
-                $parts[] = $trans(self::WORK_LIMIT_LABEL.'.last_stop', ['%work%' => $story->work(), '%state%' => mb_strtolower($trans($stop->state->translationKey())), '%said%' => rtrim($said, '.')]);
+                $parts[] = $trans(self::WORK_LIMIT_LABEL.'.last_stop', ['%work%' => $story->work(), '%state%' => mb_strtolower($trans($stop->state->translationKey()))])."\n\n".self::quote($said);
             }
         }
         if ($story->waitsForChildren()) {
@@ -328,6 +328,23 @@ final readonly class CardWaitText
         }
 
         return [self::WORK_LIMIT_LABEL.'.'.$variant, $params, [] === $parts ? null : implode("\n\n", $parts)];
+    }
+
+    /** The whole summary of a run, led by its title when the summary does not open with it. */
+    private static function runSaid(WorkerRun $run): string
+    {
+        $summary = RunOutputText::clean($run->output);
+        $title = RunSuggestions::title($run);
+        if (null === $title || str_starts_with($summary, rtrim($title, '.'))) {
+            return $summary;
+        }
+
+        return '' === $summary ? $title : $title."\n\n".$summary;
+    }
+
+    private static function quote(string $text): string
+    {
+        return implode("\n", array_map(static fn (string $line): string => rtrim('> '.$line), preg_split('/\R/u', $text) ?: [$text]));
     }
 
     /** The run that failed last before the pause, for a pause that a failure of work caused. */
