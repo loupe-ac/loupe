@@ -216,31 +216,12 @@ test.use({
     viewport: { width: 1440, height: 900 },
 });
 
-test('the board search filters cards and reports an empty result', async ({
-    page,
-}) => {
-    const search = page.getByPlaceholder('Find a card…');
-
-    await search.fill('Bravo');
-    await expect(
-        page.locator(CARD + '[data-card-title="Bravo"]'),
-    ).toBeVisible();
-    await expect(page.locator(CARD + '[data-card-title="Alpha"]')).toBeHidden();
-    await expect(page.locator('.lp-board-toolbar__count')).toHaveText('1 card');
-
-    await search.fill('Missing');
-    await expect(page.locator(CARD + '[data-card-title="Alpha"]')).toBeHidden();
-    await expect(page.locator(CARD + '[data-card-title="Bravo"]')).toBeHidden();
-    await expect(page.getByText('No cards match these filters.')).toBeVisible();
-
-    await search.fill('');
+test('the toolbar counts the cards of the board', async ({ page }) => {
     await expect(page.locator(CARD)).toHaveCount(2);
-    await expect(
-        page.locator(CARD + '[data-card-title="Alpha"]'),
-    ).toBeVisible();
-    await expect(
-        page.locator(CARD + '[data-card-title="Bravo"]'),
-    ).toBeVisible();
+    await expect(page.locator('.lp-board-toolbar__count')).toHaveText(
+        '2 cards',
+    );
+    await expect(page.getByPlaceholder('Find a card…')).toHaveCount(0);
 });
 
 test('the list view uses the same cards and opens the stable drawer', async ({
@@ -252,13 +233,9 @@ test('the list view uses the same cards and opens the stable drawer', async ({
     await expect(page.locator('.lp-board-list')).toBeVisible();
     await expect(page.locator('.lp-board-list__row')).toHaveCount(2);
 
-    await page.getByPlaceholder('Find a card…').fill('Bravo');
-    await expect(
-        page.locator('.lp-board-list__row', { hasText: 'Bravo' }),
-    ).toBeVisible();
     await expect(
         page.locator('.lp-board-list__row', { hasText: 'Alpha' }),
-    ).toBeHidden();
+    ).toBeVisible();
 
     await page.locator('.lp-board-list__row', { hasText: 'Bravo' }).click();
     await expect(page.locator('.lp-card-drawer-overlay')).toHaveJSProperty(

@@ -74,6 +74,7 @@
 @source not "../../.claude";
 @source not "../../.worktrees";
 @source not "../../docs";
+@source not "../../tests";
 
 /* ── Self-hosted fonts (variable, OFL — see ../fonts/LICENSE.txt) ─── */
 
@@ -2531,27 +2532,6 @@
     .lp-board-toolbar__actions {
         @apply flex flex-wrap items-center gap-2 ml-auto max-w-full;
     }
-    .lp-board-toolbar__filters {
-        @apply relative flex min-w-0 items-center gap-2 overflow-x-auto scroll-p-0.5 p-0.5 -m-0.5;
-        scrollbar-width: none;
-    }
-    .lp-board-toolbar__filters::-webkit-scrollbar {
-        display: none;
-    }
-    /* A fixed field rather than one that grows: the design puts the search at
-       its own width and leaves the rest of the row empty. */
-    .lp-board-toolbar__search {
-        @apply relative flex w-56 min-w-24 items-center;
-    }
-    .lp-board-toolbar__search-icon {
-        @apply pointer-events-none absolute left-3 h-4 w-4 text-fg-dim;
-    }
-    .lp-board-toolbar__input {
-        @apply h-9 rounded-lg border border-line bg-surface-1 text-sm text-ink outline-hidden forced-colors:outline-offset-0 focus:border-accent-ink focus:ring-2 focus:ring-accent-ink;
-    }
-    .lp-board-toolbar__input {
-        @apply min-w-0 w-full py-2 pr-3 pl-9;
-    }
     .lp-board-toolbar__mode {
         @apply inline-flex max-w-full items-center rounded-lg bg-surface-3 p-1;
     }
@@ -2571,12 +2551,6 @@
     }
     .lp-board-toolbar__paused:empty {
         @apply sr-only;
-    }
-    .lp-board-filter-empty {
-        @apply m-0 rounded-lg bg-surface-2 px-4 py-3 text-sm text-fg-mute;
-    }
-    .lp-board-filter-empty[hidden] {
-        @apply hidden;
     }
     .lp-board-list {
         @apply overflow-x-auto rounded-xl border border-line bg-surface-1;
@@ -2623,8 +2597,7 @@
     }
 
     /* A phone shows one column per screen and a sideways swipe steps one column. The
-       header row holds the title and the "…" menu. Search opens the row below
-       it, and that row stays while the search has text. */
+       header row holds the title and the "…" menu. */
     @media (width < 40rem) {
         .lp-board-header {
             @apply flex-wrap gap-x-2;
@@ -2634,12 +2607,6 @@
         }
         .lp-board-toolbar__title {
             @apply order-1 mr-auto text-xl;
-        }
-        .lp-board-toolbar__filters {
-            @apply hidden order-5 basis-full;
-        }
-        .lp-board-toolbar[data-search-open] .lp-board-toolbar__filters {
-            @apply flex;
         }
         .lp-board-header .lp-board-backlog {
             @apply hidden;
@@ -2652,9 +2619,6 @@
         }
         .lp-board-toolbar__menu .lp-board-toolbar__mode {
             @apply flex-wrap;
-        }
-        .lp-board-toolbar__search {
-            @apply w-full;
         }
         .lp-board-toolbar__count {
             @apply hidden;
@@ -3606,18 +3570,6 @@
     /** Project search dialog, results, and paging controls. */
     .lp-dialog--search {
         @apply max-w-2xl;
-    }
-    .lp-search-dialog__header {
-        @apply flex items-center justify-between gap-3 mb-4;
-    }
-    .lp-search-dialog__form {
-        @apply flex flex-wrap items-center gap-2 mb-4;
-    }
-    .lp-search-dialog__form .lp-input {
-        @apply min-w-0 flex-1 basis-48;
-    }
-    .lp-search-dialog__label {
-        @apply sr-only;
     }
     .lp-search-result {
         @apply flex flex-wrap items-center justify-between gap-3 border-b border-line py-3 text-ink no-underline;
@@ -6695,9 +6647,6 @@
     .lp-board-lane--collapsed .lp-board-lane__chevron {
         @apply rotate-0;
     }
-    .lp-board-lane--collapsed.lp-board-lane--revealed .lp-board-lane__chevron {
-        @apply rotate-90;
-    }
     /* Top-aligned with a padding rather than centred, so the lane controller
        reads the final place of each part while the head height still moves. */
     .lp-board-lane__heading {
@@ -7012,13 +6961,6 @@
     }
     .lp-board-lane--collapsed .lp-board-lane__cells {
         @apply invisible overflow-hidden opacity-0 -translate-y-2;
-    }
-    /* A search that matches a card of a collapsed lane shows its cells. */
-    .lp-board-lane--collapsed.lp-board-lane--revealed .lp-board-lane__body {
-        grid-template-rows: 1fr;
-    }
-    .lp-board-lane--collapsed.lp-board-lane--revealed .lp-board-lane__cells {
-        @apply visible overflow-visible opacity-100 translate-none;
     }
     /* Only a click animates, so a lane restored from storage on load does not.
        The lane controller glides the number, title and progress itself. */
@@ -8203,6 +8145,44 @@
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* The open search form grows out of the search icon, at its right edge. */
+@keyframes lp-topsearch-reveal {
+    from {
+        clip-path: inset(
+            calc(var(--spacing) * -2) calc(var(--spacing) * -2)
+                calc(var(--spacing) * -2) calc(100% - var(--spacing) * 9)
+        );
+        opacity: 0;
+    }
+    to {
+        clip-path: inset(calc(var(--spacing) * -2));
+        opacity: 1;
+    }
+}
+
+@keyframes lp-topsearch-conceal {
+    from {
+        clip-path: inset(calc(var(--spacing) * -2));
+        opacity: 1;
+    }
+    to {
+        clip-path: inset(
+            calc(var(--spacing) * -2) calc(var(--spacing) * -2)
+                calc(var(--spacing) * -2) calc(100% - var(--spacing) * 9)
+        );
+        opacity: 0;
+    }
+}
+
+@keyframes lp-progress-slide {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
     }
 }
 

@@ -49,7 +49,8 @@ final readonly class DocumentSearchIndexer
                 <<<'SQL'
                     UPDATE documents d
                     SET search_vector = setweight(to_tsvector(d.search_language::regconfig, d.title), '%1$s')
-                        || setweight(to_tsvector(d.search_language::regconfig, v.markdown_source), '%2$s')
+                        || setweight(to_tsvector(d.search_language::regconfig, v.markdown_source), '%2$s'),
+                        search_text = v.markdown_source
                     FROM (
                         SELECT DISTINCT ON (document_id) document_id, markdown_source
                         FROM document_versions

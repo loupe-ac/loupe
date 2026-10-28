@@ -85,9 +85,7 @@ test('a column renamed in one browser shows in another without a reload', async 
     expect(topics.some((topic) => topic.endsWith('/board'))).toBe(true);
     expect(topics.some((topic) => topic.endsWith('/worker-runs'))).toBe(true);
 
-    // The update keeps the toolbar, so the watcher's filter and view stay.
-    const search = watcher.getByRole('searchbox', { name: 'Search cards' });
-    await search.fill('no card has this title');
+    // The update keeps the toolbar, so the watcher's view stays.
     await watcher.getByRole('button', { name: 'List', exact: true }).click();
     await expect(watcher.locator('.lp-board-list')).toBeVisible();
 
@@ -117,16 +115,12 @@ test('a column renamed in one browser shows in another without a reload', async 
     await expect(
         watcher.locator(`${COLUMN}[data-column-slug="up-next"] h2`),
     ).toHaveText('Up next');
-    await expect(search).toHaveValue('no card has this title');
     await expect(
         watcher.locator('[data-board-view-target="list"]'),
     ).toBeVisible();
     await expect(
         watcher.locator('[data-board-view-target="board"]'),
     ).toBeHidden();
-    await expect(
-        watcher.getByText('No cards match these filters.'),
-    ).toBeVisible();
     expect(
         await watcher.evaluate(
             () => (window as unknown as { stayed?: boolean }).stayed,

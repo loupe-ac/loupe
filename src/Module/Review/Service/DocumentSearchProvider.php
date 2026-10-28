@@ -10,12 +10,14 @@ use App\Search\SearchProviderInterface;
 use App\Search\SearchResult;
 use App\Search\SearchResults;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final readonly class DocumentSearchProvider implements SearchProviderInterface
 {
     public function __construct(
         private DocumentRepository $documents,
         private UrlGeneratorInterface $urls,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -32,6 +34,7 @@ final readonly class DocumentSearchProvider implements SearchProviderInterface
                 $document->title,
                 $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $document->id]),
                 'document',
+                meta: $this->translator->trans($document->status->translationKey()),
             );
         }
 

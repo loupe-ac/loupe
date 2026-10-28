@@ -10,12 +10,14 @@ use App\Search\SearchProviderInterface;
 use App\Search\SearchResult;
 use App\Search\SearchResults;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final readonly class CardSearchProvider implements SearchProviderInterface
 {
     public function __construct(
         private CardRepository $cards,
         private UrlGeneratorInterface $urls,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -25,19 +27,16 @@ final readonly class CardSearchProvider implements SearchProviderInterface
         if ('' === $query) {
             return new SearchResults();
         }
-        if (1 === preg_match('/^#?([1-9][0-9]*)$/D', $query, $matches)) {
-            $number = filter_var($matches[1], FILTER_VALIDATE_INT);
-            $card = false !== $number && 1 === $page ? $this->cards->findOneBy(['project' => $project, 'number' => $number]) : null;
-            $cards = null === $card ? [] : [$card];
-        } else {
-            $cards = $this->cards->searchByProject($project, $query, $page, self::PAGE_SIZE);
-        }
+        $cards = $this->cards->searchByProject($project, $query, $page, self::PAGE_SIZE);
         $items = [];
         foreach ($cards as $card) {
             $items[] = new SearchResult(
-                '#'.$card->number.' '.$card->title,
+                $card->title,
                 $this->urls->generate('app_board_card', ['projectId' => (string) $project->id, 'cardId' => (string) $card->id]),
                 'card',
+                $card->number,
+                $this->translator->trans($card->column->label),
+                $card->column->tone->value,
             );
         }
 

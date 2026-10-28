@@ -113,7 +113,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertNull($button->attr('data-lane'));
     }
 
-    public function test_the_board_menu_holds_backlog_search_and_settings(): void
+    public function test_the_board_menu_holds_backlog_and_settings(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -132,7 +132,9 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(1, $backlog);
         self::assertSame('1', trim($backlog->filter('[data-board-backlog-count]')->text()));
         self::assertCount(0, $menu->filter('[id^="board-count-"]'));
-        self::assertSame('board-filter#openSearch popover#close', $menu->filter('button[data-action*="openSearch"]')->attr('data-action'));
+        self::assertStringNotContainsString('Search', $menu->text());
+        self::assertCount(0, $crawler->filter('.lp-board-toolbar input[type="search"]'));
+        self::assertCount(1, $crawler->filter('.lp-board-toolbar [data-board-view-target="count"]'));
         self::assertStringContainsString('Board settings', $menu->filter('a[href$="/settings"], a[href*="/settings"]')->first()->text());
     }
 
