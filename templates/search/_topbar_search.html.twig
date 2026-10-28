@@ -21,7 +21,7 @@
                 <span>{{ 'search.topbar.failed'|trans }}</span>
                 <twig:Ds:Button variant="ghost" type="button" data-action="topbar-search#retry">{{ 'search.topbar.retry'|trans }}</twig:Ds:Button>
             </div>
-            <turbo-frame id="topbar-search-results" data-topbar-search-target="frame" data-action="turbo:before-frame-render->topbar-search#beforeRender turbo:frame-load->topbar-search#loaded turbo:fetch-request-error->topbar-search#failed turbo:frame-missing->topbar-search#failed"></turbo-frame>
+            <turbo-frame id="topbar-search-results" data-topbar-search-target="frame" data-action="turbo:before-frame-render->topbar-search#beforeRender turbo:before-fetch-response->topbar-search#response turbo:frame-load->topbar-search#loaded turbo:fetch-request-error->topbar-search#failed turbo:frame-missing->topbar-search#failed"></turbo-frame>
         </twig:block>
     </twig:Ds:Menu>
 </div>

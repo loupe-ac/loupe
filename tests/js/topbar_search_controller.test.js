@@ -130,6 +130,22 @@ it('shows an error with a retry that asks again', async () => {
     expect(reload).toHaveBeenCalledOnce();
 });
 
+it('shows the error for a failed answer that is not HTML, and not for a good answer', async () => {
+    vi.useFakeTimers();
+    type('pag');
+    await vi.advanceTimersByTimeAsync(300);
+    const response = (succeeded) =>
+        new CustomEvent('turbo:before-fetch-response', {
+            detail: { fetchResponse: { succeeded } },
+        });
+    controller.response(response(true));
+    expect(controller.errorTarget.hidden).toBe(true);
+
+    controller.response(response(false));
+    expect(controller.errorTarget.hidden).toBe(false);
+    expect(controller.statusTarget.hidden).toBe(true);
+});
+
 it('opens a card row in the drawer on the board', async () => {
     await mount('<div data-controller="board-view"></div>');
     answer(

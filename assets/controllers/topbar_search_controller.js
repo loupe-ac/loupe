@@ -103,8 +103,17 @@ export default class extends Controller {
         this.errorTarget.hidden = true;
     }
 
+    /** Turbo fires no frame event for a failed answer that is not HTML, so the status code decides. */
+    response(event) {
+        if (!event.detail.fetchResponse.succeeded) this.#showError();
+    }
+
     failed(event) {
         event.preventDefault();
+        this.#showError();
+    }
+
+    #showError() {
         this.statusTarget.hidden = true;
         this.errorTarget.hidden = false;
     }
