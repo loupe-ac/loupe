@@ -76,7 +76,7 @@ When an outside command causes the block, the first sentence after `blocked:` na
 
 When the harness asks for a structured result, put the same sentence in `summary`. A `blocked` or `waiting` summary explains the stop for the owner, who reads it whole in the inbox. It says what blocks the work, why it blocks, and the next steps for the owner. It names a card, a pull request or a document in words, and it holds no `STAGE RESULT:` line.
 
-Write that summary in Markdown, because the inbox renders it. Put the cause in a first short paragraph. Write the next steps of the owner as a numbered list. Put a branch, a file, a command or an identifier in backticks. Use no headings, because the inbox gives the report its own label. Set `reason` to the code of the first line, or to `work-remains` when no form applies yet. Set `status` from the `STAGE RESULT:` form:
+Write that summary in Markdown, because the inbox renders it. Put the cause in a first short paragraph. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>`, so the inbox shows each as a link with a title tooltip. Write the next steps of the owner as a numbered list. Put a branch, a file, a command or an identifier in backticks. Use no headings, because the inbox gives the report its own label. Set `reason` to the code of the first line, or to `work-remains` when no form applies yet. Set `status` from the `STAGE RESULT:` form:
 
 A `blocked`, `unfinished` or `waiting` result can also carry two optional fields, `title` and `suggestedActions`. The inbox reads them.
 

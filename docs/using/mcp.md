@@ -496,6 +496,30 @@ of its note.
 next ten images. It is null when no image remains. To read the images that `card_get`
 left out, call `feedback_list` with the `cardId` of the card and `imageOffset` 10.
 
+## Name a card or a pull request with a token
+
+Loupe turns a reference in agent text into a link with a title tooltip. This
+holds for an inbox item, a card body and a document. Write one of these two
+forms:
+
+| Form | Names |
+|---|---|
+| `card:1116` | Card 1116 of the project the text belongs to |
+| `pr:owner/repo#1295` | Pull request 1295 of the repository `owner/repo` |
+
+The text shows as "card #1116" or "owner/repo#1295". The link resolves when a
+page opens, so the tooltip shows the current title, column and state. A token
+inside code, inside a link or inside square brackets stays as written. A title
+shows a token as plain text.
+
+Prose such as "card 1116" or "PR 1295" also links, in any case, but a token is
+exact. A card number that no card of the project holds stays plain text. A
+pull request token links only when a connected forge accepts its repository
+path. The tool descriptions of `inbox_ask`, `card_create`, `card_update`,
+`document_create` and `document_revise` and the plugin skills tell agents to
+use these forms. See [Inbox](inbox.md), [Board](board.md) and
+[Documents and review](documents.md).
+
 ## Two things agents get wrong
 
 **Comment ids do not survive `document_revise`.** Re-anchoring copies a comment
