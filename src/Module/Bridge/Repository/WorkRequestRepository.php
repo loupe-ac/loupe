@@ -263,7 +263,7 @@ class WorkRequestRepository extends ServiceEntityRepository
 
     /**
      * The open requests about a subject other than a card that waited for a
-     * bridge since the deadline or longer, oldest first. A reopen restarts the wait.
+     * bridge since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *
      * @return list<WorkRequest>
      */
@@ -272,6 +272,7 @@ class WorkRequestRepository extends ServiceEntityRepository
         return array_values($this->createQueryBuilder('w')
             ->andWhere('w.state = :open')
             ->andWhere('w.subjectType <> :card')
+            ->andWhere('w.workHoldSince IS NULL')
             ->andWhere('COALESCE(w.reopenedAt, w.createdAt) <= :deadline')
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('card', WorkSubject::CARD)
@@ -283,8 +284,8 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * The open requests about a card whose rule id starts with the prefix, oldest first. The workflow engine
-     * leaves such a request alone, so the caller expires it.
+     * The open requests about a card whose rule id starts with the prefix and that no work hold marked, oldest first.
+     * The workflow engine leaves such a request alone, so the caller expires it.
      *
      * @return list<WorkRequest>
      */
@@ -294,6 +295,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->andWhere('w.state = :open')
             ->andWhere('w.subjectType = :card')
             ->andWhere('w.ruleId LIKE :prefix')
+            ->andWhere('w.workHoldSince IS NULL')
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('card', WorkSubject::CARD)
             ->setParameter('prefix', addcslashes($prefix, '%_\\').'%')
@@ -305,7 +307,7 @@ class WorkRequestRepository extends ServiceEntityRepository
 
     /**
      * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
-     * since the deadline or longer, oldest first. A reopen restarts the wait.
+     * since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *
      * @return list<WorkRequest>
      */
@@ -315,6 +317,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->andWhere('w.state = :open')
             ->andWhere('w.kind = :kind')
             ->andWhere('w.ruleId LIKE :prefix')
+            ->andWhere('w.workHoldSince IS NULL')
             ->andWhere('COALESCE(w.reopenedAt, w.createdAt) <= :deadline')
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('kind', $kind)

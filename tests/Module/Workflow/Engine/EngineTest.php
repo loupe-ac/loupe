@@ -5032,7 +5032,7 @@ final class EngineTest extends KernelTestCase
             new BridgeWorkLedger(
                 $workRequests,
                 $this->service(WorkerRunRepository::class),
-                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
+                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
                 $this->service(CardHolds::class),
                 $this->service(ProjectRepository::class),
                 $this->service(WorkTakers::class),
