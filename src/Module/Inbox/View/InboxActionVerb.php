@@ -13,6 +13,7 @@ enum InboxActionVerb: string
     case Reviewed = 'reviewed';
     case Resumed = 'resumed';
     case Retried = 'retried';
+    case Held = 'held';
     case AgentSent = 'agent-sent';
     case SessionStarted = 'session-started';
     case CommandQueued = 'command-queued';
@@ -29,6 +30,7 @@ enum InboxActionVerb: string
             self::Reviewed => 'inbox.review.submitted',
             self::Resumed => 'inbox.flash.resumed',
             self::Retried => 'inbox.flash.retried',
+            self::Held => 'inbox.flash.held',
             self::AgentSent => 'inbox.flash.agent_sent',
             self::SessionStarted => 'inbox.flash.session_started',
             self::CommandQueued => 'inbox.flash.command_queued',

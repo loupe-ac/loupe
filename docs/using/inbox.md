@@ -356,8 +356,25 @@ paused. The repair worker could not fix the failure." When failed work caused
 the pause, the sentence also names the last run that failed before it, with
 its kind and its failure reason or the last line of its output. Below the
 sentence, the "Open the failed run" link opens that run on the worker runs
-page. The title of the item reads "Paused:" and the reason. The
-body of the item that `inbox_get` returns holds the same sentences and links. The waits
+page. The title of the item reads "Paused:" and the reason.
+
+A pause after a rule reached its work limit says what looped. The title
+names the work, the limit and the pull request, such as "10 fix rounds did not
+pass the agent review of PR #1302". Below the sentence, the item shows these
+facts when Loupe has them:
+
+- the titles of the findings of the latest failed agent review
+- how the last runs of the rule ended, such as "3 blocked, 5 waiting on the
+  forge, 2 succeeded"
+- what the last blocked run, or the last run that waited for a person, said
+- for an epic whose agent review failed while some children are open, which
+  children to wait for, such as "Wait for cards 1124 and 1126 to merge into
+  `epic/1108`, then retry the card"
+- links to the pull request, the agent review and the last run
+
+When the template no longer has the rule, the item reads as any other pause.
+
+The body of the item that `inbox_get` returns holds the same sentences and links. The waits
 that ended show below them, in grey, with a sentence that says how they
 closed, such as "Closed when you acted on it."
 **Dismiss** hides the item. The card still waits until you act on it.
@@ -397,7 +414,16 @@ The actions are:
 - "Resume the run" continues the session of a stopped worker. The wait ends
   when the new run starts.
 - "Retry the card" releases a pause of the kinds that a person can release.
-  A pause from a workflow rule cannot be released here.
+  A pause from a workflow rule cannot be released here. For a work-limit
+  pause, the action says what it grants, such as "Retry: 10 more fix rounds".
+- "Open the pull request" opens the pull request of the rule on GitHub. It
+  fits a work-limit pause whose rule acts on a pull request.
+- "Approve on GitHub" opens the review page of that pull request. It fits a
+  work-limit pause whose latest agent review failed. An approval that comes
+  after the failed review overrides it.
+- "Hold the card" makes the card unmanaged, as `card_hold` does. No rule and
+  no worker acts on the card until you release it. It fits a work-limit pause
+  of a card that is not held already.
 - "Review" opens the review page of the document, or the pull request on
   GitHub, for a review wait.
 - "Send an agent" starts a new worker for the stage work of the card, such as
@@ -416,7 +442,10 @@ The actions are:
 
 Loupe shows only the actions that fit the item now. It picks the main action
 from the newest open wait: Resume the run for a stopped run, Retry the card for
-a pause that you can release, Review for a review, and Open for the rest. When
+a pause that you can release, Review for a review, and Open for the rest. A
+work-limit pause whose last run ended blocked, or waited for a person, does not
+make Retry the default, because a retry alone repeats the same stop. Open the
+pull request is the default then, or Open when the rule has no pull request. When
 only Dismiss fits, the card shows a Dismiss button and no menu.
 
 ### Titles and suggestions from the agent
