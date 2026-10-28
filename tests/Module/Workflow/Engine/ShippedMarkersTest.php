@@ -199,6 +199,21 @@ final class ShippedMarkersTest extends KernelTestCase
     }
 
     #[DataProvider('shippedKeys')]
+    public function test_a_conflict_whose_fix_waits_for_a_retry_waits_until_the_retry_is_due(string $key): void
+    {
+        $pullRequest = FactsMother::pullRequest(conflicting: true, number: 12);
+        $facts = static fn (string $dueAt): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            pullRequest: $pullRequest,
+            pullRequests: [$pullRequest],
+            provided: [ScheduledRetryFacts::class => new ScheduledRetryFacts([new \DateTimeImmutable($dueAt)])],
+        );
+
+        self::assertSame(['retry-scheduled'], $this->passKeys($this->template($key), $facts('2026-10-01 12:10:00')));
+        self::assertSame(['conflicting'], $this->passKeys($this->template($key), $facts('2026-10-01 11:50:00')));
+    }
+
+    #[DataProvider('shippedKeys')]
     public function test_queued_work_with_no_online_bridge_is_stuck_and_links_to_the_agents_page(string $key): void
     {
         $template = $this->template($key);

@@ -13,7 +13,7 @@ final class Version20261028184800 extends AbstractMigration
     #[\Override]
     public function getDescription(): string
     {
-        return 'Write the shipped Lifecycle and Simple copies, with the retry-scheduled marker that keeps run-stopped and checks-failed off during a retry backoff, into every binding, and keep the epic branch and the approval rule of each copy';
+        return 'Write the shipped Lifecycle and Simple copies, with the retry-scheduled marker that keeps run-stopped, checks-failed and conflicting off during a retry backoff, into every binding, and keep the epic branch and the approval rule of each copy';
     }
 
     /** The epic branch and the approval rule belong to the project, so each copy keeps its own value, or keeps none. */

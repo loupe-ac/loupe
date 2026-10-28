@@ -110,6 +110,7 @@ markers:
                         - card.run.worker_active: { kind: fix }
                         - card.run.work_active: { kind: repair }
                         - card.run.worker_active: { kind: repair }
+                        - card.rule.retry_scheduled: {}
     - key: ready-not-merged
       kind: stuck
       label: marker.ready_not_merged

@@ -152,7 +152,7 @@ The shipped markers are:
 | `run-stopped` | Stuck | The last worker run failed or had no result, no work is under way, and no retry is due |
 | `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
 | `checks-failed` | Stuck | A pull request has failed checks, no fix is under way, and no retry is due |
-| `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
+| `conflicting` | Stuck | A pull request has a conflict, no fix is under way, and no retry is due |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
@@ -368,8 +368,8 @@ person" stop is the exception, as a later paragraph says. The work then
 starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay. During the delay the card shows the
-`retry-scheduled` marker, which waits, and not `run-stopped` or
-`checks-failed`. When the retries and the repair run out, the card pauses and
+`retry-scheduled` marker, which waits, and not `run-stopped`,
+`checks-failed` or `conflicting`. When the retries and the repair run out, the card pauses and
 shows `paused`.
 
 A request can end while its rule still holds for a new reason. An example is a
