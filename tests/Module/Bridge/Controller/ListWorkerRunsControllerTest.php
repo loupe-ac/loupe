@@ -165,8 +165,9 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs?outcome=&search=');
 
         self::assertResponseIsSuccessful();
-        $icon = $crawler->filter('[data-worker-run-id="'.$openId.'"] .lp-worker-run-outcome form[data-worker-run-control="close"]');
+        $icon = $crawler->filter('[data-worker-run-id="'.$openId.'"] .lp-worker-run-outcome > .lp-worker-run-outcome__status > form[data-worker-run-control="close"]');
         self::assertCount(1, $icon);
+        self::assertCount(1, $icon->siblings()->filter('.lp-status-chip'));
         self::assertSame('worker-runs-frame', $icon->attr('data-turbo-frame'));
         self::assertStringStartsWith('/projects/'.$projectId.'/worker-runs/'.$openId.'/close', (string) $icon->attr('action'));
         $drawer = $crawler->filter('[data-worker-run-id="'.$openId.'"] dialog form[data-worker-run-control="close"]');
@@ -723,7 +724,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
             $label = $translator->trans($state->translationKey());
             self::assertNotSame($state->translationKey(), $label);
-            foreach (['[data-worker-run-id] > .lp-worker-run-outcome > .lp-status-chip', '.lp-drawer__header .lp-status-chip'] as $chip) {
+            foreach (['[data-worker-run-id] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip', '.lp-drawer__header .lp-status-chip'] as $chip) {
                 self::assertSame($label, $crawler->filter($chip)->text(), $state->value.' '.$chip);
                 self::assertStringContainsString('lp-status-chip--'.$state->chipModifier(), (string) $crawler->filter($chip)->attr('class'));
             }
@@ -1163,10 +1164,10 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$goneId.'"] .lp-data-table__title'));
         self::assertSame('#8', $crawler->filter('[data-worker-run-id="'.$goneId.'"] .lp-data-table__number')->text());
 
-        $chip = $crawler->filter('[data-worker-run-id="'.$failedId.'"] > .lp-worker-run-outcome > .lp-status-chip');
+        $chip = $crawler->filter('[data-worker-run-id="'.$failedId.'"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip');
         self::assertSame('The worker ran out of turns', $chip->filter('.lp-tooltip')->text());
         self::assertSame($chip->filter('.lp-tooltip')->attr('id'), $chip->attr('aria-describedby'));
-        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$goneId.'"] > .lp-worker-run-outcome > .lp-status-chip .lp-tooltip'));
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$goneId.'"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip .lp-tooltip'));
 
         $cells = $crawler->filter('[data-worker-run-id="'.$failedId.'"] > :not(dialog)');
         $rowText = implode(' ', $cells->each(static fn (Crawler $cell): string => $cell->text()));
