@@ -239,6 +239,31 @@ final class CardWaitTextTest extends KernelTestCase
         self::assertNull($this->text->line($wait, false)->detail);
     }
 
+    public function test_a_pause_after_a_blocked_run_names_no_earlier_failed_run(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 40);
+        $em->flush();
+        $this->workerRun($card->id, 'fix', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 09:00:00'), 'an earlier failure');
+        $this->workerRun($card->id, 'fix', WorkerRunState::Blocked, new \DateTimeImmutable('2026-10-26 10:00:00'));
+        $wait = $this->pauseWait($card, 'needs-person', PauseKind::WorkStopped, new \DateTimeImmutable('2026-10-26 10:01:00'));
+
+        self::assertSame('Card 40 is paused. The worker stopped because it needs a person. Open the card and resume it.', $this->text->body([$wait]));
+        self::assertNull($this->text->line($wait, false)->detail);
+    }
+
+    public function test_a_pause_after_an_unfinished_run_names_no_failed_run(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 41);
+        $em->flush();
+        $this->workerRun($card->id, 'fix', WorkerRunState::Unfinished, new \DateTimeImmutable('2026-10-26 10:00:00'), 'work remains');
+        $wait = $this->pauseWait($card, 'blocked', PauseKind::WorkStopped, new \DateTimeImmutable('2026-10-26 10:01:00'));
+
+        self::assertStringNotContainsString('work remains', $this->text->body([$wait]));
+        self::assertNull($this->text->line($wait, false)->detail);
+    }
+
     public function test_a_pause_after_a_failed_run_with_no_reason_names_its_state_and_not_its_output(): void
     {
         $em = $this->em();

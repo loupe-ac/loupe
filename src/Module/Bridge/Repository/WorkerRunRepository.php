@@ -91,21 +91,21 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** The newest worker run of the card that failed at or before the time, for the rule when one is given. A run that stopped for a person did not fail. */
-    public function findLatestFailedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
+    /** The newest worker run of the card that ended at or before the time, for the rule when one is given. A run that never started work does not count. */
+    public function findLatestEndedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
     {
-        $states = [WorkerRunState::Failed, WorkerRunState::NotStarted, WorkerRunState::NoResult, WorkerRunState::Unfinished, WorkerRunState::TimedOut, WorkerRunState::Lost];
+        $notEnded = [...WorkerRunState::openStates(), WorkerRunState::Replaced, WorkerRunState::Skipped, WorkerRunState::Dropped];
         $qb = $this->createQueryBuilder('r')
             ->andWhere('r.project = :project')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
             ->andWhere('r.kind = :kind')
-            ->andWhere('r.state IN (:states)')
+            ->andWhere('r.state NOT IN (:notEnded)')
             ->andWhere('r.receivedAt <= :before')
             ->setParameter('project', $project)
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->setParameter('cardSubject', WorkSubject::CARD)
             ->setParameter('kind', WorkerRunKind::Worker->value)
-            ->setParameter('states', array_map(static fn (WorkerRunState $state): string => $state->value, $states))
+            ->setParameter('notEnded', array_map(static fn (WorkerRunState $state): string => $state->value, $notEnded))
             ->setParameter('before', $before)
             ->orderBy('r.receivedAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')

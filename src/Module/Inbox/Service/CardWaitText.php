@@ -372,7 +372,7 @@ final readonly class CardWaitText
         return implode("\n", array_map(static fn (string $line): string => rtrim('> '.$line), preg_split('/\R/u', $text) ?: [$text]));
     }
 
-    /** The run that failed last before the pause, for a pause that a failure of work caused. */
+    /** The run that ended last before the pause, when it failed, for a pause that a failure of work caused. */
     private function failedRun(InboxCardWait $wait, CardPause $pause): ?WorkerRun
     {
         // A refused action, such as a move, also pauses with the kind retries, and no run caused it.
@@ -380,7 +380,9 @@ final readonly class CardWaitText
             return null;
         }
 
-        return $this->workerRuns->findLatestFailedOfCard($wait->watch->project, $wait->watch->cardId, $pause->createdAt, $pause->ruleId);
+        $run = $this->workerRuns->findLatestEndedOfCard($wait->watch->project, $wait->watch->cardId, $pause->createdAt, $pause->ruleId);
+
+        return true === $run?->state->isFailure() ? $run : null;
     }
 
     private static function typePart(InboxCardWaitType $type): string
