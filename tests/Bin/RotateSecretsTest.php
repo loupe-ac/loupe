@@ -45,7 +45,7 @@ final class RotateSecretsTest extends TestCase
 
     protected function tearDown(): void
     {
-        (new Filesystem())->remove($this->dir);
+        new Filesystem()->remove($this->dir);
     }
 
     public function test_it_rotates_the_key_in_three_deploys_and_never_prints_a_key(): void
@@ -927,7 +927,7 @@ final class RotateSecretsTest extends TestCase
     }
 
     /**
-     * @param list<string>                         $active      what `doctl apps get` answers, one per call, the last one repeating
+     * @param list<string>                        $active      what `doctl apps get` answers, one per call, the last one repeating
      * @param list<array{string, string, string}> $deployments id, phase and creation time
      */
     private function deployments(array $active, array $deployments): void
