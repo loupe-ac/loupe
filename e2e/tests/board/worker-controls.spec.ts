@@ -1,9 +1,9 @@
 /**
- * The run and agent controls on the card page. The heartbeat and the run go
+ * The run and agent controls on the card page and the Runs list. The heartbeat and the run go
  * through the real bridge endpoints, so no bridge runs and no request settles.
  */
 
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { agentAccessToken, createTest, suppressWidget } from '../fixtures';
 
 const test = createTest({
@@ -112,4 +112,109 @@ test('the owner stops a run, which holds nothing, then pauses and releases the a
     await expect(
         runs.getByRole('button', { name: 'Make unmanaged', exact: true }),
     ).toBeVisible();
+});
+
+/** Calls one MCP tool with the signed-in user's agent token, and returns its structured answer. */
+async function mcpTools(
+    page: Page,
+): Promise<(name: string, args: object) => Promise<Record<string, unknown>>> {
+    const token = await agentAccessToken(page);
+    const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+    const initialize = await page.request.post('/mcp', {
+        headers,
+        data: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: {
+                protocolVersion: '2024-11-05',
+                capabilities: {},
+                clientInfo: { name: 'e2e', version: '1' },
+            },
+        },
+    });
+    expect(initialize.ok()).toBeTruthy();
+    headers['Mcp-Session-Id'] = initialize.headers()['mcp-session-id'] ?? '';
+    await page.request.post('/mcp', {
+        headers,
+        data: { jsonrpc: '2.0', method: 'notifications/initialized' },
+    });
+
+    let id = 1;
+    return async (name, args) => {
+        id += 1;
+        const response = await page.request.post('/mcp', {
+            headers,
+            data: {
+                jsonrpc: '2.0',
+                id,
+                method: 'tools/call',
+                params: { name, arguments: args },
+            },
+        });
+        const answer = await response.json();
+        expect(answer.result?.isError, JSON.stringify(answer)).toBeFalsy();
+        return answer.result.structuredContent;
+    };
+}
+
+test('the owner closes an interactive session from the Runs list, and the Open runs view drops it', async ({
+    page,
+}) => {
+    test.slow();
+    await suppressWidget(page);
+
+    const seed = await page.request.post('/dev/seed/document', {
+        form: { title: 'E2E Close Sessions', markdown: '# Close' },
+    });
+    expect(seed.status()).toBe(201);
+    const { projectId } = await seed.json();
+
+    const call = await mcpTools(page);
+    const card = await call('card_create', {
+        title: 'Session card',
+        body: '',
+        type: 'feature',
+        status: 'next',
+    });
+    const openRun = async (): Promise<string> => {
+        const answer = await call('card_run_open', {
+            cardId: card.cardId,
+            sessionId: crypto.randomUUID(),
+            name: 'loupe:product-design',
+        });
+        return (answer.run as { runId: string }).runId;
+    };
+    const first = await openRun();
+    const second = await openRun();
+
+    await page.goto(`/projects/${projectId}/worker-runs?outcome=`);
+    const firstRow = page.locator(`[data-worker-run-id="${first}"]`);
+    const firstClose = firstRow.locator(
+        '.lp-worker-run-outcome form[data-worker-run-control="close"] button',
+    );
+    await expect(firstRow.locator('.lp-worker-run-outcome')).toContainText(
+        'Running',
+    );
+    await firstClose.click();
+    await expect(firstRow.locator('.lp-worker-run-outcome')).toContainText(
+        'Closed',
+    );
+    await expect(firstClose).toHaveCount(0);
+
+    await page.goto(`/projects/${projectId}/worker-runs?outcome=open`);
+    const secondRow = page.locator(`[data-worker-run-id="${second}"]`);
+    await expect(page.locator(`[data-worker-run-id="${first}"]`)).toHaveCount(
+        0,
+    );
+    await secondRow
+        .locator(
+            '.lp-worker-run-outcome form[data-worker-run-control="close"] button',
+        )
+        .click();
+    await expect(secondRow).toHaveCount(0);
+    await expect(page).toHaveURL(/outcome=open/);
 });

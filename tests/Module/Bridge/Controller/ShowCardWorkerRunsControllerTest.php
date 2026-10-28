@@ -57,6 +57,29 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
         self::assertSame('/projects/'.$projectId.'/worker-runs', $frame->filter('[data-card-runs] [data-card-runs-all]')->attr('href'));
     }
 
+    public function test_a_viewer_who_cannot_manage_sees_no_close_control(): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'card-fragment-close-viewer@example.com');
+        $project = $this->project($em, $owner, 'Fragment close viewer');
+        $cardId = Uuid::v7();
+        $open = $this->seedRun($em, $project, workKind: 'loupe:product-design', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+
+        $projectId = (string) $project->id;
+        $openId = (string) $open->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs/card/'.$cardId);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-card-run-row="'.$openId.'"]'));
+        self::assertCount(0, $crawler->filter('[data-card-runs] form[data-worker-run-control="close"]'));
+    }
+
     public function test_a_running_interactive_session_offers_a_close_control_and_a_closed_one_is_gone(): void
     {
         $client = static::createClient();

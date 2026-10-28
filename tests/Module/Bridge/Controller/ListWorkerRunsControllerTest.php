@@ -144,7 +144,6 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertMatchesRegularExpression('/ ago$/', $time->text());
     }
 
-    /** The output shows on every run, in its drawer, not on failures only. */
     public function test_an_open_interactive_run_offers_close_in_its_row_and_drawer(): void
     {
         $client = static::createClient();
@@ -178,6 +177,31 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$workerId.'"] form[data-worker-run-control="close"]'));
     }
 
+    public function test_a_viewer_who_cannot_manage_sees_no_close_control(): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-close-viewer@example.com');
+        $project = $this->project($em, $owner, 'List close viewer');
+        $open = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+
+        $projectId = (string) $project->id;
+        $openId = (string) $open->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs?outcome=&search=');
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-worker-run-id="'.$openId.'"]');
+        self::assertCount(1, $row);
+        self::assertCount(0, $row->filter('.lp-worker-run-outcome form[data-worker-run-control="close"]'));
+        self::assertCount(0, $row->filter('dialog form[data-worker-run-control="close"]'));
+    }
+
+    /** The output shows on every run, in its drawer, not on failures only. */
     public function test_a_successful_run_shows_its_output_in_the_drawer(): void
     {
         $client = static::createClient();
