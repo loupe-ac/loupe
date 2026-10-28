@@ -21,14 +21,47 @@ speaks plain S3 and can be pointed at AWS, MinIO or R2 by setting
 ```bash
 just build-prod && just deploy    # build linux/amd64 image, push, roll out
 
-# terraform (from this dir):
-cp terraform.tfvars.example terraform.tfvars     # secrets only
-export TF_VAR_app_secret=$(openssl rand -hex 16)
-export TF_VAR_app_encryption_key=$(php -r 'echo base64_encode(sodium_crypto_secretbox_keygen());')
-
-terraform init      # fetches the pinned module
-terraform apply
+# terraform (from the repository root):
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars   # values that are not secret
+just tf-init        # fetches the pinned module
+just tf-apply       # loads the secrets from the store, then runs terraform apply
 ```
+
+`just tf-apply` runs `terraform apply` through `bin/tf-secrets exec`. A bare `terraform apply` gets no secret from the
+store. Put the secrets in the store first, as the "Secrets" section says. A first install generates the two app keys:
+
+```bash
+printf '%s' "$(openssl rand -hex 16)" | bin/tf-secrets set TF_VAR_app_secret
+printf '%s' "$(php -r 'echo base64_encode(sodium_crypto_secretbox_keygen());')" | bin/tf-secrets set TF_VAR_app_encryption_key
+```
+
+## Secrets
+
+`secrets.list` names the Terraform inputs that are secrets. Two ways pass them to Terraform:
+
+- **With a secret store.** The values live in `secrets.enc.yaml`, a [sops](https://getsops.io) file encrypted with an
+  [age](https://age-encryption.org) key. `bin/tf-secrets exec -- <command>` decrypts them into the environment of one
+  command as `TF_VAR_*` variables. The `just tf-*` recipes, `just deploy`, `just logs-prod` and `just healthz` call it for you.
+  `terraform.tfvars` then holds only values that are not secret: placement, domains, client ids and URLs.
+- **Without a store.** When `secrets.enc.yaml` does not exist, `bin/tf-secrets exec` runs the command as is. Put the
+  secrets in `terraform.tfvars`, or export them as `TF_VAR_*` variables before `just tf-apply`.
+
+Set up the store once:
+
+```bash
+age-keygen -o ~/Library/Application\ Support/sops/age/keys.txt   # prints the public key
+export SOPS_AGE_RECIPIENTS=age1...                              # the public key
+printf '%s' "$VALUE" | bin/tf-secrets set TF_VAR_app_secret     # first call creates secrets.enc.yaml
+bin/tf-secrets import     # copy every listed secret from terraform.tfvars into the store
+bin/tf-secrets verify     # every name must read `same` or `unset`
+just tf-plan              # must show no change
+```
+
+Then delete the secret lines from `terraform.tfvars`. `bin/tf-secrets names` lists the names the store holds. It prints no
+value. `printf '%s'` keeps a trailing line break out of the value, and a builtin keeps the value out of the process list.
+`secrets.enc.yaml` is gitignored. Back up the age key file: a lost key means a full rotation of every secret.
+
+`just rotate-secrets` writes new values into the store for the listed secrets, and into `terraform.tfvars` for the rest.
 
 `just build-prod`/`just deploy`/`just logs-prod` (in the project `justfile`) build
 and roll out the image; the `prod_image` variable there must match the module's
@@ -99,8 +132,13 @@ is in the module's README → "Manual database bootstrap".)
 ## Notes
 
 - **State is sensitive** (it holds the plaintext of every SECRET env var, and now
-  also the Spaces key's secret). Use an encrypted remote backend — see the
-  commented block in `versions.tf`.
+  also the Spaces key's secret). The secret store does not change this: the
+  DigitalOcean provider has no way to keep a value out of the state. The local
+  state stays on disk in plain text. For this project, a hook refuses agent reads of it, of
+  `terraform state pull` and of a saved plan. An operator with more than one machine should use an
+  encrypted remote backend — see the commented block in `versions.tf`.
+- **A saved plan holds the secrets in plain text** until you apply it. Save it as
+  `deploy.tfplan` (`just tf-plan -out=deploy.tfplan`), apply it with `just tf-apply deploy.tfplan`, and delete it.
 - **Region** has no default: set `region` to your cluster's region, and
   `export_bucket_region` to a Spaces datacenter. They use different slugs —
   App Platform's `tor` is Spaces' `tor1`, `nyc` is `nyc3`.

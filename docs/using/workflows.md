@@ -149,9 +149,9 @@ The shipped markers are:
 | Key | Kind | Shows when |
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
-| `run-stopped` | Stuck | The last worker run failed or had no result, and no work is under way |
+| `run-stopped` | Stuck | The last worker run failed or had no result, no work is under way, and no retry is due |
 | `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
-| `checks-failed` | Stuck | A pull request has failed checks and no fix is under way |
+| `checks-failed` | Stuck | A pull request has failed checks, no fix is under way, and no retry is due |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
@@ -165,6 +165,7 @@ The shipped markers are:
 | `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
+| `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
 | `repository-misfit` | Needs you | A rule of the card wants to ask for work, and the project holds new work because a repository has a blocking gap. The remedy line links to the Repositories tab |
@@ -210,6 +211,8 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   the condition is false while a child has an open worker run.
 - `card.rule.held_by_blocker`: an open blocker alone holds a move rule of the
   card.
+- `card.rule.retry_scheduled`: a refused rule of the card waits for the delay
+  before its retry. The condition turns false at the due time.
 - `card.run.stopped`: the latest run of the card ended with a warning, and the
   card did not move after it ended.
 - `card.run.needs_person`: the newest run of the card blocked, gave up or waits
@@ -365,7 +368,10 @@ rule reads changes after the refusal, such as a new head commit. A "needs a
 person" stop is the exception, as a later paragraph says. The work then
 starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
-refusal also waits for its delay.
+refusal also waits for its delay. During the delay the card shows the
+`retry-scheduled` marker, which waits, and not `run-stopped` or
+`checks-failed`. When the retries and the repair run out, the card pauses and
+shows `paused`.
 
 A request can end while its rule still holds for a new reason. An example is a
 fix run that ends after the pull request became conflicting. The workflow then

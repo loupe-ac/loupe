@@ -11,7 +11,7 @@ shared module
 pinned to a tag in `terraform/main.tf`.
 
 The health check starts at `GET /livez` and moves to `GET /healthz` once the
-database is reachable — see step 6 below. `/healthz` queries the database, and
+database is reachable — see step 7 below. `/healthz` queries the database, and
 on the first apply the app boots before trusted sources attach, so pointing at
 it up front fails the deploy. `/livez` exists for exactly this window: it runs
 with no security listener, renders no template and touches no database, so it
@@ -73,6 +73,13 @@ flag-gated social buttons, which is a database read on every request.
    token, so Terraform needs both to create the export bucket. Export them as
    `SPACES_ACCESS_KEY_ID` / `SPACES_SECRET_ACCESS_KEY`. (Not needed if you set
    `create_export_bucket = false` and bring your own S3 bucket.)
+8. **Optional: `sops` and `age`**, for the secret store. The store keeps the
+   deploy secrets in `terraform/secrets.enc.yaml`, an encrypted file, so
+   `terraform.tfvars` holds only values that are not secret. The `just tf-*`
+   recipes and `just deploy` load the store for each command. With no store
+   file, they run as before, and the secrets come from `terraform.tfvars` or
+   from `TF_VAR_*` variables. The "Secrets" section of `terraform/README.md`
+   gives the setup and the import steps.
 
 ## First deploy
 
@@ -86,17 +93,22 @@ resource would cut off the sibling apps sharing that cluster.
 #    are pushing to this project's own package.
 just push-prod
 
-# 2. Create the infrastructure, including the export bucket. Leave
+# 2. Optional: set up the secret store and put each secret in it, as the
+#    "Secrets" section of terraform/README.md says:
+#    printf '%s' "$VALUE" | bin/tf-secrets set TF_VAR_app_secret
+#    Without a store, put the secrets in terraform.tfvars.
+
+# 3. Create the infrastructure, including the export bucket. Leave
 #    enable_predeploy_migrations OFF for now — the migration job cannot reach
-#    the database until step 3.
+#    the database until step 4.
 just tf-init
 just tf-apply
 
-# 3. One-time database bootstrap: GRANT schema privileges to the app's user,
+# 4. One-time database bootstrap: GRANT schema privileges to the app's user,
 #    and — attach mode only — add this app plus your IP to the trusted sources.
 just tf-db-bootstrap
 
-# 4. Run migrations once, by hand. release.sh needs exactly three values.
+# 5. Run migrations once, by hand. release.sh needs exactly three values.
 #    There is no env-file template for this: docker/compose/prod.env.example
 #    belongs to the single-host stack, which has no DATABASE_URL at all —
 #    prod.yaml assembles one from POSTGRES_* against a `database` container
@@ -106,17 +118,22 @@ just tf-db-bootstrap
 #    db_name.
 doctl databases connection "$(just tf-output -raw db_cluster_id)" --format URI
 
-docker run --rm \
+#    bin/tf-secrets exec puts TF_VAR_app_secret in the environment of the
+#    inner shell only. `-e APP_SECRET` with no value makes docker read it from
+#    that environment, so the value is not in a process argument. Without a
+#    store, export TF_VAR_app_secret with the value from terraform.tfvars first.
+bin/tf-secrets exec -- sh -c '
+APP_SECRET="$TF_VAR_app_secret" exec docker run --rm \
     -e APP_ENV=prod \
-    -e APP_SECRET="$TF_VAR_app_secret" \
+    -e APP_SECRET \
     -e DATABASE_URL="postgresql://<db_user>:<password>@<host>:<port>/<db_name>?sslmode=require&serverVersion=16" \
-    "${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}" docker/prod/release.sh
+    "${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}" docker/prod/release.sh'
 
-# 5. Turn on automated migrations for every deploy afterwards:
+# 6. Turn on automated migrations for every deploy afterwards:
 #    set `enable_predeploy_migrations = true` in terraform.tfvars, then
 just tf-apply
 
-# 6. Now that the database is reachable, move the health check onto /healthz:
+# 7. Now that the database is reachable, move the health check onto /healthz:
 #    set `health_check_path = "/healthz"` in terraform.tfvars, then
 just tf-apply
 ```

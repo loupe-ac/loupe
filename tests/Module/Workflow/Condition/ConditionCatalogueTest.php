@@ -63,6 +63,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.review.unseen_artifact' => 'workflow.source.board',
         'card.rule.held_by_blocker' => 'workflow.source.board',
         'card.rule.held_by_work_hold' => 'workflow.source.board',
+        'card.rule.retry_scheduled' => 'workflow.source.board',
         'card.run.asking' => 'workflow.source.inbox',
         'card.run.done_at_head' => 'workflow.source.board',
         'card.run.finished_with' => 'workflow.source.bridge',

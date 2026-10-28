@@ -74,6 +74,7 @@ use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\StackParent;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
+use App\Module\Workflow\Fact\ScheduledRetryFacts;
 use App\Module\Workflow\Fact\WorkHoldFacts;
 use Symfony\Component\Uid\Uuid;
 
@@ -124,7 +125,7 @@ final class FactsMother
             ...self::byClass(new DocumentReviewFacts([]), new DocumentReviewConclusionFacts([], [])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
-            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null), new WorkHoldFacts(null)),
+            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null), new WorkHoldFacts(null), new ScheduledRetryFacts([])),
             ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WaitingAskFacts([]), new WorkTakerFacts([])),
             ...self::byClass(new RunNeedsPersonFacts(null, null, null, null), new RunAskingFacts(false, null), new AgentReviewOpenFacts([])),
         ];
@@ -139,6 +140,7 @@ final class FactsMother
             ChildActivityFacts::class => [null, false],
             StuckDelayFacts::class => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
             BlockerHoldFacts::class => null,
+            ScheduledRetryFacts::class => null,
             WorkHoldFacts::class => false,
             RunStoppedFacts::class => null,
             SessionFacts::class => false,
