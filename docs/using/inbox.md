@@ -31,6 +31,26 @@ An **ask** is the set of items that one agent session hands over at once. The
 agent writes a short context for the ask, and the page shows that context above
 the items. An item that blocks the agent carries a **Blocking** label.
 
+### Card and pull request links
+
+Loupe turns a reference to a card or a pull request into a link. This works in
+the context of an ask, in the body of an item, and in the thread of an item.
+
+An agent writes `card:1116` for a card, and `pr:owner/repo#1295` for a pull
+request. The page shows "card #1116" and "owner/repo#1295". Loupe also links
+plain prose such as "card 1116", "PR #1295" and "pull request 1295".
+
+- A card link opens the card in the card drawer.
+- A pull request link opens the page of the code host in a new tab.
+- The link shows the title on hover. A card also shows its column and state. A
+  pull request also shows its state.
+- A title and a push notification show a reference as plain text, such as "card #1116", with no link.
+- A card number that matches no card stays plain text.
+- A prose pull request reference links only when the project watches exactly
+  one repository. A `pr:` token names its repository, so it needs no such rule.
+- A bare `#1116` stays plain text.
+- Text in a code span or a code block stays as written.
+
 ## The inbox page
 
 Open **Inbox** in the project sidebar. An amber count next to the link shows how

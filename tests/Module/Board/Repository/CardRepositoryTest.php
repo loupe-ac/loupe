@@ -13,6 +13,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class CardRepositoryTest extends KernelTestCase
@@ -57,6 +58,49 @@ final class CardRepositoryTest extends KernelTestCase
         self::assertSame($myCard, $this->cards->findOneByProjectAndNumber($mine, 1));
         self::assertSame($theirCard, $this->cards->findOneByProjectAndNumber($theirs, 1));
         self::assertNull($this->cards->findOneByProjectAndNumber($mine, 2));
+    }
+
+    public function test_the_cards_of_several_numbers_come_back_with_their_columns_in_one_query(): void
+    {
+        $project = $this->makeProject('repo-by-numbers');
+        $other = $this->makeProject('repo-by-numbers-other');
+        $one = $this->cardIn($project);
+        $two = $this->cardIn($project);
+        $three = $this->cardIn($project);
+        $this->cardIn($other);
+        $this->cardIn($other);
+        $this->cardIn($other);
+        $this->cardIn($other);
+        $this->em->clear();
+
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+        $found = $this->cards->findByProjectAndNumbers($project, [1, 3, 4, 3]);
+        $labels = array_map(static fn (Card $card): string => $card->column->label, $found);
+
+        self::assertSame([1, 3], array_keys($found));
+        self::assertSame([(string) $one->id, (string) $three->id], array_map(static fn (Card $card): string => (string) $card->id, array_values($found)));
+        self::assertNotContains((string) $two->id, array_map(static fn (Card $card): string => (string) $card->id, $found));
+        self::assertNotSame([], $labels);
+
+        // Guard: the count means nothing when the profiler recorded no query at all.
+        $statements = array_merge(...array_map(array_values(...), array_values($queries->getData())));
+        self::assertCount(1, $statements);
+    }
+
+    public function test_no_numbers_find_no_cards_and_run_no_query(): void
+    {
+        $project = $this->makeProject('repo-by-numbers-none');
+        $this->cardIn($project);
+        $this->em->clear();
+
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        self::assertSame([], $this->cards->findByProjectAndNumbers($project, []));
+        self::assertSame([], array_merge(...array_values($queries->getData())));
     }
 
     public function test_child_ids_are_the_children_of_that_card_only(): void

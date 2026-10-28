@@ -4,7 +4,7 @@
 {% set groups = [
     {kind: 'card', rows: document_card_links(document)|map(link => {
         href: path('app_board_card', {projectId: link.card.project.id, cardId: link.card.id}),
-        label: '#' ~ link.card.number ~ ' ' ~ link.card.title,
+        label: '#' ~ link.card.number ~ ' ' ~ link.card.title|reference_plain,
         line: 'review.document.page_menu.card_line'|trans({'%type%': card_type(link.card).label|trans, '%column%': link.card.column.label|trans}),
     })},
     {kind: 'artifact', rows: is_feature_enabled('artifacts.enabled') ? document_artifact_links(document)|filter(entry => is_granted(constant('App\\Module\\Artifact\\Security\\ArtifactVoter::VIEW'), entry.link.artifact))|map(entry => {
@@ -14,12 +14,12 @@
     }) : []},
     {kind: 'outgoing', rows: document.references|map(reference => {
         href: path('app_document_review', {projectId: reference.project.id, documentId: reference.id}),
-        label: reference.title,
+        label: reference.title|reference_plain,
         line: 'review.document.page_menu.outgoing_line'|trans({'%status%': reference.archivedAt ? 'review.document.references.archived'|trans : reference.status.translationKey|trans}),
     })},
     {kind: 'incoming', rows: document.referencedBy|map(reference => {
         href: path('app_document_review', {projectId: reference.project.id, documentId: reference.id}),
-        label: reference.title,
+        label: reference.title|reference_plain,
         line: 'review.document.page_menu.incoming_line'|trans({'%status%': reference.archivedAt ? 'review.document.references.archived'|trans : reference.status.translationKey|trans}),
     })},
 ]|filter(group => group.rows is not empty) %}

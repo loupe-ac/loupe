@@ -4,7 +4,7 @@
     <div class="lp-inbox-linked__context" data-inbox-linked-context>
         <span class="lp-inbox-linked__asked">{{ 'inbox.linked.asked'|trans({'%time%': ask.createdAt|relative_time}) }}</span>{# @design-system-ignore #}
         {# Agent Markdown, sanitized as on the inbox page, and cut to two lines here. #}
-        <div class="prose lp-prose lp-inbox-linked__context-text">{{ ask.context|inbox_markdown }}</div>
+        {% apply link_references(ask.project) %}<div class="prose lp-prose lp-inbox-linked__context-text" data-references>{{ ask.context|inbox_markdown }}</div>{% endapply %}
     </div>
     {% endif %}
     {% include '@Inbox/_inbox_item.html.twig' with {item: item, ask: null, inbox: inbox, refusedForm: refusedForm, hostCardId: hostCardId ?? null} only %}
