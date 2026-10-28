@@ -51,6 +51,8 @@ final readonly class RunRepositoryCheckHandler
 
         $suggestions = $this->suggestions->forProject($projectId);
         if ([] === $suggestions) {
+            $this->clearStaleItems($command);
+
             return;
         }
 
@@ -105,6 +107,36 @@ final readonly class RunRepositoryCheckHandler
             'trigger' => $command->trigger->value,
             'ticket' => $ticket,
             'failure' => $failure,
+        ]);
+    }
+
+    /** A template copy that drops its last suggestion leaves items that must hold no longer. */
+    private function clearStaleItems(RunRepositoryCheckCommand $command): void
+    {
+        $check = $this->forgeRepositoryChecks->findOneOfRepository($command->repository);
+        if (null === $check || [] === $check->items) {
+            return;
+        }
+
+        $ticket = $this->forgeRepositoryChecks->takeReadTicket($command->repository);
+        $repositoryId = $command->repository->id ?? throw new \LogicException('A persisted repository has an id.');
+        $cleared = $this->summaries->change($command->repository->project, function (RepositoryChange $change) use ($check, $repositoryId, $ticket): bool {
+            $this->em->refresh($check);
+            if ($ticket <= $check->acceptedReadTicket) {
+                return false;
+            }
+
+            $check->acceptedReadTicket = $ticket;
+            $check->items = [];
+            $change->signal($repositoryId);
+
+            return true;
+        });
+
+        $this->logger->info($cleared ? 'forge.repository_check_cleared' : 'forge.repository_check_dropped', [
+            'repositoryId' => (string) $repositoryId,
+            'trigger' => $command->trigger->value,
+            'ticket' => $ticket,
         ]);
     }
 

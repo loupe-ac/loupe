@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Forge\Scheduler;
 
 use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositoryCheck;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Messenger\CheckForgeRepository;
 use App\Module\Forge\Messenger\CheckTrigger;
@@ -57,6 +58,26 @@ final class CheckForgeRepositoriesTaskTest extends KernelTestCase
         foreach ($messages as $message) {
             self::assertSame(CheckTrigger::Hourly, $message->trigger);
         }
+    }
+
+    public function test_it_queues_a_repository_of_a_project_with_no_suggestions_while_its_stored_check_holds_items(): void
+    {
+        $project = $this->workflowProject('check-task-stale');
+        $stale = $this->repository($project, 'stale');
+        $empty = $this->repository($project, 'empty');
+        $check = new ForgeRepositoryCheck($stale, $project);
+        $check->items = [['key' => 'merge-method', 'mark' => 'blocking', 'state' => 'gap', 'gaps' => ['no_merge_method'], 'parameters' => []]];
+        $this->em()->persist($check);
+        $this->em()->flush();
+        $before = \count($this->transport->getSent());
+
+        $this->task()();
+
+        $messages = array_map(static fn ($envelope) => $envelope->getMessage(), \array_slice($this->transport->getSent(), $before));
+        self::assertContainsOnlyInstancesOf(CheckForgeRepository::class, $messages);
+        $queued = array_map(static fn (CheckForgeRepository $message): string => $message->repositoryId, $messages);
+        self::assertContains((string) $stale->id, $queued);
+        self::assertNotContains((string) $empty->id, $queued);
     }
 
     public function test_the_message_routes_to_the_jobs_transport(): void

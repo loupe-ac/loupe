@@ -172,7 +172,8 @@ final readonly class GitHubRepositoryGuide
     /**
      * A rule that limits the merge methods can cause the gap, so the step then
      * names the switch of an allowed method and links each ruleset with a
-     * pull request rule. Rules that share no method leave only the rulesets.
+     * pull request rule. Rules that share no method still link the switches,
+     * because the repository can forbid every method too.
      */
     private function mergeMethodStep(?RepositorySettings $settings, string $repositoryPath): GuideStep
     {
@@ -197,7 +198,7 @@ final readonly class GitHubRepositoryGuide
 
         $known = array_values(array_intersect(self::MERGE_METHODS, $allowed));
         if ([] === $known) {
-            return new GuideStep(GuideStep::MERGE_METHOD, [new GuideText(self::PREFIX.'merge_method.rules_none'), ...$texts], $links);
+            return new GuideStep(GuideStep::MERGE_METHOD, [new GuideText(self::PREFIX.'merge_method.rules_none'), ...$texts], [$mergeSettings, ...$links]);
         }
 
         $methods = implode(', ', array_map(fn (string $method): string => $this->translator->trans('github.repositories.check.method.'.$method), $known));

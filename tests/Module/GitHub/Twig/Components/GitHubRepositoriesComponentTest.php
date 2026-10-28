@@ -453,6 +453,26 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-testid="forge-repository-check"]'));
     }
 
+    public function test_a_project_whose_workflow_dropped_its_suggestions_queues_the_clear_of_its_stored_items_and_hides_them(): void
+    {
+        $client = static::createClient();
+        $this->suggest();
+        $owner = $this->signedUpUser('dropped');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $this->checkOf($repository, [$this->item('merge-method', 'blocking', ['no_merge_method'])], new \DateTimeImmutable('-1 minute'));
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $queued = $this->queuedChecks();
+        self::assertCount(1, $queued);
+        self::assertSame((string) $repository->id, $queued[0]->repositoryId);
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-check"]'));
+        self::assertCount(0, $crawler->filter('[data-repository-checking]'));
+    }
+
     public function test_a_failed_read_says_so_and_keeps_the_last_certain_lines(): void
     {
         $client = static::createClient();

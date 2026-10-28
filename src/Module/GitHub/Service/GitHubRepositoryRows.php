@@ -37,6 +37,9 @@ final readonly class GitHubRepositoryRows
         $projectId = $repository->project->id ?? throw new \LogicException('A persisted project has an id.');
         $suggests = [] !== $this->suggestions->forProject($projectId);
         $check = $suggests ? $this->forgeRepositoryChecks->findOneOfRepository($repository) : null;
+        if (!$suggests && $requestCheck) {
+            $this->checks->requestStaleItemsClear($repository);
+        }
 
         return new RepositoryRow(
             $repository,

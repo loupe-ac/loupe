@@ -263,7 +263,7 @@ final class GitHubRepositoryGuideTest extends TestCase
         self::assertSame(['%ruleset%' => 'Org defaults', '%organization%' => 'acme-org'], $step->texts[2]->parameters);
     }
 
-    public function test_rules_that_share_no_merge_method_send_the_owner_to_the_rulesets_alone(): void
+    public function test_rules_that_share_no_merge_method_link_the_repository_switches_and_the_rulesets(): void
     {
         $guide = $this->guide(
             [$this->item('merge-method', [Catalog::GAP_NO_MERGE_METHOD])],
@@ -273,7 +273,7 @@ final class GitHubRepositoryGuideTest extends TestCase
 
         $step = $this->step($guide, GuideStep::MERGE_METHOD);
         self::assertSame([self::G.'merge_method.rules_none'], $this->textKeys($step));
-        self::assertSame(['https://github.com/acme/app/rules/12'], array_map(static fn (GuideLink $link): string => $link->href, $step->links));
+        self::assertSame(['https://github.com/acme/app/settings#merge-button-settings', 'https://github.com/acme/app/rules/12'], array_map(static fn (GuideLink $link): string => $link->href, $step->links));
     }
 
     public function test_classic_protection_gets_a_link_and_no_step(): void

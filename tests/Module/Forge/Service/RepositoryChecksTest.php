@@ -126,6 +126,30 @@ final class RepositoryChecksTest extends KernelTestCase
         self::assertEquals([new CheckForgeRepository((string) $repository->id, CheckTrigger::PageOpen)], $this->dispatched->getArrayCopy());
     }
 
+    public function test_stored_items_are_cleared_whatever_the_age_of_the_read(): void
+    {
+        $repository = $this->repository();
+        $check = new ForgeRepositoryCheck($repository, $repository->project);
+        $check->checkedAt = new \DateTimeImmutable('2026-10-27 11:59:00');
+        $check->items = [['key' => 'merge-method', 'mark' => 'blocking', 'state' => 'gap', 'gaps' => ['no_merge_method'], 'parameters' => []]];
+        $this->em->persist($check);
+        $this->em->flush();
+
+        self::assertTrue($this->checks->requestStaleItemsClear($repository));
+        self::assertEquals([new CheckForgeRepository((string) $repository->id, CheckTrigger::PageOpen)], $this->dispatched->getArrayCopy());
+    }
+
+    public function test_no_stored_items_need_no_clear(): void
+    {
+        $repository = $this->repository();
+        self::assertFalse($this->checks->requestStaleItemsClear($repository));
+
+        $this->em->persist(new ForgeRepositoryCheck($repository, $repository->project));
+        $this->em->flush();
+        self::assertFalse($this->checks->requestStaleItemsClear($repository));
+        self::assertCount(0, $this->dispatched);
+    }
+
     private function check(?\DateTimeImmutable $checkedAt, ?\DateTimeImmutable $attemptedAt): ForgeRepositoryCheck
     {
         $repository = $this->repository();

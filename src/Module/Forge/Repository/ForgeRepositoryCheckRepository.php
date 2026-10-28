@@ -47,6 +47,16 @@ final class ForgeRepositoryCheckRepository extends ServiceEntityRepository
         return $byRepository;
     }
 
+    /** @return array<string, true> the ids of the repositories whose stored check holds items, as keys */
+    public function repositoryIdsWithItems(): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT repository_id FROM forge_repository_checks WHERE json_array_length(items) > 0',
+        );
+
+        return array_fill_keys(array_map(strval(...), $ids), true);
+    }
+
     /**
      * Takes the next read ticket of a repository in one statement, so two
      * overlapping checks get distinct tickets. The first check inserts the row.

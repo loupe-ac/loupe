@@ -47,4 +47,17 @@ final readonly class RepositoryChecks
 
         return true;
     }
+
+    /** For a repository whose template suggests nothing: queues the check that clears its stored items, whatever their age. */
+    public function requestStaleItemsClear(ForgeRepository $repository): bool
+    {
+        $check = $this->forgeRepositoryChecks->findOneOfRepository($repository);
+        if (null === $check || [] === $check->items) {
+            return false;
+        }
+
+        $this->bus->dispatch(new CheckForgeRepository($repository->id?->toRfc4122() ?? throw new \LogicException('A persisted repository has an id.'), CheckTrigger::PageOpen));
+
+        return true;
+    }
 }

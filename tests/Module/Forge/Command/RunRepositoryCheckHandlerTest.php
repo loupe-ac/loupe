@@ -372,7 +372,52 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
     public function test_a_project_with_no_suggestions_gets_no_row(): void
     {
         $repository = $this->repository();
-        $handler = new RunRepositoryCheckHandler(
+
+        ($this->handlerWithoutSuggestions())(new RunRepositoryCheckCommand($repository, CheckTrigger::CheckAgain));
+
+        self::assertNull($this->service(ForgeRepositoryCheckRepository::class)->findOneOfRepository($repository));
+        self::assertSame(0, $this->reader->reads);
+    }
+
+    public function test_a_template_that_drops_its_last_suggestion_clears_the_stored_items_and_the_hold(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        self::assertNotSame([], $this->summaries->current($repository->project)->blocking);
+        $this->terminate();
+        $this->published = [];
+
+        ($this->handlerWithoutSuggestions())(new RunRepositoryCheckCommand($repository, CheckTrigger::Hourly));
+
+        $check = $this->checkOf($repository);
+        self::assertSame([], $check->items);
+        self::assertSame(2, $check->acceptedReadTicket);
+        self::assertSame([], $this->summaries->current($repository->project)->blocking);
+        self::assertCount(2, $this->queuedReconciliations());
+        self::assertSame(1, $this->reader->reads);
+        $this->terminate();
+        self::assertSame([(string) $repository->id], $this->signalled());
+    }
+
+    public function test_a_read_that_started_before_the_clear_and_ends_after_it_changes_nothing(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        $this->reader->duringRead = function () use ($repository): void {
+            ($this->handlerWithoutSuggestions())(new RunRepositoryCheckCommand($repository, CheckTrigger::Hourly));
+        };
+
+        $this->check($repository, CheckTrigger::CheckAgain);
+
+        self::assertSame([], $this->checkOf($repository)->items);
+        self::assertSame([], $this->summaries->current($repository->project)->blocking);
+    }
+
+    private function handlerWithoutSuggestions(): RunRepositoryCheckHandler
+    {
+        return new RunRepositoryCheckHandler(
             new class implements RepositorySuggestions {
                 #[\Override]
                 public function forProject(Uuid $projectId): array
@@ -389,11 +434,6 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
             $this->clock,
             new NullLogger(),
         );
-
-        $handler(new RunRepositoryCheckCommand($repository, CheckTrigger::CheckAgain));
-
-        self::assertNull($this->service(ForgeRepositoryCheckRepository::class)->findOneOfRepository($repository));
-        self::assertSame(0, $this->reader->reads);
     }
 
     private function check(ForgeRepository $repository, CheckTrigger $trigger): void
