@@ -169,6 +169,28 @@ final class TemplateMetricParserTest extends TestCase
         self::assertEquals(new CountFilter(kind: 'review', reason: 'unknown'), $template->metrics[0]->filter);
     }
 
+    public function test_a_mixed_filter_reads_a_combination_that_one_request_writes(): void
+    {
+        $template = $this->parser->parse(self::withMetric(['count' => ['role' => 'fix', 'kind' => 'fix', 'reason' => 'agent-review']]));
+        self::assertEquals(new CountFilter(role: 'fix', kind: 'fix', reason: 'agent-review'), $template->metrics[0]->filter);
+    }
+
+    public function test_a_template_whose_requests_all_set_a_reason_knows_no_pull_request_reason(): void
+    {
+        $source = self::withMetric(['count' => ['reason' => 'checks-failed']]);
+        $source['rules'] = array_values(array_filter($source['rules'], static fn (array $rule): bool => 'review' !== $rule['id']));
+
+        self::assertContains('metrics[0] (my-metric) count reason: unknown reason "checks-failed"; known reasons: agent-review', $this->errorsOf($source));
+    }
+
+    public function test_the_repair_request_takes_any_known_reason(): void
+    {
+        $source = self::withMetric(['count' => ['kind' => 'repair', 'reason' => 'agent-review']]);
+        $source['onWorkFailed'] = ['retryOn' => ['no-taker'], 'retries' => 1, 'backoffMinutes' => [5], 'repair' => ['kind' => 'repair']];
+
+        self::assertEquals(new CountFilter(kind: 'repair', reason: 'agent-review'), $this->parser->parse($source)->metrics[0]->filter);
+    }
+
     public function test_it_reads_both_rate_forms(): void
     {
         $outcome = $this->parser->parse(self::withMetric(['rate' => ['outcome' => 'merged']]))->metrics[0];
@@ -240,11 +262,16 @@ final class TemplateMetricParserTest extends TestCase
         yield 'an unknown role' => [['count' => ['role' => 'builder']], 'metrics[0] (my-metric) count role: unknown role "builder"; known roles: fix'];
         yield 'an unknown kind' => [['count' => ['kind' => 'deploy']], 'metrics[0] (my-metric) count kind: unknown kind "deploy"; known kinds: review, fix'];
         yield 'an unknown reason' => [['count' => ['reason' => 'flaky']], 'metrics[0] (my-metric) count reason: unknown reason "flaky"; known reasons: conflict, checks-failed, changes-requested, unknown, agent-review'];
+        yield 'a role and a kind that no request writes together' => [['count' => ['role' => 'fix', 'kind' => 'review']], 'metrics[0] (my-metric) count: no request of the template writes role "fix", kind "review" together'];
+        yield 'a kind and a reason that no request writes together' => [['count' => ['kind' => 'review', 'reason' => 'agent-review']], 'metrics[0] (my-metric) count: no request of the template writes kind "review", reason "agent-review" together'];
+        yield 'a fixed reason with a pull request reason' => [['count' => ['role' => 'fix', 'reason' => 'checks-failed']], 'metrics[0] (my-metric) count: no request of the template writes role "fix", reason "checks-failed" together'];
+        yield 'a rate over a mix that no request writes' => [['rate' => ['any' => ['role' => 'fix', 'kind' => 'review']]], 'metrics[0] (my-metric) rate any: no request of the template writes role "fix", kind "review" together'];
         yield 'an unknown filter field' => [['count' => ['colour' => 'red']], 'metrics[0] (my-metric) count: unknown key "colour"'];
         yield 'an empty filter' => [['count' => []], 'metrics[0] (my-metric) count: must be a map with at least one of role, kind, reason'];
         yield 'splitBy on a rate' => [['rate' => ['outcome' => 'merged'], 'splitBy' => 'reason'], 'metrics[0] (my-metric) splitBy: only a count takes it, and it must be one of role, kind, reason'];
         yield 'an unknown splitBy' => [['count' => ['role' => 'fix'], 'splitBy' => 'colour'], 'metrics[0] (my-metric) splitBy: only a count takes it, and it must be one of role, kind, reason'];
         yield 'an unknown rate outcome' => [['rate' => ['outcome' => 'shipped']], 'metrics[0] (my-metric) rate outcome: unknown outcome "shipped"; known outcomes: merged, dropped'];
+        yield 'a rate outcome that no move sets' => [['rate' => ['outcome' => 'dropped']], 'metrics[0] (my-metric) rate outcome: no move sets the outcome "dropped"; moves set: merged'];
         yield 'a rate with both forms' => [['rate' => ['outcome' => 'merged', 'any' => ['role' => 'fix']]], 'metrics[0] (my-metric) rate: must be a map with exactly one of outcome and any'];
         yield 'a duration with no end' => [['duration' => ['from' => 'pr-opened']], 'metrics[0] (my-metric) duration: must be a map with "from" and "to"'];
         yield 'an unknown event' => [['duration' => ['from' => 'pr-closed', 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from: must be one of pr-opened, agent-review-passed, ready-to-merge, pr-merged, or a map with "arrived" or "left" and a slot'];

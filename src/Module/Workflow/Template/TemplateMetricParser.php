@@ -250,7 +250,7 @@ final readonly class TemplateMetricParser
             return null;
         }
         if (!\in_array($outcome, $produced->outcomes, true)) {
-            $errors[] = \sprintf('%s outcome: no move sets the outcome "%s"%s', $where, $outcome, [] === $produced->outcomes ? '; no move sets an outcome' : '; outcomes a move sets: '.implode(', ', $produced->outcomes));
+            $errors[] = \sprintf('%s outcome: no move sets the outcome "%s"%s', $where, $outcome, [] === $produced->outcomes ? '; no move sets an outcome' : '; moves set: '.implode(', ', $produced->outcomes));
 
             return null;
         }
@@ -337,7 +337,17 @@ final readonly class TemplateMetricParser
             }
         }
 
-        return \count($errors) > $errorCount ? null : new CountFilter($values['role'] ?? null, $values['kind'] ?? null, $values['reason'] ?? null);
+        if (\count($errors) > $errorCount) {
+            return null;
+        }
+        $filter = new CountFilter($values['role'] ?? null, $values['kind'] ?? null, $values['reason'] ?? null);
+        if (!array_any($produced->requests, static fn (ProducedRequest $request): bool => $request->matches($filter->role, $filter->kind, $filter->reason))) {
+            $errors[] = \sprintf('%s: no request of the template writes %s together', $where, implode(', ', array_map(static fn (string $field, string $value): string => \sprintf('%s "%s"', $field, $value), array_keys($values), $values)));
+
+            return null;
+        }
+
+        return $filter;
     }
 
     /** @param list<string> $known */

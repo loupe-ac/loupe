@@ -348,7 +348,7 @@ readonly class Catalog
                 states: [],
                 enforced: true,
                 group: 'core',
-                summary: 'A list of one-line rows under a header. The caller sets the column grid with a modifier. On a phone it scrolls sideways, with arrows over the header and a fade at each hidden edge.',
+                summary: 'A list of one-line rows under a header. The caller sets the column grid with a modifier. On a phone it scrolls sideways, with arrows over the header and a fade at each hidden edge. A wrap cell holds wrapped text and a second line.',
                 element: 'div',
                 legacyClasses: ['lp-document-table', 'lp-artifact-table'],
                 legacyEnforced: true,
