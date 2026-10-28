@@ -11,13 +11,13 @@ A card row shows the card number, its title, and its column. A document row show
 On project pages, card and document results belong to the current project. On Account and All projects, the search covers every project you own, and each result names its project. Projects owned by another account never appear.
 
 Press Enter, or select **All results for …**, to open the full results page with every match.
-Press Escape, or click outside the field, to close the results. The field keeps your text.
+Press Escape, or click outside the field, to close the results. The field keeps your text. Escape also moves the focus out of the field.
 
 Select a card result to open it. On the board, the card opens in the side panel and the board stays in place. On every other page, the card page opens.
 Select a document or page result to open it.
 
 If a search fails, the results show **Could not search**. Select **Try again** to repeat it.
-While a search runs, the old results stay on screen and a **Searching…** line shows. A slow answer to an older query never replaces the results of the text now in the field.
+Before the first answer, the results show a **Searching…** line. During a later search, the old results stay on screen and a progress line shows on the field. A slow answer to an older query never replaces the results of the text now in the field.
 
 ## Narrow pages and busy pages
 
