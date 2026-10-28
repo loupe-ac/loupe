@@ -372,18 +372,21 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertSame($expected, $values);
     }
 
-    public function test_a_template_metric_groups_by_card_type_and_by_the_variant_of_its_runs(): void
+    public function test_a_template_metric_groups_by_card_type_and_gives_each_variant_of_its_runs_the_whole_value(): void
     {
         $bug = $this->finishedCard(1, '2026-10-02 10:00:00');
         $feature = $this->finishedCard(2, '2026-10-03 10:00:00');
         $mixed = $this->finishedCard(3, '2026-10-04 10:00:00');
-        $this->types = [(string) $bug => 'bug', (string) $feature => 'feature', (string) $mixed => 'feature'];
+        $unrun = $this->finishedCard(4, '2026-10-05 10:00:00');
+        $this->types = [(string) $bug => 'bug', (string) $feature => 'feature', (string) $mixed => 'feature', (string) $unrun => 'feature'];
         $this->fact($bug, endedAt: '2026-10-01 09:00:00', variant: 'a');
         $this->fact($bug, endedAt: '2026-10-01 10:00:00', variant: 'a');
         $this->fact($feature, endedAt: '2026-10-01 09:00:00', variant: 'b');
         $this->fact($mixed, endedAt: '2026-10-01 09:00:00', variant: 'a');
         $this->fact($mixed, endedAt: '2026-10-01 10:00:00', variant: 'b');
         $this->request($bug, 'fix', 'fix', null);
+        $this->request($mixed, 'fix', 'fix', null);
+        $this->request($mixed, 'fix', 'fix', null);
         $count = new TemplateMetric('fix-rounds', 'Fix rounds', 'Fixes.', MetricType::Count, filter: new CountFilter(role: 'fix'));
 
         $byType = $this->query(MetricUnit::Card, MetricShape::template($count), MetricStatistic::Sum, MetricGroup::CardType);
@@ -391,8 +394,9 @@ final class MetricQueryHandlerTest extends KernelTestCase
 
         self::assertSame(['bug', 'feature'], array_map(static fn (MetricSeries $series): ?string => $series->group, $byType->series));
         self::assertSame(['a', 'b', null], array_map(static fn (MetricSeries $series): ?string => $series->group, $byVariant->series));
-        self::assertEquals(new MetricPoint(null, 1, 1), $byVariant->series[0]->total);
-        self::assertEquals(new MetricPoint(null, 0, 1), $byVariant->series[1]->total);
+        self::assertEquals(new MetricPoint(null, 3, 2), $byVariant->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 2, 2), $byVariant->series[1]->total);
+        self::assertEquals(new MetricPoint(null, 0, 1), $byVariant->series[2]->total);
     }
 
     private function request(Uuid $card, string $kind, ?string $role, ?string $reason): void

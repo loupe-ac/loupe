@@ -72,8 +72,8 @@ final readonly class MetricRowSource
     }
 
     /**
-     * One row per finished card, with a value for every card. A card groups by the one variant its runs name, and a card whose
-     * runs name two variants or none stays ungrouped, because one value cannot split between variants.
+     * One row per finished card, with a value for every card. A variant grouping gives the whole card value to each variant its
+     * runs name, as a built-in card metric does, so a card worked in two variants counts once in each.
      *
      * @return list<MetricRow>
      */
@@ -86,22 +86,25 @@ final readonly class MetricRowSource
 
         $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
         $values = $this->templateValues->valuesOf($project, $ids, $template);
-        $groups = match ($group) {
-            MetricGroup::CardType => $this->cardReports->typesFor($project, $ids),
-            MetricGroup::Variant => $this->variantsOf($project, $ids),
-            default => [],
-        };
+        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
+        $variants = MetricGroup::Variant === $group ? $this->variantsOf($project, $ids) : [];
 
-        return array_map(
-            static fn (FinishedCard $card): MetricRow => new MetricRow($card->id, $card->number, $groups[(string) $card->id] ?? null, $card->completedAt, $values[(string) $card->id] ?? null),
-            $cards,
-        );
+        $rows = [];
+        foreach ($cards as $card) {
+            $id = (string) $card->id;
+            $groups = MetricGroup::Variant === $group ? $variants[$id] ?? [null] : [$types[$id] ?? null];
+            foreach ($groups as $key) {
+                $rows[] = new MetricRow($card->id, $card->number, $key, $card->completedAt, $values[$id] ?? null);
+            }
+        }
+
+        return $rows;
     }
 
     /**
      * @param list<Uuid> $ids
      *
-     * @return array<string, string> card id => variant, for a card whose runs name exactly one
+     * @return array<string, list<?string>> card id => each variant its runs name, null for a run with none
      */
     private function variantsOf(Project $project, array $ids): array
     {
@@ -110,15 +113,7 @@ final readonly class MetricRowSource
             $variants[(string) $fact->subjectId][$fact->variant ?? ''] = $fact->variant;
         }
 
-        $single = [];
-        foreach ($variants as $id => $named) {
-            $variant = 1 === \count($named) ? reset($named) : null;
-            if (null !== $variant) {
-                $single[$id] = $variant;
-            }
-        }
-
-        return $single;
+        return array_map(array_values(...), $variants);
     }
 
     /** @return list<MetricRow> */
