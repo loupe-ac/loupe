@@ -83,6 +83,10 @@ final class SeedDevDataCommand extends Command
         $this->experiment->seed($project, 'implement-merge-time', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']]);
         $this->experiment->seed($project, 'implement-goal-typo', ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower']]);
         $this->experiment->seed($project, 'implement-no-direction', ['goal' => ['metric' => 'hours-to-merge']]);
+        // The Simple template declares no fix-rounds: a declared fix-rounds guard is unknown and shows a note, and a default one drops with none.
+        $known = ['cost', 'merge-rate', 'duration', 'input-tokens'];
+        $this->experiment->seed($project, 'implement-unknown-guard', ['guards' => ['merge-rate', 'fix-rounds']], $known);
+        $this->experiment->seed($project, 'implement-simple-default', null, $known);
         // The template metrics in the Comparison table, with the pull request history that hours to merge reads.
         $this->experiment->seed($project, 'implement-template-metrics', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], ['cost', 'merge-rate', 'hours-to-merge']);
         $this->codexRuns->seed($project);
