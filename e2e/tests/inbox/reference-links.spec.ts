@@ -116,9 +116,17 @@ test('a card reference opens the drawer where the page has one, and the card pag
     const drawer = page.locator('dialog.lp-card-drawer-overlay');
     const drawerTitle = drawer.locator('.lp-card-drawer__title');
 
+    const tooltip = page.locator('#lp-reference-tooltip');
+
     // The inbox opens a reference in its ask context in the card drawer.
     const inboxUrl = `/projects/${projectId}/inbox?item=${questionNumber}`;
     await page.goto(inboxUrl);
+    await page
+        .locator('.lp-inbox-ask__context')
+        .getByRole('link', { name: `card #${target.number}`, exact: true })
+        .hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText(`Reference target ${RUN}`);
     await page
         .locator('.lp-inbox-ask__context')
         .getByRole('link', { name: `card #${target.number}`, exact: true })
@@ -136,10 +144,14 @@ test('a card reference opens the drawer where the page has one, and the card pag
         .click();
     await expect(drawer).toHaveJSProperty('open', true);
     await expect(drawerTitle).toHaveText(`Reference source ${RUN}`);
-    await drawer
+    // The drawer is a modal dialog, and the tooltip still shows above it.
+    const drawerLink = drawer
         .locator('.lp-card-detail__body')
-        .getByRole('link', { name: `card #${target.number}`, exact: true })
-        .click();
+        .getByRole('link', { name: `card #${target.number}`, exact: true });
+    await drawerLink.hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText(`Reference target ${RUN}`);
+    await drawerLink.click();
     await expect(drawerTitle).toHaveText(`Reference target ${RUN}`);
     await expect(page).toHaveURL(documentUrl);
 
