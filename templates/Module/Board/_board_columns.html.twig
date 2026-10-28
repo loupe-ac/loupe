@@ -1,6 +1,6 @@
 {# The board itself, with the page's heading row. Props: board (BoardView).
-   A structure update keeps the toolbar, so the filter and the view come back
-   from it after each render. #}
+   A structure update keeps the toolbar, so the board view updates the card count
+   in it after each render. #}
 {% set runWarnings = board.runWarnings %}
 <div id="board" class="lp-board"
      data-board-structure-digest="{{ board.structureDigest }}"
