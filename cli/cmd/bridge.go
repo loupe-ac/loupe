@@ -533,6 +533,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		hb.gitIdentities = func(context.Context) ([]api.GitIdentityReport, time.Duration) {
 			return r.identities.rows(identityTargets(r.rules()))
 		}
+		hb.sessions = newSessionLiveness(r.rules).readings
 		// Adopted runs can end on their own goroutines, and read heartbeat
 		// under mu.
 		r.mu.Lock()
