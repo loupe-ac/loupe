@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
     chmodSync,
+    existsSync,
     mkdtempSync,
     readFileSync,
     rmSync,
@@ -12,6 +13,9 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const bin = fileURLToPath(new URL('../../bin/', import.meta.url));
+const fakeSops = fileURLToPath(
+    new URL('../Bin/fixtures/fake-sops', import.meta.url),
+);
 
 let dir;
 
@@ -130,14 +134,16 @@ describe('bin/tfvars-names', () => {
 describe('bin/healthz-probe', () => {
     const TOKEN = 'tok3n0123456789abcdef';
 
-    function run(env) {
+    // The terraform stub answers the token from TF_VAR_health_probe_token when it is set, as Terraform does.
+    function run(env, command = [bin + 'healthz-probe']) {
+        rmSync(join(dir, 'curl.args'), { force: true });
         stub(
             'terraform',
             `cat > "${dir}/tf.stdin"
 printf '%s\\n' "$*" > "${dir}/tf.args"
 echo 'Warning: something on stdout'
 echo 'Error: health_probe_token = "${TOKEN}"' >&2
-if grep -q health_probe_token "${dir}/tf.stdin"; then echo '"${TOKEN}"'; else echo '"app.example.test"'; fi
+if grep -q health_probe_token "${dir}/tf.stdin"; then echo "\\"\${TF_VAR_health_probe_token:-${TOKEN}}\\""; else echo '"${env.DOMAIN ?? 'app.example.test'}"'; fi
 exit ${env.TF_EXIT ?? 0}`,
         );
         stub(
@@ -147,12 +153,13 @@ cat > "${dir}/curl.stdin"
 echo '{"status":"ok","version":"abc1234"}'`,
         );
 
-        return spawnSync('bash', [bin + 'healthz-probe'], {
+        return spawnSync('bash', command, {
             encoding: 'utf8',
             env: {
                 ...process.env,
                 PATH: `${join(dir, 'stubs')}:${process.env.PATH}`,
                 HEALTHZ_TF_CHDIR: dir,
+                ...env.extra,
             },
         });
     }
@@ -183,6 +190,64 @@ echo '{"status":"ok","version":"abc1234"}'`,
         expect(result.stdout).not.toContain(TOKEN);
         expect(result.stderr).not.toContain(TOKEN);
         expect(result.stderr).toContain('cannot read health_probe_token');
+    });
+
+    it('stops before curl when custom_domain is empty', () => {
+        const result = run({ DOMAIN: '' });
+
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain('custom_domain is empty or unreadable');
+        expect(existsSync(join(dir, 'curl.args'))).toBe(false);
+        expect(result.stdout + result.stderr).not.toContain(TOKEN);
+    });
+
+    it('runs as just healthz does, with the token from the secret store', () => {
+        const recipe = readFileSync(
+            fileURLToPath(new URL('../../justfile', import.meta.url)),
+            'utf8',
+        );
+        expect(recipe).toContain(
+            'healthz:\n    bin/tf-secrets exec -- bin/healthz-probe\n',
+        );
+        const stored = 'st0red0123456789abcdef';
+        const store = join(dir, 'probe.store.yaml');
+        writeFileSync(store, `TF_VAR_health_probe_token: "${stored}"\n`);
+        spawnSync('cp', [fakeSops, join(dir, 'stubs', 'sops')]);
+
+        const result = run({ extra: { TF_SECRETS_STORE: store } }, [
+            bin + 'tf-secrets',
+            'exec',
+            '--',
+            bin + 'healthz-probe',
+        ]);
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('"version":"abc1234"');
+        expect(readFileSync(join(dir, 'curl.stdin'), 'utf8')).toBe(
+            `X-Probe-Token: ${stored}\n`,
+        );
+        expect(readFileSync(join(dir, 'curl.args'), 'utf8')).not.toContain(
+            stored,
+        );
+        expect(result.stdout + result.stderr).not.toContain(stored);
+    });
+
+    it('stops before curl under the store when custom_domain is empty', () => {
+        const store = join(dir, 'probe.store.yaml');
+        writeFileSync(store, 'TF_VAR_health_probe_token: "st0red-token"\n');
+        spawnSync('cp', [fakeSops, join(dir, 'stubs', 'sops')]);
+
+        const result = run({ DOMAIN: '', extra: { TF_SECRETS_STORE: store } }, [
+            bin + 'tf-secrets',
+            'exec',
+            '--',
+            bin + 'healthz-probe',
+        ]);
+
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain('custom_domain is empty or unreadable');
+        expect(existsSync(join(dir, 'curl.args'))).toBe(false);
+        expect(result.stdout + result.stderr).not.toContain('st0red-token');
     });
 });
 
