@@ -562,6 +562,11 @@ slot events are `{ arrived: <slot> }` and `{ left: <slot> }`. The slot can be a
 slot key of the template, `@backlog` or `@terminal`. On `from`, `{ last: <event> }`
 starts at the last time the event happened.
 
+The Workflow page lists the metrics of the template in a **Metrics** section, after
+the card markers. Each row shows the label and the description, the key, the type
+and a sentence that says what the metric reads. A template that declares no
+metric shows a line that says so.
+
 Loupe refuses a template that names a value which none of its rules can produce.
 The error lists the values it knows. A role, a kind and a reason must come from
 a `request` rule of the template. A filter that mixes fields must match one

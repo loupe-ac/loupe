@@ -14,6 +14,7 @@ use App\Module\Workflow\Command\WorkflowCardTypeView;
 use App\Module\Workflow\Command\WorkflowConditionGroupView;
 use App\Module\Workflow\Command\WorkflowConditionView;
 use App\Module\Workflow\Command\WorkflowManualMoveView;
+use App\Module\Workflow\Command\WorkflowMetricView;
 use App\Module\Workflow\Command\WorkflowRuleActionView;
 use App\Module\Workflow\Command\WorkflowRuleView;
 use App\Module\Workflow\Command\WorkflowSettingsView;
@@ -27,6 +28,7 @@ use App\Module\Workflow\Template\TemplateParser;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
 {
@@ -128,6 +130,45 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         ], $template->types);
     }
 
+    public function test_the_metrics_of_the_template_are_listed_with_what_each_reads(): void
+    {
+        $project = $this->workflowProject('workflow-settings-metrics');
+        $binding = $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
+        $stored = $this->em()->find(WorkflowBinding::class, $binding->id) ?? throw new \LogicException('The binding is gone.');
+        $stored->definition['metrics'] = [
+            ['key' => 'conflicts', 'label' => 'Conflicts', 'description' => 'The conflicts of a card.', 'count' => ['reason' => 'conflict'], 'splitBy' => 'reason'],
+            ['key' => 'delivery-rate', 'label' => 'Delivery rate', 'description' => 'The share that merged.', 'rate' => ['outcome' => 'merged']],
+            ['key' => 'needed-fix', 'label' => 'Needed a fix', 'description' => 'The share with a failed check.', 'rate' => ['any' => ['reason' => 'checks-failed']]],
+            ['key' => 'hours-to-pr-merge', 'label' => 'Hours to pull request merge', 'description' => 'The hours to merge.', 'duration' => ['from' => ['last' => 'pr-opened'], 'to' => 'pr-merged']],
+            ['key' => 'hours-in-backlog', 'label' => 'Hours in backlog', 'description' => 'The hours in backlog.', 'duration' => ['from' => ['arrived' => '@backlog'], 'to' => ['left' => '@backlog']]],
+        ];
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $template = $this->show($project)->template;
+
+        self::assertInstanceOf(BoundWorkflowView::class, $template);
+        self::assertEquals([
+            new WorkflowMetricView('conflicts', 'Conflicts', 'The conflicts of a card.', 'count', 'Work requests with reason conflict, split by reason'),
+            new WorkflowMetricView('delivery-rate', 'Delivery rate', 'The share that merged.', 'rate', 'Finished cards that a move with outcome merged ended'),
+            new WorkflowMetricView('needed-fix', 'Needed a fix', 'The share with a failed check.', 'rate', 'Finished cards with at least one work request with reason checks-failed'),
+            new WorkflowMetricView('hours-to-pr-merge', 'Hours to pull request merge', 'The hours to merge.', 'duration', 'From the last time the pull request opened to the pull request merged'),
+            new WorkflowMetricView('hours-in-backlog', 'Hours in backlog', 'The hours in backlog.', 'duration', 'From the card arrived in the Backlog to the card left the Backlog'),
+        ], $template->metrics);
+    }
+
+    public function test_a_template_with_no_metrics_lists_none(): void
+    {
+        $project = $this->workflowProject('workflow-settings-no-metrics');
+        $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
+        $this->em()->clear();
+
+        $template = $this->show($project)->template;
+
+        self::assertInstanceOf(BoundWorkflowView::class, $template);
+        self::assertSame([], $template->metrics);
+    }
+
     public function test_the_rules_the_app_adds_are_listed_apart_from_the_template_rules(): void
     {
         $project = $this->workflowProject('workflow-settings-app-rules');
@@ -140,6 +181,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             $this->service(WorkflowSlotLinkRepository::class),
             new ProjectTemplateCopy($bindings, $parser, new AppRules($parser, AppRulesTest::FIXTURE)),
             $this->service(Actions::class),
+            $this->service(TranslatorInterface::class),
         );
 
         $template = $handler(new ShowWorkflowSettingsCommand($this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is gone.')))->template;

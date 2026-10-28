@@ -6,6 +6,10 @@ namespace App\Module\Workflow\Command;
 
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Action\MissingAction;
+use App\Module\Workflow\Contract\CountFilter;
+use App\Module\Workflow\Contract\DurationEvent;
+use App\Module\Workflow\Contract\MetricType;
+use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
@@ -26,6 +30,7 @@ use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateCardType;
 use App\Module\Workflow\Template\TemplateMarker;
 use App\Module\Workflow\Template\TemplateSource;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final readonly class ShowWorkflowSettingsHandler
 {
@@ -34,6 +39,7 @@ final readonly class ShowWorkflowSettingsHandler
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private TemplateSource $templates,
         private Actions $actions,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -81,10 +87,60 @@ final readonly class ShowWorkflowSettingsHandler
                 $template->manualMoves,
             ),
             markers: array_map(static fn (TemplateMarker $marker): WorkflowMarkerView => self::marker($template, $marker), $template->markers),
+            metrics: array_map(fn (TemplateMetric $metric): WorkflowMetricView => $this->metric($template, $metric), $template->metrics),
             backoffMinutes: $template->backoffMinutes,
             workTimeoutMinutes: $template->workTimeoutMinutes,
             workFailedBackoffMinutes: $template->onWorkFailed?->backoffMinutes,
         ));
+    }
+
+    private function metric(Template $template, TemplateMetric $metric): WorkflowMetricView
+    {
+        return new WorkflowMetricView($metric->key, $metric->label, $metric->description, $metric->type->value, $this->reads($template, $metric));
+    }
+
+    private function reads(Template $template, TemplateMetric $metric): string
+    {
+        $filter = null === $metric->filter ? '' : $this->filter($metric->filter);
+
+        return match ($metric->type) {
+            MetricType::Count => null === $metric->splitBy
+                ? $this->translator->trans('workflow.settings.metrics.reads.count', ['%filter%' => $filter])
+                : $this->translator->trans('workflow.settings.metrics.reads.count_split', ['%filter%' => $filter, '%field%' => $metric->splitBy]),
+            MetricType::Rate => null === $metric->outcome
+                ? $this->translator->trans('workflow.settings.metrics.reads.rate_any', ['%filter%' => $filter])
+                : $this->translator->trans('workflow.settings.metrics.reads.rate_outcome', ['%outcome%' => $metric->outcome]),
+            MetricType::Duration => $this->translator->trans('workflow.settings.metrics.reads.duration', [
+                '%from%' => $this->event($template, $metric->from, $metric->fromLast),
+                '%to%' => $this->event($template, $metric->to, false),
+            ]),
+        };
+    }
+
+    private function filter(CountFilter $filter): string
+    {
+        $parts = [];
+        foreach (CountFilter::FIELDS as $field) {
+            if (null !== $filter->{$field}) {
+                $parts[] = $field.' '.$filter->{$field};
+            }
+        }
+
+        return implode(', ', $parts);
+    }
+
+    private function event(Template $template, ?DurationEvent $event, bool $last): string
+    {
+        if (null === $event) {
+            throw new \LogicException('A duration metric has a start and an end.');
+        }
+
+        $name = match ($event->name) {
+            DurationEvent::ARRIVED, DurationEvent::LEFT => $this->translator->trans('workflow.settings.metrics.event.'.$event->name, ['%slot%' => $this->translator->trans(self::placeKey($template, $event->slot ?? throw new \LogicException('A slot event names its slot.')))]),
+            default => $this->translator->trans('workflow.settings.metrics.event.'.$event->name),
+        };
+
+        return $last ? $this->translator->trans('workflow.settings.metrics.event.last', ['%event%' => $name]) : $name;
     }
 
     private static function marker(Template $template, TemplateMarker $marker): WorkflowMarkerView
