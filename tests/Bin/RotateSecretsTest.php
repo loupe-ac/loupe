@@ -958,7 +958,9 @@ final class RotateSecretsTest extends TestCase
     private function assertValidAppJwt(): void
     {
         $header = (string) file_get_contents($this->dir.'/auth-header');
-        self::assertSame(1, preg_match('/^Authorization: Bearer ([\w-]+)\.([\w-]+)\.([\w-]+)$/', $header, $m), 'a three part token');
+        if (1 !== preg_match('/^Authorization: Bearer ([\w-]+)\.([\w-]+)\.([\w-]+)$/', $header, $m)) {
+            self::fail('The header must hold a three part token.');
+        }
         $decode = static fn (string $part): string => (string) base64_decode(strtr($part, '-_', '+/'), true);
         self::assertSame(['alg' => 'RS256', 'typ' => 'JWT'], json_decode($decode($m[1]), true));
         $claims = json_decode($decode($m[2]), true);
