@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\EventListener\ReconcileWorkOnWorkHoldChanged;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
 use App\Module\Forge\Service\ForgeRepositories;
 use App\Module\Project\Entity\Project;
@@ -109,6 +110,7 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         $this->stamp($project, $heldCard);
         $this->stamp($project, $heldCard, 'second-rule');
         $request = $this->seedWorkRequest($this->em(), $project, cardId: $heldCard, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $analysis = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00'), subject: new WorkSubject('analysis', Uuid::v7()));
 
         $this->service(ForgeRepositories::class)->release($project, 'github', $repository->externalId);
         self::assertSame([(string) $project->id], $this->queuedReconciliations());
@@ -121,6 +123,7 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         $restarted = $this->em()->find(WorkRequest::class, $request->id);
         self::assertSame(WorkRequestState::Open, $restarted?->state);
         self::assertSame(self::NOW, $restarted->reopenedAt?->format(\DateTimeInterface::ATOM));
+        self::assertSame(self::NOW, $this->em()->find(WorkRequest::class, $analysis->id)?->reopenedAt?->format(\DateTimeInterface::ATOM), 'The held analysis gets a full wait too.');
     }
 
     public function test_the_hold_start_event_of_an_older_check_after_the_hold_end_of_a_newer_one_withdraws_nothing(): void

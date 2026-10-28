@@ -642,7 +642,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame([], $reply['lostClaims']);
     }
 
-    public function test_a_bridge_gets_no_card_request_of_a_project_that_holds_its_new_work(): void
+    public function test_a_bridge_gets_no_request_of_a_project_that_holds_its_new_work_whatever_its_subject(): void
     {
         $client = static::createClient();
         $client->disableReboot();
@@ -654,7 +654,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->repositoryWithGaps($held);
         $this->repositoryWithGaps($free, []);
         $this->seedWorkRequest($em, $held);
-        $analysis = $this->seedWorkRequest($em, $held, subject: new WorkSubject('analysis', Uuid::v7()));
+        $this->seedWorkRequest($em, $held, subject: new WorkSubject('analysis', Uuid::v7()));
         $offered = $this->seedWorkRequest($em, $free);
 
         $this->put($client, (string) Uuid::v4(), $this->agentToken($client, $owner), [
@@ -664,7 +664,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertEqualsCanonicalizing([(string) $analysis->id, (string) $offered->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+        self::assertSame([(string) $offered->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
     }
 
     public function test_a_request_that_needs_a_capability_reaches_only_a_bridge_that_reports_it(): void

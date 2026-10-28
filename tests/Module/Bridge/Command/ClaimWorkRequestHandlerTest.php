@@ -15,6 +15,7 @@ use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
@@ -163,6 +164,19 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame([], $changes->events());
         $this->em()->clear();
         self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_a_request_about_another_subject_of_a_project_that_holds_its_new_work_is_refused_too(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-project-held-analysis', WorkRequestState::Open);
+        $analysis = $this->seedWorkRequest($this->em(), $request->project, subject: new WorkSubject('analysis', Uuid::v7()));
+        $this->repositoryWithGaps($request->project);
+
+        $result = $this->claim($owner, $bridge, $analysis);
+
+        self::assertSame(WorkRequestRefusal::ProjectHeld, $result->refusal);
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $analysis->id)?->state);
     }
 
     public function test_a_claim_that_commits_before_the_gap_is_stored_goes_on_and_a_later_one_is_refused(): void

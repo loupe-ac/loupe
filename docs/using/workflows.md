@@ -457,8 +457,9 @@ project holds all new work:
   itself when the hold ends.
 - A bridge cannot claim a request of the project. The claim is refused with
   `project_held`, and the request does not show in the offers of a bridge.
-- When the hold starts, Loupe withdraws each open request of the project, so the
-  work timeout never pauses a card for the hold.
+- When the hold starts, Loupe withdraws each open card request of the project, so
+  the work timeout never pauses a card for the hold. A request about another
+  subject, such as an analysis, stays open, and it gets a new timeout when the hold ends.
 - Work that a bridge already claimed, and a run that is under way, finishes.
 - Rules that start no worker still run: moves, writes to GitHub and merges.
   A request for teardown or for the epic preview is held like any other.

@@ -440,7 +440,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, [])));
     }
 
-    public function test_the_card_requests_of_a_held_project_have_no_offer_and_no_reopened_claim(): void
+    public function test_the_requests_of_a_held_project_have_no_offer_and_no_reopened_claim_whatever_their_subject(): void
     {
         self::bootKernel();
         $em = $this->em();
@@ -448,17 +448,26 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $held = $this->project($em, $owner, 'Held Project Offers');
         $free = $this->project($em, $owner, 'Free Project Offers');
         $this->seedWorkRequest($em, $held);
-        $analysis = $this->seedWorkRequest($em, $held, subject: new WorkSubject('analysis', Uuid::v7()));
+        $this->seedWorkRequest($em, $held, subject: new WorkSubject('analysis', Uuid::v7()));
         $offered = $this->seedWorkRequest($em, $free);
         $lapsed = $this->claimed($held, Uuid::v4(), Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'), Uuid::v7(), 'review');
+        $lapsedAnalysis = $this->seedWorkRequest(
+            $em,
+            $held,
+            state: WorkRequestState::Claimed,
+            bridgeId: Uuid::v4(),
+            claimToken: Uuid::v4(),
+            leaseUntil: new \DateTimeImmutable('2026-10-01 12:00:00'),
+            subject: new WorkSubject('analysis', Uuid::v7()),
+        );
         $projects = [(string) $held->id, (string) $free->id];
         $heldIds = [(string) $held->id];
         $ids = static fn (array $requests): array => array_map(static fn (WorkRequest $request): string => (string) $request->id, $requests);
 
-        self::assertEqualsCanonicalizing([(string) $analysis->id, (string) $offered->id], $ids($this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10, $heldIds)));
+        self::assertSame([(string) $offered->id], $ids($this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10, $heldIds)));
         self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), $heldIds));
-        self::assertSame([(string) $held->id], $this->repository()->findProjectIdsOfLapsedCardClaims(new \DateTimeImmutable('2026-10-01 12:30:00')));
-        self::assertSame([(string) $lapsed->id], $ids($this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [])));
+        self::assertSame([(string) $held->id], $this->repository()->findProjectIdsOfLapsedClaims(new \DateTimeImmutable('2026-10-01 12:30:00')));
+        self::assertEqualsCanonicalizing([(string) $lapsed->id, (string) $lapsedAnalysis->id], $ids($this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [])));
     }
 
     public function test_the_done_fixes_are_told_apart_by_repository_state_and_role(): void

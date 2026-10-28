@@ -72,7 +72,7 @@ final readonly class ClaimWorkRequestHandler
                 return WorkRequestRefusal::CardHeld;
             }
             // The key share above makes this read wait for a summary write that holds the project row.
-            if (WorkSubject::CARD === $request->subjectType && null !== $request->project->id && null !== $this->workHolds->heldProject($request->project->id)) {
+            if (null !== $request->project->id && null !== $this->workHolds->heldProject($request->project->id)) {
                 return WorkRequestRefusal::ProjectHeld;
             }
 

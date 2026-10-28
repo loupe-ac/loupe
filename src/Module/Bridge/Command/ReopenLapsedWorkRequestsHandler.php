@@ -35,7 +35,7 @@ final readonly class ReopenLapsedWorkRequestsHandler
         $reopened = $this->em->wrapInTransaction(function (): array {
             $now = $this->clock->now();
             // The key share locks last to the commit, so a hold that starts later waits for the reopen.
-            $held = $this->heldProjects->among($this->workRequests->findProjectIdsOfLapsedCardClaims($now));
+            $held = $this->heldProjects->among($this->workRequests->findProjectIdsOfLapsedClaims($now));
             $reopened = $this->workRequests->reopenLapsed($now, $held);
             foreach ($reopened as $request) {
                 $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));

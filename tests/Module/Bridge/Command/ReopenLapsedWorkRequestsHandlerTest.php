@@ -149,7 +149,7 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
     }
 
-    public function test_a_lapsed_card_claim_of_a_project_that_holds_its_new_work_stays_claimed_until_the_hold_ends(): void
+    public function test_a_lapsed_claim_of_a_project_that_holds_its_new_work_stays_claimed_until_the_hold_ends(): void
     {
         self::bootKernel();
         $em = $this->em();
@@ -166,16 +166,17 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
             subject: new WorkSubject('analysis', Uuid::v7()),
         );
 
-        self::assertSame(1, $this->handler()(new ReopenLapsedWorkRequestsCommand()), 'The analysis claim is no card request, so it opens again.');
+        self::assertSame(0, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
         $em->clear();
         self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $card->id)?->state);
-        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $analysis->id)?->state);
+        self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $analysis->id)?->state);
 
         $em->getConnection()->executeStatement('DELETE FROM forge_repositories WHERE id = :id', ['id' => $repository->id?->toRfc4122()]);
 
-        self::assertSame(1, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
+        self::assertSame(2, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
         $em->clear();
         self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $card->id)?->state);
+        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $analysis->id)?->state);
     }
 
     private function claimed(Project $project, string $leaseUntil): WorkRequest
