@@ -5,7 +5,7 @@ description: 'Replacing the production deploy secrets with one command, the orde
 
 Rotate the deploy secrets when one leaks, or on a schedule. The command `just rotate-secrets` makes a new value where it can. It asks you for the values that only a vendor can issue. It applies all of them to production and prints the old credentials that you must revoke by hand.
 
-The recipe covers an App Platform deployment that you manage with the Terraform files in `terraform/`. It edits `terraform/terraform.tfvars` and never prints a secret value.
+The recipe covers an App Platform deployment that you manage with the Terraform files in `terraform/`. It writes the new values into the secret store, or into `terraform/terraform.tfvars` when you have no store, and never prints a secret value.
 
 ## The groups
 
@@ -64,7 +64,7 @@ For a vendor secret, the recipe prints the page to open and reads the new value 
 1. The encryption key step runs first, when the run includes it. It applies three times and asks you a question in between.
 2. The recipe finishes a pending webhook switch, when the file `terraform/.rotate-secrets.webhook-since` exists. A run that finds the file does this before any other step.
 3. The recipe writes the file with the phase `applying`, the start time and the ID of the active app deployment. This step applies only when the run holds the webhook secret.
-4. The recipe writes every new value to a temporary file. It reads each value back through Terraform. When every value matches, it renames the temporary file over `terraform/terraform.tfvars`.
+4. The recipe writes every new value to a temporary file. It reads each value back. When every value matches, it renames the temporary file over the store file `terraform/secrets.enc.yaml`, or over `terraform/terraform.tfvars` for a value that is not in `terraform/secrets.list`. A rotation that changes a secret and a public value together, such as the OAuth key pair, writes the store first and the file second.
 5. The recipe runs `just tf-apply` once. It replaces the export bucket key in the same apply.
 6. The recipe waits until a deployment that is newer than the recorded one is active. It polls every 15 seconds and stops after 30 minutes.
 7. The recipe sets the phase to `applied`.
@@ -109,6 +109,8 @@ The guard protects these files:
 
 - `terraform/terraform.tfvars`
 - `terraform/terraform.tfstate` and its backup copies
+- a saved plan, `terraform/*.tfplan`
+- the age key file, `sops/age/keys.txt`
 - `docker/compose/prod.env`
 - the temporary files `terraform/.rotate-secrets.tmp.*`
 
@@ -117,13 +119,14 @@ It has two layers.
 - Deny rules in `.claude/settings.json` refuse `Read` on those files. They hold in every permission mode, and they also cover `@` mentions and the selection of an editor.
 - The hook `.agents/hooks/no-secret-reads.sh` checks every word of a shell command, and the path of `Read`, `Grep`, `Edit` and `Write`. It matches on the file name, with any folder before it, so a worktree cannot reach the main checkout files through `../..`.
 
-The hook also refuses a command that prints the Terraform state without naming it, such as `terraform state pull`. It refuses a recursive search over a folder that holds a secret file. For that search, use `rg` or `git grep`, which skip files that git ignores.
+The hook also refuses a command that prints the Terraform state without naming it, such as `terraform state pull`. It refuses the commands that read the secret store: `bin/tf-secrets exec`, which can run any command with every secret in its environment, and `sops decrypt`, `sops edit`, `sops exec-env` and `age --decrypt`. It refuses a recursive search over a folder that holds a secret file. For that search, use `rg` or `git grep`, which skip files that git ignores.
 
 Each refusal names a safe path:
 
 - `just tfvars-names` prints the names assigned in `terraform.tfvars` and `prod.env`, and no value.
 - `just healthz` prints the live version of the app. It reads the probe token and never prints it.
 - `just rotate-secrets` rotates a secret without showing it.
+- `just tf-plan` and `just tf-apply` run Terraform with the secrets from the store. `bin/tf-secrets names` lists the names the store holds.
 
 ### What the guard does not stop
 

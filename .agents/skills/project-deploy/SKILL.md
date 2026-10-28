@@ -6,8 +6,9 @@ description: "Use when deploying to production, running terraform apply, verifyi
 # Deploying
 
 Production is a DigitalOcean App Platform app pulling `ghcr.io/loupe-ac/loupe:prod`.
-Infrastructure lives in `terraform/`, and `terraform/terraform.tfvars` is
-gitignored, so it holds the real values.
+Infrastructure lives in `terraform/`. The secrets live in an encrypted sops
+store, `terraform/secrets.enc.yaml`, which `bin/tf-secrets` reads. The other
+real values sit in `terraform/terraform.tfvars`, which is gitignored.
 
 ## The two halves, and why they are not the same event
 
@@ -51,13 +52,16 @@ That is the one exception to the rule above. The worker container runs two consu
 
 ## The secret read guard
 
-A `PreToolUse` hook, `.agents/hooks/no-secret-reads.sh`, refuses an agent tool call that reads `terraform.tfvars`, a Terraform state file, `docker/compose/prod.env` or a `.rotate-secrets.tmp.*` file. It also refuses a recursive search over a folder that holds one. Deny rules in `.claude/settings.json` cover the file tools.
+A `PreToolUse` hook, `.agents/hooks/no-secret-reads.sh`, refuses an agent tool call that reads `terraform.tfvars`, a Terraform state file, a saved plan (`*.tfplan`), `docker/compose/prod.env`, the age key file or a `.rotate-secrets.tmp.*` file. It also refuses a recursive search over a folder that holds one. It refuses `bin/tf-secrets exec`, which can run any command with every secret in its environment, and the store reads `sops decrypt`, `sops edit`, `sops exec-env` and `age --decrypt`. Deny rules in `.claude/settings.json` cover the file tools.
 
 These paths are safe:
 
 - `just tfvars-names` lists the variable names that the two files set, with no value.
 - `just healthz` reads the live version from `/healthz`.
 - `just rotate-secrets` rotates the secrets.
+- `just tf-plan`, `just tf-apply` and `just tf-output` run Terraform with the secrets from the store.
+- `bin/tf-secrets names` lists the names the store holds, and `verify` compares the store with `terraform.tfvars`. Neither prints a value.
+- `bin/tf-plan-diff <plan> [NAME]` lists what a saved plan changes, with no value.
 - `bin/tfvars-missing.sh` lists the variables that the example file offers and your file does not set.
 - `ls`, `stat` and `test` on a secret file are allowed, because they print no content.
 - `rg` and `git grep` skip the gitignored secret files, so use them for a search over a folder.
@@ -144,12 +148,14 @@ so check yourself.
 ## Ship an infrastructure change
 
 ```bash
-cd terraform
-terraform plan -out=/tmp/tf.plan     # read it, then apply the file you read
-terraform apply /tmp/tf.plan
+just tf-plan -out=deploy.tfplan                       # read it, then apply the file you read
+just tf-apply deploy.tfplan; s=$?; rm -f terraform/deploy.tfplan; (exit $s)
 ```
 
 Apply the saved plan rather than re-planning, so what lands is what you reviewed.
+Terraform writes every secret into a saved plan in plain text, so the apply
+command removes the file, also when the apply fails. If a session ends between
+the two commands, delete `terraform/deploy.tfplan` by hand.
 
 **Read the plan as JSON, not as text.** The DigitalOcean provider collapses the
 app resource into "(N unchanged blocks hidden)", and an added environment
@@ -157,15 +163,12 @@ variable hides in there. Grepping the human-readable output for a variable name
 finds nothing and reads as "no change":
 
 ```bash
-terraform show -json /tmp/tf.plan | python3 -c "
-import json,sys
-for rc in json.load(sys.stdin)['resource_changes']:
-    if rc['change']['actions'] == ['no-op']: continue
-    print(rc['address'], rc['change']['actions'])
-    print('  before:', 'MY_VAR' in json.dumps(rc['change']['before'] or {}))
-    print('  after :', 'MY_VAR' in json.dumps(rc['change']['after'] or {}))
-"
+bin/tf-plan-diff terraform/deploy.tfplan MY_VAR
 ```
+
+The script prints each changed resource, and whether `MY_VAR` appears before and
+after. It prints no value. Never run `terraform show -json` on a saved plan
+yourself: the hook refuses it, because the JSON holds the secrets.
 
 To ship code and an infrastructure change together, apply the plan first. Then
 run `just deploy`, or `create-deployment --force-rebuild` when the image is
@@ -183,7 +186,7 @@ deployment is also `ACTIVE` until the new one replaces it.
 just healthz
 ```
 
-The recipe reads the token and the domain through `terraform console`, sends the token to `curl` on standard input, and prints the body. It never prints the token. It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
+The recipe loads the secrets from the store, reads the token and the domain through `terraform console`, sends the token to `curl` on standard input, and prints the body. It never prints the token. It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
 `git rev-parse --short HEAD`. Without the header the endpoint reports liveness
 alone and no metadata, which is deliberate.
 
