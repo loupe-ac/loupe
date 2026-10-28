@@ -38,11 +38,11 @@
                 <div class="lp-comment-thread">
                     {%- if runWait and line.detail %}
                         {# Worker Markdown, rendered and sanitized the way a card body is. #}
-                        <div class="prose lp-prose lp-review-doc__prose">{{ line.detail|inbox_markdown }}</div>
+                        {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
                     {%- else %}
                         <p class="lp-comment-body">{{ line.pageKey|trans(line.params) }}</p>
                         {%- if line.detail %}
-                            <div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail>{{ line.detail|inbox_markdown }}</div>
+                            {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
                         {%- endif %}
                     {%- endif %}
                     {%- if wait.endedAt %}
@@ -137,7 +137,7 @@
                     <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
                         <twig:block name="main">
                         {% if actions.main and actions.main.isLink %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-drawer-title="actions.main.card and cardDrawer ? item.title : null" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</twig:Ds:Button>
+                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-drawer-title="actions.main.card and cardDrawer ? item.title|reference_plain : null" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand and addEntryDialog %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" data-action="click->modal#open" data-inbox-action="add-entry">{{ 'inbox.action.add-entry.label'|trans }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand %}
@@ -148,13 +148,13 @@
                         </twig:block>
                         <twig:block name="content">
                             {% for row in actions.menu %}
-                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: row, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title} only %}
+                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: row, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
                             {% endfor %}
                             {% if actions.menu and actions.dismiss %}
                                 <twig:Ds:MenuDivider />
                             {% endif %}
                             {% if actions.dismiss %}
-                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title} only %}
+                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
                             {% endif %}
                         </twig:block>
                     </twig:Ds:SplitButton>

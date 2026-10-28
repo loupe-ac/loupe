@@ -120,6 +120,27 @@ final class DocumentWorkLinksControllerTest extends WebTestCase
         self::assertSame(1, static::getContainer()->get(CardDocumentRepository::class)->count(['card' => $linkedId]));
     }
 
+    public function test_picker_shows_the_tokens_of_a_card_title_as_plain_text(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'document-token-links@example.test');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Follow up on card:9001');
+        $document = new Document($owner, $project, 'Token document');
+        $document->addVersion('# Token', '<h1>Token</h1>');
+        $em->persist($document);
+        $em->flush();
+        $cardId = (string) $card->id;
+        $url = '/projects/'.$project->id.'/documents/'.$document->id.'/review';
+        $em->clear();
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $url);
+        $label = $crawler->filter('input[name="revise_document_form[workLinkIds][]"][value="'.$cardId.'"]')->closest('label');
+        self::assertNotNull($label);
+        self::assertSame('#'.$card->number.' Follow up on card #9001', trim($label->filter('span')->text()));
+    }
+
     public function test_creation_survives_a_link_listener_that_flushes(): void
     {
         static::bootKernel();

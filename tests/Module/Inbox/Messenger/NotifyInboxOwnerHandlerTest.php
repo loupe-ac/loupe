@@ -25,6 +25,7 @@ use App\Module\Notification\Service\NotificationPreferences;
 use App\Module\Notification\Service\Notifier;
 use App\Module\Notification\Service\PresenceStore;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Service\ReferenceTokens;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Notification\NotificationScenario;
 use App\Tests\Support\RecordingMessageBus;
@@ -76,6 +77,15 @@ final class NotifyInboxOwnerHandlerTest extends KernelTestCase
             $notification['navigate'],
         );
         self::assertSame('high', $this->sent()[0]->urgency);
+    }
+
+    public function test_a_reference_token_in_an_ask_title_is_pushed_as_plain_text(): void
+    {
+        $ask = $this->askWith('Does card:1116 block pr:acme/loupe#1295?');
+
+        $this->handle(new NotifyInboxOwner((string) $ask->id, NotifyInboxOwnerKind::Ask));
+
+        self::assertSame('Does card #1116 block acme/loupe#1295?', $this->onlyPayload()['notification']['body']);
     }
 
     public function test_an_ask_with_more_items_says_how_many_more(): void
@@ -260,6 +270,7 @@ final class NotifyInboxOwnerHandlerTest extends KernelTestCase
             $notifier,
             $container->get(UrlGeneratorInterface::class),
             $container->get(TranslatorInterface::class),
+            new ReferenceTokens(),
             (string) $container->getParameter('app.url'),
             'en',
         );

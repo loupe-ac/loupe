@@ -14,7 +14,7 @@
         <a class="lp-inbox-review-document" href="{{ path('app_document_review', {projectId: review.document.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top" data-inbox-review-document-card>
             <twig:ux:icon name="lucide:file-text" class="lp-inbox-review-document__icon" />
             <span class="lp-inbox-review-document__text">
-                <span class="lp-inbox-review-document__title">{{ review.document.title }}</span>
+                <span class="lp-inbox-review-document__title">{{ review.document.title|reference_plain }}</span>
                 <span class="lp-inbox-review-document__sub">{% if version %}{{ 'inbox.review.version'|trans({'%version%': version}) }} · {% endif %}{{ review.document.status.translationKey()|trans }}</span>
             </span>
             <span class="lp-inbox-review-document__action">{{ 'inbox.review.read_it'|trans }}</span>

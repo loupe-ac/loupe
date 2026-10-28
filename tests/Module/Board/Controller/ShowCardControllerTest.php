@@ -59,6 +59,28 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertSame(0, $crawler->filter('.lp-card-drawer__identity .lp-tag--purple')->count());
     }
 
+    public function test_a_card_reference_in_the_body_links_to_the_card(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-body-reference@example.com');
+        $project = $this->project($em, $owner);
+        $target = $this->card($em, $project, 'Gate new work');
+        $host = $this->card($em, $project, 'Host card');
+        $host->body = 'Waits on card:'.$target->number.' and `card:'.$target->number.'`.';
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$host->id);
+
+        self::assertResponseIsSuccessful();
+        $links = $crawler->filter('.lp-card-detail__body a[data-card-drawer-opener]');
+        self::assertSame(1, $links->count());
+        self::assertSame('card #'.$target->number, $links->text());
+        self::assertSame('Gate new work', $links->attr('data-ref-tooltip-title'));
+    }
+
     public function test_a_native_note_shows_its_source_facts_and_screenshot_thumbnail(): void
     {
         $client = static::createClient();

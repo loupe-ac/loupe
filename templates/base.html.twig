@@ -8,7 +8,7 @@
         </form>
         {% set project = current_project() %}
         {% set route = app.request.attributes.get('_route') %}
-        <div class="lp-app" data-controller="drawer">
+        <div class="lp-app" data-controller="drawer reference-link">
             {% if project %}<div hidden data-controller="remember-project" data-remember-project-id-value="{{ project.id }}"></div>{% endif %}
             {# Off a project page the sidebar keeps the last project visited; the topbar does not. #}
             {% with {project: sidebar_project()} %}
@@ -176,6 +176,10 @@
                     {% block body %}{% endblock %}
                 </main>
             </div>
+            <twig:Ds:Tooltip id="lp-reference-tooltip" :interactive="true" data-reference-link-target="tooltip">
+                <span class="lp-tooltip__title" data-reference-link-target="title" hidden></span>
+                <span class="lp-tooltip__line" data-reference-link-target="line" hidden></span>
+            </twig:Ds:Tooltip>
         </div>
         {% else %}
         {# Overrides must place main#main-content with tabindex="-1" after navigation. #}

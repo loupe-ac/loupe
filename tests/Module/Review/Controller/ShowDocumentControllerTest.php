@@ -1267,6 +1267,44 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertSame('Links to this document · In review', trim($row->filter('.lp-menu__line')->text()));
     }
 
+    public function test_a_reference_title_shows_its_tokens_as_plain_text(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->createUser($em, 'owner-ref-tokens', 'owner-ref-tokens@example.com');
+        $project = $this->project($em, $owner);
+
+        $target = new Document(owner: $owner, project: $project, title: 'Spec for card:9001');
+        $target->addVersion('# Spec', '<h1>Spec</h1>');
+        $em->persist($target);
+
+        $source = new Document(owner: $owner, project: $project, title: 'Thread on pr:acme/loupe#9002');
+        $source->addVersion('# Thread', '<h1>Thread</h1>');
+        $source->references->add($target);
+        $em->persist($source);
+        $em->flush();
+
+        $projectId = (string) $project->id;
+        $sourceId = (string) $source->id;
+        $targetId = (string) $target->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$sourceId.'/review');
+        self::assertResponseIsSuccessful();
+        self::assertSame('Spec for card #9001', trim($crawler->filter('#review-page-menu [data-page-menu-group="outgoing"] .lp-menu__label')->text()));
+        $sheet = $crawler->filter('.lp-review-sheet__section[href$="/documents/'.$targetId.'/review"]');
+        self::assertSame('Spec for card #9001', trim($sheet->filter('.lp-review-sheet__label')->text()));
+        self::assertSame('Spec for card #9001', $sheet->attr('title'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$targetId.'/review');
+        self::assertResponseIsSuccessful();
+        self::assertSame('Thread on acme/loupe#9002', trim($crawler->filter('#review-page-menu [data-page-menu-group="incoming"] .lp-menu__label')->text()));
+        self::assertSame('Thread on acme/loupe#9002', trim($crawler->filter('.lp-review-sheet__section[href$="/documents/'.$sourceId.'/review"] .lp-review-sheet__label')->text()));
+    }
+
     /**
      * The contents panel and the reference list are separate features that landed
      * in the same region of the document head, so one page has to render both.
