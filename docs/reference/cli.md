@@ -221,6 +221,21 @@ or `a build at <commit>` for a development build. In a built setup it reads
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.
 
+## `loupe session end`
+
+Closes the open interactive runs of a Claude Code session that just ended. The
+`SessionEnd` hook of the Loupe plugin starts it in the background. The hook
+writes its JSON to stdin, and the command reads the `session_id` from it.
+
+The command uses your stored login. It reads no project file and no setup link,
+because one session can work in several projects. Loupe closes the runs of the
+session in every project of your account, with the reason `session-ended`. The
+command prints nothing on success. On failure it exits with 1 and prints the
+reason on stderr, and the hook ignores that. A run that the hook did not close
+closes later, as [stale sessions](../using/worker-runs.md#stale-sessions) says.
+
+The hook does nothing on a machine where `loupe` is not on the `PATH`.
+
 ## `loupe review ios`
 
 Opens the Live review panel for an app in the local iOS Simulator. The panel sits beside the simulator window in Device Hub, in Xcode 27. It saves notes with a screenshot to the Loupe project. [Reviewing an iOS app in the simulator](../using/live-review.md#reviewing-an-ios-app-in-the-simulator) describes the review itself.

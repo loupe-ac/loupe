@@ -333,3 +333,17 @@ func decodeLostClaims(raw []json.RawMessage) []string {
 
 	return out
 }
+
+// decodeWatchSessions keeps the string ids of a watch list and drops any
+// other item.
+func decodeWatchSessions(raw []json.RawMessage) []string {
+	var out []string
+	for _, item := range raw {
+		var id string
+		if json.Unmarshal(item, &id) == nil && id != "" {
+			out = append(out, id)
+		}
+	}
+
+	return out
+}

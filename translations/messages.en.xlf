@@ -7186,6 +7186,12 @@
             <trans-unit id="bridge.worker_runs.details.switched_from"><source>bridge.worker_runs.details.switched_from</source><target>switched from %variant%</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_status"><source>bridge.worker_runs.details.result_status</source><target>Result status</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_reason"><source>bridge.worker_runs.details.result_reason</source><target>Reason</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.close_reason"><source>bridge.worker_runs.details.close_reason</source><target>Closed because</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-ended"><source>bridge.worker_runs.close_reason.session-ended</source><target>The session ended</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.person"><source>bridge.worker_runs.close_reason.person</source><target>A person closed it</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.card-moved"><source>bridge.worker_runs.close_reason.card-moved</source><target>The card moved to another column</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.stale"><source>bridge.worker_runs.close_reason.stale</source><target>No sign of life for too long</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-gone"><source>bridge.worker_runs.close_reason.session-gone</source><target>The session process is gone</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.resume_skipped"><source>bridge.worker_runs.details.resume_skipped</source><target>Resume skipped</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metrics"><source>bridge.worker_runs.details.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cost"><source>bridge.worker_runs.details.metric.cost</source><target>Cost</target></trans-unit>

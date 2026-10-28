@@ -26,6 +26,7 @@ final readonly class RateLimitWorkerRunReports
         'api_project_worker_run_tool_calls_report',
         'api_bridge_runs_report',
         'api_project_interactive_run_report',
+        'api_interactive_session_close',
         'api_project_experiment_pin_resolve',
         'api_bridge_command_ack',
     ];

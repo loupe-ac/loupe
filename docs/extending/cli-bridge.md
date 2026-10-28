@@ -2183,6 +2183,22 @@ as it runs. When the server asks, the bridge reads the usage of the run's
 window from the local transcript and sends it as an estimate. See
 [Pause, stop and resume](#pause-stop-and-resume).
 
+### Session liveness
+
+A bridge checks each interactive session that it launched, once a minute, and sends
+the result in its heartbeat. The reply of each heartbeat names the sessions to
+watch. For each one the bridge lists the processes of its own user with
+`ps -axo pid=,args=` and looks for `--session-id <id>` in a command line, which
+every Claude launch carries. It also reads when the transcript of the session
+last changed. A machine where `ps` fails reports no answer for `alive`, and the
+server then relies on the transcript time and the stale check. A Codex launch
+carries no session id in its command line, so the bridge reports no answer for
+`alive`. It reads when the Codex session file of the run last changed, in the
+default Codex home and in the `codexHome` of each `codex` account. The field names are in the
+[heartbeat reference](../reference/bridge-heartbeat.md#interactive-sessions). A
+run whose process is gone closes at once, as
+[stale sessions](../using/worker-runs.md#stale-sessions) says.
+
 ### Session entry
 
 The action **Start an interactive session** on an inbox item opens a work
