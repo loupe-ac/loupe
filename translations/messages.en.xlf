@@ -7186,6 +7186,12 @@
             <trans-unit id="bridge.worker_runs.details.switched_from"><source>bridge.worker_runs.details.switched_from</source><target>switched from %variant%</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_status"><source>bridge.worker_runs.details.result_status</source><target>Result status</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_reason"><source>bridge.worker_runs.details.result_reason</source><target>Reason</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.close_reason"><source>bridge.worker_runs.details.close_reason</source><target>Closed because</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-ended"><source>bridge.worker_runs.close_reason.session-ended</source><target>The session ended</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.person"><source>bridge.worker_runs.close_reason.person</source><target>A person closed it</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.card-moved"><source>bridge.worker_runs.close_reason.card-moved</source><target>The card moved to another column</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.stale"><source>bridge.worker_runs.close_reason.stale</source><target>No sign of life for too long</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-gone"><source>bridge.worker_runs.close_reason.session-gone</source><target>The session process is gone</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.resume_skipped"><source>bridge.worker_runs.details.resume_skipped</source><target>Resume skipped</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metrics"><source>bridge.worker_runs.details.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cost"><source>bridge.worker_runs.details.metric.cost</source><target>Cost</target></trans-unit>
@@ -7206,6 +7212,7 @@
             <trans-unit id="bridge.worker_runs.control.stop"><source>bridge.worker_runs.control.stop</source><target>Stop</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun"><source>bridge.worker_runs.control.rerun</source><target>Run again</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.cancel"><source>bridge.worker_runs.control.cancel</source><target>Cancel request</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.control.close"><source>bridge.worker_runs.control.close</source><target>Close session</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.resume_requested"><source>bridge.worker_runs.control.resume_requested</source><target>Resume requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.stop_requested"><source>bridge.worker_runs.control.stop_requested</source><target>Stop requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun_requested"><source>bridge.worker_runs.control.rerun_requested</source><target>Run again requested</target></trans-unit>
@@ -7475,10 +7482,6 @@
             <trans-unit id="bridge.worker_runs.running_for">
                 <source>bridge.worker_runs.running_for</source>
                 <target>running for %duration%</target>
-            </trans-unit>
-            <trans-unit id="bridge.worker_runs.close_session">
-                <source>bridge.worker_runs.close_session</source>
-                <target>Close session</target>
             </trans-unit>
             <trans-unit id="bridge.worker_runs.output.toggle">
                 <source>bridge.worker_runs.output.toggle</source>
@@ -8949,6 +8952,8 @@
             <trans-unit id="workflow.waiting.not.pr_ready_for_stuck_delay"><source>workflow.waiting.not.pr_ready_for_stuck_delay</source><target>Waiting: the pull request is ready to merge for the stuck delay or more.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_rule_held_by_blocker"><source>workflow.waiting.card_rule_held_by_blocker</source><target>Waiting: no move rule of the card waits for an open blocker alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_rule_held_by_blocker"><source>workflow.waiting.not.card_rule_held_by_blocker</source><target>Waiting: a move rule of the card waits for an open blocker alone.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_rule_retry_scheduled"><source>workflow.waiting.card_rule_retry_scheduled</source><target>Waiting: no refused rule of the card waits for a retry.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_rule_retry_scheduled"><source>workflow.waiting.not.card_rule_retry_scheduled</source><target>Waiting: a refused rule of the card waits for its retry.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_stopped"><source>workflow.waiting.card_run_stopped</source><target>Waiting: the latest run of the card did not stop with a warning.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_stopped"><source>workflow.waiting.not.card_run_stopped</source><target>Waiting: the latest run of the card stopped with a warning, and the card did not move since.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_needs_person"><source>workflow.waiting.card_run_needs_person</source><target>Waiting: the newest run of the card did not stop for a person, or the card moved since.</target></trans-unit>
@@ -9410,6 +9415,7 @@
             <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
             <trans-unit id="marker.paused.reason.title"><source>marker.paused.reason.title</source><target>Paused: %reason%</target></trans-unit>
             <trans-unit id="marker.paused.run"><source>marker.paused.run</source><target>Card %card% is paused. %reason%. The last %worker% run failed: %failure%.</target></trans-unit>
+            <trans-unit id="marker.paused.run_state"><source>marker.paused.run_state</source><target>Card %card% is paused. %reason%. The last %worker% run ended as %state%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review"><source>marker.paused.work_limit.agent_review</source><target>Card %card% is paused. %count% %work% rounds did not pass the agent review of PR #%number%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review.title"><source>marker.paused.work_limit.agent_review.title</source><target>%count% %work% rounds did not pass the agent review of PR #%number%</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.pull_request"><source>marker.paused.work_limit.pull_request</source><target>Card %card% is paused. %count% %work% rounds did not settle PR #%number%.</target></trans-unit>
@@ -9467,6 +9473,8 @@
             <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
+            <trans-unit id="marker.retry_scheduled"><source>marker.retry_scheduled</source><target>The work of a rule failed. A retry is due at %due%.</target></trans-unit>
+            <trans-unit id="marker.retry_scheduled.remedy"><source>marker.retry_scheduled.remedy</source><target>Wait for the retry. The card pauses when its retries run out.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending.remedy"><source>marker.forge_request_pending.remedy</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
             <trans-unit id="marker.held_by_blocker"><source>marker.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>

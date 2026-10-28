@@ -5,6 +5,7 @@
       "Read(./terraform/terraform.tfvars)",
       "Read(./terraform/*.tfstate)",
       "Read(./terraform/*.tfstate.*)",
+      "Read(./terraform/*.tfplan)",
       "Read(./terraform/.rotate-secrets.tmp.*)",
       "Read(./docker/compose/prod.env)"
     ]

@@ -1106,7 +1106,7 @@ in a terminal column, and for a card that carries only a chip such as
 the marker that names the reason: `paused`, `run-stopped`, `run-needs-you`, `checks-failed`,
 `conflicting`, `ready-not-merged`, `pull-request-idle`, `nothing-happened`,
 `document-in-review`, `waits-for-approval`, `open-question`, `session-open`,
-`run-open`, `work-requested`, `forge-request-pending`, `held-by-blocker`,
+`run-open`, `work-requested`, `retry-scheduled`, `forge-request-pending`, `held-by-blocker`,
 `waits-for-parent-card`, `waits-for-parent-branch` or `waiting-on-checks`.
 `since` is the time that reason began, or null when Loupe stores none.
 `card_get`, `card_list` with `full`, `card_create`, `card_update` and

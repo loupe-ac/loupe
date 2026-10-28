@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# Lists what a saved Terraform plan changes, from its JSON, and never prints a
+# value. With a variable name, it also says whether that name appears in the
+# before and after of each changed resource, as yes or no.
+#
+# Usage: bin/tf-plan-diff <plan file> [NAME]
+
+set -euo pipefail
+
+plan=${1:-}
+name=${2:-}
+[ -n "$plan" ] || { echo "usage: bin/tf-plan-diff <plan file> [NAME]" >&2; exit 2; }
+
+terraform -chdir=terraform show -json "$(cd "$(dirname "$plan")" && pwd)/$(basename "$plan")" \
+    | jq -r --arg name "$name" '
+        .resource_changes[]
+        | select(.change.actions != ["no-op"])
+        | .address + " " + (.change.actions | join(","))
+          + (if $name == "" then "" else
+              "  before:" + ((.change.before // {} | tojson | contains($name)) | if . then "yes" else "no" end)
+              + " after:" + ((.change.after // {} | tojson | contains($name)) | if . then "yes" else "no" end)
+            end)'

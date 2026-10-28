@@ -38,14 +38,20 @@ final readonly class WorkerRunControls
     {
         $bridgeIds = [];
         $controllable = [];
+        $controls = [];
         foreach ($runs as $run) {
-            if (null !== $run->bridgeId && WorkerRunKind::Interactive !== $run->kind) {
+            if (WorkerRunKind::Interactive === $run->kind) {
+                // The session is a record Loupe holds, so closing it sends no request to a bridge.
+                if (WorkerRunState::Running === $run->state) {
+                    $controls[(string) $run->id] = new WorkerRunControl(WorkerRunAction::Close);
+                }
+            } elseif (null !== $run->bridgeId) {
                 $bridgeIds[$run->bridgeId->toRfc4122()] = $run->bridgeId;
                 $controllable[] = $run;
             }
         }
         if ([] === $controllable) {
-            return [];
+            return $controls;
         }
 
         $owner = $project->owner;
@@ -56,7 +62,6 @@ final readonly class WorkerRunControls
         $statuses = $this->liveness->forOwner($owner, array_values($bridgeIds));
         $latest = $this->bridgeCommands->findLatestForRuns($controllable);
 
-        $controls = [];
         foreach ($controllable as $run) {
             $bridgeKey = ($run->bridgeId ?? throw new \LogicException('A controllable run has a bridge.'))->toRfc4122();
             $control = $this->controlOf($run, $latest[(string) $run->id] ?? null, $bridges[$bridgeKey] ?? null, $statuses[$bridgeKey]->quiet ?? true);

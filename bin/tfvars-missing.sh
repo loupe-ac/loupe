@@ -20,7 +20,22 @@ done
 offered() { grep -oE '^[ \t]*#?[ \t]*[a-z_][a-z_0-9]*[ \t]*=' "$EXAMPLE" | tr -d ' \t#=' | sort -u; }
 
 # Live assignments only: a commented line in your own tfvars sets nothing.
-assigned() { grep -oE '^[ \t]*[a-z_][a-z_0-9]*[ \t]*=' "$TFVARS" | tr -d ' \t=' | sort -u; }
+assigned() {
+    {
+        grep -oE '^[ \t]*[a-z_][a-z_0-9]*[ \t]*=' "$TFVARS" | tr -d ' \t='
+        stored
+    } | sort -u
+}
+
+# Listed secrets that the secret store holds count as set.
+stored() {
+    local held tf env
+    held=$(bin/tf-secrets names)
+    while read -r tf env; do
+        grep -qxF "$env" <<<"$held" && echo "$tf"
+    done < <(awk 'NF && $1 !~ /^#/ { print $1, ($2 != "" ? $2 : "TF_VAR_" $1) }' terraform/secrets.list)
+    return 0
+}
 
 # A variable declared with no `default` must be supplied or `terraform apply` fails.
 required() {

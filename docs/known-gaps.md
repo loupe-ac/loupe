@@ -74,9 +74,13 @@ description: "Things the application needs that are not configured on your behal
    block commented out, so state is local. `terraform/terraform.tfstate` and
    `.tfstate.backup` then contain everything the app spec marks
    `"type":"SECRET"`, plus the managed-database URI and the Spaces keys —
-   plaintext whatever the spec calls them. Provider credentials are not in state
-   but sit beside it in `terraform/terraform.tfvars`: same machine, same blast
-   radius, different file.
+   plaintext whatever the spec calls them. Provider credentials are not in state.
+   The deploy secrets live in an encrypted secret store (`bin/tf-secrets`), not
+   in `terraform/terraform.tfvars`, but the state still holds the same values:
+   the DigitalOcean provider has no write-only argument, so Terraform cannot
+   keep them out. A hook refuses agent reads of the state, of
+   `terraform state pull` and of a saved plan. A backup, a cloud sync or a
+   stolen laptop still holds every value.
 
    This is deliberate for a single operator on a single machine, where a remote
    backend would add a bucket, a lock table and another credential against a
