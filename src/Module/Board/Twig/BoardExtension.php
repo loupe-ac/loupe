@@ -145,9 +145,9 @@ final class BoardExtension extends AbstractExtension
             ->createView();
     }
 
-    public function cardDigest(Card $card, int $pendingComments, int $documentCount, ?CardProgress $progress, ?CardRunWarning $runWarning, ?StoredCardMarkers $markers): string
+    public function cardDigest(Card $card, int $pendingComments, int $documentCount, ?CardProgress $progress, ?CardRunWarning $runWarning, ?StoredCardMarkers $markers, ?int $inboxItem = null): string
     {
-        return $this->digest->forCard($card, $pendingComments, $documentCount, $card->pullRequests->count(), $progress, $runWarning, $markers);
+        return $this->digest->forCard($card, $pendingComments, $documentCount, $card->pullRequests->count(), $progress, $runWarning, $markers, $inboxItem);
     }
 
     /** @return list<CardDocument> */

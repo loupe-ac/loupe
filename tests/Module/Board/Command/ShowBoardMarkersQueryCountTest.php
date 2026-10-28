@@ -10,6 +10,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\CardStateFixtures;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 
 /** The markers are stored on the card row, so the board page reads no state and costs no query per card. */
 final class ShowBoardMarkersQueryCountTest extends KernelTestCase
@@ -27,6 +28,11 @@ final class ShowBoardMarkersQueryCountTest extends KernelTestCase
         $queries = self::getContainer()->get('doctrine.debug_data_holder');
         self::assertInstanceOf(DebugDataHolder::class, $queries);
         $this->queries = $queries;
+
+        // The flag reader loads every flag once per request, so the first board read would count that query alone.
+        $flags = self::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(FeatureFlagReaderInterface::class, $flags);
+        $flags->all();
     }
 
     public function test_fifty_cards_cost_the_board_no_more_queries_than_five(): void

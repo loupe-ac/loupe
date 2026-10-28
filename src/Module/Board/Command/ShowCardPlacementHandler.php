@@ -13,6 +13,7 @@ use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Service\BoardColumnCards;
 use App\Module\Board\Service\BoardLanes;
+use App\Module\Board\Service\CardOpenInboxItems;
 use App\Module\Board\Service\LaneDecks;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Workflow\Contract\CardTypeCatalog;
@@ -29,6 +30,7 @@ final readonly class ShowCardPlacementHandler
         private LaneDecks $laneDecks,
         private BoardAutomation $automation,
         private CardTypeCatalog $catalog,
+        private CardOpenInboxItems $openInboxItems,
     ) {
     }
 
@@ -122,6 +124,7 @@ final readonly class ShowCardPlacementHandler
             $laneAfter,
             $laneHead ? ($this->laneDecks->forEpics($backlog, [(string) $card->id])[(string) $card->id] ?? null) : null,
             markers: $markers->isEmpty() || $card->column->terminal ? null : $markers,
+            inboxItem: $this->openInboxItems->forProject($command->project)[(string) $card->id] ?? null,
         );
     }
 }
