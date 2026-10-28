@@ -10,6 +10,8 @@ final readonly class SearchResult
         public string $title,
         public string $url,
         public string $kind,
+        public ?int $number = null,
+        public ?string $meta = null,
     ) {
     }
 }

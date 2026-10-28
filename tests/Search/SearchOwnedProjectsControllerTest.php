@@ -50,6 +50,12 @@ final class SearchOwnedProjectsControllerTest extends WebTestCase
         self::assertSelectorCount(1, '[data-search-kind="document"]');
         self::assertSelectorTextContains('[data-search-kind="document"]', 'Owned project · Visible document');
         self::assertSame('/projects/'.$project->id.'/documents/'.$document->id.'/review', $client->getCrawler()->filter('[data-search-kind="document"]')->attr('href'));
+        foreach (['!!!', '#', '- -'] as $punctuation) {
+            $client->request(Request::METHOD_GET, '/search', ['query' => $punctuation]);
+            self::assertResponseIsSuccessful();
+            self::assertSelectorNotExists('[data-search-kind]');
+            self::assertSelectorExists('[role="status"]', 'a query of punctuation shows the no-result message: '.$punctuation);
+        }
         $client->request(Request::METHOD_GET, '/search', ['query' => 'quartz'], server: ['HTTP_TURBO_FRAME' => 'project-search-results']);
         self::assertResponseIsSuccessful();
         self::assertSelectorCount(1, '#project-search-results [data-search-kind="document"]');

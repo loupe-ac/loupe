@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Repository;
 
-use App\Doctrine\SearchLanguage;
+use App\Doctrine\SearchQuery;
+use App\Doctrine\SubstringSearch;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
@@ -276,33 +277,43 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * One page of the project's cards matching a full-text query, best match
-     * first.
+     * One page of the project's cards matching a search query, best match first.
      *
      * Title and body are both searched, and every column is in scope. A done
      * card is the answer to "has anyone raised this already?" as often as an
      * open one, which is the opposite of what the picker's
      * {@see searchOpenForProject()} wants.
      *
+     * A query of the form `12` or `#12` also matches the card with that number,
+     * and puts it first. Then the cards with every wanted term in the title come
+     * before the cards that hold them only in the body, newest first in each group.
+     *
      * @return Paginator<Card>
      */
     public function searchByProject(Project $project, string $query, int $page, int $perPage): Paginator
     {
         $qb = $this->createQueryBuilder('c')
+            // A to-one join, so a result row can name its column at no extra query.
+            ->join('c.column', 'k')
+            ->addSelect('k')
             ->andWhere('c.project = :project')
             ->setParameter('project', $project)
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
-        $this->andMatchesSearch($qb, $project, $query);
-
-        // The rank runs on the matches only, so the per-row cast costs nothing
-        // here. CAST because websearch_to_tsquery has no (varchar, text)
-        // overload, only (regconfig, text).
-        $qb->orderBy('TS_RANK(c.searchVector, WEBSEARCH_TO_TSQUERY(CAST(c.searchLanguage AS regconfig), :search))', 'DESC')
-            // Ranks tie often, and without a unique tiebreak an offset page can
-            // repeat or skip a card.
-            ->addOrderBy('c.number', 'DESC');
+        $search = SearchQuery::parse($query);
+        $query = trim($query);
+        if (1 === preg_match('/^#?([1-9][0-9]{0,8})$/D', $query, $match)) {
+            $qb->addSelect('CASE WHEN c.number = :number THEN 1 ELSE 0 END AS HIDDEN numberHit')
+                ->setParameter('number', (int) $match[1]);
+            $qb->andWhere('c.number = :number OR '.SubstringSearch::expression($qb, 'c', ['title', 'body'], $search));
+            $qb->addOrderBy('numberHit', 'DESC');
+        } else {
+            SubstringSearch::andMatches($qb, 'c', ['title', 'body'], $search);
+        }
+        SubstringSearch::addTitleFirst($qb, 'c', 'title', $search);
+        // Without a unique tiebreak an offset page can repeat or skip a card.
+        $qb->addOrderBy('c.number', 'DESC');
 
         // No collection is fetch-joined, so the page LIMIT counts cards and the
         // extra distinct-id query a fetch-join needs would buy nothing.
@@ -310,57 +321,12 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * Narrows card alias c to the cards whose title or body matches the query.
-     * One branch per language the project's cards hold, each with a constant
-     * configuration, because Postgres uses the GIN index only when the tsquery
-     * is the same for every row.
+     * Narrows card alias c to the cards that match a search query, in the
+     * Backlog list as in the search.
      */
-    private function andMatchesSearch(QueryBuilder $qb, Project $project, string $query): void
+    private function andMatchesSearch(QueryBuilder $qb, string $query): void
     {
-        $branches = [];
-        foreach ($this->searchLanguagesOf($project) as $index => $language) {
-            // The configuration is concatenated rather than bound: Postgres
-            // overloads websearch_to_tsquery as (regconfig, text) and (text), so
-            // a bound parameter has no type to resolve against and picks the
-            // wrong arity. It comes from the enum, never from user input.
-            $branches[] = \sprintf(
-                "(c.searchLanguage = :searchLanguage%d AND TSMATCH(c.searchVector, WEBSEARCH_TO_TSQUERY('%s', :search)) = true)",
-                $index,
-                $language->value,
-            );
-            $qb->setParameter('searchLanguage'.$index, $language);
-        }
-
-        $qb->andWhere('('.implode(' OR ', $branches).')')
-            ->setParameter('search', $query);
-    }
-
-    /**
-     * The distinct languages the project's cards are stemmed in. An index-only
-     * scan of idx_board_cards_project_search_language, which is why the index
-     * exists.
-     *
-     * A project with no cards answers with the default, so the search query
-     * always has one branch to build. It matches nothing either way.
-     *
-     * @return list<SearchLanguage>
-     */
-    public function searchLanguagesOf(Project $project): array
-    {
-        /** @var list<SearchLanguage|string> $rows */
-        $rows = $this->createQueryBuilder('c')
-            ->select('DISTINCT c.searchLanguage')
-            ->andWhere('c.project = :project')
-            ->setParameter('project', $project)
-            ->getQuery()
-            ->getSingleColumnResult();
-
-        $languages = array_map(
-            static fn (SearchLanguage|string $row): SearchLanguage => $row instanceof SearchLanguage ? $row : SearchLanguage::from($row),
-            $rows,
-        );
-
-        return [] === $languages ? [SearchLanguage::DEFAULT] : $languages;
+        SubstringSearch::andMatches($qb, 'c', ['title', 'body'], SearchQuery::parse($query));
     }
 
     /**
@@ -1359,7 +1325,7 @@ class CardRepository extends ServiceEntityRepository
             ->setParameter('column', $backlog);
 
         if (null !== $listQuery->search) {
-            $this->andMatchesSearch($qb, $backlog->project, $listQuery->search);
+            $this->andMatchesSearch($qb, $listQuery->search);
         }
         if (null !== $listQuery->type) {
             $qb->andWhere('c.type = :type')->setParameter('type', $listQuery->type);

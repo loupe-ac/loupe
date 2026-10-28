@@ -1052,10 +1052,12 @@ whole board. It searches the title and the body of every card in the project,
 done ones included, because a topic is often named only in a body and "yes, and
 it is already done" is a true answer.
 
-Matching is by word, not by substring, and words are stemmed, so `paging` finds
-`pages`. Quote a phrase to require it, put `-` in front of a word to exclude it,
-and write `or` between two words to accept either. A card whose title carries
-the word outranks one that carries it only in the body.
+Matching is by substring and ignores case, so `pag` finds `paging` and `pages`.
+Punctuation separates words, and every word must match. Quote a phrase to require
+it, put `-` in front of a word or a phrase to exclude it, and write `or` between
+two terms to accept either. A number such as `12` or `#12` also finds the card
+with that number. A card whose title carries every word comes before one that
+carries them only in the body, and the newest card comes first in each group.
 
 It pages the same way `card_list` does: `perPage` holds 25 rows by default and
 100 at most, and the answer carries `page`, `perPage`, `total` and `hasMore`. A

@@ -640,8 +640,9 @@ An earlier round with nothing left to explain shows one line, such as "3 finding
 
 ## The search language
 
-Search stems words, so it must know the language a document is written in. Every
-document carries its own.
+The search of cards and documents matches part of a word and does not stem, so
+it ignores the language. The inbox search still stems words, so it needs the
+language a document is written in. Every document carries its own.
 
 A project holds the default. You choose it when you create the project, in the
 **Document language** field on the new-project form and on the first step of the

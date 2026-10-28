@@ -53,6 +53,15 @@ final class SearchProjectControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'quartz', 'page' => -1]);
         self::assertResponseStatusCodeSame(422);
+        foreach (['!!!', '#', '- -'] as $punctuation) {
+            $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => $punctuation]);
+            self::assertResponseIsSuccessful();
+            self::assertSelectorNotExists('[data-search-kind]');
+            self::assertSelectorExists('[role="status"]', 'a query of punctuation shows the no-result message: '.$punctuation);
+        }
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'uart']);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-search-kind="document"]', 'a piece from inside a word finds the document');
         $client->loginUser($outsider);
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'quartz']);
         self::assertResponseStatusCodeSame(403);

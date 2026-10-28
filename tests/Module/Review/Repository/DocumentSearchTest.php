@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Repository;
 
-use App\Doctrine\SearchLanguage;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\CreateDocumentCommand;
@@ -18,7 +17,6 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Entity\Tag;
 use App\Module\Review\Repository\DocumentRepository;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -39,7 +37,7 @@ final class DocumentSearchTest extends KernelTestCase
         $this->create = self::getContainer()->get(CreateDocumentHandler::class);
     }
 
-    private function project(SearchLanguage $language = SearchLanguage::English): Project
+    private function project(): Project
     {
         $owner = new User(
             fullName: 'Search Owner',
@@ -48,7 +46,6 @@ final class DocumentSearchTest extends KernelTestCase
         );
         $this->em->persist($owner);
         $project = new Project($owner, 'p-'.uniqid());
-        $project->searchLanguage = $language;
         $this->em->persist($project);
         $this->em->flush();
 
@@ -58,7 +55,7 @@ final class DocumentSearchTest extends KernelTestCase
     /**
      * @param list<string> $tagNames
      */
-    private function document(Project $project, string $title, string $markdown, array $tagNames = [], ?SearchLanguage $language = null, ?string $seriesName = null, ?int $seriesOrdinal = null): Document
+    private function document(Project $project, string $title, string $markdown, array $tagNames = [], ?string $seriesName = null, ?int $seriesOrdinal = null): Document
     {
         return ($this->create)(new CreateDocumentCommand(
             $project,
@@ -67,7 +64,6 @@ final class DocumentSearchTest extends KernelTestCase
             tagNames: $tagNames,
             seriesName: $seriesName,
             seriesOrdinal: $seriesOrdinal,
-            language: $language,
         ));
     }
 
@@ -93,24 +89,13 @@ final class DocumentSearchTest extends KernelTestCase
         );
     }
 
-    public function test_search_stems_so_a_different_word_form_still_matches(): void
-    {
-        $project = $this->project();
-        $this->document($project, 'Review flow', '# Review flow'."\n\n".'Reviewing a document is asynchronous.');
-
-        self::assertSame(
-            ['Review flow'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'reviewed')),
-        );
-    }
-
     public function test_a_title_hit_outranks_a_body_mention(): void
     {
         $project = $this->project();
-        // Created first, so creation order would put it last under the default
-        // ordering — the assertion below only holds if rank drives the order.
-        $this->document($project, 'Deployment notes', 'The scheduler runs hourly.'."\n\n".'Mentioned once.');
+        // The title hit is created first, so recency would put it last and the
+        // assertion below only holds if the title match drives the order.
         $this->document($project, 'The scheduler', '# The scheduler'."\n\n".'Ticks on a cron grid.');
+        $this->document($project, 'Deployment notes', 'The scheduler runs hourly.'."\n\n".'Mentioned once.');
 
         self::assertSame(
             ['The scheduler', 'Deployment notes'],
@@ -157,11 +142,61 @@ final class DocumentSearchTest extends KernelTestCase
         $project = $this->project();
         $this->document($project, 'Parser', '# Parser'."\n\n".'Handles input.');
 
-        // to_tsquery would raise a syntax error on this; websearch_to_tsquery
-        // treats it as terms, which is what a search box must do.
         self::assertSame(
             [],
             $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'foo & | ! ( bar')),
+        );
+    }
+
+    public function test_a_query_of_punctuation_only_matches_no_document(): void
+    {
+        $project = $this->project();
+        $this->document($project, 'Parser', '# Parser'."\n\n".'Handles input.');
+
+        // The guard: a query with a word finds the document, so the empty
+        // answers below come from the query and not from an empty project.
+        self::assertSame(['Parser'], $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'pars')));
+        foreach (['!!!', '#', '"', '-', '- -'] as $query) {
+            self::assertSame([], $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: $query)), $query);
+        }
+    }
+
+    public function test_a_piece_from_inside_a_word_finds_the_document_in_title_and_body(): void
+    {
+        $project = $this->project();
+        $this->document($project, 'Pagination', 'Nothing relevant.');
+        $this->document($project, 'Other', 'The scheduler pages through rows.');
+        $this->document($project, 'Unrelated', 'Plain text.');
+
+        self::assertSame(
+            ['Pagination'],
+            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'AGIN')),
+            'a piece inside "Pagination" matches, ignoring case',
+        );
+        self::assertSame(['Other'], $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'ages thr')));
+    }
+
+    public function test_quotes_minus_and_or_work_on_documents(): void
+    {
+        $project = $this->project();
+        $this->document($project, 'Board search', 'Finds cards on the board.');
+        $this->document($project, 'Search board', 'The board is searched.');
+        $this->document($project, 'Backlog search', 'Search the backlog.');
+
+        self::assertSame(['Board search'], $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: '"board search"')));
+        self::assertEqualsCanonicalizing(
+            ['Board search', 'Search board'],
+            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'search -backlog')),
+            'a minus excludes the documents that hold the word',
+        );
+        self::assertEqualsCanonicalizing(
+            ['Board search', 'Backlog search'],
+            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'finds or backlog')),
+        );
+        self::assertSame(
+            ['Search board'],
+            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: '-backlog "search board"')),
+            'a query of an exclusion and a phrase combines both',
         );
     }
 
@@ -228,61 +263,19 @@ final class DocumentSearchTest extends KernelTestCase
     }
 
     /**
-     * "traite" and "traiter" share a stem in French and share none in English,
-     * so this pair fails on any run that parses the query in one global
-     * configuration.
-     */
-    public function test_a_french_document_is_found_by_a_french_word_form(): void
-    {
-        $project = $this->project();
-        $this->document($project, 'Paiements', 'Le déploiement traite les paiements.', language: SearchLanguage::French);
-
-        self::assertSame(
-            ['Paiements'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'traiter')),
-        );
-    }
-
-    public function test_the_same_french_text_stemmed_as_english_is_not_found(): void
-    {
-        $project = $this->project();
-        $this->document($project, 'Paiements', 'Le déploiement traite les paiements.');
-
-        self::assertSame([], $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'traiter')));
-    }
-
-    public function test_documents_in_two_languages_are_each_searchable_in_their_own(): void
-    {
-        $project = $this->project();
-        $this->document($project, 'Paiements', 'Le déploiement traite les paiements.', language: SearchLanguage::French);
-        $this->document($project, 'Payments', 'The deployment processes the payments.');
-
-        self::assertSame(
-            ['Paiements'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'traiter')),
-        );
-        self::assertSame(
-            ['Payments'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'processing')),
-        );
-    }
-
-    /**
-     * Searching inside a series only became possible when the per-language
-     * match branches and the series filter met in one query. A series is an
-     * ordered set, so its own numbering has to outrank rank and recency once
-     * the reader has asked for it. Part one is created first, so recency
-     * ordering would return the two the other way round.
+     * A series is an ordered set, so its own numbering has to outrank the title
+     * match and recency once the reader has asked for it. Part one is created
+     * first, so recency ordering would return the two the other way round.
      */
     public function test_search_within_a_series_orders_by_the_series_numbering(): void
     {
         $project = $this->project();
-        $this->document($project, 'Partie une', 'Le stockage utilise postgres.', language: SearchLanguage::French, seriesName: 'Guide', seriesOrdinal: 1);
+        $this->document($project, 'Part one', 'The storage uses postgres.', seriesName: 'Guide', seriesOrdinal: 1);
         $this->document($project, 'Part two', 'The storage uses postgres.', seriesName: 'Guide', seriesOrdinal: 2);
         $this->document($project, 'Loose note', 'Another note about postgres.');
 
         self::assertSame(
-            ['Partie une', 'Part two'],
+            ['Part one', 'Part two'],
             $this->titles($this->documents->findPaginatedByProject(
                 $project,
                 1,
@@ -291,49 +284,6 @@ final class DocumentSearchTest extends KernelTestCase
                 seriesName: Series::normalizeName('Guide'),
             )),
             'the series numbering orders the matches, and a match outside the series is filtered out',
-        );
-    }
-
-    public function test_a_document_takes_the_project_default_when_it_names_no_language(): void
-    {
-        $project = $this->project(SearchLanguage::French);
-        $document = $this->document($project, 'Paiements', 'Le déploiement traite les paiements.');
-
-        self::assertSame(SearchLanguage::French, $document->searchLanguage);
-        self::assertSame(
-            ['Paiements'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'traiter')),
-        );
-    }
-
-    public function test_an_explicit_language_overrides_the_project_default(): void
-    {
-        $project = $this->project(SearchLanguage::French);
-        $document = $this->document($project, 'Payments', 'The deployment processes the payments.', language: SearchLanguage::English);
-
-        self::assertSame(SearchLanguage::English, $document->searchLanguage);
-        self::assertSame(
-            ['Payments'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'processing')),
-        );
-    }
-
-    public function test_reindexing_after_a_language_change_makes_the_new_stemming_apply(): void
-    {
-        $project = $this->project();
-        $document = $this->document($project, 'Paiements', 'Le déploiement traite les paiements.');
-
-        // The guard: English stemming finds nothing here, so the assertion after
-        // the reindex can only pass because the language changed.
-        self::assertSame([], $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'traiter')));
-
-        $document->searchLanguage = SearchLanguage::French;
-        $this->em->flush();
-        self::getContainer()->get(DocumentSearchIndexer::class)->index($document);
-
-        self::assertSame(
-            ['Paiements'],
-            $this->titles($this->documents->findPaginatedByProject($project, 1, 20, search: 'traiter')),
         );
     }
 
