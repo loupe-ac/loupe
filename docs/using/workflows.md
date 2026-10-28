@@ -131,8 +131,8 @@ declare.
 A card shows one state mark. The mark is the first marker of the first kind that
 matches, in the order `stuck`, `needs-you`, `working`, `waiting`. Inside one
 kind, the marker that comes first in the template wins. The tooltip of the mark
-lists every other marker, chips included. A card with only a chip shows a neutral
-mark.
+shows that marker alone. The card page lists the other markers that ask you to
+act, chips included. A card with only a chip shows a neutral mark.
 
 A marker with no slots applies in every column that is not terminal. A marker
 with slots applies only while the card sits in a column that links to one of

@@ -24,7 +24,7 @@ final readonly class ShowBoardManifestHandler
         foreach (array_filter([...$board->lanes, $board->otherCards]) as $lane) {
             $laneKey = null === $lane->epic ? BoardLanes::OTHER : (string) $lane->epic->id;
             if (null !== $lane->epic) {
-                $laneHeads[$laneKey] = $this->digest->forLaneHead($lane->epic, $board->progress[$laneKey] ?? null, $board->decks[$laneKey] ?? null, $board->markers[$laneKey] ?? null);
+                $laneHeads[$laneKey] = $this->digest->forLaneHead($lane->epic, $board->progress[$laneKey] ?? null, $board->decks[$laneKey] ?? null, $board->markers[$laneKey] ?? null, $board->openInboxItems[$laneKey] ?? null);
                 $laneKeys[$laneKey] = $laneKey;
             }
             foreach ($lane->cells as $cards) {
@@ -50,6 +50,7 @@ final readonly class ShowBoardManifestHandler
                     $board->progress[$id] ?? null,
                     $board->runWarnings[$id] ?? null,
                     $board->markers[$id] ?? null,
+                    $board->openInboxItems[$id] ?? null,
                 ), (string) $view->column->id, $laneKeys[$id] ?? null];
                 // A lane epic has a list row and a lane head, and no card face.
                 if (isset($laneHeads[$id])) {

@@ -63,6 +63,26 @@ class InboxItemRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * The oldest open item of each card of the project, linked by an ask or by a card wait, in one query.
+     *
+     * @return array<string, int> card id => item number
+     */
+    public function findOldestOpenNumberPerCard(Project $project): array
+    {
+        /** @var array<string, int> $numbers */
+        $numbers = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT DISTINCT ON (links.card_id) links.card_id, i.number
+             FROM inbox_items i
+             JOIN (SELECT item_id, card_id FROM inbox_item_cards UNION ALL SELECT item_id, card_id FROM inbox_card_watches) links ON links.item_id = i.id
+             WHERE i.project_id = :project AND i.state = 'open'
+             ORDER BY links.card_id, i.created_at, i.id",
+            ['project' => (string) ($project->id ?? throw new \LogicException('Project has no id.'))],
+        )->fetchAllKeyValue();
+
+        return $numbers;
+    }
+
     /** Read-then-write: a caller holds a lock on the project, or two items can take one number. */
     public function nextNumber(Project $project): int
     {

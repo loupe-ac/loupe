@@ -1,7 +1,8 @@
 {# One card as a row of the list view. Props: card (Card), column (BoardColumn), feedbackCount (int), documentCount (int),
-   progress (?CardProgress), runWarning (?CardRunWarning), markers (?StoredCardMarkers, optional). The row takes the card face's
-   inputs, so both carry one digest. #}
+   progress (?CardProgress), runWarning (?CardRunWarning), markers (?StoredCardMarkers, optional), inboxItem (?int, optional).
+   The row takes the card face's inputs, so both carry one digest. The row links nothing inside itself, so it shows no inbox link. #}
 {% set markers = markers ?? null %}
+{% set inboxItem = inboxItem ?? null %}
 <a class="lp-board-list__row"
    id="board-row-{{ card.id }}"
    href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}"
@@ -11,7 +12,7 @@
    data-board-filter-target="row"
    data-card-id="{{ card.id }}"
    data-column-id="{{ column.id }}"
-   data-card-digest="{{ card_digest(card, feedbackCount, documentCount, progress, runWarning, markers) }}"
+   data-card-digest="{{ card_digest(card, feedbackCount, documentCount, progress, runWarning, markers, inboxItem) }}"
    data-card-title="{{ card.title }}">
     <span class="lp-board-list__work"><strong>#{{ card.number }} {{ card.title }}</strong>{% if markers is not null %}{% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, link: false} only %}{% endif %}</span>
     <span>{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}{% include '@Board/_card_source_tag.html.twig' with {card: card} only %}</span>
