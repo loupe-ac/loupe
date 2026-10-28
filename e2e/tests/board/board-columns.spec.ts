@@ -11,7 +11,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
-import { addBoardColumn, expectFilterFocusRingVisible } from '../helpers';
+import { addBoardColumn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eBoardColumns1!';
@@ -140,17 +140,6 @@ test.use({
     viewport: { width: 1600, height: 900 },
 });
 
-test('board filters retain an outline in forced colors', async ({ page }) => {
-    await page.emulateMedia({ forcedColors: 'active' });
-    const field = page.locator('.lp-board-toolbar__input');
-    await field.focus();
-    await expect(field).toBeFocused();
-    await expect(field).toHaveCSS('outline-style', 'solid');
-    await expect(field).toHaveCSS('outline-width', '2px');
-    await expect(field).toHaveCSS('outline-offset', '0px');
-    await expect(field).not.toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
-});
-
 test('board controls remain usable at enlarged text sizes without page overflow', async ({
     page,
 }, testInfo) => {
@@ -199,40 +188,13 @@ test('board controls remain usable at enlarged text sizes without page overflow'
                 await expect(links.filter({ hasText: 'Backlog' })).toHaveCount(
                     1,
                 );
-                await page
-                    .locator('.lp-board-toolbar__menu')
-                    .getByRole('button', { name: 'Search', exact: true })
-                    .click();
-                await expect(
-                    page.locator('.lp-board-toolbar__more'),
-                ).toHaveAttribute('aria-expanded', 'false');
             } else {
                 await expect(page.locator('a.lp-board-backlog')).toBeInViewport(
                     { ratio: 1 },
                 );
             }
-            const query = page.getByRole('searchbox', {
-                name: 'Search cards',
-                exact: true,
-            });
-            await query.focus();
-            await expect(query).toBeInViewport({ ratio: 1 });
-            const filters = page.locator('.lp-board-toolbar__filters');
-            await expectFilterFocusRingVisible(query, filters);
         }
     }
-    const query = page.getByRole('searchbox', {
-        name: 'Search cards',
-        exact: true,
-    });
-    await query.fill('No matching card');
-    await expect(
-        page.locator('[data-board-filter-target="empty"]'),
-    ).toBeVisible();
-    await query.fill('Waiting');
-    await expect(
-        page.locator('[data-board-filter-target="empty"]'),
-    ).toBeHidden();
     await openToolbarActions(page);
     await page.getByRole('button', { name: 'List', exact: true }).click();
     await expect(page.locator('.lp-board-list')).toBeVisible(ROUND_TRIP);

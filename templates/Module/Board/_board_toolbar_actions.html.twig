@@ -6,10 +6,6 @@
     {{ 'board.backlog.button'|trans }}
     <span class="lp-board-backlog__count ml-auto" data-board-backlog-count>{{ backlogCount }}</span>
 </twig:Ds:MenuItem>
-<twig:Ds:MenuItem data-action="board-filter#openSearch popover#close">
-    <twig:ux:icon name="lucide:search" class="lp-icon lp-icon--md" />
-    {{ 'board.toolbar.search'|trans }}
-</twig:Ds:MenuItem>
 <twig:Ds:MenuItem :href="path('app_board_settings', {id: projectId})">
     <twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" />
     {{ 'board.settings.action'|trans }}

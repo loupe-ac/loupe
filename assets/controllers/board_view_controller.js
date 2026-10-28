@@ -5,7 +5,14 @@ import { Controller } from '@hotwired/stimulus';
 const savedViews = new WeakMap();
 
 export default class extends Controller {
-    static targets = ['board', 'list', 'boardButton', 'listButton'];
+    static targets = [
+        'board',
+        'list',
+        'boardButton',
+        'listButton',
+        'count',
+        'card',
+    ];
     static values = { listUrl: String };
 
     connect() {
@@ -26,6 +33,41 @@ export default class extends Controller {
                 this.boardTarget.hidden ? 'list' : 'board',
             );
         }
+    }
+
+    cardTargetConnected() {
+        this.#scheduleCount();
+    }
+
+    cardTargetDisconnected() {
+        this.#scheduleCount();
+    }
+
+    /** The count sits in a kept toolbar, so a render never rewrites it. */
+    updateCount() {
+        if (!this.hasCountTarget) {
+            return;
+        }
+        const total = this.cardTargets.length;
+        this.countTarget.textContent =
+            total === 1
+                ? this.countTarget.dataset.one
+                : this.countTarget.dataset.many.replace(
+                      '%count%',
+                      String(total),
+                  );
+    }
+
+    /** One pass for all the cards that connect together, such as a whole board. */
+    #scheduleCount() {
+        if (this.countScheduled) {
+            return;
+        }
+        this.countScheduled = true;
+        queueMicrotask(() => {
+            this.countScheduled = false;
+            this.updateCount();
+        });
     }
 
     /** The mode buttons sit in a kept toolbar, so they remember the view a render resets. */

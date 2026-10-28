@@ -142,17 +142,6 @@ it('offers Show cards for a lane collapsed from localStorage', async () => {
     expect(label()).toBe('Show cards');
 });
 
-it('offers Hide cards for a collapsed lane that a search revealed', async () => {
-    lane('epic-a').classList.add(
-        'lp-board-lane--collapsed',
-        'lp-board-lane--revealed',
-    );
-
-    await openFor('epic-a');
-
-    expect(label()).toBe('Hide cards');
-});
-
 it('reads the lane again at each open', async () => {
     await openFor('epic-a');
     expect(label()).toBe('Hide cards');

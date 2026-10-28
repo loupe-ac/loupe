@@ -5,7 +5,6 @@
    inboxItem (?int, optional): the number of its open inbox item. #}
 {% set inboxItem = inboxItem ?? null %}
 <header class="lp-board-lane__head"
-        data-board-filter-target="laneHead"
         data-card-title="{{ epic.title }}"
         data-lane-digest="{{ lane_head_digest(epic, progress, deck, markers, inboxItem) }}">
     <button type="button"

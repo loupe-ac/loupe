@@ -1,7 +1,7 @@
 /**
  * Browser coverage for live card changes: a card moved in one browser moves
  * on a second browser's board, marked, with no reload of the board there.
- * The filter and the scroll of the other columns stay. The hub delivers the
+ * The scroll of the other columns stays. The hub delivers the
  * message, so the run needs a Mercure hub the browser can reach.
  */
 
@@ -33,7 +33,7 @@ function group(page: Page, slug: string) {
     );
 }
 
-test('a card moved in one browser moves in another, marked, with the filter and the scroll kept', async ({
+test('a card moved in one browser moves in another, marked, with the scroll kept', async ({
     browser,
     request,
 }) => {
@@ -71,10 +71,6 @@ test('a card moved in one browser moves in another, marked, with the filter and 
     await watcher.goto(boardUrl);
     // The hub keeps no history, so a change made before this connects is lost.
     await expect(watcher.locator('[data-board-live-connected]')).toHaveCount(1);
-
-    await watcher.getByRole('searchbox', { name: 'Search cards' }).fill('live');
-    const other = watcher.locator(`${CARD}[data-card-title="Delta other"]`);
-    await expect(other).toBeHidden();
 
     const scrolled = await group(watcher, 'next').evaluate((element) => {
         element.scrollBy({ top: 30, behavior: 'instant' });
@@ -116,7 +112,6 @@ test('a card moved in one browser moves in another, marked, with the filter and 
         watcher.locator('[data-column-slug="done"] .lp-board__column-link'),
     ).toHaveText('See the one finished card');
 
-    await expect(other).toBeHidden();
     expect(
         await group(watcher, 'next').evaluate((element) => element.scrollTop),
     ).toBe(scrolled);
