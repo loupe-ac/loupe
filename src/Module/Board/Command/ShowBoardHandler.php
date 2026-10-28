@@ -12,6 +12,7 @@ use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Service\BoardColumnCards;
 use App\Module\Board\Service\BoardLanes;
 use App\Module\Board\Service\BoardStructureDigest;
+use App\Module\Board\Service\CardOpenInboxItems;
 use App\Module\Board\Service\LaneDecks;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Bridge\Service\CardRunWarnings;
@@ -31,6 +32,7 @@ final readonly class ShowBoardHandler
         private LaneDecks $laneDecks,
         private BoardAutomation $automation,
         private CardTypeCatalog $catalog,
+        private CardOpenInboxItems $openInboxItems,
     ) {
     }
 
@@ -112,6 +114,7 @@ final readonly class ShowBoardHandler
             $runWarnings,
             $this->laneDecks->forEpics($backlog, array_map(static fn (BoardLaneView $lane): string => (string) $lane->epic?->id, $lanes)),
             $markers,
+            $this->openInboxItems->forProject($project),
         );
     }
 }

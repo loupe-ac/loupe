@@ -24,6 +24,7 @@ final readonly class CardDigest
         ?CardProgress $progress,
         ?CardRunWarning $runWarning,
         ?StoredCardMarkers $markers,
+        ?int $inboxItem = null,
     ): string {
         return substr(sha1(json_encode([
             $card->number,
@@ -40,11 +41,12 @@ final readonly class CardDigest
             $runWarning?->runId,
             $runWarning?->state->value,
             null === $markers || $markers->isEmpty() ? null : $markers->digest(),
+            $inboxItem,
         ], \JSON_THROW_ON_ERROR)), 0, 12);
     }
 
     /** A short hash of what the head of an epic lane shows: the title, the column, the state mark, the progress and the Up next deck. */
-    public function forLaneHead(Card $epic, ?CardProgress $progress, ?LaneDeckView $deck, ?StoredCardMarkers $markers): string
+    public function forLaneHead(Card $epic, ?CardProgress $progress, ?LaneDeckView $deck, ?StoredCardMarkers $markers, ?int $inboxItem = null): string
     {
         return substr(sha1(json_encode([
             $epic->number,
@@ -53,6 +55,7 @@ final readonly class CardDigest
             $epic->column->label,
             $epic->column->tone->value,
             null === $markers || $markers->isEmpty() ? null : $markers->digest(),
+            $inboxItem,
             $progress?->done,
             $progress?->total,
             $deck?->count,

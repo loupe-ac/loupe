@@ -81,7 +81,7 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
     }
 
-    public function test_a_marker_after_the_state_keeps_its_link_in_the_tile_tooltip(): void
+    public function test_a_needs_you_marker_after_the_state_stays_off_the_tile_tooltip_with_its_link(): void
     {
         $card = $this->storedCard();
         $markers = MarkerMother::markers(
@@ -89,19 +89,46 @@ final class CardTileStateMarkTest extends KernelTestCase
             MarkerMother::marker('ruleset_mismatch', MarkerKind::NeedsYou, ['%number%' => 9], link: MarkerLink::RulesetSetup),
         );
 
-        $links = $this->renderTile($card, $markers)->filter('.lp-tooltip a');
-        self::assertSame(['Read how to set up the ruleset', 'Open card'], $links->each(static fn (Crawler $link): string => trim($link->text())));
-        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $links->first()->attr('href'));
+        $tooltip = $this->renderTile($card, $markers)->filter('.lp-tooltip');
+        self::assertSame(['merge_blocked'], $tooltip->filter('[data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
+        self::assertSame(['Open card'], $tooltip->filter('a')->each(static fn (Crawler $link): string => trim($link->text())));
     }
 
-    public function test_two_markers_that_link_one_page_show_the_link_once(): void
+    public function test_two_stuck_markers_show_one_stuck_line(): void
     {
         $tile = $this->tile(MarkerMother::markers(
             MarkerMother::marker('no_capable_bridge', MarkerKind::Stuck, link: MarkerLink::Agents),
             MarkerMother::marker('no_bridge_online', MarkerKind::Stuck, link: MarkerLink::Agents),
         ));
 
+        self::assertSame(1, substr_count($tile->filter('.lp-tooltip')->text(), 'Stuck.'));
+        self::assertSame(['no_capable_bridge'], $tile->filter('.lp-tooltip [data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
         self::assertSame(['Open the Agents page', 'Open card'], $tile->filter('.lp-tooltip a')->each(static fn (Crawler $link): string => trim($link->text())));
+    }
+
+    public function test_an_open_inbox_item_adds_its_link_to_the_tile_tooltip_and_not_to_a_row(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(MarkerMother::marker('no_bridge_online', MarkerKind::Stuck, link: MarkerLink::Agents));
+
+        $links = $this->renderTile($card, $markers, inboxItem: 42)->filter('.lp-tooltip a');
+        self::assertSame(['Open the Agents page', 'Open inbox item', 'Open card'], $links->each(static fn (Crawler $link): string => trim($link->text())));
+        $inbox = $links->filter('[data-card-inbox-item]');
+        self::assertSame('/projects/'.$card->project->id.'/inbox?item=42', $inbox->attr('href'));
+        self::assertSame('_top', $inbox->attr('data-turbo-frame'));
+        self::assertSame('false', $inbox->attr('draggable'));
+        self::assertCount(0, $this->renderRow($card, $markers, inboxItem: 42)->filter('.lp-state-mark a'));
+    }
+
+    public function test_the_digest_of_the_tile_and_of_the_row_move_with_the_inbox_item(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(MarkerMother::marker('run_open', MarkerKind::Working));
+        $none = $this->renderTile($card, $markers)->attr('data-card-digest');
+        $linked = $this->renderTile($card, $markers, inboxItem: 42)->attr('data-card-digest');
+
+        self::assertNotSame($none, $linked);
+        self::assertSame($linked, $this->renderRow($card, $markers, inboxItem: 42)->attr('data-card-digest'));
     }
 
     public function test_a_link_on_another_marker_stays_off_the_tile_tooltip(): void
@@ -126,7 +153,7 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertStringContainsString('d="M5 22h14M5 2h14', $waiting->filter('.lp-state-mark__glyph')->outerHtml());
     }
 
-    public function test_the_tooltip_lists_only_the_chips_and_the_lines_that_ask_for_action_after_the_state(): void
+    public function test_the_tooltip_shows_the_main_state_alone(): void
     {
         $tile = $this->tile(MarkerMother::markers(
             MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5]),
@@ -136,9 +163,10 @@ final class CardTileStateMarkTest extends KernelTestCase
         ));
 
         $tooltip = $tile->filter('.lp-tooltip');
-        self::assertSame(['checks_failed', 'open_question', 'unmanaged'], $tooltip->filter('[data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
-        self::assertStringContainsString('Question #3 waits for your answer: Which option?', $tooltip->filter('[data-marker-key="open_question"]')->text());
-        self::assertStringContainsString('Unmanaged: the workflow does not act on this card.', $tooltip->filter('[data-marker-key="unmanaged"]')->text());
+        self::assertSame(['checks_failed'], $tooltip->filter('[data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
+        self::assertStringContainsString('The checks of pull request #5 fail', $tooltip->text());
+        self::assertStringNotContainsString('Which option?', $tooltip->text());
+        self::assertStringNotContainsString('Unmanaged', $tooltip->text());
         self::assertStringNotContainsString('A worker runs on this card.', $tooltip->text());
         self::assertCount(1, $tile->filter('.lp-state-mark'));
     }
@@ -205,7 +233,7 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertCount(1, $mark);
         self::assertStringContainsString('lp-state-mark--waiting', (string) $mark->attr('class'));
         self::assertStringContainsString('Card #7 blocks this card: The blocker', $mark->filter('.lp-tooltip')->text());
-        self::assertStringContainsString('Unmanaged', $mark->filter('[data-marker-key="unmanaged"]')->text());
+        self::assertCount(0, $mark->filter('[data-marker-key="unmanaged"]'));
         self::assertCount(0, $mark->filter('a'));
         self::assertCount(1, $row->filter('.lp-board-list__work > strong'));
         self::assertCount(0, $row->filter('[data-card-badges], .lp-status-chip'));
@@ -239,7 +267,7 @@ final class CardTileStateMarkTest extends KernelTestCase
         return $this->card($em, $project, 'The card', 'in-progress');
     }
 
-    private function renderTile(Card $card, ?StoredCardMarkers $markers, ?CardRunWarning $runWarning = null): Crawler
+    private function renderTile(Card $card, ?StoredCardMarkers $markers, ?CardRunWarning $runWarning = null, ?int $inboxItem = null): Crawler
     {
         $html = static::getContainer()->get(Environment::class)->render('@Board/_card.html.twig', [
             'card' => $card,
@@ -247,12 +275,13 @@ final class CardTileStateMarkTest extends KernelTestCase
             'documentCount' => 0,
             'markers' => $markers,
             'runWarning' => $runWarning,
+            'inboxItem' => $inboxItem,
         ]);
 
         return new Crawler($html)->filter('article.lp-board-card');
     }
 
-    private function renderRow(Card $card, ?StoredCardMarkers $markers): Crawler
+    private function renderRow(Card $card, ?StoredCardMarkers $markers, ?int $inboxItem = null): Crawler
     {
         $html = static::getContainer()->get(Environment::class)->render('@Board/_card_row.html.twig', [
             'card' => $card,
@@ -262,6 +291,7 @@ final class CardTileStateMarkTest extends KernelTestCase
             'progress' => null,
             'runWarning' => null,
             'markers' => $markers,
+            'inboxItem' => $inboxItem,
         ]);
 
         return new Crawler($html)->filter('a.lp-board-list__row');

@@ -143,6 +143,16 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
         self::assertSame('The pause ends when the facts that the rule reads change.', $shown->release);
     }
 
+    public function test_a_needs_person_stop_says_that_only_a_person_or_gone_work_ends_it(): void
+    {
+        $card = $this->card('tech-design');
+        $this->service(PauseCardHandler::class)(new PauseCardCommand($card, 'needs-person', 'tech-design-approved', PauseKind::WorkStopped));
+
+        $shown = $this->builder()->build($card->snapshot())->pause ?? self::fail('The card is paused.');
+
+        self::assertStringStartsWith('The pause ends when a person retries the card or resumes the run.', $shown->release);
+    }
+
     public function test_a_retries_pause_of_a_managed_card_is_releasable_and_names_its_id(): void
     {
         $card = $this->card('tech-design');
