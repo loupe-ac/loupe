@@ -93,6 +93,26 @@ final class ExperimentPinApiTest extends WebTestCase
         self::assertSame(['merge-rate', 'cost', 'no-such-metric'], $definitions[0]->metrics);
     }
 
+    public function test_the_headline_is_stored_and_a_bad_one_still_pins(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'pin-api-headline@example.com');
+        $project = $this->project($em, $owner, 'Pin Api Headline');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":[]}}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower'], 'guards' => []], $this->allDefinitions()[0]->headline);
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"goal":{"metric":"cost","better":"up"}}}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertNull($this->allDefinitions()[0]->headline);
+    }
+
     /** A metric fault never changes the variant of a run, and never refuses it. */
     public function test_invalid_metrics_still_pin_and_store_no_metrics(): void
     {

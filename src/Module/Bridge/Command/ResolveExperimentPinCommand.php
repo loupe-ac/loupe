@@ -11,7 +11,9 @@ use Symfony\Component\Uid\Uuid;
  * The variant a card runs with in one experiment. The candidate is one of the
  * variants. The weights name each variant with its weight, and are null when
  * the bridge sent no valid list. The metrics are the keys the experiment
- * declares, and are null when the bridge sent no valid list.
+ * declares, and are null when the bridge sent no valid list. The headline names
+ * the goal and the guards of the experiment, and is null when the bridge sent
+ * none or an invalid one.
  */
 final readonly class ResolveExperimentPinCommand
 {
@@ -27,6 +29,8 @@ final readonly class ResolveExperimentPinCommand
         public ?array $weights = null,
         /** @var list<string>|null */
         public ?array $metrics = null,
+        /** @var array{goal?: array{metric: string, better: string}, guards?: list<string>}|null */
+        public ?array $headline = null,
     ) {
     }
 }

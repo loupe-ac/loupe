@@ -158,6 +158,32 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         self::assertNull($this->onlyDefinition()->metrics);
     }
 
+    public function test_the_headline_is_stored_then_reset_for_the_experiment(): void
+    {
+        $this->boot();
+        [$owner, $project] = $this->scenario('pin-headline');
+        $weights = [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]];
+        $headline = ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower'], 'guards' => ['merge-rate']];
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights, headline: $headline);
+
+        self::assertSame($headline, $this->onlyDefinition()->headline);
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights);
+
+        self::assertNull($this->onlyDefinition()->headline);
+    }
+
+    public function test_a_headline_with_no_weights_stores_no_definition(): void
+    {
+        $this->boot();
+        [$owner, $project] = $this->scenario('pin-headline-no-weights');
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], headline: ['guards' => []]);
+
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_experiment_definitions'));
+    }
+
     public function test_metrics_with_no_weights_store_no_definition(): void
     {
         $this->boot();
@@ -215,9 +241,10 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
     }
 
     /**
-     * @param non-empty-list<string>                      $variants
-     * @param list<array{name: string, weight: int}>|null $weights
-     * @param list<string>|null                           $metrics
+     * @param non-empty-list<string>                                                          $variants
+     * @param list<array{name: string, weight: int}>|null                                     $weights
+     * @param list<string>|null                                                               $metrics
+     * @param array{goal?: array{metric: string, better: string}, guards?: list<string>}|null $headline
      */
     private function resolve(
         User $owner,
@@ -228,6 +255,7 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         string $experiment = 'impl-model',
         ?array $weights = null,
         ?array $metrics = null,
+        ?array $headline = null,
     ): ResolveExperimentPinResult {
         $handler = self::getContainer()->get(ResolveExperimentPinHandler::class);
         self::assertInstanceOf(ResolveExperimentPinHandler::class, $handler);
@@ -241,6 +269,7 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
             variants: $variants,
             weights: $weights,
             metrics: $metrics,
+            headline: $headline,
         ));
     }
 
