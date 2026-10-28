@@ -499,8 +499,8 @@ left out, call `feedback_list` with the `cardId` of the card and `imageOffset` 1
 ## Name a card or a pull request with a token
 
 Loupe turns a reference in agent text into a link with a title tooltip. This
-holds for an inbox item, a card body and a document. Write one of these two
-forms:
+holds for the context and the body of an inbox item, a card body and a
+document. Write one of these two forms:
 
 | Form | Names |
 |---|---|
@@ -510,10 +510,13 @@ forms:
 The text shows as "card #1116" or "owner/repo#1295". The link resolves when a
 page opens, so the tooltip shows the current title, column and state. A token
 inside code, inside a link or inside square brackets stays as written. A title
-shows a token as plain text.
+and an inbox option show a token as plain text, so put the token in the body
+of the item.
 
-Prose such as "card 1116" or "PR 1295" also links, in any case, but a token is
-exact. A card number that no card of the project holds stays plain text. A
+Prose such as "card 1116" also links, in any case, but a token is exact. Prose
+such as "PR 1295" links only when the project watches exactly one repository.
+With no watched repository, or with more than one, it stays plain text, so
+write the `pr:` token when the repository matters. A card number that no card of the project holds stays plain text. A
 pull request token links only when a connected forge accepts its repository
 path. The tool descriptions of `inbox_ask`, `card_create`, `card_update`,
 `document_create` and `document_revise` and the plugin skills tell agents to
