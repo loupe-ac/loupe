@@ -22,7 +22,9 @@ use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\WorkSubject\InboxItemWorkSubjectHandler;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Outbox\OutboxWriter;
+use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
@@ -37,6 +39,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 
 final class OpenWorkRequestHandlerTest extends KernelTestCase
 {
+    use BlockingRepositories;
     use BridgeScenario;
 
     private const string NOW = '2026-10-01T12:00:00+00:00';
@@ -443,7 +446,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         $this->open($project, $cardId);
         $blind = $this->createStub(WorkRequestRepository::class);
         $blind->method('liveRuleId')->willReturn(null);
-        $handler = new OpenWorkRequestHandler($blind, $this->service(OutboxWriter::class), $this->em(), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]));
+        $handler = new OpenWorkRequestHandler($blind, $this->service(OutboxWriter::class), $this->em(), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class));
 
         try {
             $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, 'implement', null, 'implement-on-entry', new WorkRequestContext()));
@@ -546,6 +549,20 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         self::assertArrayNotHasKey('cardId', $payloads[1]);
     }
 
+    public function test_a_request_opened_while_the_project_holds_its_work_carries_the_hold_mark(): void
+    {
+        $this->boot();
+        $held = $this->scenario('open-held');
+        $this->repositoryWithGaps($held);
+        $free = $this->scenario('open-free');
+
+        $marked = $this->handler()(new OpenWorkRequestCommand($held, new WorkSubject('analysis', Uuid::v7()), null, 'implement', null, 'insights.analysis', new WorkRequestContext()));
+        $unmarked = $this->handler()(new OpenWorkRequestCommand($free, new WorkSubject('analysis', Uuid::v7()), null, 'implement', null, 'insights.analysis', new WorkRequestContext()));
+
+        self::assertSame(self::NOW, $marked->workHoldSince?->format(\DateTimeInterface::ATOM), 'The end of the hold restarts its timeout.');
+        self::assertNull($unmarked->workHoldSince);
+    }
+
     public function test_a_request_about_an_inbox_item_opens_with_no_card(): void
     {
         $this->boot();
@@ -586,6 +603,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
             new WorkSubjectHandlers([new RecordingWorkSubjectHandler(), new InboxItemWorkSubjectHandler()]),
+            $this->service(WorkHolds::class),
         );
     }
 

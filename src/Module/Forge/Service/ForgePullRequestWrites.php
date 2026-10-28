@@ -38,15 +38,17 @@ final readonly class ForgePullRequestWrites
     }
 
     /**
-     * @param string $method one of PullRequestMerger::METHODS
+     * @param list<string> $methods the methods to try in order, each one of PullRequestMerger::METHODS
      *
-     * @throws \InvalidArgumentException when the method is not one of PullRequestMerger::METHODS
+     * @throws \InvalidArgumentException when a method is not one of PullRequestMerger::METHODS
      * @throws PullRequestWriteFailed
      */
-    public function merge(ForgePullRequest $pullRequest, string $method): void
+    public function merge(ForgePullRequest $pullRequest, array $methods): void
     {
-        if (!\in_array($method, PullRequestMerger::METHODS, true)) {
-            throw new \InvalidArgumentException('Unknown merge method: '.$method);
+        foreach ($methods as $method) {
+            if (!\in_array($method, PullRequestMerger::METHODS, true)) {
+                throw new \InvalidArgumentException('Unknown merge method: '.$method);
+            }
         }
         $merger = $this->mergers->for($pullRequest->forge) ?? throw new PullRequestWriteFailed('no_writer', permanent: true);
         $id = $pullRequest->id ?? throw new \LogicException('A stored pull request has an id.');
@@ -74,7 +76,7 @@ final readonly class ForgePullRequestWrites
         }
 
         try {
-            $merger->merge($pullRequest, $method, $sha);
+            $merger->merge($pullRequest, $methods, $sha);
         } catch (PullRequestWriteFailed $e) {
             if ($e->permanent) {
                 $this->em->wrapInTransaction(function () use ($id, $sha): void {

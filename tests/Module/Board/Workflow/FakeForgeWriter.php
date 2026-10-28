@@ -14,7 +14,7 @@ use App\Module\Forge\Service\PullRequestStateWriter;
 /** Records each write to a `github` pull request, and throws the failure it holds. */
 final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger, PullRequestBranchUpdater, PullRequestStateWriter, PullRequestOpener
 {
-    /** @var list<list<int|string|bool>> the call, the pull request number, then the arguments */
+    /** @var list<list<int|string|bool|list<string>>> the call, the pull request number, then the arguments */
     public array $calls = [];
 
     public ?\Throwable $failure = null;
@@ -31,9 +31,9 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
     }
 
     #[\Override]
-    public function merge(ForgePullRequest $pullRequest, string $method, string $expectedHeadSha): void
+    public function merge(ForgePullRequest $pullRequest, array $methods, string $expectedHeadSha): void
     {
-        $this->record(['merge', $pullRequest->number, $method, $expectedHeadSha]);
+        $this->record(['merge', $pullRequest->number, $methods, $expectedHeadSha]);
     }
 
     #[\Override]
@@ -74,7 +74,7 @@ final class FakeForgeWriter implements PullRequestMerger, PullRequestBaseChanger
         return 'https://github.com/'.$from->repository.'/pull/'.$number;
     }
 
-    /** @param list<int|string|bool> $call */
+    /** @param list<int|string|bool|list<string>> $call */
     private function record(array $call): void
     {
         $this->calls[] = $call;

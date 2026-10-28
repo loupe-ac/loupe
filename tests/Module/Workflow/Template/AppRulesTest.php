@@ -6,6 +6,9 @@ namespace App\Tests\Module\Workflow\Template;
 
 use App\Module\Workflow\Contract\CountFilter;
 use App\Module\Workflow\Contract\MetricType;
+use App\Module\Workflow\Contract\RepositorySuggestion;
+use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Module\Workflow\Template\AppRules;
@@ -165,6 +168,7 @@ final class AppRulesTest extends KernelTestCase
             'inbox' => ['paused'],
             'outcomes' => [new TemplateOutcome('merged', true)],
             'metrics' => [new TemplateMetric('fix-rounds-2', 'Fix rounds', 'The fix rounds.', MetricType::Count, new CountFilter(role: 'fix'))],
+            'repositorySettings' => [new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning)],
         ]);
         foreach (new \ReflectionMethod(Template::class, '__construct')->getParameters() as $parameter) {
             if ($parameter->isDefaultValueAvailable()) {

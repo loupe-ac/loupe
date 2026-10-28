@@ -22,6 +22,7 @@ use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\RetriesWhileTrue;
+use App\Module\Workflow\Contract\WorkHolds;
 
 /** A fix request also writes the fix-requested card event, which feeds the card history only. */
 final readonly class RequestWork implements Action, RetriesWhileTrue
@@ -33,6 +34,7 @@ final readonly class RequestWork implements Action, RetriesWhileTrue
         private WorkRequestOpener $opener,
         private CardPullRequests $cardPullRequests,
         private CardEventRepository $cardEvents,
+        private WorkHolds $workHolds,
     ) {
     }
 
@@ -96,6 +98,10 @@ final readonly class RequestWork implements Action, RetriesWhileTrue
     #[\Override]
     public function run(ActionContext $context): ActionOutcome
     {
+        if (null !== $this->workHolds->heldProject($context->card->projectId)) {
+            return ActionOutcome::held();
+        }
+
         $card = $this->cards->find($context->card->id) ?? throw new \LogicException('A stored card has an id.');
         $limit = $context->optionalInt('limit');
         if (null !== $limit && $context->fires >= $limit) {

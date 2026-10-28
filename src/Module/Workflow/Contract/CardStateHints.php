@@ -22,6 +22,15 @@ interface CardStateHints
     public function blockerHolds(array $cardIds): array;
 
     /**
+     * Since when a rule of each card waits because its project holds its new work. A card with no such rule is left out.
+     *
+     * @param list<string> $cardIds RFC 4122 ids
+     *
+     * @return array<string, \DateTimeImmutable> card id => the earliest stamp
+     */
+    public function workHoldsSince(array $cardIds): array;
+
+    /**
      * The columns whose slot has a rule of its own that reads a pull request.
      *
      * @return list<string> RFC 4122 column ids; empty when the project has no template

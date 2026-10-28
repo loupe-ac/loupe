@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositoryCheck;
+use App\Tests\Module\Forge\QueuedHoldReconciliations;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,6 +15,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 final class RemoveForgeRepositoryControllerTest extends WebTestCase
 {
     use GitHubConnectionsScenario;
+    use QueuedHoldReconciliations;
 
     public function test_the_owner_releases_a_repository(): void
     {
@@ -28,11 +31,36 @@ final class RemoveForgeRepositoryControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/repositories/'.$repository->id.'/remove');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         $this->em()->clear();
         self::assertNull($this->em()->find(ForgeRepository::class, $repository->id));
         self::assertNotNull($this->em()->find(ForgeRepository::class, $kept->id));
         self::assertSame(AuditOutcome::Success, $audit->record('github.repository_removed')->outcome);
+    }
+
+    /** Removing the last blocking repository goes through the summary writer, so the reconciliation that ends a hold is queued. */
+    public function test_removing_a_blocking_repository_drops_its_check_and_changes_the_summary(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $owner = $this->signedUpUser('blocking');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/blocking');
+        $check = new ForgeRepositoryCheck($repository, $project);
+        $check->checkedAt = new \DateTimeImmutable();
+        $check->items = [['key' => 'approval-gate', 'mark' => 'blocking', 'state' => 'gap', 'gaps' => ['no_pull_request_rule'], 'parameters' => []]];
+        $this->em()->persist($check);
+        $this->em()->flush();
+        $checkId = $check->id;
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $this->postAction($client, '/projects/'.$project->id.'/repositories/'.$repository->id.'/remove');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $this->em()->clear();
+        self::assertNull($this->em()->find(ForgeRepositoryCheck::class, $checkId));
+        self::assertSame([(string) $project->id], $this->queuedReconciliations());
     }
 
     /** A foreign id answers like an unknown one, so the route tells nobody that the row exists. */

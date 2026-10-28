@@ -11,7 +11,7 @@ use App\Module\Forge\Service\PullRequestWriteFailed;
 /** Records each merge for the `fake` forge, and throws the failure it holds. */
 final class FakePullRequestMerger implements PullRequestMerger
 {
-    /** @var list<array{ForgePullRequest, string, string}> */
+    /** @var list<array{ForgePullRequest, list<string>, string}> */
     public array $merges = [];
 
     /** Runs inside each merge, such as a read that moves the head while the forge answers. */
@@ -29,9 +29,9 @@ final class FakePullRequestMerger implements PullRequestMerger
     }
 
     #[\Override]
-    public function merge(ForgePullRequest $pullRequest, string $method, string $expectedHeadSha): void
+    public function merge(ForgePullRequest $pullRequest, array $methods, string $expectedHeadSha): void
     {
-        $this->merges[] = [$pullRequest, $method, $expectedHeadSha];
+        $this->merges[] = [$pullRequest, $methods, $expectedHeadSha];
         if (null !== $this->duringMerge) {
             ($this->duringMerge)();
         }

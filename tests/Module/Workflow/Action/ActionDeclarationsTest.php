@@ -125,8 +125,8 @@ final class ActionDeclarationsTest extends TestCase
 
     public function test_a_forge_write_needs_a_fallback_unless_it_writes_a_state_or_opens_an_epic(): void
     {
-        self::assertSame(['missing parameter "fallback"'], ForgeWrite::check(['write' => 'merge']));
-        self::assertSame([], ForgeWrite::check(['write' => 'merge', 'fallback' => 'merge']));
+        self::assertSame(['missing parameter "fallback"'], ForgeWrite::check(['write' => 'merge', 'methods' => ['squash']]));
+        self::assertSame([], ForgeWrite::check(['write' => 'merge', 'methods' => ['squash'], 'fallback' => 'merge']));
         foreach (['draft', 'ready', 'close', 'open-epic', 'post-review', 'site-review-check'] as $write) {
             self::assertSame([], ForgeWrite::check(['write' => $write]), $write);
         }

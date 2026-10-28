@@ -139,14 +139,14 @@ final class ForgeWriteTest extends KernelTestCase
         );
     }
 
-    public function test_it_merges_the_primary_pull_request_with_the_configured_method(): void
+    public function test_it_merges_the_primary_pull_request_with_the_methods_of_the_rule(): void
     {
         $card = $this->card($this->project(), 'in-review');
         $pullRequest = $this->pullRequest($card, headSha: 'abc123');
 
         self::assertEquals(ActionOutcome::done(), $this->write($card, 'merge'));
 
-        self::assertSame([['merge', $pullRequest->number, 'squash', 'abc123']], $this->writer->calls);
+        self::assertSame([['merge', $pullRequest->number, ['squash', 'merge', 'rebase'], 'abc123']], $this->writer->calls);
         self::assertSame([], $this->liveKinds($card));
     }
 
@@ -161,7 +161,7 @@ final class ForgeWriteTest extends KernelTestCase
 
         self::assertEquals(ActionOutcome::done(), $this->write($card, 'merge', facts: FactsMother::facts(pullRequest: FactsMother::pullRequest(id: $base->id))));
 
-        self::assertSame([['merge', $base->number, 'squash', 'aaa111']], $this->writer->calls);
+        self::assertSame([['merge', $base->number, ['squash', 'merge', 'rebase'], 'aaa111']], $this->writer->calls);
     }
 
     public function test_a_forge_with_no_merger_opens_the_fallback_work(): void
@@ -1395,10 +1395,10 @@ final class ForgeWriteTest extends KernelTestCase
             $this->service(EvaluationTrigger::class),
             new ShippedCardTypes(),
             $logger ?? new RecordingLogger(),
-            'squash',
         );
 
         $params = null === $fallback ? ['write' => $write] : ['write' => $write, 'fallback' => $fallback];
+        $lists = 'merge' === $write ? ['methods' => ['squash', 'merge', 'rebase']] : [];
         if (null !== $comment) {
             $params['comment'] = $comment;
         }
@@ -1406,7 +1406,7 @@ final class ForgeWriteTest extends KernelTestCase
             $params['state'] = $state;
         }
 
-        return $this->runAction($action, $this->rule('forge-write', $params), $card->snapshot(), $facts ?? FactsMother::facts(), $this->state($card));
+        return $this->runAction($action, $this->rule('forge-write', $params, lists: $lists), $card->snapshot(), $facts ?? FactsMother::facts(), $this->state($card));
     }
 
     private function settle(WorkRequest $request, string $reason): void

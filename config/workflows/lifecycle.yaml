@@ -1,5 +1,5 @@
 key: lifecycle
-version: 26
+version: 28
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -32,6 +32,11 @@ metrics:
       duration: { from: { last: agent-review-passed }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
+repositorySettings:
+    - { key: approval-gate, mark: blocking }
+    - { key: ci-checks, mark: warning }
+    - { key: branch-protection, mark: warning }
+    - { key: merge-method, mark: blocking }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }
@@ -610,7 +615,7 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, fallback: merge } }
+      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
 
     - id: merge-ready-epic-child
       slot: in-review
@@ -628,7 +633,7 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, fallback: merge } }
+      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
 
     - id: epic-to-review
       slot: implementation
@@ -816,7 +821,7 @@ rules:
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
 
-inbox: [waits-for-approval, document-in-review, run-needs-you, paused]
+inbox: [waits-for-approval, document-in-review, run-needs-you, paused, repository-misfit]
 markers:
     - key: paused
       kind: stuck
@@ -949,18 +954,12 @@ markers:
               - pr.checks_passed: {}
               - pr.merge_blocked: {}
               - not: { card.run.worker_active: {} }
-    - key: ruleset-mismatch
+    - key: repository-misfit
       kind: needs-you
-      label: marker.ruleset_mismatch
-      remedy: marker.ruleset_mismatch.remedy
-      link: ruleset-setup
-      when:
-          all:
-              - pr.open: {}
-              - any:
-                    - pr.base_requires_review: {}
-                    - pr.approval_check_unpinned: {}
-              - not: { card.run.worker_active: {} }
+      label: marker.repository_misfit
+      remedy: marker.repository_misfit.remedy
+      link: repositories
+      when: { card.rule.held_by_work_hold: {} }
     - key: open-question
       kind: needs-you
       label: marker.open_question

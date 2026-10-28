@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Module\Board\Service;
+namespace App\Tests\Module\Forge\Service;
 
-use App\Module\Board\Service\FailedCheckNames;
+use App\Module\Forge\Service\FailedCheckNames;
 use PHPUnit\Framework\TestCase;
 
 final class FailedCheckNamesTest extends TestCase

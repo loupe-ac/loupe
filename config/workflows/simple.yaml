@@ -13,6 +13,8 @@ metrics:
       label: Hours to merge
       description: The hours from the first pull request opening to the merge.
       duration: { from: pr-opened, to: pr-merged }
+repositorySettings:
+    - { key: branch-protection, mark: warning }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }

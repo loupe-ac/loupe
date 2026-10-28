@@ -6,6 +6,7 @@ namespace App\Module\Forge\Service;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,8 @@ final readonly class ForgeRepositories
         private ForgeRepositoryRepository $forgeRepositories,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
+        private RepositoryHoldSummaries $summaries,
+        private ForgeRepositoryCheckRepository $forgeRepositoryChecks,
     ) {
     }
 
@@ -92,23 +95,32 @@ final readonly class ForgeRepositories
             return;
         }
 
-        $this->em->remove($existing);
-        $this->em->flush();
+        $this->summaries->change($project, function (RepositoryChange $change) use ($existing): void {
+            $this->remove($existing, $change);
+        });
     }
 
     /**
      * Removes the rows one installation holds, or its row for one repository.
-     * A later hook delivery creates a hook row again.
+     * A later hook delivery creates a hook row again. Each project that loses a
+     * row changes its hold summary in its own transaction.
      */
     public function releaseInstallation(string $forge, string $sourceRef, ?string $externalId = null): void
     {
+        $byProject = [];
         foreach ($this->forgeRepositories->findByInstallation($forge, $sourceRef) as $repository) {
             if (null === $externalId || $repository->externalId === $externalId) {
-                $this->em->remove($repository);
+                $byProject[(string) $repository->project->id][] = $repository;
             }
         }
 
-        $this->em->flush();
+        foreach ($byProject as $repositories) {
+            $this->summaries->change($repositories[0]->project, function (RepositoryChange $change) use ($repositories): void {
+                foreach ($repositories as $repository) {
+                    $this->remove($repository, $change);
+                }
+            });
+        }
     }
 
     /** Stamps at most once a minute, because every accepted delivery calls it. */
@@ -127,6 +139,20 @@ final readonly class ForgeRepositories
     public function installationOwnerOf(string $forge, string $externalId): ?ForgeRepository
     {
         return $this->forgeRepositories->findInstallationRow($forge, $externalId);
+    }
+
+    /**
+     * The database cascade would drop the check row too, but a loaded check
+     * still refers to the removed repository and would fail the flush.
+     */
+    private function remove(ForgeRepository $repository, RepositoryChange $change): void
+    {
+        $change->signal($repository->id ?? throw new \LogicException('A persisted repository has an id.'));
+        $check = $this->forgeRepositoryChecks->findOneOfRepository($repository);
+        if (null !== $check) {
+            $this->em->remove($check);
+        }
+        $this->em->remove($repository);
     }
 
     private function isOwnedBy(ForgeRepository $repository, Project $project): bool

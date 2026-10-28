@@ -7,6 +7,7 @@ namespace App\Module\Workflow\Template;
 use App\Module\Workflow\Contract\EndsReviewLoop;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
+use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
 
@@ -45,6 +46,7 @@ final readonly class Template
      * @param list<string>                    $inbox                            the keys of the markers that store one inbox entry per thing, in template order
      * @param list<TemplateOutcome>           $outcomes                         the outcomes a move may set, in template order
      * @param list<TemplateMetric>            $metrics                          the metrics the template declares, in template order
+     * @param list<RepositorySuggestion>      $repositorySettings               the settings the template suggests for a connected repository, in template order
      */
     public function __construct(
         public string $key,
@@ -65,6 +67,7 @@ final readonly class Template
         public array $inbox = [],
         public array $outcomes = [],
         public array $metrics = [],
+        public array $repositorySettings = [],
     ) {
     }
 

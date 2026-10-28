@@ -139,12 +139,13 @@ class WorkRequestRepository extends ServiceEntityRepository
      *
      * A request that names a target bridge is offered to that bridge alone.
      *
-     * @param list<string> $projectIds   RFC 4122 ids, as Bridge::$projects holds them
+     * @param list<string> $projectIds     RFC 4122 ids, as Bridge::$projects holds them
      * @param list<string> $capabilities
+     * @param list<string> $heldProjectIds RFC 4122 ids of the projects that hold their new work. Their requests are left out.
      *
      * @return list<WorkRequest>
      */
-    public function findOpenOffers(Uuid $bridgeId, array $projectIds, array $capabilities, int $limit): array
+    public function findOpenOffers(Uuid $bridgeId, array $projectIds, array $capabilities, int $limit, array $heldProjectIds): array
     {
         if ([] === $projectIds) {
             return [];
@@ -162,6 +163,10 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->orderBy('w.createdAt', 'ASC')
             ->addOrderBy('w.id', 'ASC')
             ->setMaxResults($limit);
+        if ([] !== $heldProjectIds) {
+            $qb->andWhere('w.project NOT IN (:heldProjects)')
+                ->setParameter('heldProjects', $heldProjectIds);
+        }
         if ([] === $capabilities) {
             $qb->andWhere('w.capability IS NULL');
         } else {
@@ -179,21 +184,41 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The projects that have a claim whose lease lapsed.
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function findProjectIdsOfLapsedClaims(\DateTimeImmutable $now): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT DISTINCT project_id FROM work_requests WHERE state = :claimed AND lease_until <= :now',
+            ['claimed' => WorkRequestState::Claimed->value, 'now' => $now],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        )->fetchFirstColumn();
+
+        return $ids;
+    }
+
+    /**
      * Opens again every claimed request whose lease lapsed. It skips a row
      * that a renewal or a settlement holds, and the next sweep reads it again.
-     * Call it inside a transaction: it share-locks the project of each card
-     * request first, so a hold that commits before the reopen keeps it claimed.
+     * Call it inside a transaction: it share-locks the project of each request
+     * first, so a hold that commits before the reopen keeps it claimed.
+     * A request of a project that holds its new work stays claimed too.
+     *
+     * @param list<string> $heldProjectIds RFC 4122 ids, read in the same transaction as this call
      *
      * @return list<WorkRequest> the reopened requests, read fresh
      */
-    public function reopenLapsed(\DateTimeImmutable $now): array
+    public function reopenLapsed(\DateTimeImmutable $now, array $heldProjectIds): array
     {
         $connection = $this->getEntityManager()->getConnection();
         $lockedProjects = $connection->executeQuery(
-            "SELECT id FROM projects WHERE id IN (
+            'SELECT id FROM projects WHERE id IN (
                 SELECT project_id FROM work_requests
-                WHERE state = :claimed AND lease_until <= :now AND subject_type = 'card'
-            ) ORDER BY id FOR SHARE",
+                WHERE state = :claimed AND lease_until <= :now
+            ) ORDER BY id FOR SHARE',
             ['claimed' => WorkRequestState::Claimed->value, 'now' => $now],
             ['now' => Types::DATETIME_IMMUTABLE],
         )->fetchFirstColumn();
@@ -202,8 +227,8 @@ class WorkRequestRepository extends ServiceEntityRepository
             WITH target AS MATERIALIZED (
                 SELECT id
                 FROM work_requests
-                WHERE state = :claimed AND lease_until <= :now AND NOT %s
-                    AND (subject_type <> 'card' OR project_id IN (:lockedProjects))
+                WHERE state = :claimed AND lease_until <= :now AND NOT %s%s
+                    AND project_id IN (:lockedProjects)
                 ORDER BY id
                 FOR UPDATE SKIP LOCKED
             )
@@ -213,13 +238,15 @@ class WorkRequestRepository extends ServiceEntityRepository
             WHERE work_requests.id = target.id
             RETURNING work_requests.id
             SQL;
-        $sql = \sprintf($sql, self::HELD_CARD);
+        $sql = \sprintf($sql, self::HELD_CARD, [] === $heldProjectIds ? '' : ' AND project_id NOT IN (:heldProjects)');
+        $parameters = ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now, 'lockedProjects' => [] === $lockedProjects ? [null] : $lockedProjects];
+        $types = ['now' => Types::DATETIME_IMMUTABLE, 'lockedProjects' => ArrayParameterType::STRING];
+        if ([] !== $heldProjectIds) {
+            $parameters['heldProjects'] = $heldProjectIds;
+            $types['heldProjects'] = ArrayParameterType::STRING;
+        }
 
-        $ids = $connection->executeQuery(
-            $sql,
-            ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now, 'lockedProjects' => [] === $lockedProjects ? [null] : $lockedProjects],
-            ['now' => Types::DATETIME_IMMUTABLE, 'lockedProjects' => ArrayParameterType::STRING],
-        )->fetchFirstColumn();
+        $ids = $connection->executeQuery($sql, $parameters, $types)->fetchFirstColumn();
         if ([] === $ids) {
             return [];
         }
@@ -236,7 +263,7 @@ class WorkRequestRepository extends ServiceEntityRepository
 
     /**
      * The open requests about a subject other than a card that waited for a
-     * bridge since the deadline or longer, oldest first. A reopen restarts the wait.
+     * bridge since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *
      * @return list<WorkRequest>
      */
@@ -245,6 +272,7 @@ class WorkRequestRepository extends ServiceEntityRepository
         return array_values($this->createQueryBuilder('w')
             ->andWhere('w.state = :open')
             ->andWhere('w.subjectType <> :card')
+            ->andWhere('w.workHoldSince IS NULL')
             ->andWhere('COALESCE(w.reopenedAt, w.createdAt) <= :deadline')
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('card', WorkSubject::CARD)
@@ -256,8 +284,8 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * The open requests about a card whose rule id starts with the prefix, oldest first. The workflow engine
-     * leaves such a request alone, so the caller expires it.
+     * The open requests about a card whose rule id starts with the prefix and that no work hold marked, oldest first.
+     * The workflow engine leaves such a request alone, so the caller expires it.
      *
      * @return list<WorkRequest>
      */
@@ -267,6 +295,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->andWhere('w.state = :open')
             ->andWhere('w.subjectType = :card')
             ->andWhere('w.ruleId LIKE :prefix')
+            ->andWhere('w.workHoldSince IS NULL')
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('card', WorkSubject::CARD)
             ->setParameter('prefix', addcslashes($prefix, '%_\\').'%')
@@ -278,7 +307,7 @@ class WorkRequestRepository extends ServiceEntityRepository
 
     /**
      * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
-     * since the deadline or longer, oldest first. A reopen restarts the wait.
+     * since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *
      * @return list<WorkRequest>
      */
@@ -288,6 +317,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->andWhere('w.state = :open')
             ->andWhere('w.kind = :kind')
             ->andWhere('w.ruleId LIKE :prefix')
+            ->andWhere('w.workHoldSince IS NULL')
             ->andWhere('COALESCE(w.reopenedAt, w.createdAt) <= :deadline')
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('kind', $kind)
@@ -318,6 +348,46 @@ class WorkRequestRepository extends ServiceEntityRepository
                 'cardIds' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
             ],
             ['now' => Types::DATETIME_IMMUTABLE, 'cardIds' => ArrayParameterType::STRING],
+        );
+    }
+
+    /**
+     * The open requests about the cards of the project, oldest first.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenCardRequestsOfProject(Project $project): array
+    {
+        return array_values($this->createQueryBuilder('w')
+            ->andWhere('w.project = :project')
+            ->andWhere('w.state = :open')
+            ->andWhere('w.subjectType = :card')
+            ->setParameter('project', $project)
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('card', WorkSubject::CARD)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** Marks each open request of the project that the hold found, in one statement, so it joins a caller's transaction. A managed request is stale after it. */
+    public function markOpenHeldForProject(Uuid $projectId, \DateTimeImmutable $now): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE work_requests SET work_hold_since = :now WHERE project_id = :project AND state = :open AND work_hold_since IS NULL',
+            ['now' => $now, 'project' => $projectId->toRfc4122(), 'open' => WorkRequestState::Open->value],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        );
+    }
+
+    /** Restarts the timeout of each open request of the project that the hold marked, and clears the mark, in one statement. A managed request is stale after it. */
+    public function restartClockOfHeldForProject(Uuid $projectId, \DateTimeImmutable $now): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE work_requests SET reopened_at = :now, work_hold_since = NULL WHERE project_id = :project AND state = :open AND work_hold_since IS NOT NULL',
+            ['now' => $now, 'project' => $projectId->toRfc4122(), 'open' => WorkRequestState::Open->value],
+            ['now' => Types::DATETIME_IMMUTABLE],
         );
     }
 

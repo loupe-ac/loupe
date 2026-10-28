@@ -42,7 +42,7 @@ class ConnectGitHubInstallationController extends AppController
             return $this->redirectToRoute('app_projects');
         }
 
-        $connectPage = $this->redirectToRoute('app_project_connect', ['id' => $pending->projectId, '_fragment' => 'repositories']);
+        $connectPage = $this->redirectToRoute('app_project_repositories_settings', ['id' => $pending->projectId]);
         $state = $request->query->get('state');
         if (!\is_string($state) || !hash_equals($pending->authorizeState, $state)) {
             $this->addFlash('error', $this->translator->trans('github.app.flash.state_mismatch'));

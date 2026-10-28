@@ -18,7 +18,7 @@ final class LifecycleRulesetMismatchMigrationTest extends KernelTestCase
 {
     use ActionScenario;
 
-    public function test_a_lifecycle_binding_gets_the_ruleset_mismatch_marker_and_keeps_its_project_settings(): void
+    public function test_a_lifecycle_binding_loses_the_retired_ruleset_mismatch_marker_and_keeps_its_project_settings(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('migration-ruleset-mismatch');
@@ -33,7 +33,7 @@ final class LifecycleRulesetMismatchMigrationTest extends KernelTestCase
         $old['version'] = 23;
         $old['epicBranch'] = 'feature/epic-{number}';
         $old['approvalCoversConflictResolution'] = false;
-        $old['markers'] = array_values(array_filter($old['markers'], static fn (array $marker): bool => 'ruleset-mismatch' !== $marker['key']));
+        $old['markers'][] = [...$old['markers'][0], 'key' => 'ruleset-mismatch'];
         $connection->executeStatement('UPDATE workflow_bindings SET template_version = 23, definition = CAST(? AS JSONB) WHERE project_id = ?', [json_encode($old, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION), $projectId]);
         $otherBefore = $this->binding($connection, $otherId);
 
@@ -41,7 +41,7 @@ final class LifecycleRulesetMismatchMigrationTest extends KernelTestCase
 
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $projectId));
-        self::assertContains('ruleset-mismatch', array_column($this->row($connection, $projectId)['markers'], 'key'));
+        self::assertNotContains('ruleset-mismatch', array_column($this->row($connection, $projectId)['markers'], 'key'));
         self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);

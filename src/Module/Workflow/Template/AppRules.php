@@ -102,6 +102,7 @@ final class AppRules implements ProposalSlot
             $template->inbox,
             $template->outcomes,
             $template->metrics,
+            $template->repositorySettings,
         );
     }
 

@@ -21,12 +21,21 @@ use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Fact\FactsMother;
+use App\Tests\Module\Workflow\FakeWorkHolds;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
 final class RequestWorkTest extends KernelTestCase
 {
     use ActionScenario;
+
+    private FakeWorkHolds $workHolds;
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        $this->workHolds = new FakeWorkHolds();
+    }
 
     public function test_it_opens_a_work_request_of_the_kind_and_capability_for_the_rule(): void
     {
@@ -40,6 +49,20 @@ final class RequestWorkTest extends KernelTestCase
         $live = $this->service(WorkRequestRepository::class)->findLiveForCard($card->id ?? throw new \LogicException('A flushed card has an id.'));
         self::assertCount(1, $live);
         self::assertSame(['product-design', 'interactive', 'start-product-design', $card->number], [$live[0]->kind, $live[0]->capability, $live[0]->ruleId, $live[0]->cardNumber]);
+    }
+
+    public function test_a_held_project_gets_the_held_outcome_and_no_request(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('request-held'), 'next');
+        $rule = $this->rule('request', ['kind' => 'product-design'], 'start-product-design');
+        $this->workHolds->held = true;
+
+        $outcome = $this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card, $rule->id));
+
+        self::assertEquals(ActionOutcome::held(), $outcome);
+        self::assertSame([], $this->service(WorkRequestRepository::class)->findLiveForCard($card->id ?? throw new \LogicException('A flushed card has an id.')));
+        self::assertSame(1, $this->workHolds->reads);
     }
 
     public function test_an_app_rule_that_names_a_prompt_sends_the_text_of_the_prompt(): void
@@ -368,6 +391,6 @@ final class RequestWorkTest extends KernelTestCase
 
     private function action(): RequestWork
     {
-        return new RequestWork($this->service(CardRepository::class), $this->opener(), $this->service(CardPullRequests::class), $this->service(CardEventRepository::class));
+        return new RequestWork($this->service(CardRepository::class), $this->opener(), $this->service(CardPullRequests::class), $this->service(CardEventRepository::class), $this->workHolds);
     }
 }

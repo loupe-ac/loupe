@@ -35,6 +35,18 @@ final class ProjectTemplateCopy implements TemplateSource, ResetInterface
         return $this->templates[$key] = $this->appRules->appendTo($this->parser->parseStored($binding->definition));
     }
 
+    /**
+     * Reads the copy from the database again, and leaves the kept one alone.
+     *
+     * @throws TemplateMissing when the project is bound to no template
+     */
+    public function forProjectFresh(Uuid $projectId): Template
+    {
+        $definition = $this->workflowBindings->findDefinitionFresh($projectId) ?? throw new TemplateMissing($projectId);
+
+        return $this->appRules->appendTo($this->parser->parseStored($definition));
+    }
+
     #[\Override]
     public function reset(): void
     {

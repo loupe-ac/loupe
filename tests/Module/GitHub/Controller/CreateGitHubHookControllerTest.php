@@ -31,7 +31,7 @@ final class CreateGitHubHookControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $this->em()->clear();
         $hooks = static::getContainer()->get(GitHubHookRepository::class);
         self::assertInstanceOf(GitHubHookRepository::class, $hooks);
@@ -40,11 +40,11 @@ final class CreateGitHubHookControllerTest extends WebTestCase
         self::assertSame(AuditOutcome::Success, $audit->record('github.hook_created')->outcome);
 
         $crawler = $client->followRedirect();
-        self::assertSame($hook->secret, trim($crawler->filter('#repositories [data-testid="github-hook-secret"]')->text()));
-        self::assertStringEndsWith('/webhooks/forge/github/'.$hook->hookKey, trim($crawler->filter('#repositories [data-testid="github-hook-url"]')->text()));
+        self::assertSame($hook->secret, trim($crawler->filter('#github-connection [data-testid="github-hook-secret"]')->text()));
+        self::assertStringEndsWith('/webhooks/forge/github/'.$hook->hookKey, trim($crawler->filter('#github-connection [data-testid="github-hook-url"]')->text()));
 
         $crawler = $this->connectPage($client, $project);
-        self::assertCount(0, $crawler->filter('#repositories [data-testid="github-hook-secret"]'));
+        self::assertCount(0, $crawler->filter('#github-connection [data-testid="github-hook-secret"]'));
         self::assertStringNotContainsString($hook->secret, (string) $client->getResponse()->getContent());
     }
 
@@ -59,7 +59,7 @@ final class CreateGitHubHookControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $this->em()->clear();
         $hooks = static::getContainer()->get(GitHubHookRepository::class);
         self::assertInstanceOf(GitHubHookRepository::class, $hooks);
@@ -99,7 +99,7 @@ final class CreateGitHubHookControllerTest extends WebTestCase
         $this->postAction($client, '/projects/'.$project->id.'/github/hook');
 
         self::assertTrue($competitor->fired);
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $crawler = $client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('This project already has a webhook', $crawler->filter('body')->text());
@@ -133,7 +133,7 @@ final class CreateGitHubHookControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $crawler = $client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('The operator has not enabled webhooks', $crawler->filter('body')->text());
