@@ -74,6 +74,7 @@ final class RecordBridgeHeartbeatController extends AppController
             repositories: $payload->repositories(),
             gitIdentities: $payload->gitIdentities(),
             gitIdentitiesAge: $payload->gitIdentitiesAge ?? 0,
+            interactiveSessions: $payload->interactiveSessions(),
         ));
 
         return new JsonResponse([
@@ -82,6 +83,7 @@ final class RecordBridgeHeartbeatController extends AppController
             'commands' => array_map(BridgeCommandPayload::of(...), $result->commands),
             'workRequests' => array_map(WorkRequestPayload::of(...), $result->workRequests),
             'lostClaims' => $result->lostClaims,
+            'watchSessions' => $result->watchSessions,
         ]);
     }
 }

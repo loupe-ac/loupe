@@ -10,6 +10,7 @@ use App\Module\Account\Install\InstallFlagDefaultsInterface;
 use App\Module\Bridge\Service\BridgeCommandTtl;
 use App\Module\Bridge\Service\HeartbeatInterval;
 use App\Module\Bridge\Service\HostSampling;
+use App\Module\Bridge\Service\InteractiveStaleClose;
 use App\Module\Bridge\Service\StopLadder;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
@@ -45,6 +46,9 @@ final readonly class BridgeInstallFlags implements InstallFlagDefaultsInterface
 
         #[Autowire(param: 'app.bridge.default_host_sample_interval_seconds')]
         private int $hostSampleIntervalSeconds,
+
+        #[Autowire(param: 'app.bridge.default_interactive_stale_close_enabled')]
+        private bool $interactiveStaleCloseEnabled,
     ) {
     }
 
@@ -59,6 +63,7 @@ final readonly class BridgeInstallFlags implements InstallFlagDefaultsInterface
         yield new InstallFlagDefault(StopLadder::SIGKILL_FLAG, FeatureFlagType::Int, $this->stopSigkillAfterMs);
         yield new InstallFlagDefault(HostSampling::ENABLED_FLAG, FeatureFlagType::Bool, $this->hostSamplingEnabled);
         yield new InstallFlagDefault(HostSampling::INTERVAL_FLAG, FeatureFlagType::Int, $this->hostSampleIntervalSeconds);
+        yield new InstallFlagDefault(InteractiveStaleClose::FLAG, FeatureFlagType::Bool, $this->interactiveStaleCloseEnabled);
         yield new InstallFlagDefault(ToolCallCollectionSettings::SUBCOMMAND_PROGRAMS_FLAG, FeatureFlagType::String, ToolCallCollectionSettings::DEFAULT_SUBCOMMAND_PROGRAMS);
     }
 }

@@ -719,12 +719,37 @@ error:
 A queued run of a bridge that reports a pause shows **Waiting: bridge paused**
 in the web UI. The run keeps the state `queued`.
 
+## Closing an interactive session
+
+`POST /api/interactive-sessions/{sessionId}/close` closes every open
+interactive run of one session. The exit hook of the Loupe plugin calls it, through `loupe session end`.
+The route names no project, because one session can work in several. It closes the runs in every project
+that the token owner owns, and it leaves the runs of another account as they are.
+
+The firewall admits agent-scoped tokens alone. The endpoint needs no feature flag, because a close needs no
+push and a session that a person started needs no bridge. It shares the `agent_worker_runs` rate limit.
+
+The answer is 200 with `{"closed": <number>}`. The number is 0 when the owner holds no open run of the session.
+A session id that is not a UUID gets 422 with `{"error": "invalid_session_id"}`.
+
+An interactive run records why it closed, in `closeReason`:
+
+| Reason | Meaning |
+|---|---|
+| `session-ended` | the session called `card_run_close`, or the exit hook closed it |
+| `person` | a person closed it from the card or the Runs page |
+| `card-moved` | the card moved to another column |
+| `stale` | no sign of life for 12 hours, while the `bridge.interactive_stale_close_enabled` flag is on |
+| `session-gone` | the bridge that launched the session found its process gone |
+
+A run that closed before the reason existed shows none.
+
 ## Feature flag and rate limit
 
-The endpoints on this page need the `agent.push.enabled` feature flag, as
-`GET /api/events` does. A bridge reaches a worker only through the event
+The endpoints on this page, except the session close endpoint, need the
+`agent.push.enabled` feature flag, as `GET /api/events` does. A bridge reaches a worker only through the event
 stream, so an instance with push off can produce no run to report, and each
-endpoint answers 404 there.
+of those endpoints answers 404 there.
 
 ### Rate limit
 
