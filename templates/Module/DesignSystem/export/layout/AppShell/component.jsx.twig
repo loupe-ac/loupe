@@ -284,6 +284,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                         <div className={'lp-topsearch' + (actions ? ' lp-topsearch--compact' : '')}>
                             <button type="button" className="lp-topbar__global-action lp-topsearch__icon" title="Search project" aria-label="Search project">
                                 <Icon name="search" />
+                                <kbd className="lp-kbd" aria-hidden="true">⌘K</kbd>
                             </button>
                             <form className="lp-topsearch__form" role="search" onSubmit={(event) => event.preventDefault()}>
                                 <label className="sr-only" htmlFor="shell-search">Search pages, cards, and documents</label>
