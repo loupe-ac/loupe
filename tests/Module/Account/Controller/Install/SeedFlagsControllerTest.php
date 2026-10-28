@@ -24,7 +24,6 @@ use App\Module\Notification\Service\PushAvailability;
 use App\Module\Review\Install\ReviewInstallFlags;
 use App\Module\Review\Mcp\DocumentHighlightTool;
 use App\Module\SiteReview\SiteReviewDrawing;
-use App\Search\Install\SearchInstallFlags;
 use App\Service\UpdateCheck;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
@@ -73,7 +72,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(39, $flags);
+        self::assertCount(38, $flags);
         self::assertSame('', $flags['waitlist.notification_emails']->value);
         foreach (['site.link.discord', 'site.link.x', 'site.link.source'] as $linkFlag) {
             self::assertSame('', $flags[$linkFlag]->value);
@@ -105,7 +104,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertArrayNotHasKey('board.enabled', $flags);
         self::assertFalse($flags[InboxInstallFlags::FLAG_INBOX_ENABLED]->value);
         self::assertSame(SessionPromptLimit::DEFAULT, $flags[SessionPromptLimit::FLAG]->value);
-        self::assertFalse($flags[SearchInstallFlags::FLAG_TOPBAR_ENABLED]->value);
+        self::assertArrayNotHasKey('search.topbar.enabled', $flags);
         // Same reasoning as the update check: an install sends nothing to a
         // third party until someone decides it should.
         self::assertFalse($flags[AnalyticsScript::ENABLED_FLAG]->value);

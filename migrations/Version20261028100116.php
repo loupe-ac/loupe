@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DoctrineMigrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20261028100116 extends AbstractMigration
+{
+    #[\Override]
+    public function getDescription(): string
+    {
+        return 'Delete the search.topbar.enabled flag row, because the top bar search is always on';
+    }
+
+    public function up(Schema $schema): void
+    {
+        $this->addSql("DELETE FROM feature_flag WHERE name = 'search.topbar.enabled'");
+    }
+
+    #[\Override]
+    public function down(Schema $schema): void
+    {
+        $this->addSql(<<<'SQL'
+            INSERT INTO feature_flag (name, type, value, tags, options)
+            SELECT 'search.topbar.enabled', 'bool', 'false', '[]', NULL
+            WHERE NOT EXISTS (
+                SELECT 1 FROM feature_flag WHERE name = 'search.topbar.enabled'
+            )
+            SQL);
+    }
+}

@@ -57,7 +57,7 @@ function syncBanner(board, fresh) {
     if (current) {
         current.replaceWith(fresh);
     } else {
-        board.querySelector(':scope > .lp-board-filter-empty')?.before(fresh);
+        board.querySelector(':scope > .lp-board__message')?.before(fresh);
     }
 }
 

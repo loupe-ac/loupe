@@ -18,20 +18,17 @@ export default class extends Controller {
     static values = { project: String, epic: String };
 
     connect() {
-        this.onReveal = () => this.render(this.isCollapsed());
         this.onMorph = (event) => {
             if (event.target === this.element) {
                 this.restore();
             }
         };
-        this.element.addEventListener('board-filter:reveal', this.onReveal);
         this.element.addEventListener('turbo:morph-element', this.onMorph);
         this.restore();
     }
 
     disconnect() {
         clearTimeout(this.animationTimer);
-        this.element.removeEventListener('board-filter:reveal', this.onReveal);
         this.element.removeEventListener('turbo:morph-element', this.onMorph);
     }
 
@@ -39,21 +36,8 @@ export default class extends Controller {
         this.render(this.collapsedIds().includes(this.epicValue));
     }
 
-    /**
-     * A search can show the cells of a collapsed lane. A click then hides
-     * them again and keeps the stored collapse; the next search change
-     * shows them once more.
-     */
     toggle() {
         this.animate(() => {
-            const revealed = this.isRevealed();
-            this.element.classList.remove('lp-board-lane--revealed');
-            if (revealed && this.isCollapsed()) {
-                this.render(true);
-
-                return;
-            }
-
             const ids = new Set(this.collapsedIds());
             const collapsed = !this.isCollapsed();
             if (collapsed) {
@@ -104,19 +88,12 @@ export default class extends Controller {
     render(collapsed) {
         this.element.classList.toggle('lp-board-lane--collapsed', collapsed);
         if (this.hasToggleTarget) {
-            this.toggleTarget.setAttribute(
-                'aria-expanded',
-                String(!collapsed || this.isRevealed()),
-            );
+            this.toggleTarget.setAttribute('aria-expanded', String(!collapsed));
         }
     }
 
     isCollapsed() {
         return this.element.classList.contains('lp-board-lane--collapsed');
-    }
-
-    isRevealed() {
-        return this.element.classList.contains('lp-board-lane--revealed');
     }
 
     get storageKey() {

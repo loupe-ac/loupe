@@ -93,21 +93,89 @@ final class CardSearchToolTest extends KernelTestCase
         self::assertSame('Footer was fixed once already', $result['cards'][0]['title']);
     }
 
-    public function test_words_are_stemmed_rather_than_matched_as_substrings(): void
+    public function test_a_piece_from_inside_a_word_finds_the_card(): void
     {
-        $this->boardWith('card-search-stemming');
+        $this->boardWith('card-search-substring');
 
-        // "paginate" and "pagination" share a stem; "pag" is a substring of both
-        // and a word of neither.
+        // "pag" starts "Paginate" and "gina" sits in its middle; the guard
+        // proves the board holds the card the two queries must find.
         self::assertSame(1, ($this->tool)('paginate')['total']);
-        self::assertSame(0, ($this->tool)('pag')['total']);
+        self::assertSame(1, ($this->tool)('PAG')['total']);
+        self::assertSame(1, ($this->tool)('gina')['total']);
+        self::assertSame(0, ($this->tool)('ginb')['total']);
+    }
+
+    public function test_a_title_that_matches_through_a_piece_of_a_word_outranks_a_body_match(): void
+    {
+        $this->boardWith('card-search-title-substring');
+        // The title match is created first, so the newest-first tiebreak would put it last.
+        ($this->createTool)('Pages of the board', 'Unrelated text.', 'tooling');
+        ($this->createTool)('Named in the body only', 'The pagination helper pages through rows.', 'docs');
+
+        $titles = array_column(($this->tool)('pag')['cards'], 'title');
+
+        self::assertSame('Pages of the board', $titles[0]);
+    }
+
+    public function test_quotes_minus_and_or_narrow_the_cards(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-search-operators'));
+        ($this->createTool)('Board search', 'Finds cards.', 'feature');
+        ($this->createTool)('Search board', 'Backlog too.', 'feature');
+        ($this->createTool)('Mailpit sidecar', 'Search is not here.', 'tooling');
+
+        self::assertSame(['Board search'], array_column(($this->tool)('"board search"')['cards'], 'title'));
+        self::assertEqualsCanonicalizing(
+            ['Board search', 'Mailpit sidecar'],
+            array_column(($this->tool)('search -backlog')['cards'], 'title'),
+        );
+        self::assertEqualsCanonicalizing(
+            ['Search board', 'Mailpit sidecar'],
+            array_column(($this->tool)('mailpit or backlog')['cards'], 'title'),
+        );
+        self::assertEqualsCanonicalizing(
+            ['Board search', 'Search board'],
+            array_column(($this->tool)('-mailpit board')['cards'], 'title'),
+            'a query of an exclusion and a word combines both',
+        );
+        self::assertEqualsCanonicalizing(
+            ['Board search', 'Mailpit sidecar'],
+            array_column(($this->tool)('-backlog')['cards'], 'title'),
+            'a query of an exclusion alone keeps every card without the word',
+        );
+    }
+
+    public function test_a_number_finds_its_card_first(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-search-number'));
+        $first = ($this->createTool)('Alpha', 'Body', 'feature');
+        ($this->createTool)('Mentions 1 in passing', 'Body', 'feature');
+        $this->em->clear();
+
+        $rows = ($this->tool)('#'.$first['number'])['cards'];
+
+        self::assertSame($first['cardId'], $rows[0]['cardId']);
+        self::assertGreaterThanOrEqual(2, \count($rows), 'the other card that holds the digit is still a match');
+    }
+
+    public function test_a_query_of_punctuation_only_matches_no_card(): void
+    {
+        $this->boardWith('card-search-punctuation');
+
+        // The guard: a query with a word finds a card, so the empty answers
+        // come from the query and not from an empty board.
+        self::assertSame(1, ($this->tool)('kestrel')['total']);
+        foreach (['!!!', '#', '"', '-', '- -'] as $query) {
+            self::assertSame(0, ($this->tool)($query)['total'], $query);
+        }
     }
 
     public function test_a_title_match_outranks_a_body_match(): void
     {
         $this->boardWith('card-search-rank');
-        ($this->createTool)('Named in the body only', 'The gannet is mentioned here.', 'docs');
+        // The title match is created first, so the newest-first tiebreak would put it last.
         ($this->createTool)('Gannet tooling', 'Unrelated text.', 'tooling');
+        ($this->createTool)('Named in the body only', 'The gannet is mentioned here.', 'docs');
 
         $titles = array_column(($this->tool)('gannet')['cards'], 'title');
 
@@ -146,6 +214,19 @@ final class CardSearchToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('card-search-theirs'));
 
         self::assertSame(0, ($this->tool)('mailpit')['total']);
+    }
+
+    public function test_a_number_does_not_find_another_projects_card_that_holds_it(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-search-number-theirs'));
+        ($this->createTool)('Ticket 7 in the other project', 'Body', 'feature');
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-search-number-mine'));
+        ($this->createTool)('Ticket 7 in this project', 'Body', 'feature');
+        $this->em->clear();
+
+        $titles = array_column(($this->tool)('7')['cards'], 'title');
+
+        self::assertSame(['Ticket 7 in this project'], $titles);
     }
 
     public function test_a_row_is_the_same_summary_card_list_returns(): void
@@ -210,9 +291,8 @@ final class CardSearchToolTest extends KernelTestCase
     }
 
     /**
-     * The project's language is the card's, read once at creation. Without it a
-     * French project's cards are stemmed as English while the query that reads
-     * them is parsed as French, and the two never meet.
+     * The project's language is the card's, read once at creation. The card
+     * stays findable by its text in that language.
      */
     public function test_a_card_takes_its_projects_search_language(): void
     {
@@ -228,11 +308,9 @@ final class CardSearchToolTest extends KernelTestCase
         $card = $cards->find($created['cardId']);
         self::assertInstanceOf(Card::class, $card);
         self::assertSame(SearchLanguage::French, $card->searchLanguage);
-        self::assertSame([SearchLanguage::French], $cards->searchLanguagesOf($project));
 
-        // The vector and the query are both built as French, so the card is
-        // still findable rather than indexed under a configuration nothing asks
-        // for.
+        // The substring search reads the text itself, so the language of the
+        // card does not change what finds it.
         self::assertSame(1, ($this->tool)('goeland')['total']);
     }
 

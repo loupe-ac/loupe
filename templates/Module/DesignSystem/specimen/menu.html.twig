@@ -20,3 +20,13 @@
         </twig:Ds:MenuGroup>
     </twig:block>
 </twig:Ds:Menu>
+<twig:Ds:Menu id="styleguide-menu-live-{{ variant }}" :tone="variant" live open align="start" size="md">
+    <twig:block name="trigger">
+        <twig:Ds:Input type="search" value="login" role="combobox" aria-expanded="true" aria-controls="styleguide-menu-live-{{ variant }}" aria-label="Search" />
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuGroup heading="Cards" role="group">
+            <twig:Ds:MenuItem role="option" href="#components"><span class="lp-board-card__number">#1116</span><span class="lp-menu__label">Login page redesign</span><twig:Ds:StatusChip :dot="false">Backlog</twig:Ds:StatusChip></twig:Ds:MenuItem>
+        </twig:Ds:MenuGroup>
+    </twig:block>
+</twig:Ds:Menu>

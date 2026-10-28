@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Search;
 
+use App\Doctrine\SearchQuery;
 use App\Module\Project\Entity\Project;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -41,10 +42,14 @@ final readonly class PageSearchProvider implements SearchProviderInterface
         if ($this->flags->isEnabled('inbox.enabled')) {
             $routes['app_project_inbox'] = 'nav.link.inbox';
         }
+        $search = SearchQuery::parse($query);
+        if ('' !== $query && !$search->hasTerms()) {
+            return new SearchResults();
+        }
         $items = [];
         foreach ($routes as $route => $label) {
             $title = $this->translator->trans($label);
-            if ('' === $query || false !== mb_stripos($title, $query)) {
+            if ('' === $query || $search->matchesText($title)) {
                 $parameters = in_array($route, ['app_projects', 'app_account_profile'], true) ? [] : ['id' => (string) $project->id];
                 $items[] = new SearchResult($title, $this->urls->generate($route, $parameters), 'page');
             }

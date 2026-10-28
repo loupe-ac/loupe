@@ -116,10 +116,9 @@ export default class extends Controller {
         if (lane === undefined) {
             return;
         }
-        const classes = lane.element.classList;
-        const collapsed =
-            classes.contains('lp-board-lane--collapsed') &&
-            !classes.contains('lp-board-lane--revealed');
+        const collapsed = lane.element.classList.contains(
+            'lp-board-lane--collapsed',
+        );
         this.cardsLabelTarget.textContent = collapsed
             ? this.sheetTarget.dataset.showLabel
             : this.sheetTarget.dataset.hideLabel;

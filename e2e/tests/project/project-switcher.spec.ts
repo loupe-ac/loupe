@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createTest } from '../fixtures';
 
 const test = createTest({
@@ -6,24 +6,7 @@ const test = createTest({
     password: 'e2e_password_123',
 });
 
-// The topbar search ships off. The flag is global, so it goes back off after.
-async function setSearchFlag(
-    request: APIRequestContext,
-    enabled: boolean,
-): Promise<void> {
-    const response = await request.post('/dev/e2e/feature-flag', {
-        form: { name: 'search.topbar.enabled', enabled: enabled ? 1 : 0 },
-    });
-    expect(response.ok()).toBeTruthy();
-}
-
-test.beforeAll(async ({ request }) => {
-    await setSearchFlag(request, true);
-});
-
-test.afterAll(async ({ request }) => {
-    await setSearchFlag(request, false);
-});
+test.describe.configure({ mode: 'default' });
 
 test('resizing an open mobile sidebar releases the page at the desktop breakpoint', async ({
     page,
@@ -87,15 +70,15 @@ test('project switching marks context, clears search, and returns keyboard focus
         urls.push(new URL(page.url()).pathname);
     }
 
-    const search = page.getByRole('dialog', {
-        name: 'Search project',
+    const search = page.getByRole('combobox', {
+        name: 'Search pages, cards, and documents',
         exact: true,
     });
     await page.keyboard.press('Control+k');
-    await expect(search).toBeVisible();
-    await search.getByRole('searchbox').fill('Previous project query');
+    await expect(search).toBeFocused();
+    await search.fill('Previous project query');
     await page.keyboard.press('Escape');
-    await expect(search).toBeHidden();
+    await expect(search).not.toBeFocused();
 
     const trigger = page.getByRole('button', {
         name: 'Switch project',
@@ -125,10 +108,10 @@ test('project switching marks context, clears search, and returns keyboard focus
     await expect(panel).toBeHidden();
     await expect(selected).toHaveAttribute('href', urls[0]);
     await page.keyboard.press('Control+k');
-    await expect(search).toBeVisible();
-    await expect(search.getByRole('searchbox')).toHaveValue('');
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue('');
     await page.keyboard.press('Escape');
-    await expect(search).toBeHidden();
+    await expect(search).not.toBeFocused();
 
     await page.goBack();
     await expect(page.locator('.lp-sidebar__switcher-name')).toHaveText(

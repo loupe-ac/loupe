@@ -7,12 +7,10 @@ namespace App\Tests\Module\Project\Controller;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
-use App\Search\Install\SearchInstallFlags;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class SidebarStatesTest extends WebTestCase
 {
@@ -43,7 +41,6 @@ final class SidebarStatesTest extends WebTestCase
         $owner = $this->user($em, 'sidebar-remember@example.com');
         $project = new Project($owner, 'remembered');
         $em->persist($project);
-        static::getContainer()->get(FeatureFlagRepository::class)->findAllIndexed()[SearchInstallFlags::FLAG_TOPBAR_ENABLED]->value = true;
         $em->flush();
         $id = (string) $project->id;
         $em->clear();
@@ -63,7 +60,7 @@ final class SidebarStatesTest extends WebTestCase
         self::assertSelectorNotExists('a.lp-sidebar__link--active[href="/projects/'.$id.'/documents"]');
         self::assertSelectorExists('a.lp-sidebar__link--active[href="/account/profile"]');
         // The topbar stays account-wide: search still spans every project.
-        self::assertSelectorExists('a[data-global-search-target="trigger"][href="/search"]');
+        self::assertSelectorExists('.lp-topsearch[data-topbar-search-url-value="/search"]');
     }
 
     public function test_the_last_visited_project_is_forgotten_once_it_is_gone(): void

@@ -1,62 +1,48 @@
 /** @vitest-environment jsdom */
 import { Application } from '@hotwired/stimulus';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import BoardFilterController from '../../assets/controllers/board_filter_controller.js';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import BoardViewController from '../../assets/controllers/board_view_controller.js';
 
 let application;
 
-// jsdom has no layout, so it does not define scrollIntoView.
-Element.prototype.scrollIntoView ??= () => {};
-
 beforeEach(() => {
     application = Application.start();
-    application.register('board-filter', BoardFilterController);
     application.register('board-view', BoardViewController);
 });
 
 afterEach(async () => {
-    vi.restoreAllMocks();
     document.body.replaceChildren();
     await Promise.resolve();
     application.stop();
 });
 
-function boardHtml() {
-    return `<div id="board" data-controller="board-filter board-view" data-board-view-list-url-value="/board/list">
-        <div data-action="focusin->board-filter#revealField">
-            <input data-board-filter-target="query" data-action="input->board-filter#filter">
-        </div>
-        <span data-board-filter-target="count" data-one="1 card" data-many="%count% cards"></span>
+function boardHtml(titles = ['Fix login', 'Write docs']) {
+    const cards = titles
+        .map(
+            (title) =>
+                `<article data-board-view-target="card" data-card-title="${title}"></article>`,
+        )
+        .join('');
+
+    return `<div id="board" data-controller="board-view" data-board-view-list-url-value="/board/list" data-action="board:placed@document->board-view#updateCount">
+        <span data-board-view-target="count" data-one="1 card" data-many="%count% cards"></span>
         <button data-board-view-target="boardButton" aria-pressed="true"></button>
         <button data-board-view-target="listButton" aria-pressed="false"></button>
-        <p data-board-filter-target="empty" hidden></p>
-        <div data-board-view-target="board">
-            <article data-board-filter-target="card" data-card-title="Fix login"></article>
-            <article data-board-filter-target="card" data-card-title="Write docs"></article>
-        </div>
+        <div data-board-view-target="board">${cards}</div>
         <turbo-frame data-board-view-target="list" hidden></turbo-frame>
     </div>`;
 }
 
-/** Stands in for the frame load that a src starts in a browser. */
-async function loadList() {
-    document.querySelector('[data-board-view-target="list"]').innerHTML =
-        `<div class="lp-board-list">
-            <a data-board-filter-target="row" data-card-title="Fix login"></a>
-            <a data-board-filter-target="row" data-card-title="Write docs"></a>
-        </div>`;
-    await Promise.resolve();
-}
-
-async function mount() {
-    document.body.innerHTML = `<div class="lp-split-region">${boardHtml()}</div>`;
+async function mount(titles) {
+    document.body.innerHTML = `<div class="lp-split-region">${boardHtml(titles)}</div>`;
     await Promise.resolve();
     return document.querySelector('.lp-split-region');
 }
 
-async function rerender(frame, eventType = 'turbo:before-frame-render') {
-    frame.dispatchEvent(new CustomEvent(eventType, { bubbles: true }));
+async function rerender(frame) {
+    frame.dispatchEvent(
+        new CustomEvent('turbo:before-frame-render', { bubbles: true }),
+    );
     frame.innerHTML = boardHtml();
     await Promise.resolve();
 }
@@ -72,117 +58,76 @@ async function replaceBoard() {
     await Promise.resolve();
 }
 
-function spyOnScrollIntoView() {
-    return vi.spyOn(Element.prototype, 'scrollIntoView');
-}
+const countText = () =>
+    document.querySelector('[data-board-view-target="count"]').textContent;
 
-async function type(text) {
-    const input = document.querySelector('[data-board-filter-target="query"]');
-    input.value = text;
-    input.dispatchEvent(new Event('input'));
-    await Promise.resolve();
-    return input;
-}
-
-function visibleTitles(selector) {
-    return [...document.querySelectorAll(selector)]
-        .filter((element) => !element.hidden)
-        .map((element) => element.dataset.cardTitle);
-}
-
-it('keeps the filter query across a re-render of the board', async () => {
-    const frame = await mount();
-    await type('login');
-
-    await rerender(frame);
-
-    const input = document.querySelector('[data-board-filter-target="query"]');
-    expect(input.value).toBe('login');
-    expect(visibleTitles('[data-board-filter-target="card"]')).toEqual([
-        'Fix login',
-    ]);
-    expect(
-        document.querySelector('[data-board-filter-target="count"]')
-            .textContent,
-    ).toBe('1 card');
-});
-
-it('restores focus and caret when the search input had focus', async () => {
-    const frame = await mount();
-    const input = await type('login');
-    input.focus();
-    input.setSelectionRange(2, 4);
-
-    await rerender(frame, 'turbo:before-stream-render');
-
-    const newInput = document.querySelector(
-        '[data-board-filter-target="query"]',
-    );
-    expect(newInput).not.toBe(input);
-    expect(document.activeElement).toBe(newInput);
-    expect([newInput.selectionStart, newInput.selectionEnd]).toEqual([2, 4]);
-});
-
-it('leaves focus alone when the search input did not have focus', async () => {
-    const frame = await mount();
-    await type('login');
-    const outside = document.createElement('input');
-    document.body.append(outside);
-    outside.focus();
-
-    await rerender(frame);
-
-    expect(document.activeElement).toBe(outside);
-});
-
-it('does not scroll to the search input when it restores focus', async () => {
-    const frame = await mount();
-    const input = await type('login');
-    input.focus();
-    const scrollIntoView = spyOnScrollIntoView();
-
-    await rerender(frame, 'turbo:before-stream-render');
-
-    expect(document.activeElement).not.toBe(input);
-    expect(document.activeElement.dataset.boardFilterTarget).toBe('query');
-    expect(scrollIntoView).not.toHaveBeenCalled();
-});
-
-it('scrolls to the search input when the user focuses it', async () => {
-    await mount();
-    const scrollIntoView = spyOnScrollIntoView();
-
-    document.querySelector('[data-board-filter-target="query"]').focus();
-
-    expect(scrollIntoView).toHaveBeenCalledOnce();
-});
-
-it('keeps the query and the list view when a stream replaces the board', async () => {
-    await mount();
-    await type('login');
+function showList() {
     application
         .getControllerForElementAndIdentifier(
             document.getElementById('board'),
             'board-view',
         )
         .showList();
+}
+
+it('counts the cards of the board when it connects', async () => {
+    await mount();
+
+    expect(countText()).toBe('2 cards');
+});
+
+it('uses the singular for one card', async () => {
+    await mount(['Fix login']);
+
+    expect(countText()).toBe('1 card');
+});
+
+it('counts a card that arrives after the board connected', async () => {
+    await mount();
+    const card = document.createElement('article');
+    card.dataset.boardViewTarget = 'card';
+
+    document.querySelector('[data-board-view-target="board"]').append(card);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(countText()).toBe('3 cards');
+});
+
+it('counts again when a card leaves the board', async () => {
+    await mount();
+
+    document.querySelector('[data-board-view-target="card"]').remove();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(countText()).toBe('1 card');
+});
+
+it('counts again on a live placement', async () => {
+    await mount();
+    document
+        .querySelector('[data-board-view-target="count"]')
+        .replaceChildren();
+
+    document.dispatchEvent(new CustomEvent('board:placed'));
+
+    expect(countText()).toBe('2 cards');
+});
+
+it('keeps the list view when a stream replaces the board', async () => {
+    await mount();
+    showList();
     const oldBoard = document.getElementById('board');
 
     await replaceBoard();
+
+    expect(document.getElementById('board')).not.toBe(oldBoard);
     expect(
         document
             .querySelector('[data-board-view-target="list"]')
             .getAttribute('src'),
     ).toBe('/board/list');
-    await loadList();
-
-    expect(document.getElementById('board')).not.toBe(oldBoard);
-    expect(
-        document.querySelector('[data-board-filter-target="query"]').value,
-    ).toBe('login');
-    expect(visibleTitles('[data-board-filter-target="row"]')).toEqual([
-        'Fix login',
-    ]);
     expect(
         document.querySelector('[data-board-view-target="list"]').hidden,
     ).toBe(false);
@@ -190,12 +135,7 @@ it('keeps the query and the list view when a stream replaces the board', async (
 
 it('keeps the list view across a re-render of the board', async () => {
     const frame = await mount();
-    application
-        .getControllerForElementAndIdentifier(
-            document.getElementById('board'),
-            'board-view',
-        )
-        .showList();
+    showList();
 
     await rerender(frame);
 
@@ -212,23 +152,14 @@ it('keeps the list view across a re-render of the board', async () => {
     ).toBe('true');
 });
 
-it('starts a new board frame with no query and the board view', async () => {
+it('starts a new board frame with the board view', async () => {
     const frame = await mount();
-    await type('login');
-    application
-        .getControllerForElementAndIdentifier(
-            document.getElementById('board'),
-            'board-view',
-        )
-        .showList();
+    showList();
     frame.remove();
     await Promise.resolve();
 
     await mount();
 
-    expect(
-        document.querySelector('[data-board-filter-target="query"]').value,
-    ).toBe('');
     expect(
         document.querySelector('[data-board-view-target="list"]').hidden,
     ).toBe(true);

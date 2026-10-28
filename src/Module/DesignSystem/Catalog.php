@@ -384,11 +384,11 @@ readonly class Catalog
                 rootClass: 'lp-menu',
                 template: 'components/Ds/Menu.html.twig',
                 variants: ['light', 'chrome'],
-                states: ['open'],
+                states: ['open', 'live'],
                 enforced: true,
                 sizes: ['sm', 'md', 'lg'],
                 group: 'core',
-                summary: 'A panel of actions or links that opens under a trigger, with items, headings and dividers.',
+                summary: 'A panel of actions or links that opens under a trigger, or a live list under a text field, with items, headings and dividers.',
                 element: 'div',
                 legacyClasses: [
                     'lp-backlog-menu',

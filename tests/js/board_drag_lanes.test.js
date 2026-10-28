@@ -103,7 +103,7 @@ it('offers a card whose type gets a lane the cells of "Other cards" only', async
     );
 });
 
-it('offers no cell of a collapsed lane, until a search reveals it', async () => {
+it('offers no cell of a collapsed lane', async () => {
     const controller = await mount(`
         <section class="lp-board-lane lp-board-lane--collapsed">${LANES}</section>`);
     drag(controller, 'mover');
@@ -114,7 +114,7 @@ it('offers no cell of a collapsed lane, until a search reveals it', async () => 
 
     document
         .querySelector('.lp-board-lane')
-        .classList.add('lp-board-lane--revealed');
+        .classList.remove('lp-board-lane--collapsed');
     expect(controller.groupUnder(50, 50)).toBe(
         document.getElementById('lane-a-c1'),
     );
