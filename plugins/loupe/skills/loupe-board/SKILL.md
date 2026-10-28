@@ -327,6 +327,10 @@ source.
 - The board is as public as the instance that holds it. Write no secrets, no
   customer names, and no complaints about people.
 
+## Name another card or a pull request with a token
+
+In a card body, write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request. Loupe shows each token as a link with a title tooltip. Prose such as "card 1116" also links, but a token is exact. The entry line `Breakdown item B3 of card #214.` keeps its form, because the breakdown matches children on it. A token inside code, a link or square brackets stays as written. A card title shows a token as plain text.
+
 ## The card number
 
 Every card has a short number, unique inside its project and counting from 1. A

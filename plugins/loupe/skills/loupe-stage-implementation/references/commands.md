@@ -172,7 +172,7 @@ Both forms create no branch, no commit and no pull request. A card that links a 
 
 ## Record a block
 
-Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final paragraph that starts `Blocked:`. The paragraph names the reason, the branch, and the pull request URL when one exists.
+Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final paragraph that starts `Blocked:`. The paragraph names the reason, the branch, and the pull request URL when one exists. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>` in the `Blocked:` paragraph and in the "Nothing to build" and "Delivered without code" lines.
 
 ## Post a refusal comment
 
