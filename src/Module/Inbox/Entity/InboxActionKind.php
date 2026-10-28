@@ -16,10 +16,16 @@ enum InboxActionKind: string
     case RunCommand = 'run-command';
     case Dismiss = 'dismiss';
     case AddEntry = 'add-entry';
+    case OpenPullRequest = 'open-pull-request';
+    case ApprovePullRequest = 'approve-pull-request';
+    case HoldCard = 'hold-card';
 
-    /** A worker can suggest the kind. Add entry is the owner's own step after a run-command suggestion, so no suggestion names it. */
+    /**
+     * A worker can suggest the kind. Add entry is the owner's own step after a run-command suggestion, so no suggestion names it.
+     * Open the pull request, approve it and hold the card answer a work-limit pause, which names the rule and its pull request.
+     */
     public function isSuggestable(): bool
     {
-        return self::AddEntry !== $this;
+        return !\in_array($this, [self::AddEntry, self::OpenPullRequest, self::ApprovePullRequest, self::HoldCard], true);
     }
 }

@@ -6,8 +6,9 @@ description: "Use when deploying to production, running terraform apply, verifyi
 # Deploying
 
 Production is a DigitalOcean App Platform app pulling `ghcr.io/loupe-ac/loupe:prod`.
-Infrastructure lives in `terraform/`, and `terraform/terraform.tfvars` is
-gitignored, so it holds the real values.
+Infrastructure lives in `terraform/`. The secrets live in an encrypted sops
+store, `terraform/secrets.enc.yaml`, which `bin/tf-secrets` reads. The other
+real values sit in `terraform/terraform.tfvars`, which is gitignored.
 
 ## The two halves, and why they are not the same event
 
@@ -48,6 +49,22 @@ Production runs one container per process type, web and messenger worker, from t
 That is the one exception to the rule above. The worker container runs two consumers, `messenger:consume scheduler_default card_eval jobs` and `messenger:consume card_sweep`, each with `--time-limit=3600 --memory-limit=128M`. The second keeps the low-priority workflow sweep from starving behind event-driven jobs. The schedule transport comes first in the first consumer, because a deep jobs backlog must not delay ticks.
 
 `docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact, so it must keep working alongside `terraform/`. It is driven by `docker/compose/prod.env`, which is gitignored, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
+
+## The secret read guard
+
+A `PreToolUse` hook, `.agents/hooks/no-secret-reads.sh`, refuses an agent tool call that reads `terraform.tfvars`, a Terraform state file, a saved plan (`*.tfplan`), `docker/compose/prod.env`, the age key file or a `.rotate-secrets.tmp.*` file. It also refuses a recursive search over a folder that holds one. It refuses `bin/tf-secrets exec`, which can run any command with every secret in its environment, and the store reads `sops decrypt`, `sops edit`, `sops exec-env` and `age --decrypt`. Deny rules in `.claude/settings.json` cover the file tools.
+
+These paths are safe:
+
+- `just tfvars-names` lists the variable names that the two files set, with no value.
+- `just healthz` reads the live version from `/healthz`.
+- `just rotate-secrets` rotates the secrets.
+- `just tf-plan`, `just tf-apply` and `just tf-output` run Terraform with the secrets from the store.
+- `bin/tf-secrets names` lists the names the store holds, and `verify` compares the store with `terraform.tfvars`. Neither prints a value.
+- `bin/tf-plan-diff <plan> [NAME]` lists what a saved plan changes, with no value.
+- `bin/tfvars-missing.sh` lists the variables that the example file offers and your file does not set.
+- `ls`, `stat` and `test` on a secret file are allowed, because they print no content.
+- `rg` and `git grep` skip the gitignored secret files, so use them for a search over a folder.
 
 ## Before you deploy
 
@@ -131,12 +148,14 @@ so check yourself.
 ## Ship an infrastructure change
 
 ```bash
-cd terraform
-terraform plan -out=/tmp/tf.plan     # read it, then apply the file you read
-terraform apply /tmp/tf.plan
+just tf-plan -out=deploy.tfplan                       # read it, then apply the file you read
+just tf-apply deploy.tfplan; s=$?; rm -f terraform/deploy.tfplan; (exit $s)
 ```
 
 Apply the saved plan rather than re-planning, so what lands is what you reviewed.
+Terraform writes every secret into a saved plan in plain text, so the apply
+command removes the file, also when the apply fails. If a session ends between
+the two commands, delete `terraform/deploy.tfplan` by hand.
 
 **Read the plan as JSON, not as text.** The DigitalOcean provider collapses the
 app resource into "(N unchanged blocks hidden)", and an added environment
@@ -144,15 +163,12 @@ variable hides in there. Grepping the human-readable output for a variable name
 finds nothing and reads as "no change":
 
 ```bash
-terraform show -json /tmp/tf.plan | python3 -c "
-import json,sys
-for rc in json.load(sys.stdin)['resource_changes']:
-    if rc['change']['actions'] == ['no-op']: continue
-    print(rc['address'], rc['change']['actions'])
-    print('  before:', 'MY_VAR' in json.dumps(rc['change']['before'] or {}))
-    print('  after :', 'MY_VAR' in json.dumps(rc['change']['after'] or {}))
-"
+bin/tf-plan-diff terraform/deploy.tfplan MY_VAR
 ```
+
+The script prints each changed resource, and whether `MY_VAR` appears before and
+after. It prints no value. Never run `terraform show -json` on a saved plan
+yourself: the hook refuses it, because the JSON holds the secrets.
 
 To ship code and an infrastructure change together, apply the plan first. Then
 run `just deploy`, or `create-deployment --force-rebuild` when the image is
@@ -167,11 +183,10 @@ deployment finished. It does not say which image is running, and the previous
 deployment is also `ACTIVE` until the new one replaces it.
 
 ```bash
-TOKEN=$(grep -E "^health_probe_token" terraform/terraform.tfvars | sed -E 's/.*= *"([^"]*)".*/\1/')
-curl -sS -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz
+just healthz
 ```
 
-It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
+The recipe loads the secrets from the store, reads the token and the domain through `terraform console`, sends the token to `curl` on standard input, and prints the body. It never prints the token. It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
 `git rev-parse --short HEAD`. Without the header the endpoint reports liveness
 alone and no metadata, which is deliberate.
 
@@ -227,8 +242,7 @@ you the list has gone stale.
 
 ```bash
 APP=$(cd terraform && terraform output -raw app_id)
-TOKEN=$(grep -E "^health_probe_token" terraform/terraform.tfvars | sed -E 's/.*= *"([^"]*)".*/\1/')
-curl -sS -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz       # version is the target sha
+just healthz                                                            # version is the target sha
 curl -sS -o /dev/null -w '%{http_code}\n' https://app.loupe.ac/livez    # 200
 curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://app.loupe.ac/mcp  # 401, not 404 or 403
 doctl apps logs "$APP" migrate --type deploy --tail 20                  # the version it migrated to

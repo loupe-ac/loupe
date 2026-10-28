@@ -23,7 +23,7 @@
 {% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
 {# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
 {% set addEntryDialog = runCommand and runCommand.canAddEntry and not answering %}
-{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
+{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', held: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
 <div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% elseif addEntryDialog %} data-controller="modal"{% endif %}>
     <ul class="lp-inbox-thread__messages" data-inbox-waits>
         {% for wait in shownWaits %}
@@ -90,7 +90,7 @@
         <div class="lp-inbox-item__actions">
             {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}|merge(sessionRow and not sessionMain ? {'data-controller': 'inbox-session-prompt'} : {})}) }}
                 {% if actions.main %}
-                    <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans }}</h3>
+                    <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</h3>
                 {% endif %}
                 {% set entryProposed = runCommand and runCommand.entryYaml and runCommand.disabledReasonKey == 'inbox.action.run-command.disabled.entry_missing' %}
                 {% if runCommand and not runCommand.canOpenDialog and not (runCommand.run and runCommand.run.state.isLive) %}
@@ -118,7 +118,7 @@
                     <div data-inbox-session-prompt-target="field" data-inbox-session-prompt-field hidden>
                         <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
                         <twig:Ds:FormActions>
-                            <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans }}</twig:Ds:Button>
+                            <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans(sessionRow.action.labelParams) }}</twig:Ds:Button>
                         </twig:Ds:FormActions>
                     </div>
                 {% endif %}
@@ -132,18 +132,18 @@
                     {% endif %}
                     {% if not actions.main and not actions.menu and actions.dismiss %}
                         {# Nothing else fits, so Dismiss is the one action and needs no menu. #}
-                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" form="{{ declineForm.vars.id }}" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans }}</twig:Ds:Button>
+                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" form="{{ declineForm.vars.id }}" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans(actions.dismiss.action.labelParams) }}</twig:Ds:Button>
                     {% elseif actions.main or actions.menu %}
                     <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
                         <twig:block name="main">
                         {% if actions.main and actions.main.isLink %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-drawer-title="actions.main.card and cardDrawer ? item.title : null" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
+                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-drawer-title="actions.main.card and cardDrawer ? item.title : null" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand and addEntryDialog %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" data-action="click->modal#open" data-inbox-action="add-entry">{{ 'inbox.action.add-entry.label'|trans }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
                         {% elseif actions.main %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: actions.main.action.kind.value}))" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
+                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: actions.main.action.kind.value}))" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</twig:Ds:Button>
                         {% endif %}
                         </twig:block>
                         <twig:block name="content">

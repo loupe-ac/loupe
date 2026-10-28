@@ -4,7 +4,7 @@
 # Usage:
 #   bin/agents/release-cards [<deployed sha>]
 #
-# With no argument, reads the live version from https://app.loupe.ac/healthz.
+# With no argument, reads the live version from /healthz through bin/healthz-probe.
 # Output: one line per first-parent commit, "<pr number>\t<comma-separated card ids or ->\t<subject>".
 # A commit with no "(#N)" prints as "-\t-\t<subject>", and a failed PR read as "?".
 # Requires: git, gh (GitHub CLI), jq, curl
@@ -26,17 +26,7 @@ fi
 if [[ $# -eq 1 ]]; then
   VERSION="$1"
 else
-  TFVARS="$(git rev-parse --path-format=absolute --git-common-dir)/../terraform/terraform.tfvars"
-  if [[ ! -f "$TFVARS" ]]; then
-    echo "Cannot read the live version: $TFVARS is missing. Pass the deployed sha instead." >&2
-    exit 1
-  fi
-  TOKEN=$(grep -E '^health_probe_token' "$TFVARS" | sed -E 's/.*= *"([^"]*)".*/\1/' || true)
-  if [[ -z "$TOKEN" ]]; then
-    echo "No health_probe_token in $TFVARS. Pass the deployed sha instead." >&2
-    exit 1
-  fi
-  if ! RESPONSE=$(curl -fsS --max-time 15 -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz); then
+  if ! RESPONSE=$("$ROOT/bin/tf-secrets" exec -- "$ROOT/bin/healthz-probe"); then
     echo "The /healthz request failed. Pass the deployed sha instead." >&2
     exit 1
   fi

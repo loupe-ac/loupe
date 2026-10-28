@@ -23,6 +23,8 @@ use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\PersonWork;
+use App\Module\Workflow\Contract\PullRequestFacts;
+use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
 use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\RuleAsks;
@@ -64,7 +66,7 @@ final readonly class Engine
     public const string STILL_TRUE = 'still-true';
 
     /** The code of a worker that waits for a person. The engine may not import the Bridge enum that spells it. */
-    private const string NEEDS_PERSON = 'needs-person';
+    public const string NEEDS_PERSON = 'needs-person';
 
     private const string NOT_STARTED = 'not-started';
     private const string RUN_RESUMED = 'run-resumed';
@@ -72,6 +74,7 @@ final readonly class Engine
     private const string REFILLED = 'refilled';
     private const string NO_LONGER_HOLDS = 'no-longer-holds';
     private const string LEFT_SLOT = 'left-slot';
+    private const string PULL_REQUEST_CLOSED = 'pull-request-closed';
     private const string RULE_REMOVED = 'rule-removed';
 
     /** The key of the Board condition that reads an open blocker, which the engine may not import. */
@@ -679,6 +682,9 @@ final readonly class Engine
             && null !== $stored && null !== $bound->subject && !$stored->equals($bound->subject)) {
             return self::SUBJECT_CHANGED;
         }
+        if (PauseKind::WorkStopped === $pause->kind && self::NEEDS_PERSON === $pause->reason) {
+            return $this->needsPersonRelease($run, $applies, $stored);
+        }
 
         return match ($pause->kind) {
             PauseKind::Rule => match (true) {
@@ -707,6 +713,20 @@ final readonly class Engine
                 default => null,
             },
         };
+    }
+
+    /**
+     * New facts, such as a new head or a new failed review, do not answer a worker that waits for a person, so they leave the pause.
+     * The pause ends by itself only when its work is gone: the card left the slot of the rule, or the pull request of the rule closed.
+     */
+    private function needsPersonRelease(Evaluation $run, bool $applies, ?Uuid $stored): ?string
+    {
+        if (!$applies) {
+            return self::LEFT_SLOT;
+        }
+        $subject = null === $stored ? null : array_find($run->facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => $stored->equals($pullRequest->id));
+
+        return null !== $subject && PullRequestState::Open !== $subject->state ? self::PULL_REQUEST_CLOSED : null;
     }
 
     /** @param array<Rule> $rules */

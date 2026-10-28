@@ -408,6 +408,7 @@ rules:
           all:
               - pr.open: {}
               - agent_review.due: {}
+              - card.children.finished: {}
               - not: { card.run.work_active: { kind: implement } }
               - not: { card.run.work_active: { kind: fix } }
               - not: { card.run.work_active: { kind: sync } }
@@ -428,6 +429,7 @@ rules:
               - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - agent_review.failed: {}
+              - card.children.finished: {}
       then:
           request:
               kind: fix

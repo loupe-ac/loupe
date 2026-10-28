@@ -221,6 +221,11 @@ export SPACES_SECRET_ACCESS_KEY="<spaces-secret>"
 `terraform/terraform.tfvars.example` is the template; copy it to
 `terraform.tfvars` for anything you would rather not keep in the environment.
 
+To keep the secrets out of every plain-text file, set up the secret store of
+`terraform/README.md`. `bin/tf-secrets` then passes the values listed in
+`terraform/secrets.list` to Terraform as `TF_VAR_*` variables, and
+`terraform.tfvars` holds only values that are not secret.
+
 > **Terraform state holds these values in plaintext.** Use an encrypted remote
 > backend — there is a commented block in `terraform/versions.tf`. Do not commit
 > `terraform.tfstate`.
