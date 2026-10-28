@@ -336,7 +336,7 @@ again. A run with no bridge that holds its transcript keeps no usage.
 
 A session that crashes, or a terminal that someone kills, cannot close its own
 run. Loupe closes such a run from three signals. Each closed run shows its
-reason in the drawer, under **Closed because**.
+reason in its row of the Runs list, and in the drawer under **Closed because**.
 
 1. **The session ended.** The Loupe plugin for Claude Code runs a `SessionEnd`
    hook. On a clean exit the hook starts `loupe session end`, which closes every
@@ -347,7 +347,8 @@ reason in the drawer, under **Closed because**.
    that it launched, once a minute. When the Claude process of the session no
    longer runs, Loupe closes the run, with the reason **The session process is
    gone**. A run younger than two minutes stays open. The bridge cannot find a
-   Codex process by its session, so this check skips a Codex session.
+   Codex process by its session, so a Codex session never closes this way. The
+   bridge reports when its session file last changed instead, as a sign of life.
 3. **No sign of life for too long.** Loupe closes an open interactive run that
    shows no sign of life for 12 hours, with the reason **No sign of life for too
    long**. The `bridge.interactive_stale_close_enabled` feature flag switches

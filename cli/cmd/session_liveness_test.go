@@ -114,3 +114,33 @@ func TestNewestTranscriptTakesTheLatestAcrossFolders(t *testing.T) {
 		t.Fatal("found a transcript that does not exist")
 	}
 }
+
+func TestLivenessReportsACodexSessionByItsSessionFileAlone(t *testing.T) {
+	at := time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC)
+	l := fakeLiveness(psSample, nil, nil)
+	l.codex = func(id string) (bool, time.Time, bool) {
+		switch id {
+		case "codex-written":
+			return true, at, true
+		case "codex-new":
+			return true, time.Time{}, false
+		}
+
+		return false, time.Time{}, false
+	}
+
+	got := l.readings(context.Background(), []string{"codex-written", "codex-new", "0199a0e2-aaaa"})
+
+	if len(got) != 3 {
+		t.Fatalf("readings = %+v", got)
+	}
+	if got[0].Alive != nil || got[0].TranscriptAt == nil || !got[0].TranscriptAt.Equal(at) {
+		t.Errorf("codex reading = %+v, want no process answer and the session file time", got[0])
+	}
+	if got[1].Alive != nil || got[1].TranscriptAt != nil {
+		t.Errorf("new codex reading = %+v, want neither", got[1])
+	}
+	if got[2].Alive == nil || !*got[2].Alive {
+		t.Errorf("claude reading = %+v, want alive", got[2])
+	}
+}

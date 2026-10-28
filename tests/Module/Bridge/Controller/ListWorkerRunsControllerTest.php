@@ -13,6 +13,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -1067,6 +1068,33 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $row = $crawler->filter('[data-worker-run-id="'.$launchedId.'"]');
         self::assertStringContainsString((string) $bridgeId, $row->filter('.lp-run-drawer__metadata')->text());
         self::assertSame('Interactive session', $row->filter('.lp-data-table__primary .lp-tag')->text());
+    }
+
+    public function test_a_closed_interactive_run_shows_why_it_closed_in_the_row_and_the_drawer(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'interactive-close-reason-owner@example.com');
+        $project = $this->project($em, $owner, 'Interactive Close Reason');
+        $stale = $this->seedRun($em, $project, cardNumber: 12, exitCode: null, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
+        $stale->closeReason = WorkerRunCloseReason::Stale;
+        $open = $this->seedRun($em, $project, cardNumber: 13, exitCode: null, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $em->flush();
+
+        $projectId = (string) $project->id;
+        $staleId = (string) $stale->id;
+        $openId = (string) $open->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs');
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-worker-run-id="'.$staleId.'"]');
+        self::assertSame('No sign of life for too long', $row->filter('.lp-worker-run-outcome [data-worker-run-close-reason-label]')->text());
+        self::assertStringContainsString('No sign of life for too long', $row->filter('[data-worker-run-close-reason]')->text());
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$openId.'"] [data-worker-run-close-reason-label]'));
     }
 
     /** The row reads as one line, and the drawer keeps the detail the row drops. */

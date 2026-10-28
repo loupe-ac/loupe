@@ -2192,8 +2192,9 @@ watch. For each one the bridge lists the processes of its own user with
 every Claude launch carries. It also reads when the transcript of the session
 last changed. A machine where `ps` fails reports no answer for `alive`, and the
 server then relies on the transcript time and the stale check. A Codex launch
-carries no session id in its command line, so the bridge reports its transcript
-time alone. The field names are in the
+carries no session id in its command line, so the bridge reports no answer for
+`alive`. It reads when the Codex session file of the run last changed, in the
+default Codex home and in the `codexHome` of each `codex` account. The field names are in the
 [heartbeat reference](../reference/bridge-heartbeat.md#interactive-sessions). A
 run whose process is gone closes at once, as
 [stale sessions](../using/worker-runs.md#stale-sessions) says.

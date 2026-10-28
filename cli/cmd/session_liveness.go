@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
@@ -27,6 +29,10 @@ type sessionLiveness struct {
 	// transcriptAt returns the modification time of the transcript of a
 	// session, and false when the bridge finds none.
 	transcriptAt func(sessionID string) (time.Time, bool)
+	// codex reports whether the bridge launched the session with Codex, and
+	// when its session file last changed. A Codex process carries no session
+	// id, so the process list cannot tell whether it runs.
+	codex func(sessionID string) (launched bool, at time.Time, found bool)
 }
 
 // readings returns one reading for each id, in order. It lists the processes
@@ -47,6 +53,16 @@ func (l sessionLiveness) readings(ctx context.Context, ids []string) []api.Inter
 	out := make([]api.InteractiveSessionReading, 0, len(ids))
 	for _, id := range ids {
 		r := api.InteractiveSessionReading{SessionID: id}
+		if l.codex != nil {
+			if launched, at, found := l.codex(id); launched {
+				if found {
+					r.TranscriptAt = &at
+				}
+				out = append(out, r)
+
+				continue
+			}
+		}
 		if listed {
 			alive := slices.ContainsFunc(lines, func(line string) bool { return namesSession(line, id) })
 			r.Alive = &alive
@@ -90,15 +106,58 @@ func listProcesses(ctx context.Context) (string, error) {
 	return string(out), err
 }
 
-// newSessionLiveness reads the real process list, and the transcripts in the
-// Claude Code config folder of the bridge and of each account of the rules.
+// newSessionLiveness reads the real process list, the transcripts in the
+// Claude Code config folder of the bridge and of each account of the rules,
+// and the session files in each Codex home folder.
 func newSessionLiveness(set func() *rules.Set) sessionLiveness {
 	return sessionLiveness{
 		processes: listProcesses,
 		transcriptAt: func(id string) (time.Time, bool) {
 			return newestTranscript(claudeConfigDirs(set()), id)
 		},
+		codex: func(id string) (bool, time.Time, bool) {
+			threads, err := config.CodexThreadsDir()
+			if err != nil || !codex.Launched(threads, id) {
+				return false, time.Time{}, false
+			}
+			at, found := newestCodexSession(codexHomes(set()), threads, id)
+
+			return true, at, found
+		},
 	}
+}
+
+// codexHomes lists the Codex home folders of the codex accounts of the rules,
+// and "" for the default home.
+func codexHomes(set *rules.Set) []string {
+	homes := []string{""}
+	if set == nil {
+		return homes
+	}
+	for _, name := range set.DeclaredAccounts() {
+		run, ok := set.Account(name, "")
+		if !ok || run.Harness != rules.HarnessCodex || slices.Contains(homes, run.ConfigDir) {
+			continue
+		}
+		homes = append(homes, run.ConfigDir)
+	}
+
+	return homes
+}
+
+// newestCodexSession returns the latest change of the session file of a run
+// across the Codex home folders.
+func newestCodexSession(homes []string, threads, id string) (time.Time, bool) {
+	var newest time.Time
+	found := false
+	for _, home := range homes {
+		at, ok := codex.New(home, "", threads).TranscriptAt(id)
+		if ok && (!found || at.After(newest)) {
+			newest, found = at, true
+		}
+	}
+
+	return newest, found
 }
 
 // claudeConfigDirs lists the folders a Claude Code session can live in.

@@ -109,7 +109,7 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
         self::assertNotContains($gone->toRfc4122(), $this->reply($client)['watchSessions']);
     }
 
-    public function test_the_heartbeat_never_watches_or_closes_a_session_whose_process_the_bridge_cannot_check(): void
+    public function test_the_heartbeat_watches_a_codex_session_for_its_transcript_and_never_closes_it_from_a_process_check(): void
     {
         $client = static::createClient();
         $client->disableReboot();
@@ -128,15 +128,21 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
         $this->harness($claudeRun, 'claude-code');
 
         $this->heartbeat($client, $bridgeId, $raw, []);
-        self::assertSame([$claude->toRfc4122()], $this->reply($client)['watchSessions']);
+        $watched = $this->reply($client)['watchSessions'];
+        sort($watched);
+        $expected = [$codex->toRfc4122(), $claude->toRfc4122()];
+        sort($expected);
+        self::assertSame($expected, $watched, 'a Codex session stays watched for its transcript time');
 
         $this->heartbeat($client, $bridgeId, $raw, [
-            ['sessionId' => $codex->toRfc4122(), 'alive' => false, 'transcriptAt' => null],
+            ['sessionId' => $codex->toRfc4122(), 'alive' => false, 'transcriptAt' => '2026-10-28 11:30:00+00:00'],
             ['sessionId' => $claude->toRfc4122(), 'alive' => false, 'transcriptAt' => null],
         ]);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(WorkerRunState::Running, $this->reload($codexRun)->state, 'a Codex process carries no session id, so the bridge cannot see it');
+        $codexAfter = $this->reload($codexRun);
+        self::assertSame(WorkerRunState::Running, $codexAfter->state, 'a Codex process carries no session id, so the bridge cannot see it');
+        self::assertSame('2026-10-28 11:30:00', $codexAfter->lastActivityAt?->format('Y-m-d H:i:s'));
         self::assertSame(WorkerRunCloseReason::SessionGone, $this->reload($claudeRun)->closeReason);
     }
 

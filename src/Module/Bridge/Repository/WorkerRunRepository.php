@@ -732,8 +732,7 @@ class WorkerRunRepository extends ServiceEntityRepository
     }
 
     /**
-     * The session ids of the open interactive runs that this bridge launched in any project of the owner, for a
-     * harness whose process the bridge can check.
+     * The session ids of the open interactive runs that this bridge launched in any project of the owner.
      *
      * @return list<string> RFC 4122 ids
      */
@@ -746,10 +745,8 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->andWhere('p.owner = :owner')
             ->andWhere('r.bridgeId = :bridgeId')
             ->andWhere('r.sessionId IS NOT NULL')
-            ->andWhere('r.harness IS NULL OR r.harness IN (:checked)')
             ->setParameter('owner', $owner)
             ->setParameter('bridgeId', $bridgeId, UuidType::NAME)
-            ->setParameter('checked', WorkerRun::PROCESS_CHECKED_HARNESSES)
             ->getQuery()
             ->getSingleColumnResult();
 
