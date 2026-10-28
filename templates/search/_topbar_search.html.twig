@@ -1,0 +1,27 @@
+{% set searchUrl = (project ? path('app_project_search', {id: project.id}) : path('app_search_owned_projects')) %}
+{% set searchTitle = (project ? 'search.title' : 'search.all_title')|trans %}
+<div class="lp-topsearch{{ compact ? ' lp-topsearch--compact' : '' }}" data-controller="topbar-search" data-topbar-search-url-value="{{ searchUrl }}" data-action="keydown@window->topbar-search#shortcut">
+    <button type="button" class="lp-topbar__global-action lp-topsearch__icon" title="{{ searchTitle }}" aria-label="{{ searchTitle }}" aria-keyshortcuts="Control+k Meta+k" aria-expanded="false" aria-controls="topbar-search-form" data-topbar-search-target="icon" data-action="click->topbar-search#openIcon">
+        <twig:ux:icon name="lucide:search" />
+    </button>
+    <twig:Ds:Menu id="topbar-search-panel" live align="end" size="md" class="lp-topsearch__menu" :panel="{'aria-label': 'search.results'|trans, 'data-topbar-search-target': 'panel'}">
+        <twig:block name="trigger">
+            <form class="lp-topsearch__form" id="topbar-search-form" method="get" action="{{ searchUrl }}" role="search" data-turbo-frame="_top" data-topbar-search-target="form">
+                <label class="sr-only" for="topbar-search-query">{{ 'search.form.search_form.query.label'|trans }}</label>
+                <twig:ux:icon name="lucide:search" class="lp-icon lp-icon--md lp-topsearch__glyph" />
+                <twig:Ds:Input type="search" name="query" id="topbar-search-query" compact maxlength="200" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="topbar-search-panel" placeholder="{{ 'search.topbar.placeholder'|trans }}" data-topbar-search-target="field" data-action="input->topbar-search#input focus->topbar-search#focus" />
+                <kbd class="lp-kbd lp-topsearch__hint lp-topsearch__hint--idle" aria-hidden="true">{{ 'search.shortcut'|trans }}</kbd>
+                <kbd class="lp-kbd lp-topsearch__hint lp-topsearch__hint--escape" aria-hidden="true">{{ 'search.topbar.escape'|trans }}</kbd>
+                <twig:Ds:Button variant="ghost" type="button" class="lp-topsearch__cancel" data-action="topbar-search#close">{{ 'search.topbar.cancel'|trans }}</twig:Ds:Button>
+            </form>
+        </twig:block>
+        <twig:block name="content">
+            <p class="lp-menu__heading" role="status" data-topbar-search-target="status" hidden>{{ 'search.topbar.searching'|trans }}</p>
+            <div class="lp-topsearch__error" role="alert" data-topbar-search-target="error" hidden>
+                <span>{{ 'search.topbar.failed'|trans }}</span>
+                <twig:Ds:Button variant="ghost" type="button" data-action="topbar-search#retry">{{ 'search.topbar.retry'|trans }}</twig:Ds:Button>
+            </div>
+            <turbo-frame id="topbar-search-results" data-topbar-search-target="frame" data-action="turbo:before-frame-render->topbar-search#beforeRender turbo:frame-load->topbar-search#loaded turbo:fetch-request-error->topbar-search#failed turbo:frame-missing->topbar-search#failed"></turbo-frame>
+        </twig:block>
+    </twig:Ds:Menu>
+</div>

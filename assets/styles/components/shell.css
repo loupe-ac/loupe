@@ -236,17 +236,87 @@
     .lp-topbar__global-action svg {
         @apply w-4 h-4;
     }
-    .lp-topbar__global-action--search {
-        @apply gap-2 text-sm lg:w-auto lg:px-2.5;
-    }
-    .lp-topbar__global-action--search > span {
-        @apply hidden lg:inline;
-    }
     /* The shortcut the trigger already answers, shown where there is room for
        it. Hidden from assistive technology: `aria-keyshortcuts` says the same
        thing on the trigger itself. */
     .lp-kbd {
         @apply hidden lg:inline-block rounded border border-b-2 border-line bg-app px-1 font-mono text-xs leading-5 text-fg-dim;
+    }
+    /* The top bar search. From lg it is a field. It is an icon below lg, and at
+       any width when a page fills the top bar actions. The open icon form covers
+       the bar with absolute position, so no other item moves. */
+    .lp-topsearch {
+        @apply relative flex items-center;
+    }
+    .lp-topsearch__icon {
+        @apply lg:hidden;
+    }
+    .lp-topsearch--compact .lp-topsearch__icon {
+        @apply lg:inline-flex;
+    }
+    .lp-topsearch__form {
+        @apply relative hidden items-center gap-2 lg:flex;
+    }
+    .lp-topsearch--compact .lp-topsearch__form {
+        @apply lg:hidden;
+    }
+    .lp-topsearch__form .lp-input {
+        @apply w-full pr-14 pl-9 lg:w-60;
+    }
+    .lp-topsearch__glyph {
+        @apply pointer-events-none absolute left-3 text-fg-dim;
+    }
+    .lp-topsearch__hint {
+        @apply absolute right-2;
+    }
+    .lp-topsearch__hint--escape {
+        @apply lg:hidden;
+    }
+    .lp-topsearch__form:focus-within .lp-topsearch__hint--idle {
+        @apply lg:hidden;
+    }
+    .lp-topsearch__form:focus-within .lp-topsearch__hint--escape {
+        @apply lg:inline-block;
+    }
+    .lp-topsearch .lp-topsearch__cancel {
+        @apply hidden;
+    }
+    .lp-topsearch__menu .lp-menu__panel {
+        @apply lg:w-md;
+    }
+    .lp-topsearch__error {
+        @apply flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm text-fg-mute;
+    }
+    .lp-topsearch__all {
+        @apply mt-1 justify-between border-t border-line-faint text-fg-mute;
+    }
+    .lp-topsearch__all .lp-kbd {
+        @apply inline-block;
+    }
+    .lp-topbar:has(.lp-topsearch--open, .lp-topsearch__form:focus-within) {
+        @apply relative z-30;
+    }
+    .lp-topsearch--open,
+    .lp-topsearch--open .lp-topsearch__menu {
+        @apply static;
+    }
+    .lp-topsearch--open .lp-topsearch__form {
+        @apply absolute inset-x-0 top-0 z-30 flex h-16 border-b border-line bg-white px-3.5 lg:px-7.5;
+    }
+    .lp-topsearch--open .lp-topsearch__glyph {
+        @apply left-6.5 lg:left-10.5;
+    }
+    .lp-topsearch--open .lp-topsearch__form .lp-input {
+        @apply lg:w-full;
+    }
+    .lp-topsearch--open .lp-topsearch__hint {
+        @apply right-24 lg:right-34;
+    }
+    .lp-topsearch--open .lp-topsearch__cancel {
+        @apply inline-flex;
+    }
+    .lp-topsearch--open .lp-menu__panel {
+        @apply right-2 left-2 w-auto lg:right-7.5 lg:left-auto lg:w-md;
     }
     /* The one primary create action of the top bar. Below lg it is a
        tap-sized icon button and its label stays for screen readers. */

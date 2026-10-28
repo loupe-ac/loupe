@@ -12,6 +12,12 @@ const ICONS = {
             <path d="M10 4v4M2 8h20M6 4v4" />
         </>
     ),
+    search: (
+        <>
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+        </>
+    ),
     'arrow-down': <path d="M12 5v14m7-7l-7 7l-7-7" />,
     bot: (
         <>
@@ -275,6 +281,17 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                     </div>
                     {actions}
                     <div className="lp-topbar__global-actions" aria-label="Global tools">
+                        <div className={'lp-topsearch' + (actions ? ' lp-topsearch--compact' : '')}>
+                            <button type="button" className="lp-topbar__global-action lp-topsearch__icon" title="Search project" aria-label="Search project">
+                                <Icon name="search" />
+                            </button>
+                            <form className="lp-topsearch__form" role="search" onSubmit={(event) => event.preventDefault()}>
+                                <label className="sr-only" htmlFor="shell-search">Search pages, cards, and documents</label>
+                                <Icon name="search" className="lp-icon lp-icon--md lp-topsearch__glyph" />
+                                <input id="shell-search" type="search" className="lp-input lp-input--compact" placeholder="Search" />
+                                <kbd className="lp-kbd lp-topsearch__hint lp-topsearch__hint--idle">⌘K</kbd>
+                            </form>
+                        </div>
                         {onProjectPage && (
                             <a className="lp-btn lp-btn--primary lp-topbar__new-work" href="#" aria-label="New work">
                                 <Icon name="plus" className="lp-icon lp-icon--md" />

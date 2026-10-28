@@ -127,8 +127,6 @@ export default defineConfig({
                 /admin\/.*\.spec\.ts/,
                 /billing\/paywall\.spec\.ts/,
                 /account\/social-login\.spec\.ts/,
-                /project\/search\.spec\.ts/,
-                /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
                 /review\/draft-band-live\.spec\.ts/,
@@ -151,7 +149,7 @@ export default defineConfig({
         },
         {
             name: 'global-flags',
-            // billing.enabled, inbox.enabled, artifacts.enabled, search.topbar.enabled,
+            // billing.enabled, inbox.enabled, artifacts.enabled,
             // review.mermaid.enabled, live_updates.enabled
             // and the OAuth provider flags change what signed-in pages and the login form
             // render, so nothing else runs beside these.
@@ -160,8 +158,6 @@ export default defineConfig({
                 /board\/workshop\.spec\.ts/,
                 /account\/social-login\.spec\.ts/,
                 /inbox\/.*\.spec\.ts/,
-                /project\/search\.spec\.ts/,
-                /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
                 /review\/draft-band-live\.spec\.ts/,

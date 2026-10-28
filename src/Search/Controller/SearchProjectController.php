@@ -11,6 +11,7 @@ use App\Search\Command\SearchProjectCommand;
 use App\Search\Command\SearchProjectHandler;
 use App\Search\Form\SearchFormType;
 use App\Search\Form\SearchRequest;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,6 +21,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/search',
     name: 'app_project_search',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => ['topbar-search-results']],
     methods: ['GET'],
 )]
 final class SearchProjectController extends AppController
@@ -39,9 +41,11 @@ final class SearchProjectController extends AppController
             $view = ($this->search)(new SearchProjectCommand($project, $data->query, $data->page));
         }
 
-        $template = 'project-search-results' === $request->headers->get('Turbo-Frame')
-            ? 'search/search_project_frame.html.twig'
-            : 'search/search_project.html.twig';
+        $template = match ($request->headers->get('Turbo-Frame')) {
+            'topbar-search-results' => 'search/_topbar_search_frame.html.twig',
+            'project-search-results' => 'search/search_project_frame.html.twig',
+            default => 'search/search_project.html.twig',
+        };
         $response = $this->renderFormResponse($template, $form, ['project' => $project, 'view' => $view])
             ->setStatusCode(null === $view ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK);
         $response->setVary('Turbo-Frame', false);
