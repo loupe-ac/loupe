@@ -88,6 +88,20 @@ final class PublicPagesTest extends KernelTestCase
         self::assertFalse($this->publicPages('')->hasFaq());
     }
 
+    public function test_the_about_page_is_a_site_route_in_the_sitemap_of_a_split_instance_only(): void
+    {
+        $pages = $this->publicPages('site.example');
+
+        self::assertTrue($pages->isPublic('app_site_about'));
+        self::assertTrue($pages->isSiteRoute('app_site_about'));
+        self::assertFalse($pages->isSiteOnlyRoute('app_site_about'));
+        self::assertContains('https://site.example/about', $pages->sitemapUrls());
+        self::assertTrue($pages->hasAbout());
+        self::assertNotContains('/about', array_map(static fn (string $url): string => (string) parse_url($url, \PHP_URL_PATH), $this->publicPages('')->sitemapUrls()));
+        self::assertFalse($this->publicPages('')->hasAbout());
+        self::assertFalse($this->publicPages('localhost')->hasAbout());
+    }
+
     private function publicPages(string $host, ?ComparisonPages $comparisons = null): PublicPages
     {
         self::bootKernel();
