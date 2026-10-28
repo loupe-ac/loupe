@@ -22,7 +22,7 @@
     <div class="lp-done-list">
         {% for card in items %}
         <div class="lp-done-row" data-card-id="{{ card.id }}">
-            <a class="lp-done-row__title" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}">{{ card.title }}</a>
+            <a class="lp-done-row__title" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}">{{ card.title|reference_plain }}</a>
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
             {% if card.pullRequests|length > 0 %}
             <span class="lp-board-card__pulls">

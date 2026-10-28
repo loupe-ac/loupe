@@ -9,7 +9,7 @@
     {% if showHead ?? true %}
     <div class="lp-inbox-item__head">
         <span class="lp-inbox-item__number" aria-hidden="true">{{ position ?? item.number }}</span>
-        <h3 class="lp-inbox-item__title">{{ item.title }}</h3>
+        <h3 class="lp-inbox-item__title">{{ item.title|reference_plain }}</h3>
         <span class="lp-inbox-item__kind">{{ ('inbox.item.kind.' ~ item.kind.value)|trans }}</span>
         {% if item.blocking and (showBlocking ?? true) %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
         {% if not open %}{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state} only %}{% endif %}

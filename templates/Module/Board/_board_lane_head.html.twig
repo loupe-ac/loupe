@@ -6,7 +6,7 @@
 {% set inboxItem = inboxItem ?? null %}
 <header class="lp-board-lane__head"
         data-board-filter-target="laneHead"
-        data-card-title="{{ epic.title }}"
+        data-card-title="{{ epic.title|reference_plain }}"
         data-lane-digest="{{ lane_head_digest(epic, progress, deck, markers, inboxItem) }}">
     <button type="button"
             class="lp-board-lane__collapse"
@@ -42,7 +42,7 @@
            data-board-lane-target="glide"
            data-turbo-frame="card-drawer-frame"
            data-drawer-title="#{{ epic.number }}"
-           data-action="click->card-drawer#prepare">{{ epic.title }}</a>
+           data-action="click->card-drawer#prepare">{{ epic.title|reference_plain }}</a>
     </div>
     {% if deck %}
     {% include '@Board/_board_lane_deck.html.twig' with {epic: epic, deck: deck} only %}

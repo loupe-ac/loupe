@@ -176,8 +176,8 @@
                 ] %}
                     {% for reference in group.documents %}
                     <a class="lp-review-sheet__section" href="{{ path('app_document_review', {projectId: reference.project.id, documentId: reference.id}) }}"
-                       title="{{ reference.title }}">
-                        <span class="lp-review-sheet__label">{{ reference.title }}</span>
+                       title="{{ reference.title|reference_plain }}">
+                        <span class="lp-review-sheet__label">{{ reference.title|reference_plain }}</span>
                         <span class="lp-review-sheet__count">{{ group.label|trans }}</span>
                     </a>
                     {% endfor %}

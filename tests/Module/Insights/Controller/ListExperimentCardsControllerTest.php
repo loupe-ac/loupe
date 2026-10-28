@@ -61,6 +61,26 @@ final class ListExperimentCardsControllerTest extends WebTestCase
         self::assertCount(0, $rows->filter('.lp-tag'));
     }
 
+    public function test_a_card_title_shows_its_tokens_as_plain_text(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-cards-tokens@example.com');
+        $project = $this->boardProject($em, $owner);
+        $card = $this->experimentCard($em, $project, 1);
+        $card->title = 'Follow up on card:9001';
+        $em->flush();
+        $this->experimentRun($em, $project, $card, 'a');
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test/cards');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Follow up on card #9001', trim($crawler->filter('[data-experiment-card="'.$card->id.'"] .lp-data-table__title')->text()));
+    }
+
     public function test_the_left_out_filter_shows_a_tag_per_reason(): void
     {
         $client = static::createClient();

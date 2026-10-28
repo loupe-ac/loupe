@@ -6,7 +6,7 @@
         {% for choice in form.workLinkIds %}
         <label class="lp-review-verdict-choice">
             {{ form_widget(choice, {attr: {'data-form-draft-target': 'option'}}) }}
-            <span>{{ choice.vars.label }}</span>
+            <span>{{ choice.vars.label|reference_plain }}</span>
         </label>
         {% else %}
         <twig:Ds:Hint>{{ 'review.work_links.empty'|trans }}</twig:Ds:Hint>
