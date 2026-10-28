@@ -97,6 +97,7 @@ use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\MarkerPass;
 use App\Module\Workflow\Engine\RuleSubject;
@@ -129,6 +130,7 @@ use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
 use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
+use App\Tests\Module\Workflow\FakeWorkHolds;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
@@ -186,6 +188,8 @@ final class EngineTest extends KernelTestCase
 
     private FakeRuleAsks $asks;
 
+    private FakeWorkHolds $workHolds;
+
     #[\Override]
     protected function setUp(): void
     {
@@ -194,6 +198,7 @@ final class EngineTest extends KernelTestCase
         ListedTestAction::$afterRun = null;
         $this->logger = new RecordingLogger();
         $this->asks = new FakeRuleAsks();
+        $this->workHolds = new FakeWorkHolds();
     }
 
     public function test_a_rule_fires_on_its_rising_edge_once(): void
@@ -207,6 +212,115 @@ final class EngineTest extends KernelTestCase
         $state = $this->ruleState($card, 'work');
         self::assertTrue($state->truth);
         self::assertSame(1, $state->fires);
+    }
+
+    public function test_a_request_in_a_held_project_opens_nothing_counts_no_attempt_and_marks_the_rule_state(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->workHolds->held = true;
+
+        $this->evaluate($card);
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertNull($this->activePause($card));
+        $state = $this->ruleState($card, 'work');
+        self::assertSame([false, 0, 0, null, null], [$state->truth, $state->attempts, $state->fires, $state->dueAt, $state->lastRefusal]);
+        self::assertSame(self::NOON, $state->heldByWorkHoldSince?->format('Y-m-d H:i:s'));
+        self::assertSame(['held'], array_column($this->firedRecords()[0]['context']['fired'], 'outcome'));
+    }
+
+    public function test_a_held_rule_keeps_its_first_mark_and_asks_again_when_the_hold_ends(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->workHolds->held = true;
+        $this->evaluate($card);
+
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(self::NOON, $this->ruleState($card, 'work')->heldByWorkHoldSince?->format('Y-m-d H:i:s'));
+        self::assertSame([], $this->liveRequests($card));
+
+        $this->workHolds->held = false;
+        $this->evaluate($card, '2026-10-02 12:10:00');
+
+        self::assertCount(1, $this->liveRequests($card));
+        $state = $this->ruleState($card, 'work');
+        self::assertNull($state->heldByWorkHoldSince);
+        self::assertTrue($state->truth);
+        self::assertSame(1, $state->fires);
+    }
+
+    public function test_a_rule_that_stops_holding_loses_the_work_hold_mark(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::IDLE)]);
+        $this->workHolds->held = true;
+        $this->evaluate($card);
+        self::assertNotNull($this->ruleState($card, 'work')->heldByWorkHoldSince);
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertNull($this->ruleState($card, 'work')->heldByWorkHoldSince);
+    }
+
+    public function test_the_later_rules_of_a_card_run_while_an_earlier_request_is_held(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('work', self::ALWAYS),
+            self::listRule('later', [self::listed('later')], self::ALWAYS),
+        ]);
+        $this->workHolds->held = true;
+
+        $this->evaluate($card);
+
+        self::assertSame(['later'], ListedTestAction::$log);
+        self::assertNotNull($this->ruleState($card, 'work')->heldByWorkHoldSince);
+        self::assertNull($this->ruleState($card, 'later')->heldByWorkHoldSince);
+    }
+
+    public function test_a_held_retry_clears_its_due_time_and_waits_for_the_hold_end(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: self::RETRY_ONCE);
+        $this->evaluate($card);
+        $this->refuse($this->liveRequests($card)[0], 'failed', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNotNull($this->ruleState($card, 'work')->dueAt);
+        $attempts = $this->ruleState($card, 'work')->attempts;
+
+        $this->workHolds->held = true;
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $state = $this->ruleState($card, 'work');
+        self::assertSame([$attempts, null], [$state->attempts, $state->dueAt]);
+        self::assertNotNull($state->heldByWorkHoldSince);
+        self::assertNull($this->activePause($card));
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame([], $this->service(WorkflowRuleStateRepository::class)->findDueCardIds(new \DateTimeImmutable('2026-10-02 18:00:00'), 10));
+    }
+
+    public function test_a_repair_request_in_a_held_project_opens_nothing_and_pauses_nothing(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: self::REPAIR);
+        $this->evaluate($card);
+        $this->refuse($this->liveRequests($card)[0], 'failed', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+        $this->refuse($this->liveRequests($card)[0], 'failed', '2026-10-02 12:40:00');
+        $this->workHolds->held = true;
+
+        $this->evaluate($card, '2026-10-02 12:41:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertNull($this->activePause($card));
+        $state = $this->ruleState($card, 'work');
+        self::assertFalse($state->repaired);
+        self::assertNotNull($state->heldByWorkHoldSince);
+
+        $this->workHolds->held = false;
+        $this->evaluate($card, '2026-10-02 13:00:00');
+
+        self::assertCount(1, $this->liveRequests($card));
+        self::assertNull($this->ruleState($card, 'work')->heldByWorkHoldSince);
     }
 
     public function test_a_rule_that_joins_another_rules_live_request_fires_its_own_when_that_request_ends(): void
@@ -4924,7 +5038,7 @@ final class EngineTest extends KernelTestCase
         $settling = new SettlingWorkRequestRepository($doctrine);
         $settling->settle = $this->settleJoinedWork;
         $opener = new WorkRequestOpener(
-            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([])),
+            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
             $this->service(RetryNotes::class),
@@ -4942,7 +5056,7 @@ final class EngineTest extends KernelTestCase
 
         $actions = new Actions([
             new MoveCard($this->service(CardRepository::class), $this->service(BoardColumnRepository::class), $this->service(UpdateCardHandler::class)),
-            new RequestWork($this->service(CardRepository::class), $opener, $this->service(CardPullRequests::class), $this->service(CardEventRepository::class)),
+            new RequestWork($this->service(CardRepository::class), $opener, $this->service(CardPullRequests::class), $this->service(CardEventRepository::class), $this->workHolds),
             new PauseCard(),
             new ReleasePause($boardPauses),
             $this->service(ForgeWrite::class),
@@ -4970,7 +5084,7 @@ final class EngineTest extends KernelTestCase
             new BridgeWorkLedger(
                 $workRequests,
                 $this->service(WorkerRunRepository::class),
-                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
+                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
                 $this->service(CardHolds::class),
                 $this->service(ProjectRepository::class),
                 $this->service(WorkTakers::class),
@@ -4984,6 +5098,7 @@ final class EngineTest extends KernelTestCase
             new RuleSubject(),
             new MarkerPass(new RuleSubject(), $this->service(CardMarkerStore::class)),
             $this->asks,
+            $this->workHolds,
             $engineEvents,
             $this->logger,
         );

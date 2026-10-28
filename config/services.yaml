@@ -7,8 +7,6 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    # The merge method of a workflow rule that merges a pull request: merge, squash or rebase.
-    app.workflow.merge_method: squash
     # Every minute, so a refused rule retries soon after its backoff ends.
     app.workflow.evaluate_due_schedule: '* * * * *'
     # The backstop for a card change that no event reported.
@@ -84,6 +82,8 @@ parameters:
     app.observability.queue_depth_schedule: '* * * * *'
     # The backstop for a forge delivery that never arrived.
     app.forge.sweep_schedule: '*/10 * * * *'
+    # Hourly, off the hour, so it clears the other jobs that start on it.
+    app.forge.repository_check_schedule: '7 * * * *'
     # The backstop for a card wait that no event reported.
     app.inbox.card_wait_sweep_schedule: '*/15 * * * *'
     # Every minute, so the notice closes soon after a bridge is back.

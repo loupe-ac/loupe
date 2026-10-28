@@ -15,8 +15,10 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Workflow\Contract\PersonWork;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Contract\WorkTimeouts;
 use App\Outbox\OutboxWriter;
+use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -26,6 +28,7 @@ use Ubermuda\AuditBundle\Auditor;
 
 final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
 {
+    use BlockingRepositories;
     use BridgeScenario;
 
     private const string NOW = '2026-10-01 12:00:00';
@@ -117,6 +120,50 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame([], $subjects->expired);
     }
 
+    /** The end of the hold restarts the timeout of each request it marked, so the sweep must not expire one first. */
+    public function test_a_sweep_during_a_work_hold_expires_no_request_of_the_project(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-held@example.com'), 'Expire Held');
+        $this->repositoryWithGaps($project);
+        $old = new \DateTimeImmutable('2026-10-01 08:00:00');
+        $marked = $this->seedWorkRequest($em, $project, createdAt: $old, subject: $this->analysis());
+        $marked->workHoldSince = $old;
+        $session = $this->seedWorkRequest($em, $project, kind: 'session', capability: 'session', createdAt: $old, ruleId: 'inbox:start-session');
+        $session->workHoldSince = $old;
+        $person = $this->seedWorkRequest($em, $project, createdAt: $old, ruleId: PersonWork::RULE_PREFIX.'send-agent');
+        $person->workHoldSince = $old;
+        $em->flush();
+        // The hold committed, and its listener has not marked this one yet.
+        $unmarked = $this->seedWorkRequest($em, $project, createdAt: $old, subject: $this->analysis());
+        $subjects = new RecordingWorkSubjectHandler();
+
+        self::assertSame(0, $this->handler($subjects)(new ExpireSubjectWorkRequestsCommand()));
+
+        $em->clear();
+        foreach ([$marked, $session, $person, $unmarked] as $request) {
+            self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
+        }
+        self::assertSame([], $subjects->expired);
+    }
+
+    /** The sweep reads a request, then the end of a hold restarts its timeout before the expiry locks it. */
+    public function test_an_expiry_by_deadline_leaves_a_request_whose_timeout_restarted(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-restarted@example.com'), 'Expire Restarted');
+        $restarted = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 08:00:00'), subject: $this->analysis(), reopenedAt: new \DateTimeImmutable(self::NOW));
+        $subjects = new RecordingWorkSubjectHandler();
+
+        self::assertFalse($this->withdraw($subjects)(new WithdrawWorkRequestCommand($restarted->id ?? throw new \LogicException(), WorkRequestState::Expired, onlyIfOpen: true, deadline: new \DateTimeImmutable('2026-10-01 10:00:00'))));
+
+        $em->clear();
+        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $restarted->id)?->state);
+        self::assertSame([], $subjects->expired);
+    }
+
     private function analysis(): WorkSubject
     {
         return new WorkSubject(RecordingWorkSubjectHandler::TYPE, Uuid::v7());
@@ -143,6 +190,7 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers([$subjects]),
+            $this->service(WorkHolds::class),
         );
     }
 

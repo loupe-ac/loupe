@@ -66,15 +66,16 @@ An agent connected to the project can show or hide the guide with the `readiness
 
 ## Repositories
 
-The Connections tab of a project has a Repositories section. Only the project owner sees it.
-Connect a GitHub repository there, and a merge, a review or a check result in it reaches the cards of this project that link the pull request.
+The project settings have a Repositories tab. Only the project owner sees it.
+It lists the GitHub repositories of the project. The Connections tab holds the webhook and the GitHub App, which connect the repositories.
+Connect a GitHub repository, and a merge, a review or a check result in it reaches the cards of this project that link the pull request.
 [The board](board.md#what-github-tells-a-card) says what a card receives.
 
 Loupe knows a repository by the ID GitHub gives it, so a rename or a transfer keeps it in the same project.
 Through the GitHub App, a repository belongs to one project only. When the App of another project already holds a repository, Loupe does not connect it here.
 A webhook feeds only the project it belongs to, and it blocks no other project.
 
-The section offers two methods. The operator of the instance decides which ones are available.
+Connections offers two methods. The operator of the instance decides which ones are available.
 
 ### A webhook for the project
 
@@ -105,10 +106,27 @@ When you turn the switch off, agents use the git setup of each machine. A machin
 
 ### The list
 
-Each repository shows a state.
+The Repositories tab shows each repository with its state.
+The state of a repository is one of these.
 Waiting for the first delivery means Loupe has not received anything from the repository yet.
 Working shows the time of the last delivery.
 Quiet means no delivery arrived for 30 days. A quiet repository can be a repository with no activity, or a connection that stopped working on GitHub.
+
+Each repository also shows the name of the workflow of the project, such as Lifecycle workflow.
+Below it, Loupe lists what the workflow suggests for the repository, with one line for each finding.
+A line is Blocking, Warning or Fits. A line says what Loupe read, such as the required checks or the merge method.
+Loupe reads the settings with the permissions that the GitHub App has. It never changes a setting on GitHub.
+Loupe reads again when you open the tab, unless the last read is less than 5 minutes old. While a read runs, the row says Checking…
+The row shows the time of the last read, such as Checked 2m ago.
+When a read fails, the row says so, and the lines keep the result of the last read that worked.
+Loupe checks only repositories of the GitHub App. A repository that a webhook connects, with no App installation, gets no read. Its row shows a warning that says so, and the warning never pauses work.
+The tab updates each row when a read ends. You do not need to reload it.
+
+When a row has a gap, a box named "Fix it on GitHub" lists the steps to close it, with buttons that open the right GitHub page.
+The first step can be an import of the Loupe ruleset. Select Download loupe-ruleset.json, then open Rules on GitHub and import the file.
+After the import, open the ruleset and check that Loupe / Approval shows the Loupe App as its source. If it shows Any source, pick the Loupe App.
+When an organization ruleset causes a gap, the step names the organization. Only an organization owner can change that ruleset.
+Select Check again after a fix. Loupe reads GitHub at once, so the row shows the new result and a pause can end. Loupe allows 6 reads a minute for each repository. A later click shows the time of the last read.
 
 Select Remove to disconnect a repository. Loupe stops updating cards from it.
 With a webhook, or with an App installation on "All repositories", the next delivery from that repository connects it again. So also remove the webhook, or remove the repository from the App on GitHub.

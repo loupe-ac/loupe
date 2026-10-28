@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace App\Module\Board\Workflow\Condition;
+namespace App\Module\Workflow\Condition;
 
 use App\Module\Workflow\Contract\Condition;
-use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Fact\WorkHoldFacts;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** The ruleset of the default branch requires an approving review. */
-final readonly class PullRequestBaseRequiresReview implements Condition
+/** A rule of the card waits to ask for work, because the project holds its new work. */
+final readonly class CardHeldByWorkHold implements Condition
 {
     #[\Override]
     public static function key(): string
     {
-        return 'pr.base_requires_review';
+        return 'card.rule.held_by_work_hold';
     }
 
     #[\Override]
     public static function source(): string
     {
-        return 'workflow.source.forge';
+        return 'workflow.source.board';
     }
 
     #[\Override]
@@ -33,18 +33,18 @@ final readonly class PullRequestBaseRequiresReview implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest, EngineFact::PullRequestRuleset];
+        return [WorkHoldFacts::class];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return true === $facts->pullRequest?->baseRequiresReview;
+        return null !== $facts->get(WorkHoldFacts::class)->since;
     }
 
     #[\Override]
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
-        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_base_requires_review' : 'workflow.waiting.pr_base_requires_review');
+        return new TranslatableMessage($negated ? 'workflow.waiting.not.card_rule_held_by_work_hold' : 'workflow.waiting.card_rule_held_by_work_hold');
     }
 }

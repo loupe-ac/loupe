@@ -19,6 +19,8 @@ enum WorkRequestRefusal
 
     case CardHeld;
 
+    case ProjectHeld;
+
     /** The error code the bridge reads. */
     public function code(): string
     {
@@ -29,6 +31,7 @@ enum WorkRequestRefusal
             self::AlreadyClaimed => 'already_claimed',
             self::ClaimLost => 'claim_lost',
             self::CardHeld => 'card_held',
+            self::ProjectHeld => 'project_held',
         };
     }
 
@@ -36,7 +39,7 @@ enum WorkRequestRefusal
     {
         return match ($this) {
             self::NotFound => 404,
-            self::AlreadyClaimed, self::ClaimLost, self::CardHeld => 409,
+            self::AlreadyClaimed, self::ClaimLost, self::CardHeld, self::ProjectHeld => 409,
             self::UnknownBridge, self::CapabilityMissing => 422,
         };
     }

@@ -32,6 +32,7 @@ use App\Module\Workflow\Contract\RunView;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Contract\WithdrawKind;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Contract\WorkLedger;
 use App\Module\Workflow\Contract\WorkOpener;
 use App\Module\Workflow\Contract\WorkState;
@@ -101,6 +102,7 @@ final readonly class Engine
         private RuleSubject $ruleSubject,
         private MarkerPass $markers,
         private RuleAsks $ruleAsks,
+        private WorkHolds $workHolds,
         private EventDispatcherInterface $events,
         private LoggerInterface $logger,
     ) {
@@ -271,6 +273,7 @@ final readonly class Engine
                     $state->fires = 0;
                 }
                 $state->truth = $bound->truth;
+                $state->heldByWorkHoldSince = null;
                 $this->markBlockerHold($run, $rule, $state, $bound);
                 $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
                 if ($bound->truth) {
@@ -485,6 +488,12 @@ final readonly class Engine
             if (null !== $policy->repairKind && !$state->repaired) {
                 // The prompt of an app rule asks for the work of that rule, so the repair carries the prompt of its own kind.
                 $context = $rule->context($run->card, $bound->facts, $state->fires, $this->contexts->columns($rule, $run->card->projectId));
+                // The hold read shares this transaction, so the mark below is flushed before a hold end can read it.
+                if (null !== $this->workHolds->heldProject($run->card->projectId)) {
+                    $this->markWorkHold($run, $state);
+
+                    return;
+                }
                 $outcome = $this->opener->open($context, $policy->repairKind, null, $code);
                 if (null !== $outcome->requestId) {
                     $state->workRequestId = $outcome->requestId;
@@ -774,6 +783,7 @@ final readonly class Engine
             }
             $this->withdrawAsk($state, self::NO_LONGER_HOLDS);
             $state->truth = false;
+            $state->heldByWorkHoldSince = null;
             $this->markBlockerHold($run, $rule, $state, $bound);
             $state->attempts = 0;
             $state->dueAt = null;
@@ -846,6 +856,9 @@ final readonly class Engine
             $state->repaired = $repairedBefore;
         }
         $run->fired[] = ['rule' => $rule->id, 'outcome' => $outcome->kind->value, 'code' => $outcome->code];
+        if (ActionOutcomeKind::Held !== $outcome->kind) {
+            $state->heldByWorkHoldSince = null;
+        }
         $run->factsStale = true;
         // An action can release the pause that holds the card, and the view of it is a copy.
         if (null !== $run->holdingPause && null === $this->cardPauses->findActive($run->card->id)) {
@@ -894,6 +907,10 @@ final readonly class Engine
 
                 // The move queues the next evaluation, and the rules after it would read the old slot.
                 return !$call->traits->endsPass;
+            case ActionOutcomeKind::Held:
+                $this->markWorkHold($run, $state);
+
+                return true;
             case ActionOutcomeKind::Refused:
                 $code = $outcome->code ?? throw new \LogicException('A refusal carries a code.');
                 ++$state->attempts;
@@ -954,6 +971,17 @@ final readonly class Engine
         $subject = $this->ruleSubject->stored($run->facts, $stored);
 
         return null !== $subject && $refill->evaluate($subject);
+    }
+
+    /**
+     * The project holds its new work, so the rule opened nothing and counts no attempt and no backoff. It turns false,
+     * so it fires again when the hold ends. The stamp keeps the due-card search from returning it until then.
+     */
+    private function markWorkHold(Evaluation $run, WorkflowRuleState $state): void
+    {
+        $state->truth = false;
+        $state->dueAt = null;
+        $state->heldByWorkHoldSince ??= $run->now;
     }
 
     /** Stamps the first pass in which only an open blocker keeps a move rule false, and clears the stamp on the pass in which it does not. */
@@ -1024,14 +1052,15 @@ final readonly class Engine
         $state->reset();
     }
 
-    /** Withdraws the ask and ends the blocker hold of a rule that the template no longer has, because no pass reaches its state. */
+    /** Withdraws the ask and ends the holds of a rule that the template no longer has, because no pass reaches its state. */
     private function withdrawRemovedAsks(Evaluation $run): void
     {
         foreach ($run->states as $ruleId => $state) {
-            if ((null !== $state->askItemId || null !== $state->heldByBlockerSince) && null === $run->rule($ruleId)) {
+            if ((null !== $state->askItemId || null !== $state->heldByBlockerSince || null !== $state->heldByWorkHoldSince) && null === $run->rule($ruleId)) {
                 $this->write($run, $state, function (WorkflowRuleState $state): void {
                     $this->withdrawAsk($state, self::RULE_REMOVED);
                     $state->heldByBlockerSince = null;
+                    $state->heldByWorkHoldSince = null;
                 });
             }
         }
@@ -1066,7 +1095,7 @@ final readonly class Engine
     /** @return list<mixed> */
     private static function snapshot(WorkflowRuleState $state): array
     {
-        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u'), $state->answeringRunId?->toRfc4122()];
+        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u'), $state->heldByWorkHoldSince?->format('U.u'), $state->answeringRunId?->toRfc4122()];
     }
 
     private function pause(Evaluation $run, PauseKind $kind, string $code, string $ruleId): void

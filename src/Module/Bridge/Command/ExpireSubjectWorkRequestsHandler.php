@@ -18,7 +18,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * expires the work of a card by its own rules, except the work that a person
  * asked for. An open session request of a person expires here after a short
  * wait, and other work of a person expires after the work timeout of the
- * project template, with no pause of the card. Answers how many expired.
+ * project template, with no pause of the card. A request that waits through a
+ * work hold of its project keeps its time until the hold ends. Answers how many expired.
  */
 final readonly class ExpireSubjectWorkRequestsHandler
 {
@@ -42,11 +43,13 @@ final readonly class ExpireSubjectWorkRequestsHandler
         $sessionDeadline = $this->clock->now()->modify(\sprintf('-%d minutes', self::SESSION_TIMEOUT_MINUTES));
         $expired = 0;
         foreach ([
-            ...$this->workRequests->findOpenOfOtherSubjectsBefore($deadline),
-            ...$this->workRequests->findOpenOfRulePrefixAndKindBefore(PersonWork::RULE_PREFIX, WorkRequest::SESSION_KIND, $sessionDeadline),
-        ] as $request) {
-            $id = $request->id ?? throw new \LogicException('A stored request has an id.');
-            $expired += (int) ($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Expired, onlyIfOpen: true));
+            [$deadline, $this->workRequests->findOpenOfOtherSubjectsBefore($deadline)],
+            [$sessionDeadline, $this->workRequests->findOpenOfRulePrefixAndKindBefore(PersonWork::RULE_PREFIX, WorkRequest::SESSION_KIND, $sessionDeadline)],
+        ] as [$requestDeadline, $requests]) {
+            foreach ($requests as $request) {
+                $id = $request->id ?? throw new \LogicException('A stored request has an id.');
+                $expired += (int) ($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Expired, onlyIfOpen: true, deadline: $requestDeadline));
+            }
         }
 
         $now = $this->clock->now();
@@ -55,8 +58,9 @@ final readonly class ExpireSubjectWorkRequestsHandler
             $id = $request->id ?? throw new \LogicException('A stored request has an id.');
             $projectId = $request->project->id ?? throw new \LogicException('A stored project has an id.');
             $minutes = $timeouts[$projectId->toRfc4122()] ??= $this->workTimeouts->minutes($projectId);
-            if (($request->reopenedAt ?? $request->createdAt)->modify(\sprintf('+%d minutes', $minutes)) <= $now) {
-                $expired += (int) ($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Expired, onlyIfOpen: true));
+            $requestDeadline = $now->modify(\sprintf('-%d minutes', $minutes));
+            if (($request->reopenedAt ?? $request->createdAt) <= $requestDeadline) {
+                $expired += (int) ($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Expired, onlyIfOpen: true, deadline: $requestDeadline));
             }
         }
 

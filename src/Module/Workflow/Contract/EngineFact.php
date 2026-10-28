@@ -14,7 +14,6 @@ enum EngineFact: string
     case PullRequestHead = 'pull-request-head';
     case PullRequestMergeGate = 'pull-request-merge-gate';
     case PullRequestApprovalCheck = 'pull-request-approval-check';
-    case PullRequestRuleset = 'pull-request-ruleset';
 
     /** Whether a rule that reads this group acts on one open pull request of the card. */
     public function bindsPullRequest(): bool

@@ -1,0 +1,16 @@
+{% extends '@Project/_settings_layout.html.twig' %}
+
+{% block title %}{{ 'project.repositories.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans, url: path('app_project_edit', {id: project.id})},
+        {label: 'project.edit.nav.repositories'|trans},
+    ]" />
+{% endblock %}
+
+{% block settings_section 'repositories' %}
+
+{% block settings_content %}
+<twig:GitHubRepositories :project="project" />
+{% endblock %}

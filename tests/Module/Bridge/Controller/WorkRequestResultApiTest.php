@@ -116,7 +116,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $this->clock()->sleep(1801);
         $repository = static::getContainer()->get(WorkRequestRepository::class);
         self::assertInstanceOf(WorkRequestRepository::class, $repository);
-        self::assertCount(1, $repository->reopenLapsed($this->clock()->now()));
+        self::assertCount(1, $repository->reopenLapsed($this->clock()->now(), []));
         $this->post($client, $raw, '/api/bridges/'.$second->id.'/work-requests/'.$request->id.'/claim');
         self::assertResponseStatusCodeSame(200);
         $fresh = $this->json($client)['claimToken'];

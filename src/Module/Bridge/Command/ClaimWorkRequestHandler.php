@@ -15,6 +15,7 @@ use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -41,6 +42,7 @@ final readonly class ClaimWorkRequestHandler
         private WorkRequestAnnouncer $announcer,
         private CardHolds $cardHolds,
         private ProjectRepository $projects,
+        private WorkHolds $workHolds,
     ) {
     }
 
@@ -68,6 +70,10 @@ final readonly class ClaimWorkRequestHandler
             $this->projects->lockKeyShare($request->project);
             if (WorkSubject::CARD === $request->subjectType && $this->cardHolds->isHeld($request->project, $request->subjectId)) {
                 return WorkRequestRefusal::CardHeld;
+            }
+            // The key share above makes this read wait for a summary write that holds the project row.
+            if (null !== $request->project->id && null !== $this->workHolds->heldProject($request->project->id)) {
+                return WorkRequestRefusal::ProjectHeld;
             }
 
             $leaseUntil = $this->lease->until($this->clock->now());

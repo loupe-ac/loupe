@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Outbox\OutboxWriter;
@@ -24,6 +25,7 @@ final readonly class ReopenLapsedWorkRequestsHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private WorkRequestAnnouncer $announcer,
+        private HeldProjects $heldProjects,
     ) {
     }
 
@@ -31,7 +33,10 @@ final readonly class ReopenLapsedWorkRequestsHandler
     {
         // One transaction, so a reopened request always reaches the outbox.
         $reopened = $this->em->wrapInTransaction(function (): array {
-            $reopened = $this->workRequests->reopenLapsed($this->clock->now());
+            $now = $this->clock->now();
+            // The key share locks last to the commit, so a hold that starts later waits for the reopen.
+            $held = $this->heldProjects->among($this->workRequests->findProjectIdsOfLapsedClaims($now));
+            $reopened = $this->workRequests->reopenLapsed($now, $held);
             foreach ($reopened as $request) {
                 $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));
             }

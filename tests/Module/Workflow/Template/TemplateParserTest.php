@@ -36,6 +36,9 @@ use App\Module\Workflow\Contract\Action;
 use App\Module\Workflow\Contract\LabelTone;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerLink;
+use App\Module\Workflow\Contract\RepositorySuggestion;
+use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Expression\AllOf;
@@ -136,7 +139,7 @@ final class TemplateParserTest extends TestCase
                     'id' => 'merge',
                     'slot' => 'review',
                     'when' => ['pr.approval_covers_head' => ['min' => 1]],
-                    'then' => ['forge-write' => ['write' => 'merge', 'fallback' => 'merge']],
+                    'then' => ['forge-write' => ['write' => 'merge', 'methods' => ['squash', 'merge', 'rebase'], 'fallback' => 'merge']],
                 ],
                 [
                     'id' => 'wait',
@@ -294,6 +297,54 @@ final class TemplateParserTest extends TestCase
 
         self::assertSame('feature/epic-{number}', $template->epicBranch);
         self::assertSame('feature/epic-42', $template->epicBranchOf(42));
+    }
+
+    public function test_a_template_reads_its_repository_settings_in_order(): void
+    {
+        $template = $this->parser->parse(self::valid() + ['repositorySettings' => [
+            ['key' => 'merge-method', 'mark' => 'blocking'],
+            ['key' => 'branch-protection', 'mark' => 'warning'],
+        ]]);
+
+        self::assertEquals([
+            new RepositorySuggestion(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking),
+            new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Warning),
+        ], $template->repositorySettings);
+    }
+
+    public function test_a_template_with_no_repository_settings_suggests_none(): void
+    {
+        self::assertSame([], $this->parser->parse(self::valid())->repositorySettings);
+        self::assertSame([], $this->parser->parse(self::valid() + ['repositorySettings' => []])->repositorySettings);
+    }
+
+    /** @param list<string> $errors */
+    #[DataProvider('invalidRepositorySettings')]
+    public function test_repository_settings_that_are_not_valid_are_refused_and_a_stored_copy_drops_them(mixed $value, array $errors, int $kept): void
+    {
+        $source = self::valid() + ['repositorySettings' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame($errors, $e->errors);
+        }
+        self::assertCount($kept, $this->parser->parseStored($source)->repositorySettings);
+    }
+
+    /** @return iterable<string, array{mixed, list<string>, int}> */
+    public static function invalidRepositorySettings(): iterable
+    {
+        yield 'an explicit null' => [null, ['repositorySettings: must be a list of suggestions'], 0];
+        yield 'a string' => ['merge-method', ['repositorySettings: must be a list of suggestions'], 0];
+        yield 'a map' => [['merge-method' => 'blocking'], ['repositorySettings: must be a list of suggestions'], 0];
+        yield 'an unknown key' => [[['key' => 'signed-commits', 'mark' => 'warning'], ['key' => 'ci-checks', 'mark' => 'warning']], ['repositorySettings[0]: unknown key "signed-commits"'], 1];
+        yield 'an unknown mark' => [[['key' => 'ci-checks', 'mark' => 'fatal']], ['repositorySettings[0]: mark must be blocking or warning'], 0];
+        yield 'a missing mark' => [[['key' => 'ci-checks']], ['repositorySettings[0]: mark must be blocking or warning'], 0];
+        yield 'an extra field' => [[['key' => 'ci-checks', 'mark' => 'warning', 'note' => 'x']], ['repositorySettings[0]: must hold a key and a mark only'], 0];
+        yield 'an entry that is not a map' => [['ci-checks'], ['repositorySettings[0]: must hold a key and a mark only'], 0];
+        yield 'a duplicate key' => [[['key' => 'ci-checks', 'mark' => 'warning'], ['key' => 'ci-checks', 'mark' => 'blocking']], ['repositorySettings[1]: duplicate key "ci-checks"'], 1];
     }
 
     public function test_a_template_with_no_epic_branch_has_none(): void
@@ -1170,6 +1221,21 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) then.forge-write: missing parameter "fallback"'];
+        yield 'merge with no methods' => [static function (array $t): array {
+            unset($t['rules'][2]['then']['forge-write']['methods']);
+
+            return $t;
+        }, 'rules[2] (merge) then.forge-write: missing parameter "methods"'];
+        yield 'merge with an unknown method' => [static function (array $t): array {
+            $t['rules'][2]['then']['forge-write']['methods'] = ['squash', 'fast-forward'];
+
+            return $t;
+        }, 'rules[2] (merge) then.forge-write: parameter "methods" does not take "fast-forward", only merge, squash, rebase'];
+        yield 'merge with an empty methods list' => [static function (array $t): array {
+            $t['rules'][2]['then']['forge-write']['methods'] = [];
+
+            return $t;
+        }, 'rules[2] (merge) then.forge-write: parameter "methods" must be a non-empty list of non-empty strings'];
         yield 'unknown work timeout behaviour' => [static function (array $t): array {
             $t['rules'][0]['then']['request']['onTimeout'] = 'drop';
 
@@ -1813,8 +1879,8 @@ final class TemplateParserTest extends TestCase
         yield 'blank remedy' => [['remedy' => ''], 'markers[0] (m) remedy: must be a non-empty string'];
         yield 'fallback not a boolean' => [['fallback' => 'yes'], 'markers[0] (m) fallback: must be a boolean'];
         yield 'unknown key' => [['colour' => 'red'], 'markers[0] (m): unknown key "colour"'];
-        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents, ruleset-setup'];
-        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents, ruleset-setup'];
+        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents, repositories'];
+        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents, repositories'];
     }
 
     public function test_a_duplicate_marker_key_is_refused(): void

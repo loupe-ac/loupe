@@ -49,6 +49,8 @@ framework:
             App\Module\Bridge\Messenger\CollectSessionUsage: jobs
             App\Module\Bridge\Messenger\RecomputeBucketTimes: jobs
             App\Module\Bridge\Messenger\ResumeAskingSession: jobs
+            App\Module\Forge\Messenger\CheckForgeRepository: jobs
+            App\Module\Forge\Messenger\ReconcileRepositoryHold: jobs
             App\Module\Forge\Messenger\RefreshPullRequestState: jobs
             App\Module\Inbox\Messenger\NotifyInboxOwner: jobs
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
