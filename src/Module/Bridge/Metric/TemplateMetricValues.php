@@ -78,7 +78,7 @@ final readonly class TemplateMetricValues
     }
 
     /**
-     * The hours from the chosen start to the first end at or after it. The start is the first event of the start
+     * The hours from the chosen start to the last end at or after it. The start is the first event of the start
      * name, or the last one when the metric starts at the last.
      *
      * @param list<CardMilestone> $milestones
@@ -98,7 +98,7 @@ final readonly class TemplateMetricValues
             return null;
         }
 
-        return (min($ends) - $start) / 3600;
+        return (max($ends) - $start) / 3600;
     }
 
     /**

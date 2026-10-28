@@ -559,8 +559,10 @@ matches a card when the filter matches at least one of its work requests.
 A **duration** is the time from a start event to an end event. The events are
 `pr-opened`, `agent-review-passed`, `ready-to-merge` and `pr-merged`. The two
 slot events are `{ arrived: <slot> }` and `{ left: <slot> }`. The slot can be a
-slot key of the template, `@backlog` or `@terminal`. On `from`, `{ last: <event> }`
-starts at the last time the event happened.
+slot key of the template, `@backlog` or `@terminal`. A duration runs from the
+first start to the last end after it. On `from`, `{ last: <event> }` starts at
+the last time the event happened. A card with a start and no end after it has
+no value.
 
 The Workflow page lists the metrics of the template in a **Metrics** section, after
 the card markers. Each row shows the label and the description, the key, the type
