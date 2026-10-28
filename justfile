@@ -790,11 +790,11 @@ _app-version:
 
 # Build, push, and roll out a new deployment (waits for it to go live).
 deploy: push-prod
-    doctl apps create-deployment $(cd terraform && terraform output -raw app_id) --force-rebuild --wait
+    doctl apps create-deployment $(cd terraform && ../bin/tf-secrets exec -- terraform output -raw app_id) --force-rebuild --wait
 
 # Tail production logs.
 logs-prod:
-    doctl apps logs -f $(cd terraform && terraform output -raw app_id)
+    doctl apps logs -f $(cd terraform && ../bin/tf-secrets exec -- terraform output -raw app_id)
 
 # Open a shell in the prod image locally (debugging the build).
 shell-prod:
@@ -849,14 +849,13 @@ tf-validate:
 
 # Show the planned changes. Review before applying.
 tf-plan *args:
-    cd terraform && terraform plan "$@"
+    cd terraform && ../bin/tf-secrets exec -- terraform plan "$@"
 
-# Apply changes (prompts for confirmation). Backs up local state first if present.
+# Apply changes (prompts for confirmation). Pass a saved plan file to apply it.
 tf-apply *args:
-    cd terraform && { [ -f terraform.tfstate ] && cp -f terraform.tfstate terraform.tfstate.bak || true; }
-    cd terraform && terraform apply "$@"
+    cd terraform && ../bin/tf-secrets exec -- terraform apply "$@"
 
-# Rotate secrets in terraform/terraform.tfvars and apply. Names: app_encryption_key.
+# Rotate secrets in the secret store (or terraform.tfvars with no store) and apply. Names: app_encryption_key.
 rotate-secrets *names:
     bin/rotate-secrets {{names}}
 
@@ -866,11 +865,11 @@ tfvars-names:
 
 # Read the live version from /healthz of the production app. Never prints the probe token.
 healthz:
-    bin/healthz-probe
+    bin/tf-secrets exec -- bin/healthz-probe
 
 # Read outputs, e.g. `just tf-output` or `just tf-output -raw app_id`.
 tf-output *args:
-    cd terraform && terraform output "$@"
+    cd terraform && ../bin/tf-secrets exec -- terraform output "$@"
 
 # One-time DB bootstrap for THIS app, run once after the first `just tf-apply`.
 # Grants the app user schema privileges (PG15+ blocks CREATE on public otherwise)
@@ -880,11 +879,12 @@ tf-db-bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
     cd terraform
-    cid=$(terraform output -raw db_cluster_id)
-    app_id=$(terraform output -raw app_id)
-    db=$(terraform output -raw db_name)
-    user=$(terraform output -raw db_user)
-    dedicated=$(terraform output -raw db_cluster_is_dedicated)
+    out() { ../bin/tf-secrets exec -- terraform output "$@"; }
+    cid=$(out -raw db_cluster_id)
+    app_id=$(out -raw app_id)
+    db=$(out -raw db_name)
+    user=$(out -raw db_user)
+    dedicated=$(out -raw db_cluster_is_dedicated)
     myip=$(curl -fsS https://ifconfig.me)
     echo "cluster=$cid app=$app_id db=$db user=$user ip=$myip dedicated=$dedicated"
     # In dedicated mode the module declares a digitalocean_database_firewall for

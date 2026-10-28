@@ -20,6 +20,9 @@ final class RotateSecretsTest extends TestCase
 
     private string $dir;
 
+    /** @var array<string, string> */
+    private array $storeEnv = [];
+
     protected function setUp(): void
     {
         $this->dir = sys_get_temp_dir().'/rotate-secrets-'.bin2hex(random_bytes(4));
@@ -329,7 +332,7 @@ final class RotateSecretsTest extends TestCase
         self::assertSame(['current=old previous=none'], file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->value('app_secret'));
         foreach (['install_token', 'health_probe_token', 'mercure_jwt_secret', 'oauth_encryption_key'] as $name) {
-            self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value($name), $name);
+            self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->value($name), $name);
         }
         self::assertNotSame($this->value('install_token'), $this->value('health_probe_token'));
         $output = $process->getOutput().$process->getErrorOutput();
@@ -382,7 +385,7 @@ final class RotateSecretsTest extends TestCase
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         $pass = $this->value('oauth_private_key_passphrase');
-        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $pass);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $pass);
         $key = openssl_pkey_get_private($this->value('oauth_private_key'), $pass);
         self::assertNotFalse($key);
         $details = openssl_pkey_get_details($key);
@@ -445,7 +448,7 @@ final class RotateSecretsTest extends TestCase
 
         self::assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
         $new = $this->value('github_app_webhook_secret');
-        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $new);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $new);
         self::assertNotSame('old-webhook-secret', $new);
         $events = file($this->dir.'/events.log', \FILE_IGNORE_NEW_LINES) ?: [];
         $apply = array_search('apply', $events, true);
@@ -798,6 +801,81 @@ final class RotateSecretsTest extends TestCase
         self::assertFileDoesNotExist($this->dir.'/applies.log');
     }
 
+    public function test_a_listed_secret_is_read_from_and_written_to_the_store_and_the_file_is_left_alone(): void
+    {
+        $this->useStore(['TF_VAR_app_secret' => "old\nvalue", 'TF_VAR_install_token' => '']);
+        $before = (string) file_get_contents($this->dir.'/secrets.vars');
+
+        $process = $this->lib('tfvars_b64 app_secret; echo; tfvars_write app_secret "$V"', ['V' => "new\n\"value\"\n"]);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(base64_encode("old\nvalue"), explode("\n", $process->getOutput())[0]);
+        self::assertSame("new\n\"value\"\n", $this->stored('TF_VAR_app_secret'));
+        self::assertSame($before, (string) file_get_contents($this->dir.'/secrets.vars'));
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.*'));
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.tmp.*'));
+    }
+
+    public function test_a_split_write_sends_the_secret_to_the_store_and_the_public_half_to_the_file(): void
+    {
+        $this->useStore(['TF_VAR_oauth_private_key' => 'old']);
+
+        $process = $this->lib('tfvars_write oauth_private_key "$K" oauth_public_key "$P"', ['K' => 'private', 'P' => 'public']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('private', $this->stored('TF_VAR_oauth_private_key'));
+        $file = (string) file_get_contents($this->dir.'/secrets.vars');
+        self::assertStringContainsString('oauth_public_key = "public"', $file);
+        self::assertStringNotContainsString('private', $file);
+    }
+
+    public function test_a_failed_file_write_after_a_store_write_leaves_the_new_secret_in_the_store_and_the_file_whole(): void
+    {
+        $this->useStore(['TF_VAR_oauth_private_key' => 'old']);
+        $before = (string) file_get_contents($this->dir.'/secrets.vars');
+
+        $process = $this->lib('tfvars_write oauth_private_key "new" oauth_public_key "$P"', ['P' => "a\x08b"]);
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertSame('new', $this->stored('TF_VAR_oauth_private_key'));
+        self::assertSame($before, (string) file_get_contents($this->dir.'/secrets.vars'));
+    }
+
+    public function test_a_failed_read_back_leaves_the_store_unchanged(): void
+    {
+        $this->useStore(['TF_VAR_app_secret' => 'old']);
+
+        $process = $this->lib('tfvars_write app_secret "new"', ['FAKE_SOPS_CORRUPT' => '1']);
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertStringContainsString('did not read back the same', $process->getErrorOutput());
+        self::assertSame('old', $this->stored('TF_VAR_app_secret'));
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.tmp.*'));
+        self::assertStringNotContainsString('new', $process->getOutput().$process->getErrorOutput());
+    }
+
+    public function test_the_webhook_secret_reads_its_new_value_from_the_store(): void
+    {
+        $this->useStore(['TF_VAR_github_app_webhook_secret' => 'before']);
+
+        $process = $this->lib('tfvars_write github_app_webhook_secret "after"; tfvars_value github_app_webhook_secret', []);
+
+        self::assertSame('after', $process->getOutput());
+    }
+
+    public function test_a_run_by_name_rotates_a_listed_secret_in_the_store_and_applies_once(): void
+    {
+        $this->useStore(['TF_VAR_app_secret' => 'old-secret-value']);
+
+        $process = $this->rotate(['app_secret'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(1, substr_count((string) file_get_contents($this->dir.'/events.log'), 'apply'));
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->stored('TF_VAR_app_secret'));
+        self::assertStringNotContainsString($this->stored('TF_VAR_app_secret'), $process->getOutput().$process->getErrorOutput());
+        self::assertStringContainsString('app_secret = "keep-me"', (string) file_get_contents($this->dir.'/secrets.vars'));
+    }
+
     public function test_the_script_is_valid_bash(): void
     {
         $process = new Process(['bash', '-n', \dirname(__DIR__, 2).'/bin/rotate-secrets']);
@@ -824,7 +902,36 @@ final class RotateSecretsTest extends TestCase
             'ROTATE_RESEND_SECONDS' => '0.1',
             'ROTATE_RESEND_TIMEOUT' => '30',
             'PATH' => $this->dir.'/bin:'.getenv('PATH'),
-        ];
+        ] + $this->storeEnv;
+    }
+
+    /**
+     * Sets up a secret store of the fake sops, holding the given values by environment name.
+     *
+     * @param array<string, string> $values
+     */
+    private function useStore(array $values): void
+    {
+        copy(__DIR__.'/fixtures/fake-sops', $this->dir.'/bin/sops');
+        chmod($this->dir.'/bin/sops', 0o755);
+        copy(\dirname(__DIR__, 2).'/terraform/secrets.list', $this->dir.'/tf/secrets.list');
+        $lines = '';
+        foreach ($values as $name => $value) {
+            $lines .= $name.': '.json_encode($value, \JSON_THROW_ON_ERROR)."\n";
+        }
+        file_put_contents($this->dir.'/store.yaml', $lines);
+        $this->storeEnv = ['TF_SECRETS_STORE' => $this->dir.'/store.yaml'];
+    }
+
+    private function stored(string $name): string
+    {
+        $process = new Process(
+            ['bash', '-c', 'sops decrypt --output-type json "$F" | jq -j --arg n "$N" ".[\$n] // empty"'],
+            env: ['PATH' => $this->dir.'/bin:'.getenv('PATH'), 'F' => $this->dir.'/store.yaml', 'N' => $name],
+        );
+        $process->mustRun();
+
+        return $process->getOutput();
     }
 
     /**

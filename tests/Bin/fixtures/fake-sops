@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# A stand-in for sops in tests. The "encrypted" file holds one `NAME: <JSON string>` line per
+# value. It logs its arguments to $FAKE_SOPS_LOG, so a test can check that no value is in one.
+set -euo pipefail
+
+[ -z "${FAKE_SOPS_LOG:-}" ] || printf '%s\n' "$*" >> "$FAKE_SOPS_LOG"
+
+object() {
+    local line k v out='{}'
+    while IFS= read -r line; do
+        k=${line%%: *}
+        v=${line#*: }
+        out=$(jq -c --arg k "$k" --argjson v "$v" '. + {($k): $v}' <<< "$out")
+    done < "$1"
+    printf '%s' "$out"
+}
+
+case $1 in
+    decrypt) object "${@: -1}" ;;
+    encrypt) cat > /dev/null ;;
+    set)
+        file=$3
+        name=$(sed -e 's/^\["//' -e 's/"\]$//' <<< "$4")
+        value=$(cat)
+        [ -z "${FAKE_SOPS_CORRUPT:-}" ] || value='"corrupt"'
+        { grep -v "^$name: " "$file" || true; } > "$file.next"
+        printf '%s: %s\n' "$name" "$value" >> "$file.next"
+        mv "$file.next" "$file" ;;
+    exec-env)
+        while IFS= read -r line; do
+            k=${line%%: *}
+            export "$k=$(jq -j --argjson v "${line#*: }" -n '$v')"
+        done < "$2"
+        exec sh -c "$3" ;;
+    *) echo "fake-sops: unsupported $1" >&2; exit 9 ;;
+esac

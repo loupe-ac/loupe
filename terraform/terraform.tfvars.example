@@ -1,6 +1,10 @@
 # Copy to terraform.tfvars (gitignored) and fill in, or export as TF_VAR_*.
-# Secrets and account-specific placement live here; everything structural is in
-# the module block in main.tf.
+# Account-specific placement lives here; everything structural is in the module
+# block in main.tf.
+#
+# Secrets: the variables named in secrets.list may live in the secret store
+# (bin/tf-secrets, see README.md) and then need no line here. The secret slots
+# below are the fallback for an operator with no store.
 #
 #   app_secret         -> openssl rand -hex 16
 #   app_encryption_key -> php -r 'echo base64_encode(sodium_crypto_secretbox_keygen()), "\n";'

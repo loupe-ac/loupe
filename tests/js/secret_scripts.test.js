@@ -86,6 +86,36 @@ describe('bin/tfvars-names', () => {
         expect(result.stdout).not.toContain('BAD');
     });
 
+    it('lists the names the secret store holds and never a value', () => {
+        const store = join(dir, 'names.store.yaml');
+        writeFileSync(
+            store,
+            'TF_VAR_app_secret: ENC[AES256_GCM,data:S3CRET-VALUE-do-not-print]\nsops:\n  version: 3\n',
+        );
+
+        const result = run({
+            TFVARS_NAMES_TFVARS: join(dir, 'absent.vars'),
+            TFVARS_NAMES_PROD_ENV: join(dir, 'absent.env'),
+            TF_SECRETS_STORE: store,
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('== secret store\nTF_VAR_app_secret\n');
+        expect(result.stdout).not.toContain('S3CRET');
+        expect(result.stdout).not.toContain('sops');
+    });
+
+    it('says so when no store is set up', () => {
+        const result = run({
+            TFVARS_NAMES_TFVARS: join(dir, 'absent.vars'),
+            TFVARS_NAMES_PROD_ENV: join(dir, 'absent.env'),
+            TF_SECRETS_STORE: join(dir, 'no-such-store.yaml'),
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('(no store set up)');
+    });
+
     it('reports a missing file and still exits 0', () => {
         const result = run({
             TFVARS_NAMES_TFVARS: join(dir, 'absent.vars'),
@@ -153,5 +183,35 @@ echo '{"status":"ok","version":"abc1234"}'`,
         expect(result.stdout).not.toContain(TOKEN);
         expect(result.stderr).not.toContain(TOKEN);
         expect(result.stderr).toContain('cannot read health_probe_token');
+    });
+});
+
+describe('bin/tf-secrets exec', () => {
+    it('runs the command unchanged when no store is set up', () => {
+        const result = spawnSync(
+            'bash',
+            [bin + 'tf-secrets', 'exec', '--', 'sh', '-c', 'printf %s "$X"'],
+            {
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    X: 'plain',
+                    TF_SECRETS_STORE: join(dir, 'no-such-store.yaml'),
+                },
+            },
+        );
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toBe('plain');
+        expect(result.stderr).toContain('no secret store is set up');
+    });
+
+    it('refuses a call with no command', () => {
+        const result = spawnSync('bash', [bin + 'tf-secrets', 'exec'], {
+            encoding: 'utf8',
+            env: { ...process.env, TF_SECRETS_STORE: join(dir, 'none.yaml') },
+        });
+
+        expect(result.status).toBe(2);
     });
 });

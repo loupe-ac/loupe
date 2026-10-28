@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Refuses a tool call that reads a production secret file: terraform.tfvars, a
-# Terraform state file, docker/compose/prod.env or a rotate-secrets temporary
-# file. It also refuses a command that prints the state without naming it, and
-# a recursive search over a folder that holds one of these files.
+# Terraform state file, a saved plan, docker/compose/prod.env, the age key file
+# or a rotate-secrets temporary file. It also refuses a command that prints the
+# state without naming it, a command that reads the secret store, and a
+# recursive search over a folder that holds one of these files.
 # Env, for tests: NO_SECRET_READS_PLACES replaces the list of secret file places.
 set -uo pipefail
 
@@ -23,15 +24,16 @@ deny() {
     exit 0
 }
 
-safe_paths="To see which variables are set, run just tfvars-names. To read the live version, run just healthz. To rotate a secret, run just rotate-secrets."
+safe_paths="To see which variables are set, run just tfvars-names. To read the live version, run just healthz. To rotate a secret, run just rotate-secrets. To plan or apply, run just tf-plan or just tf-apply."
 read_msg="This reads a production secret file, and an agent must not read one. $safe_paths"
 state_msg="This prints the Terraform state, which holds secret values. $safe_paths"
+store_msg="This reads the secret store, which holds every deploy secret. $safe_paths"
 search_msg="This searches a folder that holds a production secret file, and a match on a secret line prints the value. Search with rg or git grep, which skip gitignored files. $safe_paths"
 
 places=${NO_SECRET_READS_PLACES:-"terraform/terraform.tfvars terraform/terraform.tfvars.json terraform/terraform.tfstate terraform/terraform.tfstate.backup terraform/terraform.tfstate.bak docker/compose/prod.env"}
 
 shopt -s nocasematch
-name_re='(^|[^A-Za-z0-9_.-])(terraform\.tfvars(\.json)?|terraform\.tfstate(\.[A-Za-z0-9_-]+)*|prod\.env)($|[^A-Za-z0-9_.-])'
+name_re='(^|[^A-Za-z0-9_.-])(terraform\.tfvars(\.json)?|terraform\.tfstate(\.[A-Za-z0-9_-]+)*|[A-Za-z0-9_-]+\.tfplan|prod\.env|sops/age/keys\.txt)($|[^A-Za-z0-9_.-])'
 temp_re='(^|[^A-Za-z0-9_.-])\.rotate-secrets\.tmp\.'
 
 protected() {
@@ -193,10 +195,44 @@ judge_terraform() {
     return 0
 }
 
+# The commands that read the secret store. exec runs any command with every
+# secret in its environment, so a child such as env can print them all.
+judge_store() {
+    local name="${1##*/}" w
+    shift
+    case "$name" in
+        tf-secrets) [ "${1:-}" = exec ] && deny "$store_msg" ;;
+        sops)
+            for w in "$@"; do
+                case "$w" in
+                    decrypt|-d|--decrypt|edit|exec-env|exec-file|publish) deny "$store_msg" ;;
+                esac
+            done ;;
+        age) has_arg '^(--decrypt|-[A-Za-z]*d[A-Za-z]*)$' "$@" && deny "$store_msg" ;;
+    esac
+
+    return 0
+}
+
 is_safe_script() {
     case "$1" in
-        bin/rotate-secrets|bin/tfvars-names|bin/tfvars-missing.sh|bin/healthz-probe) return 0 ;;
-        */bin/rotate-secrets|*/bin/tfvars-names|*/bin/tfvars-missing.sh|*/bin/healthz-probe) return 0 ;;
+        bin/rotate-secrets|bin/tfvars-names|bin/tfvars-missing.sh|bin/healthz-probe|bin/tf-plan-diff) return 0 ;;
+        */bin/rotate-secrets|*/bin/tfvars-names|*/bin/tfvars-missing.sh|*/bin/healthz-probe|*/bin/tf-plan-diff) return 0 ;;
+    esac
+
+    return 1
+}
+
+# A plan, an apply, a masked show and the removal of a saved plan print no
+# secret value. A JSON show of a plan does, so it stays refused.
+is_plan_use() {
+    local cmd="${1##*/}"
+    shift
+    case "$cmd" in
+        rm) return 0 ;;
+        just) case "${1:-}" in tf-plan|tf-apply) return 0 ;; esac ;;
+        terraform|tofu)
+            case "${1:-}" in plan|apply) return 0 ;; show) has_arg '^-json$' "$@" || return 0 ;; esac ;;
     esac
 
     return 1
@@ -262,10 +298,11 @@ judge_command() {
         terraform|tofu) judge_terraform "${words[@]:i+1}" ;;
         *) judge_folder_reader "$cmd" "${words[@]:i+1}" ;;
     esac
+    judge_store "$cmd" "${words[@]:i+1}"
 
     local script="$cmd"
     case "${cmd##*/}" in bash|sh|zsh) script="${words[i+1]:-}" ;; esac
-    if is_allowed "$cmd" || { [ "$script" != "$cmd" ] && is_safe_script "$script"; }; then
+    if is_allowed "$cmd" || is_plan_use "$cmd" "${words[@]:i+1}" || { [ "$script" != "$cmd" ] && is_safe_script "$script"; }; then
         has_substitution "${words[@]}" && any_protected "${words[@]}" && deny "$read_msg"
         redirects_secret "${words[@]}" && deny "$read_msg"
         return

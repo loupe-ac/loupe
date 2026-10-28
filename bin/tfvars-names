@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Prints the variable names that terraform.tfvars and docker/compose/prod.env
-# assign. It never prints a value, so an agent session may run it.
+# assign, and the names the secret store holds. It never prints a value, so an
+# agent session may run it.
 #
 # Environment, for tests: TFVARS_NAMES_TFVARS and TFVARS_NAMES_PROD_ENV name
 # the two files.
@@ -38,3 +39,7 @@ show() {
 
 show terraform/terraform.tfvars "${TFVARS_NAMES_TFVARS:-$(locate terraform/terraform.tfvars)}"
 show docker/compose/prod.env "${TFVARS_NAMES_PROD_ENV:-$(locate docker/compose/prod.env)}"
+
+printf '== secret store\n'
+store=$("$root/bin/tf-secrets" names) || exit 1
+if [ -n "$store" ]; then printf '%s\n' "$store"; else echo "(no store set up)"; fi
