@@ -3078,6 +3078,22 @@
                 <source>project.connect.tool.analytics_settings_update</source>
                 <target>Change the default model, the default effort or the full-text setting of the analyses.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.bucket_rule_list">
+                <source>project.connect.tool.bucket_rule_list</source>
+                <target>Read the time bucket rules of the project, in the order they apply.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.bucket_rule_create">
+                <source>project.connect.tool.bucket_rule_create</source>
+                <target>Add a time bucket rule to the end of the rules of the project.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.bucket_rule_move">
+                <source>project.connect.tool.bucket_rule_move</source>
+                <target>Move a time bucket rule one place up or down.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.bucket_rule_delete">
+                <source>project.connect.tool.bucket_rule_delete</source>
+                <target>Delete a time bucket rule.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.bridge_list">
                 <source>project.connect.tool.bridge_list</source>
                 <target>List the bridges that follow the project, with their heartbeat, their pause, their worker pools and their open runs.</target>
