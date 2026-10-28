@@ -151,6 +151,21 @@ final class ReferenceLinkerTest extends KernelTestCase
         self::assertStringContainsString('data-ref-tooltip-line="Open · Draft"', $html);
     }
 
+    public function test_a_mixed_case_watched_repository_keeps_the_stored_tooltip(): void
+    {
+        $project = $this->project();
+        $this->watch($project, 'Acme/Loupe');
+        $this->pullRequest($project, 'Acme/Loupe', 12, 'Mixed case', PullRequestState::Merged);
+
+        $marked = $this->linker->link($this->region('<span data-ref-pr="acme/LOUPE#12">acme/LOUPE#12</span>'), $project);
+        $prose = $this->linker->link($this->region('<p>PR #12</p>'), $project);
+
+        foreach ([$marked, $prose] as $html) {
+            self::assertStringContainsString('data-ref-tooltip-title="Mixed case"', $html);
+            self::assertStringContainsString('data-ref-tooltip-line="Merged"', $html);
+        }
+    }
+
     public function test_a_pull_request_with_no_stored_row_links_without_a_tooltip(): void
     {
         $project = $this->project();

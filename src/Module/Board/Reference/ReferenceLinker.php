@@ -84,7 +84,7 @@ final readonly class ReferenceLinker
 
         $rows = [];
         foreach ([] === $keys ? [] : $this->forgePullRequests->findByKeys($project->requireId(), $keys) as $row) {
-            $rows[$row->forge.'|'.$row->repository.'|'.$row->number] = $row;
+            $rows[self::rowKey($row->forge, $row->repository, $row->number)] = $row;
         }
 
         $connected = null;
@@ -112,7 +112,7 @@ final readonly class ReferenceLinker
                 return $text;
             }
 
-            return $this->pullRequestLink($url, $rows[$repository->forge.'|'.$repository->path.'|'.$number] ?? null, $text);
+            return $this->pullRequestLink($url, $rows[self::rowKey($repository->forge, $repository->path, $number)] ?? null, $text);
         });
     }
 
@@ -229,6 +229,12 @@ final readonly class ReferenceLinker
 
             return $out.$rest;
         }, $text) ?? $text;
+    }
+
+    /** Stored pull request rows hold the repository path in lower case. */
+    private static function rowKey(string $forge, string $repository, int $number): string
+    {
+        return $forge.'|'.mb_strtolower($repository).'|'.$number;
     }
 
     /** @param list<ForgeRepository> $watched */
