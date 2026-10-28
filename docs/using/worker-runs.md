@@ -143,14 +143,16 @@ The project owner can control a run from the runs section of a card page and
 from the drawer of a run. The card page lists only the runs in progress, so it
 offers **Stop** and **Cancel request** for a stop. Resume an ended run, or run
 a command again, from this page. Other people see the labels and no controls.
-An interactive run has no controls, and its owner uses **Close session**
-instead.
+An interactive run offers **Close session** in place of the other controls. It
+shows in the runs section of a card, in the drawer of the run, and as a small
+close icon in the **Outcome** cell of the row in the list.
 
 | Control | When it shows | What it does |
 |---|---|---|
 | **Stop** | the run is Queued, Resumed, Preparing or Running | asks the bridge to stop the run |
 | **Resume** | the run ended as Blocked, Gave up, Failed, No result, Unfinished, Timed out, Lost, Stopped or Waiting for a person, and it has a session | asks the bridge to continue the session as a new run |
 | **Run again** | a command run ended as Failed, Timed out or Lost | asks the bridge to run the command again as a new run |
+| **Close session** | an interactive run is Running | closes the session at once and shows it as **Closed**. It sends nothing to a bridge, and the terminal of the session stays open |
 | **Cancel request** | a stop, a resume or a rerun still waits for the bridge | withdraws the request |
 
 A request waits until the bridge takes it. The row then shows the label of the
@@ -318,7 +320,9 @@ These actions close an open interactive run, and it then shows **Closed**:
 
 - The session calls `card_run_close` when it ends.
 - The owner selects **Close session** on the running row, in the runs section
-  of the card.
+  of the card, in the **Runs** list, or in the drawer of the run. In the list,
+  the view keeps its search, filters and page. A filter that leaves out
+  **Closed**, such as **Open runs**, drops the row.
 - The card moves to another column. A move inside the same column closes
   nothing. The delete of a column moves its cards, so it closes their runs.
 - A person deletes the card.

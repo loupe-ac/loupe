@@ -78,10 +78,26 @@ final class WorkerRunControlsTest extends KernelTestCase
         self::assertNull($this->controlOf($project, $run));
     }
 
-    public function test_an_interactive_run_has_no_control(): void
+    public function test_a_running_interactive_run_offers_close_and_needs_no_bridge(): void
     {
         [$project, $bridge] = $this->scenario('controls-interactive');
-        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $withBridge = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $withoutBridge = $this->seedRun($this->em(), $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+
+        foreach ([$withBridge, $withoutBridge] as $run) {
+            $control = $this->controlOf($project, $run);
+
+            self::assertSame(WorkerRunAction::Close, $control?->action);
+            self::assertTrue($control->enabled);
+            self::assertNull($control->label);
+            self::assertSame('bridge.worker_runs.control.close', $control->action->translationKey());
+        }
+    }
+
+    public function test_a_closed_interactive_run_has_no_control(): void
+    {
+        [$project, $bridge] = $this->scenario('controls-interactive-closed');
+        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
 
         self::assertNull($this->controlOf($project, $run));
     }
