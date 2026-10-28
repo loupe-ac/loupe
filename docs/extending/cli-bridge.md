@@ -1113,7 +1113,7 @@ The Comparison tab of the experiment shows the declared metrics in that order.
 An entry with no `metrics` shows the default six. The bridge sends the list
 with each pin request, so the latest list wins. The bridge does not know the
 metrics of the server, so it checks the shape of each key only. The server
-shows a note for a key that it does not know.
+shows a note for a key that it does not know. A key such as `merge-rate` is known only when the workflow template of the project declares it.
 
 The `experiment` field names the experiment of an entry with variants. Use it
 to start a new trial on a kind of work without mixing it with an old one. The

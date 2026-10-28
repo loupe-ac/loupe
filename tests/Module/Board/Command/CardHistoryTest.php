@@ -113,12 +113,12 @@ final class CardHistoryTest extends KernelTestCase
 
         $update = self::getContainer()->get(UpdateCardHandler::class);
         self::assertInstanceOf(UpdateCardHandler::class, $update);
-        $update(new UpdateCardCommand(card: $card, actor: Actor::System, column: $this->column($this->project, 'done'), cause: CardEventCause::merged(42)));
+        $update(new UpdateCardCommand(card: $card, actor: Actor::System, column: $this->column($this->project, 'done'), cause: CardEventCause::workflowRule('merged', 'merged')));
 
         $row = $this->history($card)[1];
         self::assertSame('system', $row['actor_kind']);
         self::assertNull($row['actor_user_id']);
-        self::assertEquals(['type' => 'merged', 'pullRequest' => 42], $row['detail']['cause']);
+        self::assertEquals(['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged'], $row['detail']['cause']);
         self::assertSame('done', $row['detail']['to']['slug']);
     }
 

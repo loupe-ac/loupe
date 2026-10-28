@@ -15,9 +15,6 @@ enum Metric: string
     case Duration = 'duration';
     case Runs = 'runs';
     case StopRate = 'stop-rate';
-    case MergeRate = 'merge-rate';
-    case FixRounds = 'fix-rounds';
-    case HoursToMerge = 'hours-to-merge';
     case BucketTime = 'bucket-time';
 
     /**
@@ -35,7 +32,7 @@ enum Metric: string
     public function units(): array
     {
         return match ($this) {
-            self::Runs, self::MergeRate, self::FixRounds, self::HoursToMerge => [MetricUnit::Card],
+            self::Runs => [MetricUnit::Card],
             self::StopRate => [MetricUnit::Run],
             default => [MetricUnit::Run, MetricUnit::Card],
         };
@@ -46,37 +43,28 @@ enum Metric: string
         return match ($this) {
             self::Cost => MetricValueType::Money,
             self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens => MetricValueType::Tokens,
-            self::Duration, self::HoursToMerge, self::BucketTime => MetricValueType::Duration,
-            self::Runs, self::FixRounds => MetricValueType::Count,
-            self::StopRate, self::MergeRate => MetricValueType::Ratio,
+            self::Duration, self::BucketTime => MetricValueType::Duration,
+            self::Runs => MetricValueType::Count,
+            self::StopRate => MetricValueType::Ratio,
         };
     }
 
     /** @return list<MetricStatistic> */
     public function statistics(): array
     {
-        return MetricValueType::Ratio === $this->valueType()
-            ? [MetricStatistic::Mean, MetricStatistic::Count]
-            : MetricStatistic::cases();
+        return $this->valueType()->statistics();
     }
 
     /** @return list<MetricGroup> */
     public function groups(): array
     {
-        return $this->isCardOutcome()
-            ? [MetricGroup::Variant, MetricGroup::CardType, MetricGroup::None]
-            : MetricGroup::cases();
+        return MetricGroup::cases();
     }
 
     /** A sum over the runs of a card gives its value on the card unit. */
     public function isAdditive(): bool
     {
-        return !$this->isCardOutcome() && self::StopRate !== $this;
-    }
-
-    public function isCardOutcome(): bool
-    {
-        return \in_array($this, [self::MergeRate, self::FixRounds, self::HoursToMerge], true);
+        return self::StopRate !== $this;
     }
 
     public function description(): string
@@ -90,9 +78,6 @@ enum Metric: string
             self::Duration => 'The time from the start to the end of a run, in milliseconds.', // @translation-check-ignore
             self::Runs => 'The number of worker runs on a finished card.', // @translation-check-ignore
             self::StopRate => 'The share of runs that reached an outcome and blocked, failed, gave no result or gave up.', // @translation-check-ignore
-            self::MergeRate => 'The share of finished cards whose pull request merged.', // @translation-check-ignore
-            self::FixRounds => 'The number of fix rounds a finished card needed.', // @translation-check-ignore
-            self::HoursToMerge => 'The hours from the first pull request opening to the last merge.', // @translation-check-ignore
             self::BucketTime => 'The time of the main-session tool calls of a run in one bucket of the project rules, in milliseconds. Name the bucket after a colon: bucket-time:<name>.', // @translation-check-ignore
         };
     }

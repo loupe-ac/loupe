@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
-use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricValueType;
 
@@ -42,7 +42,7 @@ final readonly class MetricChart
      * @param list<MetricChartTick>   $xTicks
      */
     public function __construct(
-        public Metric $metric,
+        public MetricShape $metric,
         public MetricStatistic $statistic,
         public MetricBucket $bucket,
         public array $buckets,
@@ -61,7 +61,7 @@ final readonly class MetricChart
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(Metric $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series): ?self
+    public static function build(MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series): ?self
     {
         $starts = [];
         $values = [];
@@ -165,7 +165,7 @@ final readonly class MetricChart
      *
      * @return array{float, float}
      */
-    private static function axis(Metric $metric, MetricStatistic $statistic, array $values): array
+    private static function axis(MetricShape $metric, MetricStatistic $statistic, array $values): array
     {
         $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : $metric->valueType();
         if (MetricValueType::Ratio === $type) {
@@ -174,7 +174,7 @@ final readonly class MetricChart
 
         $floor = match ($type) {
             MetricValueType::Money => 0.04,
-            MetricValueType::Duration => Metric::HoursToMerge === $metric ? 1.0 : 1000.0,
+            MetricValueType::Duration => $metric->isInHours() ? 1.0 : 1000.0,
             default => (float) self::TARGET_TICKS,
         };
         $max = max($floor, ...$values);

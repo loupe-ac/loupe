@@ -10,7 +10,13 @@
 
 {% block body %}
 {% set metric = query.metric %}
-{% set metricName = query.bucketName is null ? ('analytics.metrics.metric.' ~ metric.value)|trans : 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': query.bucketName}) %}
+{% if metric.template is not null %}
+    {% set metricName = metric.template.label %}
+{% elseif metric.key.bucketName is null %}
+    {% set metricName = ('analytics.metrics.metric.' ~ metric.key.key)|trans %}
+{% else %}
+    {% set metricName = 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': metric.key.bucketName}) %}
+{% endif %}
 {% set rowsKey = 'analytics.metrics.rows.' ~ query.unit.value %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
@@ -23,13 +29,14 @@
             <label class="sr-only" for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</label>
             <twig:Ds:Select id="metrics-metric" name="metric" data-action="change->autosearch#search">
                 {% for option in metrics %}
-                    <option value="{{ option.value }}"{{ query.bucketName is null and option == metric ? ' selected' : '' }}>{{ ('analytics.metrics.metric.' ~ option.value)|trans }}</option>
+                    {# A template label and description are text that a person wrote, so they are rendered escaped. Never add |raw here. #}
+                    <option value="{{ option.key.key }}"{{ option.key.key == metric.key.key ? ' selected' : '' }}{% if option.template is not null %} title="{{ option.template.description }}"{% endif %}>{{ option.template is null ? ('analytics.metrics.metric.' ~ option.key.key)|trans : option.template.label }}</option>
                 {% endfor %}
                 {% if bucketNames is not empty %}
                 {# A bucket name comes from the project rules, so it is rendered as text. Never add |raw here. #}
                 <optgroup label="{{ 'analytics.metrics.metric_group.bucket_time'|trans }}">
                     {% for name in bucketNames %}
-                    <option value="bucket-time:{{ name }}"{{ query.bucketName is same as(name) ? ' selected' : '' }}>{{ 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': name}) }}</option>
+                    <option value="bucket-time:{{ name }}"{{ metric.key.bucketName is same as(name) ? ' selected' : '' }}>{{ 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': name}) }}</option>
                     {% endfor %}
                 </optgroup>
                 {% endif %}

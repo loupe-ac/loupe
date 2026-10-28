@@ -61,7 +61,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(24, $template->version);
+        self::assertSame(25, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -157,16 +157,16 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         ], $template->metrics);
     }
 
-    public function test_a_template_with_no_metrics_lists_none(): void
+    public function test_the_simple_template_lists_its_two_metrics(): void
     {
-        $project = $this->workflowProject('workflow-settings-no-metrics');
+        $project = $this->workflowProject('workflow-settings-simple-metrics');
         $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
         $this->em()->clear();
 
         $template = $this->show($project)->template;
 
         self::assertInstanceOf(BoundWorkflowView::class, $template);
-        self::assertSame([], $template->metrics);
+        self::assertSame(['merge-rate', 'hours-to-merge'], array_map(static fn (WorkflowMetricView $metric): string => $metric->key, $template->metrics));
     }
 
     public function test_the_rules_the_app_adds_are_listed_apart_from_the_template_rules(): void

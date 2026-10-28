@@ -620,6 +620,40 @@ class WorkRequestRepository extends ServiceEntityRepository
         return $found;
     }
 
+    /**
+     * How many requests each card opened, in any state, by role, kind and the reason of its context. A request with no reason reads as
+     * `unknown`. A card with no request has no row.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return list<array{cardId: string, role: ?string, kind: string, reason: string, count: int}>
+     */
+    public function findCountsOfCards(array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        /** @var list<array{card_id: string, role: ?string, kind: string, reason: string, total: string|int}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT subject_id AS card_id, role, kind, COALESCE(context::jsonb ->> 'reason', 'unknown') AS reason, COUNT(*) AS total
+             FROM work_requests
+             WHERE subject_type = :subject AND subject_id IN (:cards)
+             GROUP BY subject_id, role, kind, COALESCE(context::jsonb ->> 'reason', 'unknown')
+             ORDER BY subject_id, role, kind, reason",
+            ['subject' => WorkSubject::CARD, 'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds)],
+            ['cards' => ArrayParameterType::STRING],
+        )->fetchAllAssociative();
+
+        return array_map(static fn (array $row): array => [
+            'cardId' => Uuid::fromString($row['card_id'])->toRfc4122(),
+            'role' => $row['role'],
+            'kind' => $row['kind'],
+            'reason' => $row['reason'],
+            'count' => (int) $row['total'],
+        ], $rows);
+    }
+
     /** The request of the card that opened last, in any state. */
     public function findLatestForCard(Uuid $cardId): ?WorkRequest
     {

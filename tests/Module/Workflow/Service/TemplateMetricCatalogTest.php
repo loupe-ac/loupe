@@ -29,9 +29,9 @@ final class TemplateMetricCatalogTest extends KernelTestCase
         self::bootKernel();
         $project = $this->workflowProject('metrics-bound');
         $binding = $this->bindLifecycle($project);
-        $binding->definition = $binding->definition + ['metrics' => [
+        $binding->definition = array_replace($binding->definition, ['metrics' => [
             ['key' => 'design-rounds', 'label' => 'Design rounds', 'description' => 'The design revise rounds.', 'count' => ['role' => 'design-revise']],
-        ]];
+        ]]);
         $this->em()->flush();
 
         $set = $this->catalog()->forProject($project->requireId());
@@ -48,9 +48,9 @@ final class TemplateMetricCatalogTest extends KernelTestCase
         self::bootKernel();
         $project = $this->workflowProject('metrics-columns');
         $binding = $this->bindLifecycle($project);
-        $binding->definition = $binding->definition + ['metrics' => [
+        $binding->definition = array_replace($binding->definition, ['metrics' => [
             ['key' => 'design-rounds', 'label' => 'Design rounds', 'description' => 'The design revise rounds.', 'count' => ['role' => 'design-revise']],
-        ]];
+        ]]);
         $this->em()->flush();
 
         $set = $this->catalog()->forProject($project->requireId());
@@ -66,7 +66,9 @@ final class TemplateMetricCatalogTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('metrics-none');
-        $this->bindLifecycle($project);
+        $binding = $this->bindLifecycle($project);
+        unset($binding->definition['metrics']);
+        $this->em()->flush();
 
         $set = $this->catalog()->forProject($project->requireId());
 
@@ -82,7 +84,7 @@ final class TemplateMetricCatalogTest extends KernelTestCase
         $set = $this->catalog()->forProject($project->requireId());
 
         self::assertEquals([new TemplateOutcome('merged', true)], $set->outcomes);
-        self::assertSame([], $set->metrics);
+        self::assertSame(['merge-rate', 'hours-to-merge'], array_map(static fn (TemplateMetric $metric): string => $metric->key, $set->metrics));
     }
 
     public function test_a_simple_project_gets_the_outcomes_of_the_simple_template(): void

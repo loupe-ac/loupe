@@ -231,7 +231,7 @@ final class TemplateMetricParserTest extends TestCase
     {
         yield 'no type' => [[], 'metrics[0] (my-metric): must have exactly one of count, rate and duration'];
         yield 'two types' => [['count' => ['role' => 'fix'], 'rate' => ['outcome' => 'merged']], 'metrics[0] (my-metric): must have exactly one of count, rate and duration'];
-        yield 'a built-in key' => [['key' => 'fix-rounds', 'count' => ['role' => 'fix']], 'metrics[0] (fix-rounds): the key "fix-rounds" belongs to a metric the app computes'];
+        yield 'a built-in key' => [['key' => 'cost', 'count' => ['role' => 'fix']], 'metrics[0] (cost): the key "cost" belongs to a metric the app computes'];
         yield 'a bad key' => [['key' => 'Fix Rounds', 'count' => ['role' => 'fix']], 'metrics[0] key: must be lowercase words joined with hyphens, at most 64 characters'];
         yield 'no label' => [['label' => '', 'count' => ['role' => 'fix']], 'metrics[0] (my-metric) label: must be a non-empty string of at most 80 characters'];
         yield 'no description' => [['description' => 7, 'count' => ['role' => 'fix']], 'metrics[0] (my-metric) description: must be a non-empty string of at most 300 characters'];

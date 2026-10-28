@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Mcp;
 
-use App\Module\Board\Entity\CardEventKind;
 use App\Module\Bridge\Command\ShowExperimentHandler;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Experiment\Stats;
@@ -57,6 +56,7 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['cost', 'merge-rate'], array_column($result['metrics'], 'key'));
         self::assertSame([
             'key' => 'cost',
+            'label' => 'Cost per merged card',
             'valueType' => 'money',
             'clear' => true,
             'byVariant' => [
@@ -88,20 +88,24 @@ final class ExperimentGetToolTest extends KernelTestCase
     {
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get-parts@example.com'));
+        $this->bindLifecycle($em, $project);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1]]);
         $definition->metrics = ['fix-rounds'];
         $em->persist($definition);
         $card = $this->experimentCard($em, $project, 1, merged: true);
-        $this->cardEvent($em, $card, CardEventKind::FixRequested, ['reason' => 'conflict', 'pullRequest' => 1], '-90 minutes');
+        $this->fixRequest($em, $project, $card, 'conflict');
         $this->experimentRun($em, $project, $card, 'a');
         $this->actAsMcpTokenBoundTo($project);
 
         $metric = $this->tool()('model-test')['metrics'][0];
 
         self::assertSame('fix-rounds', $metric['key']);
+        self::assertSame('Fix rounds', $metric['label']);
+        self::assertSame('count', $metric['valueType']);
         self::assertFalse($metric['clear']);
         self::assertSame([[
             'key' => 'conflict',
+            'label' => 'conflict',
             'valueType' => 'count',
             'clear' => false,
             'byVariant' => ['a' => ['point' => 1.0, 'low' => 1.0, 'high' => 1.0]],

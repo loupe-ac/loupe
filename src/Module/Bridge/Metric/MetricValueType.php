@@ -12,4 +12,16 @@ enum MetricValueType: string
     case Count = 'count';
     case Ratio = 'ratio';
     case Boolean = 'boolean';
+
+    /**
+     * A ratio is a mean of ones and zeros, so a sum or a percentile of it means nothing.
+     *
+     * @return list<MetricStatistic>
+     */
+    public function statistics(): array
+    {
+        return self::Ratio === $this
+            ? [MetricStatistic::Mean, MetricStatistic::Count]
+            : MetricStatistic::cases();
+    }
 }

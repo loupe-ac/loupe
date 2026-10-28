@@ -7,7 +7,6 @@ namespace App\Module\Insights\Controller;
 use App\Controller\AppController;
 use App\Module\Bridge\Command\ListMetricsCommand;
 use App\Module\Bridge\Command\ListMetricsHandler;
-use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Insights\Command\ShowMetricsCommand;
@@ -16,6 +15,7 @@ use App\Module\Insights\View\MetricChart;
 use App\Module\Insights\View\MetricsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Module\Workflow\Contract\TemplateMetrics;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -32,17 +32,20 @@ class ShowMetricsController extends AppController
     public function __construct(
         private readonly ShowMetricsHandler $showMetrics,
         private readonly ListMetricsHandler $listMetrics,
+        private readonly TemplateMetrics $templateMetrics,
     ) {
     }
 
     public function __invoke(Project $project, Request $request): Response
     {
-        $query = MetricsQuery::fromQuery($request->query);
+        $query = MetricsQuery::fromQuery($request->query, $this->templateMetrics->forProject($project->requireId()));
         $view = ($this->showMetrics)(new ShowMetricsCommand($project, $query));
-        $bucketNames = ($this->listMetrics)(new ListMetricsCommand($project))->bucketNames;
+        $list = ($this->listMetrics)(new ListMetricsCommand($project));
+        $bucketNames = $list->bucketNames;
+        $selectedBucket = $query->metric->key->bucketName;
         // A valid name with no time on any run still reads as 0, so the picker keeps it.
-        if (null !== $query->bucketName && !\in_array($query->bucketName, $bucketNames, true)) {
-            $bucketNames[] = $query->bucketName;
+        if (null !== $selectedBucket && !\in_array($selectedBucket, $bucketNames, true)) {
+            $bucketNames[] = $selectedBucket;
         }
         sort($bucketNames, \SORT_STRING);
 
@@ -52,7 +55,7 @@ class ShowMetricsController extends AppController
             'view' => $view->metrics,
             'groupLabels' => $view->groupLabels,
             'chart' => MetricChart::build($query->metric, $query->statistic, $query->bucket, $view->metrics->series),
-            'metrics' => Metric::standalone(),
+            'metrics' => $list->metrics,
             'bucketNames' => $bucketNames,
             'ranges' => MetricRange::cases(),
             'buckets' => MetricBucket::cases(),

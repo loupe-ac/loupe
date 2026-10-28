@@ -6,14 +6,10 @@ namespace App\Tests\Module\Board\Service;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
-use App\Module\Board\Entity\CardPullRequest;
-use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Service\BoardCardReportSource;
 use App\Module\Bridge\Experiment\CardColumn;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
-use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
@@ -66,57 +62,37 @@ final class BoardCardReportSourceTest extends KernelTestCase
         self::assertSame([], $this->source->columnsFor($this->makeProject('card-report-empty'), []));
     }
 
-    public function test_it_reads_the_outcome_of_each_card_from_its_history_and_pull_requests(): void
+    public function test_it_reads_the_set_of_outcomes_that_the_moves_of_each_card_set(): void
     {
         $project = $this->makeProject('card-outcome');
         $other = $this->makeProject('card-outcome-other');
-        $merged = $this->card($project, 1, 'done');
+        $both = $this->card($project, 1, 'done');
         $handMoved = $this->card($project, 2, 'done');
         $quiet = $this->card($project, 3, 'in-progress');
-        $engineMerged = $this->card($project, 4, 'done');
-        $outcomeMerged = $this->card($project, 5, 'done');
+        $same = $this->card($project, 4, 'done');
+        $legacy = $this->card($project, 5, 'done');
         $foreign = $this->card($other, 1, 'done');
 
         $first = new \DateTimeImmutable('2026-09-01 09:00:00');
-        $this->event($merged, CardEventKind::Created, [], $first);
-        $this->event($engineMerged, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'merged']], $first->modify('+3 days'));
-        $this->event($outcomeMerged, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'card-merged', 'outcome' => 'merged']], $first->modify('+3 days'));
-        $this->event($quiet, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'reviewable']], $first->modify('+3 days'));
-        $this->event($merged, CardEventKind::FixRequested, ['reason' => 'conflict', 'pullRequest' => 7], $first->modify('+1 hour'));
-        $this->event($merged, CardEventKind::FixRequested, ['reason' => 'checks-failed', 'pullRequest' => 7], $first->modify('+2 hours'));
-        $this->event($merged, CardEventKind::FixRequested, ['reason' => 'checks-failed', 'pullRequest' => 8], $first->modify('+3 hours'));
-        $this->event($merged, CardEventKind::Stopped, ['reason' => 'conflict', 'pullRequest' => 7], $first->modify('+4 hours'));
-        $this->event($merged, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'checks-passed', 'pullRequest' => 8]], $first->modify('+5 hours'));
-        $this->event($merged, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'merged', 'pullRequest' => 8]], $first->modify('+6 hours'));
-        $this->event($handMoved, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => null], $first->modify('+1 day'));
-        $this->event($handMoved, CardEventKind::Moved, ['cause' => 'merged'], $first->modify('+2 days'));
-        $this->event($foreign, CardEventKind::FixRequested, ['reason' => 'conflict', 'pullRequest' => 1], $first->modify('-1 day'));
-
-        $this->pullRequest($project, $merged, 7, new \DateTimeImmutable('2026-09-01 10:00:00'), null);
-        $this->pullRequest($project, $merged, 8, new \DateTimeImmutable('2026-09-01 12:00:00'), new \DateTimeImmutable('2026-09-02 16:00:00'));
-        $this->pullRequest($other, $foreign, 7, new \DateTimeImmutable('2026-08-01 10:00:00'), new \DateTimeImmutable('2026-08-01 11:00:00'));
+        $rule = static fn (string $id, ?string $outcome = null): array => ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => $id] + (null === $outcome ? [] : ['outcome' => $outcome])];
+        $this->event($both, CardEventKind::Moved, $rule('card-abandoned', 'abandoned'), $first);
+        $this->event($both, CardEventKind::Moved, $rule('card-merged', 'merged'), $first->modify('+1 day'));
+        $this->event($both, CardEventKind::FixRequested, ['reason' => 'conflict', 'outcome' => 'ignored'], $first->modify('+2 days'));
+        $this->event($handMoved, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => null], $first);
+        $this->event($quiet, CardEventKind::Moved, $rule('reviewable'), $first);
+        $this->event($same, CardEventKind::Moved, $rule('card-merged', 'merged'), $first);
+        $this->event($same, CardEventKind::Moved, $rule('card-merged', 'merged'), $first->modify('+1 day'));
+        $this->event($legacy, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'merged', 'pullRequest' => 3]], $first);
+        $this->event($foreign, CardEventKind::Moved, $rule('card-merged', 'merged'), $first);
         $this->em->clear();
 
-        $outcomes = $this->source->outcomesFor($project, [$merged, $handMoved, $quiet, $engineMerged, $outcomeMerged, $foreign, Uuid::v7()]);
+        $outcomes = $this->source->outcomesOfCards($project, [$both, $handMoved, $quiet, $same, $legacy, $foreign, Uuid::v7()]);
 
-        $expected = [
-            (string) $merged => new CardOutcome(
-                fixRounds: ['checks-failed' => 2, 'conflict' => 1],
-                merged: true,
-                openedAt: new \DateTimeImmutable('2026-09-01 10:00:00'),
-                mergedAt: new \DateTimeImmutable('2026-09-02 16:00:00'),
-            ),
-            (string) $handMoved => new CardOutcome(),
-            (string) $quiet => new CardOutcome(),
-            (string) $engineMerged => new CardOutcome(merged: true),
-            (string) $outcomeMerged => new CardOutcome(merged: true),
-        ];
+        $expected = [(string) $both => ['abandoned', 'merged'], (string) $same => ['merged']];
         ksort($expected);
         ksort($outcomes);
-        self::assertEquals($expected, $outcomes);
-        self::assertSame(3, $outcomes[(string) $merged]->totalFixRounds());
-        self::assertSame(30.0, $outcomes[(string) $merged]->hoursToMerge());
-        self::assertNull($outcomes[(string) $handMoved]->hoursToMerge());
+        self::assertSame($expected, $outcomes);
+        self::assertSame([], $this->source->outcomesOfCards($project, []));
     }
 
     public function test_it_returns_the_types_of_the_projects_cards_only(): void
@@ -159,17 +135,6 @@ final class BoardCardReportSourceTest extends KernelTestCase
         $events = self::getContainer()->get(CardEventRepository::class);
         self::assertInstanceOf(CardEventRepository::class, $events);
         $events->record($card, $kind, Actor::System, null, $detail, $at);
-        $this->em->flush();
-    }
-
-    private function pullRequest(Project $project, Uuid $cardId, int $number, \DateTimeImmutable $openedAt, ?\DateTimeImmutable $mergedAt): void
-    {
-        $card = $this->em->find(Card::class, $cardId) ?? throw new \LogicException('The card exists.');
-        $this->em->persist(new CardPullRequest($card, 'https://github.com/Acme/Widgets/pull/'.$number, Forge::GitHub, 'Acme/Widgets', $number));
-        $row = new ForgePullRequest($project, Forge::GitHub->value, 'Acme/Widgets', $number);
-        $row->openedAt = $openedAt;
-        $row->mergedAt = $mergedAt;
-        $this->em->persist($row);
         $this->em->flush();
     }
 
