@@ -85,6 +85,7 @@ final readonly class InboxActionStatuses
             foreach ($byItem[(string) $item->id] ?? [] as $action) {
                 $line = match ($action->kind) {
                     InboxActionKind::RetryCard => new InboxActionStatus($action, InboxActionState::Retried, 'inbox.action.status.retried', at: $action->requestedAt),
+                    InboxActionKind::HoldCard => new InboxActionStatus($action, InboxActionState::Held, 'inbox.action.status.held', at: $action->requestedAt),
                     InboxActionKind::ResumeRun => $this->resumeStatus($action, $commands, $quiet, $continuations),
                     InboxActionKind::SendAgent => $this->sendAgentStatus($action, $agentRequests, $agentRuns, $offlineProjects),
                     InboxActionKind::AddEntry => $this->addEntryStatus($action, $agentRequests, $offlineProjects),
