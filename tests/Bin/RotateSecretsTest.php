@@ -15,6 +15,9 @@ final class RotateSecretsTest extends TestCase
 
     private const string REQUIRED = "region = \"tor\"\nmailer_dsn = \"null://null\"\nmailer_from_address = \"a@example.com\"\n";
 
+    // Only for a run that must time out. Bash counts $SECONDS in whole seconds, so one second can end after one poll.
+    private const array SHORT_TIMEOUTS = ['ROTATE_POLL_TIMEOUT' => '1', 'ROTATE_RESEND_TIMEOUT' => '1'];
+
     private string $dir;
 
     protected function setUp(): void
@@ -526,7 +529,7 @@ final class RotateSecretsTest extends TestCase
         $this->deployments(['dep-old'], [['dep-old', 'ACTIVE', '2000-01-01T00:00:00Z']]);
         $this->deliveries([[]]);
 
-        $process = $this->rotate(['github_app_webhook_secret'], '');
+        $process = $this->rotate(['github_app_webhook_secret'], '', self::SHORT_TIMEOUTS);
 
         self::assertNotSame(0, $process->getExitCode());
         self::assertStringNotContainsString('curl', (string) file_get_contents($this->dir.'/events.log'));
@@ -580,7 +583,7 @@ final class RotateSecretsTest extends TestCase
         $stillFailed = [$this->delivery(22, 'g1', 502, 'failed to connect'), $this->delivery(21, 'g1', 502, 'failed to connect')];
         $this->deliveries([$failed, $stillFailed]);
 
-        $first = $this->rotate(['github_app_webhook_secret'], '');
+        $first = $this->rotate(['github_app_webhook_secret'], '', self::SHORT_TIMEOUTS);
 
         self::assertNotSame(0, $first->getExitCode());
         self::assertSame(['https://api.github.test/app/hook/deliveries/21/attempts'], file($this->dir.'/attempts.log', \FILE_IGNORE_NEW_LINES));
@@ -817,9 +820,9 @@ final class RotateSecretsTest extends TestCase
             'ROTATE_VAPID_CMD' => $this->dir.'/vapid.sh',
             'ROTATE_GITHUB_API' => 'https://api.github.test',
             'ROTATE_POLL_SECONDS' => '0.1',
-            'ROTATE_POLL_TIMEOUT' => '1',
+            'ROTATE_POLL_TIMEOUT' => '30',
             'ROTATE_RESEND_SECONDS' => '0.1',
-            'ROTATE_RESEND_TIMEOUT' => '1',
+            'ROTATE_RESEND_TIMEOUT' => '30',
             'PATH' => $this->dir.'/bin:'.getenv('PATH'),
         ];
     }
@@ -853,13 +856,14 @@ final class RotateSecretsTest extends TestCase
     }
 
     /**
-     * @param list<string> $names
+     * @param list<string>          $names
+     * @param array<string, string> $extraEnv
      */
-    private function rotate(array $names, string $input): Process
+    private function rotate(array $names, string $input, array $extraEnv = []): Process
     {
         $process = new Process(
             [\dirname(__DIR__, 2).'/bin/rotate-secrets', ...$names],
-            env: $this->env(),
+            env: $extraEnv + $this->env(),
             input: $input,
         );
         $process->run();
