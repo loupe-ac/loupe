@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# Calls /healthz of the production app and prints the body. The probe token
+# and the domain come from `terraform console`. The token goes to curl on
+# standard input and is never printed.
+#
+# Environment, for tests: HEALTHZ_TF_CHDIR is the Terraform folder.
+
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+main=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+
+# A worktree has no terraform.tfvars of its own, so fall back to the main checkout.
+tf=${HEALTHZ_TF_CHDIR:-}
+if [ -z "$tf" ]; then
+    tf=$root/terraform
+    [ -f "$tf/terraform.tfvars" ] || tf=$main/terraform
+fi
+
+# The console prints warnings on standard output, so only the last line counts.
+console() {
+    local value
+    value=$(printf '%s\n' "$1" | terraform -chdir="$tf" console -no-color | tail -1) || return 1
+    value=${value#\"}
+    printf '%s' "${value%\"}"
+}
+
+fail() { echo "healthz-probe: $*" >&2; exit 1; }
+
+token=$(console 'nonsensitive(var.health_probe_token)') || fail "cannot read health_probe_token"
+domain=$(console 'var.custom_domain') || fail "cannot read custom_domain"
+
+[[ $token =~ ^[A-Za-z0-9._~+/=-]+$ ]] || fail "health_probe_token is empty or unreadable"
+[[ $domain =~ ^[A-Za-z0-9.-]+$ ]] || fail "custom_domain is empty or unreadable"
+
+printf 'X-Probe-Token: %s\n' "$token" | curl -fsS --max-time 15 -H @- "https://$domain/healthz"
+echo

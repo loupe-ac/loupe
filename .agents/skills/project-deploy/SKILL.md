@@ -49,6 +49,19 @@ That is the one exception to the rule above. The worker container runs two consu
 
 `docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact, so it must keep working alongside `terraform/`. It is driven by `docker/compose/prod.env`, which is gitignored, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
 
+## The secret read guard
+
+A `PreToolUse` hook, `.agents/hooks/no-secret-reads.sh`, refuses an agent tool call that reads `terraform.tfvars`, a Terraform state file, `docker/compose/prod.env` or a `.rotate-secrets.tmp.*` file. It also refuses a recursive search over a folder that holds one. Deny rules in `.claude/settings.json` cover the file tools.
+
+These paths are safe:
+
+- `just tfvars-names` lists the variable names that the two files set, with no value.
+- `just healthz` reads the live version from `/healthz`.
+- `just rotate-secrets` rotates the secrets.
+- `bin/tfvars-missing.sh` lists the variables that the example file offers and your file does not set.
+- `ls`, `stat` and `test` on a secret file are allowed, because they print no content.
+- `rg` and `git grep` skip the gitignored secret files, so use them for a search over a folder.
+
 ## Before you deploy
 
 Do these steps before every deploy, and do not skip them for a small release. Never print the probe token or a `terraform.tfvars` value.
@@ -167,11 +180,10 @@ deployment finished. It does not say which image is running, and the previous
 deployment is also `ACTIVE` until the new one replaces it.
 
 ```bash
-TOKEN=$(grep -E "^health_probe_token" terraform/terraform.tfvars | sed -E 's/.*= *"([^"]*)".*/\1/')
-curl -sS -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz
+just healthz
 ```
 
-It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
+The recipe reads the token and the domain through `terraform console`, sends the token to `curl` on standard input, and prints the body. It never prints the token. It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
 `git rev-parse --short HEAD`. Without the header the endpoint reports liveness
 alone and no metadata, which is deliberate.
 
@@ -227,8 +239,7 @@ you the list has gone stale.
 
 ```bash
 APP=$(cd terraform && terraform output -raw app_id)
-TOKEN=$(grep -E "^health_probe_token" terraform/terraform.tfvars | sed -E 's/.*= *"([^"]*)".*/\1/')
-curl -sS -H "X-Probe-Token: $TOKEN" https://app.loupe.ac/healthz       # version is the target sha
+just healthz                                                            # version is the target sha
 curl -sS -o /dev/null -w '%{http_code}\n' https://app.loupe.ac/livez    # 200
 curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://app.loupe.ac/mcp  # 401, not 404 or 403
 doctl apps logs "$APP" migrate --type deploy --tail 20                  # the version it migrated to
