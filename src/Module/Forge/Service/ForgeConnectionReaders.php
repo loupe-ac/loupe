@@ -16,16 +16,23 @@ final readonly class ForgeConnectionReaders
     ) {
     }
 
-    /** The first reader that accepts the path and whose forge the project is connected to. */
-    public function for(Project $project, string $path): ?ForgeConnectionReader
+    /**
+     * The readers whose forge the project is connected to, each asked once. A forge in `$watchedForges` already proves the connection.
+     *
+     * @param list<string> $watchedForges
+     *
+     * @return list<ForgeConnectionReader>
+     */
+    public function connected(Project $project, array $watchedForges): array
     {
+        $connected = [];
         foreach ($this->readers as $reader) {
-            if ($reader->acceptsPath($path) && $reader->isConnected($project)) {
-                return $reader;
+            if (array_any($watchedForges, $reader->supports(...)) || $reader->isConnected($project)) {
+                $connected[] = $reader;
             }
         }
 
-        return null;
+        return $connected;
     }
 
     /** The reader of one forge that accepts the path. A watched repository already proves the connection. */

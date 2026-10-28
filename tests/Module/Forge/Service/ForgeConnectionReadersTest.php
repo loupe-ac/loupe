@@ -12,29 +12,30 @@ use PHPUnit\Framework\TestCase;
 
 final class ForgeConnectionReadersTest extends TestCase
 {
-    public function test_the_first_connected_reader_that_accepts_the_path_answers(): void
+    public function test_the_connected_readers_keep_their_order_and_a_watched_forge_skips_the_check(): void
     {
         $project = new Project(new User(fullName: 'Riley', email: 'riley@example.com', password: 'x'), 'p');
         $notConnected = $this->reader('one', accepts: true, connected: false);
-        $wrongPath = $this->reader('two', accepts: false, connected: true);
-        $first = $this->reader('three', accepts: true, connected: true);
+        $watched = $this->reader('two', accepts: true, connected: false);
+        $first = $this->reader('three', accepts: false, connected: true);
         $second = $this->reader('four', accepts: true, connected: true);
 
-        $readers = new ForgeConnectionReaders([$notConnected, $wrongPath, $first, $second]);
+        $readers = new ForgeConnectionReaders([$notConnected, $watched, $first, $second]);
 
-        self::assertSame($first, $readers->for($project, 'group/repo'));
+        self::assertSame([$watched, $first, $second], $readers->connected($project, ['two']));
+        self::assertSame([], new ForgeConnectionReaders([])->connected($project, ['two']));
     }
 
-    public function test_no_reader_answers_when_none_is_connected_and_accepts(): void
+    public function test_each_reader_is_asked_once_and_not_at_all_for_a_watched_forge(): void
     {
         $project = new Project(new User(fullName: 'Riley', email: 'riley@example.com', password: 'x'), 'p');
-        $readers = new ForgeConnectionReaders([
-            $this->reader('one', accepts: true, connected: false),
-            $this->reader('two', accepts: false, connected: true),
-        ]);
+        $asked = $this->reader('one', accepts: true, connected: true);
+        $watched = $this->reader('two', accepts: true, connected: true);
 
-        self::assertNull($readers->for($project, 'group/repo'));
-        self::assertNull(new ForgeConnectionReaders([])->for($project, 'group/repo'));
+        new ForgeConnectionReaders([$asked, $watched])->connected($project, ['two', 'two']);
+
+        self::assertSame(1, $asked->checks);
+        self::assertSame(0, $watched->checks);
     }
 
     public function test_the_reader_of_a_forge_answers_with_no_connection_check(): void
@@ -48,13 +49,16 @@ final class ForgeConnectionReadersTest extends TestCase
         self::assertNull(new ForgeConnectionReaders([$this->reader('two', accepts: false, connected: true)])->forForge('two', 'group/repo'));
     }
 
+    /** @return ForgeConnectionReader&object{checks: int} */
     private function reader(string $forge, bool $accepts, bool $connected): ForgeConnectionReader
     {
-        return new readonly class($forge, $accepts, $connected) implements ForgeConnectionReader {
+        return new class($forge, $accepts, $connected) implements ForgeConnectionReader {
+            public int $checks = 0;
+
             public function __construct(
-                private string $forge,
-                private bool $accepts,
-                private bool $connected,
+                private readonly string $forge,
+                private readonly bool $accepts,
+                private readonly bool $connected,
             ) {
             }
 
@@ -73,6 +77,8 @@ final class ForgeConnectionReadersTest extends TestCase
             #[\Override]
             public function isConnected(Project $project): bool
             {
+                ++$this->checks;
+
                 return $this->connected;
             }
 

@@ -12,6 +12,7 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\Forge\Service\ForgeConnectionReader;
 use App\Module\Forge\Service\ForgeConnectionReaders;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Service\ReferenceTokens;
@@ -86,9 +87,9 @@ final readonly class ReferenceLinker
             $rows[$row->forge.'|'.$row->repository.'|'.$row->number] = $row;
         }
 
-        $unwatchedUrls = [];
+        $connected = null;
 
-        return $this->rewrite($html, function (string $kind, string $path, int $number, string $text) use ($project, $cards, $watched, $proseRepository, $rows, &$unwatchedUrls): string {
+        return $this->rewrite($html, function (string $kind, string $path, int $number, string $text) use ($project, $cards, $watched, $proseRepository, $rows, &$connected): string {
             if ('card' === $kind) {
                 $card = $cards[$number] ?? null;
 
@@ -100,10 +101,10 @@ final readonly class ReferenceLinker
                 if ('pr' !== $kind) {
                     return $text;
                 }
-                $unwatchedUrls[$path.'#'.$number] ??= $this->readers->for($project, $path)?->pullRequestUrl($path, $number) ?? '';
-                $url = $unwatchedUrls[$path.'#'.$number];
+                $connected ??= $this->readers->connected($project, array_map(static fn (ForgeRepository $repository): string => $repository->forge, $watched));
+                $reader = array_find($connected, static fn (ForgeConnectionReader $reader): bool => $reader->acceptsPath($path));
 
-                return '' === $url ? $text : $this->pullRequestLink($url, null, $text);
+                return null === $reader ? $text : $this->pullRequestLink($reader->pullRequestUrl($path, $number), null, $text);
             }
 
             $url = $this->readers->forForge($repository->forge, $repository->path)?->pullRequestUrl($repository->path, $number);

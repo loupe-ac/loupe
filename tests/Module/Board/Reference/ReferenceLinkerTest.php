@@ -13,6 +13,8 @@ use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\GitHub\Entity\GitHubInstallation;
+use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -206,5 +208,46 @@ final class ReferenceLinkerTest extends KernelTestCase
         $statements = array_merge(...array_map(array_values(...), array_values($queries->getData())));
         self::assertNotEmpty($statements);
         self::assertLessThanOrEqual(4, \count($statements));
+    }
+
+    public function test_many_unwatched_pull_request_tokens_ask_the_forge_connection_once(): void
+    {
+        $project = $this->project();
+        $this->em->persist(new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All));
+        $this->em->flush();
+        $text = '';
+        for ($i = 1; $i <= 12; ++$i) {
+            $text .= '<p><span data-ref-pr="other/repo'.$i.'#'.$i.'">other/repo'.$i.'#'.$i.'</span></p>';
+        }
+        $this->em->clear();
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $html = $this->linker->link($this->region($text), $project);
+
+        self::assertSame(12, substr_count($html, 'href="https://github.com/other/repo'));
+        $statements = array_merge(...array_map(array_values(...), array_values($queries->getData())));
+        self::assertCount(2, $statements);
+    }
+
+    public function test_a_watched_github_repository_links_unwatched_tokens_with_no_connection_query(): void
+    {
+        $project = $this->project();
+        $this->watch($project, 'acme/loupe');
+        $text = '';
+        for ($i = 1; $i <= 12; ++$i) {
+            $text .= '<p><span data-ref-pr="other/repo#'.$i.'">other/repo#'.$i.'</span></p>';
+        }
+        $this->em->clear();
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $html = $this->linker->link($this->region($text), $project);
+
+        self::assertSame(12, substr_count($html, 'href="https://github.com/other/repo/pull/'));
+        $statements = array_merge(...array_map(array_values(...), array_values($queries->getData())));
+        self::assertCount(1, $statements);
     }
 }

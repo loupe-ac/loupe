@@ -108,15 +108,15 @@ final class GitHubConnectionReaderTest extends KernelTestCase
         self::assertFalse($this->reader->isConnected($project));
     }
 
-    public function test_the_readers_pick_the_github_reader_for_a_connected_project_and_a_two_segment_path(): void
+    public function test_the_readers_count_the_github_reader_connected_for_a_project_that_watches_a_github_repository(): void
     {
         $project = $this->project();
         $this->em->persist(new ForgeRepository($project, 'github', 'ext-'.uniqid(), 'acme/loupe', ForgeRepositorySource::Hook));
         $this->em->flush();
         $readers = new ForgeConnectionReaders([$this->reader]);
 
-        self::assertInstanceOf(GitHubConnectionReader::class, $readers->for($project, 'other/repo'));
-        self::assertNull($readers->for($project, 'group/sub/repo'));
+        self::assertSame([$this->reader], $readers->connected($project, []));
+        self::assertSame([], $readers->connected($this->project(), []));
     }
 
     private function project(): Project
