@@ -43,6 +43,9 @@
                     {% if site_is_split() or has_blog() %}
                         <li><a href="{{ site_url('/blog') }}" class="lp-home-footer__link">{{ 'landing.footer.blog'|trans }}</a></li>
                     {% endif %}
+                    {% if has_about() %}
+                        <li><a href="{{ site_url('/about') }}" class="lp-home-footer__link">{{ 'landing.footer.about'|trans }}</a></li>
+                    {% endif %}
                     {% if site_source_url() %}
                         <li><a href="{{ site_source_url() }}" class="lp-home-footer__link" target="_blank" rel="noopener noreferrer">{{ 'footer.source.label'|trans }}</a></li>
                     {% endif %}

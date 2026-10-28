@@ -5578,6 +5578,10 @@
                 <source>landing.footer.blog</source>
                 <target>Blog</target>
             </trans-unit>
+            <trans-unit id="landing.footer.about">
+                <source>landing.footer.about</source>
+                <target>About</target>
+            </trans-unit>
             <trans-unit id="landing.footer.changelog">
                 <source>landing.footer.changelog</source>
                 <target>Changelog</target>
