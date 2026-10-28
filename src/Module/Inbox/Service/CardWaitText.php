@@ -9,11 +9,13 @@ use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Mcp\WorkerRunPayload;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\View\CardWaitLine;
+use App\Module\Inbox\View\WorkLimitStory;
 use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseReasonText;
@@ -30,6 +32,9 @@ final readonly class CardWaitText
     /** The label of a pause, which has variants that name the reason in words and the run that failed. */
     private const string PAUSE_LABEL = 'marker.paused';
 
+    /** The variants of a work-limit pause, which name what looped. */
+    private const string WORK_LIMIT_LABEL = 'marker.paused.work_limit';
+
     public function __construct(
         private DocumentRepository $documents,
         private ForgePullRequestRepository $forgePullRequests,
@@ -38,6 +43,7 @@ final readonly class CardWaitText
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
         private PauseReasonText $pauseReasonText,
+        private WorkLimitStories $workLimitStories,
 
         #[Autowire(param: 'kernel.default_locale')]
         private string $locale,
@@ -132,7 +138,7 @@ final readonly class CardWaitText
     {
         foreach ($open as $wait) {
             if (null === $wait->endedAt && InboxCardWaitType::CardPause === $wait->type && null !== $wait->pauseId
-                && \in_array($this->cardPauses->find($wait->pauseId)?->kind, [PauseKind::WorkStopped, PauseKind::Retries], true)) {
+                && \in_array($this->cardPauses->find($wait->pauseId)?->kind, [PauseKind::WorkStopped, PauseKind::Retries, PauseKind::WorkLimit], true)) {
                 return $wait;
             }
         }
@@ -200,8 +206,15 @@ final readonly class CardWaitText
         }
         $params = [...$params, ...$wait->params];
         if (InboxCardWaitType::CardPause === $wait->type && self::PAUSE_LABEL === $key) {
-            [$key, $params, $detail] = $this->pauseLine($wait, $params);
-            $titleKey = self::PAUSE_LABEL.'.reason.title';
+            $story = $this->workLimitStory($wait);
+            if (null !== $story) {
+                [$key, $params, $detail] = $this->workLimitLine($wait, $story, $params);
+                $titleKey = $key.'.title';
+                $action = self::WORK_LIMIT_LABEL.'.action';
+            } else {
+                [$key, $params, $detail] = $this->pauseLine($wait, $params);
+                $titleKey = self::PAUSE_LABEL.'.reason.title';
+            }
         }
         if (InboxCardWaitType::PullRequest === $wait->type) {
             $titleKey = '' === ($params['%pr_title%'] ?? '') ? 'inbox.wait.review_title.pull_request_untitled' : 'inbox.wait.review_title.pull_request';
@@ -244,6 +257,77 @@ final readonly class CardWaitText
         $link = \sprintf('[%s](%s)', $this->translator->trans('inbox.wait.pause_run_link', [], null, $this->locale), $href);
 
         return [self::PAUSE_LABEL.'.run', $params, $link];
+    }
+
+    /** The story of a work-limit pause, or null for another pause or when the template no longer names its rule. */
+    public function workLimitStory(InboxCardWait $wait): ?WorkLimitStory
+    {
+        $pause = InboxCardWaitType::CardPause === $wait->type && null !== $wait->pauseId ? $this->cardPauses->find($wait->pauseId) : null;
+
+        return null === $pause ? null : $this->workLimitStories->of($pause);
+    }
+
+    /**
+     * What looped, in the title and the first sentence, and below it why: the review findings, the end states of the runs,
+     * what the last stopped run said, the children an epic waits for, and the links.
+     *
+     * @param array<string, string|int> $params
+     *
+     * @return array{string, array<string, string|int>, ?string}
+     */
+    private function workLimitLine(InboxCardWait $wait, WorkLimitStory $story, array $params): array
+    {
+        $params['%count%'] = $story->limit;
+        $params['%work%'] = $story->work();
+        $params['%number%'] = $story->pullRequestNumber ?? 0;
+        $variant = match (true) {
+            null === $story->pullRequestNumber => 'card',
+            'agent-review' === $story->reason => 'agent_review',
+            default => 'pull_request',
+        };
+        $trans = fn (string $key, array $values = []): string => $this->translator->trans($key, $values, null, $this->locale);
+
+        $parts = [];
+        if ([] !== $story->findings) {
+            $parts[] = $trans(self::WORK_LIMIT_LABEL.'.findings', ['%number%' => $params['%number%']])."\n\n".implode("\n", array_map(static fn (string $title): string => '- '.$title, $story->findings));
+        }
+        if ([] !== $story->runStates) {
+            $states = [];
+            foreach ($story->runStates as $state => $count) {
+                $states[] = $count.' '.mb_strtolower($trans(WorkerRunState::from($state)->translationKey()));
+            }
+            $parts[] = $trans(self::WORK_LIMIT_LABEL.'.runs', ['%count%' => array_sum($story->runStates), '%work%' => $story->work(), '%states%' => implode(', ', $states)]);
+        }
+        $stop = $story->lastStop();
+        if (null !== $stop) {
+            $said = RunSuggestions::title($stop) ?? RunOutputText::headline($stop->output);
+            if ('' !== $said) {
+                $parts[] = $trans(self::WORK_LIMIT_LABEL.'.last_stop', ['%work%' => $story->work(), '%state%' => mb_strtolower($trans($stop->state->translationKey())), '%said%' => rtrim($said, '.')]);
+            }
+        }
+        if ($story->waitsForChildren()) {
+            $cards = array_map(static fn (int $number): string => (string) $number, $story->openChildren);
+            $last = array_pop($cards);
+            $list = [] === $cards ? $last : implode(', ', $cards).' '.$trans('inbox.wait.and').' '.$last;
+            $parts[] = $trans(null === $story->epicBranch ? self::WORK_LIMIT_LABEL.'.children' : self::WORK_LIMIT_LABEL.'.children_branch', ['%count%' => \count($story->openChildren), '%cards%' => $list, '%branch%' => $story->epicBranch ?? '']);
+        }
+        $links = [];
+        if (null !== $story->pullRequestUrl) {
+            $links[] = \sprintf('[%s](%s)', $trans(self::WORK_LIMIT_LABEL.'.pull_request_link', ['%number%' => $params['%number%']]), $story->pullRequestUrl);
+        }
+        if (null !== $story->reviewUrl) {
+            $links[] = \sprintf('[%s](%s)', $trans(self::WORK_LIMIT_LABEL.'.review_link'), $story->reviewUrl);
+        }
+        $last = $story->runs[0] ?? null;
+        if (null !== $last?->id) {
+            $href = $this->urls->generate('app_project_worker_runs', ['id' => $wait->watch->project->id, 'search' => $last->id->toRfc4122()], UrlGeneratorInterface::ABSOLUTE_URL);
+            $links[] = \sprintf('[%s](%s)', $trans(self::WORK_LIMIT_LABEL.'.run_link'), $href);
+        }
+        if ([] !== $links) {
+            $parts[] = implode(' · ', $links);
+        }
+
+        return [self::WORK_LIMIT_LABEL.'.'.$variant, $params, [] === $parts ? null : implode("\n\n", $parts)];
     }
 
     /** The run that failed last before the pause, for a pause that a failure of work caused. */

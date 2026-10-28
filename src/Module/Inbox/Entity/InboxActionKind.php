@@ -16,10 +16,14 @@ enum InboxActionKind: string
     case RunCommand = 'run-command';
     case Dismiss = 'dismiss';
     case AddEntry = 'add-entry';
+    case OpenPullRequest = 'open-pull-request';
 
-    /** A worker can suggest the kind. Add entry is the owner's own step after a run-command suggestion, so no suggestion names it. */
+    /**
+     * A worker can suggest the kind. Add entry is the owner's own step after a run-command suggestion, so no suggestion names it.
+     * Open the pull request links the pull request of a paused rule, which only a work-limit pause names.
+     */
     public function isSuggestable(): bool
     {
-        return self::AddEntry !== $this;
+        return self::AddEntry !== $this && self::OpenPullRequest !== $this;
     }
 }

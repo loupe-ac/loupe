@@ -60,6 +60,7 @@ use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
+use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
@@ -1431,6 +1432,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->service(AskingBridge::class),
             $this->service(RunCommandResolver::class),
             $this->service(RunCommandRuns::class),
+            $this->service(CardWaitText::class),
         );
     }
 

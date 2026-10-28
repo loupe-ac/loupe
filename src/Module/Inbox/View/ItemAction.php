@@ -21,11 +21,21 @@ final readonly class ItemAction
         public ?RunCommandView $runCommand = null,
         /** The prompt that the agent suggested for a start-session action. The owner edits it before the click. */
         public ?string $sessionPrompt = null,
+        /** @var array<string, string|int> the values of the label */
+        public array $labelParams = [],
+        /** The address of a link action that the item itself names, such as the pull request of a paused rule. */
+        public ?string $href = null,
     ) {
     }
 
     public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null, ?RunCommandView $runCommand = null, ?string $sessionPrompt = null): self
     {
         return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason, $runCommand, $sessionPrompt);
+    }
+
+    /** @param array<string, string|int> $labelParams */
+    public function labelled(string $labelKey, array $labelParams): self
+    {
+        return new self($this->kind, $labelKey, $this->effectKey, $this->default, $this->disabledReasonKey, $this->reason, $this->runCommand, $this->sessionPrompt, $labelParams, $this->href);
     }
 }

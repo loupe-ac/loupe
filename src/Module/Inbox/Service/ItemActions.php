@@ -21,6 +21,7 @@ use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandView;
 use App\Module\Inbox\View\SendAgentTarget;
 use App\Module\Inbox\View\SuggestedAction;
+use App\Module\Inbox\View\WorkLimitStory;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Contract\CardPauses;
@@ -41,6 +42,7 @@ final readonly class ItemActions
         private AskingBridge $askingBridge,
         private RunCommandResolver $runCommands,
         private RunCommandRuns $runCommandRuns,
+        private CardWaitText $cardWaitText,
     ) {
     }
 
@@ -167,6 +169,7 @@ final readonly class ItemActions
     /**
      * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
      * One bridge read per project that has an item with a card, and one read of the live requests of their cards.
+     * A work-limit pause reads the story of its rule, with a few reads per such item.
      *
      * @param list<InboxItem> $items
      *
@@ -224,20 +227,25 @@ final readonly class ItemActions
             $runCommand = null === $commandSuggestion?->command
                 ? null
                 : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand);
+            $story = $item->isAutomatic() ? $this->workLimitStoryOf($waits) : null;
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand, null !== $story?->pullRequestUrl);
             if (self::offersOnlySuggestions($item)) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
             }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
+            // A retry alone repeats a loop whose last run stopped for a person, so it is not the default then.
+            if (InboxActionKind::RetryCard === $default && true === $story?->lastRunStopped()) {
+                $default = \in_array(InboxActionKind::OpenPullRequest, $fitting, true) ? InboxActionKind::OpenPullRequest : InboxActionKind::Open;
+            }
             $actions[self::key($item)] = array_map(
-                static fn (InboxActionKind $kind): ItemAction => ItemAction::for(
+                static fn (InboxActionKind $kind): ItemAction => self::forStory(ItemAction::for(
                     $kind,
                     $kind === $default,
                     InboxActionKind::StartSession === $kind && !($sessionOnline[(string) $item->project->id] ?? false) ? 'inbox.action.start-session.disabled' : self::commandReason($kind, $runCommand),
                     $suggestions[$kind->value]->reason ?? null,
                     InboxActionKind::RunCommand === $kind ? $runCommand : null,
                     InboxActionKind::StartSession === $kind ? ($suggestions[$kind->value]->prompt ?? null) : null,
-                ),
+                ), $story),
                 $fitting,
             );
         }
@@ -252,14 +260,16 @@ final readonly class ItemActions
      * @param bool                $sendAgent        Send an agent has a card and a stage work that are free now
      * @param bool                $sessionFits      the item has a card, and no session request of that card is live
      * @param bool                $runCommand       the item has a run-command suggestion, which the action shows even when it is off
+     * @param bool                $pullRequest      a work-limit pause of the item names the pull request of its rule
      *
      * @return list<InboxActionKind>
      */
-    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand): array
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand, bool $pullRequest): array
     {
         $fits = [
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
+            [InboxActionKind::OpenPullRequest, $pullRequest],
             [InboxActionKind::Review, self::fitsReview($waits)],
             [InboxActionKind::SendAgent, $sendAgent],
             [InboxActionKind::Open, self::fitsOpen($item)],
@@ -480,6 +490,29 @@ final readonly class ItemActions
         };
 
         return \in_array($preferred, $fitting, true) ? $preferred : InboxActionKind::Open;
+    }
+
+    /** @param list<InboxCardWait> $waits open waits, oldest first */
+    private function workLimitStoryOf(array $waits): ?WorkLimitStory
+    {
+        foreach (array_reverse($waits) as $wait) {
+            if (InboxCardWaitType::CardPause === $wait->type) {
+                return $this->cardWaitText->workLimitStory($wait);
+            }
+        }
+
+        return null;
+    }
+
+    /** A work-limit pause says what a retry grants, and gives the address of the pull request of its rule. */
+    private static function forStory(ItemAction $action, ?WorkLimitStory $story): ItemAction
+    {
+        return match (true) {
+            null === $story => $action,
+            InboxActionKind::RetryCard === $action->kind => $action->labelled('inbox.action.retry-card.work_limit.label', ['%rounds%' => $story->limit, '%work%' => $story->work()]),
+            InboxActionKind::OpenPullRequest === $action->kind => new ItemAction($action->kind, $action->labelKey, $action->effectKey, $action->default, href: $story->pullRequestUrl),
+            default => $action,
+        };
     }
 
     private static function commandReason(InboxActionKind $kind, ?RunCommandView $runCommand): ?string

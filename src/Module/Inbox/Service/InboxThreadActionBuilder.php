@@ -63,6 +63,7 @@ final readonly class InboxThreadActionBuilder
         return match ($action->kind) {
             InboxActionKind::Open => $this->openRow($item, $action, $hostCardId),
             InboxActionKind::Review => $this->reviewRow($item, $action),
+            InboxActionKind::OpenPullRequest => null === $action->href ? null : new ThreadAction($action, $action->href, external: true),
             default => new ThreadAction($action),
         };
     }
@@ -89,7 +90,7 @@ final readonly class InboxThreadActionBuilder
     /** A bare "Open" does not say what it opens, so the row names its target. */
     private static function openLabelled(ItemAction $action, string $target): ItemAction
     {
-        return new ItemAction($action->kind, \sprintf('inbox.action.open.%s.label', $target), \sprintf('inbox.action.open.%s.effect', $target), $action->default, $action->disabledReasonKey, $action->reason, $action->runCommand, $action->sessionPrompt);
+        return new ItemAction($action->kind, \sprintf('inbox.action.open.%s.label', $target), \sprintf('inbox.action.open.%s.effect', $target), $action->default, $action->disabledReasonKey, $action->reason, $action->runCommand, $action->sessionPrompt, $action->labelParams, $action->href);
     }
 
     private function reviewRow(InboxItem $item, ItemAction $action): ?ThreadAction

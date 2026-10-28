@@ -35,6 +35,7 @@ use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
+use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
@@ -639,6 +640,9 @@ final class ItemActionsTest extends KernelTestCase
         $chunks = self::getContainer()->get(WorkerRunOutputChunkRepository::class);
         self::assertInstanceOf(WorkerRunOutputChunkRepository::class, $chunks);
 
+        $waitText = self::getContainer()->get(CardWaitText::class);
+        self::assertInstanceOf(CardWaitText::class, $waitText);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -650,6 +654,7 @@ final class ItemActionsTest extends KernelTestCase
             new AskingBridge($bridges, $inboxAsks, $runs),
             $this->resolver($liveness),
             new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
+            $waitText,
         );
     }
 
