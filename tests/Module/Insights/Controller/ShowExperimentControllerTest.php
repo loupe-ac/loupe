@@ -234,7 +234,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $mergeRate = $this->cells($crawler->filter('[data-experiment-guard="merge-rate"]'));
         self::assertSame('Merge rate', $mergeRate[0]);
         self::assertSame('100% to 100%', $mergeRate[1]);
-        self::assertMatchesRegularExpression('/^(\x{2212}\d+|0|\+\d+) to (\x{2212}\d+|0|\+\d+) pp$/u', $mergeRate[2]);
+        self::assertMatchesRegularExpression('/^(\x{2212}\d+%|0%|\+\d+%) to (\x{2212}\d+%|0%|\+\d+%)$/u', $mergeRate[2]);
         $fixRounds = $this->cells($crawler->filter('[data-experiment-guard="fix-rounds"]'));
         self::assertSame('Fix rounds', $fixRounds[0]);
         self::assertSame('0', $fixRounds[1]);

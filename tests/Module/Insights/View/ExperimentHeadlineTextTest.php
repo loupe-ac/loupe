@@ -96,12 +96,15 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertNull(self::text()->point(self::metric(self::built(Metric::Cost)), null));
     }
 
-    public function test_a_rate_guard_shows_both_rates_and_a_change_in_points(): void
+    public function test_a_rate_guard_shows_both_rates_and_a_range_in_percent(): void
     {
         $guard = new ExperimentGuard(self::metric(self::template(TemplateMetricSets::rate())), self::arms([0.92, 0.86]), new Interval(-0.12, 0.0, -0.06));
 
         self::assertSame('92% to 86%', self::text()->guardChange($guard));
-        self::assertSame(self::MINUS.'12 to 0 pp', self::text()->guardRange($guard));
+        self::assertSame(self::MINUS.'12% to 0%', self::text()->guardRange($guard));
+
+        $across = new ExperimentGuard(self::metric(self::template(TemplateMetricSets::rate())), self::arms([1.0, 0.83]), new Interval(-0.56, 0.25, -0.17));
+        self::assertSame(self::MINUS.'56% to +25%', self::text()->guardRange($across));
     }
 
     public function test_a_count_guard_shows_a_signed_change(): void
