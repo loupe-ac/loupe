@@ -17,6 +17,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxRepositoryMisfit;
 use App\Module\Inbox\EventListener\DeleteInboxDataOnProjectDeleting;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectDeleting;
@@ -30,7 +31,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_repository_misfits'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -126,6 +127,10 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($notice);
         $outage = new InboxBridgeOutage($project, $notice, new \DateTimeImmutable('2026-10-16 11:00:00'));
         $this->em->persist($outage);
+        $misfitNotice = new InboxItem(project: $project, number: 4, kind: InboxItemKind::Notice, title: 'acme/widgets does not fit the workflow', blocking: false, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($misfitNotice);
+        $misfit = new InboxRepositoryMisfit($project, $misfitNotice, new \DateTimeImmutable('2026-10-27 11:00:00'), []);
+        $this->em->persist($misfit);
 
         return [$project, [
             'inbox_items' => $item,
@@ -137,6 +142,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_card_waits' => $wait,
             'inbox_actions' => $action,
             'inbox_bridge_outages' => $outage,
+            'inbox_repository_misfits' => $misfit,
         ]];
     }
 

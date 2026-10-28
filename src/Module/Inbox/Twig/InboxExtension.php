@@ -14,6 +14,8 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxRepositoryMisfit;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Form\AnswerInboxItemFormType;
 use App\Module\Inbox\Form\AnswerInboxItemRequest;
@@ -29,6 +31,7 @@ use App\Module\Inbox\Form\SubmitInboxPullRequestReviewRequest;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Repository\InboxRepositoryMisfitRepository;
 use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\InboxActionStatuses;
 use App\Module\Inbox\Service\InboxReviewLookup;
@@ -74,6 +77,7 @@ final class InboxExtension extends AbstractExtension
         private readonly InboxActionStatuses $actionStatuses,
         private readonly InboxActionRepository $inboxActions,
         private readonly ShowInboxOpenTotalHandler $openTotal,
+        private readonly InboxRepositoryMisfitRepository $inboxRepositoryMisfits,
     ) {
     }
 
@@ -91,6 +95,7 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_review', $this->review(...)),
             new TwigFunction('inbox_review_target', $this->reviewTargetLine(...)),
             new TwigFunction('inbox_card_watch', $this->cardWatch(...)),
+            new TwigFunction('inbox_repository_misfit', $this->repositoryMisfit(...)),
             new TwigFunction('inbox_wait_line', $this->waitLine(...)),
             new TwigFunction('inbox_review_withdrawal', $this->reviewWithdrawal(...)),
             new TwigFunction('inbox_review_version', $this->reviewVersion(...)),
@@ -194,6 +199,16 @@ final class InboxExtension extends AbstractExtension
     public function cardWatch(InboxItem $item): ?InboxCardWatch
     {
         return $this->inboxCardWatches->findOneForItem($item);
+    }
+
+    /** The misfit behind an open notice of a blocking repository, or null for any other item. */
+    public function repositoryMisfit(InboxItem $item): ?InboxRepositoryMisfit
+    {
+        if (InboxItemKind::Notice !== $item->kind || InboxItemState::Open !== $item->state) {
+            return null;
+        }
+
+        return $this->inboxRepositoryMisfits->findOneForItem($item);
     }
 
     public function waitLine(InboxCardWait $wait, bool $documentLinked): CardWaitLine

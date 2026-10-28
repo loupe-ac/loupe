@@ -24,7 +24,9 @@ use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Outbox\AgentPush;
+use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -38,6 +40,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class BridgeHeartbeatApiTest extends WebTestCase
 {
+    use BlockingRepositories;
     use BridgeScenario;
 
     private const string WORK_NOW = '2026-10-01 12:30:00';
@@ -637,6 +640,31 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame([(string) $earlier->id, (string) $later->id], array_column($reply['workRequests'], 'workRequestId'));
         self::assertSame(WorkRequestPayload::of($earlier), $reply['workRequests'][0]);
         self::assertSame([], $reply['lostClaims']);
+    }
+
+    public function test_a_bridge_gets_no_request_of_a_project_that_holds_its_new_work_whatever_its_subject(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set('clock', new MockClock(self::WORK_NOW));
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-offers-held@example.com');
+        $held = $this->project($em, $owner, 'Offers Held');
+        $free = $this->project($em, $owner, 'Offers Free');
+        $this->repositoryWithGaps($held);
+        $this->repositoryWithGaps($free, []);
+        $this->seedWorkRequest($em, $held);
+        $this->seedWorkRequest($em, $held, subject: new WorkSubject('analysis', Uuid::v7()));
+        $offered = $this->seedWorkRequest($em, $free);
+
+        $this->put($client, (string) Uuid::v4(), $this->agentToken($client, $owner), [
+            'projects' => [(string) $held->id, (string) $free->id],
+            'cliVersion' => 'b4e39aa7',
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+        ]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([(string) $offered->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
     }
 
     public function test_a_request_that_needs_a_capability_reaches_only_a_bridge_that_reports_it(): void

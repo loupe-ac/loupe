@@ -6004,6 +6004,42 @@
                 <source>inbox.bridge_outage.closed</source>
                 <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
             </trans-unit>
+            <trans-unit id="inbox.repository_misfit.title.one">
+                <source>inbox.repository_misfit.title.one</source>
+                <target>%repository% does not fit the workflow</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.title.many">
+                <source>inbox.repository_misfit.title.many</source>
+                <target>%repositories% do not fit the workflow</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.intro">
+                <source>inbox.repository_misfit.body.intro</source>
+                <target>{0}New work is paused.|{1}New work is paused until the blocking gap is fixed.|]1,Inf[New work is paused until the %count% blocking gaps are fixed.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.repository">
+                <source>inbox.repository_misfit.body.repository</source>
+                <target>{0}%repository%: no blocking gap|{1}%repository%: 1 blocking gap|]1,Inf[%repository%: %count% blocking gaps</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.remedy">
+                <source>inbox.repository_misfit.body.remedy</source>
+                <target>Running work finishes. Open the guide to fix each gap. This item closes by itself when a check finds no blocking gap.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.closed">
+                <source>inbox.repository_misfit.closed</source>
+                <target>A check found no blocking gap, so Loupe takes new work again.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.guide">
+                <source>inbox.repository_misfit.action.guide</source>
+                <target>Open the guide</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.check_again">
+                <source>inbox.repository_misfit.action.check_again</source>
+                <target>Check again</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.check_again_repository">
+                <source>inbox.repository_misfit.action.check_again_repository</source>
+                <target>Check %repository% again</target>
+            </trans-unit>
             <trans-unit id="inbox.item.error.workflow_not_declinable">
                 <source>inbox.item.error.workflow_not_declinable</source>
                 <target>A workflow question takes an answer only. Pick an option.</target>
@@ -8977,10 +9013,6 @@
             <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_base_requires_review"><source>workflow.waiting.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch requires an approving review.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_base_requires_review"><source>workflow.waiting.not.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch does not require an approving review.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_approval_check_unpinned"><source>workflow.waiting.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from any source.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_approval_check_unpinned"><source>workflow.waiting.not.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from the Loupe App alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
@@ -9035,6 +9067,8 @@
             <trans-unit id="workflow.waiting.not.pr_ready_for_stuck_delay"><source>workflow.waiting.not.pr_ready_for_stuck_delay</source><target>Waiting: the pull request is ready to merge for the stuck delay or more.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_rule_held_by_blocker"><source>workflow.waiting.card_rule_held_by_blocker</source><target>Waiting: no move rule of the card waits for an open blocker alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_rule_held_by_blocker"><source>workflow.waiting.not.card_rule_held_by_blocker</source><target>Waiting: a move rule of the card waits for an open blocker alone.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_rule_held_by_work_hold"><source>workflow.waiting.card_rule_held_by_work_hold</source><target>Waiting: no rule of the card waits for the project to release its work.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_rule_held_by_work_hold"><source>workflow.waiting.not.card_rule_held_by_work_hold</source><target>Waiting: a rule of the card waits for the project to release its work.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_stopped"><source>workflow.waiting.card_run_stopped</source><target>Waiting: the latest run of the card did not stop with a warning.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_stopped"><source>workflow.waiting.not.card_run_stopped</source><target>Waiting: the latest run of the card stopped with a warning, and the card did not move since.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_needs_person"><source>workflow.waiting.card_run_needs_person</source><target>Waiting: the newest run of the card did not stop for a person, or the card moved since.</target></trans-unit>
@@ -9516,8 +9550,6 @@
             <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
             <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch"><source>marker.ruleset_mismatch</source><target>Needs you: the ruleset of the default branch does not fit the approval check of pull request #%number%.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch.remedy"><source>marker.ruleset_mismatch.remedy</source><target>Remove the rule "Require approvals" from the ruleset. Set the Loupe App as the source of the required check Loupe / Approval.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
@@ -9533,7 +9565,18 @@
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
-            <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
+            <trans-unit id="marker.repository_misfit">
+                <source>marker.repository_misfit</source>
+                <target>New work is paused: a repository does not fit the workflow.</target>
+            </trans-unit>
+            <trans-unit id="marker.repository_misfit.remedy">
+                <source>marker.repository_misfit.remedy</source>
+                <target>Fix the blocking gaps on the Repositories page. This card goes on when a check finds none.</target>
+            </trans-unit>
+            <trans-unit id="marker.link.repositories">
+                <source>marker.link.repositories</source>
+                <target>Open Repositories</target>
+            </trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>

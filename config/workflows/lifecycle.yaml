@@ -1,5 +1,5 @@
 key: lifecycle
-version: 25
+version: 26
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -792,7 +792,7 @@ rules:
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
 
-inbox: [waits-for-approval, document-in-review, run-needs-you, paused]
+inbox: [waits-for-approval, document-in-review, run-needs-you, paused, repository-misfit]
 markers:
     - key: paused
       kind: stuck
@@ -923,18 +923,12 @@ markers:
               - pr.checks_passed: {}
               - pr.merge_blocked: {}
               - not: { card.run.worker_active: {} }
-    - key: ruleset-mismatch
+    - key: repository-misfit
       kind: needs-you
-      label: marker.ruleset_mismatch
-      remedy: marker.ruleset_mismatch.remedy
-      link: ruleset-setup
-      when:
-          all:
-              - pr.open: {}
-              - any:
-                    - pr.base_requires_review: {}
-                    - pr.approval_check_unpinned: {}
-              - not: { card.run.worker_active: {} }
+      label: marker.repository_misfit
+      remedy: marker.repository_misfit.remedy
+      link: repositories
+      when: { card.rule.held_by_work_hold: {} }
     - key: open-question
       kind: needs-you
       label: marker.open_question

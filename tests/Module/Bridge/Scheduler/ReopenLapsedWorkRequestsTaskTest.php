@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\ReopenLapsedWorkRequestsHandler;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Scheduler\ReopenLapsedWorkRequestsTask;
+use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Outbox\OutboxWriter;
@@ -84,7 +85,7 @@ final class ReopenLapsedWorkRequestsTaskTest extends KernelTestCase
         self::assertInstanceOf(WorkRequestAnnouncer::class, $announcer);
 
         return new ReopenLapsedWorkRequestsTask(
-            new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock('2026-10-01 12:30:00'), $announcer),
+            new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock('2026-10-01 12:30:00'), $announcer, self::getContainer()->get(HeldProjects::class)),
             $logger,
         );
     }

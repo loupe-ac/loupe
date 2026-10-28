@@ -9,12 +9,14 @@ use App\Module\Bridge\Command\ReopenLapsedWorkRequestsHandler;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Outbox\OutboxWriter;
+use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\Persistence\ManagerRegistry;
@@ -25,6 +27,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
 {
+    use BlockingRepositories;
     use BridgeScenario;
 
     private const string NOW = '2026-10-01 12:30:00';
@@ -146,6 +149,36 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
     }
 
+    public function test_a_lapsed_claim_of_a_project_that_holds_its_new_work_stays_claimed_until_the_hold_ends(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'reopen-held@example.com'), 'Reopen Held');
+        $repository = $this->repositoryWithGaps($project);
+        $card = $this->claimed($project, '2026-10-01 12:29:59');
+        $analysis = $this->seedWorkRequest(
+            $em,
+            $project,
+            state: WorkRequestState::Claimed,
+            bridgeId: Uuid::v4(),
+            claimToken: Uuid::v4(),
+            leaseUntil: new \DateTimeImmutable('2026-10-01 12:29:59'),
+            subject: new WorkSubject('analysis', Uuid::v7()),
+        );
+
+        self::assertSame(0, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
+        $em->clear();
+        self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $card->id)?->state);
+        self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $analysis->id)?->state);
+
+        $em->getConnection()->executeStatement('DELETE FROM forge_repositories WHERE id = :id', ['id' => $repository->id?->toRfc4122()]);
+
+        self::assertSame(2, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
+        $em->clear();
+        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $card->id)?->state);
+        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $analysis->id)?->state);
+    }
+
     private function claimed(Project $project, string $leaseUntil): WorkRequest
     {
         return $this->seedWorkRequest(
@@ -168,7 +201,7 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
         $announcer = self::getContainer()->get(WorkRequestAnnouncer::class);
         self::assertInstanceOf(WorkRequestAnnouncer::class, $announcer);
 
-        return new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock(self::NOW), $announcer);
+        return new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock(self::NOW), $announcer, self::getContainer()->get(HeldProjects::class));
     }
 
     /** @return list<array<string, mixed>> */

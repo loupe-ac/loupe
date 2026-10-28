@@ -606,6 +606,18 @@ it as **obsolete** when the waiting work ended and no bridge came back, for
 example when the work was cancelled. It also closes the notice as obsolete when
 you switch the inbox off.
 
+Loupe opens the notice **"repository" does not fit the workflow** when the
+Repositories check of the project finds a blocking gap in a repository. The
+title names each blocking repository, and the body counts its blocking gaps.
+The notice says that new work is paused and that running work finishes. It links
+to the guide on the Repositories tab and has a **Check again** button for each
+blocking repository. A project has one such notice at a time. It follows the
+check: the notice changes when a repository gains or loses a blocking gap, and
+Loupe closes it as **done** when no repository has a blocking gap any more. It
+also closes when you remove the last blocking repository. With the inbox off,
+Loupe opens no notice and the pause still applies. Each card that waits for the
+pause also shows the `repository-misfit` marker.
+
 Loupe once opened a notice while a bridge rule raced the sync of the project.
 Bridge rules are gone, so Loupe closed each such notice as **obsolete**, and
 opens no new one.

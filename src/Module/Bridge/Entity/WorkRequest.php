@@ -89,9 +89,13 @@ class WorkRequest
     #[ORM\Column(name: 'claims', options: ['default' => 0])]
     public int $claims = 0;
 
-    /** When a lapsed claim last opened the request again, or a release of its card restarted its timeout. */
+    /** When a lapsed claim last opened the request again, or a release of its card or the end of a project hold restarted its timeout. */
     #[ORM\Column(name: 'reopened_at', nullable: true)]
     public ?\DateTimeImmutable $reopenedAt = null;
+
+    /** When the hold of the project found the request open, or saw it open. The end of the hold restarts its timeout and clears this. */
+    #[ORM\Column(name: 'work_hold_since', nullable: true)]
+    public ?\DateTimeImmutable $workHoldSince = null;
 
     #[ORM\Column(name: 'settled_at', nullable: true)]
     public ?\DateTimeImmutable $settledAt = null;

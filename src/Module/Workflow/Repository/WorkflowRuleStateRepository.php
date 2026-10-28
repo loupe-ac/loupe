@@ -39,7 +39,7 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
     {
         $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE workflow_rule_states SET truth = false, attempts = 0, fires = 0, due_at = NULL, last_refusal = NULL,
-             last_refusal_at = NULL, work_request_id = NULL, repaired = false, ask_item_id = NULL, held_by_blocker_since = NULL, updated_at = :now
+             last_refusal_at = NULL, work_request_id = NULL, repaired = false, ask_item_id = NULL, held_by_blocker_since = NULL, held_by_work_hold_since = NULL, updated_at = :now
              WHERE card_id IN (:cardIds)',
             [
                 'now' => $now,
@@ -47,6 +47,47 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
             ],
             ['now' => Types::DATETIME_IMMUTABLE, 'cardIds' => ArrayParameterType::STRING],
         );
+    }
+
+    /**
+     * Turns the rule states that track one of the requests false and stamps them with the work hold, in one statement,
+     * so it joins a caller's transaction. The request counted toward the work limit and did no work, so the count gives it back.
+     * A managed state is stale after it.
+     *
+     * @param list<Uuid> $requestIds
+     */
+    public function holdForRequests(array $requestIds, \DateTimeImmutable $now): void
+    {
+        if ([] === $requestIds) {
+            return;
+        }
+
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE workflow_rule_states SET truth = false, work_request_id = NULL, causes_at_open = NULL, due_at = NULL,
+             fires = GREATEST(fires - 1, 0), held_by_work_hold_since = COALESCE(held_by_work_hold_since, :now), updated_at = :now
+             WHERE work_request_id IN (:requestIds)',
+            ['now' => $now, 'requestIds' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $requestIds)],
+            ['now' => Types::DATETIME_IMMUTABLE, 'requestIds' => ArrayParameterType::STRING],
+        );
+    }
+
+    /**
+     * Clears the work hold stamp of every rule state of the project, in one statement, so it joins a caller's transaction.
+     * A managed state is stale after it.
+     *
+     * @return list<Uuid> the cards that had a stamp
+     */
+    public function clearWorkHoldsOfProject(Uuid $projectId, \DateTimeImmutable $now): array
+    {
+        /** @var list<string> $cardIds */
+        $cardIds = $this->getEntityManager()->getConnection()->executeQuery(
+            'UPDATE workflow_rule_states SET held_by_work_hold_since = NULL, updated_at = :now
+             WHERE project_id = :project AND held_by_work_hold_since IS NOT NULL RETURNING card_id',
+            ['now' => $now, 'project' => $projectId->toRfc4122()],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        )->fetchFirstColumn();
+
+        return array_map(Uuid::fromString(...), array_values(array_unique($cardIds)));
     }
 
     /**
@@ -79,6 +120,28 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @param list<string> $cardIds RFC 4122 ids
+     *
+     * @return array<string, string> card id => the earliest work hold stamp of its rule states
+     */
+    public function findWorkHoldsSince(array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        /** @var array<string, string> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT card_id, MIN(held_by_work_hold_since) FROM workflow_rule_states
+             WHERE card_id IN (:cards) AND held_by_work_hold_since IS NOT NULL GROUP BY card_id',
+            ['cards' => $cardIds],
+            ['cards' => ArrayParameterType::STRING],
+        )->fetchAllKeyValue();
+
+        return $rows;
+    }
+
     /** One statement, so it joins a caller's transaction. */
     public function deleteForCard(Uuid $cardId): void
     {
@@ -106,14 +169,15 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
 
     /**
      * The cards with a retry due at $now or before, the longest overdue first. A paused or held card
-     * waits for its release, and its due time stays.
+     * waits for its release, and its due time stays. A rule state that the project work hold stops waits for the hold end,
+     * and the other due states of the card stay.
      *
      * @return list<string> RFC 4122 card ids
      */
     public function findDueCardIds(\DateTimeImmutable $now, int $limit): array
     {
         return array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            'SELECT card_id FROM workflow_rule_states state WHERE due_at <= :now
+            'SELECT card_id FROM workflow_rule_states state WHERE due_at <= :now AND held_by_work_hold_since IS NULL
              AND NOT EXISTS (SELECT 1 FROM card_pauses pause WHERE pause.card_id = state.card_id AND pause.released_at IS NULL)
              AND NOT EXISTS (SELECT 1 FROM bridge_card_holds hold WHERE hold.project_id = state.project_id AND hold.card_id = state.card_id)
              GROUP BY card_id ORDER BY MIN(due_at), card_id LIMIT :limit',

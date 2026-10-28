@@ -147,6 +147,74 @@ final class WorkflowRuleStateRepositoryTest extends KernelTestCase
         self::assertSame([(string) $free->id], $this->repository()->findDueCardIds($now, 10));
     }
 
+    public function test_find_due_card_ids_skips_a_rule_state_that_the_work_hold_stops_and_keeps_the_other_due_states(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('rule-state-due-work-hold');
+        $now = new \DateTimeImmutable('2026-10-02 12:00:00');
+        $held = $this->card($project);
+        $mixed = $this->card($project);
+        $this->state($held, 'a', $now->modify('-2 hours'), heldByWorkHold: true);
+        $this->state($mixed, 'a', $now->modify('-3 hours'), heldByWorkHold: true);
+        $this->state($mixed, 'b', $now->modify('-1 hour'));
+        $this->em()->flush();
+
+        self::assertSame([(string) $mixed->id], $this->repository()->findDueCardIds($now, 10));
+
+        $this->em()->getConnection()->executeStatement('UPDATE workflow_rule_states SET held_by_work_hold_since = NULL');
+
+        self::assertSame([(string) $mixed->id, (string) $held->id], $this->repository()->findDueCardIds($now, 10));
+    }
+
+    public function test_find_work_holds_since_gives_the_earliest_stamp_of_each_card_and_leaves_unmarked_cards_out(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('rule-state-work-hold-since');
+        $marked = $this->card($project);
+        $plain = $this->card($project);
+        $this->state($marked, 'a', heldByWorkHold: true);
+        $this->state($marked, 'b', heldByWorkHold: true);
+        $this->state($plain, 'a');
+        $this->em()->getConnection()->executeStatement("UPDATE workflow_rule_states SET held_by_work_hold_since = '2026-10-01 08:00:00' WHERE rule_id = 'b'");
+
+        $since = $this->repository()->findWorkHoldsSince([(string) $marked->id, (string) $plain->id]);
+
+        self::assertSame([(string) $marked->id], array_keys($since));
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 08:00:00'), new \DateTimeImmutable($since[(string) $marked->id]));
+    }
+
+    public function test_reset_for_cards_clears_the_work_hold_mark(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('rule-state-reset-work-hold'));
+        $this->state($card, 'a', heldByWorkHold: true);
+
+        $this->repository()->resetForCards([$card->id ?? throw new \LogicException('A flushed card has an id.')], new \DateTimeImmutable());
+
+        self::assertSame([], $this->repository()->findWorkHoldsSince([(string) $card->id]));
+    }
+
+    public function test_clear_work_holds_of_project_clears_the_marks_of_that_project_alone_and_names_each_card_once(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('rule-state-clear-work-hold');
+        $other = $this->workflowProject('rule-state-clear-work-hold-other');
+        $marked = $this->card($project);
+        $plain = $this->card($project);
+        $elsewhere = $this->card($other);
+        $this->state($marked, 'a', heldByWorkHold: true);
+        $this->state($marked, 'b', heldByWorkHold: true);
+        $this->state($plain, 'a');
+        $this->state($elsewhere, 'a', heldByWorkHold: true);
+
+        $cleared = $this->repository()->clearWorkHoldsOfProject($project->id ?? throw new \LogicException('A flushed project has an id.'), new \DateTimeImmutable());
+
+        self::assertSame([(string) $marked->id], array_map(strval(...), $cleared));
+        self::assertSame([], $this->repository()->findWorkHoldsSince([(string) $marked->id]));
+        self::assertSame([(string) $elsewhere->id], array_keys($this->repository()->findWorkHoldsSince([(string) $elsewhere->id])));
+        self::assertSame([], $this->repository()->clearWorkHoldsOfProject($project->id, new \DateTimeImmutable()));
+    }
+
     public function test_reset_clears_the_memory_of_a_rule(): void
     {
         $state = new WorkflowRuleState(Uuid::v7(), $this->createStub(Project::class), 'start-design');
@@ -178,11 +246,12 @@ final class WorkflowRuleStateRepositoryTest extends KernelTestCase
         return $card;
     }
 
-    private function state(Card $card, string $ruleId, ?\DateTimeImmutable $dueAt = null, ?Uuid $askItemId = null): void
+    private function state(Card $card, string $ruleId, ?\DateTimeImmutable $dueAt = null, ?Uuid $askItemId = null, bool $heldByWorkHold = false): void
     {
         $state = new WorkflowRuleState($card->id ?? throw new \LogicException('The card is persisted.'), $card->project, $ruleId);
         $state->dueAt = $dueAt;
         $state->askItemId = $askItemId;
+        $state->heldByWorkHoldSince = $heldByWorkHold ? new \DateTimeImmutable('2026-10-02 09:00:00') : null;
         $this->em()->persist($state);
         $this->em()->flush();
     }
