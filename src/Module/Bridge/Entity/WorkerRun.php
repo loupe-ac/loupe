@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Entity;
 
 use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -112,6 +113,8 @@ class WorkerRun implements ProjectScopedSubject
 
     public const string HARNESS_SESSION_ID_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/D';
 
+    public const int MAX_CLOSE_REASON_LENGTH = 20;
+
     public const int MAX_EXPERIMENT_NAME_LENGTH = 64;
 
     /** The name of an experiment or of one of its variants, bare for a route requirement. */
@@ -205,6 +208,14 @@ class WorkerRun implements ProjectScopedSubject
     /** The harness's own id for the session, such as a Codex thread id. Loupe's own id stays in $sessionId. */
     #[ORM\Column(name: 'harness_session_id', length: self::MAX_HARNESS_SESSION_ID_LENGTH, nullable: true)]
     public ?string $harnessSessionId = null;
+
+    /** The last sign of life of an open interactive run. Null until the first one, and the sweep then counts from the start. */
+    #[ORM\Column(name: 'last_activity_at', type: MicrosecondDateTimeImmutableType::NAME, nullable: true, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL')]
+    public ?\DateTimeImmutable $lastActivityAt = null;
+
+    /** Why an interactive run closed. Null for a run that closed before the reason existed, and for any other kind of run. */
+    #[ORM\Column(name: 'close_reason', length: self::MAX_CLOSE_REASON_LENGTH, nullable: true, enumType: WorkerRunCloseReason::class)]
+    public ?WorkerRunCloseReason $closeReason = null;
 
     /** The union of the main-session tool call intervals, as the bridge measured it. Null when unknown. */
     #[ORM\Column(name: 'tool_time_ms', type: Types::BIGINT, nullable: true)]
