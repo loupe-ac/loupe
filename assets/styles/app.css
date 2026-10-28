@@ -2991,9 +2991,13 @@
     .lp-worker-run-control-label--warns {
         @apply text-status-pending-deep;
     }
-    /* The runs table outcome cell: the pill, with the request state under it. */
+    /* The runs table outcome cell: the pill row, with the request state under it. */
     .lp-worker-run-outcome {
         @apply flex min-w-0 flex-col items-start gap-0.5;
+    }
+    /* The pill and its compact close icon, side by side above the request state. */
+    .lp-worker-run-outcome__status {
+        @apply flex min-w-0 max-w-full items-center gap-1;
     }
     .lp-worker-run-outcome .lp-worker-run-control-label {
         @apply max-w-full;
