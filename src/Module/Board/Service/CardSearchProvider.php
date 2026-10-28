@@ -36,6 +36,7 @@ final readonly class CardSearchProvider implements SearchProviderInterface
                 'card',
                 $card->number,
                 $this->translator->trans($card->column->label),
+                $card->column->tone->value,
             );
         }
 

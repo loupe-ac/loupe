@@ -33,6 +33,7 @@ final readonly class SearchOwnedProjectsHandler
                     $result->kind,
                     $result->number,
                     $result->meta,
+                    $result->tone,
                 );
             }
             $hasMore = $hasMore || $view->results->hasMore;

@@ -8058,6 +8058,29 @@
     }
 }
 
+/* The open search form grows out of the search icon, at its right edge. */
+@keyframes lp-topsearch-reveal {
+    from {
+        clip-path: inset(calc(var(--spacing) * -2) calc(var(--spacing) * -2) calc(var(--spacing) * -2) calc(100% - var(--spacing) * 9));
+        opacity: 0;
+    }
+    to {
+        clip-path: inset(calc(var(--spacing) * -2));
+        opacity: 1;
+    }
+}
+
+@keyframes lp-topsearch-conceal {
+    from {
+        clip-path: inset(calc(var(--spacing) * -2));
+        opacity: 1;
+    }
+    to {
+        clip-path: inset(calc(var(--spacing) * -2) calc(var(--spacing) * -2) calc(var(--spacing) * -2) calc(100% - var(--spacing) * 9));
+        opacity: 0;
+    }
+}
+
 @keyframes lp-progress-slide {
     from {
         transform: translateX(-100%);

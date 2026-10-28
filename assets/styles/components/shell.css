@@ -243,8 +243,9 @@
         @apply hidden lg:inline-block rounded border border-b-2 border-line bg-app px-1 font-mono text-xs leading-5 text-fg-dim;
     }
     /* The top bar search. From lg it is a field. It is an icon below lg, and at
-       any width when a page fills the top bar actions. The open icon form covers
-       the bar with absolute position, so no other item moves. */
+       any width when a page fills the top bar actions. The open icon form sits
+       over the bar with absolute position, so no other item moves. Below lg it
+       covers the bar. From lg it is the field of the other pages, over the icon. */
     .lp-topsearch {
         @apply relative flex min-w-0 items-center;
     }
@@ -255,7 +256,7 @@
         @apply lg:hidden;
     }
     .lp-topsearch--compact .lp-topsearch__icon {
-        @apply lg:inline-flex;
+        @apply lg:inline-flex lg:w-auto lg:gap-1.5 lg:px-2;
     }
     .lp-topsearch__form {
         @apply relative hidden min-w-0 items-center gap-2 lg:flex;
@@ -305,6 +306,10 @@
     .lp-topsearch__menu .lp-menu__panel {
         @apply lg:w-md;
     }
+    /* The row that the arrow keys picked. The focus stays in the field. */
+    .lp-topsearch__menu .lp-menu__item[aria-selected='true'] {
+        @apply bg-tint-strong;
+    }
     .lp-topsearch__error {
         @apply flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm text-fg-mute;
     }
@@ -327,27 +332,35 @@
     .lp-topbar:has(.lp-topsearch--open, .lp-topsearch__form:focus-within) {
         @apply relative z-30;
     }
-    .lp-topsearch--open,
+    .lp-topsearch--open {
+        @apply max-lg:static;
+    }
     .lp-topsearch--open .lp-topsearch__menu {
-        @apply static;
+        @apply max-lg:static lg:absolute lg:top-1/2 lg:right-0 lg:z-30 lg:-translate-y-1/2;
     }
     .lp-topsearch--open .lp-topsearch__form {
-        @apply absolute inset-x-0 top-0 z-30 flex h-16 border-b border-line bg-white px-3.5 lg:px-7.5;
+        @apply flex max-lg:absolute max-lg:inset-x-0 max-lg:top-0 max-lg:z-30 max-lg:h-16 max-lg:border-b max-lg:border-line max-lg:bg-white max-lg:px-3.5 lg:rounded-lg lg:bg-white lg:ring-6 lg:ring-white;
+        animation: lp-topsearch-reveal var(--duration-base) var(--ease-standard) both;
+    }
+    .lp-topsearch--closing .lp-topsearch__form {
+        animation-name: lp-topsearch-conceal;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .lp-topsearch--open .lp-topsearch__form {
+            animation: none;
+        }
     }
     .lp-topsearch--open .lp-topsearch__glyph {
-        @apply left-6.5 lg:left-10.5;
-    }
-    .lp-topsearch--open .lp-topsearch__form .lp-input {
-        @apply lg:w-full;
+        @apply max-lg:left-6.5;
     }
     .lp-topsearch--open .lp-topsearch__hint {
-        @apply right-24 lg:right-34;
+        @apply max-lg:right-24;
     }
     .lp-topsearch--open .lp-topsearch__cancel {
-        @apply inline-flex;
+        @apply max-lg:inline-flex;
     }
     .lp-topsearch--open .lp-menu__panel {
-        @apply right-2 left-2 w-auto lg:right-7.5 lg:left-auto lg:w-md;
+        @apply max-lg:right-2 max-lg:left-2 max-lg:w-auto lg:right-0 lg:left-auto;
     }
     /* The one primary create action of the top bar. Below lg it is a
        tap-sized icon button and its label stays for screen readers. */

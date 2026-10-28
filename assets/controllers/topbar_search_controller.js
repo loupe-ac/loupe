@@ -2,6 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 
 const DEBOUNCE_MILLISECONDS = 300;
 const DRAWER_FRAME = 'card-drawer-frame';
+const OPTION_SELECTOR = '[role="option"], [data-search-all]';
 
 export default class extends Controller {
     static targets = [
@@ -26,6 +27,7 @@ export default class extends Controller {
     }
 
     shortcut(event) {
+        if (event.key === 'Escape' && event.defaultPrevented) return;
         if (event.key === 'Escape' && this.#isActive()) {
             event.preventDefault();
             this.close();
@@ -48,15 +50,44 @@ export default class extends Controller {
     }
 
     openIcon() {
+        this.element.classList.remove('lp-topsearch--closing');
         this.element.classList.add('lp-topsearch--open');
         this.iconTarget.setAttribute('aria-expanded', 'true');
         this.fieldTarget.focus();
         if (this.#query() !== '') this.#showPanel();
     }
 
+    /** Arrow keys move the active row while the focus stays in the field. */
+    navigate(event) {
+        if (this.panelTarget.hidden) return;
+        const options = this.#options();
+        const index = options.findIndex(
+            (option) => option.getAttribute('aria-selected') === 'true',
+        );
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            if (options.length === 0) return;
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            const next = index + step;
+            this.#activate(
+                next < -1 ? options.length - 1 : next >= options.length ? -1 : next,
+            );
+            return;
+        }
+        if (index === -1) return;
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            options[index].click();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            this.#activate(-1);
+        }
+    }
+
     close() {
         clearTimeout(this.timer);
-        this.element.classList.remove('lp-topsearch--open');
+        this.#activate(-1);
+        this.#collapse();
         this.iconTarget.setAttribute('aria-expanded', 'false');
         this.fieldTarget.setAttribute('aria-expanded', 'false');
         this.panelTarget.hidden = true;
@@ -74,6 +105,7 @@ export default class extends Controller {
 
     input() {
         clearTimeout(this.timer);
+        this.#activate(-1);
         if (this.#query() === '') {
             this.panelTarget.hidden = true;
             this.progressTarget.hidden = true;
@@ -102,6 +134,11 @@ export default class extends Controller {
 
     loaded() {
         this.#routeCardRows();
+        this.#options().forEach((option, index) => {
+            option.id = `topbar-search-option-${index}`;
+            option.setAttribute('aria-selected', 'false');
+        });
+        this.fieldTarget.removeAttribute('aria-activedescendant');
         if (this.#answeredQuery() !== this.#query()) return;
         this.statusTarget.hidden = true;
         this.progressTarget.hidden = true;
@@ -161,6 +198,44 @@ export default class extends Controller {
         this.errorTarget.hidden = true;
         this.progressTarget.hidden = false;
         this.statusTarget.hidden = this.#answeredQuery() !== null;
+    }
+
+    /** The open icon form plays its closing animation before it hides. */
+    #collapse() {
+        const classes = this.element.classList;
+        if (!classes.contains('lp-topsearch--open')) return;
+        classes.add('lp-topsearch--closing');
+        const animation = getComputedStyle(this.formTarget).animationName;
+        if (!animation || animation === 'none') {
+            classes.remove('lp-topsearch--open', 'lp-topsearch--closing');
+            return;
+        }
+        this.formTarget.addEventListener(
+            'animationend',
+            () => {
+                if (!classes.contains('lp-topsearch--closing')) return;
+                classes.remove('lp-topsearch--open', 'lp-topsearch--closing');
+            },
+            { once: true },
+        );
+    }
+
+    #options() {
+        return [...this.frameTarget.querySelectorAll(OPTION_SELECTOR)];
+    }
+
+    #activate(index) {
+        const options = this.#options();
+        options.forEach((option, position) =>
+            option.setAttribute('aria-selected', String(position === index)),
+        );
+        const active = options[index];
+        if (active) {
+            this.fieldTarget.setAttribute('aria-activedescendant', active.id);
+            active.scrollIntoView?.({ block: 'nearest' });
+        } else {
+            this.fieldTarget.removeAttribute('aria-activedescendant');
+        }
     }
 
     #isActive() {

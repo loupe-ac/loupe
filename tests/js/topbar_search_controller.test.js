@@ -341,3 +341,123 @@ it('asks once when the field regains focus while the wait after a key runs', asy
     await vi.advanceTimersByTimeAsync(300);
     expect(reload).not.toHaveBeenCalled();
 });
+
+function key(name) {
+    const event = new KeyboardEvent('keydown', {
+        key: name,
+        cancelable: true,
+    });
+    controller.navigate(event);
+    return event;
+}
+
+const ROWS = `<a role="option" href="/c/1" data-search-kind="card">One</a>
+    <a role="option" href="/d/2" data-search-kind="document">Two</a>
+    <a href="/search?query=pag" data-search-all>All</a>`;
+
+function selected() {
+    return [
+        ...controller.frameTarget.querySelectorAll('[aria-selected="true"]'),
+    ].map((option) => option.textContent);
+}
+
+it('moves the active row with the arrow keys, the footer included, and keeps the focus in the field', () => {
+    type('pag');
+    answer('pag', ROWS);
+    controller.fieldTarget.focus();
+
+    expect(key('ArrowDown').defaultPrevented).toBe(true);
+    expect(selected()).toEqual(['One']);
+    expect(
+        controller.fieldTarget.getAttribute('aria-activedescendant'),
+    ).toBe('topbar-search-option-0');
+    key('ArrowDown');
+    key('ArrowDown');
+    expect(selected()).toEqual(['All']);
+    key('ArrowDown');
+    expect(selected()).toEqual([]);
+    expect(controller.fieldTarget.hasAttribute('aria-activedescendant')).toBe(
+        false,
+    );
+    key('ArrowUp');
+    expect(selected()).toEqual(['All']);
+    key('ArrowUp');
+    expect(selected()).toEqual(['Two']);
+    expect(document.activeElement).toBe(controller.fieldTarget);
+});
+
+it('opens the active row on Enter, and leaves Enter to the form with no active row', () => {
+    type('pag');
+    answer('pag', ROWS);
+    const clicked = vi.fn((event) => event.preventDefault());
+    controller.frameTarget
+        .querySelector('[data-search-kind="document"]')
+        .addEventListener('click', clicked);
+
+    expect(key('Enter').defaultPrevented).toBe(false);
+    key('ArrowDown');
+    key('ArrowDown');
+    expect(key('Enter').defaultPrevented).toBe(true);
+    expect(clicked).toHaveBeenCalledTimes(1);
+});
+
+it('clears the active row on the first Escape and closes on the second', () => {
+    type('pag');
+    answer('pag', ROWS);
+    controller.openIcon();
+    key('ArrowDown');
+
+    const first = key('Escape');
+    controller.shortcut(first);
+    expect(selected()).toEqual([]);
+    expect(controller.panelTarget.hidden).toBe(false);
+    expect(controller.element.classList.contains('lp-topsearch--open')).toBe(
+        true,
+    );
+
+    const second = key('Escape');
+    controller.shortcut(second);
+    expect(controller.panelTarget.hidden).toBe(true);
+});
+
+it('forgets the active row when the text changes or a new answer loads', () => {
+    type('pag');
+    answer('pag', ROWS);
+    key('ArrowDown');
+    type('pagi');
+    expect(selected()).toEqual([]);
+
+    answer('pagi', ROWS);
+    key('ArrowDown');
+    answer('pagi', ROWS);
+    expect(selected()).toEqual([]);
+    expect(controller.fieldTarget.hasAttribute('aria-activedescendant')).toBe(
+        false,
+    );
+});
+
+it('keeps the open icon form until its closing animation ends', () => {
+    controller.openIcon();
+    const style = vi
+        .spyOn(window, 'getComputedStyle')
+        .mockReturnValue({ animationName: 'lp-topsearch-conceal' });
+    controller.close();
+    const classes = controller.element.classList;
+    expect(classes.contains('lp-topsearch--closing')).toBe(true);
+    expect(classes.contains('lp-topsearch--open')).toBe(true);
+    style.mockRestore();
+
+    controller.formTarget.dispatchEvent(new Event('animationend'));
+    expect(classes.contains('lp-topsearch--open')).toBe(false);
+    expect(classes.contains('lp-topsearch--closing')).toBe(false);
+
+    controller.openIcon();
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+        animationName: 'lp-topsearch-conceal',
+    });
+    controller.close();
+    controller.openIcon();
+    controller.formTarget.dispatchEvent(new Event('animationend'));
+    expect(classes.contains('lp-topsearch--open')).toBe(true);
+    expect(classes.contains('lp-topsearch--closing')).toBe(false);
+});

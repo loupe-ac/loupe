@@ -12,6 +12,7 @@ final readonly class SearchResult
         public string $kind,
         public ?int $number = null,
         public ?string $meta = null,
+        public ?string $tone = null,
     ) {
     }
 }

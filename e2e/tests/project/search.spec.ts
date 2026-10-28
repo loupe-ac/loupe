@@ -65,7 +65,10 @@ test('project search finds documents and pages from the top bar', async ({
         page.getByRole('link', { name: /^All results for/ }),
     ).toBeVisible();
     await expect(page.getByText('Could not search')).toBeHidden();
-    await result.click();
+    await field.press('ArrowDown');
+    await expect(result).toHaveAttribute('aria-selected', 'true');
+    await expect(field).toBeFocused();
+    await field.press('Enter');
     await expect(page).toHaveURL(
         new RegExp(`/documents/${documentId}/review$`),
     );
@@ -168,7 +171,10 @@ test('search shortcuts preserve page drafts and recover from a failed request', 
     const result = page.locator('[data-search-kind="document"]');
     await expect(result).toBeVisible();
     await expect(page.getByText('Could not search')).toBeHidden();
-    await result.click();
+    await field.press('ArrowDown');
+    await expect(result).toHaveAttribute('aria-selected', 'true');
+    await expect(field).toBeFocused();
+    await field.press('Enter');
     await expect(page).toHaveURL(
         new RegExp(`/documents/${documentId}/review$`),
     );

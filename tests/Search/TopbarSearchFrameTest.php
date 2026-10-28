@@ -9,6 +9,7 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\CreateDocumentCommand;
+use App\Module\Workflow\Contract\LabelTone;
 use App\Module\Review\Command\CreateDocumentHandler;
 use App\Search\SearchResult;
 use App\Search\SearchResults;
@@ -34,7 +35,7 @@ final class TopbarSearchFrameTest extends WebTestCase
         self::assertSelectorExists('[data-search-query="quartz"]');
         self::assertSelectorTextContains('[data-search-kind="card"] .lp-board-card__number', '#42');
         self::assertSelectorTextContains('[data-search-kind="card"]', 'Quartz card');
-        self::assertSelectorTextContains('[data-search-kind="card"] .lp-status-chip', 'Next');
+        self::assertSelectorTextContains('[data-search-kind="card"] .lp-tag.lp-tag--teal', 'Next');
         self::assertSelectorExists('[data-search-kind="card"][data-drawer-title="Quartz card"]');
         self::assertSelectorNotExists('[data-card-drawer-opener]');
         self::assertSelectorTextContains('[data-search-kind="document"]', 'Quartz document');
@@ -83,7 +84,7 @@ final class TopbarSearchFrameTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/search', ['query' => 'quartz'], server: self::FRAME);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#topbar-search-results [data-search-kind="card"]');
+        self::assertSelectorExists('turbo-frame#topbar-search-results [data-search-kind="card"] .lp-tag--teal', 'the owned search keeps the column colour');
         self::assertSelectorExists('turbo-frame#topbar-search-results [data-search-kind="document"]');
         self::assertSame('/search?query=quartz', $client->getCrawler()->filter('a[data-search-all]')->attr('href'));
 
@@ -127,7 +128,7 @@ final class TopbarSearchFrameTest extends WebTestCase
         AcceptedTerms::stamp($owner, self::getContainer());
         $em->persist($owner);
         $project = new Project($owner, 'Frame project');
-        $column = new BoardColumn($project, 'board.card.status.next', 'next', 0);
+        $column = new BoardColumn($project, 'board.card.status.next', 'next', 0, tone: LabelTone::Teal);
         foreach ([$project, $column] as $entity) {
             $em->persist($entity);
         }
