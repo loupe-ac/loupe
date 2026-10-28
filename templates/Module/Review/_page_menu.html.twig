@@ -14,12 +14,12 @@
     }) : []},
     {kind: 'outgoing', rows: document.references|map(reference => {
         href: path('app_document_review', {projectId: reference.project.id, documentId: reference.id}),
-        label: reference.title,
+        label: reference.title|reference_plain,
         line: 'review.document.page_menu.outgoing_line'|trans({'%status%': reference.archivedAt ? 'review.document.references.archived'|trans : reference.status.translationKey|trans}),
     })},
     {kind: 'incoming', rows: document.referencedBy|map(reference => {
         href: path('app_document_review', {projectId: reference.project.id, documentId: reference.id}),
-        label: reference.title,
+        label: reference.title|reference_plain,
         line: 'review.document.page_menu.incoming_line'|trans({'%status%': reference.archivedAt ? 'review.document.references.archived'|trans : reference.status.translationKey|trans}),
     })},
 ]|filter(group => group.rows is not empty) %}
