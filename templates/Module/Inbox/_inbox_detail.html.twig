@@ -52,7 +52,7 @@
         {% if ask and ask.context|trim is not empty %}
             <div class="lp-inbox-ask__message">
                 {# Agent Markdown, rendered and sanitized the way a card body is. #}
-                <div class="prose lp-prose lp-inbox-ask__context">{{ ask.context|inbox_markdown }}</div>
+                {% apply link_references(ask.project) %}<div class="prose lp-prose lp-inbox-ask__context" data-references>{{ ask.context|inbox_markdown }}</div>{% endapply %}
             </div>
         {% endif %}
         <div class="lp-inbox-ask__items">

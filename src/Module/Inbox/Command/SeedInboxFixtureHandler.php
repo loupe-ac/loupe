@@ -50,7 +50,7 @@ final readonly class SeedInboxFixtureHandler
                 project: $project,
                 sessionId: Uuid::v4(),
                 bridgeId: Uuid::v4(),
-                context: 'Working on the **export** card. I need one decision before I write the migration.',
+                context: $command->context ?? 'Working on the **export** card. I need one decision before I write the migration.',
             );
             $question = new InboxItem(
                 project: $project,

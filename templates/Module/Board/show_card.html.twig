@@ -71,7 +71,7 @@
                 {% endif %}
                 <section class="lp-card-overview__section">
                     <twig:Ds:SectionHeading>{{ 'board.card.overview.description'|trans }}</twig:Ds:SectionHeading>
-                    {% if card.body|trim is not empty %}<div class="prose lp-prose lp-card-detail__body">{{ card.body|card_body }}</div>{% else %}<p class="lp-card-detail__empty">{{ 'board.card.body.empty'|trans }}</p>{% endif %}
+                    {% if card.body|trim is not empty %}{% apply link_references(card.project) %}<div class="prose lp-prose lp-card-detail__body" data-references>{{ card.body|card_body }}</div>{% endapply %}{% else %}<p class="lp-card-detail__empty">{{ 'board.card.body.empty'|trans }}</p>{% endif %}
                 </section>
                 <section class="lp-card-docs lp-card-pulls lp-card-overview__section">
                     {% if card.documents|length > 0 or card.pullRequests|length > 0 %}

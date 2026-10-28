@@ -18,7 +18,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Dev-only: seeds an open ask with a question and a to-do in the signed-in user's
  * harness project. An optional cardId or documentId links the question to it,
- * and an optional questionTitle replaces the title of the question.
+ * an optional questionTitle replaces the title of the question, and an optional
+ * context replaces the Markdown context of the ask.
  */
 #[Route(
     '/dev/seed/inbox',
@@ -47,6 +48,7 @@ final class SeedInboxController extends AppController
             $request->request->getString('cardId') ?: null,
             $request->request->getString('documentId') ?: null,
             $request->request->getString('questionTitle') ?: null,
+            $request->request->getString('context') ?: null,
         ));
 
         return $this->json([

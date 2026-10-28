@@ -38,11 +38,11 @@
                 <div class="lp-comment-thread">
                     {%- if runWait and line.detail %}
                         {# Worker Markdown, rendered and sanitized the way a card body is. #}
-                        <div class="prose lp-prose lp-review-doc__prose">{{ line.detail|inbox_markdown }}</div>
+                        {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
                     {%- else %}
                         <p class="lp-comment-body">{{ line.pageKey|trans(line.params) }}</p>
                         {%- if line.detail %}
-                            <div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail>{{ line.detail|inbox_markdown }}</div>
+                            {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
                         {%- endif %}
                     {%- endif %}
                     {%- if wait.endedAt %}

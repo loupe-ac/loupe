@@ -15,6 +15,7 @@ final readonly class SeedInboxFixtureCommand
         /** A document of the project the question links to, so its document page lists it. */
         public ?string $documentId = null,
         public ?string $questionTitle = null,
+        public ?string $context = null,
     ) {
     }
 }
