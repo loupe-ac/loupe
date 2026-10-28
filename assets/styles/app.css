@@ -7786,6 +7786,10 @@
     .lp-experiment-table__range {
         @apply text-fg-dim;
     }
+    /* A key of the bridge rule inside a sentence, such as a metric key, shown as the reader types it. */
+    .lp-experiment-config-key {
+        @apply rounded-md bg-surface-3 px-1.5 font-mono font-medium normal-case tracking-normal whitespace-nowrap text-ink;
+    }
     /* A figure in the text of the goal panel. */
     .lp-experiment-guards__value {
         @apply font-mono text-xs leading-normal tabular-nums text-ink;

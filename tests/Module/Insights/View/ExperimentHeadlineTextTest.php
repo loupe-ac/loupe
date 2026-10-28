@@ -66,16 +66,16 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertSame('14% lower to 3% higher', self::text()->range($goal));
     }
 
-    public function test_a_ratio_goal_counts_points(): void
+    public function test_a_ratio_goal_counts_percentage_points(): void
     {
         $rate = self::template(TemplateMetricSets::rate());
         $higher = self::goal($rate, GoalDirection::Higher, GoalState::Clear, 'sonnet', new Interval(0.03, 0.09, 0.06), [0.9, 0.84], relative: false);
         $across = self::goal($rate, GoalDirection::Higher, GoalState::NotClear, 'sonnet', new Interval(-0.02, 0.07, 0.01), [0.9, 0.89], relative: false);
 
-        self::assertSame('sonnet is 6 points higher than opus', self::text()->sentence($higher));
-        self::assertSame('3 to 9 points higher', self::text()->range($higher));
-        self::assertSame('sonnet is 1 point higher than opus', self::text()->sentence($across));
-        self::assertSame('2 points lower to 7 points higher', self::text()->range($across));
+        self::assertSame('sonnet is 6 pp higher than opus', self::text()->sentence($higher));
+        self::assertSame('3 to 9 pp higher', self::text()->range($higher));
+        self::assertSame('sonnet is 1 pp higher than opus', self::text()->sentence($across));
+        self::assertSame('2 pp lower to 7 pp higher', self::text()->range($across));
     }
 
     public function test_a_goal_without_an_answer_has_its_own_sentence(): void
@@ -126,7 +126,7 @@ final class ExperimentHeadlineTextTest extends TestCase
         $rate = self::goal(self::template(TemplateMetricSets::rate()), GoalDirection::Higher, GoalState::Clear, 'sonnet', new Interval(0.002, 0.006, 0.004), [0.9, 0.904], relative: false);
 
         self::assertSame('sonnet is under 1% cheaper than opus', self::text()->sentence($cost));
-        self::assertSame('sonnet is under 1 point higher than opus', self::text()->sentence($rate));
+        self::assertSame('sonnet is under 1 pp higher than opus', self::text()->sentence($rate));
     }
 
     public function test_a_goal_with_a_problem_names_no_winner(): void

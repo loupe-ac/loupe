@@ -111,6 +111,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertStringStartsWith('Input tokens per merged card', $inputTokens[0]);
         self::assertSame(['1,234', '1,234–1,234'], \array_slice($inputTokens, 1));
         self::assertSame('The bridge rule declares metrics that this server does not know: foo, bar.', trim($crawler->filter('[data-experiment-unknown-metrics]')->text()));
+        self::assertSame(['foo', 'bar'], $crawler->filter('[data-experiment-unknown-metrics] code.lp-experiment-config-key')->each(static fn ($node) => $node->text()));
     }
 
     public function test_a_variant_with_no_usage_shows_no_cost(): void
@@ -282,9 +283,34 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertSame('The bridge rule names a guard that this server does not know: phantom. The page leaves it out.', trim($crawler->filter('[data-experiment-unknown-guards]')->text()));
         self::assertSame('unknown-metric', $crawler->filter('[data-experiment-goal]')->attr('data-experiment-goal-state'));
         self::assertSame('The headline goal nonsense is not a metric of this project.', trim($crawler->filter('[data-experiment-goal-problem]')->text()));
+        self::assertSame(['nonsense'], $crawler->filter('[data-experiment-goal-problem] code.lp-experiment-config-key')->each(static fn ($node) => $node->text()));
+        self::assertSame(['phantom'], $crawler->filter('[data-experiment-unknown-guards] code.lp-experiment-config-key')->each(static fn ($node) => $node->text()));
         self::assertCount(0, $crawler->filter('[data-experiment-goal-sentence]'));
         self::assertCount(0, $crawler->filter('.lp-experiment-goal__label'));
         self::assertCount(0, $crawler->filter('[data-experiment-guards]'));
+    }
+
+    public function test_the_page_escapes_a_key_of_the_bridge_rule(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-escaped-key@example.com');
+        $project = $this->boardProject($em, $owner);
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => '<i>goal</i>', 'better' => 'higher'], 'guards' => ['<b>guard</b>']];
+        $em->persist($definition);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['<i>goal</i>'], $crawler->filter('[data-experiment-goal-problem] code.lp-experiment-config-key')->each(static fn ($node) => $node->text()));
+        self::assertSame(['<b>guard</b>'], $crawler->filter('[data-experiment-unknown-guards] code.lp-experiment-config-key')->each(static fn ($node) => $node->text()));
+        self::assertCount(0, $crawler->filter('[data-experiment-goal-problem] i, [data-experiment-unknown-guards] b'));
     }
 
     public function test_the_page_asks_for_the_direction_of_a_goal(): void
@@ -307,6 +333,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('no-direction', $crawler->filter('[data-experiment-goal]')->attr('data-experiment-goal-state'));
         self::assertSame('The headline goal cost has no direction. Add better: lower or better: higher to it in the bridge rule.', trim($crawler->filter('[data-experiment-goal-problem]')->text()));
+        self::assertSame(['cost', 'better: lower', 'better: higher'], $crawler->filter('[data-experiment-goal-problem] code.lp-experiment-config-key')->each(static fn ($node) => $node->text()));
         self::assertCount(0, $crawler->filter('[data-experiment-goal-sentence]'));
     }
 

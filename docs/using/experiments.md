@@ -41,8 +41,8 @@ The panel has three states:
 | Clear | Each variant has at least 5 cards behind the figure, and the likely ranges do not overlap |
 
 Close values do not make the answer clear, unlike in the metrics table. The panel says "The variants are level" when the two values are equal, and "under 1%" when the change rounds to zero. The large line uses "faster" for a duration, "cheaper" for the cost, "fewer" for a count, and "lower" or "higher" for any other metric. A goal
-that is a rate, such as the merge rate, gives the change in points instead of a
-share, for example "6 points higher".
+that is a rate, such as the merge rate, gives the change in percentage points
+(pp) instead of a share, for example "6 pp higher".
 
 The **Guards** table follows the panel. A guard is a metric that the winner must
 not make worse. Each row shows the change from the first variant to the second,

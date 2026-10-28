@@ -27,7 +27,7 @@
         <twig:Ds:Panel as="section" aria-label="{{ 'bridge.experiments.goal.heading'|trans }}" data-experiment-goal data-experiment-goal-state="{{ goal.state.value }}">
             <div class="lp-experiment-goal">
                 {% if goal.state.value in ['unknown-metric', 'no-direction'] %}
-                    <p class="lp-experiment-goal__sentence lp-experiment-goal__sentence--small" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.state.value)|trans({'%metric%': goal.metric.key}) }}</p>
+                    <p class="lp-experiment-goal__sentence lp-experiment-goal__sentence--small" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.state.value)|trans({'%metric%': '<code class="lp-experiment-config-key">' ~ goal.metric.key|e ~ '</code>', '%lower%': '<code class="lp-experiment-config-key">' ~ 'better: lower</code>', '%higher%': '<code class="lp-experiment-config-key">' ~ 'better: higher</code>'})|raw }}</p>
                 {% else %}
                     {% set goalLabel = goal.metric.label ?? ('bridge.experiments.metric.' ~ goal.metric.key)|trans %}
                     <p class="lp-experiment-goal__label">{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalLabel, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</p>
@@ -90,7 +90,7 @@
         {% endif %}
     {% endif %}
     {% if report.unknownGuards is not empty %}
-        <p class="lp-experiment-note" data-experiment-unknown-guards>{{ 'bridge.experiments.guards.unknown'|trans({'%metrics%': report.unknownGuards|join(', ')}) }}</p>
+        <p class="lp-experiment-note" data-experiment-unknown-guards>{{ 'bridge.experiments.guards.unknown'|trans({'%metrics%': report.unknownGuards|map(key => '<code class="lp-experiment-config-key">' ~ key|e ~ '</code>')|join(', ')})|raw }}</p>
     {% endif %}
 
     <h3 class="lp-experiment-section">{{ 'bridge.experiments.variants.heading'|trans }}</h3>
@@ -153,7 +153,7 @@
 {% include '_overflow_arrows.html.twig' only %}
 </div>
     {% if report.unknownMetrics is not empty %}
-        <p class="lp-experiment-note" data-experiment-unknown-metrics>{{ 'bridge.experiments.metrics.unknown'|trans({'%metrics%': report.unknownMetrics|join(', ')}) }}</p>
+        <p class="lp-experiment-note" data-experiment-unknown-metrics>{{ 'bridge.experiments.metrics.unknown'|trans({'%metrics%': report.unknownMetrics|map(key => '<code class="lp-experiment-config-key">' ~ key|e ~ '</code>')|join(', ')})|raw }}</p>
     {% endif %}
     <p class="lp-experiment-note">{{ 'bridge.experiments.metrics.note'|trans({'%count%': constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS')}) }}</p>
 
