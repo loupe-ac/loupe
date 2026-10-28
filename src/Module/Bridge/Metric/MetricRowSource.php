@@ -12,6 +12,7 @@ use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\TemplateMetric;
 use Symfony\Component\Uid\Uuid;
 
 /** Turns the fact rows and the finished cards into one metric row per run or per card. */
@@ -22,16 +23,17 @@ final readonly class MetricRowSource
         private FinishedCardSourceInterface $finishedCards,
         private CardReportSourceInterface $cardReports,
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
+        private TemplateMetricValues $templateValues,
     ) {
     }
 
     /** @return list<MetricRow> */
     public function rows(Project $project, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from): array
     {
-        $metric = $shape->key->metric;
-        if (null === $metric) {
-            return [];
+        if (null !== $shape->template) {
+            return MetricUnit::Card === $unit ? $this->templateRows($project, $shape->template, $group, $from) : [];
         }
+        $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
 
         return MetricUnit::Run === $unit
             ? $this->runRows($project, $metric, $group, $from, $shape->key->bucketName)
@@ -67,6 +69,56 @@ final readonly class MetricRowSource
             ),
             $facts,
         );
+    }
+
+    /**
+     * One row per finished card, with a value for every card. A card groups by the one variant its runs name, and a card whose
+     * runs name two variants or none stays ungrouped, because one value cannot split between variants.
+     *
+     * @return list<MetricRow>
+     */
+    private function templateRows(Project $project, TemplateMetric $template, MetricGroup $group, ?\DateTimeImmutable $from): array
+    {
+        $cards = $this->finishedCards->finishedCards($project, $from);
+        if ([] === $cards) {
+            return [];
+        }
+
+        $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
+        $values = $this->templateValues->valuesOf($project, $ids, $template);
+        $groups = match ($group) {
+            MetricGroup::CardType => $this->cardReports->typesFor($project, $ids),
+            MetricGroup::Variant => $this->variantsOf($project, $ids),
+            default => [],
+        };
+
+        return array_map(
+            static fn (FinishedCard $card): MetricRow => new MetricRow($card->id, $card->number, $groups[(string) $card->id] ?? null, $card->completedAt, $values[(string) $card->id] ?? null),
+            $cards,
+        );
+    }
+
+    /**
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, string> card id => variant, for a card whose runs name exactly one
+     */
+    private function variantsOf(Project $project, array $ids): array
+    {
+        $variants = [];
+        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
+            $variants[(string) $fact->subjectId][$fact->variant ?? ''] = $fact->variant;
+        }
+
+        $single = [];
+        foreach ($variants as $id => $named) {
+            $variant = 1 === \count($named) ? reset($named) : null;
+            if (null !== $variant) {
+                $single[$id] = $variant;
+            }
+        }
+
+        return $single;
     }
 
     /** @return list<MetricRow> */

@@ -693,7 +693,7 @@ final readonly class ProjectShowcaseSeeder
             'durationSeconds' => 434,
         ], $endedAt);
         $this->cardEvents->record($card, CardEventKind::ReadyToMerge, Actor::System, null, ['pullRequest' => 441], new \DateTimeImmutable('-30 hours'));
-        $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $inProgress, 'to' => $done, 'cause' => CardEventCause::merged(441)->detail()], new \DateTimeImmutable('-28 hours'));
+        $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $inProgress, 'to' => $done, 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], new \DateTimeImmutable('-28 hours'));
         $this->cardEvents->record($card, CardEventKind::Moved, Actor::Human, $owner, ['from' => $done, 'to' => $inProgress, 'cause' => null], new \DateTimeImmutable('-6 hours'));
     }
 

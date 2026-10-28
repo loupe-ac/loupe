@@ -6,9 +6,9 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentCardOutcome;
 use App\Module\Bridge\Experiment\ExperimentHeadline;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
@@ -18,11 +18,18 @@ use App\Module\Bridge\Experiment\Stats;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricValueType;
+use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\View\CardTitleSourceInterface;
+use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\CountFilter;
+use App\Module\Workflow\Contract\DurationEvent;
+use App\Module\Workflow\Contract\MetricType;
+use App\Module\Workflow\Contract\TemplateMetric;
+use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Utils\PageList;
 use Symfony\Component\Uid\Uuid;
 
@@ -47,6 +54,8 @@ final readonly class ShowExperimentHandler
         private WorkerRunFactRepository $workerRunFacts,
         private CardReportSourceInterface $cardReports,
         private CardTitleSourceInterface $cardTitles,
+        private TemplateMetricValues $templateValues,
+        private TemplateMetrics $templates,
     ) {
     }
 
@@ -87,7 +96,7 @@ final readonly class ShowExperimentHandler
 
         $ids = array_values($cardIds);
         $historyStart = $this->cardReports->historyStartFor($project);
-        $outcomes = $this->cardReports->outcomesFor($project, $ids);
+        $outcomes = $this->outcomesOf($project, $ids);
         $columns = $this->cardReports->columnsFor($project, $ids);
         $titles = $this->cardTitles->titlesFor($project, $ids);
         /** @var array<string, list<WorkerRunFact>> $facts */
@@ -106,7 +115,7 @@ final readonly class ShowExperimentHandler
 
         /** @var list<array{card: ExperimentCard, lastRunAt: ?\DateTimeImmutable}> $cards */
         $cards = [];
-        /** @var array<string, list<array{outcome: CardOutcome, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}>> $kept variant => kept cards, a null cost when it is unknown */
+        /** @var array<string, list<array{outcome: ExperimentCardOutcome, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}>> $kept variant => kept cards, a null cost when it is unknown */
         $kept = [];
         foreach ($cardIds as $id => $cardId) {
             $own = $experimentRuns[$id] ?? [];
@@ -115,7 +124,7 @@ final readonly class ShowExperimentHandler
             // A pin can switch before a run reports it, so the runs name the variant that did the work.
             $variant = null === $first ? $pinVariants[$id] ?? null : $first->variant;
             $leftOut = self::leftOut($own, $plainRuns[$id] ?? [], $pinVariants[$id] ?? null, $historyStart);
-            $outcome = $outcomes[$id] ?? new CardOutcome();
+            $outcome = $outcomes[$id] ?? new ExperimentCardOutcome();
             $column = $columns[$id] ?? null;
             $ownFacts = $facts[$id] ?? [];
             $costMicros = MetricRowSource::cardSum($ownFacts, Metric::Cost);
@@ -251,10 +260,10 @@ final readonly class ShowExperimentHandler
     }
 
     /**
-     * @param list<string>                                                                                                                          $variantNames
-     * @param array<string, list<array{outcome: CardOutcome, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}>> $kept
-     * @param array<string, int>                                                                                                                    $finished
-     * @param list<string>                                                                                                                          $keys         known metric keys
+     * @param list<string>                                                                                                                                    $variantNames
+     * @param array<string, list<array{outcome: ExperimentCardOutcome, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}>> $kept
+     * @param array<string, int>                                                                                                                              $finished
+     * @param list<string>                                                                                                                                    $keys         known metric keys
      *
      * @return array<string, ExperimentMetric>
      */
@@ -303,7 +312,7 @@ final readonly class ShowExperimentHandler
                         $reasons,
                     ),
                 ),
-                ExperimentMetric::HOURS_TO_MERGE => $metric($key, $bootstrap(MetricValueType::Duration, $key, static fn (array $row): ?float => $row['outcome']->hoursToMerge())),
+                ExperimentMetric::HOURS_TO_MERGE => $metric($key, $bootstrap(MetricValueType::Duration, $key, static fn (array $row): ?float => $row['outcome']->hoursToMerge)),
                 default => match ($of = Metric::from($key)) {
                     Metric::StopRate => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
                         $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'runs')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
@@ -320,6 +329,39 @@ final readonly class ShowExperimentHandler
         }
 
         return $metrics;
+    }
+
+    /**
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, ExperimentCardOutcome> card id => outcome, for a card with a pull request, a fix request or the delivered outcome
+     */
+    private function outcomesOf(Project $project, array $ids): array
+    {
+        $delivered = $this->templates->forProject($project->id ?? throw new \LogicException('A project has an id here.'))->delivered()?->key;
+        $set = $this->cardReports->outcomesOfCards($project, $ids);
+        $counts = $this->templateValues->countsOf($ids);
+        $hours = $this->templateValues->valuesOf($project, $ids, new TemplateMetric(
+            'hours-to-merge',
+            'Hours to merge',
+            'Hours from the first pull request opening to the merge.',
+            MetricType::Duration,
+            from: new DurationEvent(DurationEvent::PR_OPENED),
+            to: new DurationEvent(DurationEvent::PR_MERGED),
+        ));
+
+        $outcomes = [];
+        foreach ($ids as $id) {
+            $key = $id->toRfc4122();
+            $hoursToMerge = $hours[$key] ?? null;
+            $outcomes[$key] = new ExperimentCardOutcome(
+                $counts->byReason($key, new CountFilter(role: 'fix')),
+                null !== $delivered && \in_array($delivered, $set[$key] ?? [], true),
+                null === $hoursToMerge ? null : (float) $hoursToMerge,
+            );
+        }
+
+        return $outcomes;
     }
 
     /** A bucket time needs a bucket name, which an experiment key cannot give. */

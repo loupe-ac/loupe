@@ -12,23 +12,33 @@ use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Experiment\CardColumn;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentCardOutcome;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
+use App\Module\Bridge\Metric\CardMilestone;
+use App\Module\Bridge\Metric\CardMilestoneSourceInterface;
+use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\CardTitleSourceInterface;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\DurationEvent;
+use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
+use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -45,11 +55,17 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     private \DateTimeImmutable $start;
     private ?\DateTimeImmutable $historyStart;
 
-    /** @var array<string, CardOutcome> */
+    /** @var array<string, ExperimentCardOutcome> */
     private array $outcomes = [];
 
     /** @var array<string, CardColumn> */
     private array $columns = [];
+
+    /** @var array<string, true> the cards whose outcome already reached the database */
+    private array $stored = [];
+
+    /** @var array<string, list<CardMilestone>> */
+    private array $milestones = [];
 
     protected function setUp(): void
     {
@@ -150,7 +166,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $card = Uuid::v7();
         $this->em->persist(new ExperimentPin($this->project, $card, self::EXPERIMENT, 'a'));
         $this->em->flush();
-        $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
 
         $withHistory = $this->show();
         $this->historyStart = null;
@@ -171,8 +187,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->seedUsage($this->em, $this->experimentRun($withUsage, 'a', at: '+1 hour'), costUsd: '1.000000');
         $noUsage = Uuid::v7();
         $this->experimentRun($noUsage, 'a', at: '+2 hours');
-        $this->outcomes[(string) $withUsage] = new CardOutcome(fixRounds: ['conflict' => 2], merged: true);
-        $this->outcomes[(string) $noUsage] = new CardOutcome(merged: true);
+        $this->outcomes[(string) $withUsage] = new ExperimentCardOutcome(fixRounds: ['conflict' => 2], merged: true);
+        $this->outcomes[(string) $noUsage] = new ExperimentCardOutcome(merged: true);
 
         $view = $this->show();
 
@@ -214,7 +230,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     {
         $card = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
-        $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
 
         $view = $this->show(withMetrics: false);
 
@@ -228,11 +244,10 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     public function test_it_compares_the_variants_on_each_metric(): void
     {
         $this->em->persist(new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 70], ['name' => 'b', 'weight' => 30]]));
-        $merged = static fn (array $fixRounds, ?float $hours = 2.0): CardOutcome => new CardOutcome(
+        $merged = static fn (array $fixRounds, ?float $hours = 2.0): ExperimentCardOutcome => new ExperimentCardOutcome(
             fixRounds: $fixRounds,
             merged: true,
-            openedAt: null === $hours ? null : new \DateTimeImmutable('2026-09-02 08:00:00'),
-            mergedAt: null === $hours ? null : new \DateTimeImmutable('2026-09-02 08:00:00')->modify(\sprintf('+%d minutes', (int) ($hours * 60))),
+            hoursToMerge: $hours,
         );
 
         // Variant a: five merged cards, one finished by hand, one still open.
@@ -324,7 +339,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->seedUsage($this->em, $this->experimentRun($two, 'a', at: '+2 hours'), costUsd: '1.000000');
         $this->experimentRun($two, 'a', at: '+3 hours', state: WorkerRunState::Failed);
         foreach ([$one, $two] as $card) {
-            $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
         }
         $this->em->flush();
 
@@ -346,7 +361,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         foreach (['a' => '2.000000', 'b' => '1.000000'] as $variant => $cost) {
             $card = Uuid::v7();
             $this->seedUsage($this->em, $this->experimentRun($card, $variant), costUsd: $cost);
-            $this->outcomes[(string) $card] = new CardOutcome(fixRounds: ['conflict' => 1], merged: true);
+            $this->outcomes[(string) $card] = new ExperimentCardOutcome(fixRounds: ['conflict' => 1], merged: true);
         }
         $this->em->flush();
 
@@ -365,7 +380,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     {
         $card = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
-        $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
 
         $view = $this->show();
 
@@ -381,7 +396,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->em->persist($definition);
         $card = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($card, 'a'), costUsd: '1.000000');
-        $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+        $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
 
         $view = $this->show();
 
@@ -403,7 +418,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->seedUsage($this->em, $tokenRun, costUsd: '1.000000');
         $this->seedUsage($this->em, $tokenRun, model: 'claude-sonnet-5', costUsd: '2.000000');
         foreach ([$noTokens, $withTokens] as $card) {
-            $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
         }
 
         $view = $this->show();
@@ -436,7 +451,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             for ($i = 0; $i < Stats::MIN_FINISHED_CARDS - 1; ++$i) {
                 $card = Uuid::v7();
                 $this->seedUsage($this->em, $this->experimentRun($card, $variant, at: \sprintf('+%d hours', $i + 1)), costUsd: $cost);
-                $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+                $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
             }
         }
         $this->em->flush();
@@ -462,11 +477,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
                 if (0 === $i) {
                     $this->seedUsage($this->em, $run, costUsd: $cost);
                 }
-                $this->outcomes[(string) $card] = new CardOutcome(
-                    merged: true,
-                    openedAt: 0 === $i ? new \DateTimeImmutable('2026-09-02 08:00:00') : null,
-                    mergedAt: 0 === $i ? new \DateTimeImmutable('2026-09-02 '.('a' === $variant ? '10' : '09').':00:00') : null,
-                );
+                $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true, hoursToMerge: 0 === $i ? ('a' === $variant ? 2.0 : 1.0) : null);
             }
         }
         $this->em->flush();
@@ -515,7 +526,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $onlyUnpriced = Uuid::v7();
         $this->seedUsage($this->em, $this->experimentRun($onlyUnpriced, 'b', at: '+3 hours'), model: 'unpriced-model', costUsd: null);
         foreach ([$unpriced, $priced, $onlyUnpriced] as $card) {
-            $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
         }
         $this->em->flush();
 
@@ -561,7 +572,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         for ($i = 0; $i < 6; ++$i) {
             $card = Uuid::v7();
             $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: \sprintf('+%d hours', $i + 1)), costUsd: '1.000000');
-            $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
         }
         $this->em->flush();
 
@@ -611,16 +622,17 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
     private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true): ?ExperimentReportView
     {
+        $this->storeOutcomes();
         $this->em->clear();
-        $reports = new readonly class($this->outcomes, $this->columns, $this->historyStart) implements CardReportSourceInterface {
+        $reports = new readonly class($this->columns, $this->historyStart, array_map(static fn (ExperimentCardOutcome $outcome): array => $outcome->merged ? ['merged'] : [], $this->outcomes)) implements CardReportSourceInterface {
             /**
-             * @param array<string, CardOutcome> $outcomes
-             * @param array<string, CardColumn>  $columns
+             * @param array<string, CardColumn>   $columns
+             * @param array<string, list<string>> $outcomes
              */
             public function __construct(
-                private array $outcomes,
                 private array $columns,
                 private ?\DateTimeImmutable $historyStart,
+                private array $outcomes,
             ) {
             }
 
@@ -631,9 +643,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             }
 
             #[\Override]
-            public function outcomesFor(Project $project, array $cardIds): array
+            public function outcomesOfCards(Project $project, array $cardIds): array
             {
-                return $this->outcomes;
+                return array_filter($this->outcomes, static fn (array $keys): bool => [] !== $keys);
             }
 
             #[\Override]
@@ -648,6 +660,21 @@ final class ShowExperimentHandlerTest extends KernelTestCase
                 return $this->historyStart;
             }
         };
+        $milestones = new readonly class($this->milestones) implements CardMilestoneSourceInterface {
+            /** @param array<string, list<CardMilestone>> $milestones */
+            public function __construct(
+                private array $milestones,
+            ) {
+            }
+
+            #[\Override]
+            public function milestonesOf(Project $project, array $cardIds, TemplateMetricSet $templates): array
+            {
+                return $this->milestones;
+            }
+        };
+        $templates = $this->createStub(TemplateMetrics::class);
+        $templates->method('forProject')->willReturn(new TemplateMetricSet(outcomes: [new TemplateOutcome('merged', true)]));
         $titles = new readonly class implements CardTitleSourceInterface {
             #[\Override]
             public function titlesFor(Project $project, array $cardIds): array
@@ -663,9 +690,38 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             $container->get(WorkerRunFactRepository::class),
             $reports,
             $titles,
+            new TemplateMetricValues($container->get(WorkRequestRepository::class), $reports, $templates, [$milestones]),
+            $templates,
         );
 
         return $handler(new ShowExperimentCommand($this->managedProject(), self::EXPERIMENT, $page, $variant, $leftOutOnly, $withMetrics));
+    }
+
+    /** Writes the fix rounds and the pull request times of the declared outcomes where the handler reads them. */
+    private function storeOutcomes(): void
+    {
+        foreach ($this->outcomes as $cardId => $outcome) {
+            if (isset($this->stored[$cardId])) {
+                continue;
+            }
+            $this->stored[$cardId] = true;
+            $project = $this->managedProject();
+            foreach ($outcome->fixRounds as $reason => $rounds) {
+                for ($i = 0; $i < $rounds; ++$i) {
+                    $request = $this->seedWorkRequest($this->em, $project, Uuid::fromString($cardId), 'fix', state: WorkRequestState::Done);
+                    $request->role = 'fix';
+                    $request->context = new WorkRequestContext(reason: $reason);
+                }
+            }
+            if (null !== $outcome->hoursToMerge) {
+                $opened = new \DateTimeImmutable('2026-09-02 08:00:00');
+                $this->milestones[$cardId] = [
+                    new CardMilestone(DurationEvent::PR_OPENED, $opened),
+                    new CardMilestone(DurationEvent::PR_MERGED, $opened->modify(\sprintf('+%d seconds', (int) ($outcome->hoursToMerge * 3600)))),
+                ];
+            }
+        }
+        $this->em->flush();
     }
 
     private function managedProject(): Project
@@ -684,7 +740,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->experimentRun($queued, 'a', at: '+5 hours', state: WorkerRunState::Stopped)->startedAt = null;
         $this->em->flush();
         foreach ([$partial, $queued] as $card) {
-            $this->outcomes[(string) $card] = new CardOutcome(merged: true);
+            $this->outcomes[(string) $card] = new ExperimentCardOutcome(merged: true);
         }
 
         $view = $this->show();

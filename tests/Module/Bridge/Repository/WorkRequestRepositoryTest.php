@@ -504,6 +504,38 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertSame(['2026-10-21 01:01:00'], array_map(static fn (array $fix): string => $fix['openedAt']->format('Y-m-d H:i:s'), $found));
     }
 
+    public function test_the_counts_of_cards_group_every_request_by_role_kind_and_reason(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'counts-of-cards@example.com'), 'Counts Of Cards');
+        $card = Uuid::v7();
+        $none = Uuid::v7();
+        $request = function (Uuid $card, string $kind, ?string $role, ?string $reason, WorkRequestState $state = WorkRequestState::Done, string $subjectType = WorkSubject::CARD) use ($em, $project): void {
+            $row = $this->seedWorkRequest($em, $project, $card, $kind, state: $state, subject: new WorkSubject($subjectType, $card));
+            $row->role = $role;
+            $row->context = new WorkRequestContext(reason: $reason);
+        };
+        $request($card, 'fix', 'fix', 'conflict');
+        $request($card, 'fix', 'fix', 'conflict', WorkRequestState::Cancelled);
+        $request($card, 'fix', 'fix', 'checks-failed');
+        $request($card, 'fix', 'fix', null);
+        $request($card, 'implement', null, null);
+        $request($card, 'review', 'code-review', null, WorkRequestState::Open, 'document');
+        $em->flush();
+
+        $counts = $this->repository()->findCountsOfCards([$card, $none]);
+
+        $key = $card->toRfc4122();
+        self::assertSame([
+            ['cardId' => $key, 'role' => 'fix', 'kind' => 'fix', 'reason' => 'checks-failed', 'count' => 1],
+            ['cardId' => $key, 'role' => 'fix', 'kind' => 'fix', 'reason' => 'conflict', 'count' => 2],
+            ['cardId' => $key, 'role' => 'fix', 'kind' => 'fix', 'reason' => 'unknown', 'count' => 1],
+            ['cardId' => $key, 'role' => null, 'kind' => 'implement', 'reason' => 'unknown', 'count' => 1],
+        ], $counts);
+        self::assertSame([], $this->repository()->findCountsOfCards([]));
+    }
+
     private function workerRun(Project $project, Card $card, WorkRequest $request, WorkerRunState $state): void
     {
         $this->em()->persist(new WorkerRun(

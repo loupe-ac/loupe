@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Module\AgentReview\Repository;
 
 use App\Module\AgentReview\Entity\AgentReview;
+use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\Board\Entity\Card;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<AgentReview> */
 class AgentReviewRepository extends ServiceEntityRepository
@@ -17,6 +19,39 @@ class AgentReviewRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, AgentReview::class);
+    }
+
+    /**
+     * When each card of the project had an agent review that passed, oldest first. A card with none has no key.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return array<string, list<\DateTimeImmutable>> card id => times
+     */
+    public function findPassedAtOfCards(Project $project, array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        /** @var list<array{cardId: Uuid|string, createdAt: \DateTimeImmutable}> $rows */
+        $rows = $this->createQueryBuilder('r')
+            ->select('IDENTITY(r.card) AS cardId', 'r.createdAt AS createdAt')
+            ->where('r.project = :project AND r.card IN (:cards) AND r.conclusion = :conclusion')
+            ->setParameter('project', $project)
+            ->setParameter('cards', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds))
+            ->setParameter('conclusion', AgentReviewConclusion::Success)
+            ->orderBy('r.createdAt')
+            ->addOrderBy('r.id')
+            ->getQuery()
+            ->getResult();
+
+        $times = [];
+        foreach ($rows as $row) {
+            $times[(string) $row['cardId']][] = $row['createdAt'];
+        }
+
+        return $times;
     }
 
     /**

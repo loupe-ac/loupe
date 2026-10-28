@@ -10,6 +10,8 @@ use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\BoardColumnFixtures;
@@ -39,10 +41,19 @@ trait ExperimentScenario
         $em->flush();
         $this->cardEvent($em, $card, CardEventKind::Created, [], '-1 day');
         if ($merged) {
-            $this->cardEvent($em, $card, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'merged', 'pullRequest' => $number]], '-1 hour');
+            $this->cardEvent($em, $card, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged']], '-1 hour');
         }
 
         return $card;
+    }
+
+    /** A fix request the card opened, which the experiment counts as a fix round of the reason. */
+    private function fixRequest(EntityManagerInterface $em, Project $project, Card $card, string $reason): void
+    {
+        $request = $this->seedWorkRequest($em, $project, $card->id ?? throw new \LogicException('A flushed card has an id.'), 'fix', state: WorkRequestState::Done);
+        $request->role = 'fix';
+        $request->context = new WorkRequestContext(reason: $reason);
+        $em->flush();
     }
 
     /** @param array<string, mixed> $detail */

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Controller;
 
-use App\Module\Board\Entity\CardEventKind;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Tests\Module\Bridge\ExperimentScenario;
@@ -28,10 +27,10 @@ final class ShowExperimentControllerTest extends WebTestCase
             $card = $this->experimentCard($em, $project, $i, merged: true);
             $this->seedUsage($em, $this->experimentRun($em, $project, $card, 'a', state: WorkerRunState::Failed), costUsd: '2.000000');
             if (1 === $i) {
-                $this->cardEvent($em, $card, CardEventKind::FixRequested, ['reason' => 'conflict', 'pullRequest' => 1], '-90 minutes');
+                $this->fixRequest($em, $project, $card, 'conflict');
             }
             if (2 === $i) {
-                $this->cardEvent($em, $card, CardEventKind::FixRequested, ['reason' => 'rebase-needed', 'pullRequest' => 2], '-90 minutes');
+                $this->fixRequest($em, $project, $card, 'rebase-needed');
             }
             $card = $this->experimentCard($em, $project, $i + 5, merged: true);
             $this->seedUsage($em, $this->experimentRun($em, $project, $card, 'b'), costUsd: '1.000000');

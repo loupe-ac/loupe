@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Mcp;
 
-use App\Module\Board\Entity\CardEventKind;
 use App\Module\Bridge\Command\ShowExperimentHandler;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Experiment\Stats;
@@ -92,7 +91,7 @@ final class ExperimentGetToolTest extends KernelTestCase
         $definition->metrics = ['fix-rounds'];
         $em->persist($definition);
         $card = $this->experimentCard($em, $project, 1, merged: true);
-        $this->cardEvent($em, $card, CardEventKind::FixRequested, ['reason' => 'conflict', 'pullRequest' => 1], '-90 minutes');
+        $this->fixRequest($em, $project, $card, 'conflict');
         $this->experimentRun($em, $project, $card, 'a');
         $this->actAsMcpTokenBoundTo($project);
 

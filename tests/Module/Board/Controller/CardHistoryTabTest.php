@@ -12,7 +12,6 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\Actor;
-use App\Module\Workflow\Contract\CardEventCause;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,7 +32,7 @@ final class CardHistoryTabTest extends WebTestCase
         $next = CardEvent::columnDetail($this->column($project, 'next'));
         $events = $this->events();
         $events->record($card, CardEventKind::Created, Actor::Human, $owner, ['column' => $backlog], new \DateTimeImmutable('-3 hours'));
-        $events->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $backlog, 'to' => $next, 'cause' => CardEventCause::merged(12)->detail()], new \DateTimeImmutable('-2 hours'));
+        $events->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $backlog, 'to' => $next, 'cause' => ['type' => 'merged', 'pullRequest' => 12]], new \DateTimeImmutable('-2 hours'));
         $events->record($card, CardEventKind::FixRequested, Actor::System, null, ['reason' => 'checks-failed', 'pullRequest' => 12], new \DateTimeImmutable('-1 hour'));
         $em->flush();
         $em->clear();
