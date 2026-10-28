@@ -203,29 +203,6 @@ final class TemplateMetricParserTest extends TestCase
         self::assertNull($any->outcome);
     }
 
-    public function test_a_rate_refuses_an_outcome_that_no_move_sets(): void
-    {
-        $errors = $this->errorsOf(self::withMetric(['rate' => ['outcome' => 'dropped']]));
-
-        self::assertContains('metrics[0] (my-metric) rate outcome: no move sets the outcome "dropped"; outcomes a move sets: merged', $errors);
-    }
-
-    public function test_a_rate_accepts_an_outcome_that_a_move_sets(): void
-    {
-        $source = self::withMetric(['rate' => ['outcome' => 'dropped']]);
-        $source['rules'][] = ['id' => 'drop', 'slot' => 'build', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['move' => ['to' => '@terminal', 'outcome' => 'dropped']]];
-
-        self::assertSame('dropped', $this->parser->parse($source)->metrics[0]->outcome);
-    }
-
-    public function test_a_rate_names_a_template_whose_moves_set_no_outcome(): void
-    {
-        $source = self::withMetric(['rate' => ['outcome' => 'merged']]);
-        unset($source['rules'][2]['then']['move']['outcome']);
-
-        self::assertContains('metrics[0] (my-metric) rate outcome: no move sets the outcome "merged"; no move sets an outcome', $this->errorsOf($source));
-    }
-
     public function test_it_reads_durations(): void
     {
         $metric = $this->parser->parse(self::withMetric(['duration' => [

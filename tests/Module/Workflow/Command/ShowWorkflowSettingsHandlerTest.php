@@ -157,16 +157,16 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         ], $template->metrics);
     }
 
-    public function test_a_template_with_no_metrics_lists_none(): void
+    public function test_the_simple_template_lists_its_two_metrics(): void
     {
-        $project = $this->workflowProject('workflow-settings-no-metrics');
+        $project = $this->workflowProject('workflow-settings-simple-metrics');
         $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
         $this->em()->clear();
 
         $template = $this->show($project)->template;
 
         self::assertInstanceOf(BoundWorkflowView::class, $template);
-        self::assertSame([], $template->metrics);
+        self::assertSame(['merge-rate', 'hours-to-merge'], array_map(static fn (WorkflowMetricView $metric): string => $metric->key, $template->metrics));
     }
 
     public function test_the_rules_the_app_adds_are_listed_apart_from_the_template_rules(): void
