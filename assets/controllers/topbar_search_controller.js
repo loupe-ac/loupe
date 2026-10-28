@@ -166,7 +166,8 @@ export default class extends Controller {
     #isActive() {
         return (
             this.element.classList.contains('lp-topsearch--open') ||
-            !this.panelTarget.hidden
+            !this.panelTarget.hidden ||
+            document.activeElement === this.fieldTarget
         );
     }
 

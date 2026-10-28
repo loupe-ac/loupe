@@ -258,6 +258,23 @@ it('closes on Escape, Cancel and a click outside, and keeps the field text', () 
     expect(controller.panelTarget.hidden).toBe(true);
 });
 
+it('leaves an empty focused field on Escape', () => {
+    controller.iconTarget.style.display = 'none';
+    controller.shortcut(
+        new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }),
+    );
+    expect(document.activeElement).toBe(controller.fieldTarget);
+    expect(controller.panelTarget.hidden).toBe(true);
+
+    const escape = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        cancelable: true,
+    });
+    controller.shortcut(escape);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(controller.fieldTarget);
+});
+
 it('hides the panel when the field empties', () => {
     type('pag');
     expect(controller.panelTarget.hidden).toBe(false);
