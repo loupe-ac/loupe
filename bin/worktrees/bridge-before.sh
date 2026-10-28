@@ -65,7 +65,7 @@ free_branch() {
     local holder
     holder=$(git -C "$main" worktree list --porcelain \
         | awk -v ref="branch refs/heads/$1" '/^worktree /{path=substr($0, 10)} $0 == ref {print path}')
-    [ -z "$holder" ] && return 0
+    { [ -z "$holder" ] || [ "$holder" = "$root" ]; } && return 0
     if [ "$holder" = "$main" ]; then
         echo "bridge-before: the main checkout holds $1. Switch it back to main, then retry." >&2
         exit 1
@@ -73,16 +73,22 @@ free_branch() {
     if [ -n "$(git -C "$holder" status --porcelain)" ] \
         || ! git -C "$holder" merge-base --is-ancestor HEAD "origin/$1" 2>/dev/null; then
         echo "bridge-before: $holder holds $1 with uncommitted or unpushed work." >&2
-        echo "Push that work, or run 'just worktree-down $(basename "$holder")' from the main checkout, then retry." >&2
+        echo "Commit and push that work in $holder, then retry. 'just worktree-down' would delete its uncommitted files." >&2
         exit 1
     fi
     echo "bridge-before: $holder holds $1 with nothing unpushed; detaching it there." >&2
     git -C "$holder" switch --detach --quiet
 }
 
+# The '-' after the number keeps card-4 from matching card-40-*.
+branch=$(git -C "$main" for-each-ref --sort=-committerdate --count=1 \
+    --format='%(refname:short)' "refs/heads/$name-*")
+wanted=${head:-$branch}
+
 registered=$(git -C "$main" worktree list --porcelain)
 if grep -qxF "worktree $root" <<<"$registered"; then
     echo "bridge-before: $name already exists; re-provisioning it." >&2
+    [ -n "$wanted" ] && free_branch "$wanted"
     # A new head can fix what made the last provisioning fail, so provision that head.
     if [ -n "$head" ] && [ "$(git -C "$root" branch --show-current)" = "$head" ]; then
         git -C "$root" merge --ff-only "origin/$head" \
@@ -92,9 +98,6 @@ elif [ -e "$root" ]; then
     echo "bridge-before: $root exists but is not a registered worktree. Remove it and retry." >&2
     exit 1
 else
-    # The '-' after the number keeps card-4 from matching card-40-*.
-    branch=$(git -C "$main" for-each-ref --sort=-committerdate --count=1 \
-        --format='%(refname:short)' "refs/heads/$name-*")
     if [ -n "$head" ]; then
         free_branch "$head"
         if git -C "$main" show-ref --verify --quiet "refs/heads/$head"; then

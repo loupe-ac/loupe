@@ -97,7 +97,8 @@ describe('bridge-before.sh with a branch that another worktree holds', () => {
         const run = bridgeBefore();
 
         expect(run.status).toBe(1);
-        expect(run.stderr).toContain('just worktree-down session tree');
+        expect(run.stderr).toContain(`Commit and push that work in ${holder}`);
+        expect(run.stderr).not.toMatch(/run 'just worktree-down/);
         expect(git(holder, 'branch', '--show-current')).toBe('feat');
     });
 
@@ -109,6 +110,36 @@ describe('bridge-before.sh with a branch that another worktree holds', () => {
         expect(run.status).toBe(1);
         expect(run.stderr).toContain('uncommitted or unpushed work');
         expect(git(holder, 'branch', '--show-current')).toBe('feat');
+    });
+
+    it('frees the branch when the card worktree already exists detached', () => {
+        const card = join(main, '.worktrees', 'card-7');
+        git(
+            main,
+            'worktree',
+            'add',
+            '--quiet',
+            '--detach',
+            card,
+            'origin/main',
+        );
+
+        const run = bridgeBefore();
+
+        expect(run.status, run.stderr).toBe(0);
+        expect(git(holder, 'branch', '--show-current')).toBe('');
+        git(card, 'switch', '--quiet', 'feat');
+    });
+
+    it('keeps the branch in the card worktree that already holds it', () => {
+        const card = join(main, '.worktrees', 'card-7');
+        git(main, 'worktree', 'remove', holder);
+        git(main, 'worktree', 'add', '--quiet', card, 'feat');
+
+        const run = bridgeBefore();
+
+        expect(run.status, run.stderr).toBe(0);
+        expect(git(card, 'branch', '--show-current')).toBe('feat');
     });
 
     it('refuses to detach the main checkout', () => {
