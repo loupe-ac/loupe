@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Landing\Command;
 
+use App\Module\Landing\Service\AboutPage;
 use App\Module\Landing\Service\ComparisonPages;
 use App\Module\Landing\Service\FaqPage;
 use App\Module\Landing\Service\PublicPages;
@@ -19,6 +20,7 @@ final readonly class ShowLlmsHandler
         private PublicPages $publicPages,
         private ComparisonPages $comparisonPages,
         private FaqPage $faqPage,
+        private AboutPage $aboutPage,
 
         #[Autowire(param: 'app.docs_url')]
         private string $docsUrl,
@@ -53,6 +55,14 @@ final readonly class ShowLlmsHandler
             $lines[] = '## FAQ';
             $lines[] = '';
             $lines[] = '- ['.$faq->title.']('.$this->publicPages->faqUrl().'): '.$faq->description;
+        }
+
+        if ($this->publicPages->hasAbout()) {
+            $about = $this->aboutPage->page();
+            $lines[] = '';
+            $lines[] = '## About';
+            $lines[] = '';
+            $lines[] = '- ['.$about->title.']('.$this->publicPages->aboutUrl().'): '.$about->description;
         }
 
         return implode("\n", $lines)."\n";

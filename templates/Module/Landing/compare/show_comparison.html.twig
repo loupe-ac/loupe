@@ -10,11 +10,7 @@
     <p class="lp-legal__updated">{{ 'landing.compare.compared_on'|trans({'%date%': page.comparedOn|date('F j, Y'), '%competitor%': page.competitor, '%version%': page.competitorVersion}) }}</p>
     <div class="prose lp-prose lp-legal__body lp-compare">
         {{ page.html|raw }}
-        <section>
-            <h2>{{ 'landing.compare.try_title'|trans }}</h2>
-            <p>{{ 'landing.compare.try_body'|trans }}</p>
-            {% include '@Landing/compare/_closing.html.twig' only %}
-        </section>
+        {% include '@Landing/compare/_closing.html.twig' only %}
         {% if others is not empty %}
             <section>
                 <h2>{{ 'landing.compare.others_title'|trans }}</h2>
