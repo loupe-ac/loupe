@@ -29,6 +29,9 @@ for (const entry of ['/account', '/projects']) {
         await expect(result).toBeVisible();
         await expect(result).toHaveCount(1);
         await expect(result).toContainText(query);
+        await expect(page.locator('[data-search-all]')).toHaveAccessibleName(
+            `All results for “${query}”`,
+        );
         await expect(result).toHaveAttribute(
             'href',
             `/projects/${projectId}/documents/${documentId}/review`,
@@ -109,6 +112,9 @@ test('the top bar search is an icon on a phone and opens over the bar', async ({
     await field.fill(query);
     const result = page.locator('[data-search-kind="document"]');
     await expect(result).toBeVisible();
+    await expect(page.locator('[data-search-all]')).toHaveAccessibleName(
+        'All results',
+    );
     await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
         .toBeLessThanOrEqual(390);
@@ -150,7 +156,10 @@ test('search shortcuts preserve page drafts and recover from a failed request', 
     await expect(field).toBeFocused();
     await field.fill(query);
     const failedRequest = await requested;
-    await expect(page.getByRole('status')).toHaveText('Searching…');
+    await expect(
+        page.locator('[data-topbar-search-target="progress"]'),
+    ).toBeVisible();
+    await expect(page.getByRole('status')).toBeHidden();
     await failedRequest.fulfill({ status: 503, body: 'Unavailable' });
     await expect(page.getByRole('alert')).toContainText('Could not search');
     await expect(field).toHaveValue(query);

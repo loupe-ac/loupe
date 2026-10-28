@@ -317,6 +317,13 @@
     .lp-topsearch__all .lp-kbd {
         @apply inline-block;
     }
+    /* A phone shows the short footer text, as the phone prototype does. */
+    .lp-topsearch__all-long {
+        @apply hidden lg:inline;
+    }
+    .lp-topsearch__all-short {
+        @apply lg:hidden;
+    }
     .lp-topbar:has(.lp-topsearch--open, .lp-topsearch__form:focus-within) {
         @apply relative z-30;
     }

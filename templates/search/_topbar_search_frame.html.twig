@@ -21,7 +21,12 @@
                 <p class="lp-menu__heading" role="status">{{ 'search.topbar.empty'|trans({'%query%': view.query}) }}</p>
             {% endfor %}
             <a class="lp-menu__item lp-topsearch__all" href="{{ allResultsUrl }}" data-search-all data-turbo-frame="_top">
-                <span>{{ ('' == view.query ? 'search.topbar.all_results_blank' : 'search.topbar.all_results')|trans({'%query%': view.query}) }}</span>
+                {% if '' == view.query %}
+                    <span>{{ 'search.topbar.all_results_blank'|trans }}</span>
+                {% else %}
+                    <span class="lp-topsearch__all-long">{{ 'search.topbar.all_results'|trans({'%query%': view.query}) }}</span>
+                    <span class="lp-topsearch__all-short">{{ 'search.topbar.all_results_blank'|trans }}</span>
+                {% endif %}
                 <kbd class="lp-kbd" aria-hidden="true">{{ 'search.topbar.enter'|trans }}</kbd>
             </a>
         </div>
