@@ -15,10 +15,10 @@ import (
 var ErrExperimentPinsUnsupported = errors.New("the server has no experiment pin endpoint, or agent push is switched off")
 
 // ExperimentGoal is the metric an experiment tries to move, and the direction
-// that counts as better.
+// that counts as better. An empty Better is left out of the body.
 type ExperimentGoal struct {
 	Metric string `json:"metric"`
-	Better string `json:"better"`
+	Better string `json:"better,omitempty"`
 }
 
 // ExperimentHeadline is the goal and the guards of an experiment. A nil Goal

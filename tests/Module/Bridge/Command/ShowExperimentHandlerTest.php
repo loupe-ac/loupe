@@ -362,12 +362,12 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertEquals(Stats::newcombe(5, 6, 5, 5), $mergeRate->change);
         $fixRounds = $view->headline->guards[1];
         self::assertEquals(Stats::differenceRange([0, 1, 2, 1, 1], [1, 1, 1, 1, 1], 'model-test:fix-rounds:guard'), $fixRounds->change);
-        self::assertSame([], $view->unknownHeadlineMetrics);
+        self::assertSame([], $view->unknownGuards);
     }
 
     /**
-     * @param array{goal?: array{metric: string, better: string}, guards?: list<string>}|null $headline
-     * @param list<string>|null                                                               $metrics
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     * @param list<string>|null                                                                $metrics
      */
     private function seedHeadlineExperiment(?array $headline, ?array $metrics = null, string $costA = '2.000000', string $costB = '1.000000', int $mergedA = 5): void
     {
@@ -456,7 +456,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(ExperimentMetric::COST, $view->headline->goal->metric->key);
     }
 
-    public function test_a_headline_key_that_no_metric_has_falls_out_and_is_listed(): void
+    public function test_a_goal_that_no_metric_has_names_no_winner(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'no-such-metric', 'better' => 'higher'], 'guards' => ['bucket-time', 'merge-rate', 'no-such-metric', 'also-missing']]);
 
@@ -464,11 +464,30 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertNotNull($view->headline);
-        self::assertSame(ExperimentMetric::COST, $view->headline->goal->metric->key);
-        self::assertSame(GoalDirection::Lower, $view->headline->goal->direction);
+        $goal = $view->headline->goal;
+        self::assertSame('no-such-metric', $goal->metric->key);
+        self::assertSame(GoalState::UnknownMetric, $goal->state);
+        self::assertNull($goal->winner);
+        self::assertNull($goal->change);
         self::assertSame([ExperimentMetric::MERGE_RATE], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
-        self::assertSame(['no-such-metric', 'bucket-time', 'also-missing'], $view->unknownHeadlineMetrics);
+        self::assertSame(['bucket-time', 'no-such-metric', 'also-missing'], $view->unknownGuards);
         self::assertSame([], $view->unknownMetrics);
+    }
+
+    public function test_a_goal_with_no_direction_names_no_winner(): void
+    {
+        $this->seedHeadlineExperiment(['goal' => ['metric' => 'cost']]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        $goal = $view->headline->goal;
+        self::assertSame(ExperimentMetric::COST, $goal->metric->key);
+        self::assertSame(GoalState::NoDirection, $goal->state);
+        self::assertNull($goal->direction);
+        self::assertNull($goal->winner);
+        self::assertSame([], $view->unknownGuards);
     }
 
     public function test_a_goal_that_is_also_a_guard_does_not_break_the_headline(): void
@@ -889,7 +908,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(['fix-rounds'], $view->unknownMetrics);
         self::assertNotNull($view->headline);
         self::assertSame([], $view->headline->guards);
-        self::assertSame([], $view->unknownHeadlineMetrics);
+        self::assertSame([], $view->unknownGuards);
     }
 
     public function test_a_count_that_splits_by_reason_gets_one_row_per_reason(): void

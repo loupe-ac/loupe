@@ -113,6 +113,8 @@ final class ResolveExperimentPinRequestTest extends TestCase
     public function test_a_goal_alone_and_guards_alone_are_kept(): void
     {
         self::assertSame(['goal' => ['metric' => 'cost', 'better' => 'higher']], new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'cost', 'better' => 'higher']])->headline());
+        self::assertSame(['goal' => ['metric' => 'cost']], new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'cost']])->headline());
+        self::assertSame(['goal' => ['metric' => 'cost']], new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'cost', 'better' => null]])->headline());
         self::assertSame(['guards' => ['cost']], new ResolveExperimentPinRequest(headline: ['guards' => ['cost']])->headline());
     }
 
@@ -144,7 +146,6 @@ final class ResolveExperimentPinRequestTest extends TestCase
         yield 'a list' => [['cost']];
         yield 'no known key' => [['extra' => 1]];
         yield 'goal not an object' => [['goal' => 'cost']];
-        yield 'goal without better' => [['goal' => ['metric' => 'cost']]];
         yield 'goal without metric' => [['goal' => ['better' => 'lower']]];
         yield 'empty goal' => [['goal' => []]];
         yield 'bad better' => [['goal' => ['metric' => 'cost', 'better' => 'up']]];

@@ -12,6 +12,7 @@ use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
 use App\Module\Bridge\Experiment\GoalDirection;
+use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
@@ -194,7 +195,7 @@ final readonly class ShowExperimentHandler
         }
 
         // The goal and the guards are computed even when the entry's metrics leave them out.
-        [$goalKey, $direction, $guardKeys, $unknownHeadlineMetrics] = self::headlineSpec($definition?->headline, $templates);
+        [$goalKey, $direction, $guardKeys, $unknownGuards, $goalProblem] = self::headlineSpec($definition?->headline, $templates);
         $wanted = $shapes;
         foreach ([$goalKey, ...$guardKeys] as $key) {
             $shape = self::shapeOf($key, $templates);
@@ -226,15 +227,16 @@ final readonly class ShowExperimentHandler
                 $experiment,
                 $variantNames,
                 $finished,
-                $computed[$goalKey],
+                $computed[$goalKey] ?? new ExperimentMetric($goalKey, [], false),
                 $direction,
                 array_map(static fn (string $key): ExperimentMetric => $computed[$key], $guardKeys),
+                $goalProblem,
             ),
             variants: $variants,
             metrics: $metrics,
             declaredMetrics: $declared,
             unknownMetrics: $unknownMetrics,
-            unknownHeadlineMetrics: $unknownHeadlineMetrics,
+            unknownGuards: $unknownGuards,
             includedCards: $included,
             leftOutCards: \count($cards) - $included,
             cards: array_column(\array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE), 'card'),
@@ -452,27 +454,29 @@ final readonly class ShowExperimentHandler
     }
 
     /**
-     * The goal metric, its direction, and the guards. A key that no metric has falls out and is listed. Without a goal the cost is the goal, and lower is better. Without guards the default guards apply, less the goal and the ones the template does not declare.
+     * The goal metric, its direction, and the guards. Without a goal the cost is the goal, and lower is better. A goal that no metric has, or that has no better way, comes back with the state that says so, and names no winner. A guard that no metric has falls out and is listed. Without guards the default guards apply, less the goal and the ones the template does not declare.
      *
-     * @param array{goal?: array{metric: string, better: string}, guards?: list<string>}|null $headline
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
      *
-     * @return array{string, GoalDirection, list<string>, list<string>} goal key, direction, guard keys, unknown keys
+     * @return array{string, ?GoalDirection, list<string>, list<string>, ?GoalState} goal key, direction, guard keys, unknown guard keys, the problem of the goal
      */
     private static function headlineSpec(?array $headline, TemplateMetricSet $templates): array
     {
-        $unknown = [];
         $goalKey = ExperimentMetric::COST;
         $direction = GoalDirection::Lower;
+        $problem = null;
         if (isset($headline['goal'])) {
-            if (null === self::shapeOf($headline['goal']['metric'], $templates)) {
-                $unknown[] = $headline['goal']['metric'];
-            } else {
-                $goalKey = $headline['goal']['metric'];
-                $direction = GoalDirection::tryFrom($headline['goal']['better']) ?? GoalDirection::Lower;
+            $goalKey = $headline['goal']['metric'];
+            $direction = GoalDirection::tryFrom($headline['goal']['better'] ?? '');
+            if (null === self::shapeOf($goalKey, $templates)) {
+                $problem = GoalState::UnknownMetric;
+            } elseif (null === $direction) {
+                $problem = GoalState::NoDirection;
             }
         }
 
         $guardKeys = [];
+        $unknown = [];
         foreach ($headline['guards'] ?? self::DEFAULT_GUARDS as $key) {
             if ($key === $goalKey && !isset($headline['guards'])) {
                 continue;
@@ -484,6 +488,6 @@ final readonly class ShowExperimentHandler
             }
         }
 
-        return [$goalKey, $direction, array_values($guardKeys), array_values(array_unique($unknown))];
+        return [$goalKey, $direction, array_values($guardKeys), array_values($unknown), $problem];
     }
 }

@@ -58,7 +58,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertSame('clear', $goal->attr('data-experiment-goal-state'));
         self::assertSame('Goal', $goal->attr('aria-label'));
         self::assertSame('GOAL · COST PER MERGED CARD · LOWER IS BETTER', mb_strtoupper(trim($goal->filter('.lp-experiment-goal__label')->text())));
-        self::assertSame('b is 50% lower than a', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('b is 50% cheaper than a', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
         self::assertSame('Clear', trim($goal->filter('.lp-status-chip--ok')->text()));
         self::assertSame('$1.00 against $2.00 · likely range of the change 50% to 50% lower', preg_replace('/\s+/', ' ', trim($goal->filter('[data-experiment-goal-detail]')->text())));
 
@@ -182,7 +182,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $goal = $crawler->filter('[data-experiment-goal]');
         self::assertSame('not-clear', $goal->attr('data-experiment-goal-state'));
-        self::assertSame('b is 33% lower than a', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('b is 33% cheaper than a', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
         self::assertSame('Not clear yet', trim($goal->filter('.lp-status-chip--pending')->text()));
         self::assertCount(0, $goal->filter('.lp-status-chip--ok'));
         self::assertStringContainsString('$2.00 against $3.00 · likely range of the change', trim($goal->filter('[data-experiment-goal-detail]')->text()));
@@ -258,7 +258,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-experiment-goal]'));
         self::assertSame(['merge-rate'], $crawler->filter('[data-experiment-guard]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-guard')));
-        self::assertCount(0, $crawler->filter('[data-experiment-unknown-headline]'));
+        self::assertCount(0, $crawler->filter('[data-experiment-unknown-guards]'));
     }
 
     public function test_the_page_names_a_headline_key_that_no_metric_has(): void
@@ -279,9 +279,35 @@ final class ShowExperimentControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
 
         self::assertResponseIsSuccessful();
-        self::assertSame('The bridge rule names a goal or a guard that this server does not know: nonsense, phantom. The page uses the default for it.', trim($crawler->filter('[data-experiment-unknown-headline]')->text()));
-        self::assertStringContainsString('COST PER MERGED CARD', mb_strtoupper($crawler->filter('.lp-experiment-goal__label')->text()));
+        self::assertSame('The bridge rule names a guard that this server does not know: phantom. The page leaves it out.', trim($crawler->filter('[data-experiment-unknown-guards]')->text()));
+        self::assertSame('unknown-metric', $crawler->filter('[data-experiment-goal]')->attr('data-experiment-goal-state'));
+        self::assertSame('The headline goal nonsense is not a metric of this project.', trim($crawler->filter('[data-experiment-goal-problem]')->text()));
+        self::assertCount(0, $crawler->filter('[data-experiment-goal-sentence]'));
+        self::assertCount(0, $crawler->filter('.lp-experiment-goal__label'));
         self::assertCount(0, $crawler->filter('[data-experiment-guards]'));
+    }
+
+    public function test_the_page_asks_for_the_direction_of_a_goal(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-no-direction@example.com');
+        $project = $this->boardProject($em, $owner);
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'cost']];
+        $em->persist($definition);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('no-direction', $crawler->filter('[data-experiment-goal]')->attr('data-experiment-goal-state'));
+        self::assertSame('The headline goal cost has no direction. Add better: lower or better: higher to it in the bridge rule.', trim($crawler->filter('[data-experiment-goal-problem]')->text()));
+        self::assertCount(0, $crawler->filter('[data-experiment-goal-sentence]'));
     }
 
     /** @param list<string> $costs one merged card per cost, numbered from the given number */

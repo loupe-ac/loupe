@@ -1134,7 +1134,8 @@ work:
 
 Both keys are optional, but a headline needs at least one. An entry with no
 `goal` or no `guards` key uses the defaults of the server. An explicit
-`guards: []` means no guards. The goal metric cannot also be a guard. The
+`guards: []` means no guards. The goal metric cannot also be a guard. A goal
+with no `better` loads, and the Comparison tab then asks for a direction. The
 bridge sends the headline with each pin request, and sends nothing when the
 entry has no headline. It checks the shape of each key only.
 
@@ -1168,7 +1169,7 @@ The bridge refuses the file, at start and on a reload, when:
 - an entry sets `metrics`, `headline` or `experiment` and no `variants`
 - a `headline` has neither a `goal` nor `guards`
 - a `goal` has a `better` other than `lower` or `higher`, or a metric key that
-  does not match the shape
+  does not match the shape. A `goal` with no `better` loads
 - a headline lists more than 16 guards, one guard twice, or the goal metric as
   a guard
 - an `experiment` value does not match `^[a-z0-9][a-z0-9_-]{0,63}$`, an empty

@@ -116,9 +116,9 @@ final class ResolveExperimentPinRequest
      * The goal and the guards of the experiment page. Null when the headline is
      * not an object, or one of its parts is malformed, or it holds neither
      * part. Keys it does not know drop out. An empty guards list stays, and
-     * means no guards.
+     * means no guards. A goal with no better way stays, so the page can say so.
      *
-     * @return array{goal?: array{metric: string, better: string}, guards?: list<string>}|null
+     * @return array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null
      */
     public function headline(): ?array
     {
@@ -131,10 +131,10 @@ final class ResolveExperimentPinRequest
         if (\array_key_exists('goal', $headline)) {
             $goal = $headline['goal'];
             if (!\is_array($goal) || !\is_string($goal['metric'] ?? null) || 1 !== preg_match(self::METRIC_KEY_PATTERN, $goal['metric'])
-                || !\in_array($goal['better'] ?? null, ['lower', 'higher'], true)) {
+                || !\in_array($better = $goal['better'] ?? null, [null, 'lower', 'higher'], true)) {
                 return null;
             }
-            $normalised['goal'] = ['metric' => $goal['metric'], 'better' => $goal['better']];
+            $normalised['goal'] = null === $better ? ['metric' => $goal['metric']] : ['metric' => $goal['metric'], 'better' => $better];
         }
 
         if (\array_key_exists('guards', $headline)) {

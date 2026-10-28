@@ -35,11 +35,28 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertSame('9% to 33% higher', self::text()->range($higher));
     }
 
+    public function test_a_cost_goal_says_cheaper_or_more_expensive(): void
+    {
+        $lower = self::goal(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, 'sonnet', new Interval(-0.4, -0.1, -0.22), [2.0, 1.0]);
+        $higher = self::goal(self::built(Metric::Cost), GoalDirection::Higher, GoalState::Clear, 'sonnet', new Interval(0.1, 0.4, 0.22), [1.0, 2.0]);
+
+        self::assertSame('sonnet is 22% cheaper than opus', self::text()->sentence($lower));
+        self::assertSame('sonnet is 22% more expensive than opus', self::text()->sentence($higher));
+    }
+
+    public function test_a_count_goal_says_fewer_or_more(): void
+    {
+        $count = self::template(TemplateMetricSets::count());
+
+        self::assertSame('sonnet has 30% fewer than opus', self::text()->sentence(self::goal($count, GoalDirection::Lower, GoalState::Clear, 'sonnet', new Interval(-0.5, -0.1, -0.3), [1.0, 0.7])));
+        self::assertSame('sonnet has 30% more than opus', self::text()->sentence(self::goal($count, GoalDirection::Higher, GoalState::Clear, 'sonnet', new Interval(0.1, 0.5, 0.3), [1.0, 1.3])));
+    }
+
     public function test_another_goal_says_lower_or_higher(): void
     {
-        $cost = self::goal(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, 'sonnet', new Interval(-0.4, -0.1, -0.22), [1.0, 2.0]);
+        $tokens = self::goal(self::built(Metric::OutputTokens), GoalDirection::Lower, GoalState::Clear, 'sonnet', new Interval(-0.4, -0.1, -0.22), [2.0, 1.0]);
 
-        self::assertSame('sonnet is 22% lower than opus', self::text()->sentence($cost));
+        self::assertSame('sonnet is 22% lower than opus', self::text()->sentence($tokens));
     }
 
     public function test_a_range_across_zero_names_both_sides(): void
@@ -103,11 +120,21 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertSame(self::MINUS.'$0.80 to '.self::MINUS.'$0.20', self::text()->guardRange($guard));
     }
 
-    public function test_a_winner_whose_change_rounds_to_zero_reads_level(): void
+    public function test_a_winner_whose_change_rounds_to_zero_still_leads(): void
     {
-        $goal = self::goal(self::built(Metric::Cost), GoalDirection::Lower, GoalState::NotClear, 'sonnet', new Interval(-0.02, 0.01, -0.004), [0.996, 1.0]);
+        $cost = self::goal(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, 'sonnet', new Interval(-0.006, -0.002, -0.004), [1.0, 0.996]);
+        $rate = self::goal(self::template(TemplateMetricSets::rate()), GoalDirection::Higher, GoalState::Clear, 'sonnet', new Interval(0.002, 0.006, 0.004), [0.9, 0.904], relative: false);
+
+        self::assertSame('sonnet is under 1% cheaper than opus', self::text()->sentence($cost));
+        self::assertSame('sonnet is under 1 point higher than opus', self::text()->sentence($rate));
+    }
+
+    public function test_a_goal_with_a_problem_names_no_winner(): void
+    {
+        $goal = new ExperimentGoal(new ExperimentMetric('cost', [], false), null, GoalState::NoDirection, self::arms([1.0, 2.0]), null, null, true);
 
         self::assertSame('The variants are level', self::text()->sentence($goal));
+        self::assertNull(self::text()->range($goal));
     }
 
     public function test_a_change_that_rounds_to_zero_has_no_sign(): void

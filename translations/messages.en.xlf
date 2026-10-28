@@ -7110,8 +7110,15 @@
             <trans-unit id="bridge.experiments.goal.sentence.slower"><source>bridge.experiments.goal.sentence.slower</source><target>%winner% is %change% slower than %other%</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.sentence.lower"><source>bridge.experiments.goal.sentence.lower</source><target>%winner% is %change% lower than %other%</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.sentence.higher"><source>bridge.experiments.goal.sentence.higher</source><target>%winner% is %change% higher than %other%</target></trans-unit>
-            <trans-unit id="bridge.experiments.goal.sentence.points_lower"><source>bridge.experiments.goal.sentence.points_lower</source><target>{0} %winner% is 0 points lower than %other%|{1} %winner% is 1 point lower than %other%|]1,Inf[ %winner% is %count% points lower than %other%</target></trans-unit>
-            <trans-unit id="bridge.experiments.goal.sentence.points_higher"><source>bridge.experiments.goal.sentence.points_higher</source><target>{0} %winner% is 0 points higher than %other%|{1} %winner% is 1 point higher than %other%|]1,Inf[ %winner% is %count% points higher than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.cheaper"><source>bridge.experiments.goal.sentence.cheaper</source><target>%winner% is %change% cheaper than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.dearer"><source>bridge.experiments.goal.sentence.dearer</source><target>%winner% is %change% more expensive than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.fewer"><source>bridge.experiments.goal.sentence.fewer</source><target>%winner% has %change% fewer than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.more"><source>bridge.experiments.goal.sentence.more</source><target>%winner% has %change% more than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.under"><source>bridge.experiments.goal.under</source><target>under %value%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.problem.unknown-metric"><source>bridge.experiments.goal.problem.unknown-metric</source><target>The headline goal %metric% is not a metric of this project.</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.problem.no-direction"><source>bridge.experiments.goal.problem.no-direction</source><target>The headline goal %metric% has no direction. Add better: lower or better: higher to it in the bridge rule.</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.points_lower"><source>bridge.experiments.goal.sentence.points_lower</source><target>{0} %winner% is under 1 point lower than %other%|{1} %winner% is 1 point lower than %other%|]1,Inf[ %winner% is %count% points lower than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.points_higher"><source>bridge.experiments.goal.sentence.points_higher</source><target>{0} %winner% is under 1 point higher than %other%|{1} %winner% is 1 point higher than %other%|]1,Inf[ %winner% is %count% points higher than %other%</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.points"><source>bridge.experiments.goal.points</source><target>{0} 0 points|{1} 1 point|]1,Inf[ %count% points</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.against"><source>bridge.experiments.goal.against</source><target>against</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.range_label"><source>bridge.experiments.goal.range_label</source><target>likely range of the change</target></trans-unit>
@@ -7126,7 +7133,7 @@
             <trans-unit id="bridge.experiments.guards.rates"><source>bridge.experiments.guards.rates</source><target>%from% to %to%</target></trans-unit>
             <trans-unit id="bridge.experiments.guards.range"><source>bridge.experiments.guards.range</source><target>%low% to %high%</target></trans-unit>
             <trans-unit id="bridge.experiments.guards.range_points"><source>bridge.experiments.guards.range_points</source><target>%low% to %high% pp</target></trans-unit>
-            <trans-unit id="bridge.experiments.goal.unknown"><source>bridge.experiments.goal.unknown</source><target>The bridge rule names a goal or a guard that this server does not know: %metrics%. The page uses the default for it.</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.unknown"><source>bridge.experiments.guards.unknown</source><target>The bridge rule names a guard that this server does not know: %metrics%. The page leaves it out.</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.heading"><source>bridge.experiments.variants.heading</source><target>Variants</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.variant"><source>bridge.experiments.variants.variant</source><target>Variant</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.model"><source>bridge.experiments.variants.model</source><target>Model</target></trans-unit>

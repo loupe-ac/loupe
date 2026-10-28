@@ -155,6 +155,7 @@ func TestResolveExperimentPinSendsTheHeadlineOnlyWhenSet(t *testing.T) {
 		"goal and guards": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "hours-to-merge", Better: "lower"}, Guards: []string{"merge-rate"}},
 			`,"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":["merge-rate"]}}`},
 		"goal alone":   {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost", Better: "higher"}}, `,"headline":{"goal":{"metric":"cost","better":"higher"}}}`},
+		"no direction": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost"}}, `,"headline":{"goal":{"metric":"cost"}}}`},
 		"no guards":    {&ExperimentHeadline{Guards: []string{}}, `,"headline":{"guards":[]}}`},
 		"default only": {&ExperimentHeadline{}, `,"headline":{}}`},
 		"unset":        {nil, `}`},

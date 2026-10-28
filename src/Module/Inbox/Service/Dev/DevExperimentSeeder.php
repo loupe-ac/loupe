@@ -73,7 +73,7 @@ final readonly class DevExperimentSeeder
     /**
      * False when the project already holds the experiment, so a second run adds nothing.
      *
-     * @param array{goal?: array{metric: string, better: string}, guards?: list<string>}|null $headline
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
      */
     public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null): bool
     {

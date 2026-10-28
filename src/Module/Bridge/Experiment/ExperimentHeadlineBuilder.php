@@ -12,13 +12,16 @@ final class ExperimentHeadlineBuilder
      * @param list<string>           $variantNames sorted, so the first two are the ones compared
      * @param array<string, int>     $finished     variant => finished cards
      * @param list<ExperimentMetric> $guards
+     * @param ?GoalState             $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered
      */
-    public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, GoalDirection $direction, array $guards): ExperimentHeadline
+    public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, ?GoalDirection $direction, array $guards, ?GoalState $problem = null): ExperimentHeadline
     {
         $names = \array_slice($variantNames, 0, 2);
 
         return new ExperimentHeadline(
-            self::goal($experiment, $names, $finished, $goal, $direction),
+            null === $problem && null !== $direction
+                ? self::goal($experiment, $names, $finished, $goal, $direction)
+                : new ExperimentGoal($goal, $direction, $problem ?? GoalState::NoDirection, self::arms($names, $finished, $goal), null, null, MetricValueType::Ratio !== $goal->valueType()),
             array_map(static fn (ExperimentMetric $guard): ExperimentGuard => self::guard($experiment, $names, $finished, $guard), $guards),
         );
     }

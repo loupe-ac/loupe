@@ -241,10 +241,10 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
     }
 
     /**
-     * @param non-empty-list<string>                                                          $variants
-     * @param list<array{name: string, weight: int}>|null                                     $weights
-     * @param list<string>|null                                                               $metrics
-     * @param array{goal?: array{metric: string, better: string}, guards?: list<string>}|null $headline
+     * @param non-empty-list<string>                                                           $variants
+     * @param list<array{name: string, weight: int}>|null                                      $weights
+     * @param list<string>|null                                                                $metrics
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
      */
     private function resolve(
         User $owner,

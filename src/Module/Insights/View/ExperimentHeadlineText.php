@@ -32,11 +32,7 @@ final readonly class ExperimentHeadlineText
         if (GoalState::NotEnoughCards === $goal->state) {
             return $this->translator->trans('bridge.experiments.goal.sentence.not_enough');
         }
-        if (null === $goal->winner) {
-            return $this->translator->trans('bridge.experiments.goal.sentence.level');
-        }
-
-        if (null !== $goal->change && 0.0 === round(abs($goal->change->point) * 100)) {
+        if (null === $goal->winner || null === $goal->direction) {
             return $this->translator->trans('bridge.experiments.goal.sentence.level');
         }
 
@@ -50,11 +46,15 @@ final readonly class ExperimentHeadlineText
             return $this->translator->trans('bridge.experiments.goal.sentence.points_'.$goal->direction->value, $parameters);
         }
 
-        $word = MetricValueType::Duration === $goal->metric->valueType()
-            ? (GoalDirection::Lower === $goal->direction ? 'faster' : 'slower')
-            : $goal->direction->value;
+        $lower = GoalDirection::Lower === $goal->direction;
+        $word = match ($goal->metric->valueType()) {
+            MetricValueType::Duration => $lower ? 'faster' : 'slower',
+            MetricValueType::Money => $lower ? 'cheaper' : 'dearer',
+            MetricValueType::Count => $lower ? 'fewer' : 'more',
+            default => $lower ? 'lower' : 'higher',
+        };
 
-        return $this->translator->trans('bridge.experiments.goal.sentence.'.$word, $parameters + ['%change%' => $this->percent(abs($goal->change->point))]);
+        return $this->translator->trans('bridge.experiments.goal.sentence.'.$word, $parameters + ['%change%' => $this->changePercent($goal->change->point)]);
     }
 
     /** The range of the change of the winner, such as "9% to 33% lower". Null when the goal has no change. */
@@ -152,6 +152,16 @@ final readonly class ExperimentHeadlineText
     private function points(float $ratio): int
     {
         return (int) round(abs($ratio) * 100);
+    }
+
+    /** A winner differs from the other variant, so a change that rounds to 0% reads "under 1%". */
+    private function changePercent(float $fraction): string
+    {
+        if (0.0 === round(abs($fraction) * 100)) {
+            return $this->translator->trans('bridge.experiments.goal.under', ['%value%' => $this->percent(0.01)]);
+        }
+
+        return $this->percent(abs($fraction));
     }
 
     private function percent(float $fraction): string

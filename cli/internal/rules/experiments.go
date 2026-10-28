@@ -49,7 +49,8 @@ type Headline struct {
 }
 
 // Goal is the metric an experiment tries to move, and the direction that
-// counts as better. Better is lower or higher.
+// counts as better. Better is lower, higher, or empty when the rule names
+// none.
 type Goal struct {
 	Metric string `yaml:"metric"`
 	Better string `yaml:"better"`
@@ -188,10 +189,9 @@ func checkHeadline(h *Headline) []error {
 		if !metricKeyPattern.MatchString(h.Goal.Metric) {
 			errs = append(errs, fmt.Errorf("headline goal: metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", h.Goal.Metric))
 		}
+		// An empty Better loads, so the Comparison tab can ask for a direction.
 		switch h.Goal.Better {
-		case "lower", "higher":
-		case "":
-			errs = append(errs, errors.New("headline goal: better is lower or higher"))
+		case "", "lower", "higher":
 		default:
 			errs = append(errs, fmt.Errorf("headline goal: better is lower or higher, got %q", h.Goal.Better))
 		}

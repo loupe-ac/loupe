@@ -23,36 +23,40 @@
         {% set text = experiment_headline_text() %}
         {% set goal = headline.goal %}
         {% set floor = constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS') %}
-        {% set goalLabel = goal.metric.label ?? ('bridge.experiments.metric.' ~ goal.metric.key)|trans %}
         {% set ordered = goal.winner is not null and goal.arms[1].variant == goal.winner ? [goal.arms[1], goal.arms[0]] : goal.arms %}
         <twig:Ds:Panel as="section" aria-label="{{ 'bridge.experiments.goal.heading'|trans }}" data-experiment-goal data-experiment-goal-state="{{ goal.state.value }}">
             <div class="lp-experiment-goal">
-                <p class="lp-experiment-goal__label">{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalLabel, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</p>
-                {% if goal.state.value == 'not-enough-cards' %}
-                    <p class="lp-experiment-goal__sentence lp-experiment-goal__sentence--small" data-experiment-goal-sentence>{{ text.sentence(goal) }}</p>
-                    <p class="lp-experiment-goal__detail" data-experiment-goal-progress>
-                        {%- for arm in goal.arms -%}
-                            {%- if not loop.first %} · {% endif -%}
-                            {{ arm.variant }} <span class="lp-experiment-guards__value">{{ 'bridge.experiments.goal.progress'|trans({'%done%': min(arm.finishedCards, floor), '%floor%': floor}) }}</span> {{ 'bridge.experiments.goal.finished'|trans }}
-                        {%- endfor -%}
-                    </p>
+                {% if goal.state.value in ['unknown-metric', 'no-direction'] %}
+                    <p class="lp-experiment-goal__sentence lp-experiment-goal__sentence--small" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.state.value)|trans({'%metric%': goal.metric.key}) }}</p>
                 {% else %}
-                    <div class="lp-experiment-goal__answer">
-                        <p class="lp-experiment-goal__sentence" data-experiment-goal-sentence>{{ text.sentence(goal) }}</p>
-                        {% if goal.state.value == 'clear' %}
-                            <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.goal.state.clear'|trans" />
-                        {% else %}
-                            <twig:Ds:StatusChip modifier="pending" :label="'bridge.experiments.goal.state.not_clear'|trans" />
-                        {% endif %}
-                    </div>
-                    {% set firstPoint = text.point(goal.metric, ordered[0].point) %}
-                    {% set secondPoint = text.point(goal.metric, ordered[1].point) %}
-                    {% set goalRange = text.range(goal) %}
-                    {% if firstPoint is not null and secondPoint is not null %}
-                        <p class="lp-experiment-goal__detail" data-experiment-goal-detail>
-                            <span class="lp-experiment-guards__value">{{ firstPoint }}</span> {{ 'bridge.experiments.goal.against'|trans }} <span class="lp-experiment-guards__value">{{ secondPoint }}</span>
-                            {%- if goalRange is not null %} · {{ 'bridge.experiments.goal.range_label'|trans }} <span class="lp-experiment-guards__range">{{ goalRange }}</span>{% endif -%}
+                    {% set goalLabel = goal.metric.label ?? ('bridge.experiments.metric.' ~ goal.metric.key)|trans %}
+                    <p class="lp-experiment-goal__label">{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalLabel, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</p>
+                    {% if goal.state.value == 'not-enough-cards' %}
+                        <p class="lp-experiment-goal__sentence lp-experiment-goal__sentence--small" data-experiment-goal-sentence>{{ text.sentence(goal) }}</p>
+                        <p class="lp-experiment-goal__detail" data-experiment-goal-progress>
+                            {%- for arm in goal.arms -%}
+                                {%- if not loop.first %} · {% endif -%}
+                                {{ arm.variant }} <span class="lp-experiment-guards__value">{{ 'bridge.experiments.goal.progress'|trans({'%done%': min(arm.finishedCards, floor), '%floor%': floor}) }}</span> {{ 'bridge.experiments.goal.finished'|trans }}
+                            {%- endfor -%}
                         </p>
+                    {% else %}
+                        <div class="lp-experiment-goal__answer">
+                            <p class="lp-experiment-goal__sentence" data-experiment-goal-sentence>{{ text.sentence(goal) }}</p>
+                            {% if goal.state.value == 'clear' %}
+                                <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.goal.state.clear'|trans" />
+                            {% else %}
+                                <twig:Ds:StatusChip modifier="pending" :label="'bridge.experiments.goal.state.not_clear'|trans" />
+                            {% endif %}
+                        </div>
+                        {% set firstPoint = text.point(goal.metric, ordered[0].point) %}
+                        {% set secondPoint = text.point(goal.metric, ordered[1].point) %}
+                        {% set goalRange = text.range(goal) %}
+                        {% if firstPoint is not null and secondPoint is not null %}
+                            <p class="lp-experiment-goal__detail" data-experiment-goal-detail>
+                                <span class="lp-experiment-guards__value">{{ firstPoint }}</span> {{ 'bridge.experiments.goal.against'|trans }} <span class="lp-experiment-guards__value">{{ secondPoint }}</span>
+                                {%- if goalRange is not null %} · {{ 'bridge.experiments.goal.range_label'|trans }} <span class="lp-experiment-guards__range">{{ goalRange }}</span>{% endif -%}
+                            </p>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
             </div>
@@ -85,8 +89,8 @@
 </div>
         {% endif %}
     {% endif %}
-    {% if report.unknownHeadlineMetrics is not empty %}
-        <p class="lp-experiment-note" data-experiment-unknown-headline>{{ 'bridge.experiments.goal.unknown'|trans({'%metrics%': report.unknownHeadlineMetrics|join(', ')}) }}</p>
+    {% if report.unknownGuards is not empty %}
+        <p class="lp-experiment-note" data-experiment-unknown-guards>{{ 'bridge.experiments.guards.unknown'|trans({'%metrics%': report.unknownGuards|join(', ')}) }}</p>
     {% endif %}
 
     <h3 class="lp-experiment-section">{{ 'bridge.experiments.variants.heading'|trans }}</h3>

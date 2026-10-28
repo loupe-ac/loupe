@@ -111,7 +111,6 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 		"command with headline":        {entry("x", command+"headline:\n  guards: [cost]"), "headline names agent behaviour"},
 		"headline without variants":    {entry("x", "prompt: x\nheadline:\n  guards: [cost]"), "headline needs variants, and only an experiment shows a headline"},
 		"empty headline":               {entry("x", "prompt: x\nheadline: {}\n"+variants), "headline needs a goal or guards"},
-		"goal without better":          {entry("x", "prompt: x\nheadline:\n  goal: {metric: cost}\n"+variants), "headline goal: better is lower or higher"},
 		"goal without metric":          {entry("x", "prompt: x\nheadline:\n  goal: {better: lower}\n"+variants), "headline goal: metric \"\": a metric key is 1 to 64"},
 		"goal with bad better":         {entry("x", "prompt: x\nheadline:\n  goal: {metric: cost, better: up}\n"+variants), `headline goal: better is lower or higher, got "up"`},
 		"goal with bad metric":         {entry("x", "prompt: x\nheadline:\n  goal: {metric: Cost, better: lower}\n"+variants), `headline goal: metric "Cost": a metric key is 1 to 64`},
@@ -984,6 +983,13 @@ func TestParseKeepsAbsentAndEmptyGuardsApart(t *testing.T) {
 	}
 	h = headlineOf(t, "    headline:\n      goal: {metric: cost, better: higher}\n      guards: [merge-rate, fix-rounds]\n")
 	if h == nil || h.Goal.Better != "higher" || !slices.Equal(h.Guards, []string{"merge-rate", "fix-rounds"}) {
+		t.Fatalf("headline = %+v", h)
+	}
+}
+
+func TestParseKeepsAGoalWithNoDirection(t *testing.T) {
+	h := headlineOf(t, "    headline:\n      goal: {metric: cost}\n")
+	if h == nil || h.Goal == nil || *h.Goal != (Goal{Metric: "cost"}) {
 		t.Fatalf("headline = %+v", h)
 	}
 }

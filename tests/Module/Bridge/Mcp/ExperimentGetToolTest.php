@@ -47,7 +47,7 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['cost', 'merge-rate', 'no-such-metric'], $result['declaredMetrics']);
         self::assertSame(['no-such-metric'], $result['unknownMetrics']);
         self::assertSame(Stats::MIN_FINISHED_CARDS, $result['minFinishedCards']);
-        self::assertSame([], $result['unknownHeadlineMetrics']);
+        self::assertSame([], $result['unknownGuards']);
         self::assertSame([
             'key' => 'cost',
             'label' => 'Cost per merged card',
@@ -100,6 +100,29 @@ final class ExperimentGetToolTest extends KernelTestCase
             'leftOut' => ['switched'],
         ], $result['cards'][0]);
         self::assertSame(2.0, $this->cardOf($result['cards'], 1)['costUsd']);
+    }
+
+    public function test_a_goal_that_no_metric_has_names_no_winner(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-typo@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower'], 'guards' => []];
+        $em->persist($definition);
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a'), costUsd: '2.000000');
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i + 5, merged: true), 'b'), costUsd: '1.000000');
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $goal = $this->tool()('model-test')['headline']['goal'];
+
+        self::assertSame('hours-to-mrege', $goal['key']);
+        self::assertSame('hours-to-mrege', $goal['label']);
+        self::assertNull($goal['valueType']);
+        self::assertSame('unknown-metric', $goal['state']);
+        self::assertNull($goal['winner']);
+        self::assertNull($goal['change']);
     }
 
     public function test_the_metric_parts_take_the_value_type_of_their_metric(): void

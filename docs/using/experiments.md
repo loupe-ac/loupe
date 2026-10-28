@@ -40,7 +40,7 @@ The panel has three states:
 | Not clear yet | Each variant has at least 5 cards behind the figure, and the likely ranges of the two variants overlap. The better variant only leans ahead |
 | Clear | Each variant has at least 5 cards behind the figure, and the likely ranges do not overlap |
 
-Close values do not make the answer clear, unlike in the metrics table. The panel says "The variants are level" when the two values are equal. A goal
+Close values do not make the answer clear, unlike in the metrics table. The panel says "The variants are level" when the two values are equal, and "under 1%" when the change rounds to zero. The large line uses "faster" for a duration, "cheaper" for the cost, "fewer" for a count, and "lower" or "higher" for any other metric. A goal
 that is a rate, such as the merge rate, gives the change in points instead of a
 share, for example "6 points higher".
 
@@ -67,8 +67,10 @@ work:
       guards: [merge-rate, fix-rounds]
 ```
 
-A goal or a guard key that no metric has falls back to the default. The page
-shows a note that names the key. The
+A goal with a key that no metric has, or a goal with no `better`, names no
+winner. The panel then says what is wrong, for example "The headline goal
+hours-to-mrege is not a metric of this project". A guard key that no metric has
+is left out, and a note under the panel names it. The
 [bridge reference](../extending/cli-bridge.md) says how the bridge checks a
 `headline`. The `experiment_get` tool returns the same answer in its `headline`
 field: `headline.goal` has the metric, the direction, the state, the winner and
