@@ -230,3 +230,44 @@ it('asks for the typed query when the field regains focus with an older answer',
     expect(controller.frameTarget.getAttribute('src')).toContain('query=pagi');
     expect(controller.statusTarget.hidden).toBe(false);
 });
+
+it('ignores a failure of an older query after the field changes', async () => {
+    vi.useFakeTimers();
+    type('pag');
+    await vi.advanceTimersByTimeAsync(300);
+    type('pagi');
+    controller.response(
+        new CustomEvent('turbo:before-fetch-response', {
+            detail: { fetchResponse: { succeeded: false } },
+        }),
+    );
+    controller.failed(
+        new CustomEvent('turbo:fetch-request-error', { cancelable: true }),
+    );
+    expect(controller.errorTarget.hidden).toBe(true);
+    expect(controller.statusTarget.hidden).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(300);
+    controller.failed(
+        new CustomEvent('turbo:fetch-request-error', { cancelable: true }),
+    );
+    expect(controller.errorTarget.hidden).toBe(false);
+});
+
+it('reopens the panel and asks again when the field regains focus after a failed search', async () => {
+    vi.useFakeTimers();
+    type('pag');
+    await vi.advanceTimersByTimeAsync(300);
+    controller.failed(
+        new CustomEvent('turbo:frame-missing', { cancelable: true }),
+    );
+    document.body.click();
+    expect(controller.panelTarget.hidden).toBe(true);
+
+    const reload = vi.fn();
+    controller.frameTarget.reload = reload;
+    controller.focus();
+    expect(controller.panelTarget.hidden).toBe(false);
+    expect(controller.statusTarget.hidden).toBe(false);
+    expect(reload).toHaveBeenCalledOnce();
+});

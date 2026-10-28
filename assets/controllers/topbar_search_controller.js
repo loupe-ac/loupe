@@ -62,7 +62,7 @@ export default class extends Controller {
     }
 
     focus() {
-        if (this.#query() === '' || this.#answeredQuery() === null) return;
+        if (this.#query() === '') return;
         this.#showPanel();
         if (this.#answeredQuery() === this.#query()) return;
         this.#showPending();
@@ -113,13 +113,16 @@ export default class extends Controller {
         this.#showError();
     }
 
+    /** A failure of a request for an older query leaves the panel to the request that follows. */
     #showError() {
+        if (this.requestedQuery !== this.#query()) return;
         this.statusTarget.hidden = true;
         this.errorTarget.hidden = false;
     }
 
     #load() {
-        const url = `${this.urlValue}?query=${encodeURIComponent(this.#query())}`;
+        this.requestedQuery = this.#query();
+        const url = `${this.urlValue}?query=${encodeURIComponent(this.requestedQuery)}`;
         const frame = this.frameTarget;
         if (frame.getAttribute('src') === url) {
             frame.reload();
