@@ -23,6 +23,7 @@ use App\Module\Insights\Entity\AnalysisState;
 use App\Module\Insights\Entity\AnalysisTopic;
 use App\Module\Insights\Repository\AnalysisRepository;
 use App\Module\Insights\Service\AnalysisSettings;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Template\AppRules;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Insights\InsightsScenario;
@@ -183,6 +184,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
             new WorkSubjectHandlers([]),
+            $this->service(WorkHolds::class),
         );
         $handler = new StartAnalysisHandler($this->em(), $blind, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
 
@@ -215,6 +217,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
             $this->service(WorkSubjectHandlers::class),
+            $this->service(WorkHolds::class),
         );
         $handler = new StartAnalysisHandler($this->em(), $opener, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
 
@@ -246,6 +249,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
             $this->service(WorkSubjectHandlers::class),
+            $this->service(WorkHolds::class),
         );
         $handler = new StartAnalysisHandler($this->em(), $failing, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
 
@@ -284,6 +288,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $announcer,
             $this->service(WorkerRunRepository::class),
             $this->service(WorkSubjectHandlers::class),
+            $this->service(WorkHolds::class),
         );
         $handler = new StartAnalysisHandler($this->em(), $failing, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
 

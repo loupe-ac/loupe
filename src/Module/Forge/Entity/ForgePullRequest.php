@@ -151,6 +151,7 @@ class ForgePullRequest
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $appApprovalSha = null;
 
+    // The two columns stay until a follow-up migration drops them. Nothing reads or writes them.
     #[ORM\Column(options: ['default' => false])]
     public bool $baseRequiresReview = false;
 
@@ -311,8 +312,6 @@ class ForgePullRequest
         $this->latestApproverLogin = $snapshot->latestApproverLogin;
         $this->appApprovalId = $snapshot->appApprovalId;
         $this->appApprovalSha = $snapshot->appApprovalSha;
-        $this->baseRequiresReview = $snapshot->baseRequiresReview;
-        $this->approvalCheckUnpinned = $snapshot->approvalCheckUnpinned;
         $this->defaultBranch = $snapshot->defaultBranch;
         $this->headParents = $snapshot->headParents;
     }
@@ -422,8 +421,6 @@ class ForgePullRequest
             $this->title,
             $this->appApprovalId,
             $this->appApprovalSha,
-            $this->baseRequiresReview,
-            $this->approvalCheckUnpinned,
         );
     }
 }

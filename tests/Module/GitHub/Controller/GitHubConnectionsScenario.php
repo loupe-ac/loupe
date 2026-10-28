@@ -70,6 +70,11 @@ trait GitHubConnectionsScenario
         return $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/connect');
     }
 
+    private function repositoriesPage(KernelBrowser $client, Project $project): Crawler
+    {
+        return $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/repositories');
+    }
+
     /** Posts a valid same-origin CSRF token, so only the voter can refuse. */
     private function postAction(KernelBrowser $client, string $path): void
     {

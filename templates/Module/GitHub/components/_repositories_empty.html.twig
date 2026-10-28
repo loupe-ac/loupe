@@ -1,0 +1,8 @@
+{#- The empty state of the Repositories section. Props: project (Project), appConfigured (bool). -#}
+<twig:Ds:EmptyState icon="lucide:git-pull-request" :title="'github.repositories.empty_state.title'|trans" :body="(appConfigured ? 'github.repositories.empty_state.body' : 'github.repositories.empty_state.body_hook')|trans" compact data-testid="forge-repositories-empty">
+    {% if appConfigured %}
+    <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_app_install', {id: project.id}) }}" data-turbo="false" data-testid="forge-repositories-install">{{ 'github.repositories.empty_state.install'|trans }}</twig:Ds:Button>
+    {% else %}
+    <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_project_connect', {id: project.id}) }}" data-testid="forge-repositories-connect">{{ 'github.repositories.empty_state.connect'|trans }}</twig:Ds:Button>
+    {% endif %}
+</twig:Ds:EmptyState>

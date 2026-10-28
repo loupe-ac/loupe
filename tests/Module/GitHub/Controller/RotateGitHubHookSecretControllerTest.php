@@ -30,7 +30,7 @@ final class RotateGitHubHookSecretControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook/secret');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $this->em()->clear();
         $stored = $this->em()->find(GitHubHook::class, $hook->id);
         self::assertNotNull($stored);
@@ -39,7 +39,7 @@ final class RotateGitHubHookSecretControllerTest extends WebTestCase
         self::assertSame(AuditOutcome::Success, $audit->record('github.hook_secret_rotated')->outcome);
 
         $crawler = $client->followRedirect();
-        self::assertSame($stored->secret, trim($crawler->filter('#repositories [data-testid="github-hook-secret"]')->text()));
+        self::assertSame($stored->secret, trim($crawler->filter('#github-connection [data-testid="github-hook-secret"]')->text()));
     }
 
     public function test_without_a_hook_nothing_rotates(): void
@@ -52,9 +52,9 @@ final class RotateGitHubHookSecretControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook/secret');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $crawler = $client->followRedirect();
-        self::assertCount(0, $crawler->filter('#repositories [data-testid="github-hook-secret"]'));
+        self::assertCount(0, $crawler->filter('#github-connection [data-testid="github-hook-secret"]'));
     }
 
     public function test_a_stranger_is_forbidden_and_the_secret_stays(): void
@@ -86,7 +86,7 @@ final class RotateGitHubHookSecretControllerTest extends WebTestCase
         $client->loginUser($owner);
         $this->postAction($client, '/projects/'.$project->id.'/github/hook/secret');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect#github-hook');
         $crawler = $client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('The operator has not enabled webhooks', $crawler->filter('body')->text());

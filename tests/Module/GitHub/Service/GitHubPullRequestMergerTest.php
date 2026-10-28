@@ -68,16 +68,18 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 73_001);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
             $this->answer(['sha' => 'merge1', 'merged' => true, 'message' => 'Pull Request successfully merged']),
         ];
 
-        $this->merger()->merge($pullRequest, $method, 'head1');
+        $this->merger()->merge($pullRequest, [$method], 'head1');
 
-        self::assertCount(2, $this->requests);
+        self::assertCount(3, $this->requests);
         self::assertSame('https://api.github.com/app/installations/73001/access_tokens', $this->requests[0]['url']);
-        self::assertSame('PUT', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/pulls/604/merge', $this->requests[1]['url']);
-        $body = $this->requests[1]['options']['body'] ?? null;
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site', $this->requests[1]['url']);
+        self::assertSame('PUT', $this->requests[2]['method']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/pulls/604/merge', $this->requests[2]['url']);
+        $body = $this->requests[2]['options']['body'] ?? null;
         self::assertIsString($body);
         self::assertSame(['merge_method' => $method, 'sha' => 'head1'], json_decode($body, true, flags: \JSON_THROW_ON_ERROR));
     }
@@ -89,10 +91,96 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         $this->expectException(\InvalidArgumentException::class);
 
         try {
-            $this->merger()->merge($pullRequest, 'fast-forward', 'head1');
+            $this->merger()->merge($pullRequest, ['squash', 'fast-forward'], 'head1');
         } finally {
             self::assertSame([], $this->requests);
         }
+    }
+
+    /** @return iterable<string, array{array<string, bool>, ?list<string>, list<string>, ?string}> */
+    public static function choices(): iterable
+    {
+        $all = ['allow_squash_merge' => true, 'allow_merge_commit' => true, 'allow_rebase_merge' => true];
+
+        yield 'every method allowed takes the first of the list' => [$all, null, ['squash', 'merge', 'rebase'], 'squash'];
+        yield 'a repository with squash off takes the next method' => [[...$all, 'allow_squash_merge' => false], null, ['squash', 'merge', 'rebase'], 'merge'];
+        yield 'a ruleset that allows rebase alone takes rebase' => [$all, ['rebase'], ['squash', 'merge', 'rebase'], 'rebase'];
+        yield 'a method must pass the switches and the rules' => [[...$all, 'allow_merge_commit' => false], ['merge', 'rebase'], ['squash', 'merge', 'rebase'], 'rebase'];
+        yield 'the order of the list decides' => [$all, null, ['rebase', 'squash'], 'rebase'];
+        yield 'a method outside the list is never chosen' => [[...$all, 'allow_squash_merge' => false], ['squash'], ['squash', 'merge'], null];
+        yield 'every switch off leaves none' => [['allow_squash_merge' => false, 'allow_merge_commit' => false, 'allow_rebase_merge' => false], null, ['squash', 'merge', 'rebase'], null];
+    }
+
+    /**
+     * @param array<string, bool> $switches
+     * @param ?list<string>       $ruleMethods
+     * @param list<string>        $methods
+     */
+    #[DataProvider('choices')]
+    public function test_it_merges_with_the_first_method_that_the_repository_and_its_rules_allow(array $switches, ?array $ruleMethods, array $methods, ?string $expected): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_030, base: 'main');
+        $rules = null === $ruleMethods ? [] : [['type' => 'pull_request', 'parameters' => ['required_approving_review_count' => 0, 'allowed_merge_methods' => $ruleMethods]]];
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($switches),
+            $this->answer($rules),
+            $this->answer(['merged' => true]),
+        ];
+
+        if (null === $expected) {
+            $failure = $this->failureWith($pullRequest, $methods);
+            self::assertSame('no_merge_method', $failure->cause);
+            self::assertTrue($failure->permanent);
+            self::assertCount(3, $this->requests);
+            self::assertSame('GET', $this->requests[2]['method']);
+            self::assertSame('https://api.github.com/repos/loupe-ac/loupe/rules/branches/main?per_page=100&page=1', $this->requests[2]['url']);
+
+            return;
+        }
+
+        $this->merger()->merge($pullRequest, $methods, 'head1');
+
+        self::assertCount(4, $this->requests);
+        $body = $this->requests[3]['options']['body'] ?? null;
+        self::assertIsString($body);
+        self::assertSame(['merge_method' => $expected, 'sha' => 'head1'], json_decode($body, true, flags: \JSON_THROW_ON_ERROR));
+    }
+
+    public function test_two_rules_that_limit_the_methods_leave_only_what_both_allow(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_031, base: 'main');
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
+            $this->answer([
+                ['type' => 'pull_request', 'parameters' => ['allowed_merge_methods' => ['squash', 'merge']]],
+                ['type' => 'pull_request', 'parameters' => ['allowed_merge_methods' => ['merge', 'rebase']]],
+            ]),
+            $this->answer(['merged' => true]),
+        ];
+
+        $this->merger()->merge($pullRequest, ['squash', 'merge', 'rebase'], 'head1');
+
+        $body = $this->requests[3]['options']['body'] ?? null;
+        self::assertIsString($body);
+        self::assertSame('merge', json_decode($body, true, flags: \JSON_THROW_ON_ERROR)['merge_method']);
+    }
+
+    public function test_an_unreadable_rule_list_is_a_transient_failure_and_merges_nothing(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_032, base: 'main');
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
+            new MockResponse('{"message":"Server Error"}', ['http_code' => 502]),
+        ];
+
+        $failure = $this->failure($pullRequest);
+
+        self::assertSame('api_failed_http_status_502', $failure->cause);
+        self::assertFalse($failure->permanent);
+        self::assertCount(3, $this->requests);
     }
 
     /** @return iterable<string, array{int, string}> */
@@ -112,6 +200,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         $pullRequest = $this->tracked('loupe-ac/loupe', 73_010 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
             new MockResponse('{"message":"No"}', ['http_code' => $status]),
         ];
 
@@ -136,6 +225,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         $pullRequest = $this->tracked('loupe-ac/loupe', 73_020 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
             new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => $status, 'response_headers' => $headers]),
         ];
 
@@ -151,6 +241,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         $pullRequest = $this->tracked('loupe-ac/loupe', 73_003);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
             new MockResponse('{"message":"Server Error"}', ['http_code' => 502]),
         ];
 
@@ -214,12 +305,13 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         self::assertSame([], $this->requests);
     }
 
-    private function tracked(string $path, int $installationId): ForgePullRequest
+    private function tracked(string $path, int $installationId, ?string $base = null): ForgePullRequest
     {
         $project = $this->project();
         $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
+        $pullRequest->baseBranch = $base;
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -260,12 +352,29 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     private function failure(ForgePullRequest $pullRequest, ?string $appId = '123456'): PullRequestWriteFailed
     {
         try {
-            $this->merger($appId)->merge($pullRequest, 'squash', 'head1');
+            $this->merger($appId)->merge($pullRequest, ['squash'], 'head1');
         } catch (PullRequestWriteFailed $e) {
             return $e;
         }
 
         self::fail('Expected PullRequestWriteFailed.');
+    }
+
+    /** @param list<string> $methods */
+    private function failureWith(ForgePullRequest $pullRequest, array $methods): PullRequestWriteFailed
+    {
+        try {
+            $this->merger()->merge($pullRequest, $methods, 'head1');
+        } catch (PullRequestWriteFailed $e) {
+            return $e;
+        }
+
+        self::fail('Expected PullRequestWriteFailed.');
+    }
+
+    private function repository(): MockResponse
+    {
+        return $this->answer(['allow_squash_merge' => true, 'allow_merge_commit' => true, 'allow_rebase_merge' => true]);
     }
 
     /** @param array<mixed> $body */

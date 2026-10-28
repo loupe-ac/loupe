@@ -78,6 +78,10 @@ class WorkflowRuleState
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $heldByBlockerSince = null;
 
+    /** When the engine first held the rule's request because the project holds its new work. Null once the rule asks again or no longer holds. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $heldByWorkHoldSince = null;
+
     public function __construct(
         /** No foreign key, as the card may go. A Board listener deletes the row through WorkflowRowCleanup. */
         #[ORM\Column(type: UuidType::NAME)]
@@ -111,5 +115,6 @@ class WorkflowRuleState
         $this->askItemId = null;
         $this->answeringRunId = null;
         $this->heldByBlockerSince = null;
+        $this->heldByWorkHoldSince = null;
     }
 }
