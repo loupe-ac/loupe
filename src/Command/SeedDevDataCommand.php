@@ -83,6 +83,8 @@ final class SeedDevDataCommand extends Command
         $this->experiment->seed($project, 'implement-merge-time', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']]);
         $this->experiment->seed($project, 'implement-goal-typo', ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower']]);
         $this->experiment->seed($project, 'implement-no-direction', ['goal' => ['metric' => 'hours-to-merge']]);
+        // The template metrics in the Comparison table, with the pull request history that hours to merge reads.
+        $this->experiment->seed($project, 'implement-template-metrics', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], ['cost', 'merge-rate', 'hours-to-merge']);
         $this->codexRuns->seed($project);
         $this->analyses->seed($project, DevExperimentSeeder::EXPERIMENT);
         $this->artifacts->seed($project);

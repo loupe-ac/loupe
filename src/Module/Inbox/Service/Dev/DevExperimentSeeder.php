@@ -7,6 +7,8 @@ namespace App\Module\Inbox\Service\Dev;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -21,6 +23,7 @@ use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
@@ -71,18 +74,20 @@ final readonly class DevExperimentSeeder
     }
 
     /**
-     * False when the project already holds the experiment, so a second run adds nothing.
+     * False when the project already holds the experiment, so a second run adds nothing. With $metrics, the
+     * experiment lists those metrics, and each merged card gets a pull request that opened and merged.
      *
      * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     * @param list<string>|null                                                                $metrics
      */
-    public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null): bool
+    public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null, ?array $metrics = null): bool
     {
         if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
             return false;
         }
 
         $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
-        $definition->metrics = ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
+        $definition->metrics = $metrics ?? ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
         $definition->headline = $headline;
         $this->em->persist($definition);
 
@@ -98,6 +103,7 @@ final readonly class DevExperimentSeeder
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
             $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
 
+            $openedAt = $at->modify('+20 hours');
             foreach ($runs as [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
                 $this->run($project, $card, $experiment, $variant, $at, $minutes, $cost);
@@ -107,6 +113,9 @@ final readonly class DevExperimentSeeder
             }
             if ($merged) {
                 $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
+                if (null !== $metrics) {
+                    $this->pullRequest($project, $card, $openedAt, $at->modify('+2 hours'));
+                }
             }
             if ($column->terminal) {
                 $card->completedAt = $at->modify('+2 hours');
@@ -125,6 +134,15 @@ final readonly class DevExperimentSeeder
         $this->cardEvents->record($card, CardEventKind::Created, Actor::Agent, null, [], $createdAt);
 
         return $card;
+    }
+
+    private function pullRequest(Project $project, Card $card, \DateTimeImmutable $openedAt, \DateTimeImmutable $mergedAt): void
+    {
+        $this->em->persist(new CardPullRequest($card, 'https://github.com/example/experiment/pull/'.$card->number, Forge::GitHub, 'example/experiment', $card->number));
+        $state = new ForgePullRequest($project, 'github', 'example/experiment', $card->number);
+        $state->openedAt = $openedAt;
+        $state->mergedAt = $mergedAt;
+        $this->em->persist($state);
     }
 
     /** A settled fix request, which the experiment counts as a fix round of the reason. */
