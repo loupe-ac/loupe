@@ -109,6 +109,37 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
         self::assertNotContains($gone->toRfc4122(), $this->reply($client)['watchSessions']);
     }
 
+    public function test_the_heartbeat_never_watches_or_closes_a_session_whose_process_the_bridge_cannot_check(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set('clock', new MockClock(self::NOW));
+        $owner = $this->user($this->em(), 'session-codex@example.com');
+        $project = $this->project($this->em(), $owner, 'Session codex');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = Uuid::v4();
+        $codex = Uuid::v4();
+        $claude = Uuid::v4();
+        $codexRun = $this->open($project, $codex, $bridgeId);
+        $claudeRun = $this->open($project, $claude, $bridgeId);
+        $this->startedAt($codexRun, '2026-10-28 11:00:00');
+        $this->startedAt($claudeRun, '2026-10-28 11:00:00');
+        $this->harness($codexRun, 'codex');
+        $this->harness($claudeRun, 'claude-code');
+
+        $this->heartbeat($client, $bridgeId, $raw, []);
+        self::assertSame([$claude->toRfc4122()], $this->reply($client)['watchSessions']);
+
+        $this->heartbeat($client, $bridgeId, $raw, [
+            ['sessionId' => $codex->toRfc4122(), 'alive' => false, 'transcriptAt' => null],
+            ['sessionId' => $claude->toRfc4122(), 'alive' => false, 'transcriptAt' => null],
+        ]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(WorkerRunState::Running, $this->reload($codexRun)->state, 'a Codex process carries no session id, so the bridge cannot see it');
+        self::assertSame(WorkerRunCloseReason::SessionGone, $this->reload($claudeRun)->closeReason);
+    }
+
     public function test_a_transcript_time_counts_as_activity_and_a_future_time_counts_as_now(): void
     {
         $client = static::createClient();
@@ -168,6 +199,11 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
     private function startedAt(WorkerRun $run, string $at): void
     {
         $this->em()->getConnection()->executeStatement('UPDATE bridge_worker_runs SET started_at = :at WHERE id = :id', ['at' => $at, 'id' => (string) $run->id]);
+    }
+
+    private function harness(WorkerRun $run, string $harness): void
+    {
+        $this->em()->getConnection()->executeStatement('UPDATE bridge_worker_runs SET harness = :harness WHERE id = :id', ['harness' => $harness, 'id' => (string) $run->id]);
     }
 
     private function reload(WorkerRun $run): WorkerRun

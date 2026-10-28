@@ -346,7 +346,8 @@ reason in the drawer, under **Closed because**.
 2. **The session process is gone.** A bridge checks each interactive session
    that it launched, once a minute. When the Claude process of the session no
    longer runs, Loupe closes the run, with the reason **The session process is
-   gone**. A run younger than two minutes stays open.
+   gone**. A run younger than two minutes stays open. The bridge cannot find a
+   Codex process by its session, so this check skips a Codex session.
 3. **No sign of life for too long.** Loupe closes an open interactive run that
    shows no sign of life for 12 hours, with the reason **No sign of life for too
    long**. The `bridge.interactive_stale_close_enabled` feature flag switches

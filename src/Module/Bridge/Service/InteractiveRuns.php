@@ -277,14 +277,16 @@ final readonly class InteractiveRuns
 
     /**
      * Closes the open run of the session that the bridge launched, in any project of the owner, when it started
-     * before $startedBefore. The grace period keeps a reading that predates the launch from closing a new run.
+     * before $startedBefore. The grace period keeps a reading that predates the launch from closing a new run. A run
+     * of a harness that the bridge cannot find in the process list, such as Codex, stays open.
      */
     public function closeLaunched(Uuid $bridgeId, User $owner, Uuid $sessionId, \DateTimeImmutable $startedBefore, WorkerRunCloseReason $reason): int
     {
         return \count($this->closeFound(
             fn (): array => array_values(array_filter(
                 $this->workerRuns->findOpenInteractiveOfBridgeForUpdate($bridgeId, $owner, [$sessionId]),
-                static fn (WorkerRun $run): bool => null !== $run->startedAt && $run->startedAt < $startedBefore,
+                static fn (WorkerRun $run): bool => null !== $run->startedAt && $run->startedAt < $startedBefore
+                    && \in_array($run->harness ?? '', WorkerRun::PROCESS_CHECKED_HARNESSES, true),
             )),
             $reason,
         ));

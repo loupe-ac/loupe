@@ -92,6 +92,9 @@ class WorkerRun implements ProjectScopedSubject
     /** The name of a harness, such as claude-code or codex. */
     public const string HARNESS_PATTERN = '/^[a-z][a-z0-9-]{0,39}$/D';
 
+    /** The harnesses whose process the bridge can find by session id. A run with no harness ran Claude Code. */
+    public const array PROCESS_CHECKED_HARNESSES = ['', 'claude-code'];
+
     public const int MAX_ACCOUNT_LENGTH = 64;
 
     /** The short name of a harness account. Never a path or a key. */

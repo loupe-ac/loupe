@@ -746,10 +746,10 @@ A run that closed before the reason existed shows none.
 
 ## Feature flag and rate limit
 
-The endpoints on this page need the `agent.push.enabled` feature flag, as
-`GET /api/events` does. A bridge reaches a worker only through the event
+The endpoints on this page, except the session close endpoint, need the
+`agent.push.enabled` feature flag, as `GET /api/events` does. A bridge reaches a worker only through the event
 stream, so an instance with push off can produce no run to report, and each
-endpoint answers 404 there.
+of those endpoints answers 404 there.
 
 ### Rate limit
 

@@ -342,7 +342,9 @@ more samples in each heartbeat, and no more heartbeats.
 
 A bridge that launches an interactive session reports its liveness in the heartbeat. The reply carries
 `watchSessions`, the ids of the open interactive runs that this bridge launched, in any project of its owner.
-The reply names a run until it closes, also when the bridge stopped following its project.
+The reply names a run until it closes, also when the bridge stopped following its project. It names only a Claude
+Code run, because a Codex process carries no session id that the bridge can find. The 12-hour stale close covers
+a Codex run.
 
 The next heartbeat carries `interactiveSessions`, one reading for each watched session:
 
@@ -354,7 +356,8 @@ The next heartbeat carries `interactiveSessions`, one reading for each watched s
 
 An `alive` reading of `true` is a sign of life now. A `transcriptAt` time counts as a sign of life at that time,
 and never later than now. An `alive` reading of `false` closes the run with the reason `session-gone`, when the run
-started more than two minutes before. A reading for a session that this bridge did not launch changes nothing.
+started more than two minutes before. A reading for a session that this bridge did not launch, or for a Codex
+run, changes nothing.
 A bridge that predates the field sends none, and nothing changes for it.
 
 ## Open runs of a quiet bridge
