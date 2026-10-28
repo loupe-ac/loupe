@@ -332,7 +332,7 @@ final class RotateSecretsTest extends TestCase
         self::assertSame(['current=old previous=none'], file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->value('app_secret'));
         foreach (['install_token', 'health_probe_token', 'mercure_jwt_secret', 'oauth_encryption_key'] as $name) {
-            self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->value($name), $name);
+            self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value($name), $name);
         }
         self::assertNotSame($this->value('install_token'), $this->value('health_probe_token'));
         $output = $process->getOutput().$process->getErrorOutput();
@@ -385,7 +385,7 @@ final class RotateSecretsTest extends TestCase
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         $pass = $this->value('oauth_private_key_passphrase');
-        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $pass);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $pass);
         $key = openssl_pkey_get_private($this->value('oauth_private_key'), $pass);
         self::assertNotFalse($key);
         $details = openssl_pkey_get_details($key);
@@ -448,7 +448,7 @@ final class RotateSecretsTest extends TestCase
 
         self::assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
         $new = $this->value('github_app_webhook_secret');
-        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $new);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $new);
         self::assertNotSame('old-webhook-secret', $new);
         $events = file($this->dir.'/events.log', \FILE_IGNORE_NEW_LINES) ?: [];
         $apply = array_search('apply', $events, true);

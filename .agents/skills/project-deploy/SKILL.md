@@ -149,7 +149,7 @@ so check yourself.
 
 ```bash
 just tf-plan -out=deploy.tfplan                       # read it, then apply the file you read
-just tf-apply deploy.tfplan; rm -f terraform/deploy.tfplan
+just tf-apply deploy.tfplan; s=$?; rm -f terraform/deploy.tfplan; (exit $s)
 ```
 
 Apply the saved plan rather than re-planning, so what lands is what you reviewed.

@@ -433,7 +433,10 @@ describe('no-secret-reads.sh', () => {
         ['terraform show -json terraform/deploy.tfplan', 'deny'],
         ['cp terraform/deploy.tfplan /tmp/x', 'deny'],
         ['just tf-plan -out=deploy.tfplan', 'allow'],
-        ['just tf-apply deploy.tfplan; rm -f terraform/deploy.tfplan', 'allow'],
+        [
+            'just tf-apply deploy.tfplan; s=$?; rm -f terraform/deploy.tfplan; (exit $s)',
+            'allow',
+        ],
         ['terraform show terraform/deploy.tfplan', 'allow'],
         ['bin/tf-plan-diff terraform/deploy.tfplan MY_VAR', 'allow'],
         ['bin/tf-secrets exec -- env', 'deny'],
