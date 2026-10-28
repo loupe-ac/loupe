@@ -26,9 +26,55 @@ of the bridge when the account names none.
 
 ## The comparison
 
-The **Comparison** tab starts with a short answer. It names the cheaper of the
-first two variants by cost per merged card, and the share it saves. It also
-says whether the merge rate and the fix rounds give a clear answer.
+The **Comparison** tab starts with the **Goal** panel. The goal is the metric
+that the experiment tries to improve, and the direction that is better: `lower`
+or `higher`. The panel names the better of the first two variants by name and
+says by how much, for example "sonnet is 22% faster than opus". It also shows
+the value of each variant and the likely range of the change.
+
+The panel has three states:
+
+| State | Meaning |
+|---|---|
+| Not enough cards yet | A variant has fewer than 5 cards behind the figure of the goal. A rate counts the finished cards. A value for each merged card counts the merged cards that have a value. The panel shows the count of each variant, up to 5 |
+| Not clear yet | Each variant has at least 5 cards behind the figure, and the likely ranges of the two variants overlap. The better variant only leans ahead |
+| Clear | Each variant has at least 5 cards behind the figure, and the likely ranges do not overlap |
+
+Close values do not make the answer clear, unlike in the metrics table. The panel says "The variants are level" when the two values are equal, and "under 1%" when the change rounds to zero. The large line uses "faster" for a duration, "cheaper" for the cost, "fewer" for a count, and "lower" or "higher" for any other metric. A goal
+that is a rate, such as the merge rate, gives the change in points instead of a
+share, for example "6 points higher".
+
+The **Guards** table follows the panel. A guard is a metric that the winner must
+not make worse. Each row shows the change from the first variant to the second,
+and the likely range of that change. A rate shows both rates, for example
+"92% to 86%", and its range in percentage points (pp). A guard with no data
+shows a dash. The page has no Guards table when the experiment has no guard.
+
+By default the goal is the cost per merged card, and lower is better. The
+guards are the merge rate and the fix rounds per merged card, when the workflow
+template of the project declares them. An experiment can set another goal and
+other guards with a `headline` in `rules.yaml`:
+
+```yaml
+work:
+  implement:
+    prompt: Implement card {cardNumber}.
+    variants:
+      - {name: opus, weight: 1, model: opus}
+      - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
+    headline:
+      goal: {metric: hours-to-merge, better: lower}
+      guards: [merge-rate, fix-rounds]
+```
+
+A goal with a key that no metric has, or a goal with no `better`, names no
+winner. The panel then says what is wrong, for example "The headline goal
+hours-to-mrege is not a metric of this project". A guard key that no metric has
+is left out, and a note under the panel names it. The
+[bridge reference](../extending/cli-bridge.md) says how the bridge checks a
+`headline`. The `experiment_get` tool returns the same answer in its `headline`
+field: `headline.goal` has the metric, the direction, the state, the winner and
+the change, and `headline.guards` has one entry for each guard.
 
 The variants table shows, for each variant:
 

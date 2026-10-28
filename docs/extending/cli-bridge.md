@@ -1115,6 +1115,30 @@ with each pin request, so the latest list wins. The bridge does not know the
 metrics of the server, so it checks the shape of each key only. The server
 shows a note for a key that it does not know. A key such as `merge-rate` is known only when the workflow template of the project declares it.
 
+An entry with variants can also set a `headline`. The headline picks the goal
+metric of the experiment and its guards. A goal names a `metric` and says
+whether `lower` or `higher` is `better`. A guard is a metric that must not get
+worse:
+
+```yaml
+work:
+  implement:
+    prompt: Implement card {cardNumber}.
+    variants:
+      - {name: opus, weight: 1, model: opus}
+      - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
+    headline:
+      goal: {metric: hours-to-merge, better: lower}
+      guards: [merge-rate, fix-rounds]
+```
+
+Both keys are optional, but a headline needs at least one. An entry with no
+`goal` or no `guards` key uses the defaults of the server. An explicit
+`guards: []` means no guards. The goal metric cannot also be a guard. A goal
+with no `better` loads, and the Comparison tab then asks for a direction. The
+bridge sends the headline with each pin request, and sends nothing when the
+entry has no headline. It checks the shape of each key only.
+
 The `experiment` field names the experiment of an entry with variants. Use it
 to start a new trial on a kind of work without mixing it with an old one. The
 old experiment keeps its cards, its pins and its figures:
@@ -1140,9 +1164,14 @@ that already ran the same kind of work in another experiment, as
 The bridge refuses the file, at start and on a reload, when:
 
 - an entry sets both `model` and `variants`
-- an interactive entry or a command entry sets `variants`, `metrics` or
-  `experiment`
-- an entry sets `metrics` or `experiment` and no `variants`
+- an interactive entry or a command entry sets `variants`, `metrics`,
+  `headline` or `experiment`
+- an entry sets `metrics`, `headline` or `experiment` and no `variants`
+- a `headline` has neither a `goal` nor `guards`
+- a `goal` has a `better` other than `lower` or `higher`, or a metric key that
+  does not match the shape. A `goal` with no `better` loads
+- a headline lists more than 16 guards, one guard twice, or the goal metric as
+  a guard
 - an `experiment` value does not match `^[a-z0-9][a-z0-9_-]{0,63}$`, an empty
   value included
 - two entries name the same experiment, by the field or by the kind
@@ -1604,7 +1633,7 @@ afterwards. It passes each element unchanged, and the removal shares the
 `timeout` of the entry. Each element takes the placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
-`permissions`, `variants`, `metrics`, `workerPool`, `before`, `refresh` and `reset` on a command
+`permissions`, `variants`, `metrics`, `headline`, `workerPool`, `before`, `refresh` and `reset` on a command
 entry. A worker or interactive entry cannot set `params` or `description`.
 
 ### Command parameters
@@ -1763,7 +1792,7 @@ lives in one repository. The entry sets nothing else. When the run ends done,
 Loupe records on the epic the blockers that were done when the work opened.
 
 A worker entry takes `prompt`, `account`,
-`model`, `permissions`, `before`, `workerPool`, `variants` and `metrics`. A command entry takes
+`model`, `permissions`, `before`, `workerPool`, `variants`, `metrics` and `headline`. A command entry takes
 `run` and `timeout`. The rule check
 refuses a field that the action does not use.
 
@@ -2100,7 +2129,7 @@ work:
 ```
 
 An interactive entry takes `prompt`, `account`, `model` and `permissions`. The check
-refuses `before`, `variants`, `metrics` and `workerPool` on it. It also refuses the action
+refuses `before`, `variants`, `metrics`, `headline` and `workerPool` on it. It also refuses the action
 on Windows, because the launch script is a POSIX shell script. The action works
 on macOS and Linux.
 

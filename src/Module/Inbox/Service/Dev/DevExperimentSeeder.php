@@ -70,15 +70,20 @@ final readonly class DevExperimentSeeder
     ) {
     }
 
-    /** False when the project already holds the experiment, so a second run adds nothing. */
-    public function seed(Project $project): bool
+    /**
+     * False when the project already holds the experiment, so a second run adds nothing.
+     *
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     */
+    public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null): bool
     {
-        if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EXPERIMENT]) instanceof ExperimentDefinition) {
+        if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
             return false;
         }
 
-        $definition = new ExperimentDefinition($project, self::EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+        $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
         $definition->metrics = ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
+        $definition->headline = $headline;
         $this->em->persist($definition);
 
         $columns = [];
@@ -91,11 +96,11 @@ final readonly class DevExperimentSeeder
             $column = $columns[$slug] ?? throw new \LogicException(\sprintf('The project has a %s column.', $slug));
             $card = $this->card($project, $column, $title, $type, $number + $index, $at->modify('-10 days'));
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
-            $this->em->persist(new ExperimentPin($project, $cardId, self::EXPERIMENT, $variant, $at, $at));
+            $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
 
             foreach ($runs as [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
-                $this->run($project, $card, $variant, $at, $minutes, $cost);
+                $this->run($project, $card, $experiment, $variant, $at, $minutes, $cost);
             }
             foreach ($fixReasons as $reason) {
                 $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
@@ -143,7 +148,7 @@ final readonly class DevExperimentSeeder
     }
 
     /** WorkerRunFactListener writes the fact row of the run on flush. */
-    private function run(Project $project, Card $card, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd): void
+    private function run(Project $project, Card $card, string $experiment, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd): void
     {
         $run = new WorkerRun(
             project: $project,
@@ -161,7 +166,7 @@ final readonly class DevExperimentSeeder
             output: 'The pull request is open.',
             receivedAt: $endedAt,
         );
-        $run->experiment = self::EXPERIMENT;
+        $run->experiment = $experiment;
         $run->variant = $variant;
         $run->requestedModel = self::MODELS[$variant];
         $run->recordHarness('claude-code', 'claude', null, null);

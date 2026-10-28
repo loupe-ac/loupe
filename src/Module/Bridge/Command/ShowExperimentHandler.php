@@ -8,9 +8,11 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\ExperimentCard;
-use App\Module\Bridge\Experiment\ExperimentHeadline;
+use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
+use App\Module\Bridge\Experiment\GoalDirection;
+use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
@@ -43,6 +45,8 @@ final readonly class ShowExperimentHandler
     public const int PER_PAGE = 20;
 
     /** The metrics of an experiment whose rule declares none, in display order. The ones the project's template does not declare drop out. */
+    public const array DEFAULT_GUARDS = [ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS];
+
     public const array DEFAULT_METRICS = [
         ExperimentMetric::MERGE_RATE,
         ExperimentMetric::STOP_RATE,
@@ -190,10 +194,10 @@ final readonly class ShowExperimentHandler
             );
         }
 
-        // The headline reads the cost, and the merge rate and the fix rounds when the template declares them.
-        $headlineKeys = [ExperimentMetric::COST, ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS];
+        // The goal and the guards are computed even when the entry's metrics leave them out.
+        [$goalKey, $direction, $guardKeys, $unknownGuards, $goalProblem] = self::headlineSpec($definition?->headline, $templates);
         $wanted = $shapes;
-        foreach ($headlineKeys as $key) {
+        foreach ([$goalKey, ...$guardKeys] as $key) {
             $shape = self::shapeOf($key, $templates);
             if (null !== $shape) {
                 $wanted[$key] ??= $shape;
@@ -219,11 +223,20 @@ final readonly class ShowExperimentHandler
         return new ExperimentReportView(
             project: $project,
             experiment: $experiment,
-            headline: [] === $computed ? null : self::headline($variantNames, $computed[ExperimentMetric::COST], array_filter([$computed[ExperimentMetric::MERGE_RATE] ?? null, $computed[ExperimentMetric::FIX_ROUNDS] ?? null])),
+            headline: [] === $computed ? null : ExperimentHeadlineBuilder::build(
+                $experiment,
+                $variantNames,
+                $finished,
+                $computed[$goalKey] ?? new ExperimentMetric($goalKey, [], false),
+                $direction,
+                array_map(static fn (string $key): ExperimentMetric => $computed[$key], $guardKeys),
+                $goalProblem,
+            ),
             variants: $variants,
             metrics: $metrics,
             declaredMetrics: $declared,
             unknownMetrics: $unknownMetrics,
+            unknownGuards: $unknownGuards,
             includedCards: $included,
             leftOutCards: \count($cards) - $included,
             cards: array_column(\array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE), 'card'),
@@ -309,16 +322,17 @@ final readonly class ShowExperimentHandler
         $metric = static function (string $key, ?MetricShape $shape, callable $sample, array $parts = [], ?string $label = null) use ($variantNames): ExperimentMetric {
             $byVariant = [];
             $cardCounts = [];
+            $samples = [];
             foreach ($variantNames as $name) {
-                [$byVariant[$name], $cardCounts[$name]] = $sample($name);
+                [$byVariant[$name], $cardCounts[$name], $samples[$name]] = $sample($name);
             }
 
-            return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $byVariant, $cardCounts), array_values($parts), $shape, $label);
+            return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $byVariant, $cardCounts), array_values($parts), $shape, $label, $samples);
         };
         $bootstrap = static fn (MetricValueType $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $delivered, $experiment): array {
             $values = array_values(array_filter(array_map($value, $delivered[$name]), static fn (int|float|null $item): bool => null !== $item));
 
-            return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values)];
+            return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values), $values];
         };
 
         $metrics = [];
@@ -336,7 +350,7 @@ final readonly class ShowExperimentHandler
                     $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'runs')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
                     $values = array_values(array_map(static fn (WorkerRun $run): int => $run->state->isStop() ? 1 : 0, $closed));
 
-                    return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
+                    return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name], $values];
                 }),
                 Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
                 Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
@@ -367,7 +381,7 @@ final readonly class ShowExperimentHandler
             return $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key, $value): array {
                 $sample = array_values(array_map(static fn (array $row): int => (int) $value($row), array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['finished'])));
 
-                return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $sample), $finished[$name]];
+                return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $sample), $finished[$name], $sample];
             }, [], $template->label);
         }
 
@@ -440,25 +454,40 @@ final readonly class ShowExperimentHandler
     }
 
     /**
-     * The quality is settled when every quality metric the template declares gives a clear answer. A template that declares none settles nothing.
+     * The goal metric, its direction, and the guards. Without a goal the cost is the goal, and lower is better. A goal that no metric has, or that has no better way, comes back with the state that says so, and names no winner. A guard that no metric has falls out and is listed. Without guards the default guards apply, less the goal and the ones the template does not declare.
      *
-     * @param list<string>                 $variantNames
-     * @param array<int, ExperimentMetric> $quality
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     *
+     * @return array{string, ?GoalDirection, list<string>, list<string>, ?GoalState} goal key, direction, guard keys, unknown guard keys, the problem of the goal
      */
-    private static function headline(array $variantNames, ExperimentMetric $cost, array $quality): ExperimentHeadline
+    private static function headlineSpec(?array $headline, TemplateMetricSet $templates): array
     {
-        $cheaper = null;
-        $saving = null;
-        if (\count($variantNames) >= 2) {
-            [$a, $b] = $variantNames;
-            $costA = $cost->for($a);
-            $costB = $cost->for($b);
-            if (null !== $costA && null !== $costB) {
-                [$cheaper, $low, $high] = $costA->point <= $costB->point ? [$a, $costA->point, $costB->point] : [$b, $costB->point, $costA->point];
-                $saving = $high > 0 ? 1 - $low / $high : null;
+        $goalKey = ExperimentMetric::COST;
+        $direction = GoalDirection::Lower;
+        $problem = null;
+        if (isset($headline['goal'])) {
+            $goalKey = $headline['goal']['metric'];
+            $direction = GoalDirection::tryFrom($headline['goal']['better'] ?? '');
+            if (null === self::shapeOf($goalKey, $templates)) {
+                $problem = GoalState::UnknownMetric;
+            } elseif (null === $direction) {
+                $problem = GoalState::NoDirection;
             }
         }
 
-        return new ExperimentHeadline($cheaper, $saving, $cost->clear, [] !== $quality && array_all($quality, static fn (ExperimentMetric $metric): bool => $metric->clear));
+        $guardKeys = [];
+        $unknown = [];
+        foreach ($headline['guards'] ?? self::DEFAULT_GUARDS as $key) {
+            if ($key === $goalKey && !isset($headline['guards'])) {
+                continue;
+            }
+            if (null !== self::shapeOf($key, $templates)) {
+                $guardKeys[$key] = $key;
+            } elseif (isset($headline['guards'])) {
+                $unknown[$key] = $key;
+            }
+        }
+
+        return [$goalKey, $direction, array_values($guardKeys), array_values($unknown), $problem];
     }
 }

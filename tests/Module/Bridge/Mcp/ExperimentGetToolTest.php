@@ -47,7 +47,25 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['cost', 'merge-rate', 'no-such-metric'], $result['declaredMetrics']);
         self::assertSame(['no-such-metric'], $result['unknownMetrics']);
         self::assertSame(Stats::MIN_FINISHED_CARDS, $result['minFinishedCards']);
-        self::assertSame(['cheaperVariant' => 'b', 'saving' => 0.5, 'costClear' => true, 'qualitySettled' => true], $result['headline']);
+        self::assertSame([], $result['unknownGuards']);
+        self::assertSame([
+            'key' => 'cost',
+            'label' => 'Cost per merged card',
+            'valueType' => 'money',
+            'direction' => 'lower',
+            'state' => 'clear',
+            'variants' => [
+                ['name' => 'a', 'point' => 2.0, 'finishedCards' => 5],
+                ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5],
+            ],
+            'winner' => 'b',
+            'changeKind' => 'relative',
+            'change' => ['point' => -0.5, 'low' => -0.5, 'high' => -0.5],
+        ], $result['headline']['goal']);
+        self::assertSame(['merge-rate'], array_column($result['headline']['guards'], 'key'));
+        self::assertSame('ratio', $result['headline']['guards'][0]['valueType']);
+        self::assertSame([['name' => 'a', 'point' => 1.0, 'finishedCards' => 5], ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5]], $result['headline']['guards'][0]['variants']);
+        self::assertEqualsWithDelta(0.0, $result['headline']['guards'][0]['change']['point'] ?? null, 1e-12);
         self::assertSame([
             ['name' => 'a', 'model' => 'model-a', 'weight' => 3, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 10.0],
             ['name' => 'b', 'model' => 'model-b', 'weight' => 1, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 5.0],
@@ -82,6 +100,29 @@ final class ExperimentGetToolTest extends KernelTestCase
             'leftOut' => ['switched'],
         ], $result['cards'][0]);
         self::assertSame(2.0, $this->cardOf($result['cards'], 1)['costUsd']);
+    }
+
+    public function test_a_goal_that_no_metric_has_names_no_winner(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-typo@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower'], 'guards' => []];
+        $em->persist($definition);
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a'), costUsd: '2.000000');
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i + 5, merged: true), 'b'), costUsd: '1.000000');
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $goal = $this->tool()('model-test')['headline']['goal'];
+
+        self::assertSame('hours-to-mrege', $goal['key']);
+        self::assertSame('hours-to-mrege', $goal['label']);
+        self::assertNull($goal['valueType']);
+        self::assertSame('unknown-metric', $goal['state']);
+        self::assertNull($goal['winner']);
+        self::assertNull($goal['change']);
     }
 
     public function test_the_metric_parts_take_the_value_type_of_their_metric(): void

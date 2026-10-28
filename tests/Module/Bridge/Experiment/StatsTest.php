@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Experiment;
 
+use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\Stats;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -114,5 +115,95 @@ final class StatsTest extends TestCase
     public function test_is_clear(Interval $a, Interval $b, int $finishedA, int $finishedB, bool $expected): void
     {
         self::assertSame($expected, Stats::isClear($a, $b, $finishedA, $finishedB));
+    }
+
+    public function test_change_range_gives_the_relative_change_of_the_mean(): void
+    {
+        $range = Stats::changeRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a');
+
+        self::assertNotNull($range);
+        self::assertEqualsWithDelta(-0.5, $range->point, 1e-12);
+        self::assertLessThan($range->point, $range->low);
+        self::assertGreaterThan($range->point, $range->high);
+        self::assertLessThan(0.0, $range->high);
+    }
+
+    public function test_change_range_gives_the_same_range_for_the_same_seed(): void
+    {
+        $a = [10, 11, 9, 10, 10, 12, 8];
+        $b = [5, 5, 6, 4, 5, 6, 4];
+
+        self::assertEquals(Stats::changeRange($a, $b, 'seed-a'), Stats::changeRange($a, $b, 'seed-a'));
+        self::assertNotEquals(Stats::changeRange($a, $b, 'seed-a'), Stats::changeRange($a, $b, 'seed-b'));
+    }
+
+    public function test_change_range_has_no_range_for_a_zero_mean_or_an_empty_sample(): void
+    {
+        self::assertNull(Stats::changeRange([0, 0, 0], [1, 2, 3], 'seed-a'));
+        self::assertNull(Stats::changeRange([], [1, 2, 3], 'seed-a'));
+        self::assertNull(Stats::changeRange([1, 2, 3], [], 'seed-a'));
+    }
+
+    public function test_change_range_skips_a_resample_whose_baseline_mean_is_zero(): void
+    {
+        $range = Stats::changeRange([0, 0, 0, 0, 0, 0, 0, 0, 0, 10], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], 'seed-a');
+
+        self::assertNotNull($range);
+        self::assertEqualsWithDelta(4.0, $range->point, 1e-12);
+        self::assertTrue(is_finite($range->low) && is_finite($range->high));
+    }
+
+    public function test_difference_range_gives_the_absolute_difference_of_the_means(): void
+    {
+        $range = Stats::differenceRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a');
+
+        self::assertNotNull($range);
+        self::assertEqualsWithDelta(-5.0, $range->point, 1e-12);
+        self::assertLessThan(0.0, $range->high);
+        self::assertEquals($range, Stats::differenceRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a'));
+        self::assertNull(Stats::differenceRange([], [1], 'seed-a'));
+    }
+
+    public function test_newcombe_gives_the_known_range_for_the_difference_of_two_proportions(): void
+    {
+        // 56 of 70 against 48 of 80: the hybrid score range of 0.2 is 0.0524 to 0.3339.
+        $range = Stats::newcombe(48, 80, 56, 70);
+
+        self::assertNotNull($range);
+        self::assertEqualsWithDelta(0.2, $range->point, 1e-12);
+        self::assertEqualsWithDelta(0.0524, $range->low, 0.0001);
+        self::assertEqualsWithDelta(0.3339, $range->high, 0.0001);
+    }
+
+    public function test_newcombe_is_signed_and_needs_trials_on_both_sides(): void
+    {
+        $range = Stats::newcombe(56, 70, 48, 80);
+
+        self::assertNotNull($range);
+        self::assertEqualsWithDelta(-0.2, $range->point, 1e-12);
+        self::assertEqualsWithDelta(-0.3339, $range->low, 0.0001);
+        self::assertNull(Stats::newcombe(0, 0, 1, 2));
+        self::assertNull(Stats::newcombe(1, 2, 0, 0));
+    }
+
+    /**
+     * @return iterable<string, array{?Interval, ?Interval, int, int, GoalState}>
+     */
+    public static function goalCases(): iterable
+    {
+        yield 'close points with overlapping ranges are not clear' => [new Interval(8.0, 12.0, 10.0), new Interval(8.5, 12.5, 10.5), 5, 5, GoalState::NotClear];
+        yield 'apart ranges are clear' => [new Interval(6.0, 9.0, 7.5), new Interval(10.0, 13.0, 11.5), 5, 5, GoalState::Clear];
+        yield 'apart ranges in the other order are clear' => [new Interval(10.0, 13.0, 11.5), new Interval(6.0, 9.0, 7.5), 5, 5, GoalState::Clear];
+        yield 'touching ranges overlap' => [new Interval(6.0, 9.0, 7.5), new Interval(9.0, 13.0, 11.0), 5, 5, GoalState::NotClear];
+        yield 'four finished cards in a' => [new Interval(6.0, 9.0, 7.5), new Interval(10.0, 13.0, 11.5), 4, 9, GoalState::NotEnoughCards];
+        yield 'four finished cards in b' => [new Interval(6.0, 9.0, 7.5), new Interval(10.0, 13.0, 11.5), 9, 4, GoalState::NotEnoughCards];
+        yield 'no range in a' => [null, new Interval(10.0, 13.0, 11.5), 5, 5, GoalState::NotEnoughCards];
+        yield 'no range in b' => [new Interval(6.0, 9.0, 7.5), null, 5, 5, GoalState::NotEnoughCards];
+    }
+
+    #[DataProvider('goalCases')]
+    public function test_goal_state(?Interval $a, ?Interval $b, int $finishedA, int $finishedB, GoalState $expected): void
+    {
+        self::assertSame($expected, Stats::goalState($a, $b, $finishedA, $finishedB));
     }
 }

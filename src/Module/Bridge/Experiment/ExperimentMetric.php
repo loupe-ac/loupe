@@ -25,10 +25,11 @@ final readonly class ExperimentMetric
     public const string HOURS_TO_MERGE = 'hours-to-merge';
 
     /**
-     * @param array<string, ?Interval> $byVariant variant name => range, null when the variant has no data
-     * @param list<ExperimentMetric>   $parts     the rows under this one, such as the fix rounds of each reason
-     * @param ?MetricShape             $shape     null for a part row
-     * @param ?string                  $label     the plain text name of a template metric, or of a part row that has no translation. Null for a built-in metric and a reason part
+     * @param array<string, ?Interval>       $byVariant variant name => range, null when the variant has no data
+     * @param list<ExperimentMetric>         $parts     the rows under this one, such as the fix rounds of each reason
+     * @param ?MetricShape                   $shape     null for a part row
+     * @param ?string                        $label     the plain text name of a template metric, or of a part row that has no translation. Null for a built-in metric and a reason part
+     * @param array<string, list<int|float>> $samples   variant => the values behind its range, which the headline compares across two variants
      */
     public function __construct(
         public string $key,
@@ -37,6 +38,7 @@ final readonly class ExperimentMetric
         public array $parts = [],
         public ?MetricShape $shape = null,
         public ?string $label = null,
+        public array $samples = [],
     ) {
     }
 
