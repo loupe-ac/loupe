@@ -20,3 +20,6 @@ override.tf.json
 
 # The saved progress of bin/rotate-secrets
 *.rotating
+
+# The temporary files of bin/rotate-secrets
+.rotate-secrets.*
