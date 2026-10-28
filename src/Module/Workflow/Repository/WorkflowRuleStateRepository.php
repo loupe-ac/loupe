@@ -79,6 +79,18 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /** @return list<\DateTimeImmutable> the due times of the retries that refused rules of the card earned, the earliest first */
+    public function findRetryDueTimes(Uuid $cardId): array
+    {
+        return array_map(
+            static fn (mixed $dueAt): \DateTimeImmutable => new \DateTimeImmutable((string) $dueAt),
+            $this->getEntityManager()->getConnection()->fetchFirstColumn(
+                'SELECT due_at FROM workflow_rule_states WHERE card_id = :card AND due_at IS NOT NULL AND last_refusal IS NOT NULL ORDER BY due_at',
+                ['card' => $cardId->toRfc4122()],
+            ),
+        );
+    }
+
     /** One statement, so it joins a caller's transaction. */
     public function deleteForCard(Uuid $cardId): void
     {

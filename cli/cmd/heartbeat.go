@@ -70,6 +70,9 @@ type heartbeater struct {
 	// gitIdentities reads the cached git identities when a heartbeat goes out.
 	// It may be nil.
 	gitIdentities func(context.Context) ([]api.GitIdentityReport, time.Duration)
+	// sessions reads the watched interactive sessions when a heartbeat goes
+	// out. It may be nil.
+	sessions func(context.Context, []string) []api.InteractiveSessionReading
 
 	mu   sync.Mutex
 	body api.Heartbeat
@@ -91,7 +94,10 @@ type heartbeater struct {
 	samples   []api.HostSample
 	sampleSeq uint64
 	sentAt    time.Time
-	interval  time.Duration
+	// watch holds the session ids of the last accepted reply. The next
+	// heartbeat reads them.
+	watch    []string
+	interval time.Duration
 	// reset wakes the loop to arm its timer with a new interval.
 	reset chan struct{}
 	// poolsChanged wakes the loop to send changed pool rows.
@@ -357,9 +363,18 @@ func (h *heartbeater) send() {
 			body.GitIdentities, age = h.gitIdentities(ctx)
 			body.GitIdentitiesAge = int64(age / time.Second)
 		}
+		if h.sessions != nil {
+			h.mu.Lock()
+			watch := h.watch
+			h.mu.Unlock()
+			body.InteractiveSessions = h.sessions(ctx, watch)
+		}
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {
 			h.dropHostSamples(upto)
+			h.mu.Lock()
+			h.watch = reply.WatchSessions
+			h.mu.Unlock()
 		}
 		if err == nil && h.onRange != nil {
 			h.onRange(reply.CLIRange)

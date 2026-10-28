@@ -18,7 +18,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type RevisionSummary from ReviseDocumentHandler
  */
-#[McpTool(name: 'document_revise', description: 'Submit a new Markdown version of a document, described by what changed in it. Open comments are re-anchored onto the new version; those whose quoted text no longer appears are flagged orphaned. Pass title to correct the document title at the same time, and references to replace the documents this one points at. Pass series with seriesOrdinal to move the document to a place in an ordered set, or an empty series to take it out of one.')]
+#[McpTool(name: 'document_revise', description: 'Submit a new Markdown version of a document, described by what changed in it. Open comments are re-anchored onto the new version; those whose quoted text no longer appears are flagged orphaned. Pass title to correct the document title at the same time, and references to replace the documents this one points at. Pass series with seriesOrdinal to move the document to a place in an ordered set, or an empty series to take it out of one. In the Markdown, write a card as card:<number> and a pull request as pr:owner/repo#<number>; Loupe turns each into a link with a title tooltip. A token inside code, a link or square brackets stays as written.')]
 final readonly class DocumentReviseTool
 {
     public function __construct(

@@ -1,11 +1,11 @@
 {# One row of the linked menu of an ask. Params: kind (card, document or pull_request), entry (a card entry, a document entry or a pull request), reviewDocumentId (string or null). #}
 {% if kind == 'card' %}
     {% set card = entry.card %}
-    <twig:Ds:MenuItem data-linked-card="{{ card.id }}" data-turbo-frame="card-drawer-frame" data-drawer-title="{{ entry.item.title }}" data-action="click->card-drawer#prepare click->popover#close"
+    <twig:Ds:MenuItem data-linked-card="{{ card.id }}" data-turbo-frame="card-drawer-frame" data-drawer-title="{{ entry.item.title|reference_plain }}" data-action="click->card-drawer#prepare click->popover#close"
             :href="path('app_board_card', {projectId: card.project.id, cardId: card.id, tab: 'conversation', inboxItem: entry.item.number, _fragment: 'inbox-item-' ~ entry.item.number})">
         <twig:ux:icon name="lucide:square-kanban" />
         <span class="lp-menu__text">
-            <span class="lp-menu__label">#{{ card.number }} {{ card.title }}</span>
+            <span class="lp-menu__label">#{{ card.number }} {{ card.title|reference_plain }}</span>
             <span class="lp-menu__line">{{ card.column.label|trans }}</span>
         </span>
     </twig:Ds:MenuItem>
@@ -15,7 +15,7 @@
             :href="path('app_document_review', {projectId: document.project.id, documentId: document.id})">
         <twig:ux:icon name="lucide:file-text" />
         <span class="lp-menu__text">
-            <span class="lp-menu__label">{{ document.title }}</span>
+            <span class="lp-menu__label">{{ document.title|reference_plain }}</span>
             <span class="lp-menu__line">
                 {%- if entry.version %}{{ 'inbox.review.version'|trans({'%version%': entry.version}) }} · {% endif -%}
                 {{ document.status.translationKey()|trans }}

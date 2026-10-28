@@ -263,6 +263,13 @@ reading context, not for a terminal or a README.
     4. Rule 16 still covers an outside ID. This rule also covers the IDs and
        terms that the document defines itself, such as `D1` or `W3`.
 
+19. **Name a card or a pull request with a token.** Write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request. Loupe
+    shows each token as a link with a title tooltip, and the stored text of
+    the document reads "card #1116", so comment anchors keep their place.
+    Prose such as "card 1116" also links, but a token is exact. A token
+    inside code, a link or square brackets stays as written. A document title
+    shows a token as plain text.
+
 ## Example
 
 Entry shape, lead sentence first and detail after:

@@ -943,3 +943,37 @@ func TestReadRunGivesTheCodexVersionOfTheSession(t *testing.T) {
 		t.Fatalf("versions = %q, %q; want 0.155.1 and none", got.HarnessVersion, got.SkillVersion)
 	}
 }
+
+func TestALaunchedRunReportsWhenItsSessionFileLastChanged(t *testing.T) {
+	h := newHarness(t, "")
+	at := time.Now()
+	work := t.TempDir()
+	if Launched(h.threads, runID) {
+		t.Fatal("a run with no launch record counts as launched")
+	}
+	if err := h.RecordLaunch(runID, work, at); err != nil {
+		t.Fatal(err)
+	}
+	if !Launched(h.threads, runID) {
+		t.Fatal("a recorded launch does not count as launched")
+	}
+	if _, ok := h.TranscriptAt(runID); ok {
+		t.Fatal("a launch with no session file has a transcript time")
+	}
+
+	thread := "aaaaaaaa-0000-4000-8000-000000000005"
+	sessionFile(t, h.home, thread, work, at.Add(time.Second))
+	changed := at.Add(time.Hour).Truncate(time.Second)
+	path := filepath.Join(h.home, "sessions", "2026", "10", "08", "rollout-x-"+thread+".jsonl")
+	if err := os.Chtimes(path, changed, changed); err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := h.TranscriptAt(runID)
+	if !ok || !got.Equal(changed) {
+		t.Fatalf("TranscriptAt = %v, %v; want %v", got, ok, changed)
+	}
+	if Launched(h.threads, "../escape") {
+		t.Fatal("a run id with a path counts as launched")
+	}
+}

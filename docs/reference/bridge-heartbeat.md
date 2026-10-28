@@ -338,6 +338,28 @@ The [host samples](#host-samples) have a timer of their own. The
 seconds. A value below 5 reads as the default. A shorter sample interval sends
 more samples in each heartbeat, and no more heartbeats.
 
+## Interactive sessions
+
+A bridge that launches an interactive session reports its liveness in the heartbeat. The reply carries
+`watchSessions`, the ids of the open interactive runs that this bridge launched, in any project of its owner.
+The reply names a run until it closes, also when the bridge stopped following its project. For a Codex run, the
+bridge reports `alive: null` and the time of the Codex session file, because a Codex process carries no session id
+that the bridge can find.
+
+The next heartbeat carries `interactiveSessions`, one reading for each watched session:
+
+| Field | Meaning |
+|---|---|
+| `sessionId` | the session id |
+| `alive` | `true` when the process of the session runs, `false` when it does not, and `null` when the harness cannot tell |
+| `transcriptAt` | when the transcript of the session last changed, or `null` when the bridge found none |
+
+An `alive` reading of `true` is a sign of life now. A `transcriptAt` time counts as a sign of life at that time,
+and never later than now. An `alive` reading of `false` closes the run with the reason `session-gone`, when the run
+started more than two minutes before. A reading for a session that this bridge did not launch changes nothing. An
+`alive` reading of `false` for a Codex run closes nothing.
+A bridge that predates the field sends none, and nothing changes for it.
+
 ## Open runs of a quiet bridge
 
 A bridge that stops sending its heartbeat can no longer report how its runs
