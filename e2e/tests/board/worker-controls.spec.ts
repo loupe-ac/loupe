@@ -4,7 +4,12 @@
  */
 
 import { expect, type Page } from '@playwright/test';
-import { agentAccessToken, createTest, suppressWidget } from '../fixtures';
+import {
+    accessToken,
+    agentAccessToken,
+    createTest,
+    suppressWidget,
+} from '../fixtures';
 
 const test = createTest({
     email: `e2e-worker-controls-${Date.now()}@example.com`,
@@ -114,11 +119,12 @@ test('the owner stops a run, which holds nothing, then pauses and releases the a
     ).toBeVisible();
 });
 
-/** Calls one MCP tool with the signed-in user's agent token, and returns its structured answer. */
+/** Calls one MCP tool with an agent token bound to the project, and returns its structured answer. */
 async function mcpTools(
     page: Page,
+    projectId: string,
 ): Promise<(name: string, args: object) => Promise<Record<string, unknown>>> {
-    const token = await agentAccessToken(page);
+    const token = await accessToken(page, 'agent mcp', projectId);
     const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -173,7 +179,7 @@ test('the owner closes an interactive session from the Runs list, and the Open r
     expect(seed.status()).toBe(201);
     const { projectId } = await seed.json();
 
-    const call = await mcpTools(page);
+    const call = await mcpTools(page, projectId);
     const card = await call('card_create', {
         title: 'Session card',
         body: '',
