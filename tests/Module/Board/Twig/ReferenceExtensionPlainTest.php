@@ -24,7 +24,7 @@ final class ReferenceExtensionPlainTest extends TestCase
     #[DataProvider('titles')]
     public function test_a_title_shows_its_tokens_as_plain_text(?string $title, string $expected): void
     {
-        $extension = new ReferenceExtension((new \ReflectionClass(ReferenceLinker::class))->newInstanceWithoutConstructor(), new ReferenceTokens());
+        $extension = new ReferenceExtension(new \ReflectionClass(ReferenceLinker::class)->newInstanceWithoutConstructor(), new ReferenceTokens());
 
         self::assertSame($expected, $extension->plain($title));
     }
