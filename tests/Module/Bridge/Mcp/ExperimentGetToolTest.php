@@ -47,7 +47,25 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['cost', 'merge-rate', 'no-such-metric'], $result['declaredMetrics']);
         self::assertSame(['no-such-metric'], $result['unknownMetrics']);
         self::assertSame(Stats::MIN_FINISHED_CARDS, $result['minFinishedCards']);
-        self::assertSame(['cheaperVariant' => 'b', 'saving' => 0.5, 'costClear' => true, 'qualitySettled' => true], $result['headline']);
+        self::assertSame([], $result['unknownHeadlineMetrics']);
+        self::assertSame([
+            'key' => 'cost',
+            'label' => 'Cost per merged card',
+            'valueType' => 'money',
+            'direction' => 'lower',
+            'state' => 'clear',
+            'variants' => [
+                ['name' => 'a', 'point' => 2.0, 'finishedCards' => 5],
+                ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5],
+            ],
+            'winner' => 'b',
+            'changeKind' => 'relative',
+            'change' => ['point' => -0.5, 'low' => -0.5, 'high' => -0.5],
+        ], $result['headline']['goal']);
+        self::assertSame(['merge-rate'], array_column($result['headline']['guards'], 'key'));
+        self::assertSame('ratio', $result['headline']['guards'][0]['valueType']);
+        self::assertSame([['name' => 'a', 'point' => 1.0, 'finishedCards' => 5], ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5]], $result['headline']['guards'][0]['variants']);
+        self::assertEqualsWithDelta(0.0, $result['headline']['guards'][0]['change']['point'] ?? null, 1e-12);
         self::assertSame([
             ['name' => 'a', 'model' => 'model-a', 'weight' => 3, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 10.0],
             ['name' => 'b', 'model' => 'model-b', 'weight' => 1, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 5.0],

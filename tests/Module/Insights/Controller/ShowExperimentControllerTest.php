@@ -6,7 +6,9 @@ namespace App\Tests\Module\Insights\Controller;
 
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\ExperimentScenario;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,14 +49,18 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('Experiments', trim($crawler->filter('.lp-analytics-tabs [aria-current="page"]')->text()));
         self::assertSame('Comparison', trim($crawler->filter('.lp-experiment-tabs [aria-current="page"]')->text()));
-        self::assertCount(2, $crawler->filter('.lp-experiment-table.lp-table-cue[data-controller="overflow-cue"] > .lp-experiment-table__scroll[data-overflow-cue-target="viewport"] > table'));
-        self::assertCount(4, $crawler->filter('.lp-experiment-table > .lp-overflow-cue__arrow'));
+        self::assertCount(3, $crawler->filter('.lp-experiment-table.lp-table-cue[data-controller="overflow-cue"] > .lp-experiment-table__scroll[data-overflow-cue-target="viewport"] > table'));
+        self::assertCount(6, $crawler->filter('.lp-experiment-table > .lp-overflow-cue__arrow'));
         self::assertSame(['a', 'model-a', '3', '5', '5', '5', '$10.00'], $this->cells($crawler->filter('[data-experiment-variant="a"]')));
         self::assertSame(['b', 'model-b', '1', '5', '5', '5', '$5.00'], $this->cells($crawler->filter('[data-experiment-variant="b"]')));
 
-        $headline = $crawler->filter('[data-experiment-headline]')->text();
-        self::assertStringContainsString('b costs 50% less per merged card than a.', $headline);
-        self::assertStringContainsString('The merge rate and the fix rounds do not give a clear answer yet.', $headline);
+        $goal = $crawler->filter('[data-experiment-goal]');
+        self::assertSame('clear', $goal->attr('data-experiment-goal-state'));
+        self::assertSame('Goal', $goal->attr('aria-label'));
+        self::assertSame('GOAL · COST PER MERGED CARD · LOWER IS BETTER', mb_strtoupper(trim($goal->filter('.lp-experiment-goal__label')->text())));
+        self::assertSame('b is 50% lower than a', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('Clear', trim($goal->filter('.lp-status-chip--ok')->text()));
+        self::assertSame('$1.00 against $2.00 · likely range of the change 50% to 50% lower', preg_replace('/\s+/', ' ', trim($goal->filter('[data-experiment-goal-detail]')->text())));
 
         self::assertSame(['a', 'Likely range', 'b', 'Likely range'], \array_slice($this->cells($crawler->filter('[data-experiment-metrics] thead tr')), 1));
         self::assertStringStartsWith('Fix rounds', $this->cells($crawler->filter('[data-metric="fix-rounds"]'))[0]);
@@ -157,6 +163,134 @@ final class ShowExperimentControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function test_the_goal_is_not_clear_yet_when_the_ranges_overlap(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-not-clear@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->seedCosts($em, $project, 'a', ['1.000000', '2.000000', '3.000000', '4.000000', '5.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '2.000000', '3.000000', '3.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        $goal = $crawler->filter('[data-experiment-goal]');
+        self::assertSame('not-clear', $goal->attr('data-experiment-goal-state'));
+        self::assertSame('b is 33% lower than a', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('Not clear yet', trim($goal->filter('.lp-status-chip--pending')->text()));
+        self::assertCount(0, $goal->filter('.lp-status-chip--ok'));
+        self::assertStringContainsString('$2.00 against $3.00 · likely range of the change', trim($goal->filter('[data-experiment-goal-detail]')->text()));
+        self::assertMatchesRegularExpression('/likely range of the change \d+% lower to \d+% higher$/', preg_replace('/\s+/', ' ', trim($goal->filter('[data-experiment-goal-detail]')->text())) ?? '');
+    }
+
+    public function test_the_goal_says_how_many_cards_are_missing(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-few-cards@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->seedCosts($em, $project, 'a', ['1.000000', '1.000000', '1.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 4);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        $goal = $crawler->filter('[data-experiment-goal]');
+        self::assertSame('not-enough-cards', $goal->attr('data-experiment-goal-state'));
+        self::assertSame('Not enough cards yet', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('a 3 of 5 finished · b 5 of 5 finished', preg_replace('/\s+/', ' ', trim($goal->filter('[data-experiment-goal-progress]')->text())));
+        self::assertCount(0, $goal->filter('.lp-status-chip'));
+    }
+
+    public function test_the_guards_table_follows_the_goal_before_the_variants(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-guards@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->bindLifecycle($em, $project);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        $sections = $crawler->filter('[data-experiment-goal], h3.lp-experiment-section, [data-experiment-guards]')->each(static fn (Crawler $node): string => trim($node->attr('data-experiment-goal') ?? $node->attr('data-experiment-guards') ?? $node->text()));
+        self::assertSame(['', 'Guards', '', 'Variants', 'Metrics'], \array_slice(array_values($sections), 0, 5));
+        self::assertSame(['Guard', 'a to b', 'Likely range of the change'], $this->cells($crawler->filter('[data-experiment-guards] thead tr')));
+        $mergeRate = $this->cells($crawler->filter('[data-experiment-guard="merge-rate"]'));
+        self::assertSame('Merge rate', $mergeRate[0]);
+        self::assertSame('100% to 100%', $mergeRate[1]);
+        self::assertMatchesRegularExpression('/^(\x{2212}\d+|0|\+\d+) to (\x{2212}\d+|0|\+\d+) pp$/u', $mergeRate[2]);
+        $fixRounds = $this->cells($crawler->filter('[data-experiment-guard="fix-rounds"]'));
+        self::assertSame('Fix rounds', $fixRounds[0]);
+        self::assertSame('0', $fixRounds[1]);
+        self::assertSame('0 to 0', $fixRounds[2]);
+        self::assertCount(1, $crawler->filter('.lp-experiment-table.lp-table-cue[data-controller="overflow-cue"] > .lp-experiment-table__scroll > table[data-experiment-guards]'));
+    }
+
+    public function test_a_project_without_fix_rounds_guards_the_merge_rate_alone(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-no-guards@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-experiment-goal]'));
+        self::assertSame(['merge-rate'], $crawler->filter('[data-experiment-guard]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-guard')));
+        self::assertCount(0, $crawler->filter('[data-experiment-unknown-headline]'));
+    }
+
+    public function test_the_page_names_a_headline_key_that_no_metric_has(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-unknown-headline@example.com');
+        $project = $this->boardProject($em, $owner);
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'nonsense', 'better' => 'higher'], 'guards' => ['phantom']];
+        $em->persist($definition);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('The bridge rule names a goal or a guard that this server does not know: nonsense, phantom. The page uses the default for it.', trim($crawler->filter('[data-experiment-unknown-headline]')->text()));
+        self::assertStringContainsString('COST PER MERGED CARD', mb_strtoupper($crawler->filter('.lp-experiment-goal__label')->text()));
+        self::assertCount(0, $crawler->filter('[data-experiment-guards]'));
+    }
+
+    /** @param list<string> $costs one merged card per cost, numbered from the given number */
+    private function seedCosts(EntityManagerInterface $em, Project $project, string $variant, array $costs, int $firstNumber): void
+    {
+        foreach ($costs as $offset => $cost) {
+            $card = $this->experimentCard($em, $project, $firstNumber + $offset, merged: true);
+            $this->seedUsage($em, $this->experimentRun($em, $project, $card, $variant), costUsd: $cost);
+        }
     }
 
     /** @return list<string> */

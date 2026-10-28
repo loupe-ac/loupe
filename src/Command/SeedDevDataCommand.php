@@ -78,6 +78,9 @@ final class SeedDevDataCommand extends Command
 
         $project = ($this->ensureProject)(new EnsureHarnessProjectCommand($user, self::PROJECT_NAME));
         $this->experiment->seed($project);
+        // The goal panel has three states. The merge rate of the two models overlaps, and the template has no pull request history to give hours to merge.
+        $this->experiment->seed($project, 'implement-merge-rate', ['goal' => ['metric' => 'merge-rate', 'better' => 'higher']]);
+        $this->experiment->seed($project, 'implement-merge-time', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']]);
         $this->codexRuns->seed($project);
         $this->analyses->seed($project, DevExperimentSeeder::EXPERIMENT);
         $this->artifacts->seed($project);
