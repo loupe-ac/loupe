@@ -110,7 +110,7 @@ final class CardSearchToolTest extends KernelTestCase
         $this->boardWith('card-search-title-substring');
         // The title match is created first, so the newest-first tiebreak would put it last.
         ($this->createTool)('Pages of the board', 'Unrelated text.', 'tooling');
-        ($this->createTool)('Body mentions paging', 'The pagination helper pages through rows.', 'docs');
+        ($this->createTool)('Named in the body only', 'The pagination helper pages through rows.', 'docs');
 
         $titles = array_column(($this->tool)('pag')['cards'], 'title');
 
@@ -214,6 +214,19 @@ final class CardSearchToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('card-search-theirs'));
 
         self::assertSame(0, ($this->tool)('mailpit')['total']);
+    }
+
+    public function test_a_number_does_not_find_another_projects_card_that_holds_it(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-search-number-theirs'));
+        ($this->createTool)('Ticket 7 in the other project', 'Body', 'feature');
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-search-number-mine'));
+        ($this->createTool)('Ticket 7 in this project', 'Body', 'feature');
+        $this->em->clear();
+
+        $titles = array_column(($this->tool)('7')['cards'], 'title');
+
+        self::assertSame(['Ticket 7 in this project'], $titles);
     }
 
     public function test_a_row_is_the_same_summary_card_list_returns(): void
