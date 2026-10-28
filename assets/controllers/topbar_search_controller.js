@@ -10,6 +10,7 @@ export default class extends Controller {
         'field',
         'panel',
         'status',
+        'progress',
         'error',
         'frame',
     ];
@@ -59,6 +60,7 @@ export default class extends Controller {
         this.iconTarget.setAttribute('aria-expanded', 'false');
         this.fieldTarget.setAttribute('aria-expanded', 'false');
         this.panelTarget.hidden = true;
+        this.progressTarget.hidden = true;
     }
 
     focus() {
@@ -74,6 +76,7 @@ export default class extends Controller {
         clearTimeout(this.timer);
         if (this.#query() === '') {
             this.panelTarget.hidden = true;
+            this.progressTarget.hidden = true;
             this.fieldTarget.setAttribute('aria-expanded', 'false');
             return;
         }
@@ -101,6 +104,7 @@ export default class extends Controller {
         this.#routeCardRows();
         if (this.#answeredQuery() !== this.#query()) return;
         this.statusTarget.hidden = true;
+        this.progressTarget.hidden = true;
         this.errorTarget.hidden = true;
     }
 
@@ -118,6 +122,7 @@ export default class extends Controller {
     #showError() {
         if (this.requestedQuery !== this.#query()) return;
         this.statusTarget.hidden = true;
+        this.progressTarget.hidden = true;
         this.errorTarget.hidden = false;
     }
 
@@ -151,9 +156,11 @@ export default class extends Controller {
         this.fieldTarget.setAttribute('aria-expanded', 'true');
     }
 
+    /** Old rows stay under the progress line, and the status line shows only before the first answer. */
     #showPending() {
         this.errorTarget.hidden = true;
-        this.statusTarget.hidden = false;
+        this.progressTarget.hidden = false;
+        this.statusTarget.hidden = this.#answeredQuery() !== null;
     }
 
     #isActive() {

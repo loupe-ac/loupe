@@ -8101,6 +8101,15 @@
     }
 }
 
+@keyframes lp-progress-slide {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
+    }
+}
+
 @keyframes pulse {
     0% {
         transform: scale(1);

@@ -225,7 +225,7 @@
         @apply hidden items-center gap-2.5 ml-auto lg:flex lg:flex-wrap;
     }
     .lp-topbar__global-actions {
-        @apply flex items-center gap-2 ml-auto;
+        @apply flex min-w-0 items-center gap-2 ml-auto;
     }
     .lp-topbar__global-action {
         @apply inline-flex items-center justify-center size-tap rounded-lg text-fg-dim no-underline transition-colors lg:size-9;
@@ -246,7 +246,10 @@
        any width when a page fills the top bar actions. The open icon form covers
        the bar with absolute position, so no other item moves. */
     .lp-topsearch {
-        @apply relative flex items-center;
+        @apply relative flex min-w-0 items-center;
+    }
+    .lp-topsearch__menu {
+        @apply min-w-0;
     }
     .lp-topsearch__icon {
         @apply lg:hidden;
@@ -255,13 +258,31 @@
         @apply lg:inline-flex;
     }
     .lp-topsearch__form {
-        @apply relative hidden items-center gap-2 lg:flex;
+        @apply relative hidden min-w-0 items-center gap-2 lg:flex;
     }
     .lp-topsearch--compact .lp-topsearch__form {
         @apply lg:hidden;
     }
     .lp-topsearch__form .lp-input {
-        @apply w-full pr-14 pl-9 lg:w-60;
+        @apply w-full min-w-0 pr-14 pl-9 lg:w-60;
+    }
+    /* A thin line on the field while a request runs, so old rows stay readable. */
+    .lp-topsearch__progress {
+        @apply pointer-events-none absolute inset-x-2 bottom-px h-0.5 overflow-hidden rounded-full;
+    }
+    .lp-topsearch__progress[hidden] {
+        @apply hidden;
+    }
+    .lp-topsearch__progress::before {
+        @apply block h-full w-2/5 rounded-full bg-accent-ink;
+        content: '';
+        animation: lp-progress-slide 1s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .lp-topsearch__progress::before {
+            @apply w-full;
+            animation: none;
+        }
     }
     .lp-topsearch__glyph {
         @apply pointer-events-none absolute left-3 text-fg-dim;

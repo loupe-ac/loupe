@@ -10,6 +10,7 @@
                 <label class="sr-only" for="topbar-search-query">{{ 'search.form.search_form.query.label'|trans }}</label>
                 <twig:ux:icon name="lucide:search" class="lp-icon lp-icon--md lp-topsearch__glyph" />
                 <twig:Ds:Input type="search" name="query" id="topbar-search-query" compact maxlength="200" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="topbar-search-panel" placeholder="{{ 'search.topbar.placeholder'|trans }}" data-topbar-search-target="field" data-action="input->topbar-search#input focus->topbar-search#focus" />
+                <span class="lp-topsearch__progress" data-topbar-search-target="progress" hidden></span>
                 <kbd class="lp-kbd lp-topsearch__hint lp-topsearch__hint--idle" aria-hidden="true">{{ 'search.shortcut'|trans }}</kbd>
                 <kbd class="lp-kbd lp-topsearch__hint lp-topsearch__hint--escape" aria-hidden="true">{{ 'search.topbar.escape'|trans }}</kbd>
                 <twig:Ds:Button variant="ghost" type="button" class="lp-topsearch__cancel" data-action="topbar-search#close">{{ 'search.topbar.cancel'|trans }}</twig:Ds:Button>

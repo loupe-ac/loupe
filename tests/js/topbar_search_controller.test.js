@@ -11,6 +11,7 @@ const WIDGET = `<div class="lp-topsearch" data-controller="topbar-search" data-t
     <button type="button" data-topbar-search-target="icon" aria-expanded="false">Search</button>
     <form data-topbar-search-target="form">
         <input type="search" name="query" data-topbar-search-target="field">
+        <span data-topbar-search-target="progress" hidden></span>
     </form>
     <div data-topbar-search-target="panel" hidden>
         <p data-topbar-search-target="status" hidden>Searching</p>
@@ -81,9 +82,49 @@ it('shows the progress line while a request runs and hides it when the answer ma
     type('pag');
     expect(controller.panelTarget.hidden).toBe(false);
     expect(controller.statusTarget.hidden).toBe(false);
+    expect(controller.progressTarget.hidden).toBe(false);
     await vi.advanceTimersByTimeAsync(300);
     answer('pag');
     expect(controller.statusTarget.hidden).toBe(true);
+    expect(controller.progressTarget.hidden).toBe(true);
+});
+
+it('keeps the old rows under the progress line for a second query, with no status line', async () => {
+    vi.useFakeTimers();
+    type('pag');
+    await vi.advanceTimersByTimeAsync(300);
+    answer('pag', '<a data-search-kind="card">One</a>');
+    type('pagi');
+    expect(controller.progressTarget.hidden).toBe(false);
+    expect(controller.statusTarget.hidden).toBe(true);
+    expect(controller.frameTarget.querySelector('a')).not.toBeNull();
+
+    controller.frameTarget.reload = vi.fn();
+    controller.focus();
+    controller.retry();
+    expect(controller.statusTarget.hidden).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(300);
+    answer('pagi');
+    expect(controller.progressTarget.hidden).toBe(true);
+});
+
+it('hides the progress line on a failure, on close and when the field empties', async () => {
+    vi.useFakeTimers();
+    type('pag');
+    await vi.advanceTimersByTimeAsync(300);
+    controller.failed(
+        new CustomEvent('turbo:frame-missing', { cancelable: true }),
+    );
+    expect(controller.progressTarget.hidden).toBe(true);
+
+    type('pagi');
+    controller.close();
+    expect(controller.progressTarget.hidden).toBe(true);
+
+    type('pagin');
+    type('');
+    expect(controller.progressTarget.hidden).toBe(true);
 });
 
 it('skips the render of a stale answer that arrives after a newer query', () => {
@@ -102,7 +143,8 @@ it('keeps the old rows and the progress line after a stale answer loads', () => 
     answer('pag', '<a data-search-kind="card">One</a>');
     type('paging');
     controller.loaded();
-    expect(controller.statusTarget.hidden).toBe(false);
+    expect(controller.progressTarget.hidden).toBe(false);
+    expect(controller.statusTarget.hidden).toBe(true);
     expect(controller.frameTarget.querySelector('a')).not.toBeNull();
 });
 
@@ -228,7 +270,7 @@ it('asks for the typed query when the field regains focus with an older answer',
     controller.fieldTarget.value = 'pagi';
     controller.focus();
     expect(controller.frameTarget.getAttribute('src')).toContain('query=pagi');
-    expect(controller.statusTarget.hidden).toBe(false);
+    expect(controller.progressTarget.hidden).toBe(false);
 });
 
 it('ignores a failure of an older query after the field changes', async () => {
