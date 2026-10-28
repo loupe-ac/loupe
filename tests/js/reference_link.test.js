@@ -104,6 +104,24 @@ describe('reference link tooltip', () => {
         ).toBe(false);
     });
 
+    it('stays open while hover or focus remains on the link', () => {
+        const card = document.querySelector('#card');
+        card.matches = (selector) =>
+            selector === ':focus-visible' ||
+            Element.prototype.matches.call(card, selector);
+        card.focus();
+        fire('#card', 'pointerover');
+        fire('#card', 'pointerout');
+        expect(tip().hasAttribute('data-open')).toBe(true);
+
+        fire('#card', 'pointerover');
+        card.blur();
+        expect(tip().hasAttribute('data-open')).toBe(true);
+
+        fire('#card', 'pointerout');
+        expect(tip().hasAttribute('data-open')).toBe(false);
+    });
+
     it('does not open on a touch pointer', () => {
         const event = new Event('pointerover', { bubbles: true });
         event.pointerType = 'touch';

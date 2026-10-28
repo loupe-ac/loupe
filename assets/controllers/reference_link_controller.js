@@ -22,6 +22,8 @@ export default class extends Controller {
 
     connect() {
         this.link = null;
+        this.hovered = false;
+        this.focused = false;
         this.onScroll = () => this.hide();
         this.element.addEventListener('pointerover', this.onPointerOver);
         this.element.addEventListener('pointerout', this.onPointerOut);
@@ -50,13 +52,15 @@ export default class extends Controller {
         const link = event.target.closest?.(LINK);
         if (link) {
             this.show(link);
+            this.hovered = true;
         }
     };
 
     onPointerOut = (event) => {
         const link = event.target.closest?.(LINK);
         if (link && link === this.link && !link.contains(event.relatedTarget)) {
-            this.hide();
+            this.hovered = false;
+            this.#hideWhenIdle();
         }
     };
 
@@ -64,12 +68,14 @@ export default class extends Controller {
         const link = event.target.closest?.(LINK);
         if (link && focusVisible(link)) {
             this.show(link);
+            this.focused = true;
         }
     };
 
     onFocusOut = (event) => {
         if (event.target === this.link) {
-            this.hide();
+            this.focused = false;
+            this.#hideWhenIdle();
         }
     };
 
@@ -109,6 +115,8 @@ export default class extends Controller {
         window.removeEventListener('scroll', this.onScroll, true);
         this.link?.removeAttribute('aria-describedby');
         this.link = null;
+        this.hovered = false;
+        this.focused = false;
         if (!this.hasTooltipTarget) {
             return;
         }
@@ -117,6 +125,12 @@ export default class extends Controller {
             this.tooltipTarget.hidePopover?.();
         } catch {
             // Already hidden, or the element left the document.
+        }
+    }
+
+    #hideWhenIdle() {
+        if (!this.hovered && !this.focused) {
+            this.hide();
         }
     }
 
