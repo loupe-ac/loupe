@@ -21,9 +21,9 @@ use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
-use App\Module\Workflow\Contract\RepositorySuggestions;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Tests\Module\Forge\FakeRepositorySettingsReader;
+use App\Tests\Module\Forge\FakeRepositorySuggestions;
 use App\Tests\Module\Forge\QueuedHoldReconciliations;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,7 +40,6 @@ use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
-use Symfony\Component\Uid\Uuid;
 
 final class RunRepositoryCheckHandlerTest extends KernelTestCase
 {
@@ -57,6 +56,8 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
     private RunRepositoryCheckHandler $handler;
 
     private RepositoryHoldSummaries $summaries;
+
+    private FakeRepositorySuggestions $suggestions;
 
     /** @var DispatchedEvents<ForgeRepositoryCheckChanged> */
     private DispatchedEvents $events;
@@ -88,13 +89,7 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
 
         $checks = $this->service(ForgeRepositoryCheckRepository::class);
         $this->handler = new RunRepositoryCheckHandler(
-            new class implements RepositorySuggestions {
-                #[\Override]
-                public function forProject(Uuid $projectId): array
-                {
-                    return [new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Blocking)];
-                }
-            },
+            $this->suggestions = new FakeRepositorySuggestions([self::blockingSuggestion()]),
             $checks,
             new RepositoryChecks($checks, $this->service(MessageBusInterface::class), $this->clock),
             $this->summaries,
@@ -415,16 +410,50 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertSame([], $this->summaries->current($repository->project)->blocking);
     }
 
+    public function test_a_read_of_the_old_suggestions_that_takes_its_ticket_after_a_clear_changes_nothing(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        $this->suggestions->afterNextRead = function () use ($repository): void {
+            $this->suggestions->suggestions = [];
+            $this->check($repository, CheckTrigger::Hourly);
+            self::assertSame([], $this->checkOf($repository)->items, 'Guard: the clear ran before the old read took its ticket.');
+        };
+
+        $this->check($repository, CheckTrigger::CheckAgain);
+
+        self::assertSame([], $this->checkOf($repository)->items);
+        self::assertSame([], $this->summaries->current($repository->project)->blocking);
+    }
+
+    public function test_a_clear_that_takes_its_ticket_after_the_suggestions_return_changes_nothing(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        $this->suggestions->suggestions = [];
+        $this->suggestions->afterNextRead = function () use ($repository): void {
+            $this->suggestions->suggestions = [self::blockingSuggestion()];
+            $this->check($repository, CheckTrigger::CheckAgain);
+        };
+
+        $this->check($repository, CheckTrigger::Hourly);
+
+        self::assertSame(2, $this->reader->reads, 'Guard: the newer check read the forge.');
+        self::assertSame('gap', $this->checkOf($repository)->items[0]['state']);
+        self::assertNotSame([], $this->summaries->current($repository->project)->blocking);
+    }
+
+    private static function blockingSuggestion(): RepositorySuggestion
+    {
+        return new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Blocking);
+    }
+
     private function handlerWithoutSuggestions(): RunRepositoryCheckHandler
     {
         return new RunRepositoryCheckHandler(
-            new class implements RepositorySuggestions {
-                #[\Override]
-                public function forProject(Uuid $projectId): array
-                {
-                    return [];
-                }
-            },
+            new FakeRepositorySuggestions(),
             $this->service(ForgeRepositoryCheckRepository::class),
             new RepositoryChecks($this->service(ForgeRepositoryCheckRepository::class), $this->service(MessageBusInterface::class), $this->clock),
             $this->summaries,

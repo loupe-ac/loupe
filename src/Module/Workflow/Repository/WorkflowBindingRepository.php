@@ -23,6 +23,25 @@ class WorkflowBindingRepository extends ServiceEntityRepository
     }
 
     /**
+     * Reads the stored definition past the identity map, so a caller that holds a lock sees what another transaction committed.
+     *
+     * @return array<mixed>|null
+     */
+    public function findDefinitionFresh(Uuid $projectId): ?array
+    {
+        $definition = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT definition FROM workflow_bindings WHERE project_id = :projectId',
+            ['projectId' => $projectId->toRfc4122()],
+        );
+        if (!\is_string($definition)) {
+            return null;
+        }
+        $decoded = json_decode($definition, true, 512, \JSON_THROW_ON_ERROR);
+
+        return \is_array($decoded) ? $decoded : null;
+    }
+
+    /**
      * The cards of every bound project that sit in a column that is not terminal. A held card counts, because its markers still show.
      *
      * @return list<string> RFC 4122 card ids

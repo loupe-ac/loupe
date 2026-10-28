@@ -589,6 +589,12 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
             {
                 return $this->suggestions;
             }
+
+            #[\Override]
+            public function forProjectFresh(Uuid $projectId): array
+            {
+                return $this->forProject($projectId);
+            }
         });
         static::getContainer()->set(WorkflowKeys::class, new readonly class implements WorkflowKeys {
             #[\Override]

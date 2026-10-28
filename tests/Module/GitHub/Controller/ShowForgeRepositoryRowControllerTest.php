@@ -144,6 +144,12 @@ final class ShowForgeRepositoryRowControllerTest extends WebTestCase
             {
                 return [new RepositorySuggestion(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking)];
             }
+
+            #[\Override]
+            public function forProjectFresh(Uuid $projectId): array
+            {
+                return $this->forProject($projectId);
+            }
         });
     }
 

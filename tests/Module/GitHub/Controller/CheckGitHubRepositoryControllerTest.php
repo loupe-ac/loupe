@@ -53,6 +53,12 @@ final class CheckGitHubRepositoryControllerTest extends WebTestCase
             {
                 return [new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Blocking)];
             }
+
+            #[\Override]
+            public function forProjectFresh(Uuid $projectId): array
+            {
+                return $this->forProject($projectId);
+            }
         });
     }
 

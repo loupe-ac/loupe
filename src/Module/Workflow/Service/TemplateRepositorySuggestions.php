@@ -28,4 +28,14 @@ final readonly class TemplateRepositorySuggestions implements RepositorySuggesti
             return [];
         }
     }
+
+    #[\Override]
+    public function forProjectFresh(Uuid $projectId): array
+    {
+        try {
+            return $this->templates->forProjectFresh($projectId)->repositorySettings;
+        } catch (TemplateMissing) {
+            return [];
+        }
+    }
 }

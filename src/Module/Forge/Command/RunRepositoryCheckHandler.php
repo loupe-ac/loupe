@@ -24,7 +24,7 @@ use Psr\Log\LoggerInterface;
 /**
  * Checks one repository against the suggestions of its project template. The
  * read runs outside any lock, and the summary writer drops the result when a
- * newer read was accepted first.
+ * newer read was accepted first, or when the suggestions changed since the read.
  */
 final readonly class RunRepositoryCheckHandler
 {
@@ -76,7 +76,10 @@ final readonly class RunRepositoryCheckHandler
             $failure = $e->reason;
         }
 
-        $accepted = $this->summaries->change($repository->project, function (RepositoryChange $change) use ($command, $repositoryId, $ticket, $settings, $failure, $suggestions): bool {
+        $accepted = $this->summaries->change($repository->project, function (RepositoryChange $change) use ($command, $repositoryId, $projectId, $ticket, $settings, $failure, $suggestions): bool {
+            if (!self::same($suggestions, $this->suggestions->forProjectFresh($projectId))) {
+                return false;
+            }
             $check = $this->forgeRepositoryChecks->findOneOfRepository($command->repository);
             if (null === $check) {
                 return false;
@@ -120,7 +123,11 @@ final readonly class RunRepositoryCheckHandler
 
         $ticket = $this->forgeRepositoryChecks->takeReadTicket($command->repository);
         $repositoryId = $command->repository->id ?? throw new \LogicException('A persisted repository has an id.');
-        $cleared = $this->summaries->change($command->repository->project, function (RepositoryChange $change) use ($check, $repositoryId, $ticket): bool {
+        $projectId = $command->repository->project->id ?? throw new \LogicException('A persisted project has an id.');
+        $cleared = $this->summaries->change($command->repository->project, function (RepositoryChange $change) use ($check, $repositoryId, $projectId, $ticket): bool {
+            if ([] !== $this->suggestions->forProjectFresh($projectId)) {
+                return false;
+            }
             $this->em->refresh($check);
             if ($ticket <= $check->acceptedReadTicket) {
                 return false;
@@ -138,6 +145,17 @@ final readonly class RunRepositoryCheckHandler
             'trigger' => $command->trigger->value,
             'ticket' => $ticket,
         ]);
+    }
+
+    /**
+     * @param list<RepositorySuggestion> $read
+     * @param list<RepositorySuggestion> $current
+     */
+    private static function same(array $read, array $current): bool
+    {
+        $pairs = static fn (array $suggestions): array => array_map(static fn (RepositorySuggestion $s): string => $s->key->value.':'.$s->mark->value, $suggestions);
+
+        return $pairs($read) === $pairs($current);
     }
 
     /**

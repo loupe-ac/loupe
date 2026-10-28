@@ -13,4 +13,11 @@ interface RepositorySuggestions
      * @return list<RepositorySuggestion> in template order, empty for a project bound to no template
      */
     public function forProject(Uuid $projectId): array;
+
+    /**
+     * Reads the template copy again, so a caller that holds the project lock sees a template update another transaction committed.
+     *
+     * @return list<RepositorySuggestion> in template order, empty for a project bound to no template
+     */
+    public function forProjectFresh(Uuid $projectId): array;
 }
