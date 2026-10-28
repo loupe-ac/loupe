@@ -7,7 +7,7 @@ namespace App\Tests\Module\Landing\Service;
 use App\Module\Landing\Service\AboutPage;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-/** The shipped about file parses and follows the rules of the page: one builder, no numbers, three profile links. */
+/** The shipped about file parses and follows the rules of the page: one builder, no numbers, the Loupe links and the difference section. */
 final class AboutContentTest extends KernelTestCase
 {
     public function test_the_file_parses_with_a_title_and_a_description(): void
@@ -35,12 +35,23 @@ final class AboutContentTest extends KernelTestCase
         self::assertDoesNotMatchRegularExpression('/\d/', strip_tags($html));
     }
 
-    public function test_the_page_links_the_two_profiles_and_the_discord_server(): void
+    public function test_the_page_names_how_loupe_is_different(): void
     {
         $html = $this->about()->page()->html;
 
-        self::assertStringContainsString('href="https://github.com/ubermuda"', $html);
-        self::assertStringContainsString('href="https://x.com/ubermuda"', $html);
+        self::assertStringContainsString('<h2>How Loupe is different</h2>', $html);
+        self::assertStringContainsString('workflow based', $html);
+        self::assertStringContainsString('more than start agents', $html);
+        self::assertStringContainsString('strong analytics', $html);
+    }
+
+    public function test_the_page_links_the_loupe_repository_the_loupe_x_account_and_the_discord_server(): void
+    {
+        $html = $this->about()->page()->html;
+
+        self::assertStringContainsString('href="https://github.com/loupe-ac/loupe"', $html);
+        self::assertStringContainsString('href="https://x.com/LoupeHQ"', $html);
+        self::assertStringNotContainsString('ubermuda', $html);
         self::assertMatchesRegularExpression('#href="https://discord\.gg/[A-Za-z0-9]+"#', $html);
     }
 

@@ -1,9 +1,9 @@
 ---
 title: "Who builds Loupe, and why"
-description: "Geoffrey Bachelet builds Loupe alone. Here is why it exists, how it began, and how it lasts."
+description: "Geoffrey Bachelet builds Loupe. Here is why it exists, how it is different, and how it lasts."
 ---
 
-I am Geoffrey Bachelet, and I build Loupe alone. No company stands behind it. This page says why I built it and why I think it will last.
+I am Geoffrey Bachelet, and I build Loupe.
 
 ## Why I built it
 
@@ -15,6 +15,12 @@ Then I saw that I still juggled terminals when I built features in parallel. So 
 
 I build Loupe with Loupe, and I use it every day to build my other apps too.
 
+## How Loupe is different
+
+1. Loupe is workflow based. Rules on the board decide what work a card needs next, from product design to tech design, build, review and merge. You change the rules to fit how you work.
+2. Loupe does more than start agents. It is also where you review their work: the documents, the running app and the pull requests.
+3. Loupe has strong analytics. It records each worker run, so you can see what your agents cost, where they spend their time, and which change made them better.
+
 ## How Loupe lasts
 
 Three things keep Loupe going.
@@ -23,6 +29,6 @@ Three things keep Loupe going.
 2. Loupe is open source under the AGPL licence, and you can host it yourself. If I stop, the code stays usable by anyone.
 3. I use it every day, for Loupe and for my other apps. I need it to keep working.
 
-## Find me
+## Find Loupe
 
-My code is at [github.com/ubermuda](https://github.com/ubermuda), and I post at [x.com/ubermuda](https://x.com/ubermuda). You can also talk to me on the [Discord server](https://discord.gg/qQcB3G5h5j).
+The code of Loupe is at [github.com/loupe-ac/loupe](https://github.com/loupe-ac/loupe), and Loupe posts at [x.com/LoupeHQ](https://x.com/LoupeHQ). You can also talk to me on the [Discord server](https://discord.gg/qQcB3G5h5j).

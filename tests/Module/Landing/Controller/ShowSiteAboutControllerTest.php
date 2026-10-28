@@ -39,7 +39,7 @@ final class ShowSiteAboutControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
         self::assertSelectorTextContains('h1', 'Who builds Loupe, and why');
-        self::assertSelectorExists('.lp-legal__body a[href="https://github.com/ubermuda"]');
+        self::assertSelectorExists('.lp-legal__body a[href="https://github.com/loupe-ac/loupe"]');
         self::assertSelectorNotExists('.lp-about-card');
 
         $crawler = $client->getCrawler();
