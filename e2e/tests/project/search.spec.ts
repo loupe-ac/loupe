@@ -61,6 +61,7 @@ test('project search finds documents and pages from the top bar', async ({
     await expect(
         page.getByRole('link', { name: /^All results for/ }),
     ).toBeVisible();
+    await expect(page.getByText('Could not search')).toBeHidden();
     await result.click();
     await expect(page).toHaveURL(
         new RegExp(`/documents/${documentId}/review$`),
@@ -157,6 +158,7 @@ test('search shortcuts preserve page drafts and recover from a failed request', 
     await page.getByRole('button', { name: 'Try again', exact: true }).click();
     const result = page.locator('[data-search-kind="document"]');
     await expect(result).toBeVisible();
+    await expect(page.getByText('Could not search')).toBeHidden();
     await result.click();
     await expect(page).toHaveURL(
         new RegExp(`/documents/${documentId}/review$`),

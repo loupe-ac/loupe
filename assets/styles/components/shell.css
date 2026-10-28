@@ -287,6 +287,9 @@
     .lp-topsearch__error {
         @apply flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm text-fg-mute;
     }
+    .lp-topsearch__error[hidden] {
+        @apply hidden;
+    }
     .lp-topsearch__all {
         @apply mt-1 justify-between border-t border-line-faint text-fg-mute;
     }
