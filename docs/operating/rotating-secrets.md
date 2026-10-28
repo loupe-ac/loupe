@@ -1,0 +1,136 @@
+---
+title: 'Rotating secrets'
+description: 'Replacing the production deploy secrets with one command, the order of a run, how to recover from a failure, and the guard that stops agents from reading the secret files.'
+---
+
+Rotate the deploy secrets when one leaks, or on a schedule. The command `just rotate-secrets` makes a new value where it can. It asks you for the values that only a vendor can issue. It applies all of them to production and prints the old credentials that you must revoke by hand.
+
+The recipe covers an App Platform deployment that you manage with the Terraform files in `terraform/`. It edits `terraform/terraform.tfvars` and never prints a secret value.
+
+## The groups
+
+Each secret belongs to one group. The group sets how the recipe gets the new value and what the rotation breaks.
+
+| Group                          | Secrets                                                                                                                                                                                                                                     | How the recipe gets the new value                                                  | Side effect                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Generated locally              | `app_secret`, `install_token`, `health_probe_token`, `mercure_jwt_secret`                                                                                                                                                                   | Makes a random value                                                               | Sessions and signed URLs end                                   |
+| Generated locally              | `oauth_private_key`, `oauth_private_key_passphrase`, `oauth_encryption_key`, `oauth_public_key`                                                                                                                                             | Makes a new RSA key pair and a new key                                             | Every MCP client and bridge signs in again                     |
+| Rotated through Terraform      | The export bucket key, `digitalocean_spaces_key.exports`                                                                                                                                                                                    | Replaces the key resource                                                          | None                                                           |
+| Rotated through the GitHub API | `github_app_webhook_secret`                                                                                                                                                                                                                 | Makes a value, then sets it on the GitHub App                                      | Events in a short window fail, and the recipe sends them again |
+| Vendor dashboard               | `do_token`, `spaces_access_id`, `spaces_secret_key`, `registry_credentials`, `mailer_dsn`, `stripe_secret_key`, `stripe_webhook_secret`, `oauth_google_secret`, `oauth_github_secret`, `github_app_client_secret`, `github_app_private_key` | Opens the vendor page and reads the new value with hidden input                    | You revoke the old value                                       |
+| Vendor dashboard, when set     | `export_storage_key`, `export_storage_secret`, `site_review_widget_preview_token`                                                                                                                                                           | The same, only when the value is set                                               | You revoke the old value                                       |
+| Own step                       | `app_encryption_key`, with `app_encryption_key_previous`                                                                                                                                                                                    | The three-deploy step in [Rotating the encryption key](rotating-encryption-key.md) | Old database dumps stay readable with the old key only         |
+| Own step, by name only         | `vapid_private_key`, with `vapid_public_key`                                                                                                                                                                                                | Makes a new key pair                                                               | Every web push subscription stops                              |
+
+The vendor pages are:
+
+| Secret                                                                      | Where to make the new value                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `do_token`, `spaces_access_id`, `spaces_secret_key`                         | The API and Spaces keys pages of the DigitalOcean account                 |
+| `registry_credentials`                                                      | The token page of the GitHub account that owns the container registry     |
+| `mailer_dsn`                                                                | The page of your mail provider. The recipe asks for the new password only |
+| `stripe_secret_key`, `stripe_webhook_secret`                                | The API keys and webhook pages of the Stripe dashboard                    |
+| `oauth_google_secret`                                                       | The credentials page of the Google Cloud project                          |
+| `oauth_github_secret`, `github_app_client_secret`, `github_app_private_key` | The developer settings of GitHub                                          |
+| `site_review_widget_preview_token`                                          | Issued by the `loupe` CLI for a preview instance                          |
+
+Four rules apply to the table.
+
+- The account Spaces key pair (`spaces_access_id`, `spaces_secret_key`) belongs to no Terraform resource. Only the vendor page can replace it.
+- `export_storage_key` and `export_storage_secret` stay empty while `create_export_bucket` is true. They matter only for a bucket that you bring.
+- A secret whose current value is empty or unset is skipped, and the recipe prints `<name>: not set, skipped`. An empty `install_token` therefore stays empty, and no feature turns on by accident.
+- `sentry_dsn` and the client ids are not secret. The recipe leaves them alone.
+
+## Run it
+
+Rotate every secret except the web push key:
+
+```bash
+just rotate-secrets
+```
+
+Rotate only the secrets that you name:
+
+```bash
+just rotate-secrets app_secret mercure_jwt_secret
+```
+
+A name of one secret in a pair runs the step of its group. For example, `oauth_private_key` rotates the whole OAuth key set.
+
+For a vendor secret, the recipe prints the page to open and reads the new value with hidden input. It checks the shape of the value before it writes anything. For a multi-line value, such as the GitHub App private key, type a line that holds only a period to end the input, or type the path of a file.
+
+## The order of one run
+
+1. The encryption key step runs first, when the run includes it. It applies three times and asks you a question in between.
+2. The recipe finishes a pending webhook switch, when the file `terraform/.rotate-secrets.webhook-since` exists. A run that finds the file does this before any other step.
+3. The recipe writes the file with the phase `applying`, the start time and the ID of the active app deployment. This step applies only when the run holds the webhook secret.
+4. The recipe writes every new value to a temporary file. It reads each value back through Terraform. When every value matches, it renames the temporary file over `terraform/terraform.tfvars`.
+5. The recipe runs `just tf-apply` once. It replaces the export bucket key in the same apply.
+6. The recipe waits until a deployment that is newer than the recorded one is active. It polls every 15 seconds and stops after 30 minutes.
+7. The recipe sets the phase to `applied`.
+8. The recipe sets the new webhook secret on the GitHub App.
+9. The recipe lists the events since the recorded start time and sends again each event that has no good delivery.
+10. The recipe waits until each of those events has a delivery with a status code from 200 to 399. It checks every 10 seconds and stops after 2 minutes.
+11. The recipe removes the pending switch file and prints the revoke list.
+
+## The webhook switch
+
+GitHub signs each event with the webhook secret. Loupe accepts one secret only. The recipe gives Loupe the new secret first, and tells GitHub only after the new deployment is active. Events that arrive in between fail the signature check, and GitHub does not send them again by itself. The recipe sends them again after the switch.
+
+The file `terraform/.rotate-secrets.webhook-since` holds no secret, and git ignores it. It records how far the run got.
+
+GitHub sends again only the deliveries of the past 3 days. Run the retry within 3 days of the first apply. When the recorded start time is older, the retry prints a warning, and the older failed events are lost.
+
+## If a step fails
+
+- A write fails: the old `terraform/terraform.tfvars` stays whole, and no temporary file stays behind. Fix the cause and run the recipe again.
+- The apply fails: the file already holds the new values. Fix the cause and run `just tf-apply`. When the run holds the webhook secret, run `just rotate-secrets github_app_webhook_secret` instead, because that retry runs the apply again before it calls GitHub.
+- The deployment fails: the pending switch file stays. Fix the cause of the failed deployment first, because the retry stops on it again. Then run `just rotate-secrets github_app_webhook_secret`.
+- The webhook switch fails, or an event is not delivered after its resend: the pending switch file stays. Run `just rotate-secrets github_app_webhook_secret` within 3 days. It makes no new secret. It runs the apply again when the first apply did not finish. It sends again each event since the first apply that has no good delivery.
+- The encryption key step stops: follow [Rotating the encryption key](rotating-encryption-key.md). The recipe saves its progress and resumes on the next run.
+
+## Checks after a run
+
+1. Run `just healthz`. It prints the live version.
+2. Sign in to the app.
+3. Trigger a GitHub event, such as a comment on a pull request, and check that it reaches its card.
+4. Check that `terraform/.rotate-secrets.webhook-since` no longer exists.
+5. Work through the revoke list. Each line names an old credential that you must revoke at the vendor.
+
+## The web push key
+
+A full run skips `vapid_private_key`, because a new pair stops every web push subscription. The recipe prints `vapid_private_key: skipped, rotate it by name; every push subscription stops`. Name the secret to rotate it. After a full leak, run the full rotation and then name the key in a second run.
+
+## The agent read guard
+
+An agent can print a secret file by mistake, for example with `cat` or `grep`. The guard refuses that command before it runs. It covers Claude Code sessions.
+
+The guard protects these files:
+
+- `terraform/terraform.tfvars`
+- `terraform/terraform.tfstate` and its backup copies
+- `docker/compose/prod.env`
+- the temporary files `terraform/.rotate-secrets.tmp.*`
+
+It has two layers.
+
+- Deny rules in `.claude/settings.json` refuse `Read` on those files. They hold in every permission mode, and they also cover `@` mentions and the selection of an editor.
+- The hook `.agents/hooks/no-secret-reads.sh` checks every word of a shell command, and the path of `Read`, `Grep`, `Edit` and `Write`. It matches on the file name, with any folder before it, so a worktree cannot reach the main checkout files through `../..`.
+
+The hook also refuses a command that prints the Terraform state without naming it, such as `terraform state pull`. It refuses a recursive search over a folder that holds a secret file. For that search, use `rg` or `git grep`, which skip files that git ignores.
+
+Each refusal names a safe path:
+
+- `just tfvars-names` prints the names assigned in `terraform.tfvars` and `prod.env`, and no value.
+- `just healthz` prints the live version of the app. It reads the probe token and never prints it.
+- `just rotate-secrets` rotates a secret without showing it.
+
+### What the guard does not stop
+
+The guard stops a mistake. It does not stop a session that tries to get around it.
+
+- The hook matches command text. A script that opens the file itself passes, and so does a command that builds the path at run time.
+- A session can turn every hook off with the `disableAllHooks` setting. The deny rules still hold then, but they do not cover `grep`, `awk` or `less`.
+- The JSON plan of `terraform plan` names no file, so the guard does not stop an agent from printing it.
+- The guard covers Claude Code only. Other agent tools have no hook in this repository.
+- A temporary file with a protected name, such as `/tmp/terraform.tfvars`, is refused too.
