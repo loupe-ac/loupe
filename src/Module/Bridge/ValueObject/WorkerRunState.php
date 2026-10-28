@@ -128,6 +128,12 @@ enum WorkerRunState: string
         return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::GaveUp], true);
     }
 
+    /** The ends where the work broke. A stop for a person and work that remains are not failures. */
+    public function isFailure(): bool
+    {
+        return \in_array($this, [self::Failed, self::NotStarted, self::NoResult, self::TimedOut, self::Lost], true);
+    }
+
     /** The outcomes that count as a stop in a stop rate. */
     public function isStop(): bool
     {
