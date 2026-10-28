@@ -342,6 +342,7 @@ final class CardHistoryEntryTest extends TestCase
         yield 'a met condition' => ['until-met', 'board.card.history.release_reason.until_met'];
         yield 'an inbox turned on' => ['inbox-on', 'board.card.history.release_reason.inbox_on'];
         yield 'a card out of the column' => ['left-slot', 'board.card.history.release_reason.left_slot'];
+        yield 'a pull request that closed' => ['pull-request-closed', 'board.card.history.release_reason.pull_request_closed'];
         yield 'a removed rule' => ['rule-removed', 'board.card.history.release_reason.rule_removed'];
         yield 'a resumed run' => ['run-resumed', 'board.card.history.release_reason.run_resumed'];
         yield 'a release rule' => ['released-by-rule', 'board.card.history.release_reason.released_by_rule'];

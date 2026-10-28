@@ -14,6 +14,11 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
@@ -24,6 +29,9 @@ use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Profiler\Profile;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class ShowBoardControllerTest extends WebTestCase
 {
@@ -586,7 +594,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('#board-card-'.$stuck->id.' .lp-state-mark--stuck'));
         self::assertCount(1, $crawler->filter('#board-card-'.$stuck->id.' .lp-state-mark'));
         self::assertStringContainsString('The checks of pull request #5 fail', $crawler->filter('#board-card-'.$stuck->id.' .lp-tooltip')->text());
-        self::assertSame(['checks_failed', 'unmanaged'], $crawler->filter('#board-card-'.$stuck->id.' [data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
+        self::assertSame(['checks_failed'], $crawler->filter('#board-card-'.$stuck->id.' [data-marker-key]')->each(static fn (Crawler $row): string => (string) $row->attr('data-marker-key')));
         self::assertCount(1, $list->filter('#board-row-'.$stuck->id.' .lp-state-mark--stuck'));
         self::assertCount(1, $crawler->filter('#board-card-'.$chipOnly->id.' .lp-state-mark--chip'));
         self::assertCount(1, $list->filter('#board-row-'.$chipOnly->id.' .lp-state-mark--chip'));
@@ -629,6 +637,63 @@ final class ShowBoardControllerTest extends WebTestCase
         $after = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/board')->filter('#board-card-'.$card->id)->attr('data-card-digest');
 
         self::assertNotSame($before, $after);
+    }
+
+    public function test_a_card_with_an_open_inbox_item_links_it_from_its_mark_in_one_read_for_the_board(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $flags = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = true;
+        $em->flush();
+        $reader = static::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
+
+        $owner = $this->user($em, 'board-inbox-link@example.com');
+        $project = $this->project($em, $owner);
+        $asked = $this->card($em, $project, 'Asked', 'in-progress');
+        $this->store($em, $asked, [$this->entry('open_question', 'needs-you', ['%number%' => 7, '%title%' => 'Which?'])]);
+        $quiet = $this->card($em, $project, 'Quiet', 'in-progress');
+        $this->store($em, $quiet, [$this->entry('run_stopped', 'stuck')]);
+        $item = new InboxItem(project: $project, number: 7, kind: InboxItemKind::Question, title: 'Which?', blocking: true, origin: InboxAskOrigin::Agent);
+        $em->persist($item);
+        $em->persist(new InboxItemCard($item, $asked));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->enableProfiler();
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
+        self::assertResponseIsSuccessful();
+
+        $link = $crawler->filter('#board-card-'.$asked->id.' .lp-tooltip [data-card-inbox-item]');
+        self::assertSame('/projects/'.$project->id.'/inbox?item=7', $link->attr('href'));
+        self::assertSame('Open inbox item', trim($link->text()));
+        self::assertCount(0, $crawler->filter('#board-card-'.$quiet->id.' [data-card-inbox-item]'));
+
+        $profile = $client->getProfile();
+        self::assertInstanceOf(Profile::class, $profile);
+        $collector = $profile->getCollector('db');
+        self::assertInstanceOf(DoctrineDataCollector::class, $collector);
+        $inboxReads = 0;
+        foreach ($collector->getQueries() as $queries) {
+            foreach ($queries as $query) {
+                $sql = (string) $query['sql'];
+                $inboxReads += str_starts_with($sql, 'SELECT') && str_contains($sql, 'inbox_item_cards') ? 1 : 0;
+            }
+        }
+        self::assertSame(1, $inboxReads);
+
+        $list = $this->listOf($client, $project);
+        self::assertCount(0, $list->filter('#board-row-'.$asked->id.' a.lp-tooltip__link'));
+        self::assertSame($crawler->filter('#board-card-'.$asked->id)->attr('data-card-digest'), $list->filter('#board-row-'.$asked->id)->attr('data-card-digest'));
+
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$asked->id.'/placement');
+        $placement = new Crawler((string) $client->getResponse()->getContent());
+        self::assertSame('/projects/'.$project->id.'/inbox?item=7', $placement->filter('#board-card-'.$asked->id.' [data-card-inbox-item]')->attr('href'));
+        self::assertSame($crawler->filter('#board-card-'.$asked->id)->attr('data-card-digest'), $placement->filter('#board-card-'.$asked->id)->attr('data-card-digest'));
     }
 
     public function test_the_board_reads_no_pause_or_hold_whatever_the_card_count(): void

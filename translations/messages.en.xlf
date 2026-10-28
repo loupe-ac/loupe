@@ -7548,6 +7548,7 @@
             <trans-unit id="board.card.history.release_reason.refilled"><source>board.card.history.release_reason.refilled</source><target>the work budget of the rule refilled</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.until_met"><source>board.card.history.release_reason.until_met</source><target>the condition that ends the pause holds</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.inbox_on"><source>board.card.history.release_reason.inbox_on</source><target>the inbox turned on</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.pull_request_closed"><source>board.card.history.release_reason.pull_request_closed</source><target>the pull request of the rule closed or merged</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.left_slot"><source>board.card.history.release_reason.left_slot</source><target>the card left the column of the rule</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.rule_removed"><source>board.card.history.release_reason.rule_removed</source><target>the rule left the workflow</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.run_resumed"><source>board.card.history.release_reason.run_resumed</source><target>a worker run resumed</target></trans-unit>
@@ -7662,6 +7663,7 @@
             <trans-unit id="board.card_state.waiting"><source>board.card_state.waiting</source><target>Waiting</target></trans-unit>
             <trans-unit id="board.card_state.chip"><source>board.card_state.chip</source><target>Note</target></trans-unit>
             <trans-unit id="board.card_state.open_card"><source>board.card_state.open_card</source><target>Open card</target></trans-unit>
+            <trans-unit id="board.card_state.open_inbox_item"><source>board.card_state.open_inbox_item</source><target>Open inbox item</target></trans-unit>
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>
             <trans-unit id="board.card.history.reason.checks_failed"><source>board.card.history.reason.checks_failed</source><target>the checks fail</target></trans-unit>
             <trans-unit id="board.card.history.reason.agent_review"><source>board.card.history.reason.agent_review</source><target>the agent review found problems</target></trans-unit>
@@ -9110,6 +9112,7 @@
             <trans-unit id="workflow.panel.pause_kind.work_stopped"><source>workflow.panel.pause_kind.work_stopped</source><target>the worker stopped and needs a person</target></trans-unit>
             <trans-unit id="workflow.panel.release.left_slot"><source>workflow.panel.release.left_slot</source><target>The pause ends when the card leaves its slot.</target></trans-unit>
             <trans-unit id="workflow.panel.release.facts_changed"><source>workflow.panel.release.facts_changed</source><target>The pause ends when the facts that the rule reads change.</target></trans-unit>
+            <trans-unit id="workflow.panel.release.needs_person"><source>workflow.panel.release.needs_person</source><target>The pause ends when a person retries the card or resumes the run. It also ends when the card leaves its slot or the pull request of the rule closes. New facts, such as a new head or a new review, do not end it.</target></trans-unit>
             <trans-unit id="workflow.panel.release.next_evaluation"><source>workflow.panel.release.next_evaluation</source><target>The workflow ends the pause when it next evaluates the card.</target></trans-unit>
             <trans-unit id="workflow.panel.release.met"><source>workflow.panel.release.met</source><target>The release condition is met. The workflow ends the pause when it next evaluates the card.</target></trans-unit>
             <trans-unit id="workflow.panel.retry"><source>workflow.panel.retry</source><target>Retry now</target></trans-unit>

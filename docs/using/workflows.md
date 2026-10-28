@@ -131,8 +131,8 @@ declare.
 A card shows one state mark. The mark is the first marker of the first kind that
 matches, in the order `stuck`, `needs-you`, `working`, `waiting`. Inside one
 kind, the marker that comes first in the template wins. The tooltip of the mark
-lists every other marker, chips included. A card with only a chip shows a neutral
-mark.
+shows that marker alone. The card page lists the other markers that ask you to
+act, chips included. A card with only a chip shows a neutral mark.
 
 A marker with no slots applies in every column that is not terminal. A marker
 with slots applies only while the card sits in a column that links to one of
@@ -360,7 +360,8 @@ latest worker run failed or ended with no result, until a later run ends in
 another state.
 
 A pause after a refused or expired request ends by itself when a fact that its
-rule reads changes after the refusal, such as a new head commit. The work then
+rule reads changes after the refusal, such as a new head commit. A "needs a
+person" stop is the exception, as a later paragraph says. The work then
 starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay.
@@ -396,6 +397,21 @@ card again at once.
 A "needs a person" stop does not pause a card when a resumed run of the same
 kind of work, from any rule of the card, reported after the stop. That run also
 ends such a pause. A stop with any other code pauses the card as before.
+
+A "needs a person" stop waits for a person. New facts do not end its pause,
+also when they change what its rule reads. A new head commit, new checks or a
+new failed agent review leave the card paused, because they do not answer the
+worker. These events end the pause:
+
+- A person releases it with **Retry now**, or resumes the stopped run.
+- A resumed run of the same kind of work reports, as the paragraph above says.
+- The card leaves the slot of the rule, or the workflow template removes the rule.
+- The rule moves to another open pull request.
+- The pull request of the rule closes or merges.
+
+While the card is paused, no rule runs on it. So a review of a new head waits
+too, until a person retries the card. Other stop codes, such as `blocked`, keep
+the release on changed facts that the paragraph on refused requests describes.
 
 The template sets this behaviour in its `onWorkFailed` block:
 

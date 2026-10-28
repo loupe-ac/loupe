@@ -1,32 +1,27 @@
-{# The one mark a card shows, with its tooltip. Props: card (Card), markers (StoredCardMarkers), link (bool): whether the tooltip ends
-   with the links of the markers it lists, each page once, and the card, which a list row, itself a link, leaves out. A card with only chips draws the neutral mark. #}
+{# The one mark a card shows, with its tooltip of the main state alone. Props: card (Card), markers (StoredCardMarkers), inboxItem (?int, optional):
+   the number of the card's open inbox item, link (bool): whether the tooltip ends with its links, which a list row, itself a link, leaves out. #}
 {% set state = markers.state %}
+{% set main = markers.primary %}
+{% set inboxItem = inboxItem ?? null %}
 {% set title = (state is null ? 'board.card_state.chip' : state.kind.translationKey)|trans %}
 <twig:Ds:StateMark :kind="state is null ? 'chip' : state.kind.value" :label="title">
-    {% if state is null %}
-    {% set chip = markers.primary %}
-    <span data-marker-key="{{ chip.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ chip.label|trans(chip.params) }}</span>
-    <span class="lp-tooltip__line--quiet">{{ card_state_text(chip.kind.sinceKey, chip.since) }}</span>
-    {% else %}
-    <span data-marker-key="{{ state.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ state.label|trans(state.params) }}</span>
-    <span class="lp-tooltip__line--quiet">{{ card_state_text(state.kind.sinceKey, state.since) }}</span>
-    {% endif %}
-    {% for other in markers.alsoApplies %}
-    <span data-marker-key="{{ other.key }}">{% if other.kind.value != 'chip' %}<strong>{{ other.kind.translationKey|trans }}.</strong> {% endif %}{{ other.label|trans(other.params) }}</span>
-    <span class="lp-tooltip__line--quiet">{{ card_state_text(other.kind.sinceKey, other.since) }}</span>
-    {% endfor %}
+    <span data-marker-key="{{ main.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ main.label|trans(main.params) }}</span>
+    <span class="lp-tooltip__line--quiet">{{ card_state_text(main.kind.sinceKey, main.since) }}</span>
     {% if link %}
-    {% set markerLinks = [] %}
-    {% for marker in [state]|merge(markers.alsoApplies) %}
-    {% if marker is not null and marker.link is not null and marker.link not in markerLinks %}
-    {% set markerLinks = markerLinks|merge([marker.link]) %}
+    {% if main.link is not null %}
     <a class="lp-tooltip__link"
        draggable="false"
-       href="{{ marker_link_href(marker.link, card.project) }}"
+       href="{{ marker_link_href(main.link, card.project) }}"
        data-turbo-frame="_top"
-       data-marker-link="{{ marker.link.value }}">{{ marker.link.translationKey|trans }}</a>
+       data-marker-link="{{ main.link.value }}">{{ main.link.translationKey|trans }}</a>
     {% endif %}
-    {% endfor %}
+    {% if inboxItem is not null %}
+    <a class="lp-tooltip__link"
+       draggable="false"
+       href="{{ path('app_project_inbox', {id: card.project.id, item: inboxItem}) }}"
+       data-turbo-frame="_top"
+       data-card-inbox-item="{{ inboxItem }}">{{ 'board.card_state.open_inbox_item'|trans }}</a>
+    {% endif %}
     <a class="lp-tooltip__link"
        draggable="false"
        href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}"

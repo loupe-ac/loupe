@@ -28,7 +28,7 @@ the provider's own snapshot; only the key half below applies.
   missing one. If you [rotated the key](rotating-encryption-key.md) since the
   dump, you need the current key as well. The dump's key then goes into
   `APP_ENCRYPTION_KEY_PREVIOUS`, never back into `APP_ENCRYPTION_KEY`.
-- The rest of `docker/compose/prod.env`. Rotating `APP_SECRET` only invalidates
+- The rest of `docker/compose/prod.env`. [Rotating `APP_SECRET`](rotating-secrets.md) only invalidates
   sessions and signed URLs. The encryption key can be rotated, but a dump keeps
   the key it was written with.
 

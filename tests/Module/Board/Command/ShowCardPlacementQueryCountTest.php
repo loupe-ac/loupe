@@ -16,6 +16,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 
 /** The placement of one card reads that card, so a bigger board costs it no more queries. */
 final class ShowCardPlacementQueryCountTest extends KernelTestCase
@@ -36,6 +37,11 @@ final class ShowCardPlacementQueryCountTest extends KernelTestCase
         $queries = self::getContainer()->get('doctrine.debug_data_holder');
         self::assertInstanceOf(DebugDataHolder::class, $queries);
         $this->queries = $queries;
+
+        // The flag reader loads every flag once per request, so the first board read would count that query alone.
+        $flags = self::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(FeatureFlagReaderInterface::class, $flags);
+        $flags->all();
     }
 
     public function test_a_bigger_board_costs_the_placement_no_more_queries(): void
