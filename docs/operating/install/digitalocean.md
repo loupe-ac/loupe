@@ -118,13 +118,16 @@ just tf-db-bootstrap
 #    db_name.
 doctl databases connection "$(just tf-output -raw db_cluster_id)" --format URI
 
-#    With a secret store, $TF_VAR_app_secret is not in your shell. Run the
-#    command inside `bin/tf-secrets exec -- sh -c '...'` to read it there.
-docker run --rm \
+#    bin/tf-secrets exec puts TF_VAR_app_secret in the environment of the
+#    inner shell only. `-e APP_SECRET` with no value makes docker read it from
+#    that environment, so the value is not in a process argument. Without a
+#    store, export TF_VAR_app_secret with the value from terraform.tfvars first.
+bin/tf-secrets exec -- sh -c '
+APP_SECRET="$TF_VAR_app_secret" exec docker run --rm \
     -e APP_ENV=prod \
-    -e APP_SECRET="$TF_VAR_app_secret" \
+    -e APP_SECRET \
     -e DATABASE_URL="postgresql://<db_user>:<password>@<host>:<port>/<db_name>?sslmode=require&serverVersion=16" \
-    "${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}" docker/prod/release.sh
+    "${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}" docker/prod/release.sh'
 
 # 6. Turn on automated migrations for every deploy afterwards:
 #    set `enable_predeploy_migrations = true` in terraform.tfvars, then

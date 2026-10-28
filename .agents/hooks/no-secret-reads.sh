@@ -300,8 +300,22 @@ judge_command() {
     esac
     judge_store "$cmd" "${words[@]:i+1}"
 
-    local script="$cmd"
-    case "${cmd##*/}" in bash|sh|zsh) script="${words[i+1]:-}" ;; esac
+    # A shell, a builtin or a wrapper that runs a script file runs it as the
+    # command. The pattern lists the options that take a value.
+    local script="$cmd" j=$((i + 1)) valued
+    case "${cmd##*/}" in
+        bash|sh|zsh|dash|ksh|source|.|exec|command) valued='^([-+][oO]|-a|--rcfile|--init-file)$' ;;
+        sudo|doas) valued='^-[ughpCUDrt]$' ;;
+        xargs) valued='^-[IinLlPdEsa]$' ;;
+        nohup) valued='^$' ;;
+    esac
+    if [ -n "${valued:-}" ]; then
+        while [[ ${words[j]:-} == [-+]* ]]; do
+            if [[ ${words[j]} =~ $valued ]]; then j=$((j + 2)); else j=$((j + 1)); fi
+        done
+        script="${words[j]:-}"
+        judge_store "$script" "${words[@]:j+1}"
+    fi
     if is_allowed "$cmd" || is_plan_use "$cmd" "${words[@]:i+1}" || { [ "$script" != "$cmd" ] && is_safe_script "$script"; }; then
         has_substitution "${words[@]}" && any_protected "${words[@]}" && deny "$read_msg"
         redirects_secret "${words[@]}" && deny "$read_msg"
