@@ -94,6 +94,17 @@
                 <span class="lp-topbar__meta">12 cards</span>
             </div>
             <div class="lp-topbar__global-actions">
+                <div class="lp-topsearch">
+                    <button type="button" class="lp-topbar__global-action lp-topsearch__icon" title="Search project" aria-label="Search project">
+                        <twig:ux:icon name="lucide:search" />
+                    </button>
+                    <form class="lp-topsearch__form" role="search">
+                        <label class="sr-only" for="specimen-search">Search pages, cards, and documents</label>
+                        <twig:ux:icon name="lucide:search" class="lp-icon lp-icon--md lp-topsearch__glyph" />
+                        <twig:Ds:Input type="search" id="specimen-search" compact placeholder="Search" />
+                        <kbd class="lp-kbd lp-topsearch__hint lp-topsearch__hint--idle">⌘K</kbd>
+                    </form>
+                </div>
                 <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="#" aria-label="New work">
                     <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />
                     <span class="lp-topbar__new-work-label">New work</span>

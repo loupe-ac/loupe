@@ -49,7 +49,7 @@ final class SearchProjectHandlerTest extends KernelTestCase
         $numbered = $search(new SearchProjectCommand($project, '#1'));
         $numberedCards = array_values(array_filter($numbered->results->items, static fn (SearchResult $result): bool => 'card' === $result->kind));
         self::assertGreaterThanOrEqual(1, \count($numberedCards));
-        self::assertStringStartsWith('#1 Search card', $numberedCards[0]->title);
+        self::assertStringStartsWith('Search card', $numberedCards[0]->title);
         self::assertSame(1, $numberedCards[0]->number, 'the card with the number comes first');
         self::assertNotEmpty($numberedCards[0]->meta, 'the result names its column');
         self::assertSame([], $search(new SearchProjectCommand($project, '#1', 2))->results->items);

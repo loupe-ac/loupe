@@ -44,4 +44,21 @@ final class AppShellTopbarParityTest extends KernelTestCase
             self::assertMatchesRegularExpression('/<span class(Name)?="lp-topbar__new-work-label">/', $source, $name);
         }
     }
+
+    public function test_the_app_the_specimen_and_the_export_draw_the_search_field_and_its_icon(): void
+    {
+        $dir = static::getContainer()->getParameter('kernel.project_dir').'/templates/';
+        $sources = [
+            'app' => (string) file_get_contents($dir.'search/_topbar_search.html.twig'),
+            'specimen' => (string) file_get_contents($dir.'Module/DesignSystem/specimen/appshell.html.twig'),
+            'export' => self::componentJsx('AppShell'),
+        ];
+
+        foreach ($sources as $name => $source) {
+            self::assertMatchesRegularExpression('/class(Name)?="lp-topsearch/', $source, $name);
+            self::assertStringContainsString('lp-topsearch__form', $source, $name);
+            self::assertStringContainsString('lp-topsearch__icon', $source, $name);
+            self::assertStringContainsString('lp-topbar__global-action', $source, $name);
+        }
+    }
 }

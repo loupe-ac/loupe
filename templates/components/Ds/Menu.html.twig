@@ -9,21 +9,26 @@
     as         string  The element of the panel, div by default. A form, a nav or a span are fine.
     panel      map     Attributes of the panel element, such as method and action of a form, or aria-label of a nav.
     open       bool    Shows the panel. Only the styleguide uses it.
+    live       bool    The panel is a listbox that a text field opens and a controller of the caller fills. The root holds no popover controller. The trigger block holds the field, with role="combobox" and aria-controls. The panel shows when the caller removes its hidden attribute.
   Blocks:
     trigger    The button that opens the panel. It carries data-popover-target="trigger", data-action="click->popover#toggle",
                aria-expanded="false" and aria-controls with the id of the panel.
     content    The panel. Use Ds:MenuItem, Ds:MenuHeading and Ds:MenuDivider, or any markup.
   Any other attribute, class included, is passed to the root element, which holds the popover controller.
 #}
-{%- props id, tone = 'light', align = 'end', direction = 'down', size = null, density = 'compact', as = 'div', panel = {}, open = false -%}
+{%- props id, tone = 'light', align = 'end', direction = 'down', size = null, density = 'compact', as = 'div', panel = {}, open = false, live = false -%}
 {%- set modifiers = [
     'light' != tone ? 'lp-menu--' ~ tone,
     'end' != align ? 'lp-menu--' ~ align,
     'down' != direction ? 'lp-menu--' ~ direction,
     size ? 'lp-menu--' ~ size,
     'compact' != density ? 'lp-menu--' ~ density,
+    live ? 'lp-menu--live',
 ]|filter(modifier => modifier) -%}
-<div{{ attributes.defaults({class: ('lp-menu ' ~ modifiers|join(' '))|trim, 'data-controller': 'popover'}) }}>
+{%- set defaults = {class: ('lp-menu ' ~ modifiers|join(' '))|trim} -%}
+{%- if not live %}{% set defaults = defaults|merge({'data-controller': 'popover'}) %}{% endif -%}
+{%- if live %}{% set panel = {role: 'listbox'}|merge(panel) %}{% endif -%}
+<div{{ attributes.defaults(defaults) }}>
     {%- block trigger %}{% endblock -%}
-    <{{ as }}{% for name, value in panel %} {{ name }}="{{ value }}"{% endfor %} class="lp-menu__panel" id="{{ id }}" data-popover-target="panel"{% if not open %} hidden{% endif %}>{% block content %}{% endblock %}</{{ as }}>
+    <{{ as }}{% for name, value in panel %} {{ name }}="{{ value }}"{% endfor %} class="lp-menu__panel" id="{{ id }}"{% if not live %} data-popover-target="panel"{% endif %}{% if not open %} hidden{% endif %}>{% block content %}{% endblock %}</{{ as }}>
 </div>

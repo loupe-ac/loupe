@@ -3603,18 +3603,6 @@
     .lp-dialog--search {
         @apply max-w-2xl;
     }
-    .lp-search-dialog__header {
-        @apply flex items-center justify-between gap-3 mb-4;
-    }
-    .lp-search-dialog__form {
-        @apply flex flex-wrap items-center gap-2 mb-4;
-    }
-    .lp-search-dialog__form .lp-input {
-        @apply min-w-0 flex-1 basis-48;
-    }
-    .lp-search-dialog__label {
-        @apply sr-only;
-    }
     .lp-search-result {
         @apply flex flex-wrap items-center justify-between gap-3 border-b border-line py-3 text-ink no-underline;
     }
@@ -8110,6 +8098,15 @@
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes lp-progress-slide {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
     }
 }
 

@@ -1,0 +1,36 @@
+<turbo-frame id="topbar-search-results">
+    {% if view %}
+        {% set allResultsUrl = (project ? path('app_project_search', {id: project.id, query: view.query}) : path('app_search_owned_projects', {query: view.query})) %}
+        <div data-search-query="{{ view.query }}">
+            {% for kind, rows in view.results.dropdown %}
+                <twig:Ds:MenuGroup :heading="('search.topbar.group.' ~ kind)|trans" role="group" :aria-label="('search.topbar.group.' ~ kind)|trans">
+                    {% for row in rows %}
+                        {% set rowBody %}
+                            {% if row.number %}<span class="lp-board-card__number">#{{ row.number }}</span>{% endif %}
+                            <span class="lp-menu__label">{{ row.title }}</span>
+                            {% if row.meta %}<twig:Ds:StatusChip :dot="false">{{ row.meta }}</twig:Ds:StatusChip>{% endif %}
+                        {% endset %}
+                        {% if 'card' == kind %}
+                            <twig:Ds:MenuItem role="option" href="{{ row.url }}" data-search-kind="card" data-turbo-frame="_top" data-drawer-title="{{ row.title }}">{{ rowBody }}</twig:Ds:MenuItem>
+                        {% else %}
+                            <twig:Ds:MenuItem role="option" href="{{ row.url }}" data-search-kind="{{ kind }}" data-turbo-frame="_top">{{ rowBody }}</twig:Ds:MenuItem>
+                        {% endif %}
+                    {% endfor %}
+                </twig:Ds:MenuGroup>
+            {% else %}
+                <p class="lp-menu__heading" role="status">{{ 'search.topbar.empty'|trans({'%query%': view.query}) }}</p>
+            {% endfor %}
+            <a class="lp-menu__item lp-topsearch__all" href="{{ allResultsUrl }}" data-search-all data-turbo-frame="_top">
+                {% if '' == view.query %}
+                    <span>{{ 'search.topbar.all_results_blank'|trans }}</span>
+                {% else %}
+                    <span class="lp-topsearch__all-long">{{ 'search.topbar.all_results'|trans({'%query%': view.query}) }}</span>
+                    <span class="lp-topsearch__all-short">{{ 'search.topbar.all_results_blank'|trans }}</span>
+                {% endif %}
+                <kbd class="lp-kbd" aria-hidden="true">{{ 'search.topbar.enter'|trans }}</kbd>
+            </a>
+        </div>
+    {% else %}
+        <p class="lp-menu__heading" role="alert">{{ 'search.topbar.failed'|trans }}</p>
+    {% endif %}
+</turbo-frame>
