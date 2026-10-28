@@ -129,6 +129,18 @@ final class CardDigestTest extends TestCase
         self::assertSame($digest->forCard($card, 0, 0, 0, null, null, null), $digest->forCard($card, 0, 0, 0, null, null, MarkerMother::markers()));
     }
 
+    public function test_the_open_inbox_item_changes_the_digest(): void
+    {
+        $card = $this->makeCard();
+        $digest = new CardDigest();
+
+        self::assertCount(3, array_unique([
+            $digest->forCard($card, 0, 0, 0, null, null, null),
+            $digest->forCard($card, 0, 0, 0, null, null, null, 7),
+            $digest->forCard($card, 0, 0, 0, null, null, null, 8),
+        ]));
+    }
+
     private function digest(Card $card): string
     {
         return new CardDigest()->forCard($card, 0, 0, 0, null, null, null);

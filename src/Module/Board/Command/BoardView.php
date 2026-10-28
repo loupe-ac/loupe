@@ -60,6 +60,8 @@ final readonly class BoardView
         public array $decks = [],
         /** @var array<string, StoredCardMarkers> card id => its stored markers; a card in a terminal column, or with none, has no key */
         public array $markers = [],
+        /** @var array<string, int> card id => the number of its oldest open inbox item; a card with none has no key */
+        public array $openInboxItems = [],
     ) {
     }
 }

@@ -16,6 +16,7 @@ use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Contract\WorkLedger;
+use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Template\Rule;
@@ -88,7 +89,8 @@ final readonly class CardWorkflowPanelBuilder
         $release = match ($pause->kind) {
             PauseKind::Rule => $this->ruleRelease($pause, $template, $facts),
             PauseKind::WorkLimit => $this->translator->trans('workflow.panel.release.left_slot'),
-            PauseKind::Retries, PauseKind::WorkTimeout, PauseKind::WorkStopped => $this->translator->trans('workflow.panel.release.facts_changed'),
+            PauseKind::WorkStopped => $this->translator->trans(Engine::NEEDS_PERSON === $pause->reason ? 'workflow.panel.release.needs_person' : 'workflow.panel.release.facts_changed'),
+            PauseKind::Retries, PauseKind::WorkTimeout => $this->translator->trans('workflow.panel.release.facts_changed'),
         };
 
         return new CardWorkflowPause(

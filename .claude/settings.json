@@ -1,5 +1,14 @@
 {
   "skillListingBudgetFraction": 0.02,
+  "permissions": {
+    "deny": [
+      "Read(./terraform/terraform.tfvars)",
+      "Read(./terraform/*.tfstate)",
+      "Read(./terraform/*.tfstate.*)",
+      "Read(./terraform/.rotate-secrets.tmp.*)",
+      "Read(./docker/compose/prod.env)"
+    ]
+  },
   "hooks": {
     "WorktreeCreate": [
       {
@@ -40,6 +49,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/no-unsafe-git.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Monitor|Read|Grep|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/no-secret-reads.sh",
             "timeout": 10
           }
         ]

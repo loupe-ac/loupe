@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# Prints the variable names that terraform.tfvars and docker/compose/prod.env
+# assign. It never prints a value, so an agent session may run it.
+#
+# Environment, for tests: TFVARS_NAMES_TFVARS and TFVARS_NAMES_PROD_ENV name
+# the two files.
+
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+main=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+
+# A worktree has no secret files of its own, so fall back to the main checkout.
+locate() {
+    if [ -f "$root/$1" ]; then echo "$root/$1"; else echo "$main/$1"; fi
+}
+
+names() {
+    awk '
+        skip != "" { t = $0; gsub(/^[ \t]+|[ \t\r]+$/, "", t); if (t == skip) skip = ""; next }
+        /^[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*=[^=]/ || /^[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*=$/ {
+            line = $0
+            name = line; sub(/^[ \t]+/, "", name); sub(/[ \t]*=.*$/, "", name)
+            print name
+            rest = line; sub(/^[^=]*=/, "", rest)
+            if (match(rest, /<<-?[ \t]*"?[A-Za-z_][A-Za-z0-9_]*/)) {
+                skip = substr(rest, RSTART, RLENGTH); sub(/^<<-?[ \t]*"?/, "", skip)
+            }
+        }
+    ' "$1" | sort -u
+}
+
+show() {
+    printf '== %s\n' "$1"
+    if [ -f "$2" ]; then names "$2"; else echo "(file not found)"; fi
+}
+
+show terraform/terraform.tfvars "${TFVARS_NAMES_TFVARS:-$(locate terraform/terraform.tfvars)}"
+show docker/compose/prod.env "${TFVARS_NAMES_PROD_ENV:-$(locate docker/compose/prod.env)}"

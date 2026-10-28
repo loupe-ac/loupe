@@ -42,6 +42,7 @@ final readonly class CardHistoryEntry
         'until-met' => 'board.card.history.release_reason.until_met',
         'inbox-on' => 'board.card.history.release_reason.inbox_on',
         'left-slot' => 'board.card.history.release_reason.left_slot',
+        'pull-request-closed' => 'board.card.history.release_reason.pull_request_closed',
         'rule-removed' => 'board.card.history.release_reason.rule_removed',
         'run-resumed' => 'board.card.history.release_reason.run_resumed',
         'released-by-rule' => 'board.card.history.release_reason.released_by_rule',

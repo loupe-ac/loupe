@@ -131,8 +131,8 @@ declare.
 A card shows one state mark. The mark is the first marker of the first kind that
 matches, in the order `stuck`, `needs-you`, `working`, `waiting`. Inside one
 kind, the marker that comes first in the template wins. The tooltip of the mark
-lists every other marker, chips included. A card with only a chip shows a neutral
-mark.
+shows that marker alone. The card page lists the other markers that ask you to
+act, chips included. A card with only a chip shows a neutral mark.
 
 A marker with no slots applies in every column that is not terminal. A marker
 with slots applies only while the card sits in a column that links to one of
@@ -360,7 +360,8 @@ latest worker run failed or ended with no result, until a later run ends in
 another state.
 
 A pause after a refused or expired request ends by itself when a fact that its
-rule reads changes after the refusal, such as a new head commit. The work then
+rule reads changes after the refusal, such as a new head commit. A "needs a
+person" stop is the exception, as a later paragraph says. The work then
 starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay.
@@ -396,6 +397,21 @@ card again at once.
 A "needs a person" stop does not pause a card when a resumed run of the same
 kind of work, from any rule of the card, reported after the stop. That run also
 ends such a pause. A stop with any other code pauses the card as before.
+
+A "needs a person" stop waits for a person. New facts do not end its pause,
+also when they change what its rule reads. A new head commit, new checks or a
+new failed agent review leave the card paused, because they do not answer the
+worker. These events end the pause:
+
+- A person releases it with **Retry now**, or resumes the stopped run.
+- A resumed run of the same kind of work reports, as the paragraph above says.
+- The card leaves the slot of the rule, or the workflow template removes the rule.
+- The rule moves to another open pull request.
+- The pull request of the rule closes or merges.
+
+While the card is paused, no rule runs on it. So a review of a new head waits
+too, until a person retries the card. Other stop codes, such as `blocked`, keep
+the release on changed facts that the paragraph on refused requests describes.
 
 The template sets this behaviour in its `onWorkFailed` block:
 
@@ -582,9 +598,10 @@ with a done request, so the rules never fire for its runs.
 ### Agent review
 
 A separate agent reviews each open pull request of a card while it is still a
-draft. The review belongs to one head commit. A card of a type that may have
-children, such as an epic, needs no review. The rules of the template turn the
-review on. A template with none of the rules below asks for no review, and its
+draft. The review belongs to one head commit. An epic gets its review only
+when all its children are finished, because the review compares the pull
+request with the whole tech design. Until then, the epic gets no review and no
+fix round for one. The rules of the template turn the review on. A template with none of the rules below asks for no review, and its
 cards follow the other rules.
 
 When the check of a review with findings lands, the app rule
@@ -677,10 +694,10 @@ Six conditions of the **Agent review** group read the reviews of pull requests:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review. It is false while an approval overrides the review |
+| `agent_review.due` | the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review. It is false while an approval overrides the review |
 | `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has ended done after that review began, until the next review lands. It is also false while an approval overrides the review |
-| `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
-| `agent_review.overridden` | the card is not an epic, every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
+| `agent_review.passed` | every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
+| `agent_review.overridden` | every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
 | `agent_review.uncommented` | the newest review of an open pull request has at least one finding, its first check on its own head landed in the last hour, and it has no summary comment yet. A clean review, a carried review and a review older than one hour never count |
 
