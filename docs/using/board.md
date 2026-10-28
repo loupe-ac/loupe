@@ -241,9 +241,9 @@ the same colour. The workflow template sets the colour of a card type, and it
 also declares which types the board offers. The owner picks a column's colour from twelve in its
 **Colour** setting. The colour stays with the column when the columns move.
 
-The page header is one row: the title, the search, the card count, a
+The page header is one row: the title, the card count, a
 **Board settings** button with a gear icon, and the **Board** and **List**
-switch. To add a card, use **New work** in the top bar. It wraps on a narrow screen, and it stays in place when the
+switch. The card count follows the cards on the board as they change. To find a card, use the search in the top bar (see [Search](search.md)). To add a card, use **New work** in the top bar. It wraps on a narrow screen, and it stays in place when the
 cards scroll.
 
 A second header row holds a **Backlog** button. The button shows how many cards
@@ -265,7 +265,7 @@ A terminal column takes a drop like any other column. It keeps no rank.
 
 The card follows the pointer as you drag, and a gap opens where a release would
 put it. The server answers a drop with the moved card alone. Only the columns
-involved change, and the scroll position and the filter stay as they are. A move
+involved change, and the scroll position stays as it is. A move
 the server refuses puts the card back where it started, and a message says so.
 The server refuses a move to a column that no longer exists.
 
@@ -293,10 +293,8 @@ column on screen.
   bottom, so a swipe moves every lane to the next column.
 
 The board header is one row with the title and a **…** button. The **…** menu
-holds **Backlog** with its card count, **Search**, **Board settings** and the
-**Board** and **List** switch. **Search** opens the search field below the
-header. The field stays while it holds text, also after you open a card page and
-come back. A touch no longer drags a card on a phone, because a swipe moves the
+holds **Backlog** with its card count, **Board settings** and the
+**Board** and **List** switch. A touch no longer drags a card on a phone, because a swipe moves the
 board. A mouse still drags at any width.
 
 An epic lane head shows the epic name and its done count, for example **2/5**,
@@ -369,7 +367,7 @@ The notice needs live changes, as the board does.
 Every open board of the project shows a change as it happens, with no reload.
 
 - When someone else adds, edits, moves or deletes a card, that card changes in
-  place. The other cards, the scroll position and the filter stay.
+  place. The other cards and the scroll position stay.
 - On a board with epic lanes, a card also changes in place, in the cell of its
   lane and column. The head of an epic lane changes in place too.
 - A card that someone else changed gets a short highlight. With reduced motion

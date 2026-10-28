@@ -230,21 +230,12 @@ test('the last tab shows the last column and hides the next arrow', async ({
     );
 });
 
-test('the board menu holds Backlog, Search and Board settings, and Search opens the search row', async ({
+test('the board menu holds Backlog and Board settings', async ({
     page,
     boardUrl,
 }) => {
-    const projectId = boardUrl.split('/')[2];
-    const [cardId] = await createCards(page, projectId, [
-        { title: 'Menu search card', type: 'feature' },
-    ]);
     await page.goto(boardUrl);
-    const field = page.getByRole('searchbox', {
-        name: 'Search cards',
-        exact: true,
-    });
     const more = page.locator('.lp-board-toolbar__more');
-    await expect(field).toBeHidden();
     await expect(page.locator('a.lp-board-backlog')).toBeHidden();
 
     await more.click();
@@ -253,30 +244,9 @@ test('the board menu holds Backlog, Search and Board settings, and Search opens 
     await expect(
         menu.getByRole('link', { name: 'Board settings', exact: true }),
     ).toBeVisible();
-    await menu.getByRole('button', { name: 'Search', exact: true }).click();
-
-    await expect(menu).toBeHidden();
-    await expect(field).toBeFocused();
-    const moreBox = (await more.boundingBox())!;
-    const fieldBox = (await field.boundingBox())!;
-    expect(fieldBox.y).toBeGreaterThanOrEqual(moreBox.y + moreBox.height);
-    expect(fieldBox.width).toBeGreaterThan(300);
-
-    await field.fill('Menu search');
-    await page.locator('h1').tap();
-    await expect(field).toBeVisible();
-
-    await page.evaluate((id) => {
-        const link = document.createElement('a');
-        link.href = `${window.location.pathname}/cards/${id}`;
-        document.body.append(link);
-        link.click();
-    }, cardId);
-    await expect(page).toHaveURL(new RegExp(`/board/cards/${cardId}$`));
-    await page.goBack();
-
-    await expect(field).toBeVisible();
-    await expect(field).toHaveValue('Menu search');
+    await expect(
+        menu.getByRole('button', { name: 'Search', exact: true }),
+    ).toHaveCount(0);
 });
 
 async function swipe(
