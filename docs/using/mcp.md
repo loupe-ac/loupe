@@ -352,6 +352,10 @@ Roughly in the order an agent uses them:
 | `analysis_report` | Finish an analysis with its report document and at most 20 proposals, each a `card` or a `bucket-rule` |
 | `analytics_settings_get` | Read the analysis settings of the project: the default model and effort, the programs with subcommands, and whether the bridge sends the full text of each tool call |
 | `analytics_settings_update` | Change the analysis settings of the project. `clearDefaultModel` or `clearDefaultEffort` set to true clears the project value, so the instance default applies. An empty model or effort also clears it, and an empty list of programs clears the project list |
+| `bucket_rule_list` | List the time bucket rules of the project in the order they apply. Each rule gives its `id`, `position`, `pattern` and `bucket`, and the answer gives the `limit` of 50 rules |
+| `bucket_rule_create` | Add a time bucket rule at the end of the list, with a `pattern` glob of at most 120 characters and a `bucket` name of 1 to 64 lower case letters, digits, underscores or hyphens. A bad pattern or bucket, or a project at its limit, gives a tool error. The answer is the list of rules |
+| `bucket_rule_move` | Move a rule one place `up` or `down`, by its `ruleId`. The first rule cannot move up and the last cannot move down, so those moves change nothing. An id of another project gives a tool error. The answer is the list of rules |
+| `bucket_rule_delete` | Delete a rule by its `ruleId`. An id of another project gives a tool error. The answer is the rules that remain |
 | `bridge_list` | List the bridges that follow the project, with their name, their push login, their heartbeat, their pause, their worker pools, their account checks, their command entries, whether they add a proposed entry (`acceptsEntries`) and their open runs |
 | `worker_run_resume` | Ask the bridges to resume up to 50 ended worker runs, each resumed or refused on its own |
 | `worker_run_stop` | Ask the bridge to stop a queued or running worker run. The stop does not make the card unmanaged, so call `card_hold` for that |

@@ -315,4 +315,6 @@ time in that bucket for each run, with the median and the same range.
 
 The MCP tools `analysis_get` and `analysis_report` let the agent read and
 finish an analysis. `analytics_settings_get` and `analytics_settings_update`
-read and change the settings. See [the MCP tools](mcp.md#what-the-tools-do).
+read and change the settings. `bucket_rule_list`, `bucket_rule_create`,
+`bucket_rule_move` and `bucket_rule_delete` read and change the time bucket
+rules, as the Time buckets page does. See [the MCP tools](mcp.md#what-the-tools-do).
