@@ -368,11 +368,21 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->getResult());
     }
 
-    /** Restarts the timeout of each open request of the project, in one statement, so it joins a caller's transaction. A managed request is stale after it. */
-    public function restartClockOfOpenForProject(Uuid $projectId, \DateTimeImmutable $now): void
+    /** Marks each open request of the project that the hold found, in one statement, so it joins a caller's transaction. A managed request is stale after it. */
+    public function markOpenHeldForProject(Uuid $projectId, \DateTimeImmutable $now): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
-            'UPDATE work_requests SET reopened_at = :now WHERE project_id = :project AND state = :open',
+            'UPDATE work_requests SET work_hold_since = :now WHERE project_id = :project AND state = :open AND work_hold_since IS NULL',
+            ['now' => $now, 'project' => $projectId->toRfc4122(), 'open' => WorkRequestState::Open->value],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        );
+    }
+
+    /** Restarts the timeout of each open request of the project that the hold marked, and clears the mark, in one statement. A managed request is stale after it. */
+    public function restartClockOfHeldForProject(Uuid $projectId, \DateTimeImmutable $now): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE work_requests SET reopened_at = :now, work_hold_since = NULL WHERE project_id = :project AND state = :open AND work_hold_since IS NOT NULL',
             ['now' => $now, 'project' => $projectId->toRfc4122(), 'open' => WorkRequestState::Open->value],
             ['now' => Types::DATETIME_IMMUTABLE],
         );

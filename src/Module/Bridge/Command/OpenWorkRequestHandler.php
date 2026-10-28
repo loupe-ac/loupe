@@ -14,6 +14,7 @@ use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Contract\WorkKind;
 use App\Outbox\OutboxWriter;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -52,6 +53,7 @@ final readonly class OpenWorkRequestHandler
         private WorkRequestAnnouncer $announcer,
         private WorkerRunRepository $workerRuns,
         private WorkSubjectHandlers $subjects,
+        private WorkHolds $workHolds,
     ) {
     }
 
@@ -118,6 +120,10 @@ final readonly class OpenWorkRequestHandler
                 $request->params = $command->params;
                 $request->run = $command->run;
                 $request->role = $command->role;
+                // The key share read waits for a hold write, so a hold that commits first marks the request here and a later one marks it itself.
+                if (null !== $this->workHolds->heldProject($command->project->id ?? throw new \LogicException('A stored project has an id.'))) {
+                    $request->workHoldSince = $request->createdAt;
+                }
                 $this->em->persist($request);
                 // The payload names the request, so the row needs its id first.
                 $this->em->flush();

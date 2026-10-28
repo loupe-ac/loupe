@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\EventListener;
 
+use App\Module\Bridge\Command\OpenWorkRequestCommand;
+use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\EventListener\ReconcileWorkOnWorkHoldChanged;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
@@ -111,6 +114,8 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         $this->stamp($project, $heldCard, 'second-rule');
         $request = $this->seedWorkRequest($this->em(), $project, cardId: $heldCard, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00'));
         $analysis = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00'), subject: new WorkSubject('analysis', Uuid::v7()));
+        $request->workHoldSince = $analysis->workHoldSince = new \DateTimeImmutable('2026-10-01 11:00:00');
+        $this->em()->flush();
 
         $this->service(ForgeRepositories::class)->release($project, 'github', $repository->externalId);
         self::assertSame([(string) $project->id], $this->queuedReconciliations());
@@ -144,6 +149,50 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $open->id)?->state);
         self::assertNull($this->stampOf($card));
         self::assertSame([[(string) $card]], $this->evaluations->evaluated, 'The second event finds nothing left to do.');
+    }
+
+    public function test_the_hold_end_restarts_the_timeout_of_a_request_of_another_subject_with_no_held_rule(): void
+    {
+        self::bootKernel();
+        $project = $this->project($this->em(), $this->user($this->em(), 'listener-analysis@example.com'), 'Analysis');
+        $repository = $this->repositoryWithGaps($project);
+        $analysis = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00'), subject: new WorkSubject('analysis', Uuid::v7()));
+
+        $this->deliver($project, '2026-10-01T11:00:00+00:00');
+        $this->em()->clear();
+        $held = $this->em()->find(WorkRequest::class, $analysis->id);
+        self::assertSame(WorkRequestState::Open, $held?->state, 'A request of another subject stays open during the hold.');
+        self::assertNull($held->reopenedAt);
+        self::assertNotNull($held->workHoldSince);
+
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('Persisted.');
+        $this->service(ForgeRepositories::class)->release($project, 'github', $repository->externalId);
+        $this->deliver($project);
+        $this->deliver($project, '2026-10-01T13:00:00+00:00');
+
+        $this->em()->clear();
+        $released = $this->em()->find(WorkRequest::class, $analysis->id);
+        self::assertSame(self::NOW, $released?->reopenedAt?->format(\DateTimeInterface::ATOM), 'The hold end restarts the wait once, and a later event finds nothing left to do.');
+        self::assertNull($released->workHoldSince);
+        self::assertSame([], $this->evaluations->evaluated);
+    }
+
+    public function test_the_hold_end_restarts_the_timeout_of_a_request_opened_during_the_hold(): void
+    {
+        self::bootKernel();
+        $project = $this->project($this->em(), $this->user($this->em(), 'listener-mid-hold@example.com'), 'Mid hold');
+        $repository = $this->repositoryWithGaps($project);
+        $this->deliver($project, '2026-10-01T11:00:00+00:00');
+
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('Persisted.');
+        $opened = $this->service(OpenWorkRequestHandler::class)(new OpenWorkRequestCommand($project, new WorkSubject('analysis', Uuid::v7()), null, 'implement', null, 'insights.analysis', new WorkRequestContext()));
+        $this->service(ForgeRepositories::class)->release($project, 'github', $repository->externalId);
+        $this->deliver($project);
+
+        $this->em()->clear();
+        $released = $this->em()->find(WorkRequest::class, $opened->id);
+        self::assertSame(self::NOW, $released?->reopenedAt?->format(\DateTimeInterface::ATOM));
+        self::assertNull($released->workHoldSince);
     }
 
     public function test_an_empty_summary_with_no_held_rule_does_nothing(): void
@@ -225,10 +274,10 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         return $this->service(WorkflowRuleStateRepository::class)->findOneBy(['cardId' => $cardId, 'ruleId' => $ruleId])?->heldByWorkHoldSince;
     }
 
-    private function deliver(Project $project): void
+    private function deliver(Project $project, string $now = self::NOW): void
     {
         $this->em()->clear();
-        $this->listener()(new ForgeRepositoryCheckChanged($project->id ?? throw new \LogicException('Persisted.')));
+        $this->listener($now)(new ForgeRepositoryCheckChanged($project->id ?? throw new \LogicException('Persisted.')));
     }
 
     private function deliverQueued(): void
@@ -239,7 +288,7 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
         }
     }
 
-    private function listener(): ReconcileWorkOnWorkHoldChanged
+    private function listener(string $now = self::NOW): ReconcileWorkOnWorkHoldChanged
     {
         return new ReconcileWorkOnWorkHoldChanged(
             $this->service(ProjectRepository::class),
@@ -249,7 +298,7 @@ final class ReconcileWorkOnWorkHoldChangedTest extends KernelTestCase
             $this->service(WithdrawWorkRequestHandler::class),
             $this->service(WorkflowRuleStates::class),
             $this->evaluations,
-            new MockClock(self::NOW),
+            new MockClock($now),
         );
     }
 

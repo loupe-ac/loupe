@@ -97,6 +97,7 @@ use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\MarkerPass;
 use App\Module\Workflow\Engine\RuleSubject;
@@ -4985,7 +4986,7 @@ final class EngineTest extends KernelTestCase
         $settling = new SettlingWorkRequestRepository($doctrine);
         $settling->settle = $this->settleJoinedWork;
         $opener = new WorkRequestOpener(
-            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([])),
+            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
             $this->service(RetryNotes::class),

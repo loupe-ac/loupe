@@ -21,7 +21,7 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 /**
  * Makes the open work of a project match its current hold, whatever the event says: two events can arrive
  * in the opposite order of their commits. A held project loses its open card requests, so the work timeout
- * pauses no card. A project whose hold ended gets a new timeout on its open requests, and each held rule asks again.
+ * pauses no card. A project whose hold ended gets a new timeout on each open request that the hold found, and each held rule asks again.
  * Claimed work goes on. The card evaluation runs after the lock is gone.
  */
 #[AsEventListener]
@@ -59,17 +59,16 @@ final readonly class ReconcileWorkOnWorkHoldChanged
                 }
                 // The rule that opened a withdrawn request still tracks it as live work, so the release of the hold would not ask again.
                 $this->ruleStates->holdForWithdrawnRequests($withdrawn, $this->clock->now());
+                // A request of another subject stays open, and the mark tells the end of the hold to restart its timeout.
+                $this->workRequests->markOpenHeldForProject($event->projectId, $this->clock->now());
 
                 return [];
             }
 
             $now = $this->clock->now();
-            $released = $this->ruleStates->releaseWorkHolds($event->projectId, $now);
-            if ([] !== $released) {
-                $this->workRequests->restartClockOfOpenForProject($event->projectId, $now);
-            }
+            $this->workRequests->restartClockOfHeldForProject($event->projectId, $now);
 
-            return $released;
+            return $this->ruleStates->releaseWorkHolds($event->projectId, $now);
         });
 
         if ([] !== $releasedCards) {
