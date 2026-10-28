@@ -80,6 +80,18 @@ class Document implements ProjectScopedSubject
     #[ORM\Column(name: 'search_vector', type: PostgresType::TSVECTOR, nullable: true, insertable: false, updatable: false)]
     public ?string $searchVector = null;
 
+    /**
+     * The markdown of the current version, copied here so one trigram index can
+     * serve a substring search without joining the version rows. A search for
+     * text a revision removed must not return the document, so this holds the
+     * current version only.
+     *
+     * DocumentSearchIndexer maintains it, and the mapping exists so DQL can name
+     * it.
+     */
+    #[ORM\Column(name: 'search_text', type: Types::TEXT, insertable: false, updatable: false, options: ['default' => ''])]
+    public string $searchText = '';
+
     /** @var Collection<int, DocumentVersion> */
     #[ORM\OneToMany(targetEntity: DocumentVersion::class, mappedBy: 'document', cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['versionNumber' => 'ASC'])]

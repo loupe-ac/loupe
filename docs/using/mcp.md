@@ -315,7 +315,7 @@ Roughly in the order an agent uses them:
 | `card_create` | Put a card on the project board (off with the board, see below) |
 | `card_list` | Read a page of the board, filtered by status, type, reporter or parent, with the board's columns |
 | `board_columns` | List the board's columns, each with its slug, label, terminal flag, default flag and backlog flag, and the card types of the project |
-| `card_search` | Search every card's title and body by words, finished ones included |
+| `card_search` | Search every card's title and body by part of a word, finished ones included |
 | `card_get` | Read one card, with the pull requests and their stored state, the latest agent review of each pull request as `agentReview`, and the feedback linked to it. The `carriedTo` list of `agentReview` names each later head that Loupe made a carried check for. Its `postedAt` is null while that check is not posted yet |
 | `card_get_history` | Read a page of one card's history, newest first: its creation, its moves and the automation's actions |
 | `card_update` | Change a card, or move it to another column |
@@ -387,9 +387,10 @@ instead of calling `document_get` on every row.
 
 Four arguments narrow the list:
 
-- `search` matches full-text terms against every document's title and current
-  content. Quotes and `OR` work as they do in a web search box. The rows come
-  back by relevance instead of by recency.
+- `search` matches terms against every document's title and current content,
+  anywhere inside a word and ignoring case. Quotes, a leading `-` and `or` work
+  as they do in `card_search`. A document whose title carries every word comes
+  first, and the newest document comes first in each group.
 - `status` keeps one state: `draft`, `in-review`, `approved` or `changes-requested`. An
   unknown value is refused, and the error names the accepted values.
 - `tag` keeps the documents that carry one tag. The match ignores case and

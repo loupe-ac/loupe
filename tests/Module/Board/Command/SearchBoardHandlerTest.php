@@ -64,6 +64,19 @@ final class SearchBoardHandlerTest extends KernelTestCase
         }
     }
 
+    public function test_a_query_of_punctuation_only_returns_no_card(): void
+    {
+        $this->card('Give each worktree its own Mailpit', 'Two runs read one inbox.');
+
+        // The guard: a query with a word finds the card, so the empty page
+        // below comes from the query and not from an empty board.
+        self::assertSame(1, ($this->searchBoard)(new SearchBoardCommand($this->project, 'mail', 1, 25))->total);
+        $view = ($this->searchBoard)(new SearchBoardCommand($this->project, '!!!', 1, 25));
+
+        self::assertSame(0, $view->total);
+        self::assertSame([], $view->cards);
+    }
+
     public function test_the_handler_trims_the_query(): void
     {
         $this->card('Give each worktree its own Mailpit', 'Two runs read one inbox.');

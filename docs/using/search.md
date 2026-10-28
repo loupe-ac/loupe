@@ -18,7 +18,7 @@ Type to search, or press **Search**. Tab to a result and press Enter to open it.
 Escape closes the dialog and restores focus. Closing it preserves unsaved fields on the page beneath it.
 If a request fails, press **Search** to retry. Without JavaScript, the topbar link opens a full search page.
 
-Card and document searches match titles and text with the existing full-text indexes.
+A card or document search matches the typed text anywhere inside a word, in the title or the text, and ignores case. Quotes, a leading `-` and `or` work as in `card_search`.
 Enter a card number, such as `#12`, to find that card directly.
 Results include completed cards and archived documents.
 
