@@ -117,6 +117,35 @@ class WorkerRunRepository extends ServiceEntityRepository
         return $qb->getQuery()->getOneOrNullResult();
     }
 
+    /**
+     * The newest worker runs that a rule asked for on a card, up to a count, that reported at or before a time.
+     *
+     * @return list<WorkerRun> newest first
+     */
+    public function findLatestOfRule(Project $project, Uuid $cardId, string $ruleId, \DateTimeImmutable $before, int $count): array
+    {
+        /** @var list<WorkerRun> $runs */
+        $runs = $this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
+            ->andWhere('r.kind = :kind')
+            ->andWhere('r.ruleId = :ruleId')
+            ->andWhere('r.receivedAt <= :before')
+            ->setParameter('project', $project)
+            ->setParameter('cardId', $cardId, UuidType::NAME)
+            ->setParameter('cardSubject', WorkSubject::CARD)
+            ->setParameter('kind', WorkerRunKind::Worker->value)
+            ->setParameter('ruleId', $ruleId)
+            ->setParameter('before', $before)
+            ->orderBy('r.receivedAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->setMaxResults($count)
+            ->getQuery()
+            ->getResult();
+
+        return $runs;
+    }
+
     /** The newest worker run of a claude session that the bridge ran, which a resume of the session continues. */
     public function findLatestOfSessionOnBridge(Project $project, Uuid $bridgeId, Uuid $sessionId): ?WorkerRun
     {

@@ -6,7 +6,7 @@
 {% set label %}
     {% include '@Inbox/_inbox_action_icon.html.twig' with {kind: kind} only %}
     <span class="lp-menu__text">
-        <span class="lp-menu__label{{ kind == 'dismiss' ? ' inbox-split__danger' }}">{{ command ? (command.canAddEntry ? 'inbox.action.add-entry.label'|trans : 'inbox.action.run-command.run'|trans({'%entry%': command.entry, '%branch%': command.branch})) : row.action.labelKey|trans }}</span>
+        <span class="lp-menu__label{{ kind == 'dismiss' ? ' inbox-split__danger' }}">{{ command ? (command.canAddEntry ? 'inbox.action.add-entry.label'|trans : 'inbox.action.run-command.run'|trans({'%entry%': command.entry, '%branch%': command.branch})) : row.action.labelKey|trans(row.action.labelParams) }}</span>
         <span class="lp-menu__line">{{ (off ? row.action.disabledReasonKey : (command and command.canAddEntry ? 'inbox.action.add-entry.effect' : row.action.effectKey))|trans }}</span>
     </span>
 {% endset %}
