@@ -573,6 +573,7 @@ tunnel:
 cli-test:
     docker run --rm -v "{{justfile_directory()}}/cli":/cli -w /cli -e GOTOOLCHAIN=local golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
     docker run --rm -v "{{justfile_directory()}}/hooks/amphetamine":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
+    docker run --rm -v "{{justfile_directory()}}/plugins/loupe/hooks":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
 
 # Defaults to the dev's mac; override e.g. `just cli-build linux amd64`. The
 # full release matrix is goreleaser's job — see cli/.goreleaser.yaml.

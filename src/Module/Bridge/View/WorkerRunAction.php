@@ -11,6 +11,7 @@ enum WorkerRunAction: string
     case Stop = 'stop';
     case Rerun = 'rerun';
     case Cancel = 'cancel';
+    case Close = 'close';
 
     public function translationKey(): string
     {

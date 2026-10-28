@@ -13,6 +13,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -142,6 +143,64 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertCount(1, $time);
         self::assertSame('2026-03-04 05:06:00 UTC', $time->attr('title'));
         self::assertMatchesRegularExpression('/ ago$/', $time->text());
+    }
+
+    public function test_an_open_interactive_run_offers_close_in_its_row_and_drawer(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-close-owner@example.com');
+        $project = $this->project($em, $owner, 'List close');
+        $open = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $closed = $this->seedRun($em, $project, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
+        $worker = $this->seedRun($em, $project, state: WorkerRunState::Succeeded);
+
+        $projectId = (string) $project->id;
+        $openId = (string) $open->id;
+        $closedId = (string) $closed->id;
+        $workerId = (string) $worker->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs?outcome=&search=');
+
+        self::assertResponseIsSuccessful();
+        $icon = $crawler->filter('[data-worker-run-id="'.$openId.'"] .lp-worker-run-outcome > .lp-worker-run-outcome__status > form[data-worker-run-control="close"]');
+        self::assertCount(1, $icon);
+        self::assertCount(1, $icon->siblings()->filter('.lp-status-chip'));
+        self::assertSame('worker-runs-frame', $icon->attr('data-turbo-frame'));
+        self::assertStringStartsWith('/projects/'.$projectId.'/worker-runs/'.$openId.'/close', (string) $icon->attr('action'));
+        $drawer = $crawler->filter('[data-worker-run-id="'.$openId.'"] dialog form[data-worker-run-control="close"]');
+        self::assertCount(1, $drawer);
+        self::assertSame('_top', $drawer->attr('data-turbo-frame'));
+        self::assertStringContainsString('Close session', $drawer->text());
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$closedId.'"] form[data-worker-run-control="close"]'));
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$workerId.'"] form[data-worker-run-control="close"]'));
+    }
+
+    public function test_a_viewer_who_cannot_manage_sees_no_close_control(): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-close-viewer@example.com');
+        $project = $this->project($em, $owner, 'List close viewer');
+        $open = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+
+        $projectId = (string) $project->id;
+        $openId = (string) $open->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs?outcome=&search=');
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-worker-run-id="'.$openId.'"]');
+        self::assertCount(1, $row);
+        self::assertCount(0, $row->filter('.lp-worker-run-outcome form[data-worker-run-control="close"]'));
+        self::assertCount(0, $row->filter('dialog form[data-worker-run-control="close"]'));
     }
 
     /** The output shows on every run, in its drawer, not on failures only. */
@@ -666,7 +725,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
             $label = $translator->trans($state->translationKey());
             self::assertNotSame($state->translationKey(), $label);
-            foreach (['[data-worker-run-id] > .lp-worker-run-outcome > .lp-status-chip', '.lp-drawer__header .lp-status-chip'] as $chip) {
+            foreach (['[data-worker-run-id] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip', '.lp-drawer__header .lp-status-chip'] as $chip) {
                 self::assertSame($label, $crawler->filter($chip)->text(), $state->value.' '.$chip);
                 self::assertStringContainsString('lp-status-chip--'.$state->chipModifier(), (string) $crawler->filter($chip)->attr('class'));
             }
@@ -1069,6 +1128,33 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertSame('Interactive session', $row->filter('.lp-data-table__primary .lp-tag')->text());
     }
 
+    public function test_a_closed_interactive_run_shows_why_it_closed_in_the_row_and_the_drawer(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'interactive-close-reason-owner@example.com');
+        $project = $this->project($em, $owner, 'Interactive Close Reason');
+        $stale = $this->seedRun($em, $project, cardNumber: 12, exitCode: null, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
+        $stale->closeReason = WorkerRunCloseReason::Stale;
+        $open = $this->seedRun($em, $project, cardNumber: 13, exitCode: null, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $em->flush();
+
+        $projectId = (string) $project->id;
+        $staleId = (string) $stale->id;
+        $openId = (string) $open->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs');
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-worker-run-id="'.$staleId.'"]');
+        self::assertSame('No sign of life for too long', $row->filter('.lp-worker-run-outcome [data-worker-run-close-reason-label]')->text());
+        self::assertStringContainsString('No sign of life for too long', $row->filter('[data-worker-run-close-reason]')->text());
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$openId.'"] [data-worker-run-close-reason-label]'));
+    }
+
     /** The row reads as one line, and the drawer keeps the detail the row drops. */
     public function test_a_row_shows_the_card_title_and_leaves_the_detail_to_the_drawer(): void
     {
@@ -1106,10 +1192,10 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$goneId.'"] .lp-data-table__title'));
         self::assertSame('#8', $crawler->filter('[data-worker-run-id="'.$goneId.'"] .lp-data-table__number')->text());
 
-        $chip = $crawler->filter('[data-worker-run-id="'.$failedId.'"] > .lp-worker-run-outcome > .lp-status-chip');
+        $chip = $crawler->filter('[data-worker-run-id="'.$failedId.'"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip');
         self::assertSame('The worker ran out of turns', $chip->filter('.lp-tooltip')->text());
         self::assertSame($chip->filter('.lp-tooltip')->attr('id'), $chip->attr('aria-describedby'));
-        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$goneId.'"] > .lp-worker-run-outcome > .lp-status-chip .lp-tooltip'));
+        self::assertCount(0, $crawler->filter('[data-worker-run-id="'.$goneId.'"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip .lp-tooltip'));
 
         $cells = $crawler->filter('[data-worker-run-id="'.$failedId.'"] > :not(dialog)');
         $rowText = implode(' ', $cells->each(static fn (Crawler $cell): string => $cell->text()));

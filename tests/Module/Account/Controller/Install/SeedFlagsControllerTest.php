@@ -13,6 +13,7 @@ use App\Module\Analytics\Twig\AnalyticsScript;
 use App\Module\Bridge\Service\BridgeCommandTtl;
 use App\Module\Bridge\Service\HeartbeatInterval;
 use App\Module\Bridge\Service\HostSampling;
+use App\Module\Bridge\Service\InteractiveStaleClose;
 use App\Module\Bridge\Service\StopLadder;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
@@ -71,7 +72,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(37, $flags);
+        self::assertCount(38, $flags);
         self::assertSame('', $flags['waitlist.notification_emails']->value);
         foreach (['site.link.discord', 'site.link.x', 'site.link.source'] as $linkFlag) {
             self::assertSame('', $flags[$linkFlag]->value);
@@ -90,6 +91,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertSame(7500, $flags[StopLadder::SIGTERM_FLAG]->value);
         self::assertSame(2500, $flags[StopLadder::SIGKILL_FLAG]->value);
         self::assertFalse($flags[HostSampling::ENABLED_FLAG]->value);
+        self::assertTrue($flags[InteractiveStaleClose::FLAG]->value);
         self::assertSame(60, $flags[HostSampling::INTERVAL_FLAG]->value);
         self::assertSame(ToolCallCollectionSettings::DEFAULT_SUBCOMMAND_PROGRAMS, $flags[ToolCallCollectionSettings::SUBCOMMAND_PROGRAMS_FLAG]->value);
         self::assertSame('sonnet', $flags[AnalysisSettings::MODEL_FLAG]->value);
