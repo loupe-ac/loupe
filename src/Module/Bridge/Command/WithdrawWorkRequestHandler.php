@@ -11,9 +11,11 @@ use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -32,6 +34,7 @@ final readonly class WithdrawWorkRequestHandler
         private Auditor $auditor,
         private WorkRequestAnnouncer $announcer,
         private WorkSubjectHandlers $subjects,
+        private WorkHolds $workHolds,
     ) {
     }
 
@@ -42,10 +45,14 @@ final readonly class WithdrawWorkRequestHandler
         }
 
         $withdrawn = $this->em->wrapInTransaction(function () use ($command): ?WorkRequest {
+            if (null !== $command->deadline && !$this->outsideWorkHold($command->workRequestId)) {
+                return null;
+            }
             // Locked, so a claim or a settle that races this one waits and then finds the final state.
             $request = $this->workRequests->findOneLocked($command->workRequestId);
             if (null === $request
                 || ($command->onlyIfOpen && WorkRequestState::Open !== $request->state)
+                || (null !== $command->deadline && !self::waitedSince($request, $command->deadline))
                 || !$request->withdraw($command->state, $this->clock->now(), $command->reason)) {
                 return null;
             }
@@ -77,5 +84,24 @@ final readonly class WithdrawWorkRequestHandler
         }
 
         return true;
+    }
+
+    /**
+     * The key share read waits for a hold write, and comes before the row lock in the order of the hold listener.
+     * A hold that commits later waits for this transaction.
+     */
+    private function outsideWorkHold(Uuid $workRequestId): bool
+    {
+        $projectId = $this->workRequests->find($workRequestId)?->project->id;
+
+        return null !== $projectId && null === $this->workHolds->heldProject($projectId);
+    }
+
+    /** The hold mark stays until the end of the hold restarts the timeout, so a marked request has not waited yet. */
+    private static function waitedSince(WorkRequest $request, \DateTimeImmutable $deadline): bool
+    {
+        return WorkRequestState::Open === $request->state
+            && null === $request->workHoldSince
+            && ($request->reopenedAt ?? $request->createdAt) <= $deadline;
     }
 }

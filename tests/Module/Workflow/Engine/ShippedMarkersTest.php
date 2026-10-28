@@ -45,6 +45,7 @@ use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
 use App\Module\Workflow\Fact\ScheduledRetryFacts;
+use App\Module\Workflow\Fact\WorkHoldFacts;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
@@ -61,7 +62,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'merge-blocked', 'ruleset-mismatch', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested', 'retry-scheduled',
+        'document-in-review', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested', 'retry-scheduled',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
@@ -75,7 +76,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'ruleset-mismatch'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -534,27 +535,6 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertNotContains('merge-blocked', $this->writtenKeys());
     }
 
-    public function test_a_ruleset_that_does_not_fit_the_approval_check_needs_the_person(): void
-    {
-        foreach (['baseRequiresReview', 'approvalCheckUnpinned'] as $field) {
-            $mismatch = FactsMother::pullRequest(...[$field => true, 'number' => 9]);
-
-            $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $mismatch, pullRequests: [$mismatch]));
-
-            self::assertContains('ruleset-mismatch', $this->writtenKeys(), $field);
-            self::assertSame(MarkerLink::RulesetSetup, $this->written('ruleset-mismatch')->link, $field);
-        }
-    }
-
-    public function test_a_pull_request_with_a_fitting_ruleset_shows_no_ruleset_mismatch_marker(): void
-    {
-        $fitting = FactsMother::pullRequest(number: 9);
-
-        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $fitting, pullRequests: [$fitting]));
-
-        self::assertNotContains('ruleset-mismatch', $this->writtenKeys());
-    }
-
     public function test_a_non_blocking_to_do_alone_needs_nobody_in_either_shipped_template(): void
     {
         $todo = new OpenQuestionFacts([new OpenQuestion(929, 'Rebuild the Design System artifact', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: false)]);
@@ -617,6 +597,16 @@ final class ShippedMarkersTest extends KernelTestCase
         $unknown = $ready(new StackParent('feature/a'));
         self::assertSame(['waits-for-parent-branch'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $unknown, pullRequests: [$unknown])));
         self::assertSame(['%number%' => 5, '%branch%' => 'feature/a'], $this->written('waits-for-parent-branch')->params);
+    }
+
+    public function test_a_card_held_by_the_work_hold_needs_the_person_and_links_to_the_repositories(): void
+    {
+        $held = FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: [WorkHoldFacts::class => new WorkHoldFacts(new \DateTimeImmutable('2026-10-01 10:00:00'))]);
+
+        self::assertSame(['repository-misfit'], $this->keys($held));
+        self::assertSame(MarkerKind::NeedsYou, $this->written('repository-misfit')->kind);
+        self::assertSame(MarkerLink::Repositories, $this->written('repository-misfit')->link);
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'))), 'A card that no hold stops shows no repository marker.');
     }
 
     public function test_a_card_in_a_terminal_column_shows_nothing(): void

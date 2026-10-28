@@ -601,6 +601,7 @@ record holds no claim token.
 | 404 | | an id is not a uuid, or agent push is switched off on the instance |
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
 | 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
+| 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
 | 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
 | 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
 | 429 | | more than 60 claims in one minute from one token |

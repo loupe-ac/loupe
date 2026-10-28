@@ -7,10 +7,12 @@ namespace App\Tests\Module\Forge\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\ForgeClaim;
 use App\Module\Forge\Service\ForgeClaimOutcome;
 use App\Module\Forge\Service\ForgeRepositories;
+use App\Module\Forge\Service\RepositoryHoldSummaries;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\EntityManagerInterface;
@@ -285,7 +287,23 @@ final class ForgeRepositoriesTest extends KernelTestCase
 
     private function withLogger(RecordingLogger $logger): ForgeRepositories
     {
-        return new ForgeRepositories($this->forgeRepositoryRepository(), $this->em, $logger);
+        return new ForgeRepositories($this->forgeRepositoryRepository(), $this->em, $logger, $this->summaries(), $this->checkRepository());
+    }
+
+    private function checkRepository(): ForgeRepositoryCheckRepository
+    {
+        $checks = self::getContainer()->get(ForgeRepositoryCheckRepository::class);
+        self::assertInstanceOf(ForgeRepositoryCheckRepository::class, $checks);
+
+        return $checks;
+    }
+
+    private function summaries(): RepositoryHoldSummaries
+    {
+        $summaries = self::getContainer()->get(RepositoryHoldSummaries::class);
+        self::assertInstanceOf(RepositoryHoldSummaries::class, $summaries);
+
+        return $summaries;
     }
 
     private function forgeRepositoryRepository(): ForgeRepositoryRepository

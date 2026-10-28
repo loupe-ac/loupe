@@ -117,7 +117,7 @@ A marker has these parts:
 - A kind. See below.
 - A label. This is the reason that a reader sees.
 - A remedy. This is one line that says what clears the marker.
-- A link, optional. The value `agents` shows a link to the Agents page under the remedy. The value `ruleset-setup` shows a link to "Set up the ruleset" on this page.
+- A link, optional. The value `agents` shows a link to the Agents page under the remedy. The value `repositories` shows a link to the Repositories tab of the project settings.
 - Slots, optional. They name the slots where the marker applies.
 - A condition. The marker is on while the condition is true.
 
@@ -168,6 +168,7 @@ The shipped markers are:
 | `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
+| `repository-misfit` | Needs you | A rule of the card wants to ask for work, and the project holds new work because a repository has a blocking gap. The remedy line links to the Repositories tab |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
 | `waits-for-parent-branch` | Waiting | A pull request waits for a branch that no card owns |
 | `waiting-on-checks` | Waiting | The checks of a pull request run |
@@ -466,6 +467,31 @@ card history records the pause and the release, with the person who released
 it. A pause that the workflow ends by itself shows in the history too, with
 Loupe as the actor and the reason. An agent ends a pause with the `card_pause_release` MCP tool.
 
+### Pause for a blocking repository gap
+
+The Repositories check of a project can find a blocking gap, which is a setting of
+a repository that contradicts the workflow, such as a review rule that the Loupe
+App cannot satisfy. While any repository of the project has a blocking gap, the
+project holds all new work:
+
+- A `request` rule of a card gets the outcome `held`. It writes no attempt, no
+  backoff and no pause. The card shows the `repository-misfit` marker, and the rule asks again by
+  itself when the hold ends.
+- A bridge cannot claim a request of the project. The claim is refused with
+  `project_held`, and the request does not show in the offers of a bridge.
+- When the hold starts, Loupe withdraws each open card request of the project, so
+  the work timeout never pauses a card for the hold. A request about another
+  subject, such as an analysis, stays open, and it gets a new timeout when the hold ends.
+- Work that a bridge already claimed, and a run that is under way, finishes.
+- Rules that start no worker still run: moves, writes to GitHub and merges.
+  A request for teardown or for the epic preview is held like any other.
+
+The hold follows the stored result of the check. A failed read keeps the last
+certain result, so a failed read neither starts nor ends the hold. A removed
+repository leaves the result at once. When no repository has a blocking gap
+any more, after a check or after a removal, the hold ends. Each held rule then asks
+for its work again, and the open work timeout starts over.
+
 ## Writes to GitHub
 
 A rule can write to a pull request: merge it, update its branch, change its
@@ -474,6 +500,12 @@ or post a comment on it. The rule
 alone decides each write, and the write happens when the rule fires. When the
 project has no GitHub App installation, the rule asks a bridge for the same work
 instead. See [Automation](board.md#automation).
+
+The `merge` write takes the parameter `methods`, a list of merge methods in order of preference. The Lifecycle
+template lists `squash`, `merge` and `rebase`. Loupe reads the merge switches of the repository and the merge
+methods that the rules of the base branch allow. It merges with the first method of the list that both allow. When
+the repository and its rules allow none of them, the write refuses with the cause `no_merge_method`, and a person
+changes the repository settings or the ruleset. A project that wants a different order edits the list in the template.
 
 The `merge-main-into-epic` write acts on a child in Next whose blocker outside
 its epic is done. It merges the default branch into the epic branch in each
@@ -1038,14 +1070,15 @@ The wait item "Waits for approval" opens when a person must review the card, whe
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
 of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
-Loupe reads the rulesets of the default branch of the repository. When a ruleset requires an approving review, or
-requires `Loupe / Approval` without the Loupe App as its source, the marker `ruleset-mismatch` shows Needs you on the
-card of an open pull request into that branch, with a link to the steps below. The Connections page shows the same warning under the repository.
+The Repositories tab of the project settings lists the settings of each repository that do not fit.
 Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
 
 #### Set up the ruleset
 
-The check only gates a merge when the repository ruleset requires it. Change the ruleset of the default branch once:
+The check only gates a merge when the repository ruleset requires it. The Repositories tab of the project settings
+writes these steps for each repository, with a `loupe-ruleset.json` file that you can import on GitHub. After the
+import, open the ruleset and check that `Loupe / Approval` shows the Loupe App as its source. Select **Check again**
+after a change. The same steps by hand:
 
 1. Accept the new **Commit statuses: read and write** permission of the Loupe GitHub App on each installation.
    GitHub lists the App as a source only with that permission. See [forge webhooks](../extending/forge-webhooks.md).

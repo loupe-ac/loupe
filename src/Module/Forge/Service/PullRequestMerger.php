@@ -17,11 +17,13 @@ interface PullRequestMerger
     public function supports(string $forge): bool;
 
     /**
-     * @param string $method          one of METHODS
-     * @param string $expectedHeadSha the forge refuses the merge when the branch no longer points here
+     * Merges with the first method of the list that the repository and its rules for the base branch allow.
      *
-     * @throws \InvalidArgumentException when the method is not one of METHODS
-     * @throws PullRequestWriteFailed    when the forge does not take the merge
+     * @param list<string> $methods         the methods to try in order, each one of METHODS
+     * @param string       $expectedHeadSha the forge refuses the merge when the branch no longer points here
+     *
+     * @throws \InvalidArgumentException when a method is not one of METHODS
+     * @throws PullRequestWriteFailed    when the forge does not take the merge, or allows none of the methods
      */
-    public function merge(ForgePullRequest $pullRequest, string $method, string $expectedHeadSha): void;
+    public function merge(ForgePullRequest $pullRequest, array $methods, string $expectedHeadSha): void;
 }

@@ -13,6 +13,7 @@ use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
@@ -165,6 +166,7 @@ final class WithdrawWorkRequestHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers(null === $subjects ? [] : [$subjects]),
+            $this->service(WorkHolds::class),
         );
     }
 

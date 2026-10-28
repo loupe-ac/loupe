@@ -105,7 +105,7 @@
                 <div class="lp-sidebar__spacer"></div>
                 <nav class="lp-sidebar__nav lp-sidebar__nav--secondary">
                     {% if project %}
-                    <twig:Ds:NavItem :url="path('app_project_edit', {id: project.id})" icon="lucide:settings" :label="'nav.link.project_settings'|trans" :active="route in ['app_project_edit', 'app_board_settings', 'app_board_automation_settings', 'app_project_connect']" />
+                    <twig:Ds:NavItem :url="path('app_project_edit', {id: project.id})" icon="lucide:settings" :label="'nav.link.project_settings'|trans" :active="route in ['app_project_edit', 'app_board_settings', 'app_board_automation_settings', 'app_project_connect', 'app_project_repositories_settings']" />
                     {% endif %}
                     {% if is_feature_enabled('inbox.enabled') %}
                     <twig:Ds:NavItem :url="path('app_account_inbox')" icon="lucide:mails" :label="'inbox.account.nav'|trans" :active="route == 'app_account_inbox'" />

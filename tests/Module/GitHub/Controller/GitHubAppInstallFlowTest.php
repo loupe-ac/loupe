@@ -133,7 +133,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('The operator has not registered a GitHub App', $this->followedText());
     }
 
@@ -164,7 +164,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->startInstall($project);
         $this->client->request(Request::METHOD_GET, '/github/app/setup?installation_id='.self::INSTALLATION_ID.'&state=forged');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('Loupe could not confirm', $this->followedText());
         $this->client->request(Request::METHOD_GET, '/github/app/setup?installation_id='.self::INSTALLATION_ID);
         self::assertResponseRedirects('/projects');
@@ -180,7 +180,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->startInstall($project);
         $this->client->request(Request::METHOD_GET, '/github/app/setup?setup_action=request');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('GitHub did not return an installation', $this->followedText());
     }
 
@@ -212,7 +212,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->setUpInstallation($this->startInstall($project));
         $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=forged');
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('Loupe could not confirm', $this->followedText());
         self::assertSame([], $this->tokenRequests);
         self::assertNull($this->installationRow());
@@ -237,7 +237,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
         $this->completeInstall($project);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('GitHub does not list this installation for your account', $this->followedText());
         self::assertNull($this->installationRow());
     }
@@ -262,7 +262,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
         $challenge = $this->completeInstall($project);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertCount(1, $this->tokenRequests);
         $exchange = $this->tokenRequests[0];
         self::assertSame('the-client-id', $exchange['client_id']);
@@ -365,7 +365,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
         $this->completeInstall($project);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         $text = $this->followedText();
         self::assertStringContainsString('This installation belongs to another project', $text);
         self::assertStringNotContainsString($other->name, $text);
@@ -403,7 +403,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $authorize = $this->setUpInstallation($this->startInstall($project));
         $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['error' => 'access_denied', 'state' => $authorize['state']]));
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('GitHub did not authorize Loupe', $this->followedText());
         self::assertSame([], $this->tokenRequests);
     }
@@ -435,7 +435,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
         $this->completeInstall($project);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/connect#repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('Loupe could not reach GitHub', $this->followedText());
         self::assertNull($this->installationRow());
         $warnings = array_values(array_filter($logger->records, static fn (array $record): bool => 'warning' === $record['level']));

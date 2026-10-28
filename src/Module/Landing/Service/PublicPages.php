@@ -21,6 +21,7 @@ final readonly class PublicPages
         'app_ai_policy' => true,
         'app_compare_list' => true,
         'app_faq' => true,
+        'app_site_about' => true,
         'app_waitlist_join' => true,
         'app_login' => false,
         'app_register' => false,
@@ -35,6 +36,7 @@ final readonly class PublicPages
         'app_compare_list',
         'app_compare',
         'app_faq',
+        'app_site_about',
         'app_waitlist_join',
         'app_waitlist_notify',
         'app_waitlist_modal',
@@ -103,6 +105,18 @@ final readonly class PublicPages
         return $this->absoluteUrl($this->urlGenerator->generate('app_faq'));
     }
 
+    /** True when the site host differs from the app host, which is where the about page answers. */
+    public function hasAbout(): bool
+    {
+        return $this->siteHost->isSplit();
+    }
+
+    /** The absolute URL of the about page, on the site origin. */
+    public function aboutUrl(): string
+    {
+        return $this->absoluteUrl($this->urlGenerator->generate('app_site_about'));
+    }
+
     /** @return list<string> */
     public function paths(): array
     {
@@ -160,6 +174,7 @@ final readonly class PublicPages
     {
         return match ($route) {
             'app_home', 'app_compare_list', 'app_faq' => $this->siteHost->isSet(),
+            'app_site_about' => $this->siteHost->isSplit(),
             'app_waitlist_join' => $this->registrationGate->allowsNewAccounts() && !$this->registrationGate->isOpen(),
             default => true,
         };

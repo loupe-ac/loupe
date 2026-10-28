@@ -32,6 +32,7 @@ use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\RetryNotes;
+use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
@@ -85,6 +86,7 @@ trait ActionScenario
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
             new WorkSubjectHandlers([]),
+            $this->service(WorkHolds::class),
         );
     }
 

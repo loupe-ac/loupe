@@ -249,15 +249,15 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-card-state="stuck"] .lp-status-box__fields a'));
     }
 
-    public function test_the_card_view_links_a_ruleset_mismatch_to_the_ruleset_setup_guide(): void
+    public function test_the_card_view_links_a_repository_misfit_to_the_repositories_page(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'card-status-box-ruleset@example.com');
+        $owner = $this->user($em, 'card-status-box-misfit@example.com');
         $project = $this->project($em, $owner);
-        $card = $this->card($em, $project, 'Ruleset');
+        $card = $this->card($em, $project, 'Misfit');
         $card->markers = [
-            ['key' => 'ruleset-mismatch', 'kind' => 'needs-you', 'label' => 'marker.ruleset_mismatch', 'remedy' => 'marker.ruleset_mismatch.remedy', 'params' => ['%number%' => 9], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM), 'link' => 'ruleset-setup'],
+            ['key' => 'repository-misfit', 'kind' => 'needs-you', 'label' => 'marker.repository_misfit', 'remedy' => 'marker.repository_misfit.remedy', 'params' => [], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM), 'link' => 'repositories'],
         ];
         $em->flush();
         $em->clear();
@@ -267,21 +267,21 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $link = $crawler->filter('[data-card-state="needs-you"] .lp-status-box__field--wide a');
         self::assertCount(1, $link);
-        self::assertSame('Read how to set up the ruleset', trim($link->text()));
-        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
+        self::assertSame('Open Repositories', trim($link->text()));
+        self::assertSame('/projects/'.$project->id.'/settings/repositories', $link->attr('href'));
     }
 
-    public function test_the_card_view_keeps_the_ruleset_setup_link_on_a_mismatch_after_the_state(): void
+    public function test_the_card_view_keeps_the_repositories_link_on_a_misfit_after_the_state(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'card-status-box-ruleset-other@example.com');
+        $owner = $this->user($em, 'card-status-box-misfit-other@example.com');
         $project = $this->project($em, $owner);
-        $card = $this->card($em, $project, 'Ruleset after merge block');
+        $card = $this->card($em, $project, 'Misfit after merge block');
         $since = new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM);
         $card->markers = [
             ['key' => 'merge-blocked', 'kind' => 'needs-you', 'label' => 'marker.merge_blocked', 'remedy' => 'marker.merge_blocked.remedy', 'params' => ['%number%' => 9], 'since' => $since],
-            ['key' => 'ruleset-mismatch', 'kind' => 'needs-you', 'label' => 'marker.ruleset_mismatch', 'remedy' => 'marker.ruleset_mismatch.remedy', 'params' => ['%number%' => 9], 'since' => $since, 'link' => 'ruleset-setup'],
+            ['key' => 'repository-misfit', 'kind' => 'needs-you', 'label' => 'marker.repository_misfit', 'remedy' => 'marker.repository_misfit.remedy', 'params' => [], 'since' => $since, 'link' => 'repositories'],
         ];
         $em->flush();
         $em->clear();
@@ -291,8 +291,8 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $link = $crawler->filter('[data-card-state="needs-you"] .lp-status-box__other a');
         self::assertCount(1, $link);
-        self::assertSame('Read how to set up the ruleset', trim($link->text()));
-        self::assertSame('https://loupe.ac/docs/using/workflows/#set-up-the-ruleset', $link->attr('href'));
+        self::assertSame('Open Repositories', trim($link->text()));
+        self::assertSame('/projects/'.$project->id.'/settings/repositories', $link->attr('href'));
         self::assertCount(0, $crawler->filter('[data-card-state="needs-you"] .lp-status-box__fields a'));
     }
 

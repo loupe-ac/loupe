@@ -60,6 +60,15 @@ final readonly class WorkflowCardStateHints implements CardStateHints
     }
 
     #[\Override]
+    public function workHoldsSince(array $cardIds): array
+    {
+        return array_map(
+            static fn (string $since): \DateTimeImmutable => new \DateTimeImmutable($since),
+            $this->workflowRuleStates->findWorkHoldsSince($cardIds),
+        );
+    }
+
+    #[\Override]
     public function pullRequestColumnIds(Uuid $projectId): array
     {
         $project = $this->projects->find($projectId);

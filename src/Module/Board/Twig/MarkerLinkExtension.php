@@ -6,7 +6,6 @@ namespace App\Module\Board\Twig;
 
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\MarkerLink;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -16,9 +15,6 @@ final class MarkerLinkExtension extends AbstractExtension
 {
     public function __construct(
         private readonly UrlGeneratorInterface $urls,
-
-        #[Autowire(param: 'app.docs_url')]
-        private readonly string $docsUrl,
     ) {
     }
 
@@ -34,7 +30,7 @@ final class MarkerLinkExtension extends AbstractExtension
     {
         return match ($link) {
             MarkerLink::Agents => $this->urls->generate('app_project_agents', ['id' => $project->requireId()]),
-            MarkerLink::RulesetSetup => rtrim($this->docsUrl, '/').'/using/workflows/#set-up-the-ruleset',
+            MarkerLink::Repositories => $this->urls->generate('app_project_repositories_settings', ['id' => $project->requireId()]),
         };
     }
 }
