@@ -57,11 +57,11 @@ final class LifecycleRepositoryMisfitMigrationTest extends KernelTestCase
         self::assertSame($stored, $this->binding($connection, $projectId));
     }
 
-    public function test_the_shipped_lifecycle_template_is_at_version_26(): void
+    public function test_the_shipped_lifecycle_template_is_at_version_27(): void
     {
         self::bootKernel();
 
-        self::assertSame(26, $this->service(ShippedTemplates::class)->source('lifecycle')['version']);
+        self::assertSame(27, $this->service(ShippedTemplates::class)->source('lifecycle')['version']);
     }
 
     private function migrate(Connection $connection): void
