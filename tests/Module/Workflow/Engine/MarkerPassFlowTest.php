@@ -136,6 +136,30 @@ final class MarkerPassFlowTest extends KernelTestCase
         self::assertNull($card->markersDueAt);
     }
 
+    public function test_a_refused_request_waits_for_its_retry_and_the_card_pauses_when_the_retries_and_the_repair_run_out(): void
+    {
+        $card = $this->retryingCard();
+        $this->evaluate($card);
+        self::assertSame(['work-requested'], $this->keys($card));
+
+        $this->refuse($card, '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertSame(['retry-scheduled'], $this->keys($card), 'the stop marker stays off while the retry is due');
+        self::assertSame(['%due%' => '12:31'], $card->markers[0]['params'] ?? null);
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 12:31:00'), $card->markersDueAt);
+
+        $this->evaluate($card, '2026-10-02 12:31:00');
+        self::assertSame(['work-requested'], $this->keys($card), 'the retry opened');
+
+        $this->refuse($card, '2026-10-02 12:40:00');
+        $this->evaluate($card, '2026-10-02 12:41:00');
+        self::assertSame(['work-requested'], $this->keys($card), 'the repair opened');
+
+        $this->refuse($card, '2026-10-02 12:50:00');
+        $this->evaluate($card, '2026-10-02 12:51:00');
+        self::assertSame(['paused', 'run-stopped'], $this->keys($card));
+    }
+
     private function boundCard(): Card
     {
         self::bootKernel();
@@ -160,6 +184,44 @@ final class MarkerPassFlowTest extends KernelTestCase
         $this->em()->flush();
 
         return $this->card($project, 'next');
+    }
+
+    /** A card whose rule "work" gets one retry 10 minutes after a refusal, then a repair. */
+    private function retryingCard(): Card
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('marker-flow-retry');
+        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+            'key' => 'test',
+            'version' => 1,
+            'defaultType' => 'feature',
+            'types' => [['key' => 'feature', 'label' => 'board.card.type.feature', 'tone' => 'lime']],
+            'slots' => [['key' => 'one', 'label' => 'one']],
+            'manualMoves' => [],
+            'backoffMinutes' => [10],
+            'workTimeoutMinutes' => 120,
+            'onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10], 'repair' => ['kind' => 'repair']],
+            'rules' => [['id' => 'work', 'slot' => 'one', 'when' => ['all' => []], 'then' => ['request' => ['kind' => 'work']]]],
+            'markers' => [
+                ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'when' => ['card.paused' => []]],
+                ['key' => 'run-stopped', 'kind' => 'stuck', 'label' => 'marker.run_stopped', 'when' => ['not' => ['any' => [['card.run.work_active' => []], ['card.rule.retry_scheduled' => []]]]]],
+                ['key' => 'work-requested', 'kind' => 'waiting', 'label' => 'marker.work_requested', 'when' => ['card.run.work_open' => []]],
+                ['key' => 'retry-scheduled', 'kind' => 'waiting', 'label' => 'marker.retry_scheduled', 'when' => ['card.rule.retry_scheduled' => []]],
+            ],
+        ]));
+        $this->em()->persist(new WorkflowSlotLink($project, 'one', $this->column($project, 'next')->id));
+        $this->em()->flush();
+
+        return $this->card($project, 'next');
+    }
+
+    private function refuse(Card $card, string $at): void
+    {
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        $live[0]->state = WorkRequestState::Claimed;
+        $live[0]->settle(WorkRequestState::Refused, 'failed', new \DateTimeImmutable($at));
+        $this->em()->flush();
     }
 
     private function evaluate(Card $card, string $at = self::NOON): void
