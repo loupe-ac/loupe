@@ -118,7 +118,12 @@
                 {% if item.command %}<twig:Ds:Tag tone="neutral" data-worker-run-command>{{ 'bridge.worker_runs.command'|trans }}</twig:Ds:Tag>{% endif %}
             </div>
             <div class="lp-worker-run-outcome" role="cell">
-                <twig:Ds:StatusChip :modifier="item.state.chipModifier()" :label="item.state.translationKey()|trans" :reason="run.failureReason" :id="'worker-run-reason-' ~ run.id" />
+                <div class="lp-worker-run-outcome__status">
+                    <twig:Ds:StatusChip :modifier="item.state.chipModifier()" :label="item.state.translationKey()|trans" :reason="run.failureReason" :id="'worker-run-reason-' ~ run.id" />
+                    {% if item.control and item.control.action and item.control.action.value == 'close' and is_granted('project.manage', project) %}
+                    {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: run, control: item.control, frame: 'worker-runs-frame', compact: true, query: listQuery.routeParams} only %}
+                    {% endif %}
+                </div>
                 {% if item.control and item.control.label %}{% set controlLabel = item.control.label|trans(item.control.labelParameters) %}<span class="lp-worker-run-control-label{{ item.control.labelWarns ? ' lp-worker-run-control-label--warns' : '' }}" title="{{ controlLabel }}" data-worker-run-control-label>{{ controlLabel }}</span>{% endif %}
                 {% if run.closeReason is not null %}{% set closeReasonLabel = ('bridge.worker_runs.close_reason.' ~ run.closeReason.value)|trans %}<span class="lp-worker-run-control-label" title="{{ closeReasonLabel }}" data-worker-run-close-reason-label>{{ closeReasonLabel }}</span>{% endif %}
             </div>

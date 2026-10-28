@@ -13,7 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
 
-/** A person closes an interactive session from the runs section of its card. */
+/** A person closes an interactive session from its card, the Runs list or the run drawer. */
 final class CloseInteractiveRunControllerTest extends WebTestCase
 {
     use BridgeScenario;
@@ -32,13 +32,50 @@ final class CloseInteractiveRunControllerTest extends WebTestCase
         $em->clear();
 
         $client->loginUser($owner);
-        $this->post($client, $url);
+        $this->post($client, $url, 'card-worker-runs');
 
         self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs/card/'.$cardId);
         $closed = $em->find(WorkerRun::class, $runId);
         self::assertNotNull($closed);
         self::assertSame(WorkerRunState::Closed, $closed->state);
         self::assertNotNull($closed->endedAt);
+    }
+
+    public function test_a_close_from_the_runs_list_returns_to_the_same_view(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'close-run-list@example.com');
+        $project = $this->project($em, $owner, 'Close run list');
+        $run = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $url = $this->closeUrl((string) $project->id, (string) $run->id).'?outcome=open&search=design';
+        $runId = $run->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url, 'worker-runs-frame');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1&search=design&outcome=open');
+        self::assertSame(WorkerRunState::Closed, $em->find(WorkerRun::class, $runId)?->state);
+    }
+
+    public function test_a_close_from_the_drawer_reloads_the_list_on_that_run(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'close-run-drawer@example.com');
+        $project = $this->project($em, $owner, 'Close run drawer');
+        $run = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $url = $this->closeUrl((string) $project->id, (string) $run->id);
+        $runId = (string) $run->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$runId);
     }
 
     public function test_a_request_without_a_valid_csrf_token_is_refused(): void
@@ -125,8 +162,12 @@ final class CloseInteractiveRunControllerTest extends WebTestCase
     }
 
     /** The same-origin sentinel passes the CSRF check, so a refusal is the voter's or the lookup's. */
-    private function post(KernelBrowser $client, string $url): void
+    private function post(KernelBrowser $client, string $url, ?string $frame = null): void
     {
-        $client->request(Request::METHOD_POST, $url, ['_csrf_token' => 'csrf-token'], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        $server = ['HTTP_REFERER' => 'http://localhost'.$url];
+        if (null !== $frame) {
+            $server['HTTP_TURBO_FRAME'] = $frame;
+        }
+        $client->request(Request::METHOD_POST, $url, ['_csrf_token' => 'csrf-token'], [], $server);
     }
 }
