@@ -192,3 +192,38 @@ func (h Harness) locate(runID string) (string, error) {
 
 	return matches[skip].id, nil
 }
+
+// Launched reports whether the threads folder holds a launch record or a
+// thread of the run id, so the session ran Codex.
+func Launched(threads, runID string) bool {
+	h := Harness{threads: threads}
+	for _, name := range []string{runID, runID + launchSuffix} {
+		path, err := h.threadFile(name)
+		if err != nil {
+			return false
+		}
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// TranscriptAt is when the session file of the run id last changed.
+func (h Harness) TranscriptAt(runID string) (time.Time, bool) {
+	thread, err := h.thread(runID)
+	if err != nil {
+		return time.Time{}, false
+	}
+	path, err := h.find(thread)
+	if err != nil {
+		return time.Time{}, false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}, false
+	}
+
+	return info.ModTime(), true
+}

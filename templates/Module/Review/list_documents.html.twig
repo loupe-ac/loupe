@@ -102,11 +102,11 @@
         {% set cardLinks = cardLinkMap[document.id ~ '']|default([]) %}
         <div class="lp-data-table__row{% if archived %} lp-document-row--archived{% endif %}" data-document-id="{{ document.id }}" role="row">
             <a href="{{ path('app_document_review', {projectId: project.id, documentId: document.id}) }}"
-               class="lp-data-table__target lp-document-row__link" aria-label="{{ document.title }}"></a>
+               class="lp-data-table__target lp-document-row__link" aria-label="{{ document.title|reference_plain }}"></a>
             <div class="lp-data-table__cell lp-document-row__main" role="cell">
                 <div class="lp-document-row__head">
                     <twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--md lp-document-row__icon" />
-                    <span class="lp-document-row__title">{{ document.title }}</span>
+                    <span class="lp-document-row__title">{{ document.title|reference_plain }}</span>
                     <span class="lp-document-row__version">{{ 'v' ~ item.versionNumber }}</span>
                 </div>
                 {% if item.description %}<p class="lp-document-row__description">{{ item.description }}</p>{% endif %}
@@ -156,7 +156,7 @@
             <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <a href="{{ path('app_document_rename', {projectId: project.id, documentId: document.id}|merge(listQuery.routeParams)) }}"
                    class="lp-document-row__action"
-                   aria-label="{{ 'review.dashboard.rename'|trans({'%title%': document.title}) }}">
+                   aria-label="{{ 'review.dashboard.rename'|trans({'%title%': document.title|reference_plain}) }}">
                     <twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />
                 </a>
                 {# Both states are written out rather than interpolated: the icon
@@ -166,7 +166,7 @@
                 {{ form_start(archiveForm, {attr: {class: 'lp-document-row__action-form'}}) }}
                     <button type="submit"
                             class="lp-document-row__action"
-                            aria-label="{{ (archived ? 'review.dashboard.unarchive' : 'review.dashboard.archive')|trans({'%title%': document.title}) }}">
+                            aria-label="{{ (archived ? 'review.dashboard.unarchive' : 'review.dashboard.archive')|trans({'%title%': document.title|reference_plain}) }}">
                         {% if archived %}
                         <twig:ux:icon name="lucide:archive-restore" class="lp-icon lp-icon--md" />
                         {% else %}

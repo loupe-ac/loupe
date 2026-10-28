@@ -18,6 +18,7 @@ use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Board\Workflow\WorkRequestOpener;
 use App\Module\Bridge\Command\CancelBridgeCommandHandler;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\PauseCardAgentsHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\Bridge;
@@ -26,6 +27,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
@@ -60,6 +62,7 @@ use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
+use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
@@ -1415,6 +1418,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->em(),
             $this->audit->auditor,
             $this->service(SessionPromptLimit::class),
+            $this->service(PauseCardAgentsHandler::class),
         );
     }
 
@@ -1431,6 +1435,8 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->service(AskingBridge::class),
             $this->service(RunCommandResolver::class),
             $this->service(RunCommandRuns::class),
+            $this->service(CardWaitText::class),
+            $this->service(CardHoldRepository::class),
         );
     }
 

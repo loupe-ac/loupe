@@ -31,6 +31,26 @@ An **ask** is the set of items that one agent session hands over at once. The
 agent writes a short context for the ask, and the page shows that context above
 the items. An item that blocks the agent carries a **Blocking** label.
 
+### Card and pull request links
+
+Loupe turns a reference to a card or a pull request into a link. This works in
+the context of an ask, in the body of an item, and in the thread of an item.
+
+An agent writes `card:1116` for a card, and `pr:owner/repo#1295` for a pull
+request. The page shows "card #1116" and "owner/repo#1295". Loupe also links
+plain prose such as "card 1116", "PR #1295" and "pull request 1295".
+
+- A card link opens the card in the card drawer.
+- A pull request link opens the page of the code host in a new tab.
+- The link shows the title on hover. A card also shows its column and state. A
+  pull request also shows its state.
+- A title and a push notification show a reference as plain text, such as "card #1116", with no link.
+- A card number that matches no card stays plain text.
+- A prose pull request reference links only when the project watches exactly
+  one repository. A `pr:` token names its repository, so it needs no such rule.
+- A bare `#1116` stays plain text.
+- Text in a code span or a code block stays as written.
+
 ## The inbox page
 
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
@@ -354,10 +374,30 @@ the sentence, with the stage protocol text and the reason tag removed.
 A pause wait says the reason of the pause in words, such as "Card 1033 is
 paused. The repair worker could not fix the failure." When failed work caused
 the pause, the sentence also names the last run that failed before it, with
-its kind and its failure reason or the last line of its output. Below the
+its kind and its failure reason, or the state of the run when it has no
+reason. A run that stopped for a person did not fail, so the pause names no
+run, and the run wait says what the run needs. Below the
 sentence, the "Open the failed run" link opens that run on the worker runs
-page. The title of the item reads "Paused:" and the reason. The
-body of the item that `inbox_get` returns holds the same sentences and links. The waits
+page. The title of the item reads "Paused:" and the reason. The first message
+of the panel is the wait that the title names.
+
+A pause after a rule reached its work limit says what looped. The title
+names the work, the limit and the pull request, such as "10 fix rounds did not
+pass the agent review of PR #1302". Below the sentence, the item shows these
+facts when Loupe has them:
+
+- the titles of the findings of the latest failed agent review
+- how the last runs of the rule ended, such as "3 blocked, 5 waiting on the
+  forge, 2 succeeded"
+- what the last blocked run, or the last run that waited for a person, said
+- for an epic whose agent review failed while some children are open, which
+  children to wait for, such as "Wait for cards 1124 and 1126 to merge into
+  `epic/1108`, then retry the card"
+- links to the pull request, the agent review and the last run
+
+When the template no longer has the rule, the item reads as any other pause.
+
+The body of the item that `inbox_get` returns holds the same sentences and links. The waits
 that ended show below them, in grey, with a sentence that says how they
 closed, such as "Closed when you acted on it."
 **Dismiss** hides the item. The card still waits until you act on it.
@@ -397,7 +437,16 @@ The actions are:
 - "Resume the run" continues the session of a stopped worker. The wait ends
   when the new run starts.
 - "Retry the card" releases a pause of the kinds that a person can release.
-  A pause from a workflow rule cannot be released here.
+  A pause from a workflow rule cannot be released here. For a work-limit
+  pause, the action says what it grants, such as "Retry: 10 more fix rounds".
+- "Open the pull request" opens the pull request of the rule on GitHub. It
+  fits a work-limit pause whose rule acts on a pull request.
+- "Approve on GitHub" opens the review page of that pull request. It fits a
+  work-limit pause whose latest agent review failed. An approval that comes
+  after the failed review overrides it.
+- "Hold the card" makes the card unmanaged, as `card_hold` does. No rule and
+  no worker acts on the card until you release it. It fits a work-limit pause
+  of a card that is not held already.
 - "Review" opens the review page of the document, or the pull request on
   GitHub, for a review wait.
 - "Send an agent" starts a new worker for the stage work of the card, such as
@@ -416,7 +465,10 @@ The actions are:
 
 Loupe shows only the actions that fit the item now. It picks the main action
 from the newest open wait: Resume the run for a stopped run, Retry the card for
-a pause that you can release, Review for a review, and Open for the rest. When
+a pause that you can release, Review for a review, and Open for the rest. A
+work-limit pause whose last run ended blocked, or waited for a person, does not
+make Retry the default, because a retry alone repeats the same stop. Open the
+pull request is the default then, or Open when the rule has no pull request. When
 only Dismiss fits, the card shows a Dismiss button and no menu.
 
 ### Titles and suggestions from the agent
@@ -644,8 +696,7 @@ The `waits-for-approval` marker is on when all of these are true:
 
 - The pull request is open, and it is not a draft.
 - Its checks passed on its head commit.
-- It has no conflict, and no change request is open.
-- The forge reads it as mergeable, behind its base or blocked.
+- It has no conflict, and no change request is open. A pull request whose mergeability the forge still computes, such as just after a merge into its base, keeps its wait.
 - Its base is the default branch.
 - No worker run of the card is active.
 - No approval covers its head commit.

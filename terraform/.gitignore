@@ -2,6 +2,8 @@
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
+secrets.enc.yaml
 crash.log
 crash.*.log
 

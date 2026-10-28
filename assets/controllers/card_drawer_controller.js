@@ -234,6 +234,9 @@ export default class extends ModalController {
         const opener = event.target.closest?.('[data-card-drawer-opener]');
         if (!opener || event.defaultPrevented) return;
         if (isModifiedClick(event)) return;
+        // An opener that a frame load or a live update added after connect.
+        opener.dataset.turboFrame = 'card-drawer-frame';
+        if (!this.openers.includes(opener)) this.openers.push(opener);
         this.prepare({ currentTarget: opener });
     };
 

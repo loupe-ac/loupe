@@ -9,6 +9,8 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\PauseCardAgentsCommand;
+use App\Module\Bridge\Command\PauseCardAgentsHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\Command\WorkRequestAlreadyLive;
@@ -39,7 +41,8 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Runs one action that the owner chose on an inbox item. A resume asks the bridge, a retry releases
- * the pause, send an agent, a session, a command and an added entry each open a work request, and a dismiss closes the item.
+ * the pause, a hold makes the card unmanaged, send an agent, a session, a command and an added entry each open a work request,
+ * and a dismiss closes the item.
  * The note stays in Loupe: no command carries its text.
  * A dismiss records no row, because the closed item holds the note as its close note.
  */
@@ -69,6 +72,7 @@ final readonly class RunInboxActionHandler
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private SessionPromptLimit $promptLimit,
+        private PauseCardAgentsHandler $holdCard,
     ) {
     }
 
@@ -88,6 +92,7 @@ final readonly class RunInboxActionHandler
             $action = match ($kind) {
                 InboxActionKind::ResumeRun => $this->resume($command, $note),
                 InboxActionKind::RetryCard => $this->retry($command, $note),
+                InboxActionKind::HoldCard => $this->hold($command, $note),
                 InboxActionKind::SendAgent => $this->sendAgent($command, $note),
                 InboxActionKind::StartSession => $this->startSession($command, $note),
                 InboxActionKind::RunCommand => $this->runCommand($command, $note),
@@ -116,10 +121,10 @@ final readonly class RunInboxActionHandler
         return $action;
     }
 
-    /** The kinds this handler runs. Open and review are links. */
+    /** The kinds this handler runs. Open, review, open the pull request and approve it are links. */
     private static function runsHere(InboxActionKind $kind): bool
     {
-        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::AddEntry, InboxActionKind::Dismiss], true);
+        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::HoldCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::AddEntry, InboxActionKind::Dismiss], true);
     }
 
     private function resume(RunInboxActionCommand $command, string $note): InboxAction
@@ -163,6 +168,27 @@ final readonly class RunInboxActionHandler
 
         try {
             ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), Actor::Human, $wait->pauseId));
+        } catch (DomainErrors $e) {
+            $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
+            throw $e;
+        }
+
+        return $action;
+    }
+
+    private function hold(RunInboxActionCommand $command, string $note): InboxAction
+    {
+        $item = $command->item;
+        $cardId = $this->itemActions->cardIdOf($item, InboxActionKind::HoldCard) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+
+        // The row commits first, like a retry. A refused hold removes it again.
+        $action = new InboxAction($item, InboxActionKind::HoldCard, $command->user, $note);
+        $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
+        $this->em->persist($action);
+        $this->em->flush();
+
+        try {
+            ($this->holdCard)(new PauseCardAgentsCommand($item->project, $cardId, $command->user));
         } catch (DomainErrors $e) {
             $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
             throw $e;
