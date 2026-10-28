@@ -23,7 +23,7 @@ func TestResolveExperimentPinSendsTheContractBody(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	variant, switchedFrom, err := New(server.URL, "secret", server.Client()).
-		ResolveExperimentPin(context.Background(), "my project", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 2}, []string{"cost", "merge-rate"})
+		ResolveExperimentPin(context.Background(), "my project", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 2}, []string{"cost", "merge-rate"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestResolveExperimentPinSendsAnEmptyMetricList(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	if _, _, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil); err != nil {
+		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if want := `{"candidate":"sonnet","variants":[],"weights":[],"metrics":[]}`; body != want {
@@ -68,7 +68,7 @@ func TestResolveExperimentPinReadsASwitchedPin(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	variant, switchedFrom, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 1}, nil)
+		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 1}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestResolveExperimentPinNamesEachFailure(t *testing.T) {
 			t.Cleanup(server.Close)
 
 			variant, _, err := New(server.URL, "t", server.Client()).
-				ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil)
+				ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil, nil)
 			if err == nil {
 				t.Fatalf("variant = %q, want an error", variant)
 			}
@@ -124,8 +124,46 @@ func TestResolveExperimentPinStopsAtTheDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	_, _, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(ctx, "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil)
+		ResolveExperimentPin(ctx, "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil, nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want the deadline", err)
+	}
+}
+
+func pinBody(t *testing.T, headline *ExperimentHeadline) string {
+	t.Helper()
+	var body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		_, _ = io.WriteString(w, `{"variant":"sonnet","switchedFrom":null}`)
+	}))
+	t.Cleanup(server.Close)
+	if _, _, err := New(server.URL, "t", server.Client()).
+		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil, headline); err != nil {
+		t.Fatal(err)
+	}
+
+	return body
+}
+
+func TestResolveExperimentPinSendsTheHeadlineOnlyWhenSet(t *testing.T) {
+	for name, tc := range map[string]struct {
+		headline *ExperimentHeadline
+		want     string
+	}{
+		"goal and guards": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "hours-to-merge", Better: "lower"}, Guards: []string{"merge-rate"}},
+			`,"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":["merge-rate"]}}`},
+		"goal alone":   {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost", Better: "higher"}}, `,"headline":{"goal":{"metric":"cost","better":"higher"}}}`},
+		"no guards":    {&ExperimentHeadline{Guards: []string{}}, `,"headline":{"guards":[]}}`},
+		"default only": {&ExperimentHeadline{}, `,"headline":{}}`},
+		"unset":        {nil, `}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			want := `{"candidate":"sonnet","variants":[],"weights":[],"metrics":[]` + tc.want
+			if got := pinBody(t, tc.headline); got != want {
+				t.Fatalf("body = %s, want %s", got, want)
+			}
+		})
 	}
 }

@@ -90,8 +90,11 @@ type WorkEntry struct {
 	// Metrics are the metric keys the Comparison tab of the experiment shows,
 	// in this order. Only an entry with variants sets them.
 	Metrics []string `yaml:"metrics"`
-	Run     []string `yaml:"run"`
-	Timeout string   `yaml:"timeout"`
+	// Headline picks the goal and the guards of the experiment. Only an entry
+	// with variants sets it.
+	Headline *Headline `yaml:"headline"`
+	Run      []string  `yaml:"run"`
+	Timeout  string    `yaml:"timeout"`
 	// Subject is the subject type the entry runs. The check fills card when
 	// it is empty.
 	Subject string `yaml:"subject"`
@@ -216,12 +219,12 @@ var workRefusals = map[string][]refusal{
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry runs a worker"},
 	},
 	ActionInteractive: {
-		{[]string{"before", "experiment", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
+		{[]string{"before", "experiment", "headline", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry launches an interactive session"},
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry launches an interactive session"},
 	},
 	ActionCommand: {
-		{[]string{"account", "before", "experiment", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
+		{[]string{"account", "before", "experiment", "headline", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
 	},
 }
 
@@ -241,6 +244,7 @@ func checkWork(kind string, w *WorkEntry) error {
 			"refresh":        w.Refresh != nil,
 			"reset":          w.Reset != nil,
 			"experiment":     w.Experiment.Kind != 0,
+			"headline":       w.Headline != nil,
 			"metrics":        w.Metrics != nil,
 			"model":          w.Model != "",
 			"permissionMode": w.PermissionMode != "",
@@ -296,6 +300,9 @@ func checkWork(kind string, w *WorkEntry) error {
 	if w.Action == "" && w.Metrics != nil && w.Variants == nil {
 		errs = append(errs, errors.New("metrics needs variants, and only an experiment shows metrics"))
 	}
+	if w.Action == "" && w.Headline != nil && w.Variants == nil {
+		errs = append(errs, errors.New("headline needs variants, and only an experiment shows a headline"))
+	}
 	if w.Action == "" && w.Experiment.Kind != 0 && w.Variants == nil {
 		errs = append(errs, errors.New("experiment needs variants, and only an experiment has a name"))
 	}
@@ -309,7 +316,7 @@ func checkWork(kind string, w *WorkEntry) error {
 			if err != nil {
 				errs = append(errs, err)
 			}
-			e := Experiment{Name: name, Variants: w.Variants, Metrics: w.Metrics}
+			e := Experiment{Name: name, Variants: w.Variants, Metrics: w.Metrics, Headline: w.Headline}
 			if err := checkExperiment(e); err != nil {
 				errs = append(errs, err)
 			}

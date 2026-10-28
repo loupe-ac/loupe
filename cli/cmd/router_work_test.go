@@ -692,6 +692,9 @@ work:
       - {name: a, weight: 1, model: opus}
       - {name: b, weight: 3, model: sonnet}
     metrics: [cost, merge-rate]
+    headline:
+      goal: {metric: hours-to-merge, better: lower}
+      guards: []
 `
 
 // An interactive entry launches only once the claim holds. A launch that
@@ -744,6 +747,10 @@ func TestAWorkEntryWithVariantsPinsItsVariant(t *testing.T) {
 	if len(calls) != 1 || calls[0].experiment != "split" || calls[0].cardID != cardUUID(87) || calls[0].handle != testProject ||
 		!slices.Equal(calls[0].metrics, []string{"cost", "merge-rate"}) {
 		t.Fatalf("pin calls = %+v", calls)
+	}
+	if hl := calls[0].headline; hl == nil || hl.Goal == nil || *hl.Goal != (api.ExperimentGoal{Metric: "hours-to-merge", Better: "lower"}) ||
+		hl.Guards == nil || len(hl.Guards) != 0 {
+		t.Fatalf("headline = %+v", hl)
 	}
 	if got := h.worker.recorded(); len(got) != 1 || got[0].model != "sonnet" {
 		t.Fatalf("workers = %+v", got)
