@@ -49,11 +49,20 @@ final class TopbarSearchFlagRemovalMigrationTest extends KernelTestCase
         self::assertSame(0, $this->flagCount('name = \'search.topbar.enabled\''));
     }
 
-    private function migrate(): void
+    public function test_a_rollback_restores_the_flag_switched_off(): void
+    {
+        $this->connection->executeStatement('DELETE FROM feature_flag WHERE name = ?', ['search.topbar.enabled']);
+
+        $this->migrate(down: true);
+
+        self::assertSame('false', $this->connection->fetchOne('SELECT value FROM feature_flag WHERE name = ?', ['search.topbar.enabled']));
+    }
+
+    private function migrate(bool $down = false): void
     {
         $migration = new Version20261028100116($this->connection, new NullLogger());
         self::assertInstanceOf(AbstractMigration::class, $migration);
-        $migration->up(new Schema());
+        $down ? $migration->down(new Schema()) : $migration->up(new Schema());
         foreach ($migration->getSql() as $query) {
             $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
         }

@@ -25,7 +25,7 @@ final class Version20261028100116 extends AbstractMigration
     {
         $this->addSql(<<<'SQL'
             INSERT INTO feature_flag (name, type, value, tags, options)
-            SELECT 'search.topbar.enabled', 'bool', 'true', '[]', NULL
+            SELECT 'search.topbar.enabled', 'bool', 'false', '[]', NULL
             WHERE NOT EXISTS (
                 SELECT 1 FROM feature_flag WHERE name = 'search.topbar.enabled'
             )
