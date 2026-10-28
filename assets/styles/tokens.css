@@ -3,152 +3,256 @@
 
 /* @group colour */
 :root {
-    /* Accent (chartreuse). Deliberately not lime-400: the handoff maps it there
-       only to honour its own named-Tailwind-token rule, and says the prototype
-       wins wherever the two disagree. lime-400 is visibly greener. */
+    /* Accent (chartreuse): the brand fill for primary actions and highlights.
+       Deliberately not Tailwind lime-400, which is visibly greener. Carries
+       `ink` text (11.7:1); never carries white text. */
     --accent: #d4e94c;
+    /* Hover state of an `accent` fill. Carries `ink` text (10.2:1). */
     --accent-hover: #c4dc32;
-    /* Highlight — the open-comment anchor, open-thread chip, trial chip. */
+    /* Highlight — the open-comment anchor, open-thread chip and trial chip.
+       Carries `ink` text (13.6:1). */
     --accent-soft: #edf2ce;
+    /* Highlight, a lighter step than `accent-soft`; also the colour of the
+       `shadow-focus` halo round a selected surface. */
     --accent-faint: #f5f8df;
+    /* Highlight, the faintest accent wash. */
     --accent-faint-2: #fafbf1;
+    /* Hairline round an accent-tinted surface. */
     --accent-border: #dce69b;
-    /* Accent dark enough to read as text on paper — links, active counts. */
+    /* Accent dark enough to read as text on paper — links and active counts.
+       6.1:1 on `bg`, 6.5:1 on `surface-1`. */
     --accent-ink: #596313;
+    /* Border of the project switcher on hover, on the dark chrome. */
     --switcher-hover-border: #3a3a34;
 
-    /* Text ladder */
+    /* Text ladder: headings and strong text. 14.8:1 on `bg`, 15.8:1 on
+       `surface-1`; also the text on `accent` fills. */
     --ink: #20241f;
+    /* Text ladder: body copy on `bg`, `surface-1` and `surface-3` (14.8:1,
+       15.8:1, 14.0:1). */
     --text: #20241f;
+    /* Text ladder: secondary copy on `bg` and `surface-1` (6.6:1, 7.0:1). */
     --text-mute: #555b52;
-    /* Labels that name a value: darker than mute, 7.76:1 on the app background. */
+    /* Labels that name a value: darker than `text-mute`, 7.76:1 on `bg` (8.3:1
+       on `surface-1`). */
     --text-label: #4a5049;
+    /* Text ladder: tertiary copy and metadata on `bg` and `surface-1` (5.1:1,
+       5.5:1). */
     --text-dim: #656b60;
+    /* The faintest rung, for placeholders, disabled marks and decoration.
+       1.7:1 on `bg`, which fails the 4.5:1 text floor: never set readable text
+       in it. */
     --faint: #bec3b7;
+    /* Body text of long-form document prose on `surface-1` (15.2:1). */
     --prose: #22262b;
 
-    /* Borders / hairlines */
+    /* Borders / hairlines: the default hairline between and around surfaces. */
     --border: #e1e5da;
+    /* Borders / hairlines: a heavier hairline, for control edges and dividers
+       that must read. */
     --border-strong: #cdd3c6;
+    /* Borders / hairlines: the lightest hairline, inside a panel. */
     --border-faint: #edf0e8;
 
-    /* Surfaces — "paper": the white panel the content sits on. */
+    /* Surfaces: the app background the paper sits on. */
     --bg: #f7f8f3;
+    /* Surfaces: the dark sidebar ground (same value as `chrome`). */
     --sidebar: #181d18;
+    /* Surfaces — "paper": the white panel the content sits on. */
     --surface-1: #ffffff;
+    /* Surfaces: the second step, a tinted panel inside paper. */
     --surface-2: #f7f8f3;
+    /* Surfaces: the third step, a sunken well. */
     --surface-3: #f0f2eb;
+    /* Surfaces: an elevated surface (menus, dialogs). */
     --bg-elev: #ffffff;
+    /* Surfaces: a sunken well, such as a code or input area. */
     --bg-sunken: #f0f2eb;
+    /* Surfaces: the fill of a row or item under the pointer. */
     --bg-hover: #f7f8f3;
+    /* Surfaces: the fill of the selected or pressed row. */
     --bg-active: #e9ede3;
     /* Warm paper for the mascot notes that sit beside the work. */
     --bg-warm: #f1eee4;
+    /* Hairline round the warm `bg-warm` notes. */
     --border-warm: #e9e5d8;
-    /* Form fields: a barely tinted fill and border, and a green-grey label. */
+    /* Form fields: a barely tinted fill. */
     --field: #fcfdf9;
+    /* Form fields: the border of a field. */
     --border-field: #dce4d2;
+    /* Form fields: the green-grey field label, on `field`, `surface-1` and
+       `bg` (5.1:1, 5.3:1, 4.9:1). */
     --label: #5f724d;
 
-    /* Chrome — the dark shell the paper is inset into. */
+    /* Chrome — the dark shell the paper is inset into (sidebar, top bar). */
     --chrome: #181d18;
+    /* Chrome: a raised control or panel on the dark shell. */
     --chrome-raised: #242a23;
+    /* Chrome: the fill of a control on the dark shell. */
     --chrome-control: #30372e;
+    /* Chrome: hairline on the dark shell. */
     --chrome-line: #343b30;
+    /* Chrome: primary text on `chrome` and `chrome-raised` (15.2:1, 13.0:1).
+       The light ladder's `text-*` lands unreadable here. */
     --chrome-fg: #f0f2eb;
+    /* Chrome: secondary text on `chrome` and `chrome-raised` (8.8:1, 7.5:1). */
     --chrome-mute: #b5bcaf;
+    /* Chrome: tertiary text on `chrome` and `chrome-raised` (5.9:1, 5.1:1). */
     --chrome-dim: #929a8d;
 
-    /* Status ladder — pending (amber) / addressed·resolved (green) / removed (red) */
+    /* Status ladder, pending (amber): the dot and text of a pending state.
+       4.7:1 on `surface-1`. 4.3:1 on `status-pending-bg` is under the 4.5:1
+       floor for small text, so use `status-pending-deep` for text on the tint. */
     --status-pending: #9a6a1c;
+    /* Status ladder — pending: text on `status-pending-bg` (6.1:1). */
     --status-pending-deep: #7a5514;
+    /* Status ladder — pending: the pale fill of a pending chip or box. */
     --status-pending-bg: #fdf4e3;
+    /* Status ladder — pending: the hairline round a pending chip or box. */
     --status-pending-border: #f0e2c0;
+    /* Status ladder, addressed and resolved (green): the dot and icon of an ok
+       state. 3.4:1 on `surface-1` and 3.1:1 on `status-ok-bg`, so it is a
+       mark, not small text. Use `status-ok-deep` for text. */
     --status-ok: #2f9e5c;
+    /* Status ladder — ok: text on `status-ok-bg` (4.9:1). */
     --status-ok-deep: #25794a;
+    /* Status ladder — ok: the pale fill of an ok chip or box. */
     --status-ok-bg: #eaf7ee;
+    /* Status ladder — ok: the hairline of an ok chip; also a solid chip fill
+       (Approved) carrying `status-ok-ink`. */
     --status-ok-border: #b8f2c8;
+    /* Status ladder — removed (red): danger text and icons on `surface-1`
+       (5.4:1) and `status-danger-bg` (4.6:1). */
     --status-danger: #c2372b;
+    /* Status ladder — danger: strong text on `status-danger-bg` (7.8:1) and
+       `status-danger-chip` (7.0:1). */
     --status-danger-deep: #8c1e14;
+    /* Status ladder — danger: the pale fill of a danger chip, flash or box. */
     --status-danger-bg: #fbe9e7;
+    /* Status ladder — danger: the hairline round a danger chip or box. */
     --status-danger-border: #f8d7d2;
-    /* Purple rung: running and in-progress work, and card or column labels. */
+    /* Purple rung: running and in-progress work, and card or column labels.
+       Text on `status-active-bg` (5.1:1). */
     --status-active: #984482;
+    /* Purple rung: the pale fill behind `status-active`. */
     --status-active-bg: #f3e8f1;
-    /* More label hues for board columns: a pale fill with an ink at WCAG AA or better. */
+    /* Label hue for board columns: ink on `tone-teal-bg` (5.3:1). */
     --tone-teal: #1f6f65;
+    /* Label hue for board columns: the pale fill under `tone-teal`. */
     --tone-teal-bg: #e3f4f1;
+    /* Label hue for board columns: ink on `tone-sky-bg` (5.2:1). */
     --tone-sky: #1d6a8f;
+    /* Label hue for board columns: the pale fill under `tone-sky`. */
     --tone-sky-bg: #e4f2fa;
+    /* Label hue for board columns: ink on `tone-blue-bg` (5.7:1). */
     --tone-blue: #2f58b0;
+    /* Label hue for board columns: the pale fill under `tone-blue`. */
     --tone-blue-bg: #e8eefb;
+    /* Label hue for board columns: ink on `tone-indigo-bg` (6.6:1). */
     --tone-indigo: #4a45a8;
+    /* Label hue for board columns: the pale fill under `tone-indigo`. */
     --tone-indigo-bg: #ecebfa;
+    /* Label hue for board columns: ink on `tone-pink-bg` (5.4:1). */
     --tone-pink: #a8325f;
+    /* Label hue for board columns: the pale fill under `tone-pink`. */
     --tone-pink-bg: #fbe8ef;
+    /* Label hue for board columns: ink on `tone-orange-bg` (5.3:1). */
     --tone-orange: #a14a14;
+    /* Label hue for board columns: the pale fill under `tone-orange`. */
     --tone-orange-bg: #fdede2;
 
-    /* Chart series, in this order: the order keeps neighbours apart for colour-blind readers. */
+    /* Chart series 1. Use the series in this order: it keeps neighbours apart
+       for colour-blind readers. */
     --chart-1: #2a78d6;
+    /* Chart series 2, in order after `chart-1`. */
     --chart-2: #eb6834;
+    /* Chart series 3, in order after `chart-2`. */
     --chart-3: #1baf7a;
+    /* Chart series 4, in order after `chart-3`. */
     --chart-4: #eda100;
+    /* Chart series 5, in order after `chart-4`. */
     --chart-5: #e87ba4;
+    /* Chart series 6, in order after `chart-5`. */
     --chart-6: #008300;
+    /* Chart series 7, in order after `chart-6`. */
     --chart-7: #4a3aa7;
+    /* Chart series 8, in order after `chart-7`. */
     --chart-8: #e34948;
+    /* The "other" bucket of a chart, after the eight series. */
     --chart-other: #898781;
 
-    /* Ink dark enough to sit on the -border rung, which the design uses as a
-       solid chip fill (Approved, Changes requested) as well as a hairline. The
-       -deep rung is tuned for the pale -bg and is too light there. */
+    /* Ink dark enough to sit on `status-ok-border` used as a solid chip fill
+       (Approved): 9.7:1. The -deep rung is tuned for the pale -bg and is too
+       light there. */
     --status-ok-ink: #0f3d20;
+    /* Solid fill of the Changes requested chip; carries `status-danger-deep`
+       (7.0:1). */
     --status-danger-chip: #ffd9d5;
 
-    /* Ink for a badge on the neutral raised fill. Lighter than --ink so a
+    /* Ink for a badge on the neutral raised fill. Lighter than `ink` so a
        resting "In review" does not shout as loudly as a heading. */
     --ink-soft: #3d3d36;
 
-    /* The strike rule is its own red: brighter than --status-danger because it
-       has to stay visible as a 3px line over body text, and it never carries
-       text of its own. */
+    /* The strike rule: brighter than `status-danger` because it has to stay
+       visible as a 3px line over body text. It never carries text of its own. */
     --strike: #ff4a3d;
+    /* The strike rule on the dark chrome (7.8:1 on `chrome`). */
     --strike-on-chrome: #ff8f85;
 
     /* Agent mark (fuchsia), deliberately outside the amber/green status ladder
-       so a reviewer can tell an agent mark from their own earlier pass. The wavy
-       underline is load-bearing rather than decorative: --agent-mark-bg sits ΔE
-       ~1-2 from --status-pending-bg under tritanopia, so for some readers the
-       tint says nothing. Do not trade the decoration for a stronger tint. */
+       so a reviewer can tell an agent mark from their own earlier pass. Pairs
+       with a wavy underline, which is load-bearing. */
     --agent-mark: #b23aa0;
+    /* Tint behind an agent mark. Sits ΔE ~1-2 from `status-pending-bg` under
+       tritanopia, so the wavy underline carries the meaning: never trade the
+       decoration for a stronger tint. */
     --agent-mark-bg: #fbecf7;
 
-    /* Dark code block (Connect page .mcp.json) — handoff §5. Intentionally a
-       dark component on the otherwise light Connect screen, not a theme. */
+    /* Dark code block (Connect page .mcp.json): the header bar. Intentionally
+       a dark component on the light Connect screen, not a theme. */
     --code-dark-header: #0f0f0d;
+    /* Dark code block: the ground of the code. */
     --code-dark-bg: #0f0f0d;
+    /* Dark code block: the code text on `code-dark-bg` (15.6:1). */
     --code-dark-text: #e8e8e2;
 
-    /* Document review tones from the approved redesign. The anchor rungs are
-       warmer than the status ladder so a highlighted passage never reads as a
-       status chip. */
+    /* Document review: a highlighted (anchored) passage. Warmer than the
+       status ladder so it never reads as a status chip. Carries `ink`
+       (13.7:1). */
     --review-anchor: #faf0bd;
+    /* Document review: the anchor of the selected thread. */
     --review-anchor-strong: #f2df88;
+    /* Document review: the underline of an anchored passage. */
     --review-anchor-line: #c3a344;
+    /* Document review: the fill of a suggested insertion. */
     --review-suggestion: #f1e3f0;
+    /* Document review: the rule under a suggested insertion. */
     --review-suggestion-line: #b881ad;
+    /* Document review: the fill of a suggested deletion. */
     --review-strike: #fbe9e4;
+    /* Document review: struck text on `review-strike` (5.1:1). */
     --review-strike-ink: #a24738;
+    /* Document review: the fill of the review tab. */
     --review-tab: #789344;
+    /* Document review: text on `review-tab`. 2.9:1 is under the 4.5:1 floor,
+       so keep it to bold or large text. */
     --review-tab-ink: #334925;
+    /* Document review: the fill of the decision panel. */
     --review-decision: #f7faef;
+    /* Document review: the hairline round the decision panel. */
     --review-decision-line: #dfe8ca;
+    /* Document review: the fill of an open thread. */
     --review-open: #fbf0d8;
+    /* Document review: text on `review-open`. 4.2:1 is just under the 4.5:1
+       floor. */
     --review-open-ink: #986a1e;
+    /* Document review: the fill of an addressed thread. */
     --review-addressed: #f3e8f1;
+    /* Document review: text on `review-addressed` (5.1:1). */
     --review-addressed-ink: #984482;
+    /* Document review: the fill of a resolved thread. */
     --review-resolved: #e7f3eb;
+    /* Document review: text on `review-resolved` (4.6:1). */
     --review-resolved-ink: #367858;
 }
 
@@ -267,11 +371,13 @@
 
 /* @group type */
 @theme inline {
-    /* Fonts */
+    /* Body text, labels and controls. The default face of the app. */
     --font-sans:
         'DM Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui,
         sans-serif;
+    /* Headings and card titles, in a heavier weight. */
     --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+    /* Card numbers, ids, code and other values a person copies. */
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
     /* Type scale: the Tailwind text sizes carry the scale, with the line height
@@ -283,9 +389,11 @@
    the styleguide can read every token from the page. */
 @theme static {
     /* One step of the spacing scale. Every gap, padding and size is a
-       multiple, except the touch target below. */
+       multiple of it through the Tailwind scale (`p-4` is 4 × `spacing`),
+       except `spacing-tap`. */
     --spacing: 0.25rem;
-    /* In px, so a phone top bar at 200% text still fits four targets. */
+    /* The touch target. In px, so a phone top bar at 200% text still fits four
+       targets. */
     --spacing-tap: 44px;
 }
 
@@ -305,14 +413,15 @@
 
 /* @group shadow */
 @theme static inline {
-    /* Shadows — reserved for surfaces that float above the page: the selection
-       toolbar, the floating composer, and menus and overlays (`--shadow-card`).
-       `--shadow-focus` is the halo for a selected surface. The comic balloon is
-       a hard offset rather than a blur and belongs to the landing page alone. */
+    /* The landing page's comic balloon: a hard offset rather than a blur. */
     --shadow-comic: 6px 6px 0 var(--accent);
+    /* The selection toolbar. */
     --shadow-toolbar: 0 6px 20px rgba(15, 15, 13, 0.25);
+    /* The floating composer. */
     --shadow-composer: 0 10px 34px rgba(15, 15, 13, 0.22);
+    /* Menus and overlays that float above the page. */
     --shadow-card: 0 8px 26px rgba(15, 15, 13, 0.18);
+    /* The halo round a selected surface. */
     --shadow-focus: 0 0 0 3px var(--accent-faint);
     /* A card of an epic lane's Up next deck, fanned out over the lane head. */
     --shadow-deck: 0 6px 16px rgba(24, 29, 24, 0.1);
@@ -328,7 +437,8 @@
     --duration-slow: 320ms;
     /* The default curve for a state change. */
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-    /* The deck fans out, and an epic lane opens and closes, on these curves. */
+    /* The Up next deck of an epic lane fans its cards out on this curve. */
     --ease-deck: cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* An epic lane opens and closes on this curve. */
     --ease-lane: cubic-bezier(0.3, 0.8, 0.2, 1);
 }

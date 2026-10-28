@@ -17,3 +17,6 @@ override.tf.json
 *_override.tf.json
 
 # The dependency lock file SHOULD be committed — do not ignore .terraform.lock.hcl
+
+# The saved progress of bin/rotate-secrets
+*.rotating
