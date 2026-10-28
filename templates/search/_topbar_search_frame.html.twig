@@ -7,11 +7,11 @@
                     {% for row in rows %}
                         {% set rowBody %}
                             {% if row.number %}<span class="lp-board-card__number">#{{ row.number }}</span>{% endif %}
-                            <span class="lp-menu__label">{{ row.title }}</span>
+                            <span class="lp-menu__label">{{ row.title|reference_plain }}</span>
                             {% if row.meta and row.tone %}<twig:Ds:Tag :tone="row.tone">{{ row.meta }}</twig:Ds:Tag>{% elseif row.meta %}<twig:Ds:StatusChip :dot="false">{{ row.meta }}</twig:Ds:StatusChip>{% endif %}
                         {% endset %}
                         {% if 'card' == kind %}
-                            <twig:Ds:MenuItem role="option" href="{{ row.url }}" data-search-kind="card" data-turbo-frame="_top" data-drawer-title="{{ row.title }}">{{ rowBody }}</twig:Ds:MenuItem>
+                            <twig:Ds:MenuItem role="option" href="{{ row.url }}" data-search-kind="card" data-turbo-frame="_top" data-drawer-title="{{ row.title|reference_plain }}">{{ rowBody }}</twig:Ds:MenuItem>
                         {% else %}
                             <twig:Ds:MenuItem role="option" href="{{ row.url }}" data-search-kind="{{ kind }}" data-turbo-frame="_top">{{ rowBody }}</twig:Ds:MenuItem>
                         {% endif %}

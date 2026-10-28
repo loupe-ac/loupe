@@ -50,6 +50,8 @@ final class SearchProjectControllerTest extends WebTestCase
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'garnet']);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('[data-search-kind="document"] span', 'Garnet notes for card #9001');
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'garnet'], server: ['HTTP_TURBO_FRAME' => 'topbar-search-results']);
+        self::assertSelectorTextSame('[data-search-kind="document"] .lp-menu__label', 'Garnet notes for card #9001', 'the dropdown shows a reference token as its text');
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => str_repeat('x', 201)]);
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorNotExists('[data-search-kind]');
