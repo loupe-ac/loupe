@@ -148,6 +148,9 @@ final class RotateSecretsTest extends TestCase
     {
         $file = $this->dir.'/secrets.vars';
         chmod($file, 0o600);
+        $original = file_get_contents($file);
+        // The link holds the old inode, so a later temp file cannot reuse its number.
+        link($file, $this->dir.'/original-link');
         $inode = fileinode($file);
 
         $process = $this->rotate(['app_encryption_key'], "yes\n");
@@ -155,6 +158,7 @@ final class RotateSecretsTest extends TestCase
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         clearstatcache();
         self::assertNotSame($inode, fileinode($file));
+        self::assertSame($original, file_get_contents($this->dir.'/original-link'));
         self::assertSame(0o600, fileperms($file) & 0o777);
         self::assertSame([$file], glob($file.'*'));
         self::assertSame([], glob($this->dir.'/.rotate-secrets.*'));
