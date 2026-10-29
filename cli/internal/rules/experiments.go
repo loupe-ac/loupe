@@ -43,15 +43,18 @@ var modelPattern = regexp.MustCompile(`^[^\p{C}]+$`)
 // on the variant of the card.
 type ExperimentBlock struct {
 	Covers   []string  `yaml:"covers"`
+	Baseline string    `yaml:"baseline"`
 	Variants []Variant `yaml:"variants"`
 	Metrics  []string  `yaml:"metrics"`
 	Headline *Headline `yaml:"headline"`
 }
 
-// Experiment splits the runs of the kinds it covers between models.
+// Experiment splits the runs of the kinds it covers between models. Baseline
+// names the variant that the others are compared against.
 type Experiment struct {
 	Name     string
 	Covers   []string
+	Baseline string
 	Variants []Variant
 	Metrics  []string
 	Headline *Headline
@@ -196,6 +199,13 @@ func checkExperiment(e Experiment) error {
 		if err := checkVariant(v); err != nil {
 			errs = append(errs, fmt.Errorf("variant %q: %w", v.Name, err))
 		}
+	}
+
+	switch {
+	case e.Baseline == "":
+		errs = append(errs, errors.New("it has no baseline: add baseline: with one of its variant names"))
+	case !names[e.Baseline]:
+		errs = append(errs, fmt.Errorf("baseline %q names no variant of the experiment", e.Baseline))
 	}
 
 	errs = append(errs, checkMetrics(e.Metrics)...)
@@ -346,7 +356,7 @@ func checkExperiments(work map[string]WorkEntry, blocks map[string]ExperimentBlo
 	for _, name := range slices.Sorted(maps.Keys(blocks)) {
 		b := blocks[name]
 		prefix := fmt.Sprintf("experiment %q: ", name)
-		e := Experiment{Name: name, Covers: slices.Sorted(slices.Values(b.Covers)), Variants: b.Variants, Metrics: b.Metrics, Headline: b.Headline}
+		e := Experiment{Name: name, Covers: slices.Sorted(slices.Values(b.Covers)), Baseline: b.Baseline, Variants: b.Variants, Metrics: b.Metrics, Headline: b.Headline}
 		if err := checkExperiment(e); err != nil {
 			errs = append(errs, fmt.Errorf("%s%w", prefix, err))
 		}

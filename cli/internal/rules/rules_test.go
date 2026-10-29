@@ -219,7 +219,7 @@ func TestParseResolvesTheAccountOfARun(t *testing.T) {
 		claudeDefaults + oneWork +
 		"  review:\n    prompt: x\n    account: other\n" +
 		"  split:\n    prompt: x\n" +
-		"experiments:\n  split:\n    covers: [split]\n    variants:\n      - {name: a, weight: 1, model: haiku}\n      - {name: b, weight: 1, account: other, permissions: full}\n"
+		"experiments:\n  split:\n    covers: [split]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: haiku}\n      - {name: b, weight: 1, account: other, permissions: full}\n"
 	text, _ := file(t, body)
 	s, err := Parse([]byte(text), Defaults{})
 	if err != nil {
@@ -378,11 +378,11 @@ func TestParseRefusesAnInvalidAccount(t *testing.T) {
 		"an unknown isolation":      {claudeAccount + claudeDefaults + "  isolation: sandbox\n" + oneWork, `line 6: defaults.isolation "sandbox" is not worktree or none`},
 		"an unknown entry account":  {oneRule + "    account: other\n", `line 13: work "implement": account "other" is not in accounts, which declares claude`},
 		"an unknown entry level":    {oneRule + "    permissions: yolo\n", `line 13: work "implement": permissions "yolo" is not read-only, workspace or full`},
-		"an unknown variant account": {oneRule + "experiments:\n  trial:\n    covers: [implement]\n    variants:\n      - {name: a, weight: 1, model: opus}\n      - {name: b, weight: 1, account: other}\n",
-			`line 18: experiment "trial": variant "b": account "other" is not in accounts, which declares claude`},
-		"an unknown variant level": {oneRule + "experiments:\n  trial:\n    covers: [implement]\n    variants:\n      - {name: a, weight: 1, model: opus, permissions: root}\n",
-			`line 17: experiment "trial": variant "a": permissions "root" is not read-only, workspace or full`},
-		"an unknown kinds account": {oneRule + "experiments:\n  trial:\n    covers: [implement]\n    variants:\n      - {name: a, weight: 1, kinds: {implement: {account: other}}}\n",
+		"an unknown variant account": {oneRule + "experiments:\n  trial:\n    covers: [implement]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: opus}\n      - {name: b, weight: 1, account: other}\n",
+			`line 19: experiment "trial": variant "b": account "other" is not in accounts, which declares claude`},
+		"an unknown variant level": {oneRule + "experiments:\n  trial:\n    covers: [implement]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: opus, permissions: root}\n",
+			`line 18: experiment "trial": variant "a": permissions "root" is not read-only, workspace or full`},
+		"an unknown kinds account": {oneRule + "experiments:\n  trial:\n    covers: [implement]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, kinds: {implement: {account: other}}}\n",
 			`experiment "trial": variant "a": kind "implement": account "other" is not in accounts, which declares claude`},
 		"too many accounts":           {"accounts:\n  claude:\n    harness: claude-code\n" + manyAccounts(MaxAccounts) + claudeDefaults + oneWork, "line 1: accounts: at most 50 accounts, got 51"},
 		"an account without accounts": {strings.Replace(oneWork, "  implement:\n", "  implement:\n    account: claude\n", 1), `work "implement": account "claude" is not in accounts, which declares none`},
@@ -457,7 +457,7 @@ const accountsBody = "appPrompts: true\naccounts:\n  claude:\n    harness: claud
 	"  pair:\n    action: interactive\n    prompt: x\n    account: third\n" +
 	"  split:\n    prompt: x\n" +
 	"  test:\n    action: command\n    run: [make, test]\n" +
-	"experiments:\n  split:\n    covers: [split]\n    variants:\n      - {name: a, weight: 1, model: haiku}\n      - {name: b, weight: 1, account: fourth}\n"
+	"experiments:\n  split:\n    covers: [split]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: haiku}\n      - {name: b, weight: 1, account: fourth}\n"
 
 func TestDeclaredAccountsNamesEveryAccount(t *testing.T) {
 	if got := parse(t, accountsBody).DeclaredAccounts(); !slices.Equal(got, []string{"claude", "fourth", "other", "spare", "third"}) {

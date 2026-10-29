@@ -31,6 +31,7 @@ workerPools:
 experiments:
   split-trial:
     covers: [split]
+    baseline: a
     variants:
       - {name: a, weight: 1, model: opus}
       - {name: b, weight: 3, model: sonnet}
@@ -79,7 +80,7 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 	command := "action: command\nrun: [make]\n"
 	variants := "variants:\n  - {name: a, weight: 1, model: opus}\n"
 	exp := func(fields string) string {
-		return entry("x", "prompt: x") + "experiments:\n  trial:\n    covers: [x]\n    " + strings.ReplaceAll(strings.TrimSpace(fields), "\n", "\n    ") + "\n"
+		return entry("x", "prompt: x") + "experiments:\n  trial:\n    covers: [x]\n    baseline: a\n    " + strings.ReplaceAll(strings.TrimSpace(fields), "\n", "\n    ") + "\n"
 	}
 
 	for name, tc := range map[string]struct {
@@ -183,7 +184,7 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 
 func TestParseAcceptsEmptyMetricsWithVariants(t *testing.T) {
 	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n" +
-		"experiments:\n  trial:\n    covers: [x]\n    metrics: []\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
+		"experiments:\n  trial:\n    covers: [x]\n    baseline: a\n    metrics: []\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err != nil {
 		t.Fatalf("err = %v", err)
@@ -196,7 +197,7 @@ func TestParseRefusesTooManyMetrics(t *testing.T) {
 		keys[i] = "m" + strings.Repeat("a", i+1)
 	}
 	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n" +
-		"experiments:\n  trial:\n    covers: [x]\n    metrics: [" + strings.Join(keys, ", ") +
+		"experiments:\n  trial:\n    covers: [x]\n    baseline: a\n    metrics: [" + strings.Join(keys, ", ") +
 		"]\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "it has 17 metrics, and the server takes at most 16") {
@@ -206,7 +207,7 @@ func TestParseRefusesTooManyMetrics(t *testing.T) {
 
 func TestParseRefusesTooManyVariants(t *testing.T) {
 	var b strings.Builder
-	b.WriteString("projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    variants:\n")
+	b.WriteString("projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    baseline: v\n    variants:\n")
 	for i := range MaxVariants + 1 {
 		b.WriteString("      - {name: v" + strings.Repeat("a", i+1) + ", weight: 1, model: opus}\n")
 	}
@@ -1021,7 +1022,7 @@ func TestParseRefusesTooManyGuards(t *testing.T) {
 	for i := range keys {
 		keys[i] = "m" + strings.Repeat("a", i+1)
 	}
-	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    headline:\n      guards: [" + strings.Join(keys, ", ") +
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    baseline: a\n    headline:\n      guards: [" + strings.Join(keys, ", ") +
 		"]\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 guards, and the server takes at most 16") {
@@ -1056,7 +1057,7 @@ func TestParseRefusesTooManyControls(t *testing.T) {
 	for i := 0; i <= MaxControls; i++ {
 		lines = append(lines, fmt.Sprintf("        - {metric: m%s, variant: a, expect: '> 0', share: 0.5}", strings.Repeat("a", i+1)))
 	}
-	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    headline:\n      controls:\n" + strings.Join(lines, "\n") +
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    baseline: a\n    headline:\n      controls:\n" + strings.Join(lines, "\n") +
 		"\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 controls, and the server takes at most 16") {

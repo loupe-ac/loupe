@@ -693,6 +693,7 @@ work:
 experiments:
   split:
     covers: [split, fix]
+    baseline: a
     variants:
       - {name: a, weight: 1, model: opus}
       - {name: b, weight: 3, model: sonnet}
@@ -750,7 +751,7 @@ func TestACoveredWorkEntryPinsItsVariant(t *testing.T) {
 
 	calls := pins.recorded()
 	if len(calls) != 1 || calls[0].experiment != "split" || calls[0].cardID != cardUUID(87) || calls[0].handle != testProject ||
-		!slices.Equal(calls[0].metrics, []string{"cost", "merge-rate"}) || !slices.Equal(calls[0].covers, []string{"fix", "split"}) {
+		!slices.Equal(calls[0].metrics, []string{"cost", "merge-rate"}) || !slices.Equal(calls[0].covers, []string{"fix", "split"}) || calls[0].baseline != "a" {
 		t.Fatalf("pin calls = %+v", calls)
 	}
 	if hl := calls[0].headline; hl == nil || hl.Goal == nil || *hl.Goal != (api.ExperimentGoal{Metric: "hours-to-merge", Better: "lower"}) ||

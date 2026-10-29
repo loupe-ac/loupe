@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-/** The latest weights, metrics, headline and covered kinds the bridge reported for one experiment. */
+/** The latest weights, metrics, headline, covered kinds and baseline the bridge reported for one experiment. */
 #[ORM\Entity(repositoryClass: ExperimentDefinitionRepository::class)]
 #[ORM\Table(name: 'bridge_experiment_definitions')]
 #[ORM\UniqueConstraint(name: 'uniq_bridge_experiment_definition', columns: ['project_id', 'experiment'])]
@@ -34,6 +34,10 @@ class ExperimentDefinition
     /** @var list<string>|null the work kinds the experiment covers, sorted, or null when no bridge has reported them */
     #[ORM\Column(name: 'covers', type: Types::JSON, nullable: true)]
     public ?array $covers = null;
+
+    /** the variant the others are compared against, or null when no bridge has reported one */
+    #[ORM\Column(name: 'baseline', length: WorkerRun::MAX_EXPERIMENT_NAME_LENGTH, nullable: true)]
+    public ?string $baseline = null;
 
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

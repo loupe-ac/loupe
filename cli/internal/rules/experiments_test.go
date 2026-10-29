@@ -20,7 +20,7 @@ const (
 
 // trial is an experiment block of the given name, covers and extra fields.
 func trial(name, covers, extra string) string {
-	return "experiments:\n  " + name + ":\n    covers: " + covers + "\n" + extra
+	return "experiments:\n  " + name + ":\n    covers: " + covers + "\n    baseline: a\n" + extra
 }
 
 func parseErr(t *testing.T, body string) error {
@@ -99,7 +99,7 @@ func TestExperimentNameChangesTheDraw(t *testing.T) {
 }
 
 func TestParseRefusesAnInvalidExperiment(t *testing.T) {
-	both := trial("one", "[implement]", twoVariants) + "  two:\n    covers: [implement]\n" + twoVariants
+	both := trial("one", "[implement]", twoVariants) + "  two:\n    covers: [implement]\n    baseline: a\n" + twoVariants
 	for name, tc := range map[string]struct {
 		body  string
 		wants []string
@@ -207,8 +207,8 @@ func TestSettingsFollowTheLookupOrder(t *testing.T) {
 		"  implement:\n    prompt: x\n    model: entry-model\n    account: a2\n" +
 		"  fix:\n    prompt: x\n    model: entry-model\n    account: a2\n" +
 		"  plain:\n    prompt: x\n" +
-		trial("trial", "[implement, fix, plain]", "    variants:\n      - {name: v0, weight: 1}\n"+
-			"      - {name: v1, weight: 1, model: variant-model, account: a3, kinds: {fix: {model: kind-model, account: a4}}}\n")
+		strings.Replace(trial("trial", "[implement, fix, plain]", "    variants:\n      - {name: v0, weight: 1}\n"+
+			"      - {name: v1, weight: 1, model: variant-model, account: a3, kinds: {fix: {model: kind-model, account: a4}}}\n"), "baseline: a", "baseline: v0", 1)
 	s := checked(t, body)
 	for _, tc := range []struct{ kind, variant, model, account string }{
 		{"implement", "v0", "entry-model", "a2"},
@@ -300,5 +300,30 @@ func TestMetricKeyPatternTakesBucketAndHarnessEventKeys(t *testing.T) {
 		if metricKeyPattern.MatchString(key) {
 			t.Errorf("metric key %q was accepted", key)
 		}
+	}
+}
+
+func TestParseRefusesAMissingOrUnknownBaseline(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body string
+		want string
+	}{
+		"absent": {experimentFile(implementAndFix, "experiments:\n  trial:\n    covers: [implement]\n"+twoVariants),
+			`experiment "trial": it has no baseline: add baseline: with one of its variant names`},
+		"empty": {experimentFile(implementAndFix, "experiments:\n  trial:\n    covers: [implement]\n    baseline: \"\"\n"+twoVariants),
+			`experiment "trial": it has no baseline`},
+		"unknown": {experimentFile(implementAndFix, "experiments:\n  trial:\n    covers: [implement]\n    baseline: c\n"+twoVariants),
+			`experiment "trial": baseline "c" names no variant of the experiment`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			wantErr(t, tc.body, tc.want)
+		})
+	}
+}
+
+func TestParseKeepsTheBaselineOfTheExperiment(t *testing.T) {
+	s := checked(t, experimentFile(implementAndFix, strings.Replace(trial("trial", "[implement]", twoVariants), "baseline: a", "baseline: b", 1)))
+	if got := s.MatchWork(workRequest("implement")).Experiment.Baseline; got != "b" {
+		t.Fatalf("baseline = %q, want b", got)
 	}
 }

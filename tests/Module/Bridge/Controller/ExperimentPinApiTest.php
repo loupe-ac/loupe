@@ -72,6 +72,26 @@ final class ExperimentPinApiTest extends WebTestCase
         self::assertSame([['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 3]], $definitions[0]->weights);
     }
 
+    public function test_the_baseline_is_stored_and_a_bad_one_keeps_the_stored_one(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'pin-api-baseline@example.com');
+        $project = $this->project($em, $owner, 'Pin Api Baseline');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"baseline":"opus"}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('opus', $this->allDefinitions()[0]->baseline);
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"baseline":"haiku"}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('opus', $this->allDefinitions()[0]->baseline);
+    }
+
     public function test_the_declared_metrics_are_stored_in_their_order(): void
     {
         $client = static::createClient();
