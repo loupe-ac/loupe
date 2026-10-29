@@ -64,6 +64,7 @@ final class WorkerRunExporterTest extends TestCase
         $run->toolTimeMs = 4000;
         $run->idleGapMs = 500;
         $run->peakContextTokens = 64_000;
+        $run->harnessEvents = ['diagnostics' => 2];
         $history = [
             new WorkerRunStateChange($run, WorkerRunState::Running, new \DateTimeImmutable('2026-09-13T10:00:00+00:00'), new \DateTimeImmutable('2026-09-13T10:00:01+00:00')),
             new WorkerRunStateChange($run, WorkerRunState::Succeeded, new \DateTimeImmutable('2026-09-13T10:00:21+00:00'), new \DateTimeImmutable('2026-09-13T10:00:22+00:00')),
@@ -113,6 +114,7 @@ final class WorkerRunExporterTest extends TestCase
             'toolTimeMs' => 4000,
             'idleGapMs' => 500,
             'peakContextTokens' => 64_000,
+            'harnessEvents' => ['diagnostics' => 2],
             'history' => [
                 ['state' => 'running', 'at' => '2026-09-13T10:00:00+00:00', 'receivedAt' => '2026-09-13T10:00:01+00:00'],
                 ['state' => 'succeeded', 'at' => '2026-09-13T10:00:21+00:00', 'receivedAt' => '2026-09-13T10:00:22+00:00'],

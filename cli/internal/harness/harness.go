@@ -120,5 +120,9 @@ type Output struct {
 	// when the run did not say.
 	HarnessVersion string
 	SkillVersion   string
-	ReadErr        error
+	// HarnessEvents counts the events of the run by kind. A nil map says the
+	// harness could not read the files, and an empty one says it read them and
+	// found no event.
+	HarnessEvents map[string]int64
+	ReadErr       error
 }

@@ -592,6 +592,39 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertNull($this->storedPeak($run, 'bridge_worker_run_facts', 'run_id'));
     }
 
+    public function test_a_closing_report_with_no_harness_events_keeps_them_and_one_with_a_map_replaces_them(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-events-kept');
+        $kept = Uuid::v4();
+        $replaced = Uuid::v4();
+        foreach ([$kept, $replaced] as $runKey) {
+            $running = $this->report($owner, $project, $runKey, WorkerRunState::Running)->run;
+            self::assertInstanceOf(WorkerRun::class, $running);
+            $running->harnessEvents = ['diagnostics' => 3];
+        }
+        $this->em()->flush();
+
+        $keptRun = $this->report($owner, $project, $kept, WorkerRunState::Succeeded)->run;
+        $replacedRun = $this->report($owner, $project, $replaced, WorkerRunState::Succeeded, harnessEvents: [])->run;
+
+        self::assertInstanceOf(WorkerRun::class, $keptRun);
+        self::assertInstanceOf(WorkerRun::class, $replacedRun);
+        self::assertSame(['diagnostics' => 3], $keptRun->harnessEvents);
+        self::assertSame([], $replacedRun->harnessEvents);
+    }
+
+    public function test_a_stop_stores_its_harness_events(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-events-stop');
+
+        $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Stopped, harnessEvents: ['hook_success' => 2])->run;
+
+        self::assertInstanceOf(WorkerRun::class, $run);
+        self::assertSame(['hook_success' => 2], $run->harnessEvents);
+    }
+
     public function test_an_open_state_or_an_outcome_that_does_not_move_the_run_ignores_its_peak(): void
     {
         self::bootKernel();
@@ -998,6 +1031,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
 
     /**
      * @param array<string, mixed>|null                                                                      $resultFields
+     * @param array<string, int>|null                                                                        $harnessEvents
      * @param array{experiment: string, variant: string, requestedModel: string, switchedFrom: ?string}|null $experiment
      */
     private function report(
@@ -1028,6 +1062,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         ?string $model = null,
         ?string $harnessSessionId = null,
         ?int $peakContextTokens = null,
+        ?array $harnessEvents = null,
         ?string $harnessVersion = null,
         ?string $cliVersion = null,
         ?string $skillVersion = null,
@@ -1084,6 +1119,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
             cliVersion: $cliVersion,
             skillVersion: $skillVersion,
             peakContextTokens: $peakContextTokens,
+            harnessEvents: $harnessEvents,
         ));
     }
 

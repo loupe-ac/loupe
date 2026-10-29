@@ -355,7 +355,7 @@ final readonly class ShowExperimentHandler
                 Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
                 Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
-                Metric::BucketTime => throw new \LogicException('A bucket time needs a bucket name, so an experiment cannot compare it.'),
+                Metric::BucketTime, Metric::HarnessEvents => throw new \LogicException('A named metric needs a name, so an experiment cannot compare it.'),
             };
         }
 
@@ -413,11 +413,11 @@ final readonly class ShowExperimentHandler
         return $metric($key, $shape, $bootstrap($shape->valueType(), $key, $value), $parts, $template->label);
     }
 
-    /** Null for a key that no metric has. A bucket time needs a bucket name, which an experiment key cannot give. */
+    /** Null for a key that no metric has. A named metric needs a name, which an experiment cannot compare. */
     private static function shapeOf(string $key, TemplateMetricSet $templates): ?MetricShape
     {
         $parsed = MetricKey::tryParse($key, $templates);
-        if (null === $parsed || Metric::BucketTime === $parsed->metric) {
+        if (null === $parsed || true === $parsed->metric?->isNamed()) {
             return null;
         }
 

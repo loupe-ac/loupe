@@ -183,6 +183,12 @@ final class ReportWorkerRunStateRequest
         #[Assert\NotBlank(allowNull: true)]
         #[Assert\Regex(pattern: WorkerRun::SKILL_VERSION_PATTERN)]
         public ?string $skillVersion = null,
+        /**
+         * Kind to count, from an outcome or a stop. A null keeps the stored map, and an empty object replaces it.
+         *
+         * @var array<mixed>|null
+         */
+        public ?array $harnessEvents = null,
     ) {
     }
 
@@ -258,6 +264,30 @@ final class ReportWorkerRunStateRequest
 
         if (\strlen(json_encode($this->resultFields, \JSON_THROW_ON_ERROR)) > WorkerRun::MAX_RESULT_FIELDS_BYTES) {
             $context->buildViolation('The result fields are too large.')->atPath('resultFields')->addViolation();
+        }
+    }
+
+    #[Assert\Callback]
+    public function validateHarnessEvents(ExecutionContextInterface $context): void
+    {
+        if (null === $this->harnessEvents || [] === $this->harnessEvents) {
+            return;
+        }
+
+        $invalid = array_is_list($this->harnessEvents)
+            || \count($this->harnessEvents) > WorkerRun::MAX_HARNESS_EVENT_KINDS;
+        foreach ($this->harnessEvents as $kind => $count) {
+            if (1 !== preg_match(WorkerRun::HARNESS_EVENT_KIND_PATTERN, (string) $kind)
+                || !\is_int($count)
+                || $count < 0
+                || $count > WorkerRun::MAX_HARNESS_EVENT_COUNT) {
+                $invalid = true;
+                break;
+            }
+        }
+
+        if ($invalid) {
+            $context->buildViolation('The harness events map a kind of 1 to 64 characters of a-z, 0-9, "_", "." and "-" to a count, and hold at most 100 kinds.')->atPath('harnessEvents')->addViolation();
         }
     }
 
@@ -393,6 +423,21 @@ final class ReportWorkerRunStateRequest
         }
 
         return $fields;
+    }
+
+    /** @return array<string, int>|null */
+    public function harnessEvents(): ?array
+    {
+        if (null === $this->harnessEvents) {
+            return null;
+        }
+
+        $events = [];
+        foreach ($this->harnessEvents as $kind => $count) {
+            $events[(string) $kind] = \is_int($count) ? $count : throw new \LogicException('Harness event counts are integers after validation.');
+        }
+
+        return $events;
     }
 
     public function resultReason(): ?WorkerRunReason

@@ -28,6 +28,7 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -170,6 +171,38 @@ final class MetricQueryHandlerTest extends KernelTestCase
 
         self::assertSame([3 => 0, 2 => null, 1 => 4000], array_column(array_map(static fn (MetricRow $row): array => ['n' => $row->cardNumber, 'v' => $row->value], $view->series[0]->rows), 'v', 'n'));
         self::assertEquals(new MetricPoint(null, 4000, 2), $view->series[0]->total);
+    }
+
+    public function test_a_card_harness_event_count_adds_the_runs_with_a_map_and_is_unknown_with_none(): void
+    {
+        $known = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $unknown = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $zero = $this->finishedCard(3, '2026-10-03 11:00:00');
+        $this->fact($known, endedAt: '2026-10-01 09:00:00', runId: $this->runWithEvents(['diagnostics' => 3]));
+        $this->fact($known, endedAt: '2026-10-02 09:00:00', runId: $this->runWithEvents(['diagnostics' => 4, 'other' => 9]));
+        $this->fact($known, endedAt: '2026-10-02 09:30:00', runId: $this->runWithEvents(null));
+        $this->fact($unknown, endedAt: '2026-10-03 09:00:00', runId: $this->runWithEvents(null));
+        $this->fact($zero, endedAt: '2026-10-03 09:00:00', runId: $this->runWithEvents([]));
+
+        $view = $this->query(MetricUnit::Card, new MetricShape(new MetricKey(Metric::HarnessEvents, 'diagnostics')), MetricStatistic::Sum);
+
+        self::assertSame([3 => 0, 2 => null, 1 => 7], array_column(array_map(static fn (MetricRow $row): array => ['n' => $row->cardNumber, 'v' => $row->value], $view->series[0]->rows), 'v', 'n'));
+        self::assertEquals(new MetricPoint(null, 7, 2), $view->series[0]->total);
+    }
+
+    /**
+     * @param array<string, int>|null $events
+     *
+     * @return Uuid the id of a stored run that holds the harness events
+     */
+    private function runWithEvents(?array $events): Uuid
+    {
+        $run = $this->seedRun($this->em, $this->project);
+        $run->harnessEvents = $events;
+        $this->em->flush();
+        $this->em->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = :run', ['run' => (string) $run->id]);
+
+        return $run->id ?? throw new \LogicException('A stored run has an id.');
     }
 
     /**
@@ -494,6 +527,8 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertInstanceOf(WorkerRunFactRepository::class, $facts);
         $bucketTimes = self::getContainer()->get(WorkerRunBucketTimeRepository::class);
         self::assertInstanceOf(WorkerRunBucketTimeRepository::class, $bucketTimes);
+        $workerRuns = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $workerRuns);
         $milestones = new readonly class($this->milestones) implements CardMilestoneSourceInterface {
             /** @param array<string, list<CardMilestone>> $milestones */
             public function __construct(
@@ -512,7 +547,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         $workRequests = self::getContainer()->get(WorkRequestRepository::class);
         self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
         $values = new TemplateMetricValues($workRequests, $reports, $templates, [$milestones]);
-        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $values), new MockClock(self::NOW.' UTC'));
+        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $workerRuns, $values), new MockClock(self::NOW.' UTC'));
 
         return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, MetricRange::ThirtyDays, MetricBucket::Day));
     }

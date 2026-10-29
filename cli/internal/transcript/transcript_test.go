@@ -3,9 +3,11 @@ package transcript
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -275,5 +277,105 @@ func assertUsage(t *testing.T, got, want Usage) {
 		if (gc == nil) != (wc == nil) || (gc != nil && math.Abs(*gc-*wc) > 1e-12) {
 			t.Fatalf("usage[%q] cost = %v, want %v", name, gc, wc)
 		}
+	}
+}
+
+func eventsPath() string {
+	return filepath.Join("testdata", "events", "sess.jsonl")
+}
+
+func TestEventsBetweenCountsAttachmentsAndSystemLines(t *testing.T) {
+	from := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 10, 8, 10, 1, 0, 0, time.UTC)
+	got, err := EventsBetween(eventsPath(), from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int64{"diagnostics": 3, "todo_reminder": 1, "compact_boundary": 2, "local_command": 1}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("events = %v, want %v", got, want)
+	}
+}
+
+func TestEventsBetweenWithNoEndCountsLaterLines(t *testing.T) {
+	from := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
+	got, err := EventsBetween(eventsPath(), from, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["diagnostics"] != 4 {
+		t.Fatalf("events = %v", got)
+	}
+	all, err := EventsBetween(eventsPath(), time.Time{}, time.Time{})
+	if err != nil || all["diagnostics"] != 5 {
+		t.Fatalf("events from the start = %v, %v", all, err)
+	}
+}
+
+func TestEventsBetweenKeepsNoPathAndNoText(t *testing.T) {
+	got, err := EventsBetween(eventsPath(), time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, leak := range []string{"/Users", "secret", "text", "Bad", "no_timestamp"} {
+		if strings.Contains(string(body), leak) {
+			t.Fatalf("events %s hold %q", body, leak)
+		}
+	}
+}
+
+func TestEventsBetweenOfAFileWithNoEventIsAnEmptyMap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s.jsonl")
+	if err := os.WriteFile(path, []byte(`{"type":"user","timestamp":"2026-10-08T10:00:00Z"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := EventsBetween(path, time.Time{}, time.Time{})
+	if err != nil || got == nil || len(got) != 0 {
+		t.Fatalf("events = %#v, %v", got, err)
+	}
+}
+
+func TestEventsBetweenOfAMissingFileFails(t *testing.T) {
+	if got, err := EventsBetween(filepath.Join(t.TempDir(), "none.jsonl"), time.Time{}, time.Time{}); err == nil || got != nil {
+		t.Fatalf("events = %v, %v", got, err)
+	}
+}
+
+func TestCleanEventsKeepsTheHundredLargestKinds(t *testing.T) {
+	in := map[string]int64{}
+	for i := range 130 {
+		in[fmt.Sprintf("kind_%03d", i)] = int64(1 + i%3)
+	}
+	in["Bad Kind"] = 99
+	in["zero"] = 0
+	got := CleanEvents(in)
+	if len(got) != 100 {
+		t.Fatalf("kept %d kinds", len(got))
+	}
+	if _, ok := got["Bad Kind"]; ok {
+		t.Fatal("kept an invalid kind")
+	}
+	for name, n := range in {
+		if _, kept := got[name]; !kept && n > 1 && name != "Bad Kind" {
+			t.Fatalf("dropped %s with count %d for a smaller kind", name, n)
+		}
+	}
+	if CleanEvents(nil) == nil {
+		t.Fatal("a nil input must give an empty map")
+	}
+}
+
+func TestCleanEventsBreaksATieByName(t *testing.T) {
+	in := map[string]int64{}
+	for i := range 101 {
+		in[fmt.Sprintf("kind_%03d", i)] = 1
+	}
+	got := CleanEvents(in)
+	if _, ok := got["kind_100"]; ok || len(got) != 100 {
+		t.Fatalf("kept %d kinds, kind_100 kept = %v", len(got), ok)
 	}
 }

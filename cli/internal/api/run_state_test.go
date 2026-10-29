@@ -8,10 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 const testRunID = "0199a0e2-d3e4-7f66-9b33-405162738495"
@@ -580,6 +583,75 @@ func TestReportRunStateSendsThePeakContext(t *testing.T) {
 		}
 		if _, ok := body["peakContextTokens"]; ok {
 			t.Fatalf("%s: body = %v, want no peakContextTokens", state, body)
+		}
+	}
+}
+
+// An outcome sends its harness events, an empty map included, and leaves the
+// field out when they are unknown. The body holds kinds and counts alone.
+func TestReportRunStateSendsTheHarnessEvents(t *testing.T) {
+	report := stateReport(RunSucceeded)
+	events := map[string]int64{"diagnostics": 3, "compact_boundary": 1}
+	report.HarnessEvents = &events
+	_, body, _, err := putState(t, report, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := body["harnessEvents"].(map[string]any)
+	if len(got) != 2 || got["diagnostics"] != float64(3) || got["compact_boundary"] != float64(1) {
+		t.Fatalf("body = %v", body)
+	}
+
+	empty := map[string]int64{}
+	report.HarnessEvents = &empty
+	_, body, _, err = putState(t, report, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := body["harnessEvents"].(map[string]any); !ok || len(got) != 0 {
+		t.Fatalf("body = %v, want an empty harnessEvents", body)
+	}
+
+	report.HarnessEvents = nil
+	_, body, _, err = putState(t, report, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body["harnessEvents"]; ok {
+		t.Fatalf("body = %v, want no harnessEvents", body)
+	}
+}
+
+// The events of a transcript with paths and text in its lines reach the
+// report as kinds and counts, with no path and no text.
+func TestTheHarnessEventsOfAReportCarryNoPathAndNoText(t *testing.T) {
+	path := filepath.Join("..", "transcript", "testdata", "events", "sess.jsonl")
+	events, err := transcript.EventsBetween(path, time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := stateReport(RunSucceeded)
+	report.HarnessEvents = &events
+	raw, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body struct {
+		HarnessEvents map[string]int64 `json:"harnessEvents"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil || len(body.HarnessEvents) == 0 {
+		t.Fatalf("harnessEvents = %v, %v", body.HarnessEvents, err)
+	}
+	for kind := range body.HarnessEvents {
+		for _, leak := range []string{"/", "secret", "text", " "} {
+			if strings.Contains(kind, leak) {
+				t.Fatalf("kind %q holds %q", kind, leak)
+			}
+		}
+	}
+	for _, leak := range []string{"/Users", "secret", "error:", "more text"} {
+		if strings.Contains(string(raw), leak) {
+			t.Fatalf("report holds %q: %s", leak, raw)
 		}
 	}
 }

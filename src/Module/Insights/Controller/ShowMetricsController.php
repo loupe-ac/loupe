@@ -7,6 +7,7 @@ namespace App\Module\Insights\Controller;
 use App\Controller\AppController;
 use App\Module\Bridge\Command\ListMetricsCommand;
 use App\Module\Bridge\Command\ListMetricsHandler;
+use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Insights\Command\ShowMetricsCommand;
@@ -42,10 +43,14 @@ class ShowMetricsController extends AppController
         $view = ($this->showMetrics)(new ShowMetricsCommand($project, $query));
         $list = ($this->listMetrics)(new ListMetricsCommand($project));
         $bucketNames = $list->bucketNames;
-        $selectedBucket = $query->metric->key->bucketName;
-        // A valid name with no time on any run still reads as 0, so the picker keeps it.
-        if (null !== $selectedBucket && !\in_array($selectedBucket, $bucketNames, true)) {
-            $bucketNames[] = $selectedBucket;
+        $eventKinds = $list->harnessEventKinds;
+        $selected = $query->metric->key->name;
+        // A valid name with no data on any run still reads as 0, so the picker keeps it.
+        if (null !== $selected && Metric::BucketTime === $query->metric->key->metric && !\in_array($selected, $bucketNames, true)) {
+            $bucketNames[] = $selected;
+        }
+        if (null !== $selected && Metric::HarnessEvents === $query->metric->key->metric && !\in_array($selected, $eventKinds, true)) {
+            $eventKinds[] = $selected;
         }
         sort($bucketNames, \SORT_STRING);
 
@@ -57,6 +62,7 @@ class ShowMetricsController extends AppController
             'chart' => MetricChart::build($query->metric, $query->statistic, $query->bucket, $view->metrics->series),
             'metrics' => $list->metrics,
             'bucketNames' => $bucketNames,
+            'harnessEventKinds' => $eventKinds,
             'ranges' => MetricRange::cases(),
             'buckets' => MetricBucket::cases(),
         ]);

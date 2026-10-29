@@ -233,6 +233,24 @@ func (t *tree) between(from, to time.Time) map[string]spend {
 	return byModel
 }
 
+// eventsBetween counts the events of the thread and of its subagents by kind,
+// from from on and before to when to is set.
+func (t *tree) eventsBetween(from, to time.Time) map[string]int64 {
+	counts := map[string]int64{}
+	for _, m := range t.messages {
+		if within(m.at, from, to) {
+			counts[m.kind]++
+		}
+	}
+	for _, c := range t.children {
+		for kind, n := range c.eventsBetween(from, to) {
+			counts[kind] += n
+		}
+	}
+
+	return counts
+}
+
 // counted says the thread or one of its subagents holds a token count.
 func (t *tree) counted() bool {
 	return len(t.events) > 0 || slices.ContainsFunc(t.children, (*tree).counted)

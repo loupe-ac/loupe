@@ -67,6 +67,12 @@ final readonly class ReportWorkerRunStateCommand
         public ?string $skillVersion = null,
         /** Null keeps the peak the run holds. */
         public ?int $peakContextTokens = null,
+        /**
+         * Null keeps the map the run holds, and an empty map replaces it.
+         *
+         * @var array<string, int>|null
+         */
+        public ?array $harnessEvents = null,
     ) {
     }
 }

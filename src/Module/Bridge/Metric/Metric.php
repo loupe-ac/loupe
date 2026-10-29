@@ -16,16 +16,26 @@ enum Metric: string
     case Runs = 'runs';
     case StopRate = 'stop-rate';
     case BucketTime = 'bucket-time';
+    case HarnessEvents = 'harness-events';
 
     /**
-     * The metrics whose key says all. Bucket time needs a bucket name too, so
-     * a picker that lists keys alone leaves it out.
+     * The metrics whose key says all. A named metric needs a name too, so a
+     * picker that lists keys alone leaves it out.
      *
      * @return list<self>
      */
     public static function standalone(): array
     {
-        return array_values(array_filter(self::cases(), static fn (self $metric): bool => self::BucketTime !== $metric));
+        return array_values(array_filter(self::cases(), static fn (self $metric): bool => !$metric->isNamed()));
+    }
+
+    /** A named metric is a family: its key is `<family>:<name>`, such as bucket-time:tests. */
+    public function isNamed(): bool
+    {
+        return match ($this) {
+            self::BucketTime, self::HarnessEvents => true,
+            default => false,
+        };
     }
 
     /** @return list<MetricUnit> */
@@ -44,7 +54,7 @@ enum Metric: string
             self::Cost => MetricValueType::Money,
             self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens => MetricValueType::Tokens,
             self::Duration, self::BucketTime => MetricValueType::Duration,
-            self::Runs => MetricValueType::Count,
+            self::Runs, self::HarnessEvents => MetricValueType::Count,
             self::StopRate => MetricValueType::Ratio,
         };
     }
@@ -78,6 +88,7 @@ enum Metric: string
             self::Duration => 'The time from the start to the end of a run, in milliseconds.', // @translation-check-ignore
             self::Runs => 'The number of worker runs on a finished card.', // @translation-check-ignore
             self::StopRate => 'The share of runs that reached an outcome and blocked, failed, gave no result or gave up.', // @translation-check-ignore
+            self::HarnessEvents => 'The number of harness events of one kind in a run, such as diagnostics. A run that reported events but none of this kind counts 0, and a run that reported none is unknown. Name the kind after a colon: harness-events:<kind>.', // @translation-check-ignore
             self::BucketTime => 'The time of the main-session tool calls of a run in one bucket of the project rules, in milliseconds. Name the bucket after a colon: bucket-time:<name>.', // @translation-check-ignore
         };
     }

@@ -619,3 +619,33 @@ func TestAMissingSubagentAfterTheWindowLeavesTheUsageReadable(t *testing.T) {
 		t.Fatalf("SessionUsage = %+v, %v", got, err)
 	}
 }
+
+func TestReadRunCountsTheEventsOfTheSessionAndItsSubagent(t *testing.T) {
+	h := probeHarness(t)
+	stdout := filepath.Join("probe", "stdout.jsonl")
+
+	got := h.ReadRun(runDir(t, stdout, ""), harness.RunInfo{SessionID: runID})
+	want := map[string]int64{"task_started": 2, "task_complete": 2}
+	if !reflect.DeepEqual(got.HarnessEvents, want) {
+		t.Fatalf("events = %v, want %v", got.HarnessEvents, want)
+	}
+
+	late := h.ReadRun(runDir(t, stdout, ""), harness.RunInfo{SessionID: runID, Since: at(t, "2026-10-08T12:15:40Z")})
+	want = map[string]int64{"task_started": 1, "task_complete": 2}
+	if !reflect.DeepEqual(late.HarnessEvents, want) {
+		t.Fatalf("events from 12:15:40 = %v, want %v", late.HarnessEvents, want)
+	}
+
+	none := h.ReadRun(runDir(t, stdout, ""), harness.RunInfo{SessionID: runID, Since: at(t, "2026-10-09T00:00:00Z")})
+	if none.HarnessEvents == nil || len(none.HarnessEvents) != 0 {
+		t.Fatalf("events after the run = %#v, want an empty map", none.HarnessEvents)
+	}
+}
+
+func TestReadRunLeavesTheEventsNilWithNoSessionFile(t *testing.T) {
+	h := New(t.TempDir(), "", filepath.Join(t.TempDir(), "threads"))
+	got := h.ReadRun(runDir(t, filepath.Join("probe", "stdout.jsonl"), ""), harness.RunInfo{SessionID: runID})
+	if got.HarnessEvents != nil {
+		t.Fatalf("events = %#v, want nil", got.HarnessEvents)
+	}
+}

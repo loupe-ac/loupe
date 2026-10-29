@@ -776,3 +776,35 @@ func TestReadRunReadsTheCallsOfStdout(t *testing.T) {
 		t.Fatalf("ReadRun of no stdout = %+v", got)
 	}
 }
+
+func TestReadRunCountsTheEventsOfTheTranscriptFromTheStartOfTheRun(t *testing.T) {
+	claudeHome(t, testSession,
+		`{"type":"attachment","timestamp":"2099-01-01T00:00:01Z","attachment":{"type":"diagnostics","files":["/secret/path.go"]}}`,
+		`{"type":"attachment","timestamp":"2099-01-01T00:00:05Z","attachment":{"type":"diagnostics"}}`,
+		`{"type":"system","timestamp":"2099-01-01T00:00:06Z","subtype":"compact_boundary"}`,
+	)
+	dir := t.TempDir()
+	h := New("")
+
+	all := h.ReadRun(dir, harness.RunInfo{SessionID: testSession})
+	if want := map[string]int64{"diagnostics": 2, "compact_boundary": 1}; !reflect.DeepEqual(all.HarnessEvents, want) {
+		t.Fatalf("events = %v, want %v", all.HarnessEvents, want)
+	}
+	since := time.Date(2099, 1, 1, 0, 0, 2, 0, time.UTC)
+	late := h.ReadRun(dir, harness.RunInfo{SessionID: testSession, Since: since})
+	if want := map[string]int64{"diagnostics": 1, "compact_boundary": 1}; !reflect.DeepEqual(late.HarnessEvents, want) {
+		t.Fatalf("events = %v, want %v", late.HarnessEvents, want)
+	}
+	after := h.ReadRun(dir, harness.RunInfo{SessionID: testSession, Since: since.Add(time.Hour)})
+	if after.HarnessEvents == nil || len(after.HarnessEvents) != 0 {
+		t.Fatalf("events = %#v, want an empty map", after.HarnessEvents)
+	}
+}
+
+func TestReadRunLeavesTheEventsNilWithNoTranscript(t *testing.T) {
+	claudeHome(t, testSession)
+	got := New("").ReadRun(t.TempDir(), harness.RunInfo{SessionID: testSession})
+	if got.HarnessEvents != nil {
+		t.Fatalf("events = %#v, want nil", got.HarnessEvents)
+	}
+}

@@ -127,6 +127,10 @@ type RunStateReport struct {
 	// PeakContextTokens goes on an outcome and on a stopped report. A nil
 	// value is unknown.
 	PeakContextTokens *int64 `json:"peakContextTokens,omitempty"`
+	// HarnessEvents counts the harness events of the run by kind, and goes on
+	// an outcome alone. A nil pointer is unknown, and a pointer to an empty
+	// map says the run held none. Only kinds and counts leave the machine.
+	HarnessEvents *map[string]int64 `json:"harnessEvents,omitempty"`
 	// The experiment fields go on running and on the outcome of a run whose
 	// rule joins an experiment.
 	Experiment     string `json:"experiment,omitempty"`

@@ -8388,6 +8388,8 @@
             <trans-unit id="analytics.metrics.metric.runs"><source>analytics.metrics.metric.runs</source><target>Runs</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.stop-rate"><source>analytics.metrics.metric.stop-rate</source><target>Stop rate</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.bucket_time"><source>analytics.metrics.metric_group.bucket_time</source><target>Time buckets</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.run"><source>analytics.metrics.unit.run</source><target>Per run</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.card"><source>analytics.metrics.unit.card</source><target>Per finished card</target></trans-unit>

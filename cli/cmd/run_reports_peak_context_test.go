@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"maps"
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
@@ -60,4 +61,39 @@ func show(p *int64) any {
 	}
 
 	return *p
+}
+
+// The outcome of a run that ran carries its harness events, and leaves the
+// field out when the harness read none. The stopped report never carries them.
+func TestTheOutcomeCarriesTheHarnessEvents(t *testing.T) {
+	for name, events := range map[string]map[string]int64{
+		"counted": {"diagnostics": 3},
+		"empty":   {},
+		"unread":  nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness(t)
+			rec := h.states()
+			h.worker.result = workerResult{hasResult: true, status: "finished", harnessEvents: events}
+
+			h.send(cardMoved(87))
+
+			sent := rec.states()
+			got := outcomeOf(t, sent, runIDs(sent)[0]).HarnessEvents
+			if (got == nil) != (events == nil) || (got != nil && !maps.Equal(*got, events)) {
+				t.Fatalf("harnessEvents = %v, want %v", got, events)
+			}
+		})
+	}
+}
+
+func TestTheStoppedReportCarriesNoHarnessEvents(t *testing.T) {
+	h := newHarness(t)
+	rec := h.states()
+	h.worker.result = workerResult{hasResult: true, status: "unfinished", harnessEvents: map[string]int64{"diagnostics": 1}}
+	stopRunning(t, h, rec)
+
+	if got := outcomeOf(t, rec.states(), firstRun(t, rec)).HarnessEvents; got != nil {
+		t.Fatalf("harnessEvents = %v", got)
+	}
 }
