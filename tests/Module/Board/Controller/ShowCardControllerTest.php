@@ -139,7 +139,7 @@ final class ShowCardControllerTest extends WebTestCase
         $project = $this->project($em, $owner);
         $card = $this->card($em, $project, 'Stuck and working');
         $card->markers = [
-            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM)],
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'failed'], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM)],
             ['key' => 'work_requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'remedy' => 'marker.work_requested.remedy', 'params' => [], 'since' => new \DateTimeImmutable('-30 minutes')->format(\DATE_ATOM)],
             ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => new \DateTimeImmutable('-2 hours')->format(\DATE_ATOM)],
         ];
@@ -152,7 +152,7 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $box = $crawler->filter('[data-card-state="stuck"].lp-status-box--stuck');
         self::assertCount(1, $box);
-        self::assertStringContainsString('Paused: review-failed.', $box->text());
+        self::assertStringContainsString('Paused: The work failed.', $box->text());
         self::assertStringContainsString('Stuck for 1 h', $box->filter('.lp-status-box__chip')->text());
         self::assertStringContainsString('1 hour ago', $box->filter('.lp-status-box__fields')->text());
         self::assertStringContainsString('Fix the cause of the pause', $box->filter('.lp-status-box__field--wide')->text());
