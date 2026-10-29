@@ -143,21 +143,6 @@ class ForgePullRequest
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $approvalId = null;
 
-    /** The review id of the newest approval that the App posted and that stands. */
-    #[ORM\Column(length: 255, nullable: true)]
-    public ?string $appApprovalId = null;
-
-    /** The commit that the App approval names. */
-    #[ORM\Column(length: 64, nullable: true)]
-    public ?string $appApprovalSha = null;
-
-    // The two columns stay until a follow-up migration drops them. Nothing reads or writes them.
-    #[ORM\Column(options: ['default' => false])]
-    public bool $baseRequiresReview = false;
-
-    #[ORM\Column(options: ['default' => false])]
-    public bool $approvalCheckUnpinned = false;
-
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $approvalCheckRunId = null;
 
@@ -310,8 +295,6 @@ class ForgePullRequest
         $this->latestApprovedAt = $snapshot->latestApprovedAt;
         $this->latestApprovalId = $snapshot->latestApprovalId;
         $this->latestApproverLogin = $snapshot->latestApproverLogin;
-        $this->appApprovalId = $snapshot->appApprovalId;
-        $this->appApprovalSha = $snapshot->appApprovalSha;
         $this->defaultBranch = $snapshot->defaultBranch;
         $this->headParents = $snapshot->headParents;
     }
@@ -419,8 +402,6 @@ class ForgePullRequest
             $this->latestApprovalId,
             $this->latestApproverLogin,
             $this->title,
-            $this->appApprovalId,
-            $this->appApprovalSha,
         );
     }
 }

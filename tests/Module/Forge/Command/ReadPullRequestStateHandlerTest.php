@@ -404,29 +404,6 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertNull($this->reload($row)->latestApprovalId);
     }
 
-    public function test_an_approval_of_the_app_is_stored_apart_and_a_change_to_it_is_announced(): void
-    {
-        $row = $this->row();
-        $app = new PullRequestSnapshot(headSha: 'approved1', mergeability: PullRequestMergeability::Mergeable, review: PullRequestReview::Approved, appApprovalId: 'PRR_app', appApprovalSha: 'approved1');
-        $this->reader->answers = [$app, $app, new PullRequestSnapshot(headSha: 'approved1', mergeability: PullRequestMergeability::Mergeable)];
-
-        $this->handle($row, self::NOW);
-        self::assertCount(1, $this->changes);
-        $stored = $this->reload($row);
-        self::assertSame('PRR_app', $stored->appApprovalId);
-        self::assertSame('approved1', $stored->appApprovalSha);
-        self::assertNull($stored->approvalId);
-
-        $this->clock->modify('+1 minute');
-        $this->handle($row, '2026-09-27 12:00:30');
-        self::assertCount(1, $this->changes);
-
-        $this->clock->modify('+1 minute');
-        $this->handle($row, '2026-09-27 12:01:30');
-        self::assertCount(2, $this->changes);
-        self::assertNull($this->reload($row)->appApprovalId);
-    }
-
     public function test_a_head_that_the_approval_covers_moves_the_covered_sha(): void
     {
         $row = $this->approvedRow();
