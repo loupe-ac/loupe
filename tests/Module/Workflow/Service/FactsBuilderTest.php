@@ -503,7 +503,7 @@ final class FactsBuilderTest extends KernelTestCase
         self::bootKernel();
         $project = $this->workflowProject('facts-pr-closed');
         $card = $this->card($project, 'in-review');
-        $merged = $this->pullRequest($card, state: ForgePullRequestState::Merged);
+        $merged = $this->pullRequest($card, state: ForgePullRequestState::Merged, linkedAt: new \DateTimeImmutable('2026-09-30 09:00:00'));
         $merged->mergedAt = new \DateTimeImmutable('2026-10-01 09:00:00');
         $merged->refreshedAt = new \DateTimeImmutable('2026-10-01 10:00:00');
         $closed = $this->pullRequest($card, state: ForgePullRequestState::Closed);
@@ -1071,9 +1071,10 @@ final class FactsBuilderTest extends KernelTestCase
         ?string $head = null,
         string $repository = self::REPOSITORY,
         ?string $openedAt = null,
+        ?\DateTimeImmutable $linkedAt = null,
     ): ForgePullRequest {
         $number = ++$this->pullRequestNumber;
-        $this->em()->persist(new CardPullRequest($card, 'https://github.com/'.$repository.'/pull/'.$number, Forge::GitHub, $repository, $number));
+        $this->em()->persist(new CardPullRequest($card, 'https://github.com/'.$repository.'/pull/'.$number, Forge::GitHub, $repository, $number, $linkedAt ?? new \DateTimeImmutable()));
         $pullRequest = new ForgePullRequest($card->project, 'github', $repository, $number);
         $pullRequest->state = $state;
         $pullRequest->baseBranch = $base;

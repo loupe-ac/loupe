@@ -132,16 +132,20 @@ class CardPullRequestRepository extends ServiceEntityRepository
      * Every pull request link of one card as the database holds it now, read
      * past the identity map so a link added after the card loaded counts.
      *
-     * @return list<array{forge: string, repository: ?string, number: ?int}>
+     * @return list<array{forge: string, repository: ?string, number: ?int, added_at: \DateTimeImmutable, predates_link_times: bool}>
      */
     public function findCurrentKeys(Card $card): array
     {
+        $platform = $this->getEntityManager()->getConnection()->getDatabasePlatform();
+
         return array_map(static fn (array $row): array => [
             'forge' => (string) $row['forge'],
             'repository' => null === $row['repository'] ? null : (string) $row['repository'],
             'number' => null === $row['number'] ? null : (int) $row['number'],
+            'added_at' => Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($row['added_at'], $platform) ?? throw new \LogicException('A stored link has a time.'),
+            'predates_link_times' => (bool) $row['predates_link_times'],
         ], $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT forge, repository, number FROM board_card_pull_requests WHERE card_id = :card ORDER BY id',
+            'SELECT forge, repository, number, added_at, predates_link_times FROM board_card_pull_requests WHERE card_id = :card ORDER BY id',
             ['card' => (string) $card->id],
         ));
     }
