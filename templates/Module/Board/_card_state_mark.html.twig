@@ -5,7 +5,7 @@
 {% set inboxItem = inboxItem ?? null %}
 {% set title = (state is null ? 'board.card_state.chip' : state.kind.translationKey)|trans %}
 <twig:Ds:StateMark :kind="state is null ? 'chip' : state.kind.value" :label="title">
-    <span data-marker-key="{{ main.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ main.label|trans(main.params) }}</span>
+    <span data-marker-key="{{ main.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ card_marker_label(main) }}</span>
     <span class="lp-tooltip__line--quiet">{{ card_state_text(main.kind.sinceKey, main.since) }}</span>
     {% if link %}
     {% if main.link is not null %}

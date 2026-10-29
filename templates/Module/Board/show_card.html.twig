@@ -62,10 +62,10 @@
                     :kind="primary.kind.value"
                     :title="'board.card_state.status'|trans"
                     :chip="card_state_text('board.card_state.held_for', primary.since, 'duration', {'%state%': stateName})"
-                    :lead="primary.label|trans(primary.params)"
+                    :lead="card_marker_label(primary)"
                     :fields="stateFields"
                     :othersTitle="'board.card_state.others'|trans"
-                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: other.label|trans(other.params), since: card_state_text(other.kind.sinceKey, other.since), link: other.link is null ? null : {href: marker_link_href(other.link, card.project), label: other.link.translationKey|trans}})"
+                    :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: card_marker_label(other), since: card_state_text(other.kind.sinceKey, other.since), link: other.link is null ? null : {href: marker_link_href(other.link, card.project), label: other.link.translationKey|trans}})"
                     data-card-state="{{ primary.kind.value }}"
                 />
                 {% endif %}

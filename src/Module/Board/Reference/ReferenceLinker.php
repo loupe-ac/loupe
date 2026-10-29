@@ -6,6 +6,7 @@ namespace App\Module\Board\Reference;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\CardMarkerText;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\ForgeRepository;
@@ -40,6 +41,7 @@ final readonly class ReferenceLinker
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
         private ReferenceTokens $tokens,
+        private CardMarkerText $markerText,
     ) {
     }
 
@@ -248,7 +250,7 @@ final readonly class ReferenceLinker
         $state = StoredCardMarkers::of($card)->state();
         $line = $this->translator->trans($card->column->label);
         if (null !== $state) {
-            $line .= ' · '.$this->translator->trans($state->label, $state->params);
+            $line .= ' · '.$this->markerText->label($state);
         }
 
         return \sprintf(

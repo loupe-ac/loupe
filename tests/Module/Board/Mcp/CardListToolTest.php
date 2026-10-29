@@ -59,7 +59,7 @@ final class CardListToolTest extends KernelTestCase
         $free = $this->createTool->__invoke('Free', 'Body', 'feature');
         $since = new \DateTimeImmutable('2026-10-02 09:00:00+00:00');
         $paused->markers = [
-            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => $since->format(\DATE_ATOM)],
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'failed'], 'since' => $since->format(\DATE_ATOM)],
             ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => $since->format(\DATE_ATOM)],
         ];
         $this->em->flush();
@@ -73,7 +73,7 @@ final class CardListToolTest extends KernelTestCase
         $heldState = $fullRows['Held']['state'];
         self::assertNotNull($heldState);
         self::assertSame($expected, array_intersect_key($heldState, $expected));
-        self::assertSame('Paused: review-failed.', $heldState['reason']);
+        self::assertSame('Paused: The work failed.', $heldState['reason']);
         self::assertSame([], $heldState['others'], 'A chip is no state, so the others hold none.');
         self::assertNull($fullRows['Free']['state']);
         self::assertSame($free['cardId'], $fullRows['Free']['cardId']);
