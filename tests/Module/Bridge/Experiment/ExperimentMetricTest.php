@@ -42,4 +42,10 @@ final class ExperimentMetricTest extends TestCase
         self::assertNull($part->valueType());
         self::assertSame('decimal', $part->format());
     }
+
+    public function test_a_row_with_no_baseline_has_no_clear_flag(): void
+    {
+        self::assertNull(new ExperimentMetric('cost', [], null)->clear);
+        self::assertTrue(new ExperimentMetric('cost', [], true)->clear);
+    }
 }

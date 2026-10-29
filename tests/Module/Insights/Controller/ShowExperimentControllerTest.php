@@ -24,7 +24,9 @@ final class ShowExperimentControllerTest extends WebTestCase
         $owner = $this->user($em, 'experiment-owner@example.com');
         $project = $this->boardProject($em, $owner);
         $this->bindLifecycle($em, $project);
-        $em->persist(new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 3], ['name' => 'b', 'weight' => 1]]));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 3], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
+        $em->persist($definition);
         // Every run of a fails and every run of b succeeds, so the stop rate gives a clear answer.
         for ($i = 1; $i <= 5; ++$i) {
             $card = $this->experimentCard($em, $project, $i, merged: true);
@@ -173,6 +175,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'experiment-not-clear@example.com');
         $project = $this->boardProject($em, $owner);
+        $this->nameBaseline($em, $project);
         $this->seedCosts($em, $project, 'a', ['1.000000', '2.000000', '3.000000', '4.000000', '5.000000'], 1);
         $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '2.000000', '3.000000', '3.000000'], 6);
         $projectId = (string) $project->id;
@@ -197,6 +200,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'experiment-few-cards@example.com');
         $project = $this->boardProject($em, $owner);
+        $this->nameBaseline($em, $project);
         $this->seedCosts($em, $project, 'a', ['1.000000', '1.000000', '1.000000'], 1);
         $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 4);
         $projectId = (string) $project->id;
@@ -219,6 +223,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'experiment-guards@example.com');
         $project = $this->boardProject($em, $owner);
+        $this->nameBaseline($em, $project);
         $this->bindLifecycle($em, $project);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
         $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
@@ -249,6 +254,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'experiment-no-guards@example.com');
         $project = $this->boardProject($em, $owner);
+        $this->nameBaseline($em, $project);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
         $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
         $projectId = (string) $project->id;
@@ -270,6 +276,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $owner = $this->user($em, 'experiment-unknown-headline@example.com');
         $project = $this->boardProject($em, $owner);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => 'nonsense', 'better' => 'higher'], 'guards' => ['phantom']];
         $em->persist($definition);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
@@ -298,6 +305,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $owner = $this->user($em, 'experiment-escaped-key@example.com');
         $project = $this->boardProject($em, $owner);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => '<i>goal</i>', 'better' => 'higher'], 'guards' => ['<b>guard</b>']];
         $em->persist($definition);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
@@ -321,6 +329,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $owner = $this->user($em, 'experiment-no-direction@example.com');
         $project = $this->boardProject($em, $owner);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => 'cost']];
         $em->persist($definition);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
@@ -346,6 +355,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $project = $this->boardProject($em, $owner);
         $this->bindLifecycle($em, $project);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'controls' => [
             ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 1', 'share' => 0.5],
             ['metric' => 'cost', 'variant' => 'b', 'expect' => '< 5', 'share' => 1.0],
@@ -385,6 +395,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $owner = $this->user($em, 'experiment-control-typo@example.com');
         $project = $this->boardProject($em, $owner);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['controls' => [['metric' => 'lsp-diagnostcs', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5]]];
         $em->persist($definition);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
@@ -408,6 +419,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'experiment-no-controls@example.com');
         $project = $this->boardProject($em, $owner);
+        $this->nameBaseline($em, $project);
         $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
         $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
         $projectId = (string) $project->id;
@@ -419,6 +431,13 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('[data-experiment-controls]'));
         self::assertNotSame('held', $crawler->filter('[data-experiment-goal]')->attr('data-experiment-goal-state'));
+    }
+
+    private function nameBaseline(EntityManagerInterface $em, Project $project): void
+    {
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
+        $em->persist($definition);
     }
 
     /** @param list<string> $costs one merged card per cost, numbered from the given number */

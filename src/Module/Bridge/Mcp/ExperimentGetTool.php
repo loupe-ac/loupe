@@ -8,8 +8,10 @@ use App\Module\Bridge\Command\ShowExperimentCommand;
 use App\Module\Bridge\Command\ShowExperimentHandler;
 use App\Module\Bridge\Experiment\ExperimentArm;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentComparison;
 use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentGuard;
+use App\Module\Bridge\Experiment\ExperimentGuardChange;
 use App\Module\Bridge\Experiment\ExperimentHeadline;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
@@ -26,10 +28,10 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * Reads the comparison of one experiment, and one page of its cards.
  *
  * @phpstan-type ExperimentRange array{point: float, low: float, high: float}
- * @phpstan-type ExperimentArmRow array{name: string, point: ?float, finishedCards: int}
  * @phpstan-type ExperimentControlRow array{metric: string, variant: string, expect: string, share: float, passingShare: ?float, cardsWithData: int, cardsFinished: int, result: string}
- * @phpstan-type ExperimentHeadlineRow array{goal: array{key: string, label: string, valueType: ?string, direction: ?string, state: string, variants: list<ExperimentArmRow>, winner: ?string, changeKind: string, change: ExperimentRange|null, holdReason: ?string, heldBy: list<string>|null}, controls: list<ExperimentControlRow>, guards: list<array{key: string, label: string, valueType: string, variants: list<ExperimentArmRow>, change: ExperimentRange|null}>}
- * @phpstan-type ExperimentMetricRow array{key: string, label: string, valueType: string, clear: bool, byVariant: array<string, ExperimentRange|null>, parts: list<mixed>}
+ * @phpstan-type ExperimentComparisonRow array{variant: string, state: string, point: ?float, cardsBehind: int, changeKind: string, change: ExperimentRange|null, holdReason: ?string, heldBy: list<string>|null, guards: list<array{key: string, point: ?float, change: ExperimentRange|null}>}
+ * @phpstan-type ExperimentHeadlineRow array{goal: array{key: string, label: string, valueType: ?string, direction: ?string, problem: ?string}, baselineArm: array{name: string, point: ?float, cardsBehind: int}|null, comparisons: list<ExperimentComparisonRow>, controls: list<ExperimentControlRow>, guards: list<array{key: string, label: string, valueType: string, baselinePoint: ?float}>}
+ * @phpstan-type ExperimentMetricRow array{key: string, label: string, valueType: string, clear: ?bool, byVariant: array<string, ExperimentRange|null>, parts: list<mixed>}
  * @phpstan-type ExperimentCardRow array{cardId: string, number: ?int, title: ?string, variant: ?string, column: ?string, runs: int, fixRounds: int, costUsd: ?float, coveredCostUsd: ?float, leftOut: list<string>}
  */
 #[McpTool(name: self::NAME, description: 'Read the comparison of one experiment of this project, as its Comparison and Cards tabs show it. Pass experiment, the name of the experiment. The response has experiment, declaredMetrics (the metric keys the rule declares, in their order, or null when it declares none and the default metrics apply), unknownMetrics (the declared keys that no metric has), unknownGuards (the guard keys that no metric has, which the headline leaves out), minFinishedCards, headline, variants, metrics, includedCards, leftOutCards and cards. A money value is in US dollars, a duration of a built-in metric in milliseconds, a duration of a metric that the workflow template declares in hours, and a ratio is between 0 and 1. The figures compare the first two variants by name. headline has goal, guards and controls. goal is what the experiment tries to improve, with key, label and valueType of its metric (valueType is null for an unknown-metric goal), direction (lower or higher, the better way, or null when the rule names none), state, variants (the first two variants by name, each with name, point and finishedCards, the cards behind its point: the finished cards for a rate, the delivered cards that have a value for any other metric), winner, changeKind and change. state is held when a control of the headline does not pass, and then the goal names no winner, whatever the cards; holdReason is failed, unknown-metric or no-data, the first that any control has in that order, and heldBy lists the metric keys of the controls with that result; both are null for any other state. Otherwise state is unknown-metric when the rule names a goal key that no metric has, no-direction when the rule names a goal with no better way, not-enough-cards when a variant has fewer than minFinishedCards cards behind its point, clear when the ranges of the two variants do not overlap, else not-clear. winner is the variant whose point is better in the direction, or null when state is held, unknown-metric, no-direction or not-enough-cards, or the two points are equal; a winner with state not-clear only leans. change is the change of the winner against the other variant, as point, low and high of a 95 percent range, or null. changeKind relative means change is a fraction of the point of the other variant, so -0.2 is 20 percent less. changeKind difference is for a goal of valueType ratio, and means change is the difference of the two ratios as a fraction between -1 and 1. guards lists the metrics that the experiment must not worsen, each with key, label, valueType, variants (name and point) and change, the second variant minus the first as a range in the unit of the metric, or null when a variant has no data. For a ratio the change is a difference of ratios between -1 and 1. controls lists the checks that the treatment of a variant applied, each with metric (the key), variant, expect (a comparison and a number, such as "> 0", in the unit of the metric: dollars for a money value, milliseconds for a built-in duration, hours for a template duration), share (the share of cards with data that must meet it), passingShare (the share that do, or null when no card has data or the metric is unknown), cardsWithData, cardsFinished (the finished cards of the variant that the figures keep) and result. A card meets a control with the sum of the metric over its experiment runs. result is passed when passingShare reaches share, failed when it does not, no-data when no finished card has a value, and unknown-metric when the key is no metric of the project. Controls change no figure and leave no card out. Without a goal in the rule the goal is the cost, lower is better. The cost counts every worker run of the card, the covered cost counts the runs of the experiment of a covered kind, and the covered-cost key reads it as a goal, a guard or a metric. Without guards in the rule the guards are the merge rate and the fix rounds, when the template declares them. An empty guard list means no guards. Each variant has name, models (every model its experiment runs asked for, sorted), weight (null when the bridge sent none), cards and finishedCards (the kept cards, and those that merged or stand in a terminal column), runs (every worker run of the kept cards), costUsd (the cost of those runs) and coveredCostUsd (the cost of the runs of the experiment of a covered kind). Each cost is null when no kept card reported usage. Each metric has key, label (the name to show), valueType, clear, byVariant and parts. A metric that the workflow template declares has its own key and label. byVariant maps each variant to point, low and high, the value and its 95 percent range, or to null when the variant has no data. A metric is clear when each of the first two variants has at least minFinishedCards cards behind its range, and their ranges do not overlap or their points are within 10 percent of the larger one. A rate counts the finished cards, and a value per card counts the cards that ended with the delivered outcome of the template and have the value. A template with no delivered outcome gives no such cards. parts has the same shape, one row per value under a template count that splits by reason, role or kind, with the value type of its metric. includedCards and leftOutCards count the cards the figures keep and leave out. cards lists one page of cards, the latest run first, each with cardId, number, title, variant, column, runs (every worker run of the card), fixRounds, costUsd (every worker run), coveredCostUsd and leftOut. leftOut is empty for a kept card, else its reasons: switched (a run moved the card from a variant the rule no longer offers), mixed (its runs and its pin name more than one variant), before-test (a run with no experiment did a covered kind of work on the card first), covered-without-variant (a run with no experiment did a covered kind of work on the card at or after its first experiment run), no-history (the card history starts after its first experiment run) and no-run (a pin names the card and no experiment run worked it). Filter the cards with variant, which keeps the kept cards of one variant, or with leftOutOnly. The cards are paginated: pass page to walk further, and keep going while hasMore is true. total counts the cards that match the filters. An experiment with no run and no pin in this project is refused.')]
@@ -50,7 +52,7 @@ final readonly class ExperimentGetTool
      * @param string|null $variant     only the kept cards of this variant
      * @param bool        $leftOutOnly only the cards the figures leave out
      *
-     * @return array{experiment: string, declaredMetrics: list<string>|null, unknownMetrics: list<string>, unknownGuards: list<string>, minFinishedCards: int, headline: ExperimentHeadlineRow, variants: list<array{name: string, models: list<string>, weight: ?int, cards: int, finishedCards: int, runs: int, costUsd: ?float, coveredCostUsd: ?float}>, metrics: list<ExperimentMetricRow>, includedCards: int, leftOutCards: int, cards: list<ExperimentCardRow>, page: int, totalPages: int, total: int, hasMore: bool}
+     * @return array{experiment: string, baseline: ?string, confidenceLevel: float, declaredMetrics: list<string>|null, unknownMetrics: list<string>, unknownGuards: list<string>, minFinishedCards: int, headline: ExperimentHeadlineRow, variants: list<array{name: string, models: list<string>, weight: ?int, cards: int, finishedCards: int, runs: int, costUsd: ?float, coveredCostUsd: ?float}>, metrics: list<ExperimentMetricRow>, includedCards: int, leftOutCards: int, cards: list<ExperimentCardRow>, page: int, totalPages: int, total: int, hasMore: bool}
      */
     public function __invoke(string $experiment, #[Schema(minimum: 1)] int $page = 1, ?string $variant = null, bool $leftOutOnly = false): array
     {
@@ -66,6 +68,8 @@ final readonly class ExperimentGetTool
 
             return [
                 'experiment' => $report->experiment,
+                'baseline' => $headline->baseline,
+                'confidenceLevel' => $headline->confidence->level,
                 'declaredMetrics' => $report->declaredMetrics,
                 'unknownMetrics' => $report->unknownMetrics,
                 'unknownGuards' => $report->unknownGuards,
@@ -108,17 +112,23 @@ final readonly class ExperimentGetTool
         return [
             'goal' => [
                 'key' => $goal->metric->key,
-                'label' => GoalState::UnknownMetric === $goal->state ? $goal->metric->key : $this->label($goal->metric),
+                'label' => GoalState::UnknownMetric === $goal->problem ? $goal->metric->key : $this->label($goal->metric),
                 'valueType' => $goal->metric->valueType()?->value,
                 'direction' => $goal->direction?->value,
-                'state' => $goal->state->value,
-                'variants' => array_map(self::arm(...), $goal->arms),
-                'winner' => $goal->winner,
-                'changeKind' => $goal->relative ? 'relative' : 'difference',
-                'change' => self::range($goal->change),
-                'holdReason' => $goal->hold?->reason->value,
-                'heldBy' => null === $goal->hold ? null : array_map(static fn (ExperimentControl $control): string => $control->metric, $goal->hold->controls),
+                'problem' => $goal->problem?->value,
             ],
+            'baselineArm' => null === $headline->baselineArm ? null : self::arm($headline->baselineArm),
+            'comparisons' => array_map(static fn (ExperimentComparison $comparison): array => [
+                'variant' => $comparison->variant,
+                'state' => $comparison->state->value,
+                'point' => $comparison->arm->point,
+                'cardsBehind' => $comparison->arm->finishedCards,
+                'changeKind' => $comparison->relative ? 'relative' : 'difference',
+                'change' => self::range($comparison->change),
+                'holdReason' => $comparison->hold?->reason->value,
+                'heldBy' => null === $comparison->hold ? null : array_map(static fn (ExperimentControl $control): string => $control->metric, $comparison->hold->controls),
+                'guards' => array_map(static fn (ExperimentGuardChange $guard): array => ['key' => $guard->key, 'point' => $guard->point, 'change' => self::range($guard->change)], $comparison->guards),
+            ], $headline->comparisons),
             'controls' => array_map(static fn (ExperimentControl $control): array => [
                 'metric' => $control->metric,
                 'variant' => $control->variant,
@@ -133,16 +143,15 @@ final readonly class ExperimentGetTool
                 'key' => $guard->metric->key,
                 'label' => $this->label($guard->metric),
                 'valueType' => self::valueType($guard->metric),
-                'variants' => array_map(self::arm(...), $guard->arms),
-                'change' => self::range($guard->change),
+                'baselinePoint' => $guard->baselinePoint,
             ], $headline->guards),
         ];
     }
 
-    /** @return ExperimentArmRow */
+    /** @return array{name: string, point: ?float, cardsBehind: int} */
     private static function arm(ExperimentArm $arm): array
     {
-        return ['name' => $arm->variant, 'point' => $arm->point, 'finishedCards' => $arm->finishedCards];
+        return ['name' => $arm->variant, 'point' => $arm->point, 'cardsBehind' => $arm->finishedCards];
     }
 
     /** @return ExperimentRange|null */

@@ -29,6 +29,7 @@ final class ExperimentGetToolTest extends KernelTestCase
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get@example.com'));
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 3], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->metrics = ['cost', 'merge-rate', 'no-such-metric'];
         $em->persist($definition);
         for ($i = 1; $i <= 5; ++$i) {
@@ -48,27 +49,30 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['no-such-metric'], $result['unknownMetrics']);
         self::assertSame(Stats::MIN_FINISHED_CARDS, $result['minFinishedCards']);
         self::assertSame([], $result['unknownGuards']);
+        self::assertSame('a', $result['baseline']);
+        self::assertSame(0.95, $result['confidenceLevel']);
         self::assertSame([
             'key' => 'cost',
             'label' => 'Cost per merged card',
             'valueType' => 'money',
             'direction' => 'lower',
+            'problem' => null,
+        ], $result['headline']['goal']);
+        self::assertSame(['name' => 'a', 'point' => 2.0, 'cardsBehind' => 5], $result['headline']['baselineArm']);
+        self::assertSame([[
+            'variant' => 'b',
             'state' => 'clear',
-            'variants' => [
-                ['name' => 'a', 'point' => 2.0, 'finishedCards' => 5],
-                ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5],
-            ],
-            'winner' => 'b',
+            'point' => 1.0,
+            'cardsBehind' => 5,
             'changeKind' => 'relative',
             'change' => ['point' => -0.5, 'low' => -0.5, 'high' => -0.5],
             'holdReason' => null,
             'heldBy' => null,
-        ], $result['headline']['goal']);
+            'guards' => [['key' => 'merge-rate', 'point' => 1.0, 'change' => $result['headline']['comparisons'][0]['guards'][0]['change']]],
+        ]], $result['headline']['comparisons']);
+        self::assertEqualsWithDelta(0.0, $result['headline']['comparisons'][0]['guards'][0]['change']['point'] ?? null, 1e-12);
         self::assertSame([], $result['headline']['controls']);
-        self::assertSame(['merge-rate'], array_column($result['headline']['guards'], 'key'));
-        self::assertSame('ratio', $result['headline']['guards'][0]['valueType']);
-        self::assertSame([['name' => 'a', 'point' => 1.0, 'finishedCards' => 5], ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5]], $result['headline']['guards'][0]['variants']);
-        self::assertEqualsWithDelta(0.0, $result['headline']['guards'][0]['change']['point'] ?? null, 1e-12);
+        self::assertSame([['key' => 'merge-rate', 'label' => 'Merge rate', 'valueType' => 'ratio', 'baselinePoint' => 1.0]], $result['headline']['guards']);
         self::assertSame([
             ['name' => 'a', 'models' => ['model-a'], 'weight' => 3, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 10.0, 'coveredCostUsd' => 10.0],
             ['name' => 'b', 'models' => ['model-b'], 'weight' => 1, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 5.0, 'coveredCostUsd' => 5.0],
@@ -131,11 +135,12 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame([2, 3.0, 1.0], [$result['cards'][0]['runs'], $result['cards'][0]['costUsd'], $result['cards'][0]['coveredCostUsd']]);
     }
 
-    public function test_a_goal_that_no_metric_has_names_no_winner(): void
+    public function test_a_goal_that_no_metric_has_names_the_problem(): void
     {
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get-typo@example.com'));
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower'], 'guards' => []];
         $em->persist($definition);
         for ($i = 1; $i <= 5; ++$i) {
@@ -149,16 +154,15 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame('hours-to-mrege', $goal['key']);
         self::assertSame('hours-to-mrege', $goal['label']);
         self::assertNull($goal['valueType']);
-        self::assertSame('unknown-metric', $goal['state']);
-        self::assertNull($goal['winner']);
-        self::assertNull($goal['change']);
+        self::assertSame('unknown-metric', $goal['problem']);
     }
 
-    public function test_a_failed_control_holds_the_goal_and_the_tool_lists_it(): void
+    public function test_a_failed_control_holds_its_comparison_and_the_tool_lists_it(): void
     {
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get-controls@example.com'));
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'b';
         $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => [], 'controls' => [
             ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
             ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5],
@@ -175,10 +179,12 @@ final class ExperimentGetToolTest extends KernelTestCase
 
         $headline = $this->tool()('model-test')['headline'];
 
-        self::assertSame('held', $headline['goal']['state']);
-        self::assertSame('failed', $headline['goal']['holdReason']);
-        self::assertSame(['harness-events:diagnostics'], $headline['goal']['heldBy']);
-        self::assertNull($headline['goal']['winner']);
+        [$comparison] = $headline['comparisons'];
+        self::assertSame('a', $comparison['variant']);
+        self::assertSame('held', $comparison['state']);
+        self::assertSame('failed', $comparison['holdReason']);
+        self::assertSame(['harness-events:diagnostics'], $comparison['heldBy']);
+        self::assertNull($comparison['change']);
         self::assertSame([
             ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5, 'passingShare' => 0.2, 'cardsWithData' => 5, 'cardsFinished' => 5, 'result' => 'failed'],
             ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5, 'passingShare' => null, 'cardsWithData' => 0, 'cardsFinished' => 5, 'result' => 'unknown-metric'],
@@ -203,12 +209,12 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame('fix-rounds', $metric['key']);
         self::assertSame('Fix rounds', $metric['label']);
         self::assertSame('count', $metric['valueType']);
-        self::assertFalse($metric['clear']);
+        self::assertNull($metric['clear']);
         self::assertSame([[
             'key' => 'conflict',
             'label' => 'conflict',
             'valueType' => 'count',
-            'clear' => false,
+            'clear' => null,
             'byVariant' => ['a' => ['point' => 1.0, 'low' => 1.0, 'high' => 1.0]],
             'parts' => [],
         ]], $metric['parts']);

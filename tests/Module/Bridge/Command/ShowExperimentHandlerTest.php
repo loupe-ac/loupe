@@ -17,6 +17,7 @@ use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlResult;
 use App\Module\Bridge\Experiment\ExperimentArm;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentComparison;
 use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentGuard;
 use App\Module\Bridge\Experiment\ExperimentMetric;
@@ -279,7 +280,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
     public function test_it_compares_the_variants_on_each_metric(): void
     {
-        $this->em->persist(new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 70], ['name' => 'b', 'weight' => 30]]));
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 70], ['name' => 'b', 'weight' => 30]]);
+        $definition->baseline = 'a';
+        $this->em->persist($definition);
         $merged = static fn (array $fixRounds, ?float $hours = 2.0): CardOutcomeFixture => new CardOutcomeFixture(
             fixRounds: $fixRounds,
             merged: true,
@@ -360,18 +363,22 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $goal = $view->headline->goal;
         self::assertSame(ExperimentMetric::COST, $goal->metric->key);
         self::assertSame(GoalDirection::Lower, $goal->direction);
-        self::assertSame(GoalState::Clear, $goal->state);
-        self::assertEquals([new ExperimentArm('a', 1.0, 5), new ExperimentArm('b', 0.5, 5)], $goal->arms);
-        self::assertSame('b', $goal->winner);
-        self::assertTrue($goal->relative);
-        self::assertNotNull($goal->change);
-        self::assertEqualsWithDelta(-0.5, $goal->change->point, 1e-12);
+        self::assertNull($goal->problem);
+        self::assertSame('a', $view->headline->baseline);
+        self::assertEquals(new ExperimentArm('a', 1.0, 5), $view->headline->baselineArm);
+        self::assertCount(1, $view->headline->comparisons);
+        [$comparison] = $view->headline->comparisons;
+        self::assertSame('b', $comparison->variant);
+        self::assertSame(GoalState::Clear, $comparison->state);
+        self::assertEquals(new ExperimentArm('b', 0.5, 5), $comparison->arm);
+        self::assertTrue($comparison->relative);
+        self::assertNotNull($comparison->change);
+        self::assertEqualsWithDelta(-0.5, $comparison->change->point, 1e-12);
         self::assertSame([ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
-        $mergeRate = $view->headline->guards[0];
-        self::assertEquals([new ExperimentArm('a', 5 / 6, 6), new ExperimentArm('b', 1.0, 5)], $mergeRate->arms);
-        self::assertEquals(Stats::newcombe(5, 6, 5, 5, Confidence::forComparisons(1)), $mergeRate->change);
-        $fixRounds = $view->headline->guards[1];
-        self::assertEquals(Stats::differenceRange([0, 1, 2, 1, 1], [1, 1, 1, 1, 1], 'model-test:fix-rounds:guard', Confidence::forComparisons(1)), $fixRounds->change);
+        self::assertEqualsWithDelta(5 / 6, $view->headline->guards[0]->baselinePoint, 1e-12);
+        self::assertSame(1.0, $comparison->guards[0]->point);
+        self::assertEquals(Stats::newcombe(5, 6, 5, 5, Confidence::forComparisons(1)), $comparison->guards[0]->change);
+        self::assertEquals(Stats::differenceRange([0, 1, 2, 1, 1], [1, 1, 1, 1, 1], 'model-test:fix-rounds:guard:b', Confidence::forComparisons(1)), $comparison->guards[1]->change);
         self::assertSame([], $view->unknownGuards);
     }
 
@@ -382,6 +389,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     private function seedHeadlineExperiment(?array $headline, ?array $metrics = null, string $costA = '2.000000', string $costB = '1.000000', int $mergedA = 5): void
     {
         $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = $headline;
         $definition->metrics = $metrics;
         $this->em->persist($definition);
@@ -406,6 +414,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     private function seedControlExperiment(array $controls, array $events): void
     {
         $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'controls' => $controls];
         $this->em->persist($definition);
         $hour = 0;
@@ -437,11 +446,12 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(0.25, $control->passingShare);
         self::assertSame(4, $control->cardsWithData);
         self::assertSame(5, $control->cardsFinished);
-        self::assertSame(GoalState::Held, $view->headline->goal->state);
-        self::assertSame(ControlResult::Failed, $view->headline->goal->hold?->reason);
-        self::assertNull($view->headline->goal->winner);
+        [$comparison] = $view->headline->comparisons;
+        self::assertSame(GoalState::Held, $comparison->state);
+        self::assertSame(ControlResult::Failed, $comparison->hold?->reason);
+        self::assertNull($comparison->change);
         self::assertSame([5, 3], array_map(static fn (ExperimentVariant $variant): int => $variant->cards, $view->variants));
-        self::assertSame([2.0, 1.0], array_map(static fn (ExperimentArm $arm): ?float => $arm->point, $view->headline->goal->arms));
+        self::assertSame([2.0, 1.0], [$view->headline->baselineArm?->point, $comparison->arm->point]);
     }
 
     public function test_a_passing_control_leaves_the_goal_to_the_data(): void
@@ -457,8 +467,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view->headline);
         self::assertSame(ControlResult::Passed, $view->headline->controls[0]->result);
         self::assertEqualsWithDelta(2 / 3, $view->headline->controls[0]->passingShare, 1e-9);
-        self::assertNull($view->headline->goal->hold);
-        self::assertSame(GoalState::NotEnoughCards, $view->headline->goal->state);
+        self::assertNull($view->headline->comparisons[0]->hold);
+        self::assertSame(GoalState::NotEnoughCards, $view->headline->comparisons[0]->state);
     }
 
     public function test_a_control_reads_only_the_experiment_runs_of_a_card(): void
@@ -502,7 +512,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view->headline);
         self::assertSame(ControlResult::NoData, $view->headline->controls[0]->result);
         self::assertSame(0, $view->headline->controls[0]->cardsWithData);
-        self::assertSame(ControlResult::NoData, $view->headline->goal->hold?->reason);
+        self::assertSame(ControlResult::NoData, $view->headline->comparisons[0]->hold?->reason);
     }
 
     public function test_a_card_with_no_value_is_left_out_of_the_share(): void
@@ -546,8 +556,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             [ControlResult::UnknownMetric, ControlResult::NoData, ControlResult::NoData, ControlResult::UnknownMetric, ControlResult::NoData],
             array_map(static fn (ExperimentControl $control): ControlResult => $control->result, $view->headline->controls),
         );
-        self::assertSame(ControlResult::UnknownMetric, $view->headline->goal->hold?->reason);
-        self::assertSame(['bucket-calls:lps', 'no-such-metric'], array_map(static fn (ExperimentControl $control): string => $control->metric, $view->headline->goal->hold->controls));
+        self::assertSame(ControlResult::UnknownMetric, $view->headline->comparisons[0]->hold?->reason);
+        self::assertSame(['bucket-calls:lps', 'no-such-metric'], array_map(static fn (ExperimentControl $control): string => $control->metric, $view->headline->comparisons[0]->hold->controls));
     }
 
     public function test_a_bucket_with_stored_rows_is_a_known_metric(): void
@@ -596,7 +606,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNull($view->headline);
     }
 
-    public function test_a_goal_on_a_ratio_compares_the_winner_in_points(): void
+    public function test_a_goal_on_a_ratio_compares_the_variant_in_points(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'merge-rate', 'better' => 'higher'], 'guards' => ['cost']], ['fix-rounds'], mergedA: 2);
 
@@ -608,14 +618,14 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $goal = $view->headline->goal;
         self::assertSame(ExperimentMetric::MERGE_RATE, $goal->metric->key);
         self::assertSame(GoalDirection::Higher, $goal->direction);
-        self::assertFalse($goal->relative);
-        self::assertSame('b', $goal->winner);
-        self::assertEquals(Stats::newcombe(2, 5, 5, 5, Confidence::forComparisons(1)), $goal->change);
+        [$comparison] = $view->headline->comparisons;
+        self::assertFalse($comparison->relative);
+        self::assertEquals(Stats::newcombe(2, 5, 5, 5, Confidence::forComparisons(1)), $comparison->change);
         self::assertSame([ExperimentMetric::COST], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
-        self::assertEquals(Stats::differenceRange([2.0, 2.0, 2.0, 2.0, 2.0], [1.0, 1.0, 1.0, 1.0, 1.0], 'model-test:cost:guard', Confidence::forComparisons(1)), $view->headline->guards[0]->change);
+        self::assertEquals(Stats::differenceRange([2.0, 2.0, 2.0, 2.0, 2.0], [1.0, 1.0, 1.0, 1.0, 1.0], 'model-test:cost:guard:b', Confidence::forComparisons(1)), $comparison->guards[0]->change);
     }
 
-    public function test_the_headline_leans_to_the_better_point_when_the_ranges_overlap(): void
+    public function test_the_headline_is_not_clear_when_the_ranges_overlap(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'merge-rate', 'better' => 'higher']], mergedA: 3);
 
@@ -623,11 +633,11 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertNotNull($view->headline);
-        self::assertSame(GoalState::NotClear, $view->headline->goal->state);
-        self::assertSame('b', $view->headline->goal->winner);
+        self::assertSame(GoalState::NotClear, $view->headline->comparisons[0]->state);
+        self::assertNotNull($view->headline->comparisons[0]->change);
     }
 
-    public function test_equal_points_have_no_winner(): void
+    public function test_equal_points_give_no_change(): void
     {
         $this->seedHeadlineExperiment(null, costA: '1.000000', costB: '1.000000');
 
@@ -635,9 +645,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertNotNull($view->headline);
-        self::assertSame(GoalState::NotClear, $view->headline->goal->state);
-        self::assertNull($view->headline->goal->winner);
-        self::assertNull($view->headline->goal->change);
+        self::assertSame(GoalState::NotClear, $view->headline->comparisons[0]->state);
+        self::assertEqualsWithDelta(0.0, $view->headline->comparisons[0]->change?->point, 1e-12);
     }
 
     public function test_the_default_guards_leave_out_the_goal(): void
@@ -663,7 +672,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(ExperimentMetric::COST, $view->headline->goal->metric->key);
     }
 
-    public function test_a_goal_that_no_metric_has_names_no_winner(): void
+    public function test_a_goal_that_no_metric_has_names_the_problem(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'no-such-metric', 'better' => 'higher'], 'guards' => ['bucket-time', 'merge-rate', 'no-such-metric', 'also-missing']]);
 
@@ -673,15 +682,15 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view->headline);
         $goal = $view->headline->goal;
         self::assertSame('no-such-metric', $goal->metric->key);
-        self::assertSame(GoalState::UnknownMetric, $goal->state);
-        self::assertNull($goal->winner);
-        self::assertNull($goal->change);
+        self::assertSame(GoalState::UnknownMetric, $goal->problem);
+        self::assertSame(GoalState::UnknownMetric, $view->headline->comparisons[0]->state);
+        self::assertNull($view->headline->comparisons[0]->change);
         self::assertSame([ExperimentMetric::MERGE_RATE], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
         self::assertSame(['bucket-time', 'no-such-metric', 'also-missing'], $view->unknownGuards);
         self::assertSame([], $view->unknownMetrics);
     }
 
-    public function test_a_goal_with_no_direction_names_no_winner(): void
+    public function test_a_goal_with_no_direction_names_the_problem(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'cost']]);
 
@@ -691,9 +700,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view->headline);
         $goal = $view->headline->goal;
         self::assertSame(ExperimentMetric::COST, $goal->metric->key);
-        self::assertSame(GoalState::NoDirection, $goal->state);
+        self::assertSame(GoalState::NoDirection, $goal->problem);
         self::assertNull($goal->direction);
-        self::assertNull($goal->winner);
+        self::assertSame(GoalState::NoDirection, $view->headline->comparisons[0]->state);
         self::assertSame([], $view->unknownGuards);
     }
 
@@ -705,7 +714,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertNotNull($view->headline);
-        self::assertSame('b', $view->headline->goal->winner);
+        self::assertSame(GoalState::Clear, $view->headline->comparisons[0]->state);
         self::assertCount(1, $view->headline->guards);
     }
 
@@ -721,7 +730,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(ExperimentMetric::MERGE_RATE, $view->headline->guards[0]->metric->key);
     }
 
-    public function test_a_zero_baseline_gives_no_relative_change(): void
+    public function test_a_zero_baseline_point_gives_no_relative_change(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'cost', 'better' => 'higher']], costA: '0.000000', costB: '1.000000');
 
@@ -729,9 +738,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertNotNull($view->headline);
-        self::assertSame(GoalState::Clear, $view->headline->goal->state);
-        self::assertSame('b', $view->headline->goal->winner);
-        self::assertNull($view->headline->goal->change);
+        self::assertSame(GoalState::Clear, $view->headline->comparisons[0]->state);
+        self::assertNull($view->headline->comparisons[0]->change);
     }
 
     public function test_a_named_metric_sums_the_known_runs_of_each_card(): void
@@ -829,6 +837,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     public function test_the_headline_reads_the_cost_that_a_declaration_leaves_out(): void
     {
         $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->metrics = ['fix-rounds'];
         $this->em->persist($definition);
         foreach (['a' => '2.000000', 'b' => '1.000000'] as $variant => $cost) {
@@ -847,8 +856,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(['conflict'], array_map(static fn (ExperimentMetric $part): string => $part->key, $view->metrics[ExperimentMetric::FIX_ROUNDS]->parts));
         self::assertSame([], $view->unknownMetrics);
         self::assertNotNull($view->headline);
-        self::assertSame(GoalState::Clear, $view->headline->goal->state);
-        self::assertSame('b', $view->headline->goal->winner);
+        self::assertSame(GoalState::Clear, $view->headline->comparisons[0]->state);
         self::assertSame(ExperimentMetric::COST, $view->headline->goal->metric->key);
         self::assertSame([ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
     }
@@ -924,6 +932,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
     public function test_too_few_finished_cards_give_no_clear_answer(): void
     {
+        $this->storeBaseline('a');
         foreach (['a' => '2.000000', 'b' => '0.500000'] as $variant => $cost) {
             for ($i = 0; $i < Stats::MIN_FINISHED_CARDS - 1; ++$i) {
                 $card = Uuid::v7();
@@ -941,14 +950,16 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($cost->for('b'));
         self::assertFalse($cost->clear);
         self::assertNotNull($view->headline);
-        self::assertSame(GoalState::NotEnoughCards, $view->headline->goal->state);
-        self::assertNull($view->headline->goal->winner);
-        self::assertNull($view->headline->goal->change);
-        self::assertEquals([new ExperimentArm('a', 2.0, 4), new ExperimentArm('b', 0.5, 4)], $view->headline->goal->arms);
+        [$comparison] = $view->headline->comparisons;
+        self::assertSame(GoalState::NotEnoughCards, $comparison->state);
+        self::assertNull($comparison->change);
+        self::assertEquals(new ExperimentArm('a', 2.0, 4), $view->headline->baselineArm);
+        self::assertEquals(new ExperimentArm('b', 0.5, 4), $comparison->arm);
     }
 
     public function test_a_metric_judges_the_floor_on_its_own_sample(): void
     {
+        $this->storeBaseline('a');
         foreach (['a' => '2.000000', 'b' => '0.500000'] as $variant => $cost) {
             for ($i = 0; $i < Stats::MIN_FINISHED_CARDS; ++$i) {
                 $card = Uuid::v7();
@@ -1046,7 +1057,110 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame('b', $this->card($view, $pinOnly)->variant);
     }
 
-    public function test_a_single_variant_is_never_clear(): void
+    /**
+     * @param array<string, array{cost: string, cards: int}>                             $arms     variant => the cost of each of its merged cards, and how many there are
+     * @param list<array{metric: string, variant: string, expect: string, share: float}> $controls
+     */
+    private function seedArms(?string $baseline, array $arms, array $controls = []): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, array_map(static fn (string $name): array => ['name' => $name, 'weight' => 1], array_keys($arms)));
+        $definition->baseline = $baseline;
+        $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'controls' => $controls];
+        $this->em->persist($definition);
+        $hour = 0;
+        foreach ($arms as $variant => $arm) {
+            for ($i = 0; $i < $arm['cards']; ++$i) {
+                $card = Uuid::v7();
+                $this->seedUsage($this->em, $this->experimentRun($card, $variant, at: \sprintf('+%d hours', ++$hour)), costUsd: $arm['cost']);
+                $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+            }
+        }
+        $this->em->flush();
+    }
+
+    public function test_three_arms_are_compared_against_the_baseline_at_a_wider_level(): void
+    {
+        $this->seedArms('zeta', ['zeta' => ['cost' => '2.000000', 'cards' => 5], 'alpha' => ['cost' => '1.000000', 'cards' => 5], 'beta' => ['cost' => '2.000000', 'cards' => 5]]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame(['zeta', 'alpha', 'beta'], array_map(static fn (ExperimentVariant $variant): string => $variant->name, $view->variants));
+        self::assertNotNull($view->headline);
+        self::assertSame('zeta', $view->headline->baseline);
+        self::assertSame(0.975, $view->headline->confidence->level);
+        self::assertSame(['alpha', 'beta'], array_map(static fn (ExperimentComparison $comparison): string => $comparison->variant, $view->headline->comparisons));
+        [$alpha, $beta] = $view->headline->comparisons;
+        self::assertSame(GoalState::Clear, $alpha->state);
+        self::assertEqualsWithDelta(-0.5, $alpha->change?->point, 1e-12);
+        self::assertSame(GoalState::NotClear, $beta->state);
+        self::assertEquals(Stats::wilson(5, 5, Confidence::forComparisons(2)), $view->metrics[ExperimentMetric::MERGE_RATE]->for('alpha'));
+        self::assertNotEquals(Stats::wilson(5, 5, Confidence::forComparisons(1)), $view->metrics[ExperimentMetric::MERGE_RATE]->for('alpha'));
+        self::assertTrue($view->metrics[ExperimentMetric::COST]->clear);
+    }
+
+    public function test_a_variant_with_no_cards_shows_no_change_and_makes_every_metric_unclear(): void
+    {
+        $this->seedArms('base', ['base' => ['cost' => '2.000000', 'cards' => 5], 'treated' => ['cost' => '1.000000', 'cards' => 5], 'empty' => ['cost' => '1.000000', 'cards' => 0]]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        [$empty, $treated] = $view->headline->comparisons;
+        self::assertSame('empty', $empty->variant);
+        self::assertSame(GoalState::NotEnoughCards, $empty->state);
+        self::assertEquals(new ExperimentArm('empty', null, 0), $empty->arm);
+        self::assertNull($empty->change);
+        self::assertSame(GoalState::Clear, $treated->state);
+        self::assertFalse($view->metrics[ExperimentMetric::COST]->clear);
+    }
+
+    public function test_a_failed_control_on_a_treated_arm_holds_only_that_variant(): void
+    {
+        $this->seedArms('base', ['base' => ['cost' => '2.000000', 'cards' => 5], 'alpha' => ['cost' => '1.000000', 'cards' => 5], 'beta' => ['cost' => '1.000000', 'cards' => 5]], [
+            ['metric' => 'cost', 'variant' => 'alpha', 'expect' => '> 100', 'share' => 1.0],
+            ['metric' => 'cost', 'variant' => 'base', 'expect' => '> 0', 'share' => 1.0],
+        ]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        [$alpha, $beta] = $view->headline->comparisons;
+        self::assertSame(GoalState::Held, $alpha->state);
+        self::assertSame(ControlResult::Failed, $alpha->hold?->reason);
+        self::assertNull($alpha->change);
+        self::assertSame(GoalState::Clear, $beta->state);
+        self::assertNull($beta->hold);
+    }
+
+    public function test_a_failed_control_on_the_baseline_holds_every_variant(): void
+    {
+        $this->seedArms('base', ['base' => ['cost' => '2.000000', 'cards' => 5], 'alpha' => ['cost' => '1.000000', 'cards' => 5], 'beta' => ['cost' => '1.000000', 'cards' => 5]], [
+            ['metric' => 'cost', 'variant' => 'base', 'expect' => '> 100', 'share' => 1.0],
+        ]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame([GoalState::Held, GoalState::Held], array_map(static fn (ExperimentComparison $comparison): GoalState => $comparison->state, $view->headline->comparisons));
+    }
+
+    public function test_a_variant_that_is_the_baseline_by_name_alone_still_comes_first(): void
+    {
+        $this->seedArms('b', ['a' => ['cost' => '1.000000', 'cards' => 5], 'b' => ['cost' => '2.000000', 'cards' => 5]]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame(['b', 'a'], array_map(static fn (ExperimentVariant $variant): string => $variant->name, $view->variants));
+        self::assertNotNull($view->headline);
+        self::assertSame(0.95, $view->headline->confidence->level);
+    }
+
+    public function test_a_single_variant_with_no_baseline_makes_no_comparison(): void
     {
         for ($i = 0; $i < 6; ++$i) {
             $card = Uuid::v7();
@@ -1060,14 +1174,15 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view);
         self::assertSame(1.0, $view->metrics[ExperimentMetric::MERGE_RATE]->for('a')?->point);
         foreach ($view->metrics as $metric) {
-            self::assertFalse($metric->clear, $metric->key);
+            self::assertNull($metric->clear, $metric->key);
         }
         self::assertNotNull($view->headline);
-        self::assertSame(GoalState::NotEnoughCards, $view->headline->goal->state);
-        self::assertNull($view->headline->goal->winner);
-        self::assertEquals([new ExperimentArm('a', 1.0, 6)], $view->headline->goal->arms);
+        self::assertNull($view->headline->baseline);
+        self::assertNull($view->headline->baselineArm);
+        self::assertSame([], $view->headline->comparisons);
+        self::assertSame(0.95, $view->headline->confidence->level);
         foreach ($view->headline->guards as $guard) {
-            self::assertNull($guard->change);
+            self::assertNull($guard->baselinePoint);
         }
     }
 
@@ -1393,6 +1508,13 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     private function sweepRows(Uuid $card): void
     {
         $this->em->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE subject_id = :card', ['card' => (string) $card]);
+    }
+
+    private function storeBaseline(string $baseline): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, []);
+        $definition->baseline = $baseline;
+        $this->em->persist($definition);
     }
 
     private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true): ?ExperimentReportView
