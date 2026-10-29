@@ -13,7 +13,8 @@ use Symfony\Component\Uid\Uuid;
  * the bridge sent no valid list. The metrics are the keys the experiment
  * declares, and are null when the bridge sent no valid list. The headline names
  * the goal and the guards of the experiment, and is null when the bridge sent
- * none or an invalid one.
+ * none or an invalid one. The covers are the work kinds the experiment treats,
+ * and are null when the bridge sent no valid list.
  */
 final readonly class ResolveExperimentPinCommand
 {
@@ -31,6 +32,8 @@ final readonly class ResolveExperimentPinCommand
         public ?array $metrics = null,
         /** @var array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null */
         public ?array $headline = null,
+        /** @var non-empty-list<string>|null */
+        public ?array $covers = null,
     ) {
     }
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -27,6 +28,13 @@ launch:
 workerPools:
   quick:
     size: 1
+experiments:
+  split-trial:
+    covers: [split]
+    variants:
+      - {name: a, weight: 1, model: opus}
+      - {name: b, weight: 3, model: sonnet}
+    metrics: [cost, merge-rate]
 work:
   implement:
     prompt: Implement {cardNumber} {cardId} {project} {projectId} {kind} {ruleId} {workRequestId}.
@@ -44,10 +52,6 @@ work:
     timeout: 5m
   split:
     prompt: Split {cardNumber}.
-    variants:
-      - {name: a, weight: 1, model: opus}
-      - {name: b, weight: 3, model: sonnet}
-    metrics: [cost, merge-rate]
 `
 
 func workRequest(kind string) api.WorkRequest {
@@ -74,100 +78,98 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 	interactive := "action: interactive\nprompt: x\n"
 	command := "action: command\nrun: [make]\n"
 	variants := "variants:\n  - {name: a, weight: 1, model: opus}\n"
+	exp := func(fields string) string {
+		return entry("x", "prompt: x") + "experiments:\n  trial:\n    covers: [x]\n    " + strings.ReplaceAll(strings.TrimSpace(fields), "\n", "\n    ") + "\n"
+	}
 
 	for name, tc := range map[string]struct {
 		body string
 		want string
 	}{
-		"kind with a capital":           {entry("Implement", "prompt: x"), `work "Implement": a kind is 1 to 40 lowercase letters`},
-		"kind with a digit first":       {entry("1st", "prompt: x"), `work "1st": a kind is`},
-		"kind too long":                 {entry(strings.Repeat("a", 41), "prompt: x"), "a kind is"},
-		"unknown action":                {entry("x", "action: launch\nprompt: x"), `work "x": action "launch" is not interactive or command`},
-		"unknown field":                 {entry("x", "prompt: x\nmaxChain: 2"), "field maxChain not found"},
-		"allowUntrusted":                {entry("x", "prompt: x\nallowUntrusted: true"), "field allowUntrusted not found"},
-		"worker without prompt":         {entry("x", "model: opus"), `work "x": prompt is required`},
-		"worker with a blank prompt":    {entry("x", "prompt: '  '"), "prompt is required"},
-		"interactive without prompt":    {entry("x", "action: interactive"), "prompt is required"},
-		"worker with run":               {entry("x", "prompt: x\nrun: [make]"), "run belongs to action command, and this entry runs a worker"},
-		"worker with timeout":           {entry("x", "prompt: x\ntimeout: 1m"), "timeout belongs to action command"},
-		"interactive with before":       {entry("x", interactive+"before:\n  run: [x]"), "before names worker behaviour, and action interactive launches no worker"},
-		"interactive with variants":     {entry("x", interactive+variants), "variants names worker behaviour"},
-		"interactive with workerPool":   {entry("x", interactive+"workerPool: quick"), "workerPool names worker behaviour"},
-		"interactive with metrics":      {entry("x", interactive+"metrics: [cost]"), "metrics names worker behaviour"},
-		"interactive with run":          {entry("x", interactive+"run: [x]"), "run belongs to action command, and this entry launches an interactive session"},
-		"command with prompt":           {entry("x", command+"prompt: x"), "prompt names agent behaviour, and action command starts no agent"},
-		"command with model":            {entry("x", command+"model: opus"), "model names agent behaviour"},
-		"command with permissions":      {entry("x", command+"permissions: full"), "permissions names agent behaviour"},
-		"command with account":          {entry("x", command+"account: claude"), "account names agent behaviour"},
-		"command with before":           {entry("x", command+"before:\n  run: [x]"), "before names agent behaviour"},
-		"command with variants":         {entry("x", command+variants), "variants names agent behaviour"},
-		"command with workerPool":       {entry("x", command+"workerPool: quick"), "workerPool names agent behaviour"},
-		"command with metrics":          {entry("x", command+"metrics: [cost]"), "metrics names agent behaviour"},
-		"metrics without variants":      {entry("x", "prompt: x\nmetrics: [cost]"), "metrics needs variants"},
-		"empty metrics, no variants":    {entry("x", "prompt: x\nmetrics: []"), "metrics needs variants"},
-		"bad metric key":                {entry("x", "prompt: x\nmetrics: [Cost]\n"+variants), `metric "Cost": a metric key is 1 to 128`},
-		"metric key too long":           {entry("x", "prompt: x\nmetrics: [c"+strings.Repeat("o", 128)+"]\n"+variants), "a metric key is 1 to 128"},
-		"repeated metric":               {entry("x", "prompt: x\nmetrics: [cost, cost]\n"+variants), `metric "cost" is listed twice`},
-		"interactive with headline":     {entry("x", interactive+"headline:\n  guards: [cost]"), "headline names worker behaviour"},
-		"command with headline":         {entry("x", command+"headline:\n  guards: [cost]"), "headline names agent behaviour"},
-		"headline without variants":     {entry("x", "prompt: x\nheadline:\n  guards: [cost]"), "headline needs variants, and only an experiment shows a headline"},
-		"empty headline":                {entry("x", "prompt: x\nheadline: {}\n"+variants), "headline needs a goal, guards or controls"},
-		"goal without metric":           {entry("x", "prompt: x\nheadline:\n  goal: {better: lower}\n"+variants), "headline goal: metric \"\": a metric key is 1 to 128"},
-		"goal with bad better":          {entry("x", "prompt: x\nheadline:\n  goal: {metric: cost, better: up}\n"+variants), `headline goal: better is lower or higher, got "up"`},
-		"goal with bad metric":          {entry("x", "prompt: x\nheadline:\n  goal: {metric: Cost, better: lower}\n"+variants), `headline goal: metric "Cost": a metric key is 1 to 128`},
-		"bad guard key":                 {entry("x", "prompt: x\nheadline:\n  guards: [Cost]\n"+variants), `headline guard "Cost": a metric key is 1 to 128`},
-		"repeated guard":                {entry("x", "prompt: x\nheadline:\n  guards: [cost, cost]\n"+variants), `headline guard "cost" is listed twice`},
-		"goal metric is also a guard":   {entry("x", "prompt: x\nheadline:\n  goal: {metric: cost, better: lower}\n  guards: [cost]\n"+variants), `headline guard "cost" is also the goal metric`},
-		"control without share":         {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: harness-events:diagnostics, variant: a, expect: \"> 0\"}\n"+variants), `headline control "harness-events:diagnostics" on variant "a": share is required`},
-		"control with share above 1":    {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 1.5}\n"+variants), "share must be above 0 and at most 1, got 1.5"},
-		"control with share of 0":       {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 0}\n"+variants), "share must be above 0 and at most 1, got 0"},
-		"control on an unknown variant": {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: cost, variant: zzz, expect: \"> 0\", share: 0.5}\n"+variants), `the experiment declares no variant "zzz"`},
-		"control with bad expect":       {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: cost, variant: a, expect: \"about 3\", share: 0.5}\n"+variants), `expect "about 3" is a comparison and a number`},
-		"control with bad metric":       {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: Cost, variant: a, expect: \"> 0\", share: 0.5}\n"+variants), `headline control "Cost" on variant "a": a metric key is 1 to 128`},
-		"repeated control":              {entry("x", "prompt: x\nheadline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 0.5}\n    - {metric: cost, variant: a, expect: \"> 1\", share: 0.5}\n"+variants), `headline control "cost" on variant "a" is listed twice`},
-		"unknown headline field":        {entry("x", "prompt: x\nheadline:\n  guard: [cost]\n"+variants), "field guard not found"},
-		"command without run":           {entry("x", "action: command"), "run is required"},
-		"command timeout too long":      {entry("x", command+"timeout: 2h"), "the most it takes is 1h0m0s"},
-		"command timeout not duration":  {entry("x", command+"timeout: soon"), `timeout "soon" is not a duration`},
-		"unknown placeholder":           {entry("x", "prompt: 'Card {title}'"), `work "x": unknown placeholder {title}`},
-		"an old event placeholder":      {entry("x", "prompt: 'Moved to {to}'"), "unknown placeholder {to}"},
-		"unknown run placeholder":       {entry("x", "action: command\nrun: [make, '{title}']"), "run: unknown placeholder {title}"},
-		"unknown before placeholder":    {entry("x", "prompt: x\nbefore:\n  run: [prep, '{title}']"), "before.run: unknown placeholder {title}"},
-		"before without run":            {entry("x", "prompt: x\nbefore:\n  timeout: 1m"), "before.run is required"},
-		"model with a space":            {entry("x", "prompt: x\nmodel: 'claude opus'"), `model "claude opus" holds whitespace`},
-		"variants and model":            {entry("x", "prompt: x\nmodel: opus\n"+variants), "model and variants are both set"},
-		"empty variants":                {entry("x", "prompt: x\nvariants: []"), "it has no variants"},
-		"variant weight":                {entry("x", "prompt: x\nvariants:\n  - {name: a, weight: 0, model: opus}"), `variant "a": weight must be at least 1`},
-		"variant name":                  {entry("x", "prompt: x\nvariants:\n  - {name: A, weight: 1, model: opus}"), "a name is 1 to 64"},
-		"variant without model":         {entry("x", "prompt: x\nvariants:\n  - {name: a, weight: 1}"), "model or account is required"},
-		"variant model too long":        {entry("x", "prompt: x\nvariants:\n  - {name: a, weight: 1, model: "+strings.Repeat("m", 101)+"}"), "the server takes at most 100"},
-		"two variants of one name":      {entry("x", "prompt: x\nvariants:\n  - {name: a, weight: 1, model: opus}\n  - {name: a, weight: 1, model: sonnet}"), `two variants are named "a"`},
-		"undeclared pool":               {entry("x", "prompt: x\nworkerPool: slow"), `work "x": workerPool "slow" is not in workerPools, which declares default, quick`},
-		"subject with a capital":        {entry("x", "subject: Analysis\nprompt: x"), `work "x": subject "Analysis" is not 1 to 32`},
-		"subject too long":              {entry("x", "subject: "+strings.Repeat("a", 33)+"\nprompt: x"), "is not 1 to 32"},
-		"cardId off card":               {entry("x", "subject: analysis\nprompt: 'Do {cardId}'"), "prompt uses {cardId}, which names a card, and this entry runs subject analysis"},
-		"cardNumber in run off card":    {entry("x", "subject: analysis\naction: command\nrun: [make, '{cardNumber}']"), "run uses {cardNumber}, which names a card"},
-		"cardId in before off card":     {entry("x", "subject: analysis\nprompt: x\nbefore:\n  run: [prep, '{cardId}']"), "before.run uses {cardId}, which names a card"},
-		"param without pattern":         {entry("x", command+"params:\n  out: {description: d}"), "params.out: pattern is required"},
-		"param bad pattern":             {entry("x", command+"params:\n  out: {pattern: '(?!x)'}"), "params.out: pattern does not compile as RE2"},
-		"param built-in name":           {entry("x", command+"params:\n  kind: {pattern: a}"), `"kind" is a built-in placeholder`},
-		"param bad name":                {entry("x", command+"params:\n  out1: {pattern: a}"), `name "out1" is not letters only`},
-		"undeclared param placeholder":  {entry("x", "action: command\nrun: [make, '{out}']"), "run: unknown placeholder {out}"},
-		"unknown param field":           {entry("x", command+"params:\n  out: {pattern: a, flag: b}"), "field flag not found"},
-		"worker with params":            {entry("x", "prompt: x\nparams:\n  out: {pattern: a}"), "params belongs to action command"},
-		"worker with description":       {entry("x", "prompt: x\ndescription: d"), "description belongs to action command"},
-		"interactive with refresh":      {entry("x", interactive+"refresh:\n  run: [x]"), "refresh names worker behaviour, and action interactive launches no worker"},
-		"interactive with reset":        {entry("x", interactive+"reset:\n  run: [x]"), "reset names worker behaviour, and action interactive launches no worker"},
-		"command with refresh":          {entry("x", command+"refresh:\n  run: [x]"), "refresh names agent behaviour"},
-		"command with reset":            {entry("x", command+"reset:\n  run: [x]"), "reset names agent behaviour"},
-		"unknown refresh placeholder":   {entry("x", "prompt: x\nrefresh:\n  run: [up, '{title}']"), "refresh.run: unknown placeholder {title}"},
-		"refresh without run":           {entry("x", "prompt: x\nrefresh:\n  timeout: 1m"), "refresh.run is required"},
-		"reset timeout too long":        {entry("x", "prompt: x\nreset:\n  run: [down]\n  timeout: 2h"), "reset.timeout is 2h, and the most it takes is 1h0m0s"},
-		"cardId in reset off card":      {entry("x", "subject: analysis\nprompt: x\nreset:\n  run: [down, '{cardId}']"), "reset.run uses {cardId}, which names a card"},
-		"interactive with params":       {entry("x", interactive+"params:\n  out: {pattern: a}"), "params belongs to action command"},
-		"session not interactive":       {entry("session", "prompt: x"), "the session entry needs action interactive"},
-		"session as a command":          {entry("session", command), "the session entry needs action interactive"},
-		"interactive off card":          {entry("x", "subject: analysis\n"+interactive), "action interactive opens a session on a card, and this entry runs subject analysis"},
+		"kind with a capital":          {entry("Implement", "prompt: x"), `work "Implement": a kind is 1 to 40 lowercase letters`},
+		"kind with a digit first":      {entry("1st", "prompt: x"), `work "1st": a kind is`},
+		"kind too long":                {entry(strings.Repeat("a", 41), "prompt: x"), "a kind is"},
+		"unknown action":               {entry("x", "action: launch\nprompt: x"), `work "x": action "launch" is not interactive or command`},
+		"unknown field":                {entry("x", "prompt: x\nmaxChain: 2"), "field maxChain not found"},
+		"allowUntrusted":               {entry("x", "prompt: x\nallowUntrusted: true"), "field allowUntrusted not found"},
+		"worker without prompt":        {entry("x", "model: opus"), `work "x": prompt is required`},
+		"worker with a blank prompt":   {entry("x", "prompt: '  '"), "prompt is required"},
+		"interactive without prompt":   {entry("x", "action: interactive"), "prompt is required"},
+		"worker with run":              {entry("x", "prompt: x\nrun: [make]"), "run belongs to action command, and this entry runs a worker"},
+		"worker with timeout":          {entry("x", "prompt: x\ntimeout: 1m"), "timeout belongs to action command"},
+		"interactive with before":      {entry("x", interactive+"before:\n  run: [x]"), "before names worker behaviour, and action interactive launches no worker"},
+		"interactive with variants":    {entry("x", interactive+variants), "work entry x sets variants; move the variants"},
+		"interactive with workerPool":  {entry("x", interactive+"workerPool: quick"), "workerPool names worker behaviour"},
+		"interactive with metrics":     {entry("x", interactive+"metrics: [cost]"), "work entry x sets metrics; move the variants"},
+		"interactive with run":         {entry("x", interactive+"run: [x]"), "run belongs to action command, and this entry launches an interactive session"},
+		"command with prompt":          {entry("x", command+"prompt: x"), "prompt names agent behaviour, and action command starts no agent"},
+		"command with model":           {entry("x", command+"model: opus"), "model names agent behaviour"},
+		"command with permissions":     {entry("x", command+"permissions: full"), "permissions names agent behaviour"},
+		"command with account":         {entry("x", command+"account: claude"), "account names agent behaviour"},
+		"command with before":          {entry("x", command+"before:\n  run: [x]"), "before names agent behaviour"},
+		"command with variants":        {entry("x", command+variants), "work entry x sets variants; move the variants"},
+		"command with workerPool":      {entry("x", command+"workerPool: quick"), "workerPool names agent behaviour"},
+		"command with metrics":         {entry("x", command+"metrics: [cost]"), "work entry x sets metrics; move the variants"},
+		"bad metric key":               {exp("metrics: [Cost]\n" + variants), `metric "Cost": a metric key is 1 to 128`},
+		"metric key too long":          {exp("metrics: [c" + strings.Repeat("o", 128) + "]\n" + variants), "a metric key is 1 to 128"},
+		"repeated metric":              {exp("metrics: [cost, cost]\n" + variants), `metric "cost" is listed twice`},
+		"interactive with headline":    {entry("x", interactive+"headline:\n  guards: [cost]"), "work entry x sets headline; move the variants"},
+		"command with headline":        {entry("x", command+"headline:\n  guards: [cost]"), "work entry x sets headline; move the variants"},
+		"empty headline":               {exp("headline: {}\n" + variants), "headline needs a goal, guards or controls"},
+		"goal without metric":          {exp("headline:\n  goal: {better: lower}\n" + variants), "headline goal: metric \"\": a metric key is 1 to 128"},
+		"goal with bad better":         {exp("headline:\n  goal: {metric: cost, better: up}\n" + variants), `headline goal: better is lower or higher, got "up"`},
+		"goal with bad metric":         {exp("headline:\n  goal: {metric: Cost, better: lower}\n" + variants), `headline goal: metric "Cost": a metric key is 1 to 128`},
+		"bad guard key":                {exp("headline:\n  guards: [Cost]\n" + variants), `headline guard "Cost": a metric key is 1 to 128`},
+		"repeated guard":               {exp("headline:\n  guards: [cost, cost]\n" + variants), `headline guard "cost" is listed twice`},
+		"goal metric is also a guard":  {exp("headline:\n  goal: {metric: cost, better: lower}\n  guards: [cost]\n" + variants), `headline guard "cost" is also the goal metric`},
+		"control without share":        {exp("headline:\n  controls:\n    - {metric: harness-events:diagnostics, variant: a, expect: \"> 0\"}\n" + variants), `headline control "harness-events:diagnostics" on variant "a": share is required`},
+		"control share above 1":        {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 1.5}\n" + variants), "share must be above 0 and at most 1, got 1.5"},
+		"control share of 0":           {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 0}\n" + variants), "share must be above 0 and at most 1, got 0"},
+		"control on bad variant":       {exp("headline:\n  controls:\n    - {metric: cost, variant: zzz, expect: \"> 0\", share: 0.5}\n" + variants), `the experiment declares no variant "zzz"`},
+		"control with bad expect":      {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"about 3\", share: 0.5}\n" + variants), `expect "about 3" is a comparison and a number`},
+		"control with bad metric":      {exp("headline:\n  controls:\n    - {metric: Cost, variant: a, expect: \"> 0\", share: 0.5}\n" + variants), `headline control "Cost" on variant "a": a metric key is 1 to 128`},
+		"repeated control":             {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 0.5}\n    - {metric: cost, variant: a, expect: \"> 1\", share: 0.5}\n" + variants), `headline control "cost" on variant "a" is listed twice`},
+		"unknown headline field":       {exp("headline:\n  guard: [cost]\n" + variants), "field guard not found"},
+		"command without run":          {entry("x", "action: command"), "run is required"},
+		"command timeout too long":     {entry("x", command+"timeout: 2h"), "the most it takes is 1h0m0s"},
+		"command timeout not duration": {entry("x", command+"timeout: soon"), `timeout "soon" is not a duration`},
+		"unknown placeholder":          {entry("x", "prompt: 'Card {title}'"), `work "x": unknown placeholder {title}`},
+		"an old event placeholder":     {entry("x", "prompt: 'Moved to {to}'"), "unknown placeholder {to}"},
+		"unknown run placeholder":      {entry("x", "action: command\nrun: [make, '{title}']"), "run: unknown placeholder {title}"},
+		"unknown before placeholder":   {entry("x", "prompt: x\nbefore:\n  run: [prep, '{title}']"), "before.run: unknown placeholder {title}"},
+		"before without run":           {entry("x", "prompt: x\nbefore:\n  timeout: 1m"), "before.run is required"},
+		"model with a space":           {entry("x", "prompt: x\nmodel: 'claude opus'"), `model "claude opus" holds whitespace`},
+		"empty variants":               {exp("variants: []"), "it has no variants"},
+		"variant weight":               {exp("variants:\n  - {name: a, weight: 0, model: opus}"), `variant "a": weight must be at least 1`},
+		"variant name":                 {exp("variants:\n  - {name: A, weight: 1, model: opus}"), "a name is 1 to 64"},
+		"variant model too long":       {exp("variants:\n  - {name: a, weight: 1, model: " + strings.Repeat("m", 101) + "}"), "the server takes at most 100"},
+		"two variants of one name":     {exp("variants:\n  - {name: a, weight: 1, model: opus}\n  - {name: a, weight: 1, model: sonnet}"), `two variants are named "a"`},
+		"undeclared pool":              {entry("x", "prompt: x\nworkerPool: slow"), `work "x": workerPool "slow" is not in workerPools, which declares default, quick`},
+		"subject with a capital":       {entry("x", "subject: Analysis\nprompt: x"), `work "x": subject "Analysis" is not 1 to 32`},
+		"subject too long":             {entry("x", "subject: "+strings.Repeat("a", 33)+"\nprompt: x"), "is not 1 to 32"},
+		"cardId off card":              {entry("x", "subject: analysis\nprompt: 'Do {cardId}'"), "prompt uses {cardId}, which names a card, and this entry runs subject analysis"},
+		"cardNumber in run off card":   {entry("x", "subject: analysis\naction: command\nrun: [make, '{cardNumber}']"), "run uses {cardNumber}, which names a card"},
+		"cardId in before off card":    {entry("x", "subject: analysis\nprompt: x\nbefore:\n  run: [prep, '{cardId}']"), "before.run uses {cardId}, which names a card"},
+		"param without pattern":        {entry("x", command+"params:\n  out: {description: d}"), "params.out: pattern is required"},
+		"param bad pattern":            {entry("x", command+"params:\n  out: {pattern: '(?!x)'}"), "params.out: pattern does not compile as RE2"},
+		"param built-in name":          {entry("x", command+"params:\n  kind: {pattern: a}"), `"kind" is a built-in placeholder`},
+		"param bad name":               {entry("x", command+"params:\n  out1: {pattern: a}"), `name "out1" is not letters only`},
+		"undeclared param placeholder": {entry("x", "action: command\nrun: [make, '{out}']"), "run: unknown placeholder {out}"},
+		"unknown param field":          {entry("x", command+"params:\n  out: {pattern: a, flag: b}"), "field flag not found"},
+		"worker with params":           {entry("x", "prompt: x\nparams:\n  out: {pattern: a}"), "params belongs to action command"},
+		"worker with description":      {entry("x", "prompt: x\ndescription: d"), "description belongs to action command"},
+		"interactive with refresh":     {entry("x", interactive+"refresh:\n  run: [x]"), "refresh names worker behaviour, and action interactive launches no worker"},
+		"interactive with reset":       {entry("x", interactive+"reset:\n  run: [x]"), "reset names worker behaviour, and action interactive launches no worker"},
+		"command with refresh":         {entry("x", command+"refresh:\n  run: [x]"), "refresh names agent behaviour"},
+		"command with reset":           {entry("x", command+"reset:\n  run: [x]"), "reset names agent behaviour"},
+		"unknown refresh placeholder":  {entry("x", "prompt: x\nrefresh:\n  run: [up, '{title}']"), "refresh.run: unknown placeholder {title}"},
+		"refresh without run":          {entry("x", "prompt: x\nrefresh:\n  timeout: 1m"), "refresh.run is required"},
+		"reset timeout too long":       {entry("x", "prompt: x\nreset:\n  run: [down]\n  timeout: 2h"), "reset.timeout is 2h, and the most it takes is 1h0m0s"},
+		"cardId in reset off card":     {entry("x", "subject: analysis\nprompt: x\nreset:\n  run: [down, '{cardId}']"), "reset.run uses {cardId}, which names a card"},
+		"interactive with params":      {entry("x", interactive+"params:\n  out: {pattern: a}"), "params belongs to action command"},
+		"session not interactive":      {entry("session", "prompt: x"), "the session entry needs action interactive"},
+		"session as a command":         {entry("session", command), "the session entry needs action interactive"},
+		"interactive off card":         {entry("x", "subject: analysis\n"+interactive), "action interactive opens a session on a card, and this entry runs subject analysis"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			text, _ := file(t, tc.body)
@@ -180,8 +182,8 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 }
 
 func TestParseAcceptsEmptyMetricsWithVariants(t *testing.T) {
-	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n    metrics: []\n" +
-		"    variants:\n      - {name: a, weight: 1, model: opus}\n"
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n" +
+		"experiments:\n  trial:\n    covers: [x]\n    metrics: []\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err != nil {
 		t.Fatalf("err = %v", err)
@@ -193,7 +195,8 @@ func TestParseRefusesTooManyMetrics(t *testing.T) {
 	for i := range keys {
 		keys[i] = "m" + strings.Repeat("a", i+1)
 	}
-	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n    metrics: [" + strings.Join(keys, ", ") +
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n" +
+		"experiments:\n  trial:\n    covers: [x]\n    metrics: [" + strings.Join(keys, ", ") +
 		"]\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "it has 17 metrics, and the server takes at most 16") {
@@ -203,7 +206,7 @@ func TestParseRefusesTooManyMetrics(t *testing.T) {
 
 func TestParseRefusesTooManyVariants(t *testing.T) {
 	var b strings.Builder
-	b.WriteString("projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n    variants:\n")
+	b.WriteString("projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    variants:\n")
 	for i := range MaxVariants + 1 {
 		b.WriteString("      - {name: v" + strings.Repeat("a", i+1) + ", weight: 1, model: opus}\n")
 	}
@@ -315,14 +318,14 @@ func TestMatchWorkCarriesTheVariantsAsAnExperiment(t *testing.T) {
 	checkLoupe(t, s)
 
 	m := s.MatchWork(workRequest("split"))
-	if m.Skip != Run || m.Model != "" || m.Pool != DefaultPool || m.Experiment == nil || m.Experiment.Name != "split" {
+	if m.Skip != Run || m.Model != "" || m.Pool != DefaultPool || m.Experiment == nil || m.Experiment.Name != "split-trial" || !slices.Equal(m.Experiment.Covers, []string{"split"}) {
 		t.Fatalf("match = %+v", m)
 	}
 	if got := m.ApplyVariant(m.Experiment.Variants[1]); got.Model != "sonnet" || got.Account != "claude" || got.PermissionMode != "" {
 		t.Fatalf("ApplyVariant = %+v", got)
 	}
 	want := []Variant{{Name: "a", Weight: 1, Model: "opus"}, {Name: "b", Weight: 3, Model: "sonnet"}}
-	if !slices.Equal(m.Experiment.Variants, want) {
+	if !reflect.DeepEqual(m.Experiment.Variants, want) {
 		t.Fatalf("variants = %+v", m.Experiment.Variants)
 	}
 	if !slices.Equal(m.Experiment.Metrics, []string{"cost", "merge-rate"}) {
@@ -1018,7 +1021,7 @@ func TestParseRefusesTooManyGuards(t *testing.T) {
 	for i := range keys {
 		keys[i] = "m" + strings.Repeat("a", i+1)
 	}
-	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n    headline:\n      guards: [" + strings.Join(keys, ", ") +
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    headline:\n      guards: [" + strings.Join(keys, ", ") +
 		"]\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 guards, and the server takes at most 16") {
@@ -1051,9 +1054,9 @@ func TestMatchWorkClonesTheControls(t *testing.T) {
 func TestParseRefusesTooManyControls(t *testing.T) {
 	var lines []string
 	for i := 0; i <= MaxControls; i++ {
-		lines = append(lines, fmt.Sprintf("      - {metric: m%s, variant: a, expect: '> 0', share: 0.5}", strings.Repeat("a", i+1)))
+		lines = append(lines, fmt.Sprintf("        - {metric: m%s, variant: a, expect: '> 0', share: 0.5}", strings.Repeat("a", i+1)))
 	}
-	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n    headline:\n      controls:\n" + strings.Join(lines, "\n") +
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    headline:\n      controls:\n" + strings.Join(lines, "\n") +
 		"\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 controls, and the server takes at most 16") {

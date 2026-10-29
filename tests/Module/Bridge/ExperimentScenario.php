@@ -93,9 +93,10 @@ trait ExperimentScenario
         WorkerRunState $state = WorkerRunState::Succeeded,
         ?string $switchedFrom = null,
         string $at = '-2 hours',
+        string $workKind = 'implement',
     ): WorkerRun {
         // A run with no key reads as one from an older bridge, and a trigger rewrites its failed state.
-        $run = $this->seedRun($em, $project, receivedAt: new \DateTimeImmutable($at), cardNumber: $card->number, cardId: $card->id, state: $state, runKey: Uuid::v7(), workKind: 'implement');
+        $run = $this->seedRun($em, $project, receivedAt: new \DateTimeImmutable($at), cardNumber: $card->number, cardId: $card->id, state: $state, runKey: Uuid::v7(), workKind: $workKind);
         $run->experiment = $experiment;
         $run->variant = $variant;
         $run->switchedFrom = $switchedFrom;

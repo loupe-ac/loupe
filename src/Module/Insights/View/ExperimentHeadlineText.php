@@ -107,7 +107,7 @@ final readonly class ExperimentHeadlineText
                 break;
             }
         }
-        $name ??= $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans('analytics.metrics.metric.'.$key));
+        $name ??= $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans(ExperimentMetric::COVERED_COST === $key ? 'bridge.experiments.metric.'.$key : 'analytics.metrics.metric.'.$key));
 
         return $name.' '.$control->expect;
     }

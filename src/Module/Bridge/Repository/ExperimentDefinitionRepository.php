@@ -29,13 +29,14 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
      * @param list<array{name: string, weight: int}>                                                                                                                                  $weights
      * @param list<string>|null                                                                                                                                                       $metrics
      * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
+     * @param list<string>|null                                                                                                                                                       $covers   null keeps the stored list
      */
-    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt): void
+    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt, ?array $covers = null): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
-            'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, headline, reported_at)'
-            .' VALUES (:id, :project, :experiment, :weights, :metrics, :headline, :reportedAt)'
-            .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, headline = EXCLUDED.headline, reported_at = EXCLUDED.reported_at',
+            'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, headline, covers, reported_at)'
+            .' VALUES (:id, :project, :experiment, :weights, :metrics, :headline, :covers, :reportedAt)'
+            .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, headline = EXCLUDED.headline, covers = COALESCE(EXCLUDED.covers, bridge_experiment_definitions.covers), reported_at = EXCLUDED.reported_at',
             [
                 'id' => Uuid::v7(),
                 'project' => $project->id,
@@ -43,6 +44,7 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
                 'weights' => $weights,
                 'metrics' => $metrics,
                 'headline' => $headline,
+                'covers' => $covers,
                 'reportedAt' => $reportedAt,
             ],
             [
@@ -52,6 +54,7 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
                 'weights' => Types::JSON,
                 'metrics' => Types::JSON,
                 'headline' => Types::JSON,
+                'covers' => Types::JSON,
                 'reportedAt' => Types::DATETIME_IMMUTABLE,
             ],
         );
