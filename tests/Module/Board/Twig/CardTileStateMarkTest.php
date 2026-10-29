@@ -25,7 +25,7 @@ final class CardTileStateMarkTest extends KernelTestCase
     /** @return iterable<string, array{string, MarkerKind, array<string, string|int>, string, string}> */
     public static function kinds(): iterable
     {
-        yield 'stuck' => ['ready_not_merged', MarkerKind::Stuck, ['%number%' => 12], 'Stuck', 'Pull request #12 is ready to merge, and no merge rule matches it.'];
+        yield 'stuck' => ['ready_not_merged', MarkerKind::Stuck, ['%number%' => 12], 'Stuck', 'Pull request #12 stayed ready to merge past the stuck delay, and no merge is under way.'];
         yield 'needs you' => ['open_question', MarkerKind::NeedsYou, ['%number%' => 3, '%title%' => 'Which option?'], 'Needs you', 'Question #3 waits for your answer: Which option?'];
         yield 'working' => ['run_open', MarkerKind::Working, [], 'Working', 'A worker runs on this card.'];
         yield 'waiting' => ['held_by_blocker', MarkerKind::Waiting, ['%number%' => 7, '%title%' => 'The blocker'], 'Waiting', 'Card #7 blocks this card: The blocker'];
