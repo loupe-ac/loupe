@@ -12,11 +12,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Loupe keeps an MCP session in a file store that expires after an hour and
-// lives in one web container's cache directory. A session therefore ends on an
-// idle agent, on a deploy, and on a request that lands on another container.
-// The agent cannot recover from that by itself: its tools disappear for the
-// rest of its run. So the shim opens a new session and keeps serving.
+// Loupe keeps an MCP session in the shared database cache, so a deploy and a
+// request that lands on another container keep it. A session still ends after
+// a day idle, and on a deploy of an older Loupe. The agent cannot recover from
+// that by itself: its tools disappear for the rest of its run. So the shim
+// opens a new session and keeps serving.
 //
 // These are the only two method names anywhere in the shim. Everything else
 // travels unread, which is what lets a new Loupe tool arrive with no release of
