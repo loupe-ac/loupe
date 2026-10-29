@@ -119,7 +119,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $view = $this->show();
 
         self::assertNotNull($view);
-        self::assertEquals([new ExperimentCard($card, null, null, 'a', null, 0, 0, null, [LeftOutReason::NoRun])], $view->cards);
+        self::assertEquals([new ExperimentCard($card, null, null, 'a', null, 0, 0, null, null, [LeftOutReason::NoRun])], $view->cards);
         self::assertSame(['a'], array_map(static fn (ExperimentVariant $variant): string => $variant->name, $view->variants));
     }
 
@@ -165,14 +165,14 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             (string) $switchedAndMixed => ['switched', 'mixed'],
             (string) $beforeTest => ['before-test'],
             (string) $otherKind => [],
-            (string) $plainAfter => [],
+            (string) $plainAfter => ['covered-without-variant'],
             (string) $noHistory => ['no-history'],
             (string) $otherExperiment => ['before-test'],
         ], $this->reasonsById($view, [$switched, $mixed, $switchedAndMixed, $beforeTest, $otherKind, $plainAfter, $noHistory, $otherExperiment]));
-        self::assertSame(2, $view->includedCards);
-        self::assertSame(6, $view->leftOutCards);
+        self::assertSame(1, $view->includedCards);
+        self::assertSame(7, $view->leftOutCards);
         // A left-out card counts in no variant.
-        self::assertSame([2, 0], array_map(static fn (ExperimentVariant $variant): int => $variant->cards, $view->variants));
+        self::assertSame([1, 0], array_map(static fn (ExperimentVariant $variant): int => $variant->cards, $view->variants));
     }
 
     public function test_a_card_has_no_history_when_the_project_has_none(): void
@@ -247,7 +247,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $view = $this->show();
 
         self::assertNotNull($view);
-        self::assertEquals([new ExperimentVariant('a', 'claude-opus-5-5', null, 1, 0, 1, 1_000_000)], $view->variants);
+        self::assertEquals([new ExperimentVariant('a', ['claude-opus-5-5'], null, 1, 0, 1, 1_000_000, 1_000_000)], $view->variants);
         self::assertSame([(string) $card], array_map(static fn (ExperimentCard $row): string => (string) $row->cardId, $view->cards));
         self::assertSame(1_000_000, $view->cards[0]->costMicros);
     }
@@ -289,9 +289,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
                     $stopped->usageSource = WorkerRunUsageSource::Reported;
                     $this->em->persist(new WorkerRunUsage($stopped, $run->project, WorkSubject::CARD, $card, $stopped->workKind, 'claude-opus-5-5', WorkerRunUsageSource::Reported, 0, 0, 0, 0, '0.000000'));
                 }
-                // Neither a row whose run is gone nor the usage of a run outside the experiment counts.
+                // A row whose run is gone counts nowhere, and a run outside the experiment counts in the runs and the tokens.
                 $this->em->persist(new WorkerRunUsage(null, $run->project, WorkSubject::CARD, $card, 'build', 'claude-opus-5-5', WorkerRunUsageSource::Reported, 1, 1, 0, 0, '5.000000'));
-                $this->seedUsage($this->em, $this->plainRun($card, 'design', '-1 hour'), costUsd: '5.000000');
+                $this->seedUsage($this->em, $this->plainRun($card, 'design', '-1 hour'), costUsd: '0.000000');
             }
         }
         $byHand = Uuid::v7();
@@ -313,10 +313,10 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertEquals([
-            new ExperimentVariant('a', 'claude-opus-5-5', 70, 7, 6, 10, 5_000_000),
-            new ExperimentVariant('b', 'claude-sonnet-5', 30, 5, 5, 5, 2_500_000),
+            new ExperimentVariant('a', ['claude-opus-5-5'], 70, 7, 6, 11, 5_000_000, 5_000_000),
+            new ExperimentVariant('b', ['claude-sonnet-5'], 30, 5, 5, 5, 2_500_000, 2_500_000),
         ], $view->variants);
-        self::assertSame([ExperimentMetric::MERGE_RATE, ExperimentMetric::STOP_RATE, ExperimentMetric::FIX_ROUNDS, ExperimentMetric::COST, ExperimentMetric::OUTPUT_TOKENS, ExperimentMetric::HOURS_TO_MERGE], array_keys($view->metrics));
+        self::assertSame([ExperimentMetric::MERGE_RATE, ExperimentMetric::STOP_RATE, ExperimentMetric::FIX_ROUNDS, ExperimentMetric::COST, ExperimentMetric::COVERED_COST, ExperimentMetric::OUTPUT_TOKENS, ExperimentMetric::HOURS_TO_MERGE], array_keys($view->metrics));
 
         $mergeRate = $view->metrics[ExperimentMetric::MERGE_RATE];
         self::assertEquals(Stats::wilson(5, 6), $mergeRate->for('a'));
@@ -340,7 +340,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertEquals(new Interval(0.5, 0.5, 0.5), $cost->for('b'));
         self::assertTrue($cost->clear);
 
-        self::assertSame(20.0, $view->metrics[ExperimentMetric::OUTPUT_TOKENS]->for('a')?->point);
+        self::assertSame(24.0, $view->metrics[ExperimentMetric::OUTPUT_TOKENS]->for('a')?->point);
 
         $hours = $view->metrics[ExperimentMetric::HOURS_TO_MERGE];
         self::assertEquals(new Interval(2.0, 2.0, 2.0), $hours->for('a'));
@@ -885,7 +885,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $view = $this->show();
 
         self::assertNotNull($view);
-        self::assertSame(['merge-rate', 'stop-rate', 'cost', 'output-tokens'], array_keys($view->metrics));
+        self::assertSame(['merge-rate', 'stop-rate', 'cost', 'covered-cost', 'output-tokens'], array_keys($view->metrics));
         self::assertSame([], $view->unknownMetrics);
         self::assertSame('Merge rate', $view->metrics['merge-rate']->label);
         self::assertNull($view->metrics['cost']->label);
@@ -974,6 +974,137 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(['fix'], array_map(static fn (ExperimentMetric $part): string => $part->key, $parts));
         self::assertSame('fix', $parts[0]->label);
         self::assertSame(2.0, $parts[0]->for('a')?->point);
+    }
+
+    public function test_cost_and_runs_count_every_worker_run_and_the_covered_cost_the_covered_runs(): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['runs', ExperimentMetric::COST, ExperimentMetric::COVERED_COST];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+1 hour'), costUsd: '1.000000');
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+2 hours', workKind: 'fix'), costUsd: '2.000000');
+        $this->seedUsage($this->em, $this->plainRun($card, 'review', '+3 hours'), costUsd: '4.000000');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([], $view->cards[0]->leftOut);
+        self::assertSame([3, 7_000_000, 3_000_000], [$view->cards[0]->runs, $view->cards[0]->costMicros, $view->cards[0]->coveredCostMicros]);
+        self::assertEquals([new ExperimentVariant('a', ['claude-opus-5-5'], 1, 1, 1, 3, 7_000_000, 3_000_000)], $view->variants);
+        self::assertSame(3.0, $view->metrics['runs']->for('a')?->point);
+        self::assertSame(7.0, $view->metrics[ExperimentMetric::COST]->for('a')?->point);
+        self::assertSame(3.0, $view->metrics[ExperimentMetric::COVERED_COST]->for('a')?->point);
+        self::assertSame(MetricValueType::Money, $view->metrics[ExperimentMetric::COVERED_COST]->valueType());
+    }
+
+    public function test_a_stored_covered_list_decides_which_runs_are_covered(): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->covers = ['implement'];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+1 hour'), costUsd: '1.000000');
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+2 hours', workKind: 'fix'), costUsd: '2.000000');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([3_000_000, 1_000_000], [$view->cards[0]->costMicros, $view->cards[0]->coveredCostMicros]);
+    }
+
+    public function test_a_covered_kind_without_a_run_leaves_a_plain_run_of_it_out(): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->covers = ['fix', 'implement'];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $this->experimentRun($card, 'a', at: '+1 hour');
+        $this->plainRun($card, 'fix', '+2 hours');
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([LeftOutReason::CoveredWithoutVariant], $view->cards[0]->leftOut);
+    }
+
+    public function test_the_stop_rate_counts_the_covered_runs_that_ran_on_the_variant(): void
+    {
+        $card = Uuid::v7();
+        $this->experimentRun($card, 'a', at: '+1 hour');
+        $this->experimentRun($card, 'a', at: '+2 hours', state: WorkerRunState::Failed, workKind: 'fix');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+
+        $withBoth = $this->show();
+
+        $definition = new ExperimentDefinition($this->managedProject(), self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->covers = ['implement'];
+        $this->em->persist($definition);
+        $this->em->flush();
+        $withOne = $this->show();
+
+        self::assertNotNull($withBoth);
+        self::assertNotNull($withOne);
+        self::assertEquals(Stats::wilson(1, 2), $withBoth->metrics[ExperimentMetric::STOP_RATE]->for('a'));
+        self::assertEquals(Stats::wilson(0, 1), $withOne->metrics[ExperimentMetric::STOP_RATE]->for('a'));
+    }
+
+    public function test_a_variant_lists_every_model_that_its_runs_asked_for_in_order(): void
+    {
+        $card = Uuid::v7();
+        $this->experimentRun($card, 'a', at: '+1 hour', model: 'claude-sonnet-5-5');
+        $this->experimentRun($card, 'a', at: '+2 hours', model: 'claude-opus-5-5');
+        $this->experimentRun($card, 'a', at: '+3 hours', model: 'claude-sonnet-5-5');
+        $this->experimentRun($card, 'a', at: '+4 hours', model: null);
+        $unnamed = Uuid::v7();
+        $this->experimentRun($unnamed, 'b', model: null);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame(['claude-opus-5-5', 'claude-sonnet-5-5'], $view->variants[0]->models);
+        self::assertSame([], $view->variants[1]->models);
+    }
+
+    public function test_a_plain_covered_run_whose_row_was_swept_still_leaves_the_card_out(): void
+    {
+        $after = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($after, 'a', at: '+1 hour'), costUsd: '1.000000');
+        $this->seedUsage($this->em, $this->plainRun($after, 'implement', '+2 hours'), costUsd: '1.000000');
+        $before = Uuid::v7();
+        $this->seedUsage($this->em, $this->plainRun($before, 'implement', '+1 hour'), costUsd: '1.000000');
+        $this->seedUsage($this->em, $this->experimentRun($before, 'a', at: '+2 hours'), costUsd: '1.000000');
+        $this->sweepRows($after);
+        $this->sweepRows($before);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([(string) $after => ['covered-without-variant'], (string) $before => ['before-test']], $this->reasonsById($view, [$after, $before]));
+        self::assertSame(2, $this->card($view, $after)->runs);
+    }
+
+    public function test_a_card_whose_pin_and_run_rows_expired_keeps_the_variant_of_its_oldest_experiment_fact(): void
+    {
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+1 hour'), costUsd: '1.000000');
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+2 hours', workKind: 'fix'), costUsd: '2.000000');
+        $this->seedUsage($this->em, $this->plainRun($card, 'review', '+3 hours'), costUsd: '4.000000');
+        $this->sweepRows($card);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        $row = $this->card($view, $card);
+        self::assertSame(['a', [], 1, 3, 7_000_000, 3_000_000], [$row->variant, $row->leftOut, $row->number, $row->runs, $row->costMicros, $row->coveredCostMicros]);
+        self::assertEquals([new ExperimentVariant('a', [], null, 1, 0, 3, 7_000_000, 3_000_000)], $view->variants);
+    }
+
+    private function sweepRows(Uuid $card): void
+    {
+        $this->em->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE subject_id = :card', ['card' => (string) $card]);
     }
 
     private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true): ?ExperimentReportView
@@ -1118,9 +1249,10 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         ?string $switchedFrom = null,
         ?string $model = 'claude-opus-5-5',
         string $experiment = self::EXPERIMENT,
+        string $workKind = 'implement',
     ): WorkerRun {
         // A run with no key reads as one from an older bridge, and a trigger rewrites its failed state.
-        $run = $this->seedRun($this->em, $this->managedProject(), receivedAt: $this->start->modify($at), workKind: 'implement', cardId: $cardId, state: $state, runKey: Uuid::v7());
+        $run = $this->seedRun($this->em, $this->managedProject(), receivedAt: $this->start->modify($at), workKind: $workKind, cardId: $cardId, state: $state, runKey: Uuid::v7());
         $run->experiment = $experiment;
         $run->variant = $variant;
         $run->switchedFrom = $switchedFrom;

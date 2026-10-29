@@ -51,8 +51,8 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertSame('Comparison', trim($crawler->filter('.lp-experiment-tabs [aria-current="page"]')->text()));
         self::assertCount(3, $crawler->filter('.lp-experiment-table.lp-table-cue[data-controller="overflow-cue"] > .lp-experiment-table__scroll[data-overflow-cue-target="viewport"] > table'));
         self::assertCount(6, $crawler->filter('.lp-experiment-table > .lp-overflow-cue__arrow'));
-        self::assertSame(['a', 'model-a', '3', '5', '5', '5', '$10.00'], $this->cells($crawler->filter('[data-experiment-variant="a"]')));
-        self::assertSame(['b', 'model-b', '1', '5', '5', '5', '$5.00'], $this->cells($crawler->filter('[data-experiment-variant="b"]')));
+        self::assertSame(['a', 'model-a', '3', '5', '5', '5', '$10.00', '$10.00'], $this->cells($crawler->filter('[data-experiment-variant="a"]')));
+        self::assertSame(['b', 'model-b', '1', '5', '5', '5', '$5.00', '$5.00'], $this->cells($crawler->filter('[data-experiment-variant="b"]')));
 
         $goal = $crawler->filter('[data-experiment-goal]');
         self::assertSame('clear', $goal->attr('data-experiment-goal-state'));

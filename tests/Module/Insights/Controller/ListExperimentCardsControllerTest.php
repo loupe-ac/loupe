@@ -46,6 +46,7 @@ final class ListExperimentCardsControllerTest extends WebTestCase
         self::assertStringContainsString('Card 1', $row->text());
         self::assertSame('Done', trim($row->filter('[data-experiment-card-column]')->text()));
         self::assertSame('$1.50', trim($row->filter('[data-experiment-card-cost]')->text()));
+        self::assertSame('$1.50', trim($row->filter('[data-experiment-card-covered-cost]')->text()));
 
         $crawler = $client->request(Request::METHOD_GET, $base.'?variant=b');
 
@@ -58,6 +59,7 @@ final class ListExperimentCardsControllerTest extends WebTestCase
         self::assertSame('2', trim($rows->filter('[data-experiment-card-runs]')->text()));
         // Its runs reported no usage, which differs from a recorded zero.
         self::assertSame('–', trim($rows->filter('[data-experiment-card-cost]')->text()));
+        self::assertSame('–', trim($rows->filter('[data-experiment-card-covered-cost]')->text()));
         self::assertCount(0, $rows->filter('.lp-tag'));
     }
 

@@ -106,18 +106,20 @@
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.finished'|trans }}</th>
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.runs'|trans }}</th>
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cost'|trans }}</th>
+                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.covered_cost'|trans }}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for variant in report.variants %}
                     <tr data-experiment-variant="{{ variant.name }}">
                         <th scope="row">{{ variant.name }}</th>
-                        <td>{{ variant.model ?? '–' }}</td>
+                        <td>{{ variant.models is empty ? '–' : variant.models|join(', ') }}</td>
                         <td class="lp-experiment-table__number">{{ variant.weight ?? '–' }}</td>
                         <td class="lp-experiment-table__number">{{ variant.cards }}</td>
                         <td class="lp-experiment-table__number">{{ variant.finishedCards }}</td>
                         <td class="lp-experiment-table__number">{{ variant.runs }}</td>
                         <td class="lp-experiment-table__number">{{ variant.costMicros is null ? '–' : (variant.costMicros / 1000000)|format_currency('USD') }}</td>
+                        <td class="lp-experiment-table__number">{{ variant.coveredCostMicros is null ? '–' : (variant.coveredCostMicros / 1000000)|format_currency('USD') }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
