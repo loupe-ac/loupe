@@ -36,6 +36,7 @@ final class ListExperimentCardsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('Cards', trim($crawler->filter('.lp-experiment-tabs [aria-current="page"]')->text()));
+        self::assertSame(['Card', 'Variant', 'Column', 'Runs', 'Covered cost', 'Fix rounds', 'Cost', 'Left out'], $crawler->filter('[role="columnheader"]')->each(static fn (Crawler $cell): string => trim($cell->text())));
         self::assertSame([(string) $switched->id, (string) $b->id, (string) $a->id], $crawler->filter('[data-experiment-card]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-card')));
         self::assertSame(['All', 'a', 'b', 'Left out'], $crawler->filter('[data-experiment-filter] a')->each(static fn (Crawler $link): string => trim($link->text())));
         self::assertSame($base.'?variant=b', $crawler->filter('[data-experiment-filter] a')->eq(2)->attr('href'));
@@ -46,6 +47,7 @@ final class ListExperimentCardsControllerTest extends WebTestCase
         self::assertStringContainsString('Card 1', $row->text());
         self::assertSame('Done', trim($row->filter('[data-experiment-card-column]')->text()));
         self::assertSame('$1.50', trim($row->filter('[data-experiment-card-cost]')->text()));
+        self::assertSame('$1.50', trim($row->filter('[data-experiment-card-covered-cost]')->text()));
 
         $crawler = $client->request(Request::METHOD_GET, $base.'?variant=b');
 
@@ -58,6 +60,7 @@ final class ListExperimentCardsControllerTest extends WebTestCase
         self::assertSame('2', trim($rows->filter('[data-experiment-card-runs]')->text()));
         // Its runs reported no usage, which differs from a recorded zero.
         self::assertSame('–', trim($rows->filter('[data-experiment-card-cost]')->text()));
+        self::assertSame('–', trim($rows->filter('[data-experiment-card-covered-cost]')->text()));
         self::assertCount(0, $rows->filter('.lp-tag'));
     }
 

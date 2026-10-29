@@ -7210,6 +7210,7 @@
             <trans-unit id="bridge.experiments.variants.finished"><source>bridge.experiments.variants.finished</source><target>Finished</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.runs"><source>bridge.experiments.variants.runs</source><target>Runs</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.cost"><source>bridge.experiments.variants.cost</source><target>Cost</target></trans-unit>
+            <trans-unit id="bridge.experiments.variants.covered_cost"><source>bridge.experiments.variants.covered_cost</source><target>Covered cost</target></trans-unit>
             <trans-unit id="bridge.experiments.metrics.heading"><source>bridge.experiments.metrics.heading</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.experiments.metrics.metric"><source>bridge.experiments.metrics.metric</source><target>Metric</target></trans-unit>
             <trans-unit id="bridge.experiments.metrics.likely_range"><source>bridge.experiments.metrics.likely_range</source><target>Likely range</target></trans-unit>
@@ -7218,6 +7219,7 @@
             <trans-unit id="bridge.experiments.metric.stop-rate"><source>bridge.experiments.metric.stop-rate</source><target>Stop rate</target></trans-unit>
             <trans-unit id="bridge.experiments.metric.fix-rounds"><source>bridge.experiments.metric.fix-rounds</source><target>Fix rounds per merged card</target></trans-unit>
             <trans-unit id="bridge.experiments.metric.cost"><source>bridge.experiments.metric.cost</source><target>Cost per merged card</target></trans-unit>
+            <trans-unit id="bridge.experiments.metric.covered-cost"><source>bridge.experiments.metric.covered-cost</source><target>Covered cost per merged card</target></trans-unit>
             <trans-unit id="bridge.experiments.metric.output-tokens"><source>bridge.experiments.metric.output-tokens</source><target>Output tokens per merged card</target></trans-unit>
             <trans-unit id="bridge.experiments.metric.hours-to-merge"><source>bridge.experiments.metric.hours-to-merge</source><target>Hours from open to merge</target></trans-unit>
             <trans-unit id="bridge.experiments.metrics.unknown"><source>bridge.experiments.metrics.unknown</source><target>The bridge rule declares metrics that this server does not know: %metrics%.</target></trans-unit>
@@ -7238,7 +7240,8 @@
             <trans-unit id="bridge.experiments.analyse"><source>bridge.experiments.analyse</source><target>Analyse this experiment</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.switched"><source>bridge.experiments.left_out_reason.switched</source><target>Switched variant</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.mixed"><source>bridge.experiments.left_out_reason.mixed</source><target>Mixed variants</target></trans-unit>
-            <trans-unit id="bridge.experiments.left_out_reason.before-test"><source>bridge.experiments.left_out_reason.before-test</source><target>Implemented before the test</target></trans-unit>
+            <trans-unit id="bridge.experiments.left_out_reason.before-test"><source>bridge.experiments.left_out_reason.before-test</source><target>Covered work before the test</target></trans-unit>
+            <trans-unit id="bridge.experiments.left_out_reason.covered-without-variant"><source>bridge.experiments.left_out_reason.covered-without-variant</source><target>Covered work without the variant</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.no-history"><source>bridge.experiments.left_out_reason.no-history</source><target>Run before the card history</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.no-run"><source>bridge.experiments.left_out_reason.no-run</source><target>No experiment run</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.filter_label"><source>bridge.experiments.cards.filter_label</source><target>Show cards</target></trans-unit>
@@ -7253,6 +7256,7 @@
             <trans-unit id="bridge.experiments.cards.column.runs"><source>bridge.experiments.cards.column.runs</source><target>Runs</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.column.fix_rounds"><source>bridge.experiments.cards.column.fix_rounds</source><target>Fix rounds</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.column.cost"><source>bridge.experiments.cards.column.cost</source><target>Cost</target></trans-unit>
+            <trans-unit id="bridge.experiments.cards.column.covered_cost"><source>bridge.experiments.cards.column.covered_cost</source><target>Covered cost</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.column.left_out"><source>bridge.experiments.cards.column.left_out</source><target>Left out</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.open"><source>bridge.worker_runs.details.open</source><target>View attempt</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.title"><source>bridge.worker_runs.details.title</source><target>Run attempt</target></trans-unit>

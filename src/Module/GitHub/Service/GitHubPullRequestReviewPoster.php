@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Module\GitHub\Service;
 
+use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Service\PostedPullRequestReview;
 use App\Module\Forge\Service\PullRequestReviewFailed;
 use App\Module\Forge\Service\PullRequestReviewKind;
 use App\Module\Forge\Service\PullRequestReviewPoster;
 use App\Module\GitHub\GitHubDelivery;
+use App\Module\GitHub\Repository\GitHubUserConnectionRepository;
 use Symfony\Component\Uid\Uuid;
 
 /** Posts a review as the GitHub account that a user connected, never as the App. */
@@ -24,6 +27,7 @@ final readonly class GitHubPullRequestReviewPoster implements PullRequestReviewP
         private UserRepository $users,
         private GitHubUserTokenRefresher $tokens,
         private GitHubUserApi $api,
+        private GitHubUserConnectionRepository $gitHubUserConnections,
     ) {
     }
 
@@ -36,24 +40,11 @@ final readonly class GitHubPullRequestReviewPoster implements PullRequestReviewP
     #[\Override]
     public function post(ForgePullRequest $pullRequest, PullRequestReviewKind $kind, string $body, string $userId): ?string
     {
-        $user = Uuid::isValid($userId) ? $this->users->find(Uuid::fromString($userId)) : null;
-        if (null === $user) {
-            throw new PullRequestReviewFailed('not_connected', permanent: true);
-        }
-
+        $user = $this->user($userId);
         if ('' === trim($body) && PullRequestReviewKind::Approve !== $kind) {
             throw new PullRequestReviewFailed('empty_body', permanent: true);
         }
-
-        $token = $this->tokens->accessTokenFor($user);
-        $accessToken = $token->accessToken;
-        if (GitHubUserTokenStatus::Fresh !== $token->status || null === $accessToken) {
-            throw match ($token->status) {
-                GitHubUserTokenStatus::Expired => new PullRequestReviewFailed('connection_expired', permanent: true),
-                GitHubUserTokenStatus::Unavailable => new PullRequestReviewFailed('token_unavailable', permanent: false),
-                default => new PullRequestReviewFailed('not_connected', permanent: true),
-            };
-        }
+        $accessToken = $this->accessToken($user);
 
         $event = match ($kind) {
             PullRequestReviewKind::Approve => 'APPROVE',
@@ -72,6 +63,61 @@ final readonly class GitHubPullRequestReviewPoster implements PullRequestReviewP
         } catch (GitHubUserApiFailed $e) {
             throw self::failed($e);
         }
+    }
+
+    #[\Override]
+    public function findPosted(ForgePullRequest $pullRequest, string $marker, string $userId): ?PostedPullRequestReview
+    {
+        $user = $this->user($userId);
+        $accessToken = $this->accessToken($user);
+        $connection = $this->gitHubUserConnections->findOneByUser($user)
+            ?? throw new PullRequestReviewFailed('not_connected', permanent: true);
+
+        try {
+            [$reviews, $complete] = $this->api->reviews($accessToken, GitHubPullRequestInstallations::repositoryPath($pullRequest->repository), $pullRequest->number);
+        } catch (GitHubUserApiFailed $e) {
+            throw self::failed($e);
+        }
+
+        foreach ($reviews as $review) {
+            if ($connection->githubUserId === $review['userId'] && str_contains($review['body'], $marker)) {
+                return new PostedPullRequestReview($review['url']);
+            }
+        }
+
+        // A review past the last page read can be the lost post, so only a full read may answer that none exists.
+        if (!$complete) {
+            throw new PullRequestReviewFailed('reviews_incomplete', permanent: false);
+        }
+
+        return null;
+    }
+
+    /** @throws PullRequestReviewFailed */
+    private function user(string $userId): User
+    {
+        return (Uuid::isValid($userId) ? $this->users->find(Uuid::fromString($userId)) : null)
+            ?? throw new PullRequestReviewFailed('not_connected', permanent: true);
+    }
+
+    /**
+     * @return non-empty-string
+     *
+     * @throws PullRequestReviewFailed
+     */
+    private function accessToken(User $user): string
+    {
+        $token = $this->tokens->accessTokenFor($user);
+        $accessToken = $token->accessToken;
+        if (GitHubUserTokenStatus::Fresh !== $token->status || null === $accessToken) {
+            throw match ($token->status) {
+                GitHubUserTokenStatus::Expired => new PullRequestReviewFailed('connection_expired', permanent: true),
+                GitHubUserTokenStatus::Unavailable => new PullRequestReviewFailed('token_unavailable', permanent: false),
+                default => new PullRequestReviewFailed('not_connected', permanent: true),
+            };
+        }
+
+        return $accessToken;
     }
 
     private static function failed(GitHubUserApiFailed $e): PullRequestReviewFailed

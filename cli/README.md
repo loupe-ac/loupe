@@ -693,8 +693,8 @@ runs, and the bridge runs it. A file with a `rules:` list or an
 `experiments:` list fails to load, with a message that names the work map. Move
 each rule to a `work:` entry for the kind of work it did, and drop `on`, `to`,
 `from`, `when`, `verdict`, `card`, `maxChain`, `resume`, `maxResumes`,
-`resultFields` and `allowUntrusted`. Give the variants of an experiment to the
-work entry that ran it.
+`resultFields` and `allowUntrusted`. Give the variants of an experiment to an
+`experiments:` block that covers the work entry that ran it.
 
 An `accounts` block declares the agent accounts, and `defaults.account` names
 the account of an entry that names none. A file with no `accounts` block loads,
@@ -928,13 +928,6 @@ work:
     prompt: Implement card {cardNumber} in project {project}.
     before:
       run: ["bin/worktree-up.sh", "{cardNumber}"]
-    variants:
-      - name: opus
-        weight: 1
-        model: opus
-      - name: sonnet
-        weight: 1
-        model: claude-sonnet-5-5
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
@@ -981,7 +974,6 @@ Each entry takes these fields:
 | `permissions` | no | The level `read-only`, `workspace` or `full`. Omitted, a worker takes the `permissionMode` of its account, then `defaults.permissions`, then `--permission-mode`. An interactive entry takes no default. A command entry cannot set it |
 | `before` | no | A command that runs ahead of the worker, as [The before command](#the-before-command) says. Only a worker entry can set it |
 | `workerPool` | no | The worker pool the run takes a slot from. Omitted, the entry uses `default`. Only a worker entry can set it |
-| `variants` | no | The variants of an experiment that the kind names. Only a worker entry can set it. See below |
 | `run` | for `action: command` | The argv list of the command, with placeholders. Only a command entry can set it |
 | `timeout` | no | How long the command can run. Defaults to `10m`, and is at most `60m`. Only a command entry can set it |
 | `description` | no | A short text that says what the command does. The bridge reports it to Loupe. Only a command entry can set it |
@@ -1019,11 +1011,12 @@ request. A person's rerun or resume of a run fills them from the context that
 the command carries, which is the context of the run's work request. A command
 from an older server carries none, and the values fill as empty.
 
-A worker entry with `variants` runs an experiment that the kind names. Each
-variant has a `name`, a `weight`, and a `model` or an `account`. It can also
-set `permissions`. A variant with no `model` takes the model of its account. The
-entry sets no `model`. The server pins the variant of each card, so a card keeps
-its model and its account on every later run of the kind.
+An `experiments:` block splits the cards of the kinds it `covers` between
+variants. Each variant has a `name` and a `weight`, and it can set a `model`,
+an `account`, `permissions` and a `kinds` map of settings for one covered kind.
+A setting that a variant leaves empty falls back to the work entry, then to the
+account. The server pins the variant of each card, so a card keeps its model and
+its account on every later covered run.
 [Experiments](../docs/extending/cli-bridge.md#experiments) gives the checks, the
 pin and the fallback.
 
@@ -1248,7 +1241,7 @@ placeholders of the work map, and the bridge fills each element on its own. A
 value therefore never splits into two arguments. The command runs in the
 project's `dir`, with the bridge's own environment. `timeout` defaults to `10m`,
 and the bridge refuses more than `60m`. The check refuses `prompt`, `model`,
-`account`, `permissions`, `variants`, `workerPool` and `before` on a command
+`account`, `permissions`, `workerPool` and `before` on a command
 entry. The accounts, the `defaults:` block and the bridge flags do not reach
 it.
 

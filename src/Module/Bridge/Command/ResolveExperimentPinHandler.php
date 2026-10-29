@@ -20,6 +20,7 @@ use Symfony\Component\Uid\Uuid;
  * offers, and moves a pin the rule dropped to the candidate. Every call
  * refreshes the pin, so the retention sweep keeps the pins of active cards.
  * Valid weights replace the stored weights, metrics and headline of the experiment.
+ * A valid covered list replaces the stored one, and no list keeps it.
  */
 final readonly class ResolveExperimentPinHandler
 {
@@ -82,7 +83,7 @@ final readonly class ResolveExperimentPinHandler
             $this->em->flush();
 
             if (null !== $command->weights) {
-                $this->experimentDefinitions->upsert($project, $command->experiment, $command->weights, $command->metrics, $command->headline, $now);
+                $this->experimentDefinitions->upsert($project, $command->experiment, $command->weights, $command->metrics, $command->headline, $now, $command->covers);
             }
 
             return new ResolveExperimentPinResult($pin->variant, $switchedFrom);

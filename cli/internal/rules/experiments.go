@@ -5,9 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"unicode/utf8"
+
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // The limits the server puts on an experiment. MaxWeight is the bridge's own,
@@ -30,14 +33,26 @@ var metricKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_:-]{0,127}$`)
 // modelPattern refuses the control characters the server refuses in a model.
 var modelPattern = regexp.MustCompile(`^[^\p{C}]+$`)
 
-// Experiment splits the runs of the rules that join it between models.
-type Experiment struct {
-	Name     string    `yaml:"name"`
+// ExperimentBlock is one entry of the experiments block of the rule file. The
+// map key is the experiment name, and Covers lists the kinds of work it runs
+// on the variant of the card.
+type ExperimentBlock struct {
+	Covers   []string  `yaml:"covers"`
 	Variants []Variant `yaml:"variants"`
 	Metrics  []string  `yaml:"metrics"`
 	Headline *Headline `yaml:"headline"`
+}
 
-	// settings holds the run settings of each variant, in variant order.
+// Experiment splits the runs of the kinds it covers between models.
+type Experiment struct {
+	Name     string
+	Covers   []string
+	Variants []Variant
+	Metrics  []string
+	Headline *Headline
+
+	// settings holds the run settings of each variant for one kind, in
+	// variant order.
 	settings []RunSettings
 }
 
@@ -57,10 +72,18 @@ type Goal struct {
 }
 
 // Variant is one model or account of an experiment, and its share of the
-// cards.
+// cards. Kinds overrides its settings for one covered kind.
 type Variant struct {
-	Name        string `yaml:"name"`
-	Weight      int    `yaml:"weight"`
+	Name        string                  `yaml:"name"`
+	Weight      int                     `yaml:"weight"`
+	Model       string                  `yaml:"model"`
+	Account     string                  `yaml:"account"`
+	Permissions string                  `yaml:"permissions"`
+	Kinds       map[string]KindSettings `yaml:"kinds"`
+}
+
+// KindSettings are the settings of a variant for one covered kind.
+type KindSettings struct {
 	Model       string `yaml:"model"`
 	Account     string `yaml:"account"`
 	Permissions string `yaml:"permissions"`
@@ -104,6 +127,7 @@ func (e Experiment) Pick(cardKey string) Variant {
 // clone copies the variants and the metrics, so a caller cannot change the
 // set's experiment.
 func (e Experiment) clone() *Experiment {
+	e.Covers = slices.Clone(e.Covers)
 	e.Variants = slices.Clone(e.Variants)
 	e.Metrics = slices.Clone(e.Metrics)
 	e.Headline = e.Headline.clone()
@@ -215,6 +239,9 @@ func checkHeadline(h *Headline) []error {
 	return errs
 }
 
+// checkVariant checks the name, the weight and the models of a variant. A
+// variant needs no model or account of its own, because a setting it leaves
+// empty falls back to the work entry and then to the account.
 func checkVariant(v Variant) error {
 	var errs []error
 	if !experimentNamePattern.MatchString(v.Name) {
@@ -226,21 +253,87 @@ func checkVariant(v Variant) error {
 	case v.Weight > MaxWeight:
 		errs = append(errs, fmt.Errorf("weight must be at most %d, got %d", MaxWeight, v.Weight))
 	}
-	switch n := utf8.RuneCountInString(v.Model); {
-	case v.Model == "" && v.Account == "":
-		errs = append(errs, errors.New("model or account is required"))
-	case v.Model == "":
-	case n > MaxModelLength:
-		errs = append(errs, fmt.Errorf("model is %d characters, and the server takes at most %d", n, MaxModelLength))
-	case !modelPattern.MatchString(v.Model):
-		errs = append(errs, fmt.Errorf("model %q holds a control character", v.Model))
-	default:
-		if err := checkWord("model", v.Model); err != nil {
-			errs = append(errs, err)
+	if err := checkModel(v.Model); err != nil {
+		errs = append(errs, err)
+	}
+	for _, kind := range slices.Sorted(maps.Keys(v.Kinds)) {
+		if err := checkModel(v.Kinds[kind].Model); err != nil {
+			errs = append(errs, fmt.Errorf("kind %q: %w", kind, err))
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+// checkModel checks a model that may be empty.
+func checkModel(model string) error {
+	switch n := utf8.RuneCountInString(model); {
+	case model == "":
+		return nil
+	case n > MaxModelLength:
+		return fmt.Errorf("model is %d characters, and the server takes at most %d", n, MaxModelLength)
+	case !modelPattern.MatchString(model):
+		return fmt.Errorf("model %q holds a control character", model)
+	}
+
+	return checkWord("model", model)
+}
+
+// maxCovers is the most kinds one experiment covers, as the server takes.
+const maxCovers = 32
+
+// checkExperiments checks the experiments block against the work map, and
+// returns the experiment each covered kind runs. It checks the shape of a
+// block, and checkWorkAccounts checks the accounts its variants name.
+func checkExperiments(work map[string]WorkEntry, blocks map[string]ExperimentBlock) (map[string]Experiment, []error) {
+	var errs []error
+	byKind := map[string]Experiment{}
+	owner := map[string]string{}
+	for _, name := range slices.Sorted(maps.Keys(blocks)) {
+		b := blocks[name]
+		prefix := fmt.Sprintf("experiment %q: ", name)
+		e := Experiment{Name: name, Covers: slices.Sorted(slices.Values(b.Covers)), Variants: b.Variants, Metrics: b.Metrics, Headline: b.Headline}
+		if err := checkExperiment(e); err != nil {
+			errs = append(errs, fmt.Errorf("%s%w", prefix, err))
+		}
+		if len(e.Covers) == 0 {
+			errs = append(errs, fmt.Errorf("%scovers lists no kind", prefix))
+		}
+		if len(e.Covers) > maxCovers {
+			errs = append(errs, fmt.Errorf("%scovers lists %d kinds, and the server takes at most %d", prefix, len(e.Covers), maxCovers))
+		}
+		for i, kind := range e.Covers {
+			switch {
+			case i > 0 && kind == e.Covers[i-1]:
+				errs = append(errs, fmt.Errorf("%scovers lists %q twice", prefix, kind))
+
+				continue
+			case owner[kind] != "":
+				errs = append(errs, fmt.Errorf("%skind %q is also covered by experiment %q, and one kind joins one experiment", prefix, kind, owner[kind]))
+
+				continue
+			}
+			owner[kind] = name
+			entry, ok := work[kind]
+			switch {
+			case !ok:
+				errs = append(errs, fmt.Errorf("%scovers kind %q, and work has no entry for it", prefix, kind))
+			case entry.Action != "" || entry.Subject != api.SubjectCard:
+				errs = append(errs, fmt.Errorf("%scovers kind %q, and an experiment covers a worker entry for a card only", prefix, kind))
+			default:
+				byKind[kind] = *e.clone()
+			}
+		}
+		for _, v := range e.Variants {
+			for _, kind := range slices.Sorted(maps.Keys(v.Kinds)) {
+				if !slices.Contains(e.Covers, kind) {
+					errs = append(errs, fmt.Errorf("%svariant %q: kinds names %q, and covers does not list it", prefix, v.Name, kind))
+				}
+			}
+		}
+	}
+
+	return byKind, errs
 }
 
 var errNamePattern = errors.New("a name is 1 to 64 lowercase letters, digits, hyphens and underscores, and starts with a letter or a digit, such as impl-model")
