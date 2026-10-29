@@ -38,7 +38,7 @@ final class BucketRuleControllersTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-bucket-rule-form] form[method="post"][action="/projects/'.$projectId.'/analytics/time-buckets"]'));
     }
 
-    public function test_the_summary_says_no_data_yet_and_shows_no_link_when_no_run_has_bucket_data(): void
+    public function test_the_summary_shows_a_no_data_panel_and_no_table_when_no_run_has_bucket_data(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('summary-empty');
@@ -56,10 +56,8 @@ final class BucketRuleControllersTest extends WebTestCase
         self::assertSame('/projects/'.$projectId.'/analytics/time-buckets', $form->attr('action'));
         self::assertSame('ninety-days', $form->filter('select[name="range"] option[selected]')->attr('value'));
         self::assertCount(1, $form->filter('noscript'));
-        self::assertCount(1, $summary->filter('.lp-metric-table__cue[data-controller="overflow-cue"] > .lp-metric-table__scroll[data-overflow-cue-target="viewport"] > table'));
-        self::assertCount(1, $summary->filter('.lp-metric-table__cue > .lp-overflow-cue__arrow--next'));
-        self::assertSame(['other'], $summary->filter('[data-bucket-summary-row]')->each(static fn ($row): string => (string) $row->attr('data-bucket-summary-row')));
-        self::assertSame('No data yet', trim($summary->filter('[data-bucket-summary-no-data]')->text()));
+        self::assertCount(0, $summary->filter('table'));
+        self::assertSame('No data yet. No run in this range has reported its tool calls, so Loupe cannot split its time into buckets.', trim($summary->filter('.lp-panel[data-bucket-summary-no-data]')->text()));
         self::assertCount(0, $summary->filter('a[data-bucket-summary-open]'));
     }
 
@@ -87,6 +85,8 @@ final class BucketRuleControllersTest extends WebTestCase
         $summary->filter('[data-bucket-summary-row]')->each(static function ($row) use (&$rows): void {
             $rows[(string) $row->attr('data-bucket-summary-row')] = array_map(static fn (string $hook): string => trim($row->filter('[data-bucket-summary-'.$hook.']')->text()), ['total', 'median', 'runs', 'share']);
         });
+        self::assertCount(1, $summary->filter('.lp-metric-table__cue[data-controller="overflow-cue"] > .lp-metric-table__scroll[data-overflow-cue-target="viewport"] > table'));
+        self::assertCount(1, $summary->filter('.lp-metric-table__cue > .lp-overflow-cue__arrow--next'));
         self::assertSame([
             'tests' => ['4 s', '2 s', '2 of 3 runs', '36%'],
             'git' => ['4 s', '2 s', '2 of 3 runs', '36%'],

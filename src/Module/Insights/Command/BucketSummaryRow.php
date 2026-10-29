@@ -16,8 +16,8 @@ final readonly class BucketSummaryRow
         public ?int $calls,
         /** The share of the time of every listed bucket, 0 when no bucket has time. */
         public float $share,
-        /** @var array<string, string>|null the Metrics query of the bucket, null when no run has bucket data */
-        public ?array $metricsParams,
+        /** @var array<string, string> the Metrics query of the bucket */
+        public array $metricsParams,
     ) {
     }
 }

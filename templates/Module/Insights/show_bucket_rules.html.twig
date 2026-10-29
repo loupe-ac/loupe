@@ -81,6 +81,9 @@
                 <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
             </twig:block>
         </twig:Ds:FilterBar>
+        {% if 0 == summary.knownRuns %}
+        <twig:Ds:Panel data-bucket-summary-no-data><twig:Ds:Hint>{{ 'insights.bucket_rules.summary.no_data'|trans }}</twig:Ds:Hint></twig:Ds:Panel>
+        {% else %}
         <div class="lp-metric-table">
             <div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-metric-table__cue" data-controller="overflow-cue">
 <div class="lp-metric-table__scroll" data-overflow-cue-target="viewport">
@@ -102,9 +105,6 @@
                     {# A bucket name comes from the project rules or the bridge, so it is rendered as text. Never add |raw here. #}
                     <tr data-bucket-summary-row="{{ row.name }}">
                         <td>{{ row.name }}</td>
-                        {% if row.metricsParams is null %}
-                        <td colspan="7" data-bucket-summary-no-data>{{ 'insights.bucket_rules.summary.no_data'|trans }}</td>
-                        {% else %}
                         <td class="lp-metric-table__number" data-bucket-summary-total>{{ row.total|metric_value(metric, constant('App\\Module\\Bridge\\Metric\\MetricStatistic::Sum')) }}</td>
                         <td class="lp-metric-table__number" data-bucket-summary-median>{{ row.median|metric_value(metric, constant('App\\Module\\Bridge\\Metric\\MetricStatistic::Median')) }}</td>
                         <td class="lp-metric-table__number" data-bucket-summary-with-subagents>{{ row.msWithSubagents is null ? 'insights.bucket_rules.summary.no_figure'|trans : row.msWithSubagents|metric_value(metric, constant('App\\Module\\Bridge\\Metric\\MetricStatistic::Sum')) }}</td>
@@ -112,7 +112,6 @@
                         <td data-bucket-summary-runs>{{ 'insights.bucket_rules.summary.runs'|trans({'%known%': summary.knownRuns, '%count%': summary.runs}) }}</td>
                         <td class="lp-metric-table__number" data-bucket-summary-share>{{ row.share|format_percent_number }}</td>
                         <td><a href="{{ path('app_project_analytics_metrics', {id: project.id}|merge(row.metricsParams)) }}" data-bucket-summary-open>{{ 'insights.bucket_rules.summary.open'|trans }}</a></td>
-                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -121,6 +120,7 @@
 {% include '_overflow_arrows.html.twig' only %}
 </div>
         </div>
+        {% endif %}
     </section>
 </twig:Ds:Workspace>
 {% endblock %}

@@ -57,7 +57,6 @@ final readonly class ShowBucketSummaryHandler
         $grandTotal = array_sum(array_column($figures, 0));
 
         $rows = [];
-        $hasData = [] !== $bucketTimes->times;
         foreach ($figures as $name => [$total, $median, $msWithSubagents, $calls]) {
             $name = (string) $name;
             $rows[] = new BucketSummaryRow(
@@ -67,9 +66,7 @@ final readonly class ShowBucketSummaryHandler
                 $msWithSubagents,
                 $calls,
                 0 < $grandTotal ? $total / $grandTotal : 0.0,
-                $hasData
-                    ? new MetricsQuery(unit: MetricUnit::Run, metric: new MetricShape(new MetricKey(Metric::BucketTime, $name)), statistic: MetricStatistic::Median, range: $command->range)->routeParams()
-                    : null,
+                new MetricsQuery(unit: MetricUnit::Run, metric: new MetricShape(new MetricKey(Metric::BucketTime, $name)), statistic: MetricStatistic::Median, range: $command->range)->routeParams(),
             );
         }
 

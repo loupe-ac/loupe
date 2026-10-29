@@ -8553,7 +8553,7 @@
             <trans-unit id="insights.bucket_rules.summary.column.share"><source>insights.bucket_rules.summary.column.share</source><target>Share</target></trans-unit>
             <trans-unit id="insights.bucket_rules.summary.column.link"><source>insights.bucket_rules.summary.column.link</source><target>Link</target></trans-unit>
             <trans-unit id="insights.bucket_rules.summary.runs"><source>insights.bucket_rules.summary.runs</source><target>{0}No runs|{1}%known% of 1 run|]1,Inf[%known% of %count% runs</target></trans-unit>
-            <trans-unit id="insights.bucket_rules.summary.no_data"><source>insights.bucket_rules.summary.no_data</source><target>No data yet</target></trans-unit>
+            <trans-unit id="insights.bucket_rules.summary.no_data"><source>insights.bucket_rules.summary.no_data</source><target>No data yet. No run in this range has reported its tool calls, so Loupe cannot split its time into buckets.</target></trans-unit>
             <trans-unit id="insights.bucket_rules.summary.no_figure"><source>insights.bucket_rules.summary.no_figure</source><target>No data</target></trans-unit>
             <trans-unit id="insights.bucket_rules.summary.column.with_subagents"><source>insights.bucket_rules.summary.column.with_subagents</source><target>With subagents</target></trans-unit>
             <trans-unit id="insights.bucket_rules.summary.column.calls"><source>insights.bucket_rules.summary.column.calls</source><target>Calls</target></trans-unit>

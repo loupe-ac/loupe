@@ -353,8 +353,8 @@ the count of closed runs.
 | **Share** | the part of the time of all the listed buckets |
 
 The range is **30 days**, **90 days** or **All time**, and its default is
-**90 days**. When no run in the range has tool-call data, every bucket shows
-**No data yet**. Otherwise a bucket with no time shows its figures as 0 ms,
+**90 days**. When no run in the range has tool-call data, the section shows
+**No data yet** in place of the table. Otherwise a bucket with no time shows its figures as 0 ms,
 with the share 0%, so you can tell it apart from missing data. Each bucket has
 the link **Open in Metrics**. It opens the Metrics tab on the
 time in that bucket for each run, with the median and the same range.
