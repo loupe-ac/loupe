@@ -20,10 +20,13 @@ final readonly class ExperimentCard
         public ?string $variant,
         /** Null when the card is gone or the board is off. */
         public ?CardColumn $column,
+        /** Every worker run of the card. */
         public int $runs,
         public int $fixRounds,
-        /** Millionths of a dollar. Null when no experiment run of the card reported usage. */
+        /** Millionths of a dollar, over every worker run of the card. Null when no run reported usage or one run has no price. */
         public ?int $costMicros,
+        /** Millionths of a dollar, over the runs of the experiment of a covered kind. Null when none reported usage or one has no price. */
+        public ?int $coveredCostMicros,
         public array $leftOut,
     ) {
     }

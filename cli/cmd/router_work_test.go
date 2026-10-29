@@ -688,6 +688,11 @@ work:
     prompt: Design card {cardNumber}.
   split:
     prompt: Split card {cardNumber}.
+  fix:
+    prompt: Fix card {cardNumber}.
+experiments:
+  split:
+    covers: [split, fix]
     variants:
       - {name: a, weight: 1, model: opus}
       - {name: b, weight: 3, model: sonnet}
@@ -734,9 +739,9 @@ func TestAnInteractiveWorkEntryLaunchesAfterItsClaim(t *testing.T) {
 	}
 }
 
-// An entry with variants pins its variant per card, as an experiment named
-// after the kind, and sends the metrics it declares.
-func TestAWorkEntryWithVariantsPinsItsVariant(t *testing.T) {
+// A covered kind pins its variant per card, as the experiment that covers it,
+// and sends the metrics and the covers it declares.
+func TestACoveredWorkEntryPinsItsVariant(t *testing.T) {
 	h, rec := launchHarnessWith(t, interactiveWorkRules, `[sh, -c, 'exit 0', sh, '{script}']`)
 	f := h.withWork()
 	pins := h.pins(func(context.Context, string) (string, string, error) { return "b", "", nil })
@@ -745,7 +750,7 @@ func TestAWorkEntryWithVariantsPinsItsVariant(t *testing.T) {
 
 	calls := pins.recorded()
 	if len(calls) != 1 || calls[0].experiment != "split" || calls[0].cardID != cardUUID(87) || calls[0].handle != testProject ||
-		!slices.Equal(calls[0].metrics, []string{"cost", "merge-rate"}) {
+		!slices.Equal(calls[0].metrics, []string{"cost", "merge-rate"}) || !slices.Equal(calls[0].covers, []string{"fix", "split"}) {
 		t.Fatalf("pin calls = %+v", calls)
 	}
 	if hl := calls[0].headline; hl == nil || hl.Goal == nil || *hl.Goal != (api.ExperimentGoal{Metric: "hours-to-merge", Better: "lower"}) ||
@@ -758,10 +763,9 @@ func TestAWorkEntryWithVariantsPinsItsVariant(t *testing.T) {
 	wantExperiment(t, rec.states(), runPin{Experiment: "split", Variant: "b", RequestedModel: "sonnet"})
 }
 
-// An entry that sets experiment sends that name with the pin request and the
-// run report, in place of its kind.
-func TestAWorkEntryWithAnExperimentNameSendsThatName(t *testing.T) {
-	body := strings.Replace(interactiveWorkRules, "  split:\n", "  split:\n    experiment: split-trial\n", 1)
+// The experiment sends its map key with the pin request and the run report.
+func TestAnExperimentSendsItsMapKeyAsItsName(t *testing.T) {
+	body := strings.Replace(interactiveWorkRules, "experiments:\n  split:\n", "experiments:\n  split-trial:\n", 1)
 	h, rec := launchHarnessWith(t, body, `[sh, -c, 'exit 0', sh, '{script}']`)
 	f := h.withWork()
 	pins := h.pins(func(context.Context, string) (string, string, error) { return "b", "", nil })
@@ -789,6 +793,25 @@ func TestAVariantWithAnAccountRunsWithTheModelOfTheAccount(t *testing.T) {
 		t.Fatalf("workers = %+v", got)
 	}
 	wantExperiment(t, rec.states(), runPin{Experiment: "split", Variant: "b", RequestedModel: "haiku"})
+}
+
+// The second covered kind pins through the same experiment, and the pin
+// request lists every kind the experiment covers.
+func TestASecondCoveredKindSendsThePinWithItsCovers(t *testing.T) {
+	h, rec := launchHarnessWith(t, interactiveWorkRules, `[sh, -c, 'exit 0', sh, '{script}']`)
+	f := h.withWork()
+	pins := h.pins(func(context.Context, string) (string, string, error) { return "b", "", nil })
+
+	h.offer(f, workRequest(1, 87, "fix", api.WorkRequestOpen))
+
+	calls := pins.recorded()
+	if len(calls) != 1 || calls[0].experiment != "split" || calls[0].cardID != cardUUID(87) || !slices.Equal(calls[0].covers, []string{"fix", "split"}) {
+		t.Fatalf("pin calls = %+v", calls)
+	}
+	if got := h.worker.recorded(); len(got) != 1 || got[0].model != "sonnet" {
+		t.Fatalf("workers = %+v", got)
+	}
+	wantExperiment(t, rec.states(), runPin{Experiment: "split", Variant: "b", RequestedModel: "sonnet"})
 }
 
 // analysisID is the id of the analysis that the subject tests run on.
