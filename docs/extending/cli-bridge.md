@@ -917,7 +917,9 @@ sends only the kind and the count. It sends no event text and no payload.
 
 For Claude Code, a kind comes from the transcript. An `attachment` line gives
 the kind from its `attachment.type`. A `system` line gives the kind from its
-`subtype`. For Codex, a kind comes from the type of an `event_msg` line of the
+`subtype`. A tool call that a `PreToolUse` hook refused counts under
+`hook_refused`. Claude Code writes the refusal only as a failed tool result whose
+text starts with `PreToolUse:`. For Codex, a kind comes from the type of an `event_msg` line of the
 session file.
 
 A kind is 1 to 64 characters of a-z, 0-9, `_`, `.` and `-`. A count is an

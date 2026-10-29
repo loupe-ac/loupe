@@ -10,4 +10,8 @@
 {"type":"system","timestamp":"2026-10-08T10:00:07.000Z","subtype":"compact_boundary"}
 {"type":"system","timestamp":"2026-10-08T10:00:08.000Z"}
 {"type":"attachment","timestamp":"2026-10-08T10:05:00.000Z","attachment":{"type":"diagnostics"}}
+{"type":"user","timestamp":"2026-10-08T10:00:10.000Z","message":{"role":"user","content":[{"type":"tool_result","content":"PreToolUse:Bash hook error: [/Users/someone/hook.py]: secret text","is_error":true,"tool_use_id":"a"}]}}
+{"type":"user","timestamp":"2026-10-08T10:00:11.000Z","message":{"role":"user","content":[{"type":"tool_result","content":[{"type":"text","text":"PreToolUse:Edit hook error: no"}],"is_error":true,"tool_use_id":"b"},{"type":"tool_result","content":"PreToolUse:Bash hook error: no","is_error":true,"tool_use_id":"c"}]}}
+{"type":"user","timestamp":"2026-10-08T10:00:12.000Z","message":{"role":"user","content":[{"type":"tool_result","content":"PreToolUse: printed by a command","is_error":false,"tool_use_id":"d"},{"type":"tool_result","content":"Exit code 1","is_error":true,"tool_use_id":"e"}]}}
+{"type":"user","timestamp":"2026-10-08T10:05:01.000Z","message":{"role":"user","content":[{"type":"tool_result","content":"PreToolUse:Bash hook error: late","is_error":true,"tool_use_id":"f"}]}}
 {"type":"attachment","timestamp":"2026-10-08T10:00:09.000Z","attachment":{"type":"diagnostics"
