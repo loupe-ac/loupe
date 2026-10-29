@@ -43,8 +43,17 @@ use App\Module\Bridge\EventListener\RearmCardsOnCardHoldsReleased;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Forge\Command\ReadPullRequestStateCommand;
+use App\Module\Forge\Command\ReadPullRequestStateHandler;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Event\PullRequestStateChanged;
+use App\Module\Forge\PullRequestSnapshot;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\ApprovalCoverageReaders;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
+use App\Module\Forge\Service\PullRequestStateReader;
+use App\Module\Forge\Service\PullRequestStateReaders;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Review;
@@ -60,6 +69,8 @@ use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\ShippedCardTypes;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -222,6 +233,54 @@ final class EvaluationListenersTest extends KernelTestCase
         $listener(new PullRequestStateChanged($unknown, $unknown->snapshot(), $unknown->snapshot()));
 
         self::assertEqualsCanonicalizing($this->ids($one, $two), $this->sent());
+    }
+
+    public function test_a_read_that_fills_the_close_time_of_a_tracked_closed_pull_request_asks_for_its_card(): void
+    {
+        $card = $this->card($this->project, 'next');
+        $this->em()->persist(new CardPullRequest($card, 'https://github.com/acme/widgets/pull/9', Forge::GitHub, 'acme/widgets', 9));
+        $row = new ForgePullRequest($this->project, 'github', 'acme/widgets', 9);
+        $row->apply(new PullRequestSnapshot(state: PullRequestState::Closed, headSha: 'abc'));
+        $this->em()->persist($row);
+        $this->em()->flush();
+        $this->transport()->reset();
+
+        $closedAt = new \DateTimeImmutable('2026-10-20 08:30:00');
+        $reader = new readonly class(new PullRequestSnapshot(state: PullRequestState::Closed, headSha: 'abc', closedAt: $closedAt)) implements PullRequestStateReader {
+            public function __construct(
+                private PullRequestSnapshot $answer,
+            ) {
+            }
+
+            #[\Override]
+            public function supports(string $forge): bool
+            {
+                return 'github' === $forge;
+            }
+
+            #[\Override]
+            public function read(ForgePullRequest $pullRequest): PullRequestSnapshot
+            {
+                return $this->answer;
+            }
+        };
+        $events = new EventDispatcher();
+        $events->addListener(PullRequestStateChanged::class, new EvaluateCardsOnPullRequestStateChanged($this->service(CardPullRequestRepository::class), $this->service(CardRepository::class), $this->trigger(), new ShippedCardTypes()));
+        $handler = new ReadPullRequestStateHandler(
+            $this->service(ForgePullRequestRepository::class),
+            new PullRequestStateReaders([$reader]),
+            new ApprovalCoverageReaders([]),
+            new PullRequestChangeFingerprintReaders([]),
+            $this->service(EntityManagerInterface::class),
+            $this->service(MessageBusInterface::class),
+            $events,
+            new MockClock('2026-10-29 12:00:00'),
+            new NullLogger(),
+        );
+
+        $handler(new ReadPullRequestStateCommand((string) $row->id, new \DateTimeImmutable('2026-10-29 12:00:00')));
+
+        self::assertSame($this->ids($card), $this->sent());
     }
 
     public function test_a_pull_request_change_asks_for_the_epic_of_a_child_and_the_children_of_an_epic(): void

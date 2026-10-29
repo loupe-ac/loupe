@@ -96,6 +96,8 @@ final readonly class ReadPullRequestStateHandler
             $uncoveredBefore = $pullRequest->uncoveredSha;
             $changeBefore = $pullRequest->changeFingerprint;
             $linesBefore = $pullRequest->linesFingerprint;
+            $closedBefore = $pullRequest->closedAt;
+            $mergedBefore = $pullRequest->mergedAt;
             $pullRequest->apply($current);
             $pullRequest->refreshedAt = $readStartedAt;
             $this->judgeCoverage($pullRequest);
@@ -114,7 +116,9 @@ final readonly class ReadPullRequestStateHandler
                 || $pullRequest->uncoveredSha !== $uncoveredBefore
                 || $pullRequest->latestApprovalId !== $latestApprovalBefore;
             $fingerprintChanged = $pullRequest->changeFingerprint !== $changeBefore || $pullRequest->linesFingerprint !== $linesBefore;
-            if (!$settled->equals($previous) || null !== $verdict || $coverageChanged || $fingerprintChanged) {
+            // The snapshot compares no time, yet a finish time decides whether a card link counts as work.
+            $finishChanged = $pullRequest->closedAt != $closedBefore || $pullRequest->mergedAt != $mergedBefore;
+            if (!$settled->equals($previous) || null !== $verdict || $coverageChanged || $fingerprintChanged || $finishChanged) {
                 $this->events->dispatch(new PullRequestStateChanged($pullRequest, $previous, $settled, $verdict));
             }
 

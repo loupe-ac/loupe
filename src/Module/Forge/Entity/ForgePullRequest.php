@@ -109,6 +109,9 @@ class ForgePullRequest
     public ?\DateTimeImmutable $mergedAt = null;
 
     #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $closedAt = null;
+
+    #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $approvedAt = null;
 
     #[ORM\Column(nullable: true)]
@@ -293,6 +296,7 @@ class ForgePullRequest
         $this->changesRequestedAt = $snapshot->changesRequestedAt;
         $this->openedAt = $snapshot->openedAt;
         $this->mergedAt = $snapshot->mergedAt;
+        $this->closedAt = $snapshot->closedAt;
         $this->approvedAt = $snapshot->approvedAt;
         $this->approvalSha = $snapshot->approvalSha;
         $this->approvalId = $snapshot->approvalId;
@@ -406,6 +410,7 @@ class ForgePullRequest
             $this->latestApprovalId,
             $this->latestApproverLogin,
             $this->title,
+            $this->closedAt,
         );
     }
 }
