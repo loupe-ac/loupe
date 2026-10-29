@@ -1,5 +1,5 @@
 key: lifecycle
-version: 28
+version: 29
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -173,7 +173,7 @@ rules:
               role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
-              limit: 5
+              limit: 6
               document: { tag: product-design, status: draft }
               checks:
                   - The Loupe plugin skills are installed for the agent
@@ -261,7 +261,7 @@ rules:
               role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
-              limit: 5
+              limit: 6
               document: { tag: tech-design, status: draft }
               checks:
                   - The agent can read the whole repository

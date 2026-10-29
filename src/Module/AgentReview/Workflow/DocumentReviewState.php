@@ -10,13 +10,14 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 final readonly class DocumentReviewState
 {
     /**
-     * @param list<string> $tags          the tags of the document
-     * @param int          $versionNumber the current version of the document
-     * @param ?string      $reviewId      the latest review of the document for the card, or null when it has none
-     * @param ?int         $reviewVersion the version that review read
-     * @param bool         $answered      whether a fix round answered that review
-     * @param bool         $needsPerson   whether that review has a finding that needs a person
-     * @param int          $failedCount   the failed reviews of the document for the card
+     * @param list<string> $tags           the tags of the document
+     * @param int          $versionNumber  the current version of the document
+     * @param ?string      $reviewId       the latest review of the document for the card, or null when it has none
+     * @param ?int         $reviewVersion  the version that review read
+     * @param bool         $answered       whether a fix round answered that review
+     * @param bool         $needsPerson    whether that review has a finding that needs a person
+     * @param int          $failedCount    the failed reviews of the document for the card
+     * @param int          $ownerPassCount the passed reviews of the document for the card with a finding for the owner
      */
     public function __construct(
         public string $documentId,
@@ -28,7 +29,14 @@ final readonly class DocumentReviewState
         public bool $answered,
         public bool $needsPerson,
         public int $failedCount,
+        public int $ownerPassCount = 0,
     ) {
+    }
+
+    /** The rounds the loop used: each failed review and each pass with a finding for the owner. */
+    public function usedRounds(): int
+    {
+        return $this->failedCount + $this->ownerPassCount;
     }
 
     public function hasTag(string $tag): bool
@@ -38,8 +46,8 @@ final readonly class DocumentReviewState
 
     public function finished(int $rounds): bool
     {
-        if ($this->failedCount >= $rounds) {
-            return true;
+        if (AgentReviewConclusion::Failure === $this->conclusion) {
+            return $this->usedRounds() >= $rounds;
         }
 
         if (AgentReviewConclusion::Success !== $this->conclusion) {
@@ -50,7 +58,7 @@ final readonly class DocumentReviewState
             return $this->reviewVersion === $this->versionNumber;
         }
 
-        return $this->answered && $this->reviewVersion < $this->versionNumber;
+        return $this->answered && $this->usedRounds() >= $rounds;
     }
 
     public function due(int $rounds): bool
@@ -68,6 +76,6 @@ final readonly class DocumentReviewState
             return false;
         }
 
-        return AgentReviewConclusion::Failure === $this->conclusion ? $this->failedCount < $rounds : $this->needsPerson;
+        return AgentReviewConclusion::Failure === $this->conclusion ? $this->usedRounds() < $rounds : $this->needsPerson;
     }
 }
