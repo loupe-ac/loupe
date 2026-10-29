@@ -44,6 +44,8 @@ use App\Module\Workflow\Expression\ConditionLeaf;
 use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Expression\NamedFact;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
+use App\Module\Workflow\Fact\ScheduledRetryFacts;
+use App\Module\Workflow\Fact\WorkHoldFacts;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
@@ -60,7 +62,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'merge-blocked', 'ruleset-mismatch', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
+        'document-in-review', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested', 'retry-scheduled',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
@@ -74,7 +76,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'ruleset-mismatch'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -168,6 +170,33 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['work-requested'], $this->passKeys($template, $this->stoppedFacts(['implement'])), 'queued work waits for a bridge');
         self::assertSame(['run-open'], $this->passKeys($template, $this->stoppedFacts([], ['implement'])));
         self::assertSame(['run-stopped'], $this->passKeys($template, $this->stoppedFacts()), 'the work ended with the card still where the run stopped');
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_a_stopped_run_whose_rule_waits_for_a_retry_waits_until_the_retry_is_due(string $key): void
+    {
+        $template = $this->template($key);
+
+        self::assertSame(['retry-scheduled'], $this->passKeys($template, $this->stoppedFacts(retryDueAt: '2026-10-01 12:10:00')));
+        self::assertSame(MarkerKind::Waiting, $this->written('retry-scheduled')->kind);
+        self::assertSame(['%due%' => '12:10'], $this->written('retry-scheduled')->params);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:10:00'), $this->writtenDueAt, 'the pass checks the card again when the retry is due');
+        self::assertSame(['run-stopped'], $this->passKeys($template, $this->stoppedFacts(retryDueAt: '2026-10-01 12:00:00')), 'a retry that is due shows the stop again');
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_failing_checks_whose_fix_waits_for_a_retry_wait_until_the_retry_is_due(string $key): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed, number: 12, checksFailedSince: new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $facts = static fn (string $dueAt): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            pullRequest: $pullRequest,
+            pullRequests: [$pullRequest],
+            provided: [ScheduledRetryFacts::class => new ScheduledRetryFacts([new \DateTimeImmutable($dueAt)])],
+        );
+
+        self::assertSame(['retry-scheduled'], $this->passKeys($this->template($key), $facts('2026-10-01 12:10:00')));
+        self::assertSame(['checks-failed'], $this->passKeys($this->template($key), $facts('2026-10-01 11:50:00')));
     }
 
     #[DataProvider('shippedKeys')]
@@ -477,6 +506,16 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['%number%' => 6, '%title%' => 'Which way?'], $this->written('open-question')->params);
     }
 
+    #[DataProvider('shippedKeys')]
+    public function test_a_pull_request_still_waits_for_approval_while_the_forge_computes_its_mergeability(string $template): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, checksOnHead: true, canMerge: false, baseIsDefault: true);
+
+        $this->pass($this->template($template), FactsMother::facts(card: FactsMother::card(slot: 'lifecycle' === $template ? 'in-review' : null), pullRequest: $pullRequest, pullRequests: [$pullRequest]));
+
+        self::assertContains('waits-for-approval', $this->writtenKeys());
+    }
+
     public function test_a_blocked_merge_after_the_approval_check_passed_needs_the_person_and_names_the_pull_request(): void
     {
         $blocked = FactsMother::pullRequest(checks: ChecksState::Passed, number: 9, approvalCheckPassed: true, mergeBlocked: true);
@@ -494,27 +533,6 @@ final class ShippedMarkersTest extends KernelTestCase
         $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $blocked, pullRequests: [$blocked]));
 
         self::assertNotContains('merge-blocked', $this->writtenKeys());
-    }
-
-    public function test_a_ruleset_that_does_not_fit_the_approval_check_needs_the_person(): void
-    {
-        foreach (['baseRequiresReview', 'approvalCheckUnpinned'] as $field) {
-            $mismatch = FactsMother::pullRequest(...[$field => true, 'number' => 9]);
-
-            $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $mismatch, pullRequests: [$mismatch]));
-
-            self::assertContains('ruleset-mismatch', $this->writtenKeys(), $field);
-            self::assertSame(MarkerLink::RulesetSetup, $this->written('ruleset-mismatch')->link, $field);
-        }
-    }
-
-    public function test_a_pull_request_with_a_fitting_ruleset_shows_no_ruleset_mismatch_marker(): void
-    {
-        $fitting = FactsMother::pullRequest(number: 9);
-
-        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $fitting, pullRequests: [$fitting]));
-
-        self::assertNotContains('ruleset-mismatch', $this->writtenKeys());
     }
 
     public function test_a_non_blocking_to_do_alone_needs_nobody_in_either_shipped_template(): void
@@ -581,6 +599,16 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['%number%' => 5, '%branch%' => 'feature/a'], $this->written('waits-for-parent-branch')->params);
     }
 
+    public function test_a_card_held_by_the_work_hold_needs_the_person_and_links_to_the_repositories(): void
+    {
+        $held = FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: [WorkHoldFacts::class => new WorkHoldFacts(new \DateTimeImmutable('2026-10-01 10:00:00'))]);
+
+        self::assertSame(['repository-misfit'], $this->keys($held));
+        self::assertSame(MarkerKind::NeedsYou, $this->written('repository-misfit')->kind);
+        self::assertSame(MarkerLink::Repositories, $this->written('repository-misfit')->link);
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'))), 'A card that no hold stops shows no repository marker.');
+    }
+
     public function test_a_card_in_a_terminal_column_shows_nothing(): void
     {
         $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed);
@@ -617,7 +645,7 @@ final class ShippedMarkersTest extends KernelTestCase
      * @param list<string> $work    the kinds of the open work requests
      * @param list<string> $workers the kinds of the open worker runs
      */
-    private function stoppedFacts(array $work = [], array $workers = []): Facts
+    private function stoppedFacts(array $work = [], array $workers = [], ?string $retryDueAt = null): Facts
     {
         return FactsMother::facts(
             card: FactsMother::card(slot: 'implementation'),
@@ -625,6 +653,7 @@ final class ShippedMarkersTest extends KernelTestCase
             provided: [
                 RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null),
                 WorkTakerFacts::class => $this->openRequests($work),
+                ScheduledRetryFacts::class => new ScheduledRetryFacts(null === $retryDueAt ? [] : [new \DateTimeImmutable($retryDueAt)]),
             ],
         );
     }

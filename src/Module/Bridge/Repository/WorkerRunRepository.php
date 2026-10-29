@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Repository;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\ExperimentPin;
@@ -91,21 +92,21 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** The newest worker run of the card that ended without success at or before the time, for the rule when one is given. */
-    public function findLatestFailedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
+    /** The newest worker run of the card that ended at or before the time, for the rule when one is given. A run that never started work does not count. */
+    public function findLatestEndedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
     {
-        $states = [...WorkerRunState::resumableStates(), WorkerRunState::NotStarted];
+        $notEnded = [...WorkerRunState::openStates(), WorkerRunState::Replaced, WorkerRunState::Skipped, WorkerRunState::Dropped];
         $qb = $this->createQueryBuilder('r')
             ->andWhere('r.project = :project')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
             ->andWhere('r.kind = :kind')
-            ->andWhere('r.state IN (:states)')
+            ->andWhere('r.state NOT IN (:notEnded)')
             ->andWhere('r.receivedAt <= :before')
             ->setParameter('project', $project)
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->setParameter('cardSubject', WorkSubject::CARD)
             ->setParameter('kind', WorkerRunKind::Worker->value)
-            ->setParameter('states', array_map(static fn (WorkerRunState $state): string => $state->value, $states))
+            ->setParameter('notEnded', array_map(static fn (WorkerRunState $state): string => $state->value, $notEnded))
             ->setParameter('before', $before)
             ->orderBy('r.receivedAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')
@@ -645,6 +646,120 @@ class WorkerRunRepository extends ServiceEntityRepository
             static fn (mixed $id): string => $id instanceof Uuid ? $id->toRfc4122() : Uuid::fromString(\is_string($id) ? $id : throw new \LogicException('A run id is a string.'))->toRfc4122(),
             $found,
         ));
+    }
+
+    /**
+     * The open interactive runs of one session in every project of the owner.
+     *
+     * @return list<WorkerRun> locked until the transaction ends, in id order so two callers cannot deadlock
+     */
+    public function findOpenInteractiveOfOwnerSessionForUpdate(User $owner, Uuid $sessionId): array
+    {
+        return array_values(self::forUpdate($this->openInteractive()
+            ->join('r.project', 'p')
+            ->andWhere('p.owner = :owner')
+            ->andWhere('r.sessionId = :sessionId')
+            ->setParameter('owner', $owner)
+            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->orderBy('r.id', 'ASC'))
+            ->getResult());
+    }
+
+    /**
+     * The open interactive runs with no sign of life since $quietBefore. A run that never showed one counts from its start.
+     *
+     * @return list<WorkerRun> locked until the transaction ends, in id order so two callers cannot deadlock
+     */
+    public function findQuietOpenInteractiveForUpdate(\DateTimeImmutable $quietBefore, int $limit): array
+    {
+        return array_values(self::forUpdate($this->openInteractive()
+            ->andWhere('COALESCE(r.lastActivityAt, r.startedAt, r.receivedAt) < :quietBefore')
+            ->setParameter('quietBefore', $quietBefore, MicrosecondDateTimeImmutableType::NAME)
+            ->orderBy('r.id', 'ASC')
+            ->setMaxResults($limit))
+            ->getResult());
+    }
+
+    /**
+     * Stamps the open interactive runs of the session in the project, and returns how many rows changed. A run
+     * stamped within $minInterval seconds keeps its time, so a busy session writes once a minute.
+     */
+    public function touchOpenInteractive(Project $project, Uuid $sessionId, \DateTimeImmutable $at, int $minInterval = 60): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(WorkerRun::class, 'r')
+            ->set('r.lastActivityAt', ':at')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.kind = :interactive')
+            ->andWhere('r.state = :running')
+            ->andWhere('r.sessionId = :sessionId')
+            ->andWhere('r.lastActivityAt IS NULL OR r.lastActivityAt < :guard')
+            ->setParameter('at', $at, MicrosecondDateTimeImmutableType::NAME)
+            ->setParameter('guard', $at->modify(\sprintf('-%d seconds', $minInterval)), MicrosecondDateTimeImmutableType::NAME)
+            ->setParameter('project', $project)
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->setParameter('running', WorkerRunState::Running->value)
+            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * The open interactive runs that this bridge launched in any project of the owner, whether or not the bridge
+     * follows the project now.
+     *
+     * @param list<Uuid> $sessionIds
+     *
+     * @return list<WorkerRun> locked until the transaction ends, in id order so two callers cannot deadlock
+     */
+    public function findOpenInteractiveOfBridgeForUpdate(Uuid $bridgeId, User $owner, array $sessionIds): array
+    {
+        if ([] === $sessionIds) {
+            return [];
+        }
+
+        $qb = $this->openInteractive()
+            ->join('r.project', 'p')
+            ->andWhere('p.owner = :owner')
+            ->andWhere('r.bridgeId = :bridgeId')
+            ->setParameter('owner', $owner)
+            ->setParameter('bridgeId', $bridgeId, UuidType::NAME)
+            ->andWhere('r.sessionId IN (:sessionIds)')
+            ->setParameter('sessionIds', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $sessionIds))
+            ->orderBy('r.id', 'ASC');
+
+        return array_values(self::forUpdate($qb)->getResult());
+    }
+
+    /**
+     * The session ids of the open interactive runs that this bridge launched in any project of the owner.
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function findOpenInteractiveSessionIdsOfBridge(Uuid $bridgeId, User $owner): array
+    {
+        /** @var list<Uuid> $ids */
+        $ids = $this->openInteractive()
+            ->select('DISTINCT r.sessionId')
+            ->join('r.project', 'p')
+            ->andWhere('p.owner = :owner')
+            ->andWhere('r.bridgeId = :bridgeId')
+            ->andWhere('r.sessionId IS NOT NULL')
+            ->setParameter('owner', $owner)
+            ->setParameter('bridgeId', $bridgeId, UuidType::NAME)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(static fn (Uuid|string $id): string => (string) $id, $ids);
+    }
+
+    private function openInteractive(): QueryBuilder
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.kind = :interactive')
+            ->andWhere('r.state = :running')
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->setParameter('running', WorkerRunState::Running->value);
     }
 
     public function hasOpenInteractive(Project $project, Uuid $cardId): bool

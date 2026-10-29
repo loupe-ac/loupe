@@ -299,12 +299,12 @@ class CardPullRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * The earliest opening and the latest merge of the pull requests each card links,
-     * as the last forge read found them. A card with no read pull request has no key.
+     * When each pull request that a card links opened and merged, as the last forge read found them. A card with
+     * no read pull request has no key.
      *
      * @param list<Uuid> $cardIds
      *
-     * @return array<string, array{openedAt: ?\DateTimeImmutable, mergedAt: ?\DateTimeImmutable}> card id => times
+     * @return array<string, list<array{openedAt: ?\DateTimeImmutable, mergedAt: ?\DateTimeImmutable}>> card id => one entry per pull request
      */
     public function findPullRequestTimesOfCards(Project $project, array $cardIds): array
     {
@@ -315,13 +315,13 @@ class CardPullRequestRepository extends ServiceEntityRepository
         $connection = $this->getEntityManager()->getConnection();
         /** @var list<array{card_id: string, opened_at: ?string, merged_at: ?string}> $rows */
         $rows = $connection->fetchAllAssociative(
-            'SELECT c.id AS card_id, MIN(pr.opened_at) AS opened_at, MAX(pr.merged_at) AS merged_at
+            'SELECT c.id AS card_id, pr.opened_at, pr.merged_at
             FROM board_card_pull_requests link
             JOIN board_cards c ON c.id = link.card_id
             JOIN forge_pull_requests pr ON pr.project_id = c.project_id AND pr.forge = link.forge
                 AND pr.repository = LOWER(link.repository) AND pr.number = link.number
             WHERE c.project_id = :project AND c.id IN (:cards)
-            GROUP BY c.id',
+            ORDER BY c.id, pr.opened_at, pr.number',
             [
                 'project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(),
                 'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
@@ -335,7 +335,7 @@ class CardPullRequestRepository extends ServiceEntityRepository
         foreach ($rows as $row) {
             $openedAt = $type->convertToPHPValue($row['opened_at'], $platform);
             $mergedAt = $type->convertToPHPValue($row['merged_at'], $platform);
-            $times[$row['card_id']] = [
+            $times[$row['card_id']][] = [
                 'openedAt' => $openedAt instanceof \DateTimeImmutable ? $openedAt : null,
                 'mergedAt' => $mergedAt instanceof \DateTimeImmutable ? $mergedAt : null,
             ];

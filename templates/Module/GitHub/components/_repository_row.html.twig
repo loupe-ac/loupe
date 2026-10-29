@@ -1,0 +1,134 @@
+{#- One repository of the Repositories section. Props: row (RepositoryRow), project (Project). -#}
+{% set repository = row.repository %}
+{% set check = row.check %}
+<div class="lp-repository" id="{{ row.elementId }}" data-forge-repository="{{ repository.id }}" data-repository-row-url="{{ path('app_github_repository_row', {id: project.id, repositoryId: repository.id}) }}">
+    <div class="lp-identity-row">
+        <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--md lp-identity-row__glyph" />
+        <span class="lp-identity-row__text">
+            <span class="lp-identity-row__name lp-identity-row__name--mono" data-testid="forge-repository-path">{{ repository.path }}</span>
+            <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="forge-repository-health">
+                {%- if row.health == 'working' -%}
+                    {{ 'github.repositories.health.working'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
+                {%- elseif row.health == 'quiet' -%}
+                    {{ 'github.repositories.health.quiet'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
+                {%- else -%}
+                    {{ 'github.repositories.health.waiting'|trans }}
+                {%- endif -%}
+            </span>
+        </span>
+        {% if row.workflowLabelKey %}
+        <twig:Ds:Tag tone="neutral" data-testid="forge-repository-workflow">{{ 'github.repositories.row.workflow'|trans({'%workflow%': row.workflowLabelKey|trans}) }}</twig:Ds:Tag>
+        {% endif %}
+        <div data-controller="modal">
+            <twig:Ds:Button variant="danger-ghost" size="sm" type="button" data-action="click->modal#open">{{ 'github.repositories.remove.action'|trans }}</twig:Ds:Button>
+            <twig:Ds:Dialog aria-labelledby="remove-repository-title-{{ repository.id }}" data-action="cancel->modal#close">
+                <h2 class="lp-dialog-title" id="remove-repository-title-{{ repository.id }}">{{ 'github.repositories.remove.title'|trans }}</h2>
+                <p class="lp-dialog-desc">{{ 'github.repositories.remove.description'|trans({'%path%': repository.path}) }}</p>
+                <form method="post" action="{{ path('app_forge_repository_remove', {id: project.id, repositoryId: repository.id}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('forge-repository-remove') }}">
+                    <twig:Ds:FormActions>
+                        <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
+                        <twig:Ds:Button variant="danger" type="submit">{{ 'github.repositories.remove.confirm'|trans }}</twig:Ds:Button>
+                    </twig:Ds:FormActions>
+                </form>
+            </twig:Ds:Dialog>
+        </div>
+    </div>
+
+    {% if row.suggests %}
+    {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
+    <div class="lp-repository-check" data-testid="forge-repository-check">
+        {% if row.blocks %}
+        <twig:Ds:Flash severity="error" :title="'github.repositories.check.paused.title'|trans" data-testid="forge-repository-paused">
+            {%- if row.workflowLabelKey -%}
+                {{ 'github.repositories.check.paused.text'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+            {%- else -%}
+                {{ 'github.repositories.check.paused.text_unnamed'|trans }}
+            {%- endif -%}
+        </twig:Ds:Flash>
+        {% endif %}
+        {% if check is not null and check.failure is not null %}
+            {% if check.failure == 'no_installation' %}
+            <twig:Ds:Flash severity="warning" data-testid="forge-repository-check-failed">{{ 'github.repositories.check.failed.no_installation'|trans }}</twig:Ds:Flash>
+            {% else %}
+            <twig:Ds:Flash severity="warning" :title="'github.repositories.check.failed.title'|trans({'%path%': repository.path})" data-testid="forge-repository-check-failed">
+                {{ 'github.repositories.check.failed.read'|trans({'%time%': check.attemptedAt|date('H:i')}) }}
+                <twig:block name="actions">
+                    <twig:Ds:ActionForm :action="checkAgainUrl" token="github-repository-check" frame="_top">
+                        <twig:Ds:Button variant="on-card" size="sm" type="submit" data-testid="forge-repository-check-again">{{ 'github.repositories.check.again'|trans }}</twig:Ds:Button>
+                    </twig:Ds:ActionForm>
+                </twig:block>
+            </twig:Ds:Flash>
+            {% endif %}
+            {% if row.lines is not empty %}
+            <p class="lp-repository-check__hint" data-testid="forge-repository-check-kept">{{ 'github.repositories.check.failed.kept'|trans }}</p>
+            {% endif %}
+        {% endif %}
+        {% if row.lines is not empty %}
+        <div class="lp-repository-check__head">
+            <h3 class="lp-repository-check__title">
+                {%- if row.workflowLabelKey -%}
+                    {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+                {%- else -%}
+                    {{ 'github.repositories.check.heading_unnamed'|trans }}
+                {%- endif -%}
+            </h3>
+            {% if check.checkedAt %}
+            <span class="lp-repository-check__time" data-testid="forge-repository-checked">
+                {{ 'github.repositories.check.checked'|trans }} <twig:Ds:RelativeTime :datetime="check.checkedAt" />
+            </span>
+            {% endif %}
+        </div>
+        {% for line in row.lines %}
+        <div class="lp-repository-check__line" data-testid="forge-repository-check-line">
+            <span class="lp-repository-check__state"><twig:Ds:StatusChip :modifier="line.modifier" :label="line.stateKey|trans" /></span>
+            <span class="lp-repository-check__text">
+                <span class="lp-repository-check__line-title">{{ line.titleKey|trans(line.titleParameters) }}</span>
+                <span class="lp-repository-check__detail">{{ line.detailKey|trans(line.detailParameters) }}</span>
+                {% if line.gap == 'classic_protection' and row.guide.classicProtectionLink %}
+                <span class="lp-repository-check__links">
+                    {% set link = row.guide.classicProtectionLink %}
+                    <twig:Ds:Button variant="ghost" size="sm" :href="link.href" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-guide-link">{{ link.labelKey|trans(link.labelParameters) }}</twig:Ds:Button>
+                </span>
+                {% endif %}
+            </span>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% if row.guide.hasSteps %}
+        <div class="lp-repository-guide" data-testid="forge-repository-guide">
+            <h3 class="lp-repository-guide__title">{{ 'github.repositories.guide.title'|trans }}</h3>
+            <ol class="lp-repository-guide__steps">
+                {% for step in row.guide.steps %}
+                <li data-testid="forge-repository-guide-step" data-step="{{ step.kind }}">
+                    <span>{% for text in step.texts %}{{ text.key|trans(text.parameters) }}{% if not loop.last %} {% endif %}{% endfor %}</span>
+                    {% if step.links is not empty %}
+                    <div class="lp-repository-guide__links">
+                        {% for link in step.links %}
+                            {% if link.external %}
+                            <twig:Ds:Button variant="ghost" size="sm" :href="link.href" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-guide-link">{{ link.labelKey|trans(link.labelParameters) }}</twig:Ds:Button>
+                            {% else %}
+                            <twig:Ds:Button variant="on-card" size="sm" :href="link.href" data-turbo="false" data-testid="forge-repository-guide-link">{{ link.labelKey|trans(link.labelParameters) }}</twig:Ds:Button>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+        {% if check is not null and check.failure is null %}
+        <div class="lp-repository-check__actions">
+            <twig:Ds:ActionForm :action="checkAgainUrl" token="github-repository-check" frame="_top">
+                <twig:Ds:Button variant="primary" size="sm" type="submit" data-testid="forge-repository-check-again">{{ 'github.repositories.check.again'|trans }}</twig:Ds:Button>
+            </twig:Ds:ActionForm>
+            <span class="lp-repository-check__hint">{{ (row.blocks ? 'github.repositories.check.again_hint' : 'github.repositories.check.again_hint_no_pause')|trans }}</span>
+        </div>
+        {% endif %}
+        {% if row.checking %}
+        <p class="lp-repository-check__checking" data-repository-checking data-testid="forge-repository-checking">{{ 'github.repositories.check.checking'|trans }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

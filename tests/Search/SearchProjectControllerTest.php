@@ -30,6 +30,7 @@ final class SearchProjectControllerTest extends WebTestCase
         $em->flush();
         $create = self::getContainer()->get(CreateDocumentHandler::class);
         $document = $create(new CreateDocumentCommand($project, 'Visible document', 'quartz'));
+        $create(new CreateDocumentCommand($project, 'Garnet notes for card:9001', 'garnet'));
         $em->clear();
         $client->loginUser($owner);
         $url = '/projects/'.$project->id.'/search';
@@ -46,6 +47,11 @@ final class SearchProjectControllerTest extends WebTestCase
         self::assertSelectorExists('#project-search-results [data-search-kind="document"]');
         self::assertSelectorNotExists('.lp-sidebar');
         self::assertResponseHeaderSame('Vary', 'Turbo-Frame');
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'garnet']);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('[data-search-kind="document"] span', 'Garnet notes for card #9001');
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'garnet'], server: ['HTTP_TURBO_FRAME' => 'topbar-search-results']);
+        self::assertSelectorTextSame('[data-search-kind="document"] .lp-menu__label', 'Garnet notes for card #9001', 'the dropdown shows a reference token as its text');
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => str_repeat('x', 201)]);
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorNotExists('[data-search-kind]');
@@ -53,6 +59,15 @@ final class SearchProjectControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'quartz', 'page' => -1]);
         self::assertResponseStatusCodeSame(422);
+        foreach (['!!!', '#', '- -'] as $punctuation) {
+            $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => $punctuation]);
+            self::assertResponseIsSuccessful();
+            self::assertSelectorNotExists('[data-search-kind]');
+            self::assertSelectorExists('[role="status"]', 'a query of punctuation shows the no-result message: '.$punctuation);
+        }
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'uart']);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-search-kind="document"]', 'a piece from inside a word finds the document');
         $client->loginUser($outsider);
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $url, ['query' => 'quartz']);
         self::assertResponseStatusCodeSame(403);

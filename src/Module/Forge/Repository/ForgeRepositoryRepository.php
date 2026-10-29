@@ -100,4 +100,16 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
             ['key' => 'forge_repository:'.$forge.':'.$externalId],
         );
     }
+
+    /**
+     * @return list<array{id: string, projectId: string}> every repository, with its project
+     */
+    public function findIdsWithProject(): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT id, project_id FROM forge_repositories ORDER BY created_at, id',
+        );
+
+        return array_map(static fn (array $row): array => ['id' => (string) $row['id'], 'projectId' => (string) $row['project_id']], $rows);
+    }
 }

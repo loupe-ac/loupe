@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
-use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricValueType;
 
@@ -17,12 +17,13 @@ final readonly class MetricValueFormatter
     }
 
     /**
-     * A count of rows reads as a number, whatever the type of its metric.
+     * A count of rows reads as a number, whatever the type of its metric. A bare value type
+     * stands for a built-in metric, and a template duration is in hours.
      *
      * @param ?MetricStatistic $statistic     null for the value of one row
      * @param ?int             $moneyDecimals the decimals of a dollar amount, two when null
      */
-    public function format(int|float|null $value, Metric $metric, ?MetricStatistic $statistic = null, ?int $moneyDecimals = null): ?string
+    public function format(int|float|null $value, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic = null, ?int $moneyDecimals = null): ?string
     {
         if (null === $value) {
             return null;
@@ -31,10 +32,13 @@ final readonly class MetricValueFormatter
             return $this->number($value, \NumberFormatter::DECIMAL, 0, 0);
         }
 
-        return match ($metric->valueType()) {
+        $inHours = $metric instanceof MetricShape && $metric->isInHours();
+        $type = $metric instanceof MetricShape ? $metric->valueType() : $metric;
+
+        return match ($type) {
             MetricValueType::Money => null !== $moneyDecimals ? $this->money($value, $moneyDecimals, $moneyDecimals) : $this->money($value, 2, self::maxMoneyDecimals($value)),
             MetricValueType::Ratio => $this->number($value, \NumberFormatter::PERCENT, 1, 1),
-            MetricValueType::Duration => Metric::HoursToMerge === $metric
+            MetricValueType::Duration => $inHours
                 ? $this->number($value, \NumberFormatter::DECIMAL, 0, 1).' h'
                 : self::milliseconds((int) round($value)),
             MetricValueType::Tokens, MetricValueType::Count, MetricValueType::Boolean => $this->number($value, \NumberFormatter::DECIMAL, 0, 1),

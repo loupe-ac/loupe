@@ -31,6 +31,9 @@ final readonly class SearchOwnedProjectsHandler
                     $projectScoped ? $project->name.' · '.$result->title : $result->title,
                     $result->url,
                     $result->kind,
+                    $result->number,
+                    $result->meta,
+                    $result->tone,
                 );
             }
             $hasMore = $hasMore || $view->results->hasMore;

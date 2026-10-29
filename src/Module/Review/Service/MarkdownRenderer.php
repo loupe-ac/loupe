@@ -112,16 +112,17 @@ final readonly class MarkdownRenderer
     private const int FRONT_MATTER_MAX_DEPTH = 16;
 
     /**
-     * `$decisions` is defaulted rather than required only so the many unit tests
-     * that build a renderer directly keep working; the container injects the
-     * shared service, so the app never runs two instances with two different
-     * nonces.
+     * `$decisions` and `$tokens` are defaulted rather than required only so the
+     * many unit tests that build a renderer directly keep working; the container
+     * injects the shared services, so the app never runs two instances with two
+     * different nonces.
      */
     public function __construct(
         private LoggerInterface $logger,
         private TranslatorInterface $translator,
         private DecisionBlockService $decisions = new DecisionBlockService(),
         private DiffMarkdownComposer $diffComposer = new DiffMarkdownComposer(),
+        private ReferenceTokens $tokens = new ReferenceTokens(),
     ) {
         $nonce = bin2hex(random_bytes(8));
         $this->noteBlockOpen = sprintf('[loupe-note-%s-block]', $nonce);
@@ -294,6 +295,9 @@ final readonly class MarkdownRenderer
         $html = $this->withDocumentNotes(
             $this->decisions->toControls($this->sanitizer->sanitize($rendered->getContent())),
         );
+        // After sanitization, which would drop the data attributes, and before
+        // the heading ids, so an id is computed from the text a reader sees.
+        $html = $this->tokens->mark($html);
         if ($headingIds) {
             $html = $this->withHeadingIds($html);
         }

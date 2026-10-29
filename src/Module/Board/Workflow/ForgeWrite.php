@@ -26,6 +26,7 @@ use App\Module\Forge\Service\EpicBranchMergeFailed;
 use App\Module\Forge\Service\EpicBranchMergers;
 use App\Module\Forge\Service\ForgePullRequestWrites;
 use App\Module\Forge\Service\PullRequestCheckFailed;
+use App\Module\Forge\Service\PullRequestMerger;
 use App\Module\Forge\Service\PullRequestOpeners;
 use App\Module\Forge\Service\PullRequestStateWriters;
 use App\Module\Forge\Service\PullRequestSyncFailed;
@@ -45,7 +46,6 @@ use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -90,9 +90,6 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         private CardEvaluations $evaluations,
         private CardTypeCatalog $catalog,
         private LoggerInterface $logger,
-
-        #[Autowire(param: 'app.workflow.merge_method')]
-        private string $mergeMethod,
     ) {
     }
 
@@ -116,6 +113,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             new Parameter('fallback', ParameterType::String, required: false),
             new Parameter('comment', ParameterType::String, required: false, choices: self::COMMENTS),
             new Parameter('state', ParameterType::String, required: false, choices: self::APPROVAL_STATES),
+            new Parameter('methods', ParameterType::List, required: false, choices: PullRequestMerger::METHODS),
         ];
     }
 
@@ -128,6 +126,9 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         }
         if (ForgeWriteKind::ApprovalCheck->value === $write && !\array_key_exists('state', $params)) {
             return ['missing parameter "state"'];
+        }
+        if (ForgeWriteKind::Merge->value === $write && !\array_key_exists('methods', $params)) {
+            return ['missing parameter "methods"'];
         }
         $needsFallback = !\in_array($write, self::WRITES_WITHOUT_FALLBACK, true);
 
@@ -248,7 +249,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         }
         try {
             return match ($write) {
-                ForgeWriteKind::Merge => $this->forgeWrite(fn () => $this->forgePullRequestWrites->merge($pullRequest, $this->mergeMethod), $fallback),
+                ForgeWriteKind::Merge => $this->forgeWrite(fn () => $this->forgePullRequestWrites->merge($pullRequest, $context->stringList('methods')), $fallback),
                 ForgeWriteKind::ChangeBase => $this->changeBase($pullRequest, $fallback),
                 ForgeWriteKind::UpdateBranch => $this->forgeWrite(fn () => $this->forgePullRequestWrites->updateBranch($pullRequest), $fallback),
                 ForgeWriteKind::ApprovalCheck => $this->approvalCheck($context, $card, $pullRequest),

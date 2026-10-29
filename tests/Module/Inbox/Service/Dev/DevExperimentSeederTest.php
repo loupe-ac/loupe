@@ -11,6 +11,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -62,6 +63,29 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertNotEmpty($runs);
         foreach ($runs as $run) {
             self::assertSame(['claude-code', 'claude'], [$run->harness, $run->account]);
+        }
+    }
+
+    public function test_an_experiment_with_metrics_gives_each_merged_card_a_pull_request_that_opened_and_merged(): void
+    {
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'dev-experiment-'.uniqid().'@example.com'), 'Experiment');
+        $this->seedColumns($project);
+        $em->flush();
+
+        self::assertTrue($this->seeder()->seed($project));
+        self::assertTrue($this->seeder()->seed($project, 'template-metrics', null, ['cost', 'hours-to-merge']));
+
+        $em->clear();
+        $definition = $this->service(ExperimentDefinitionRepository::class)->findOneBy(['project' => $project->id, 'experiment' => 'template-metrics']);
+        self::assertSame(['cost', 'hours-to-merge'], $definition?->metrics);
+
+        $states = $this->service(ForgePullRequestRepository::class)->findBy(['project' => $project->id]);
+        self::assertCount(11, $states);
+        foreach ($states as $state) {
+            self::assertNotNull($state->openedAt);
+            self::assertNotNull($state->mergedAt);
+            self::assertLessThan($state->mergedAt, $state->openedAt);
         }
     }
 

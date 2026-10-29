@@ -6,26 +6,29 @@ namespace App\Tests\Module\Insights\View;
 
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Insights\View\MetricChart;
 use App\Module\Insights\View\MetricChartBar;
 use App\Module\Insights\View\MetricChartBucket;
 use App\Module\Insights\View\MetricChartSeries;
 use App\Module\Insights\View\MetricChartTick;
+use App\Tests\Support\TemplateMetricSets;
 use PHPUnit\Framework\TestCase;
 
 final class MetricChartTest extends TestCase
 {
     public function test_no_series_gives_no_chart(): void
     {
-        self::assertNull(MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, []));
+        self::assertNull(MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, []));
     }
 
     public function test_one_series_draws_one_bar_per_bucket_on_a_nice_axis(): void
     {
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Day, [self::series(null, [
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Day, [self::series(null, [
             '2026-10-01' => 1.0,
             '2026-10-02' => 3.0,
             '2026-10-04' => 2.0,
@@ -55,7 +58,7 @@ final class MetricChartTest extends TestCase
 
     public function test_a_bar_keeps_its_point_and_its_series(): void
     {
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, [self::series('implement', ['2026-09-28' => 2.0], rows: 3)]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [self::series('implement', ['2026-09-28' => 2.0], rows: 3)]);
 
         self::assertNotNull($chart);
         $bar = $chart->buckets[0]->bars[0];
@@ -68,7 +71,7 @@ final class MetricChartTest extends TestCase
 
     public function test_two_series_stand_side_by_side_in_one_bucket(): void
     {
-        $chart = MetricChart::build(Metric::Duration, MetricStatistic::Median, MetricBucket::Week, [
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Duration)), MetricStatistic::Median, MetricBucket::Week, [
             self::series('plan', ['2026-09-28' => 1000]),
             self::series('review', ['2026-09-28' => 4000]),
         ]);
@@ -86,7 +89,7 @@ final class MetricChartTest extends TestCase
 
     public function test_a_series_missing_from_a_bucket_keeps_its_place_in_the_group(): void
     {
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, [
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [
             self::series('plan', ['2026-09-21' => 1.0]),
             self::series('review', ['2026-09-21' => 1.0, '2026-09-28' => 1.0]),
         ]);
@@ -99,7 +102,7 @@ final class MetricChartTest extends TestCase
 
     public function test_a_point_with_no_known_value_draws_no_bar(): void
     {
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-21' => null, '2026-09-28' => 0.02])]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-21' => null, '2026-09-28' => 0.02])]);
 
         self::assertNotNull($chart);
         self::assertCount(2, $chart->buckets);
@@ -112,7 +115,7 @@ final class MetricChartTest extends TestCase
 
     public function test_a_zero_value_draws_a_bar_with_no_height(): void
     {
-        $chart = MetricChart::build(Metric::Runs, MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0])]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0])]);
 
         self::assertNotNull($chart);
         $bar = $chart->buckets[0]->bars[0];
@@ -122,15 +125,29 @@ final class MetricChartTest extends TestCase
 
     public function test_a_ratio_axis_tops_at_one_hundred_percent(): void
     {
-        $chart = MetricChart::build(Metric::MergeRate, MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.3])]);
+        $chart = MetricChart::build(MetricShape::template(TemplateMetricSets::rate()), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.3])]);
 
         self::assertNotNull($chart);
         self::assertSame([0.0, 0.25, 0.5, 0.75, 1.0], array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks));
     }
 
+    public function test_a_template_duration_starts_its_axis_at_an_hour_where_a_built_in_one_starts_at_a_second(): void
+    {
+        $values = ['2026-09-28' => 0.5];
+
+        $hours = MetricChart::build(MetricShape::template(TemplateMetricSets::duration()), MetricStatistic::Median, MetricBucket::Week, [self::series(null, $values)]);
+        $milliseconds = MetricChart::build(new MetricShape(new MetricKey(Metric::Duration)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, $values)]);
+
+        self::assertNotNull($hours);
+        self::assertNotNull($milliseconds);
+        $top = static fn (MetricChart $chart): float => array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks)[\count($chart->yTicks) - 1];
+        self::assertSame(1.0, $top($hours));
+        self::assertSame(1000.0, $top($milliseconds));
+    }
+
     public function test_a_count_scales_as_a_count_whatever_the_metric(): void
     {
-        $chart = MetricChart::build(Metric::StopRate, MetricStatistic::Count, MetricBucket::Week, [self::series(null, ['2026-09-28' => 2, '2026-10-05' => 7])]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::StopRate)), MetricStatistic::Count, MetricBucket::Week, [self::series(null, ['2026-09-28' => 2, '2026-10-05' => 7])]);
 
         self::assertNotNull($chart);
         self::assertSame([0.0, 2.0, 4.0, 6.0, 8.0], array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks));
@@ -139,13 +156,13 @@ final class MetricChartTest extends TestCase
 
     public function test_a_small_money_step_takes_more_decimals(): void
     {
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.018])]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.018])]);
 
         self::assertNotNull($chart);
         self::assertSame([0.0, 0.01, 0.02, 0.03, 0.04], array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks));
         self::assertSame(2, $chart->moneyDecimals);
 
-        $tiny = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.00001])]);
+        $tiny = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.00001])]);
         self::assertNotNull($tiny);
         self::assertSame(2, $tiny->moneyDecimals);
     }
@@ -157,7 +174,7 @@ final class MetricChartTest extends TestCase
             $series[] = self::series('group-'.$index, ['2026-09-28' => 1.0]);
         }
 
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Week, $series);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series);
 
         self::assertNotNull($chart);
         self::assertSame([1, 2, 3, 4, 5, 6, 7, 0, 0], array_map(static fn (MetricChartSeries $item): int => $item->slot, $chart->series));
@@ -170,7 +187,7 @@ final class MetricChartTest extends TestCase
             $values[\sprintf('2026-09-%02d', $day)] = 1.0;
         }
 
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Day, [self::series(null, $values)]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Day, [self::series(null, $values)]);
 
         self::assertNotNull($chart);
         self::assertSame(['2026-09-01', '2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'], array_map(static fn (MetricChartTick $tick): string => $tick->start?->format('Y-m-d') ?? '', $chart->xTicks));
@@ -178,7 +195,7 @@ final class MetricChartTest extends TestCase
 
     public function test_an_axis_over_more_than_a_year_needs_the_year(): void
     {
-        $chart = MetricChart::build(Metric::Cost, MetricStatistic::Median, MetricBucket::Month, [self::series(null, ['2025-01-01' => 1.0, '2026-09-01' => 1.0])]);
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Month, [self::series(null, ['2025-01-01' => 1.0, '2026-09-01' => 1.0])]);
 
         self::assertNotNull($chart);
         self::assertTrue($chart->longSpan);

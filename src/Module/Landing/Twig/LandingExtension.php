@@ -39,6 +39,7 @@ final class LandingExtension extends AbstractExtension
             new TwigFunction('has_blog', $this->publicPages->hasBlog(...)),
             new TwigFunction('has_comparisons', $this->publicPages->hasComparisons(...)),
             new TwigFunction('has_faq', $this->publicPages->hasFaq(...)),
+            new TwigFunction('has_about', $this->publicPages->hasAbout(...)),
         ];
     }
 

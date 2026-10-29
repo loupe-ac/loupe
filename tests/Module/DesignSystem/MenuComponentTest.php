@@ -49,6 +49,24 @@ final class MenuComponentTest extends KernelTestCase
         self::assertStringNotContainsString('hidden', $html);
     }
 
+    public function test_a_live_menu_holds_a_listbox_that_a_text_field_opens(): void
+    {
+        $html = $this->render('<twig:Ds:Menu id="m6" live><twig:block name="trigger"><input role="combobox" aria-controls="m6"></twig:block><twig:block name="content">Rows</twig:block></twig:Ds:Menu>');
+
+        self::assertStringContainsString('class="lp-menu lp-menu--live"', $html);
+        self::assertStringNotContainsString('data-controller="popover"', $html);
+        self::assertStringNotContainsString('data-popover-target', $html);
+        self::assertStringContainsString('<div role="listbox" class="lp-menu__panel" id="m6" hidden>Rows</div>', $html);
+    }
+
+    public function test_a_menu_without_the_live_option_keeps_its_popover_and_no_listbox_role(): void
+    {
+        $html = $this->render('<twig:Ds:Menu id="m7">x</twig:Ds:Menu>');
+
+        self::assertStringContainsString('data-controller="popover"', $html);
+        self::assertStringNotContainsString('role="listbox"', $html);
+    }
+
     public function test_an_item_is_a_link_with_an_href_and_a_plain_button_without(): void
     {
         $link = $this->render('<twig:Ds:MenuItem href="/a" :current="true" data-x="1">Go</twig:Ds:MenuItem>');

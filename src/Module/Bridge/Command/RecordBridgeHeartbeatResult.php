@@ -11,14 +11,16 @@ use App\Module\Bridge\Entity\WorkRequest;
 /**
  * The recorded bridge, the CLI range the server answers it with, the commands
  * the bridge has still to act on, oldest first, the open work requests it can
- * claim, oldest first, and the ids of the named claims it no longer holds.
+ * claim, oldest first, the ids of the named claims it no longer holds, and the
+ * ids of the interactive sessions it launched and has to report on.
  */
 final readonly class RecordBridgeHeartbeatResult
 {
     /**
      * @param list<BridgeCommand> $commands
      * @param list<WorkRequest>   $workRequests
-     * @param list<string>        $lostClaims   RFC 4122 ids
+     * @param list<string>        $lostClaims    RFC 4122 ids
+     * @param list<string>        $watchSessions RFC 4122 ids
      */
     public function __construct(
         public Bridge $bridge,
@@ -26,6 +28,7 @@ final readonly class RecordBridgeHeartbeatResult
         public array $commands,
         public array $workRequests,
         public array $lostClaims,
+        public array $watchSessions = [],
     ) {
     }
 }

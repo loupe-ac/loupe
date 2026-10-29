@@ -45,6 +45,21 @@ final class CardLinkAutocompleteTest extends WebTestCase
         self::assertSame([(string) $newer->id, (string) $older->id], array_column($results, 'value'));
     }
 
+    public function test_a_result_shows_the_tokens_of_its_title_as_plain_text(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'link-token-owner@example.com');
+        $project = $this->project($em, $owner);
+        $this->card($em, $project, 'Follow up on card:9001');
+        $url = $this->url($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+
+        self::assertSame(['#1 Follow up on card #9001'], array_column($this->search($client, $url, 'follow'), 'text'));
+    }
+
     #[TestWith(['#3'])]
     #[TestWith(['3'])]
     #[TestWith([' #3 '])]

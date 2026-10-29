@@ -385,7 +385,6 @@ final readonly class CardHistoryEntry
                 : new TranslatableMessage('board.card.history.cause.run_no_kind');
         }
         [$key, $field, $parameter] = match ($cause['type'] ?? null) {
-            'merged' => ['board.card.history.cause.merged', 'pullRequest', '%pr%'],
             'checks-passed' => ['board.card.history.cause.checks_passed', 'pullRequest', '%pr%'],
             'document-approved' => ['board.card.history.cause.document_approved', 'document', '%document%'],
             'epic-reconciled' => ['board.card.history.cause.epic_reconciled', 'child', '%child%'],

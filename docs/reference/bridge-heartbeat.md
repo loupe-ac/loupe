@@ -338,6 +338,28 @@ The [host samples](#host-samples) have a timer of their own. The
 seconds. A value below 5 reads as the default. A shorter sample interval sends
 more samples in each heartbeat, and no more heartbeats.
 
+## Interactive sessions
+
+A bridge that launches an interactive session reports its liveness in the heartbeat. The reply carries
+`watchSessions`, the ids of the open interactive runs that this bridge launched, in any project of its owner.
+The reply names a run until it closes, also when the bridge stopped following its project. For a Codex run, the
+bridge reports `alive: null` and the time of the Codex session file, because a Codex process carries no session id
+that the bridge can find.
+
+The next heartbeat carries `interactiveSessions`, one reading for each watched session:
+
+| Field | Meaning |
+|---|---|
+| `sessionId` | the session id |
+| `alive` | `true` when the process of the session runs, `false` when it does not, and `null` when the harness cannot tell |
+| `transcriptAt` | when the transcript of the session last changed, or `null` when the bridge found none |
+
+An `alive` reading of `true` is a sign of life now. A `transcriptAt` time counts as a sign of life at that time,
+and never later than now. An `alive` reading of `false` closes the run with the reason `session-gone`, when the run
+started more than two minutes before. A reading for a session that this bridge did not launch changes nothing. An
+`alive` reading of `false` for a Codex run closes nothing.
+A bridge that predates the field sends none, and nothing changes for it.
+
 ## Open runs of a quiet bridge
 
 A bridge that stops sending its heartbeat can no longer report how its runs
@@ -579,6 +601,7 @@ record holds no claim token.
 | 404 | | an id is not a uuid, or agent push is switched off on the instance |
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
 | 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
+| 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
 | 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
 | 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
 | 429 | | more than 60 claims in one minute from one token |

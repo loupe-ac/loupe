@@ -21,14 +21,14 @@ interface CardReportSourceInterface
     public function columnsFor(Project $project, array $cardIds): array;
 
     /**
-     * The outcomes of the project's cards with these ids. A card that is gone,
-     * or that belongs to another project, has no key.
+     * The outcomes that the `moved` rows of the project's cards with these ids set, as the set of `cause.outcome`
+     * values. A card with no such outcome has no key.
      *
      * @param list<Uuid> $cardIds
      *
-     * @return array<string, CardOutcome> card id => outcome
+     * @return array<string, list<string>> card id => outcome keys, sorted
      */
-    public function outcomesFor(Project $project, array $cardIds): array;
+    public function outcomesOfCards(Project $project, array $cardIds): array;
 
     /**
      * The types of the project's cards with these ids. A card that is gone,

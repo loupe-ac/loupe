@@ -1,9 +1,42 @@
 key: lifecycle
-version: 25
+version: 28
 defaultType: feature
 epicBranch: 'epic/{number}'
+outcomes:
+    - { key: merged, delivered: true }
+metrics:
+    - key: fix-rounds
+      label: Fix rounds
+      description: The fix rounds a finished card needed.
+      count: { role: fix }
+      splitBy: reason
+    - key: design-rounds
+      label: Design review rounds
+      description: The design revise rounds a finished card needed.
+      count: { role: design-revise }
+    - key: merge-rate
+      label: Merge rate
+      description: The share of finished cards that the merge rule ended.
+      rate: { outcome: merged }
+    - key: hours-to-merge
+      label: Hours to merge
+      description: The hours from the first pull request opening to the merge.
+      duration: { from: pr-opened, to: pr-merged }
+    - key: hours-to-agent-pass
+      label: Hours to agent review pass
+      description: The hours from the first pull request opening to the last agent review pass.
+      duration: { from: pr-opened, to: agent-review-passed }
+    - key: hours-waiting-for-approval
+      label: Hours waiting for approval
+      description: The hours from the last agent review pass to ready to merge.
+      duration: { from: { last: agent-review-passed }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
+repositorySettings:
+    - { key: approval-gate, mark: blocking }
+    - { key: ci-checks, mark: warning }
+    - { key: branch-protection, mark: warning }
+    - { key: merge-method, mark: blocking }
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }
@@ -50,7 +83,6 @@ facts:
         all:
             - fact.pr-reviewable: {}
             - pr.checks_on_head: {}
-            - pr.can_merge: {}
             - pr.base_is_default: {}
             - not: { pr.approval_check_passed: {} }
             - not: { card.run.worker_active: {} }
@@ -583,7 +615,7 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, fallback: merge } }
+      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
 
     - id: merge-ready-epic-child
       slot: in-review
@@ -601,7 +633,7 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, fallback: merge } }
+      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
 
     - id: epic-to-review
       slot: implementation
@@ -789,7 +821,7 @@ rules:
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
 
-inbox: [waits-for-approval, document-in-review, run-needs-you, paused]
+inbox: [waits-for-approval, document-in-review, run-needs-you, paused, repository-misfit]
 markers:
     - key: paused
       kind: stuck
@@ -813,6 +845,7 @@ markers:
                         - card.run.work_active: {}
                         - card.run.worker_active: {}
                         - card.inbox.open_question: { blocking: true }
+                        - card.rule.retry_scheduled: {}
     - key: run-needs-you
       kind: stuck
       label: marker.run_needs_you
@@ -835,6 +868,7 @@ markers:
                         - card.run.worker_active: { kind: fix }
                         - card.run.work_active: { kind: repair }
                         - card.run.worker_active: { kind: repair }
+                        - card.rule.retry_scheduled: {}
     - key: conflicting
       kind: stuck
       label: marker.conflicting
@@ -920,18 +954,12 @@ markers:
               - pr.checks_passed: {}
               - pr.merge_blocked: {}
               - not: { card.run.worker_active: {} }
-    - key: ruleset-mismatch
+    - key: repository-misfit
       kind: needs-you
-      label: marker.ruleset_mismatch
-      remedy: marker.ruleset_mismatch.remedy
-      link: ruleset-setup
-      when:
-          all:
-              - pr.open: {}
-              - any:
-                    - pr.base_requires_review: {}
-                    - pr.approval_check_unpinned: {}
-              - not: { card.run.worker_active: {} }
+      label: marker.repository_misfit
+      remedy: marker.repository_misfit.remedy
+      link: repositories
+      when: { card.rule.held_by_work_hold: {} }
     - key: open-question
       kind: needs-you
       label: marker.open_question
@@ -990,6 +1018,11 @@ markers:
               - card.run.work_open: {}
               - not: { card.run.work_no_taker: {} }
               - not: { card.run.work_taker_paused: {} }
+    - key: retry-scheduled
+      kind: waiting
+      label: marker.retry_scheduled
+      remedy: marker.retry_scheduled.remedy
+      when: { card.rule.retry_scheduled: {} }
     - key: forge-request-pending
       kind: working
       label: marker.forge_request_pending

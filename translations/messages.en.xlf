@@ -5594,6 +5594,10 @@
                 <source>landing.footer.blog</source>
                 <target>Blog</target>
             </trans-unit>
+            <trans-unit id="landing.footer.about">
+                <source>landing.footer.about</source>
+                <target>About</target>
+            </trans-unit>
             <trans-unit id="landing.footer.changelog">
                 <source>landing.footer.changelog</source>
                 <target>Changelog</target>
@@ -6027,6 +6031,42 @@
             <trans-unit id="inbox.bridge_outage.closed">
                 <source>inbox.bridge_outage.closed</source>
                 <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.title.one">
+                <source>inbox.repository_misfit.title.one</source>
+                <target>%repository% does not fit the workflow</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.title.many">
+                <source>inbox.repository_misfit.title.many</source>
+                <target>%repositories% do not fit the workflow</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.intro">
+                <source>inbox.repository_misfit.body.intro</source>
+                <target>{0}New work is paused.|{1}New work is paused until the blocking gap is fixed.|]1,Inf[New work is paused until the %count% blocking gaps are fixed.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.repository">
+                <source>inbox.repository_misfit.body.repository</source>
+                <target>{0}%repository%: no blocking gap|{1}%repository%: 1 blocking gap|]1,Inf[%repository%: %count% blocking gaps</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.body.remedy">
+                <source>inbox.repository_misfit.body.remedy</source>
+                <target>Running work finishes. Open the guide to fix each gap. This item closes by itself when a check finds no blocking gap.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.closed">
+                <source>inbox.repository_misfit.closed</source>
+                <target>A check found no blocking gap, so Loupe takes new work again.</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.guide">
+                <source>inbox.repository_misfit.action.guide</source>
+                <target>Open the guide</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.check_again">
+                <source>inbox.repository_misfit.action.check_again</source>
+                <target>Check again</target>
+            </trans-unit>
+            <trans-unit id="inbox.repository_misfit.action.check_again_repository">
+                <source>inbox.repository_misfit.action.check_again_repository</source>
+                <target>Check %repository% again</target>
             </trans-unit>
             <trans-unit id="inbox.item.error.workflow_not_declinable">
                 <source>inbox.item.error.workflow_not_declinable</source>
@@ -7125,12 +7165,43 @@
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.comparison"><source>bridge.experiments.tabs.comparison</source><target>Comparison</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.cards"><source>bridge.experiments.tabs.cards</source><target>Cards</target></trans-unit>
-            <trans-unit id="bridge.experiments.headline.no_cost"><source>bridge.experiments.headline.no_cost</source><target>The first two variants do not both have a cost per merged card yet.</target></trans-unit>
-            <trans-unit id="bridge.experiments.headline.same_cost"><source>bridge.experiments.headline.same_cost</source><target>The variants cost the same per merged card.</target></trans-unit>
-            <trans-unit id="bridge.experiments.headline.cheaper"><source>bridge.experiments.headline.cheaper</source><target>%cheaper% costs %saving% less per merged card than %dearer%.</target></trans-unit>
-            <trans-unit id="bridge.experiments.headline.cost_unclear"><source>bridge.experiments.headline.cost_unclear</source><target>The difference in cost is not clear yet.</target></trans-unit>
-            <trans-unit id="bridge.experiments.headline.quality_settled"><source>bridge.experiments.headline.quality_settled</source><target>The merge rate and the fix rounds give a clear answer.</target></trans-unit>
-            <trans-unit id="bridge.experiments.headline.quality_unsettled"><source>bridge.experiments.headline.quality_unsettled</source><target>The merge rate and the fix rounds do not give a clear answer yet.</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.heading"><source>bridge.experiments.goal.heading</source><target>Goal</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.label"><source>bridge.experiments.goal.label</source><target>Goal · %metric% · %direction% is better</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.lower"><source>bridge.experiments.goal.lower</source><target>lower</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.higher"><source>bridge.experiments.goal.higher</source><target>higher</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.state.clear"><source>bridge.experiments.goal.state.clear</source><target>Clear</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.state.not_clear"><source>bridge.experiments.goal.state.not_clear</source><target>Not clear yet</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.not_enough"><source>bridge.experiments.goal.sentence.not_enough</source><target>Not enough cards yet</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.level"><source>bridge.experiments.goal.sentence.level</source><target>The variants are level</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.ahead"><source>bridge.experiments.goal.sentence.ahead</source><target>%winner% is ahead of %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.faster"><source>bridge.experiments.goal.sentence.faster</source><target>%winner% is %change% faster than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.slower"><source>bridge.experiments.goal.sentence.slower</source><target>%winner% is %change% slower than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.lower"><source>bridge.experiments.goal.sentence.lower</source><target>%winner% is %change% lower than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.higher"><source>bridge.experiments.goal.sentence.higher</source><target>%winner% is %change% higher than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.cheaper"><source>bridge.experiments.goal.sentence.cheaper</source><target>%winner% is %change% cheaper than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.dearer"><source>bridge.experiments.goal.sentence.dearer</source><target>%winner% is %change% more expensive than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.fewer"><source>bridge.experiments.goal.sentence.fewer</source><target>%winner% has %change% fewer than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.more"><source>bridge.experiments.goal.sentence.more</source><target>%winner% has %change% more than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.under"><source>bridge.experiments.goal.under</source><target>under %value%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.problem.unknown-metric"><source>bridge.experiments.goal.problem.unknown-metric</source><target>The headline goal %metric% is not a metric of this project.</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.problem.no-direction"><source>bridge.experiments.goal.problem.no-direction</source><target>The headline goal %metric% has no direction. Add %lower% or %higher% to it in the bridge rule.</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.points_lower"><source>bridge.experiments.goal.sentence.points_lower</source><target>{0} %winner% is under 1 pp lower than %other%|]0,Inf[ %winner% is %count% pp lower than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.sentence.points_higher"><source>bridge.experiments.goal.sentence.points_higher</source><target>{0} %winner% is under 1 pp higher than %other%|]0,Inf[ %winner% is %count% pp higher than %other%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.points"><source>bridge.experiments.goal.points</source><target>{0} 0 pp|]0,Inf[ %count% pp</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.against"><source>bridge.experiments.goal.against</source><target>against</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.range_label"><source>bridge.experiments.goal.range_label</source><target>likely range of the change</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.range.between"><source>bridge.experiments.goal.range.between</source><target>%near% to %far% %word%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.range.across"><source>bridge.experiments.goal.range.across</source><target>%low% %lowWord% to %high% %highWord%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.progress"><source>bridge.experiments.goal.progress</source><target>%done% of %floor%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.finished"><source>bridge.experiments.goal.finished</source><target>finished</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.heading"><source>bridge.experiments.guards.heading</source><target>Guards</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.guard"><source>bridge.experiments.guards.guard</source><target>Guard</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.change"><source>bridge.experiments.guards.change</source><target>%from% to %to%</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.likely_range"><source>bridge.experiments.guards.likely_range</source><target>Likely range of the change</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.rates"><source>bridge.experiments.guards.rates</source><target>%from% to %to%</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.range"><source>bridge.experiments.guards.range</source><target>%low% to %high%</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.range_points"><source>bridge.experiments.guards.range_points</source><target>%low% to %high% pp</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.unknown"><source>bridge.experiments.guards.unknown</source><target>The bridge rule names a guard that this server does not know: %metrics%. The page leaves it out.</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.heading"><source>bridge.experiments.variants.heading</source><target>Variants</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.variant"><source>bridge.experiments.variants.variant</source><target>Variant</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.model"><source>bridge.experiments.variants.model</source><target>Model</target></trans-unit>
@@ -7202,6 +7273,12 @@
             <trans-unit id="bridge.worker_runs.details.switched_from"><source>bridge.worker_runs.details.switched_from</source><target>switched from %variant%</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_status"><source>bridge.worker_runs.details.result_status</source><target>Result status</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_reason"><source>bridge.worker_runs.details.result_reason</source><target>Reason</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.close_reason"><source>bridge.worker_runs.details.close_reason</source><target>Closed because</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-ended"><source>bridge.worker_runs.close_reason.session-ended</source><target>The session ended</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.person"><source>bridge.worker_runs.close_reason.person</source><target>A person closed it</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.card-moved"><source>bridge.worker_runs.close_reason.card-moved</source><target>The card moved to another column</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.stale"><source>bridge.worker_runs.close_reason.stale</source><target>No sign of life for too long</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.session-gone"><source>bridge.worker_runs.close_reason.session-gone</source><target>The session process is gone</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.resume_skipped"><source>bridge.worker_runs.details.resume_skipped</source><target>Resume skipped</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metrics"><source>bridge.worker_runs.details.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cost"><source>bridge.worker_runs.details.metric.cost</source><target>Cost</target></trans-unit>
@@ -7222,6 +7299,7 @@
             <trans-unit id="bridge.worker_runs.control.stop"><source>bridge.worker_runs.control.stop</source><target>Stop</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun"><source>bridge.worker_runs.control.rerun</source><target>Run again</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.cancel"><source>bridge.worker_runs.control.cancel</source><target>Cancel request</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.control.close"><source>bridge.worker_runs.control.close</source><target>Close session</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.resume_requested"><source>bridge.worker_runs.control.resume_requested</source><target>Resume requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.stop_requested"><source>bridge.worker_runs.control.stop_requested</source><target>Stop requested</target></trans-unit>
             <trans-unit id="bridge.worker_runs.control.rerun_requested"><source>bridge.worker_runs.control.rerun_requested</source><target>Run again requested</target></trans-unit>
@@ -7492,10 +7570,6 @@
                 <source>bridge.worker_runs.running_for</source>
                 <target>running for %duration%</target>
             </trans-unit>
-            <trans-unit id="bridge.worker_runs.close_session">
-                <source>bridge.worker_runs.close_session</source>
-                <target>Close session</target>
-            </trans-unit>
             <trans-unit id="bridge.worker_runs.output.toggle">
                 <source>bridge.worker_runs.output.toggle</source>
                 <target>Output</target>
@@ -7573,7 +7647,6 @@
             <trans-unit id="board.card.history.changed"><source>board.card.history.changed</source><target>%actor% changed the card.</target></trans-unit>
             <trans-unit id="board.card.history.reason"><source>board.card.history.reason</source><target>Because %reason%.</target></trans-unit>
             <trans-unit id="board.card.history.run_state_unknown"><source>board.card.history.run_state_unknown</source><target>Unknown</target></trans-unit>
-            <trans-unit id="board.card.history.cause.merged"><source>board.card.history.cause.merged</source><target>After #%pr% merged.</target></trans-unit>
             <trans-unit id="board.card.history.cause.checks_passed"><source>board.card.history.cause.checks_passed</source><target>After the checks passed on #%pr%.</target></trans-unit>
             <trans-unit id="board.card.history.cause.document_approved"><source>board.card.history.cause.document_approved</source><target>After the document %document% was approved.</target></trans-unit>
             <trans-unit id="board.card.history.cause.epic_reconciled"><source>board.card.history.cause.epic_reconciled</source><target>After its child card #%child% changed.</target></trans-unit>
@@ -7975,6 +8048,10 @@
                 <source>project.edit.nav.connections</source>
                 <target>Connections</target>
             </trans-unit>
+            <trans-unit id="project.edit.nav.repositories">
+                <source>project.edit.nav.repositories</source>
+                <target>Repositories</target>
+            </trans-unit>
             <trans-unit id="project.edit.general.eyebrow">
                 <source>project.edit.general.eyebrow</source>
                 <target>Project</target>
@@ -8179,7 +8256,6 @@
                 <target>Board</target>
             </trans-unit>
             <trans-unit id="board.view.list"><source>board.view.list</source><target>List</target></trans-unit>
-            <trans-unit id="board.toolbar.search"><source>board.toolbar.search</source><target>Search</target></trans-unit>
             <trans-unit id="board.toolbar.more"><source>board.toolbar.more</source><target>More board options</target></trans-unit>
             <trans-unit id="board.columns.tabs"><source>board.columns.tabs</source><target>Board columns</target></trans-unit>
             <trans-unit id="board.list.work"><source>board.list.work</source><target>Work</target></trans-unit>
@@ -8196,9 +8272,6 @@
                 <source>board.card.count</source>
                 <target>{0} No cards|{1} 1 card|]1,Inf[ %count% cards</target>
             </trans-unit>
-            <trans-unit id="board.filter.search.label"><source>board.filter.search.label</source><target>Search cards</target></trans-unit>
-            <trans-unit id="board.filter.search.placeholder"><source>board.filter.search.placeholder</source><target>Find a card…</target></trans-unit>
-            <trans-unit id="board.filter.empty"><source>board.filter.empty</source><target>No cards match these filters.</target></trans-unit>
             <trans-unit id="board.live.paused"><source>board.live.paused</source><target>Live updates paused</target></trans-unit>
             <trans-unit id="board.live.catch_up_failed"><source>board.live.catch_up_failed</source><target>Live updates stopped. Reload the page to catch up.</target></trans-unit>
             <trans-unit id="board.live.stale"><source>board.live.stale</source><target>This card may be out of date</target></trans-unit>
@@ -8314,9 +8387,6 @@
             <trans-unit id="analytics.metrics.metric.duration"><source>analytics.metrics.metric.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.runs"><source>analytics.metrics.metric.runs</source><target>Runs</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.stop-rate"><source>analytics.metrics.metric.stop-rate</source><target>Stop rate</target></trans-unit>
-            <trans-unit id="analytics.metrics.metric.merge-rate"><source>analytics.metrics.metric.merge-rate</source><target>Merge rate</target></trans-unit>
-            <trans-unit id="analytics.metrics.metric.fix-rounds"><source>analytics.metrics.metric.fix-rounds</source><target>Fix rounds</target></trans-unit>
-            <trans-unit id="analytics.metrics.metric.hours-to-merge"><source>analytics.metrics.metric.hours-to-merge</source><target>Hours to merge</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.bucket_time"><source>analytics.metrics.metric_group.bucket_time</source><target>Time buckets</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.run"><source>analytics.metrics.unit.run</source><target>Per run</target></trans-unit>
@@ -8484,10 +8554,6 @@
             <trans-unit id="search.shortcut"><source>search.shortcut</source><target>⌘K</target></trans-unit>
             <trans-unit id="search.all_title"><source>search.all_title</source><target>Search all projects</target></trans-unit>
             <trans-unit id="search.all_scope"><source>search.all_scope</source><target>Search all projects you own.</target></trans-unit>
-            <trans-unit id="search.close"><source>search.close</source><target>Close search</target></trans-unit>
-            <trans-unit id="search.loading"><source>search.loading</source><target>Searching…</target></trans-unit>
-            <trans-unit id="search.failed"><source>search.failed</source><target>Search is unavailable. Press Search to retry.</target></trans-unit>
-            <trans-unit id="search.keyboard_hint"><source>search.keyboard_hint</source><target>Tab to a result, then press Enter to open it. Escape closes search.</target></trans-unit>
             <trans-unit id="search.scope"><source>search.scope</source><target>Search pages, cards, and documents in %project%.</target></trans-unit>
             <trans-unit id="search.form.search_form.query.label"><source>search.form.search_form.query.label</source><target>Search pages, cards, and documents</target></trans-unit>
             <trans-unit id="search.submit"><source>search.submit</source><target>Search</target></trans-unit>
@@ -8496,6 +8562,19 @@
             <trans-unit id="search.kind.card"><source>search.kind.card</source><target>Card</target></trans-unit>
             <trans-unit id="search.kind.document"><source>search.kind.document</source><target>Document</target></trans-unit>
             <trans-unit id="search.kind.page"><source>search.kind.page</source><target>Page</target></trans-unit>
+            <trans-unit id="search.topbar.placeholder"><source>search.topbar.placeholder</source><target>Search</target></trans-unit>
+            <trans-unit id="search.topbar.group.card"><source>search.topbar.group.card</source><target>Cards</target></trans-unit>
+            <trans-unit id="search.topbar.group.document"><source>search.topbar.group.document</source><target>Documents</target></trans-unit>
+            <trans-unit id="search.topbar.group.page"><source>search.topbar.group.page</source><target>Pages</target></trans-unit>
+            <trans-unit id="search.topbar.all_results"><source>search.topbar.all_results</source><target>All results for “%query%”</target></trans-unit>
+            <trans-unit id="search.topbar.all_results_blank"><source>search.topbar.all_results_blank</source><target>All results</target></trans-unit>
+            <trans-unit id="search.topbar.enter"><source>search.topbar.enter</source><target>Enter</target></trans-unit>
+            <trans-unit id="search.topbar.escape"><source>search.topbar.escape</source><target>Esc</target></trans-unit>
+            <trans-unit id="search.topbar.empty"><source>search.topbar.empty</source><target>No results for “%query%”</target></trans-unit>
+            <trans-unit id="search.topbar.failed"><source>search.topbar.failed</source><target>Could not search</target></trans-unit>
+            <trans-unit id="search.topbar.retry"><source>search.topbar.retry</source><target>Try again</target></trans-unit>
+            <trans-unit id="search.topbar.searching"><source>search.topbar.searching</source><target>Searching…</target></trans-unit>
+            <trans-unit id="search.topbar.cancel"><source>search.topbar.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="search.pagination"><source>search.pagination</source><target>Search result pages</target></trans-unit>
             <trans-unit id="search.previous"><source>search.previous</source><target>Previous results</target></trans-unit>
             <trans-unit id="search.next"><source>search.next</source><target>Next results</target></trans-unit>
@@ -8682,13 +8761,110 @@
             <trans-unit id="check.github_hook_key.label"><source>check.github_hook_key.label</source><target>GitHub webhook secrets</target></trans-unit>
             <trans-unit id="github.system_status.hook_key.readable"><source>github.system_status.hook_key.readable</source><target>APP_ENCRYPTION_KEY is readable, so projects can create a GitHub webhook.</target></trans-unit>
             <trans-unit id="github.system_status.hook_key.unreadable"><source>github.system_status.hook_key.unreadable</source><target>APP_ENCRYPTION_KEY is not set or is not a valid key, so no project can create or use a GitHub webhook. Set it to the base64 of 32 random bytes.</target></trans-unit>
-            <trans-unit id="github.repositories.ruleset.requires_review"><source>github.repositories.ruleset.requires_review</source><target>The ruleset of the default branch still requires an approving review. The Loupe App cannot give that review on its own pull request. Remove the rule Require approvals.</target></trans-unit>
-            <trans-unit id="github.repositories.ruleset.unpinned"><source>github.repositories.ruleset.unpinned</source><target>The ruleset requires the check Loupe / Approval but does not set the Loupe App as its source. Any other check with this name can pass it. Set the Loupe App as the source.</target></trans-unit>
-            <trans-unit id="github.repositories.ruleset.guide"><source>github.repositories.ruleset.guide</source><target>Read how to set up the ruleset</target></trans-unit>
+            <trans-unit id="project.repositories.page.title"><source>project.repositories.page.title</source><target>Repositories</target></trans-unit>
+            <trans-unit id="github.connection.title"><source>github.connection.title</source><target>GitHub</target></trans-unit>
+            <trans-unit id="github.connection.repositories_hint"><source>github.connection.repositories_hint</source><target>The repositories of this project, and how well each one fits the workflow, are on the Repositories page.</target></trans-unit>
+            <trans-unit id="github.connection.repositories_link"><source>github.connection.repositories_link</source><target>Open Repositories</target></trans-unit>
+            <trans-unit id="github.repositories.row.workflow"><source>github.repositories.row.workflow</source><target>%workflow% workflow</target></trans-unit>
+            <trans-unit id="github.repositories.check.heading"><source>github.repositories.check.heading</source><target>What the %workflow% workflow suggests</target></trans-unit>
+            <trans-unit id="github.repositories.check.heading_unnamed"><source>github.repositories.check.heading_unnamed</source><target>What the workflow suggests</target></trans-unit>
+            <trans-unit id="github.repositories.check.checked"><source>github.repositories.check.checked</source><target>Checked</target></trans-unit>
+            <trans-unit id="github.repositories.check.checking"><source>github.repositories.check.checking</source><target>Checking…</target></trans-unit>
+            <trans-unit id="github.repositories.check.default_branch"><source>github.repositories.check.default_branch</source><target>the default branch</target></trans-unit>
+            <trans-unit id="github.repositories.check.state.blocking"><source>github.repositories.check.state.blocking</source><target>Blocking</target></trans-unit>
+            <trans-unit id="github.repositories.check.state.warning"><source>github.repositories.check.state.warning</source><target>Warning</target></trans-unit>
+            <trans-unit id="github.repositories.check.state.fits"><source>github.repositories.check.state.fits</source><target>Fits</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.squash"><source>github.repositories.check.method.squash</source><target>squash</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.merge"><source>github.repositories.check.method.merge</source><target>a merge commit</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.rebase"><source>github.repositories.check.method.rebase</source><target>rebase</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.none"><source>github.repositories.check.method.none</source><target>no method</target></trans-unit>
+            <trans-unit id="github.repositories.check.method.any"><source>github.repositories.check.method.any</source><target>any method</target></trans-unit>
+            <trans-unit id="github.repositories.check.failed.read"><source>github.repositories.check.failed.read</source><target>GitHub did not answer at %time%.</target></trans-unit>
+            <trans-unit id="github.repositories.check.failed.no_installation"><source>github.repositories.check.failed.no_installation</source><target>Loupe checks only repositories of the GitHub App. Install the App on this repository to check it.</target></trans-unit>
+            <trans-unit id="github.repositories.check.unknown.title"><source>github.repositories.check.unknown.title</source><target>A setting does not fit</target></trans-unit>
+            <trans-unit id="github.repositories.check.unknown.detail"><source>github.repositories.check.unknown.detail</source><target>Loupe has no description for this finding.</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.fits.title"><source>github.repositories.check.approval-gate.fits.title</source><target>Loupe / Approval gates merges into %branch%</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.fits.detail"><source>github.repositories.check.approval-gate.fits.detail</source><target>A rule requires a pull request, and the Loupe App is the source of the required check.</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.no_pull_request_rule.title"><source>github.repositories.check.approval-gate.no_pull_request_rule.title</source><target>No rule requires a pull request into %branch%</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.no_pull_request_rule.detail"><source>github.repositories.check.approval-gate.no_pull_request_rule.detail</source><target>A person can push to %branch% directly, so Loupe / Approval gates nothing.</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.approval_check_not_required.title"><source>github.repositories.check.approval-gate.approval_check_not_required.title</source><target>Loupe / Approval is not required</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.approval_check_not_required.detail"><source>github.repositories.check.approval-gate.approval_check_not_required.detail</source><target>No ruleset of %branch% requires it, so nothing on GitHub gates a merge.</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.approval_check_unpinned.title"><source>github.repositories.check.approval-gate.approval_check_unpinned.title</source><target>Loupe / Approval has no source App set to Loupe</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.approval_check_unpinned.detail"><source>github.repositories.check.approval-gate.approval_check_unpinned.detail</source><target>Any App can post a check with this name and pass it. Set the Loupe App as the source of the required check.</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.review_required.title"><source>github.repositories.check.approval-gate.review_required.title</source><target>%branch% requires an approving review</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.review_required.detail"><source>github.repositories.check.approval-gate.review_required.detail</source><target>GitHub refuses the approval of the Loupe App on its own pull request, so the merge stays blocked. Set Required approvals to 0.</target></trans-unit>
+            <trans-unit id="github.repositories.check.approval-gate.review_required.detail_named"><source>github.repositories.check.approval-gate.review_required.detail_named</source><target>GitHub refuses the approval of the Loupe App on its own pull request, so the merge stays blocked. Set Required approvals to 0 in %rulesets%.</target></trans-unit>
+            <trans-unit id="github.repositories.check.ci-checks.fits.title"><source>github.repositories.check.ci-checks.fits.title</source><target>CI checks are required on %branch%</target></trans-unit>
+            <trans-unit id="github.repositories.check.ci-checks.fits.detail"><source>github.repositories.check.ci-checks.fits.detail</source><target>Required checks: %checks%.</target></trans-unit>
+            <trans-unit id="github.repositories.check.ci-checks.fits.detail_unnamed"><source>github.repositories.check.ci-checks.fits.detail_unnamed</source><target>A rule requires at least one check that Loupe does not post.</target></trans-unit>
+            <trans-unit id="github.repositories.check.ci-checks.no_ci_check.title"><source>github.repositories.check.ci-checks.no_ci_check.title</source><target>No CI check is required</target></trans-unit>
+            <trans-unit id="github.repositories.check.ci-checks.no_ci_check.detail"><source>github.repositories.check.ci-checks.no_ci_check.detail</source><target>Loupe waits only for required checks, so it can merge while CI is red.</target></trans-unit>
+            <trans-unit id="github.repositories.check.ci-checks.no_ci_check.detail_seen"><source>github.repositories.check.ci-checks.no_ci_check.detail_seen</source><target>Loupe waits only for required checks, so it can merge while CI is red. Seen on recent pull requests: %checks%.</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.fits.title"><source>github.repositories.check.branch-protection.fits.title</source><target>Force pushes and deletion of %branch% are blocked</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.fits.detail"><source>github.repositories.check.branch-protection.fits.detail</source><target>From the rulesets: %rulesets%.</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.fits.detail_unnamed"><source>github.repositories.check.branch-protection.fits.detail_unnamed</source><target>Rules of %branch% block both.</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.force_push_allowed.title"><source>github.repositories.check.branch-protection.force_push_allowed.title</source><target>Force pushes to %branch% are allowed</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.force_push_allowed.detail"><source>github.repositories.check.branch-protection.force_push_allowed.detail</source><target>A force push can rewrite the history that Loupe approved.</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.deletion_allowed.title"><source>github.repositories.check.branch-protection.deletion_allowed.title</source><target>%branch% can be deleted</target></trans-unit>
+            <trans-unit id="github.repositories.check.branch-protection.deletion_allowed.detail"><source>github.repositories.check.branch-protection.deletion_allowed.detail</source><target>A rule that blocks deletion protects the branch that every pull request targets.</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.fits.title"><source>github.repositories.check.merge-method.fits.title</source><target>Merge method</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.fits.detail"><source>github.repositories.check.merge-method.fits.detail</source><target>Loupe merges with %method%, the first method that this repository allows.</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.fits.detail_unnamed"><source>github.repositories.check.merge-method.fits.detail_unnamed</source><target>This repository allows a merge method that Loupe can use.</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.no_merge_method.title"><source>github.repositories.check.merge-method.no_merge_method.title</source><target>No merge method is usable</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.no_merge_method.detail"><source>github.repositories.check.merge-method.no_merge_method.detail</source><target>The merge settings of the repository and the rules of %branch% leave no method for Loupe. No pull request can merge.</target></trans-unit>
+            <trans-unit id="github.repositories.check.merge-method.no_merge_method.detail_named"><source>github.repositories.check.merge-method.no_merge_method.detail_named</source><target>The repository allows %repository%. The rulesets of %branch% allow %rulesets%. No method is in both, so no pull request can merge.</target></trans-unit>
+            <trans-unit id="github.repositories.check.classic-protection.classic_protection.title"><source>github.repositories.check.classic-protection.classic_protection.title</source><target>%branch% uses classic branch protection</target></trans-unit>
+            <trans-unit id="github.repositories.check.classic-protection.classic_protection.detail"><source>github.repositories.check.classic-protection.classic_protection.detail</source><target>Loupe cannot check classic branch protection, so a review rule there can still block merges. Move its rules to a ruleset.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.title"><source>github.repositories.guide.title</source><target>Fix it on GitHub</target></trans-unit>
+            <trans-unit id="github.repositories.guide.ruleset_unnamed"><source>github.repositories.guide.ruleset_unnamed</source><target>(name hidden)</target></trans-unit>
+            <trans-unit id="github.repositories.guide.import.intro"><source>github.repositories.guide.import.intro</source><target>Import the Loupe ruleset. It requires a pull request with no approving review, and the check Loupe / Approval from the Loupe App.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.import.path"><source>github.repositories.guide.import.path</source><target>On GitHub, open Settings, then Rules. Select New ruleset, then Import a ruleset, and pick the file.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.import.checks"><source>github.repositories.guide.import.checks</source><target>It also requires the checks %checks%.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.import.protection"><source>github.repositories.guide.import.protection</source><target>It also blocks force pushes and deletion.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.import.no_app"><source>github.repositories.guide.import.no_app</source><target>Loupe could not read the id of its App, so the file does not name the Loupe App as the source of Loupe / Approval. Select the Loupe App as the source after the import.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.verify_source.text"><source>github.repositories.guide.verify_source.text</source><target>After the import, open the ruleset. Check that Loupe / Approval shows the Loupe App as its source. If it shows Any source, pick the Loupe App.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.review.repository"><source>github.repositories.guide.review.repository</source><target>In your ruleset %ruleset%, set Required approvals to 0. The Loupe App cannot approve its own pull request.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.review.organization"><source>github.repositories.guide.review.organization</source><target>The ruleset %ruleset% belongs to the organization %organization%. Only an organization owner can change it. Ask an owner to set Required approvals to 0 in it. The Loupe App cannot approve its own pull request.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.review.fallback"><source>github.repositories.guide.review.fallback</source><target>In the ruleset that requires a pull request into %branch%, set Required approvals to 0. The Loupe App cannot approve its own pull request.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.unpinned.repository"><source>github.repositories.guide.unpinned.repository</source><target>Open your ruleset %ruleset%. If Loupe / Approval shows Any source, pick the Loupe App as its source.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.unpinned.organization"><source>github.repositories.guide.unpinned.organization</source><target>The ruleset %ruleset% belongs to the organization %organization%. Only an organization owner can change it. Ask an owner to pick the Loupe App as the source of Loupe / Approval in it.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.ci_checks.named"><source>github.repositories.guide.ci_checks.named</source><target>Add required checks to a ruleset of %branch%. Your recent pull requests ran %checks%.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.ci_checks.unnamed"><source>github.repositories.guide.ci_checks.unnamed</source><target>Add the checks that your CI runs as required checks in a ruleset of %branch%.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.ci_checks.path"><source>github.repositories.guide.ci_checks.path</source><target>On GitHub, open Settings, then Rules. Open a ruleset and turn on Require status checks to pass.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.protection.text"><source>github.repositories.guide.protection.text</source><target>In a ruleset of %branch%, turn on Block force pushes and Restrict deletions.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.text"><source>github.repositories.guide.merge_method.text</source><target>Turn on at least one merge method for the repository. Loupe uses the first method of squash, merge commit and rebase that the repository allows.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.path"><source>github.repositories.guide.merge_method.path</source><target>On GitHub, open Settings, then General. Under Pull Requests, turn on Allow squash merging.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.rules"><source>github.repositories.guide.merge_method.rules</source><target>Your rulesets allow only %methods%. Turn on one of these methods in the repository, or allow a method that the repository has in the rulesets below.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.rules_path"><source>github.repositories.guide.merge_method.rules_path</source><target>On GitHub, open Settings, then General. Under Pull Requests, turn on %switch%.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.rules_none"><source>github.repositories.guide.merge_method.rules_none</source><target>Your rulesets share no merge method, so no pull request can merge. Allow one common merge method in each ruleset that requires a pull request, and turn that method on in the repository settings.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.organization"><source>github.repositories.guide.merge_method.organization</source><target>The ruleset %ruleset% belongs to the organization %organization%. Only an organization owner can change its merge methods.</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.switch.squash"><source>github.repositories.guide.merge_method.switch.squash</source><target>Allow squash merging</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.switch.merge"><source>github.repositories.guide.merge_method.switch.merge</source><target>Allow merge commits</target></trans-unit>
+            <trans-unit id="github.repositories.guide.merge_method.switch.rebase"><source>github.repositories.guide.merge_method.switch.rebase</source><target>Allow rebase merging</target></trans-unit>
+            <trans-unit id="github.repositories.guide.link.download"><source>github.repositories.guide.link.download</source><target>Download loupe-ruleset.json</target></trans-unit>
+            <trans-unit id="github.repositories.guide.link.rules"><source>github.repositories.guide.link.rules</source><target>Open Rules on GitHub</target></trans-unit>
+            <trans-unit id="github.repositories.guide.link.ruleset"><source>github.repositories.guide.link.ruleset</source><target>Open %ruleset% on GitHub</target></trans-unit>
+            <trans-unit id="github.repositories.guide.link.merge_settings"><source>github.repositories.guide.link.merge_settings</source><target>Open merge settings on GitHub</target></trans-unit>
+            <trans-unit id="github.repositories.guide.link.branches"><source>github.repositories.guide.link.branches</source><target>Open branch protection on GitHub</target></trans-unit>
+            <trans-unit id="github.repositories.live_stopped"><source>github.repositories.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="github.repositories.check.paused.title"><source>github.repositories.check.paused.title</source><target>New work is paused.</target></trans-unit>
+            <trans-unit id="github.repositories.check.paused.text"><source>github.repositories.check.paused.text</source><target>The repository does not fit the %workflow% workflow. Running work finishes.</target></trans-unit>
+            <trans-unit id="github.repositories.check.paused.text_unnamed"><source>github.repositories.check.paused.text_unnamed</source><target>The repository does not fit the workflow. Running work finishes.</target></trans-unit>
+            <trans-unit id="github.repositories.check.again"><source>github.repositories.check.again</source><target>Check again</target></trans-unit>
+            <trans-unit id="github.repositories.check.again_hint"><source>github.repositories.check.again_hint</source><target>Loupe checks every hour. Check again after a fix to end the pause now.</target></trans-unit>
+            <trans-unit id="github.repositories.check.again_hint_no_pause"><source>github.repositories.check.again_hint_no_pause</source><target>Loupe checks every hour. Check again after a change on GitHub to see it now.</target></trans-unit>
+            <trans-unit id="github.repositories.check.failed.title"><source>github.repositories.check.failed.title</source><target>Loupe could not check %path%.</target></trans-unit>
+            <trans-unit id="github.repositories.check.failed.kept"><source>github.repositories.check.failed.kept</source><target>The list below keeps the result of the last check that worked, with its time.</target></trans-unit>
+            <trans-unit id="github.repositories.empty_state.title"><source>github.repositories.empty_state.title</source><target>No repository yet</target></trans-unit>
+            <trans-unit id="github.repositories.empty_state.body"><source>github.repositories.empty_state.body</source><target>Install the GitHub App on a repository. Loupe then checks that it fits the workflow.</target></trans-unit>
+            <trans-unit id="github.repositories.empty_state.install"><source>github.repositories.empty_state.install</source><target>Install the GitHub App</target></trans-unit>
+            <trans-unit id="github.repositories.empty_state.body_hook"><source>github.repositories.empty_state.body_hook</source><target>Connect a repository with a webhook on the Connections page. Loupe then checks that it fits the workflow.</target></trans-unit>
+            <trans-unit id="github.repositories.empty_state.connect"><source>github.repositories.empty_state.connect</source><target>Connect a repository</target></trans-unit>
+            <trans-unit id="github.repositories.flash.check_throttled"><source>github.repositories.flash.check_throttled</source><target>Loupe checked a moment ago, at %time%. Wait a minute, then check again.</target></trans-unit>
+            <trans-unit id="github.repositories.flash.check_throttled_untimed"><source>github.repositories.flash.check_throttled_untimed</source><target>Loupe checked a moment ago. Wait a minute, then check again.</target></trans-unit>
             <trans-unit id="github.repositories.title"><source>github.repositories.title</source><target>Repositories</target></trans-unit>
             <trans-unit id="github.repositories.disabled"><source>github.repositories.disabled</source><target>The operator has not enabled forge connections on this instance.</target></trans-unit>
-            <trans-unit id="github.repositories.empty"><source>github.repositories.empty</source><target>No repository is connected. Connect a repository, and a merge, a review or a check result in it will reach the cards that link its pull requests.</target></trans-unit>
-            <trans-unit id="github.repositories.purpose"><source>github.repositories.purpose</source><target>A merge, a review or a check result in these repositories will reach the cards that link its pull requests.</target></trans-unit>
+            <trans-unit id="github.repositories.purpose"><source>github.repositories.purpose</source><target>A merge, a review or a check result in these repositories will reach the cards that link its pull requests. Loupe compares each repository with the settings that the workflow of the project needs. Loupe never changes a GitHub setting itself.</target></trans-unit>
             <trans-unit id="github.repositories.health.waiting"><source>github.repositories.health.waiting</source><target>Waiting for the first delivery</target></trans-unit>
             <trans-unit id="github.repositories.health.working"><source>github.repositories.health.working</source><target>Working · last delivery %time%</target></trans-unit>
             <trans-unit id="github.repositories.health.quiet"><source>github.repositories.health.quiet</source><target>Quiet · no delivery for 30 days, last one %time%</target></trans-unit>
@@ -8907,10 +9083,6 @@
             <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_base_requires_review"><source>workflow.waiting.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch requires an approving review.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_base_requires_review"><source>workflow.waiting.not.pr_base_requires_review</source><target>Waiting: the ruleset of the default branch does not require an approving review.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_approval_check_unpinned"><source>workflow.waiting.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from any source.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_approval_check_unpinned"><source>workflow.waiting.not.pr_approval_check_unpinned</source><target>Waiting: the ruleset of the default branch requires the approval check from the Loupe App alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
@@ -8965,6 +9137,10 @@
             <trans-unit id="workflow.waiting.not.pr_ready_for_stuck_delay"><source>workflow.waiting.not.pr_ready_for_stuck_delay</source><target>Waiting: the pull request is ready to merge for the stuck delay or more.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_rule_held_by_blocker"><source>workflow.waiting.card_rule_held_by_blocker</source><target>Waiting: no move rule of the card waits for an open blocker alone.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_rule_held_by_blocker"><source>workflow.waiting.not.card_rule_held_by_blocker</source><target>Waiting: a move rule of the card waits for an open blocker alone.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_rule_held_by_work_hold"><source>workflow.waiting.card_rule_held_by_work_hold</source><target>Waiting: no rule of the card waits for the project to release its work.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_rule_held_by_work_hold"><source>workflow.waiting.not.card_rule_held_by_work_hold</source><target>Waiting: a rule of the card waits for the project to release its work.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_rule_retry_scheduled"><source>workflow.waiting.card_rule_retry_scheduled</source><target>Waiting: no refused rule of the card waits for a retry.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_rule_retry_scheduled"><source>workflow.waiting.not.card_rule_retry_scheduled</source><target>Waiting: a refused rule of the card waits for its retry.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_stopped"><source>workflow.waiting.card_run_stopped</source><target>Waiting: the latest run of the card did not stop with a warning.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_run_stopped"><source>workflow.waiting.not.card_run_stopped</source><target>Waiting: the latest run of the card stopped with a warning, and the card did not move since.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_run_needs_person"><source>workflow.waiting.card_run_needs_person</source><target>Waiting: the newest run of the card did not stop for a person, or the card moved since.</target></trans-unit>
@@ -9061,6 +9237,29 @@
             <trans-unit id="workflow.settings.markers.fallback"><source>workflow.settings.markers.fallback</source><target>Fallback</target></trans-unit>
             <trans-unit id="workflow.settings.markers.table.label"><source>workflow.settings.markers.table.label</source><target>Markers</target></trans-unit>
             <trans-unit id="workflow.settings.markers.none"><source>workflow.settings.markers.none</source><target>This template declares no markers.</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.heading"><source>workflow.settings.metrics.heading</source><target>Metrics</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.description"><source>workflow.settings.metrics.description</source><target>The template declares the metrics that analytics and experiments read. Each metric reads the work and the events of a finished card.</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.table.label"><source>workflow.settings.metrics.table.label</source><target>Metrics</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.metric"><source>workflow.settings.metrics.metric</source><target>Metric</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.key"><source>workflow.settings.metrics.key</source><target>Key</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.type"><source>workflow.settings.metrics.type</source><target>Type</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.reads"><source>workflow.settings.metrics.reads</source><target>What it reads</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.none"><source>workflow.settings.metrics.none</source><target>This template declares no metrics.</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.type.count"><source>workflow.settings.metrics.type.count</source><target>Count</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.type.rate"><source>workflow.settings.metrics.type.rate</source><target>Rate</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.type.duration"><source>workflow.settings.metrics.type.duration</source><target>Duration</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.reads.count"><source>workflow.settings.metrics.reads.count</source><target>Work requests with %filter%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.reads.count_split"><source>workflow.settings.metrics.reads.count_split</source><target>Work requests with %filter%, split by %field%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.reads.rate_outcome"><source>workflow.settings.metrics.reads.rate_outcome</source><target>Finished cards that a move with outcome %outcome% ended</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.reads.rate_any"><source>workflow.settings.metrics.reads.rate_any</source><target>Finished cards with at least one work request with %filter%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.reads.duration"><source>workflow.settings.metrics.reads.duration</source><target>From %from% to %to%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.pr-opened"><source>workflow.settings.metrics.event.pr-opened</source><target>the pull request opened</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.agent-review-passed"><source>workflow.settings.metrics.event.agent-review-passed</source><target>the agent review passed</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.ready-to-merge"><source>workflow.settings.metrics.event.ready-to-merge</source><target>ready to merge</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.pr-merged"><source>workflow.settings.metrics.event.pr-merged</source><target>the pull request merged</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.arrived"><source>workflow.settings.metrics.event.arrived</source><target>the card arrived in %slot%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.left"><source>workflow.settings.metrics.event.left</source><target>the card left %slot%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.last"><source>workflow.settings.metrics.event.last</source><target>the last time %event%</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.stuck"><source>workflow.settings.markers.kind.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.needs-you"><source>workflow.settings.markers.kind.needs-you</source><target>Needs you</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.working"><source>workflow.settings.markers.kind.working</source><target>Working</target></trans-unit>
@@ -9426,6 +9625,7 @@
             <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
             <trans-unit id="marker.paused.reason.title"><source>marker.paused.reason.title</source><target>Paused: %reason%</target></trans-unit>
             <trans-unit id="marker.paused.run"><source>marker.paused.run</source><target>Card %card% is paused. %reason%. The last %worker% run failed: %failure%.</target></trans-unit>
+            <trans-unit id="marker.paused.run_state"><source>marker.paused.run_state</source><target>Card %card% is paused. %reason%. The last %worker% run ended as %state%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review"><source>marker.paused.work_limit.agent_review</source><target>Card %card% is paused. %count% %work% rounds did not pass the agent review of PR #%number%.</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.agent_review.title"><source>marker.paused.work_limit.agent_review.title</source><target>%count% %work% rounds did not pass the agent review of PR #%number%</target></trans-unit>
             <trans-unit id="marker.paused.work_limit.pull_request"><source>marker.paused.work_limit.pull_request</source><target>Card %card% is paused. %count% %work% rounds did not settle PR #%number%.</target></trans-unit>
@@ -9463,8 +9663,6 @@
             <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
             <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch"><source>marker.ruleset_mismatch</source><target>Needs you: the ruleset of the default branch does not fit the approval check of pull request #%number%.</target></trans-unit>
-            <trans-unit id="marker.ruleset_mismatch.remedy"><source>marker.ruleset_mismatch.remedy</source><target>Remove the rule "Require approvals" from the ruleset. Set the Loupe App as the source of the required check Loupe / Approval.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
@@ -9480,9 +9678,22 @@
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
-            <trans-unit id="marker.link.ruleset-setup"><source>marker.link.ruleset-setup</source><target>Read how to set up the ruleset</target></trans-unit>
+            <trans-unit id="marker.repository_misfit">
+                <source>marker.repository_misfit</source>
+                <target>New work is paused: a repository does not fit the workflow.</target>
+            </trans-unit>
+            <trans-unit id="marker.repository_misfit.remedy">
+                <source>marker.repository_misfit.remedy</source>
+                <target>Fix the blocking gaps on the Repositories page. This card goes on when a check finds none.</target>
+            </trans-unit>
+            <trans-unit id="marker.link.repositories">
+                <source>marker.link.repositories</source>
+                <target>Open Repositories</target>
+            </trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
+            <trans-unit id="marker.retry_scheduled"><source>marker.retry_scheduled</source><target>The work of a rule failed. A retry is due at %due%.</target></trans-unit>
+            <trans-unit id="marker.retry_scheduled.remedy"><source>marker.retry_scheduled.remedy</source><target>Wait for the retry. The card pauses when its retries run out.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending.remedy"><source>marker.forge_request_pending.remedy</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
             <trans-unit id="marker.held_by_blocker"><source>marker.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>

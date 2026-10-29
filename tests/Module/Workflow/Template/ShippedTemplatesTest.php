@@ -23,6 +23,9 @@ use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Contract\RepositorySuggestion;
+use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
@@ -71,6 +74,17 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
     }
 
+    public function test_each_template_suggests_its_repository_settings(): void
+    {
+        self::assertEquals([
+            new RepositorySuggestion(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking),
+            new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning),
+            new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Warning),
+            new RepositorySuggestion(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking),
+        ], $this->template('lifecycle')->repositorySettings);
+        self::assertEquals([new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Warning)], $this->template('simple')->repositorySettings);
+    }
+
     public function test_each_template_lists_its_inbox_markers_and_each_one_names_one_thing(): void
     {
         $expected = [
@@ -79,6 +93,7 @@ final class ShippedTemplatesTest extends KernelTestCase
                 'document-in-review' => MarkerSubjectType::Document,
                 'run-needs-you' => MarkerSubjectType::WorkerRun,
                 'paused' => MarkerSubjectType::CardPause,
+                'repository-misfit' => null,
             ],
             'simple' => [
                 'waits-for-approval' => MarkerSubjectType::PullRequest,
@@ -91,7 +106,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             $template = $this->template($key);
             self::assertSame(array_keys($subjects), $template->inbox, $key);
             foreach ($template->markers as $marker) {
-                if (isset($subjects[$marker->key])) {
+                if (\array_key_exists($marker->key, $subjects)) {
                     self::assertSame($subjects[$marker->key], MarkerSubjectClassifier::of($marker->when), $key.' '.$marker->key);
                 }
             }
@@ -539,7 +554,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     public function test_a_card_waits_in_implementation_and_in_review_until_the_agent_review_passed(): void
     {
         $toReview = $this->call('move', ['to' => 'in-review']);
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         self::assertNotContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [null])));
         self::assertNotContainsEquals($toReview, $this->actions(self::withAgentReview('implementation', [AgentReviewConclusion::Failure])));
@@ -552,7 +567,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $toReview = $this->call('move', ['to' => 'in-review']);
         $ready = $this->call('forge-write', ['write' => 'review-ready']);
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         $implementation = self::withAgentReview('implementation', [AgentReviewConclusion::Failure], overriddenBy: 'ubermuda');
         self::assertContainsEquals($toReview, $this->actions($implementation));
@@ -565,7 +580,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_an_epic_child_waits_for_the_agent_review_before_it_merges_into_the_epic_branch(): void
     {
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [null], epicBranch: true)));
         self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], epicBranch: true)));
@@ -617,7 +632,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_an_epic_waits_for_its_own_agent_review_before_it_gets_the_approval_check_or_merges(): void
     {
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
         $pass = $this->call('forge-write', ['write' => 'approval-check', 'state' => 'pass']);
         $epic = static fn (?AgentReviewConclusion $conclusion, bool $approved): Facts => self::withAgentReview('in-review', [$conclusion], epic: true, approved: $approved, ready: true);
 
@@ -711,24 +726,6 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertFalse($marker->when->evaluate($facts(run: FactsMother::run(activeWorkerKinds: ['fix']))));
     }
 
-    public function test_the_ruleset_mismatch_marker_shows_for_an_open_pull_request_whose_ruleset_does_not_fit(): void
-    {
-        $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'ruleset-mismatch' === $marker->key) ?? throw new \LogicException('ruleset-mismatch');
-        $facts = static fn (array $overrides = [], ?RunInputs $run = null): Facts => FactsMother::facts(
-            card: FactsMother::card(slot: 'in-review'),
-            pullRequest: FactsMother::pullRequest(...[...['baseRequiresReview' => true], ...$overrides]),
-            run: $run ?? FactsMother::run(),
-        );
-
-        self::assertSame('needs-you', $marker->kind->value);
-        self::assertSame(MarkerSubjectType::PullRequest, MarkerSubjectClassifier::of($marker->when));
-        self::assertTrue($marker->when->evaluate($facts()));
-        self::assertTrue($marker->when->evaluate($facts(['baseRequiresReview' => false, 'approvalCheckUnpinned' => true])));
-        self::assertFalse($marker->when->evaluate($facts(['baseRequiresReview' => false])));
-        self::assertFalse($marker->when->evaluate($facts(['state' => PullRequestState::Closed])));
-        self::assertFalse($marker->when->evaluate($facts(run: FactsMother::run(activeWorkerKinds: ['fix']))));
-    }
-
     public function test_the_waits_for_approval_marker_follows_the_approval_check(): void
     {
         $marker = array_find($this->lifecycle()->markers, static fn ($marker): bool => 'waits-for-approval' === $marker->key) ?? throw new \LogicException('waits-for-approval');
@@ -758,7 +755,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             card: FactsMother::card(slot: 'in-review'),
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
 
         self::assertContainsEquals($merge, $this->actions($ready));
 
@@ -867,7 +864,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
 
-        self::assertContainsEquals($this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']), $this->actions($facts));
+        self::assertContainsEquals($this->mergeWrite(), $this->actions($facts));
     }
 
     #[DataProvider('shippedKeys')]
@@ -899,7 +896,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true),
         );
 
-        self::assertNotContainsEquals($this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']), $this->actions($facts));
+        self::assertNotContainsEquals($this->mergeWrite(), $this->actions($facts));
     }
 
     public function test_a_child_whose_pull_requests_closed_unmerged_stays_in_its_column(): void
@@ -1239,7 +1236,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_an_epic_child_pull_request_merges_into_the_epic_branch_with_no_approval(): void
     {
-        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+        $merge = $this->mergeWrite();
         $child = FactsMother::card(slot: 'in-review', isChild: true);
 
         $intoEpic = FactsMother::pullRequest(checks: ChecksState::Passed, baseIsEpicBranch: true);
@@ -1298,6 +1295,14 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
 
         self::assertSame(['product-design-revise' => ['product-design', 'changes-requested'], 'tech-design-revise' => ['tech-design', 'changes-requested']], $params);
+    }
+
+    private function mergeWrite(): ActionCall
+    {
+        $actions = self::getContainer()->get(Actions::class);
+        self::assertInstanceOf(Actions::class, $actions);
+
+        return $actions->call('forge-write', ['write' => 'merge', 'fallback' => 'merge'], lists: ['methods' => ['squash', 'merge', 'rebase']]);
     }
 
     /** @param array<string, int|string> $params */

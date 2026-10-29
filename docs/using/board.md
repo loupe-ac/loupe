@@ -190,7 +190,7 @@ is in a state. The mark says what the card needs now:
 | State | Means |
 |---|---|
 | **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card or on its children for longer than the stuck delay and no other reason applies. An epic never shows it while a child has an open worker run. The remedy line on the card page says what to do |
-| **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or a blocking inbox question names the card |
+| **Needs you** | A document of the card waits for your review, a pull request waits for your approval, a blocking inbox question names the card, or the project holds new work because a repository has a blocking gap |
 | **Working** | A worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
 | **Waiting** | Work waits for a free spot on a bridge that could take it (a request that a bridge already took does not count), the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
 
@@ -241,9 +241,9 @@ the same colour. The workflow template sets the colour of a card type, and it
 also declares which types the board offers. The owner picks a column's colour from twelve in its
 **Colour** setting. The colour stays with the column when the columns move.
 
-The page header is one row: the title, the search, the card count, a
+The page header is one row: the title, the card count, a
 **Board settings** button with a gear icon, and the **Board** and **List**
-switch. To add a card, use **New work** in the top bar. It wraps on a narrow screen, and it stays in place when the
+switch. The card count follows the cards on the board as they change. To find a card, use the search in the top bar (see [Search](search.md)). To add a card, use **New work** in the top bar. It wraps on a narrow screen, and it stays in place when the
 cards scroll.
 
 A second header row holds a **Backlog** button. The button shows how many cards
@@ -265,7 +265,7 @@ A terminal column takes a drop like any other column. It keeps no rank.
 
 The card follows the pointer as you drag, and a gap opens where a release would
 put it. The server answers a drop with the moved card alone. Only the columns
-involved change, and the scroll position and the filter stay as they are. A move
+involved change, and the scroll position stays as it is. A move
 the server refuses puts the card back where it started, and a message says so.
 The server refuses a move to a column that no longer exists.
 
@@ -293,10 +293,8 @@ column on screen.
   bottom, so a swipe moves every lane to the next column.
 
 The board header is one row with the title and a **…** button. The **…** menu
-holds **Backlog** with its card count, **Search**, **Board settings** and the
-**Board** and **List** switch. **Search** opens the search field below the
-header. The field stays while it holds text, also after you open a card page and
-come back. A touch no longer drags a card on a phone, because a swipe moves the
+holds **Backlog** with its card count, **Board settings** and the
+**Board** and **List** switch. A touch no longer drags a card on a phone, because a swipe moves the
 board. A mouse still drags at any width.
 
 An epic lane head shows the epic name and its done count, for example **2/5**,
@@ -369,7 +367,7 @@ The notice needs live changes, as the board does.
 Every open board of the project shows a change as it happens, with no reload.
 
 - When someone else adds, edits, moves or deletes a card, that card changes in
-  place. The other cards, the scroll position and the filter stay.
+  place. The other cards and the scroll position stay.
 - On a board with epic lanes, a card also changes in place, in the cell of its
   lane and column. The head of an epic lane changes in place too.
 - A card that someone else changed gets a short highlight. With reduced motion
@@ -846,6 +844,24 @@ The other tools take no number. `card_create`, `card_list` and `card_search`
 report both `cardId` and `number` in what they return. The card page URL still
 takes the UUID alone.
 
+### Card and pull request references
+
+Loupe turns a reference to a card or a pull request into a link in the body of
+a card. The same links work in the inbox and in documents.
+
+Write `card:1116` for a card, and `pr:owner/repo#1295` for a pull request. The
+page shows "card #1116" and "owner/repo#1295". Loupe also links plain prose
+such as "card 1116", "PR #1295" and "pull request 1295".
+
+A card link opens the card drawer. On a page with no drawer, it opens the card
+page. A pull request link opens the page of the code host in a new tab. The link
+shows the title on hover. A card also shows its column and state. A pull request
+also shows its state.
+
+A card number that matches no card stays plain text. A prose pull request
+reference links only when the project watches exactly one repository. A bare
+`#1116` stays plain text. Text in a code span or a code block stays as written.
+
 ## Pull request links
 
 A card links to any number of pull requests. Nothing about a link is
@@ -878,7 +894,7 @@ the links read back in the order they were added.
 ### What GitHub tells a card
 
 The project owner connects the project's GitHub repositories on the Connections
-tab. [Projects](projects.md#repositories) describes how. After that, a merge, a
+tab, and sees them on the Repositories tab. [Projects](projects.md#repositories) describes how. After that, a merge, a
 review or a check result in a connected repository reaches each card of that
 project which links the pull request. Your agent receives it as an event.
 
@@ -1052,10 +1068,12 @@ whole board. It searches the title and the body of every card in the project,
 done ones included, because a topic is often named only in a body and "yes, and
 it is already done" is a true answer.
 
-Matching is by word, not by substring, and words are stemmed, so `paging` finds
-`pages`. Quote a phrase to require it, put `-` in front of a word to exclude it,
-and write `or` between two words to accept either. A card whose title carries
-the word outranks one that carries it only in the body.
+Matching is by substring and ignores case, so `pag` finds `paging` and `pages`.
+Punctuation separates words, and every word must match. Quote a phrase to require
+it, put `-` in front of a word or a phrase to exclude it, and write `or` between
+two terms to accept either. A number such as `12` or `#12` also finds the card
+with that number. A card whose title carries every word comes before one that
+carries them only in the body, and the newest card comes first in each group.
 
 It pages the same way `card_list` does: `perPage` holds 25 rows by default and
 100 at most, and the answer carries `page`, `perPage`, `total` and `hasMore`. A
@@ -1088,7 +1106,7 @@ in a terminal column, and for a card that carries only a chip such as
 the marker that names the reason: `paused`, `run-stopped`, `run-needs-you`, `checks-failed`,
 `conflicting`, `ready-not-merged`, `pull-request-idle`, `nothing-happened`,
 `document-in-review`, `waits-for-approval`, `open-question`, `session-open`,
-`run-open`, `work-requested`, `forge-request-pending`, `held-by-blocker`,
+`run-open`, `work-requested`, `retry-scheduled`, `forge-request-pending`, `held-by-blocker`,
 `waits-for-parent-card`, `waits-for-parent-branch` or `waiting-on-checks`.
 `since` is the time that reason began, or null when Loupe stores none.
 `card_get`, `card_list` with `full`, `card_create`, `card_update` and

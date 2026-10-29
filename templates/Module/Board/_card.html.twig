@@ -12,14 +12,14 @@
 <article class="lp-board-card{{ static ? ' lp-board-card--static' }}"
          {% if not static %}data-controller="card-prefetch"
          data-board-drag-target="card"
-         data-board-filter-target="card"
+         data-board-view-target="card"
          data-action="pointerdown->board-drag#press mouseenter->card-prefetch#enter mouseleave->card-prefetch#leave focusin->card-prefetch#enter"
          id="board-card-{{ card.id }}"
          data-card-digest="{{ card_digest(card, pendingComments, documentCount, progress, runWarning, markers, inboxItem) }}"{% endif %}
          data-card-id="{{ card.id }}"
          data-card-type="{{ card.type }}"
          data-card-lane="{{ card_type(card).lane ? 'true' : 'false' }}"
-         data-card-title="{{ card.title }}">
+         data-card-title="{{ card.title|reference_plain }}">
     {# The identifier and the card's type lead the card face, as the design draws
        them. The number is the handle a person quotes. #}
     <div class="lp-board-card__identity">
@@ -27,7 +27,7 @@
         {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
         {% include '@Board/_card_source_tag.html.twig' with {card: card} only %}
         {% if card.parent and not inLane %}
-        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__parent', marker: 'data-card-parent-tag', tooltip: 'board.card.parent.tooltip'|trans({'%number%': card.parent.number, '%title%': card.parent.title}), card: card} only %}
+        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__parent', marker: 'data-card-parent-tag', tooltip: 'board.card.parent.tooltip'|trans({'%number%': card.parent.number, '%title%': card.parent.title|reference_plain}), card: card} only %}
             {% block marker %}<twig:ux:icon name="lucide:arrow-up" class="lp-icon lp-icon--xs" aria-hidden="true" />#{{ card.parent.number }}{% endblock %}
         {% endembed %}
         {% endif %}
@@ -56,7 +56,7 @@
        data-turbo-frame="card-drawer-frame"
        data-drawer-title="#{{ card.number }}"
        data-action="click->card-drawer#prepare">
-        {{ card.title }}
+        {{ card.title|reference_plain }}
     </a>
     {% if static %}
     <twig:Ds:StatusChip :dot="false" class="lp-board-card__status">{{ card.column.label|trans }}</twig:Ds:StatusChip>

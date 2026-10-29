@@ -61,7 +61,7 @@ class ListReportsController extends AppController
             'totalPages' => $view->totalPages,
             'pageList' => $view->pageList,
             'settings' => $view->settings,
-            'costMetric' => Metric::Cost,
+            'costMetric' => Metric::Cost->valueType(),
             'startForm' => $startForm,
             'settingsForm' => $this->getInjectedFormView($request, self::SETTINGS_FORM)
                 ?? $this->createForm(AnalyticsSettingsFormType::class, AnalyticsSettingsRequest::fromView($view->settings))->createView(),

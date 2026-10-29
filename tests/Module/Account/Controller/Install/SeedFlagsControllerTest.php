@@ -13,6 +13,7 @@ use App\Module\Analytics\Twig\AnalyticsScript;
 use App\Module\Bridge\Service\BridgeCommandTtl;
 use App\Module\Bridge\Service\HeartbeatInterval;
 use App\Module\Bridge\Service\HostSampling;
+use App\Module\Bridge\Service\InteractiveStaleClose;
 use App\Module\Bridge\Service\StopLadder;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
@@ -23,7 +24,6 @@ use App\Module\Notification\Service\PushAvailability;
 use App\Module\Review\Install\ReviewInstallFlags;
 use App\Module\Review\Mcp\DocumentHighlightTool;
 use App\Module\SiteReview\SiteReviewDrawing;
-use App\Search\Install\SearchInstallFlags;
 use App\Service\UpdateCheck;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
@@ -91,6 +91,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertSame(7500, $flags[StopLadder::SIGTERM_FLAG]->value);
         self::assertSame(2500, $flags[StopLadder::SIGKILL_FLAG]->value);
         self::assertFalse($flags[HostSampling::ENABLED_FLAG]->value);
+        self::assertTrue($flags[InteractiveStaleClose::FLAG]->value);
         self::assertSame(60, $flags[HostSampling::INTERVAL_FLAG]->value);
         self::assertSame(ToolCallCollectionSettings::DEFAULT_SUBCOMMAND_PROGRAMS, $flags[ToolCallCollectionSettings::SUBCOMMAND_PROGRAMS_FLAG]->value);
         self::assertSame('sonnet', $flags[AnalysisSettings::MODEL_FLAG]->value);
@@ -103,7 +104,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertArrayNotHasKey('board.enabled', $flags);
         self::assertFalse($flags[InboxInstallFlags::FLAG_INBOX_ENABLED]->value);
         self::assertSame(SessionPromptLimit::DEFAULT, $flags[SessionPromptLimit::FLAG]->value);
-        self::assertFalse($flags[SearchInstallFlags::FLAG_TOPBAR_ENABLED]->value);
+        self::assertArrayNotHasKey('search.topbar.enabled', $flags);
         // Same reasoning as the update check: an install sends nothing to a
         // third party until someone decides it should.
         self::assertFalse($flags[AnalyticsScript::ENABLED_FLAG]->value);

@@ -589,6 +589,18 @@ type Heartbeat struct {
 	// Repositories follows the same rule: nil sends no key and keeps the rows
 	// the server holds.
 	Repositories []RepositoryReport `json:"repositories,omitzero"`
+	// InteractiveSessions holds one reading for each session the last reply
+	// named in WatchSessions. An empty list sends no key.
+	InteractiveSessions []InteractiveSessionReading `json:"interactiveSessions,omitempty"`
+}
+
+// InteractiveSessionReading is what the bridge sees of one interactive
+// session. A nil Alive means the bridge cannot tell. A nil TranscriptAt means
+// the bridge found no transcript. Both send null.
+type InteractiveSessionReading struct {
+	SessionID    string     `json:"sessionId"`
+	Alive        *bool      `json:"alive"`
+	TranscriptAt *time.Time `json:"transcriptAt"`
 }
 
 // The most rows of each list a heartbeat carries.
@@ -699,6 +711,9 @@ type HeartbeatReply struct {
 	// the claims this bridge no longer holds, in lower case.
 	WorkRequests []WorkRequest
 	LostClaims   []string
+	// WatchSessions are the ids of the open interactive runs this bridge
+	// launched. The next heartbeat carries a reading for each.
+	WatchSessions []string
 }
 
 // WorkerPoolReport is the size of one worker pool, the slots its runs take,
@@ -805,20 +820,22 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 	case resp.StatusCode == http.StatusOK:
 		// The heartbeat landed, so a reply it cannot read is not a failure.
 		var reply struct {
-			CLIRange     string            `json:"cliRange"`
-			Paused       *bool             `json:"paused"`
-			Commands     []json.RawMessage `json:"commands"`
-			WorkRequests []json.RawMessage `json:"workRequests"`
-			LostClaims   []json.RawMessage `json:"lostClaims"`
+			CLIRange      string            `json:"cliRange"`
+			Paused        *bool             `json:"paused"`
+			Commands      []json.RawMessage `json:"commands"`
+			WorkRequests  []json.RawMessage `json:"workRequests"`
+			LostClaims    []json.RawMessage `json:"lostClaims"`
+			WatchSessions []json.RawMessage `json:"watchSessions"`
 		}
 		_ = decodeBody(resp.Body, &reply)
 
 		return HeartbeatReply{
-			CLIRange:     strings.TrimSpace(reply.CLIRange),
-			Paused:       reply.Paused,
-			Commands:     decodeCommands(reply.Commands),
-			WorkRequests: decodeWorkRequests(reply.WorkRequests),
-			LostClaims:   decodeLostClaims(reply.LostClaims),
+			CLIRange:      strings.TrimSpace(reply.CLIRange),
+			Paused:        reply.Paused,
+			Commands:      decodeCommands(reply.Commands),
+			WorkRequests:  decodeWorkRequests(reply.WorkRequests),
+			LostClaims:    decodeLostClaims(reply.LostClaims),
+			WatchSessions: decodeWatchSessions(reply.WatchSessions),
 		}, nil
 	case resp.StatusCode == http.StatusNoContent:
 		return HeartbeatReply{}, nil

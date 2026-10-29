@@ -58,6 +58,7 @@ final class ComparisonPagesControllerTest extends WebTestCase
         self::assertSelectorExists('.lp-compare table');
         self::assertSelectorExists('.lp-legal__body a[rel="noopener noreferrer"][href="https://rival.example/readme"]');
         self::assertCount(2, $client->getCrawler()->filter('.lp-legal__actions a[data-analytics-button-param="compare"]'));
+        self::assertSame('Try Loupe', trim($client->getCrawler()->filter('.lp-legal__body section h2')->first()->text()));
         self::assertSelectorTextContains('.lp-legal__actions', 'Self-host Loupe');
         self::assertSelectorTextContains('.lp-legal__actions', 'Join the waitlist');
         self::assertSelectorExists('.lp-legal__actions a[href$="/operating/install/docker-compose/"]');

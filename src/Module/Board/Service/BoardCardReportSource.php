@@ -6,11 +6,8 @@ namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
-use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
-use App\Module\Board\Workflow\MoveCard;
 use App\Module\Bridge\Experiment\CardColumn;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Project\Entity\Project;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -21,7 +18,6 @@ final readonly class BoardCardReportSource implements CardReportSourceInterface
     public function __construct(
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
-        private CardPullRequestRepository $cardPullRequests,
     ) {
     }
 
@@ -41,58 +37,27 @@ final readonly class BoardCardReportSource implements CardReportSourceInterface
     }
 
     #[\Override]
-    public function outcomesFor(Project $project, array $cardIds): array
+    public function outcomesOfCards(Project $project, array $cardIds): array
     {
         if ([] === $cardIds) {
             return [];
         }
 
-        $cards = [];
-        foreach ($this->cardEvents->findKindsOfCards($project, $cardIds, [CardEventKind::FixRequested, CardEventKind::Moved]) as $row) {
-            $card = $cards[$row['cardId']] ?? ['fixRounds' => [], 'merged' => false];
-            $detail = $row['detail'];
-            switch ($row['kind']) {
-                case CardEventKind::FixRequested:
-                    $reason = \is_string($detail['reason'] ?? null) ? $detail['reason'] : 'unknown';
-                    $card['fixRounds'][$reason] = ($card['fixRounds'][$reason] ?? 0) + 1;
-                    break;
-                case CardEventKind::Moved:
-                    // A move by hand to a terminal column carries no cause, so it is no merge.
-                    $cause = $detail['cause'] ?? null;
-                    if (\is_array($cause) && self::isMergeCause($cause)) {
-                        $card['merged'] = true;
-                    }
-                    break;
-                default:
-                    break;
-            }
-            $cards[$row['cardId']] = $card;
-        }
-
-        $times = $this->cardPullRequests->findPullRequestTimesOfCards($project, $cardIds);
         $outcomes = [];
-        foreach ($cards as $cardId => $card) {
-            ksort($card['fixRounds']);
-            $outcomes[$cardId] = new CardOutcome(
-                fixRounds: $card['fixRounds'],
-                merged: $card['merged'],
-                openedAt: $times[$cardId]['openedAt'] ?? null,
-                mergedAt: $times[$cardId]['mergedAt'] ?? null,
-            );
+        foreach ($this->cardEvents->findKindsOfCards($project, $cardIds, [CardEventKind::Moved]) as $row) {
+            $cause = $row['detail']['cause'] ?? null;
+            $outcome = \is_array($cause) ? $cause['outcome'] ?? null : null;
+            if (\is_string($outcome) && '' !== $outcome) {
+                $outcomes[$row['cardId']][$outcome] = $outcome;
+            }
         }
 
-        return $outcomes;
-    }
+        return array_map(static function (array $keys): array {
+            $keys = array_values($keys);
+            sort($keys, \SORT_STRING);
 
-    /**
-     * An older stored cause names the merge by its type, or by the id of the rule that moved the card.
-     *
-     * @param array<mixed> $cause
-     */
-    private static function isMergeCause(array $cause): bool
-    {
-        return 'merged' === ($cause['type'] ?? null)
-            || ('workflow-rule' === ($cause['type'] ?? null) && (MoveCard::OUTCOME_MERGED === ($cause['outcome'] ?? null) || 'merged' === ($cause['rule'] ?? null)));
+            return $keys;
+        }, $outcomes);
     }
 
     #[\Override]

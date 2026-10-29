@@ -1,12 +1,12 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'review.document.page.title'|trans({'%title%': document.title}) }} — {{ 'app.name'|trans }}{% endblock %}
+{% block title %}{{ 'review.document.page.title'|trans({'%title%': document.title|reference_plain}) }} — {{ 'app.name'|trans }}{% endblock %}
 
 
 {% block topbar_crumbs %}
     <twig:Ds:Breadcrumbs :items="[
         {label: 'nav.link.documents'|trans, url: path('app_project_documents', {id: document.project.id})},
-        {label: document.title},
+        {label: document.title|reference_plain},
     ]">
         <span class="lp-version-pill">{{ 'v' ~ version.versionNumber }}</span>
     </twig:Ds:Breadcrumbs>
@@ -346,7 +346,7 @@
                Everything else on this page reads the same in both modes, which is
                why the diff overrides this block instead of being a page of its own. #}
             {% block documentPane %}
-            <div class="prose lp-prose lp-review-doc__prose" data-rail-align data-comment-anchor-target="doc"{% if hasMermaid %} data-mermaid-target="doc"{% endif %} tabindex="-1">{{ documentPaneHtml|raw }}</div>
+            {% apply link_references(document.project) %}<div class="prose lp-prose lp-review-doc__prose" data-references data-rail-align data-comment-anchor-target="doc"{% if hasMermaid %} data-mermaid-target="doc"{% endif %} tabindex="-1">{{ documentPaneHtml|raw }}</div>{% endapply %}
             {% if tooltipDefinitions is not empty %}
             <div class="lp-reference-tooltip" id="reference-tooltip" role="tooltip" data-reference-tooltip-target="popover" hidden>
                 <p class="lp-reference-tooltip__text" data-reference-tooltip-target="text"></p>

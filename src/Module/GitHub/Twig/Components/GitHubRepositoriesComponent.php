@@ -4,24 +4,22 @@ declare(strict_types=1);
 
 namespace App\Module\GitHub\Twig\Components;
 
-use App\Module\Forge\Entity\ForgeRepository;
-use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
-use App\Module\GitHub\Entity\GitHubHook;
-use App\Module\GitHub\Entity\GitHubInstallation;
-use App\Module\GitHub\Repository\GitHubHookRepository;
-use App\Module\GitHub\Repository\GitHubInstallationRepository;
+use App\Module\Forge\Service\RepositoryCheckTopics;
 use App\Module\GitHub\Security\GitHubConnectionVoter;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubRepositoryRows;
 use App\Module\GitHub\Service\HookSecretKey;
-use App\Module\GitHub\Service\OneTimeHookSecret;
+use App\Module\GitHub\View\RepositoryRow;
 use App\Module\Project\Entity\Project;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
- * The Repositories section of the Connections page. The Project module names
- * it in its template only, so it never imports this module.
+ * The repository rows of the Repositories settings page, with their checks.
+ * The Project module names it in its template only, so it never imports this
+ * module. Each render queues a check for every repository whose last read is
+ * stale.
  *
  * Props: `project`, passed as an object with `:project`.
  */
@@ -32,81 +30,38 @@ final class GitHubRepositoriesComponent
 
     public bool $visible = false;
 
+    public bool $connectionsAvailable = false;
+
     public bool $appConfigured = false;
 
-    public bool $hookAvailable = false;
+    /** @var list<RepositoryRow> */
+    public array $rows = [];
 
-    public ?GitHubHook $hook = null;
-
-    /** Set on the render right after a create or a rotation, never after. */
-    public ?string $newSecret = null;
-
-    /** @var list<ForgeRepository> */
-    public array $repositories = [];
-
-    /** @var array<string, array{requiresReview: bool, unpinned: bool}> keyed by repository id */
-    public array $rulesetMismatches = [];
-
-    /** @var list<GitHubInstallation> */
-    public array $installations = [];
-
-    public \DateTimeImmutable $now;
+    public string $topic = '';
 
     public function __construct(
         private readonly Security $security,
         private readonly ForgeRepositoryRepository $forgeRepositories,
-        private readonly ForgePullRequestRepository $forgePullRequests,
-        private readonly GitHubHookRepository $gitHubHooks,
-        private readonly GitHubInstallationRepository $gitHubInstallations,
+        private readonly GitHubRepositoryRows $repositoryRows,
         private readonly GitHubAppConfiguration $appConfiguration,
         private readonly HookSecretKey $hookSecretKey,
-        private readonly OneTimeHookSecret $oneTimeHookSecret,
+        private readonly RepositoryCheckTopics $topics,
     ) {
     }
 
     public function mount(Project $project): void
     {
         $this->project = $project;
-        $this->now = new \DateTimeImmutable();
         $this->visible = $this->security->isGranted(GitHubConnectionVoter::MANAGE, $project);
         if (!$this->visible) {
             return;
         }
 
         $this->appConfigured = $this->appConfiguration->isConfigured();
-        $this->hookAvailable = $this->hookSecretKey->isReadable();
-        $this->repositories = $this->forgeRepositories->findByProject($project);
-        $this->mountRulesetMismatches($project);
-        if ($this->appConfigured) {
-            $this->installations = $this->gitHubInstallations->findByProject($project);
-        }
-
-        // Loading a hook decrypts its secret, which throws without the key or with a wrong one.
-        if ($this->hookAvailable) {
-            try {
-                $this->hook = $this->gitHubHooks->findOneByProject($project);
-            } catch (\RuntimeException) {
-                $this->hookAvailable = false;
-
-                return;
-            }
-
-            $this->newSecret = $this->oneTimeHookSecret->take($project);
-        }
-    }
-
-    private function mountRulesetMismatches(Project $project): void
-    {
-        $projectId = $project->id ?? throw new \LogicException('A persisted project has an id.');
-        $found = $this->forgePullRequests->findRulesetMismatches($projectId, array_map(
-            static fn (ForgeRepository $repository): array => ['forge' => $repository->forge, 'path' => $repository->path],
-            $this->repositories,
-        ));
-        foreach ($this->repositories as $repository) {
-            $mismatch = $found[ForgePullRequestRepository::repositoryKey($repository->forge, $repository->path)] ?? null;
-            if (null !== $mismatch && null !== $repository->id) {
-                $this->rulesetMismatches[(string) $repository->id] = $mismatch;
-            }
+        $this->connectionsAvailable = $this->appConfigured || $this->hookSecretKey->isReadable();
+        $this->topic = $this->topics->forProject($project->id ?? throw new \LogicException('A persisted project has an id.'));
+        foreach ($this->forgeRepositories->findByProject($project) as $repository) {
+            $this->rows[] = $this->repositoryRows->forRepository($repository, requestCheck: true);
         }
     }
 }

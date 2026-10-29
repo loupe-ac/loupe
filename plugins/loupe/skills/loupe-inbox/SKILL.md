@@ -36,6 +36,10 @@ One session holds one open ask. A later `inbox_ask` or `inbox_join` adds to it. 
 
 Link items with `cardIds` and `documentIds`. Pass the ids that `card_list` and `document_list` return, never a card number. A pull request has no link field, so name it in the `title`.
 
+## Name a card or a pull request with a token
+
+Write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request in `context` and in each `body`. Loupe shows each token as a link with a title tooltip. Prose such as "card 1116" also links, but a token is exact. Prose such as "PR 1295" links only when the project watches exactly one repository, so write the `pr:` token. A token inside code, a link or square brackets stays as written. A `title` and an option show a token as plain text. Name the card in words there, and put the token in the `body` of the item.
+
 ## Suggest the next action
 
 Do this for every to-do and every question. The owner then has one click for the likely next step.

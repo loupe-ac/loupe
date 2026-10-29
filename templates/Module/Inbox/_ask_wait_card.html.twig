@@ -4,6 +4,6 @@
     <a href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}" data-turbo-frame="card-drawer-frame" data-drawer-title="#{{ card.number }}" data-action="click->card-drawer#prepare" aria-describedby="inbox-wait-card-{{ card.id }}" data-inbox-wait-card>#{{ card.number }}</a>
     <twig:Ds:Tooltip id="inbox-wait-card-{{ card.id }}">
         <span class="lp-tooltip__title">{{ 'inbox.wait.byline_tooltip'|trans({'%card%': card.number}) }}</span>
-        <span class="lp-tooltip__line">{{ card.title }}</span>
+        <span class="lp-tooltip__line">{{ card.title|reference_plain }}</span>
     </twig:Ds:Tooltip>
 </span>

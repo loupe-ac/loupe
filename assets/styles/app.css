@@ -74,6 +74,7 @@
 @source not "../../.claude";
 @source not "../../.worktrees";
 @source not "../../docs";
+@source not "../../tests";
 
 /* ── Self-hosted fonts (variable, OFL — see ../fonts/LICENSE.txt) ─── */
 
@@ -2531,27 +2532,6 @@
     .lp-board-toolbar__actions {
         @apply flex flex-wrap items-center gap-2 ml-auto max-w-full;
     }
-    .lp-board-toolbar__filters {
-        @apply relative flex min-w-0 items-center gap-2 overflow-x-auto scroll-p-0.5 p-0.5 -m-0.5;
-        scrollbar-width: none;
-    }
-    .lp-board-toolbar__filters::-webkit-scrollbar {
-        display: none;
-    }
-    /* A fixed field rather than one that grows: the design puts the search at
-       its own width and leaves the rest of the row empty. */
-    .lp-board-toolbar__search {
-        @apply relative flex w-56 min-w-24 items-center;
-    }
-    .lp-board-toolbar__search-icon {
-        @apply pointer-events-none absolute left-3 h-4 w-4 text-fg-dim;
-    }
-    .lp-board-toolbar__input {
-        @apply h-9 rounded-lg border border-line bg-surface-1 text-sm text-ink outline-hidden forced-colors:outline-offset-0 focus:border-accent-ink focus:ring-2 focus:ring-accent-ink;
-    }
-    .lp-board-toolbar__input {
-        @apply min-w-0 w-full py-2 pr-3 pl-9;
-    }
     .lp-board-toolbar__mode {
         @apply inline-flex max-w-full items-center rounded-lg bg-surface-3 p-1;
     }
@@ -2571,12 +2551,6 @@
     }
     .lp-board-toolbar__paused:empty {
         @apply sr-only;
-    }
-    .lp-board-filter-empty {
-        @apply m-0 rounded-lg bg-surface-2 px-4 py-3 text-sm text-fg-mute;
-    }
-    .lp-board-filter-empty[hidden] {
-        @apply hidden;
     }
     .lp-board-list {
         @apply overflow-x-auto rounded-xl border border-line bg-surface-1;
@@ -2623,8 +2597,7 @@
     }
 
     /* A phone shows one column per screen and a sideways swipe steps one column. The
-       header row holds the title and the "…" menu. Search opens the row below
-       it, and that row stays while the search has text. */
+       header row holds the title and the "…" menu. */
     @media (width < 40rem) {
         .lp-board-header {
             @apply flex-wrap gap-x-2;
@@ -2634,12 +2607,6 @@
         }
         .lp-board-toolbar__title {
             @apply order-1 mr-auto text-xl;
-        }
-        .lp-board-toolbar__filters {
-            @apply hidden order-5 basis-full;
-        }
-        .lp-board-toolbar[data-search-open] .lp-board-toolbar__filters {
-            @apply flex;
         }
         .lp-board-header .lp-board-backlog {
             @apply hidden;
@@ -2652,9 +2619,6 @@
         }
         .lp-board-toolbar__menu .lp-board-toolbar__mode {
             @apply flex-wrap;
-        }
-        .lp-board-toolbar__search {
-            @apply w-full;
         }
         .lp-board-toolbar__count {
             @apply hidden;
@@ -2991,9 +2955,13 @@
     .lp-worker-run-control-label--warns {
         @apply text-status-pending-deep;
     }
-    /* The runs table outcome cell: the pill, with the request state under it. */
+    /* The runs table outcome cell: the pill row, with the request state under it. */
     .lp-worker-run-outcome {
         @apply flex min-w-0 flex-col items-start gap-0.5;
+    }
+    /* The pill and its compact close icon, side by side above the request state. */
+    .lp-worker-run-outcome__status {
+        @apply flex min-w-0 max-w-full items-center gap-1;
     }
     .lp-worker-run-outcome .lp-worker-run-control-label {
         @apply max-w-full;
@@ -3603,18 +3571,6 @@
     .lp-dialog--search {
         @apply max-w-2xl;
     }
-    .lp-search-dialog__header {
-        @apply flex items-center justify-between gap-3 mb-4;
-    }
-    .lp-search-dialog__form {
-        @apply flex flex-wrap items-center gap-2 mb-4;
-    }
-    .lp-search-dialog__form .lp-input {
-        @apply min-w-0 flex-1 basis-48;
-    }
-    .lp-search-dialog__label {
-        @apply sr-only;
-    }
     .lp-search-result {
         @apply flex flex-wrap items-center justify-between gap-3 border-b border-line py-3 text-ink no-underline;
     }
@@ -4012,6 +3968,11 @@
     }
     .lp-data-table--history .lp-data-table__row {
         @apply min-h-18 py-4.5;
+    }
+    /* Metric, Key, Type, What it reads. */
+    .lp-data-table--metrics {
+        --lp-data-table-columns: minmax(0, 2.4fr) minmax(0, 1.1fr)
+            minmax(0, 0.6fr) minmax(0, 1.9fr);
     }
     .lp-history__version {
         @apply inline-flex rounded-md bg-surface-3 px-1.75 py-0.75 text-xs leading-4 font-semibold text-fg-dim;
@@ -5076,6 +5037,63 @@
     }
     .lp-identity-row > .lp-status-chip {
         @apply shrink-0 whitespace-nowrap;
+    }
+
+    /* The Repositories section: a row for each repository, then its check list. */
+    .lp-repository-list {
+        @apply flex flex-col gap-6;
+    }
+    .lp-repository {
+        @apply flex flex-col gap-3;
+    }
+    .lp-repository-check {
+        @apply flex flex-col gap-2 px-4;
+    }
+    .lp-repository-check__head {
+        @apply flex items-baseline justify-between gap-3;
+    }
+    .lp-repository-check__title {
+        @apply m-0 text-sm font-semibold text-ink;
+    }
+    .lp-repository-check__time {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-repository-check__line {
+        @apply flex items-start gap-2.5 border-t border-line-faint py-2.5;
+    }
+    .lp-repository-check__state {
+        @apply w-35 shrink-0;
+    }
+    .lp-repository-check__text {
+        @apply flex min-w-0 grow flex-col gap-0.5;
+    }
+    .lp-repository-check__line-title {
+        @apply text-sm text-ink;
+    }
+    .lp-repository-check__detail,
+    .lp-repository-check__checking {
+        @apply m-0 text-xs text-fg-dim;
+    }
+    .lp-repository-check__links {
+        @apply mt-1 flex flex-wrap gap-2;
+    }
+    .lp-repository-check__actions {
+        @apply flex flex-wrap items-center gap-2;
+    }
+    .lp-repository-check__hint {
+        @apply m-0 text-xs text-fg-dim;
+    }
+    .lp-repository-guide {
+        @apply flex flex-col gap-2.5 rounded-lg border border-line p-4;
+    }
+    .lp-repository-guide__title {
+        @apply m-0 text-sm font-semibold text-ink;
+    }
+    .lp-repository-guide__steps {
+        @apply m-0 flex flex-col gap-2.5 pl-5 text-sm text-ink;
+    }
+    .lp-repository-guide__links {
+        @apply mt-1.5 flex flex-wrap gap-2;
     }
 
     /* A push device row wraps, so the two buttons drop under the label on a phone. */
@@ -6629,9 +6647,6 @@
     .lp-board-lane--collapsed .lp-board-lane__chevron {
         @apply rotate-0;
     }
-    .lp-board-lane--collapsed.lp-board-lane--revealed .lp-board-lane__chevron {
-        @apply rotate-90;
-    }
     /* Top-aligned with a padding rather than centred, so the lane controller
        reads the final place of each part while the head height still moves. */
     .lp-board-lane__heading {
@@ -6946,13 +6961,6 @@
     }
     .lp-board-lane--collapsed .lp-board-lane__cells {
         @apply invisible overflow-hidden opacity-0 -translate-y-2;
-    }
-    /* A search that matches a card of a collapsed lane shows its cells. */
-    .lp-board-lane--collapsed.lp-board-lane--revealed .lp-board-lane__body {
-        grid-template-rows: 1fr;
-    }
-    .lp-board-lane--collapsed.lp-board-lane--revealed .lp-board-lane__cells {
-        @apply visible overflow-visible opacity-100 translate-none;
     }
     /* Only a click animates, so a lane restored from storage on load does not.
        The lane controller glides the number, title and progress itself. */
@@ -7726,9 +7734,25 @@
     .lp-experiment-tabs {
         @apply mb-4;
     }
-    /* The answer of the comparison, above its tables. */
-    .lp-experiment-headline {
-        @apply m-0 text-base text-ink;
+    /* The padded body of the goal panel: its label, its answer and its figures. */
+    .lp-experiment-goal {
+        @apply flex flex-col gap-2 px-6 py-5;
+    }
+    .lp-experiment-goal__label {
+        @apply m-0 text-xs font-semibold leading-normal uppercase tracking-wider text-fg-dim;
+    }
+    .lp-experiment-goal__answer {
+        @apply flex flex-wrap items-center gap-3;
+    }
+    .lp-experiment-goal__sentence {
+        @apply m-0 font-display text-3xl font-extrabold tracking-tight text-ink;
+    }
+    /* The sentence when the data gives no answer yet. Define it after the sentence. */
+    .lp-experiment-goal__sentence--small {
+        @apply text-2xl;
+    }
+    .lp-experiment-goal__detail {
+        @apply m-0 text-sm leading-normal text-fg-mute;
     }
     .lp-experiment-section {
         @apply mt-8 mb-0 text-base font-semibold text-ink;
@@ -7764,6 +7788,17 @@
     }
     .lp-experiment-table__range {
         @apply text-fg-dim;
+    }
+    /* A key of the bridge rule inside a sentence, such as a metric key, shown as the reader types it. */
+    .lp-experiment-config-key {
+        @apply rounded-md bg-surface-3 px-1.5 font-mono font-medium normal-case tracking-normal whitespace-nowrap text-ink;
+    }
+    /* A figure in the text of the goal panel. */
+    .lp-experiment-guards__value {
+        @apply font-mono text-xs leading-normal tabular-nums text-ink;
+    }
+    .lp-experiment-guards__range {
+        @apply font-mono text-xs leading-normal tabular-nums text-fg-dim;
     }
     /* A row that splits the metric above it, such as the fix rounds of one reason. */
     .lp-experiment-table__table .lp-experiment-table__part th {
@@ -8110,6 +8145,44 @@
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* The open search form grows out of the search icon, at its right edge. */
+@keyframes lp-topsearch-reveal {
+    from {
+        clip-path: inset(
+            calc(var(--spacing) * -2) calc(var(--spacing) * -2)
+                calc(var(--spacing) * -2) calc(100% - var(--spacing) * 9)
+        );
+        opacity: 0;
+    }
+    to {
+        clip-path: inset(calc(var(--spacing) * -2));
+        opacity: 1;
+    }
+}
+
+@keyframes lp-topsearch-conceal {
+    from {
+        clip-path: inset(calc(var(--spacing) * -2));
+        opacity: 1;
+    }
+    to {
+        clip-path: inset(
+            calc(var(--spacing) * -2) calc(var(--spacing) * -2)
+                calc(var(--spacing) * -2) calc(100% - var(--spacing) * 9)
+        );
+        opacity: 0;
+    }
+}
+
+@keyframes lp-progress-slide {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
     }
 }
 

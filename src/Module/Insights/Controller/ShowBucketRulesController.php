@@ -49,7 +49,7 @@ class ShowBucketRulesController extends AppController
                 ?? $this->createForm(BucketRuleFormType::class, new BucketRuleRequest())->createView(),
             'summary' => ($this->showSummary)(new ShowBucketSummaryCommand($project, $range)),
             'ranges' => MetricRange::cases(),
-            'metric' => Metric::BucketTime,
+            'metric' => Metric::BucketTime->valueType(),
         ]);
     }
 }

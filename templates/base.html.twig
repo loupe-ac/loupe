@@ -8,7 +8,7 @@
         </form>
         {% set project = current_project() %}
         {% set route = app.request.attributes.get('_route') %}
-        <div class="lp-app" data-controller="drawer">
+        <div class="lp-app" data-controller="drawer reference-link">
             {% if project %}<div hidden data-controller="remember-project" data-remember-project-id-value="{{ project.id }}"></div>{% endif %}
             {# Off a project page the sidebar keeps the last project visited; the topbar does not. #}
             {% with {project: sidebar_project()} %}
@@ -105,7 +105,7 @@
                 <div class="lp-sidebar__spacer"></div>
                 <nav class="lp-sidebar__nav lp-sidebar__nav--secondary">
                     {% if project %}
-                    <twig:Ds:NavItem :url="path('app_project_edit', {id: project.id})" icon="lucide:settings" :label="'nav.link.project_settings'|trans" :active="route in ['app_project_edit', 'app_board_settings', 'app_board_automation_settings', 'app_project_connect']" />
+                    <twig:Ds:NavItem :url="path('app_project_edit', {id: project.id})" icon="lucide:settings" :label="'nav.link.project_settings'|trans" :active="route in ['app_project_edit', 'app_board_settings', 'app_board_automation_settings', 'app_project_connect', 'app_project_repositories_settings']" />
                     {% endif %}
                     {% if is_feature_enabled('inbox.enabled') %}
                     <twig:Ds:NavItem :url="path('app_account_inbox')" icon="lucide:mails" :label="'inbox.account.nav'|trans" :active="route == 'app_account_inbox'" />
@@ -154,11 +154,11 @@
                             {% block topbar_meta %}{% endblock %}
                         </div>
                         {# Before the global actions, so New work stays right-most on every page. #}
-                        {% block topbar_actions %}{% endblock %}
+                        {# Captured once: a page that fills the actions makes the search an icon. #}
+                        {% set topbarActions %}{% block topbar_actions %}{% endblock %}{% endset %}
+                        {{ topbarActions|raw }}
                         <div class="lp-topbar__global-actions" aria-label="{{ 'nav.global_actions.label'|trans }}">
-                            {% if is_feature_enabled('search.topbar.enabled') %}
-                            {% include 'search/_search_dialog.html.twig' with {project: project} only %}
-                            {% endif %}
+                            {% include 'search/_topbar_search.html.twig' with {project: project, compact: '' != topbarActions|trim} only %}
                             {% if project %}
                             <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="{{ path('app_board_card_create', {id: project.id}) }}" data-card-drawer-opener data-drawer-title="{{ 'nav.new_work'|trans }}" aria-label="{{ 'nav.new_work'|trans }}">
                                 <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />
@@ -176,6 +176,10 @@
                     {% block body %}{% endblock %}
                 </main>
             </div>
+            <twig:Ds:Tooltip id="lp-reference-tooltip" :interactive="true" data-reference-link-target="tooltip">
+                <span class="lp-tooltip__title" data-reference-link-target="title" hidden></span>
+                <span class="lp-tooltip__line" data-reference-link-target="line" hidden></span>
+            </twig:Ds:Tooltip>
         </div>
         {% else %}
         {# Overrides must place main#main-content with tabindex="-1" after navigation. #}

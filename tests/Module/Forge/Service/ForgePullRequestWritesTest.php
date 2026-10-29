@@ -74,10 +74,10 @@ final class ForgePullRequestWritesTest extends KernelTestCase
             $seen = [$this->em->getConnection()->getTransactionNestingLevel(), $this->stored($row)];
         };
 
-        $this->writes->merge($row, 'squash');
+        $this->writes->merge($row, ['squash', 'merge']);
 
         self::assertCount(1, $this->merger->merges);
-        self::assertSame(['squash', 'head1'], [$this->merger->merges[0][1], $this->merger->merges[0][2]]);
+        self::assertSame([['squash', 'merge'], 'head1'], [$this->merger->merges[0][1], $this->merger->merges[0][2]]);
         self::assertSame([$level, ['head1', self::NOW]], $seen);
         self::assertSame(['head1', self::NOW], $this->stored($row));
     }
@@ -89,7 +89,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $this->merger->failure = $failure;
 
         try {
-            $this->writes->merge($row, 'merge');
+            $this->writes->merge($row, ['merge']);
             self::fail('Expected PullRequestWriteFailed.');
         } catch (PullRequestWriteFailed $e) {
             self::assertSame($failure, $e);
@@ -106,7 +106,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $this->merger->failure = $failure;
 
         try {
-            $this->writes->merge($row, 'merge');
+            $this->writes->merge($row, ['merge']);
             self::fail('Expected PullRequestWriteFailed.');
         } catch (PullRequestWriteFailed $e) {
             self::assertSame($failure, $e);
@@ -118,10 +118,10 @@ final class ForgePullRequestWritesTest extends KernelTestCase
     public function test_a_merge_while_another_merge_is_in_flight_fails_and_keeps_its_marker(): void
     {
         $row = $this->row();
-        $this->writes->merge($row, 'merge');
+        $this->writes->merge($row, ['merge']);
         $this->merger->failure = new PullRequestWriteFailed('refused', permanent: true);
 
-        $failure = $this->failure(fn () => $this->writes->merge($row, 'squash'));
+        $failure = $this->failure(fn () => $this->writes->merge($row, ['squash']));
 
         self::assertSame('in_flight', $failure->cause);
         self::assertFalse($failure->permanent);
@@ -134,7 +134,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $row = $this->row();
         $this->mark($row, 'head0', null, ForgePullRequestWrites::MARKER_LIFETIME_SECONDS - 1);
 
-        $failure = $this->failure(fn () => $this->writes->merge($row, 'merge'));
+        $failure = $this->failure(fn () => $this->writes->merge($row, ['merge']));
 
         self::assertSame('in_flight', $failure->cause);
         self::assertSame([], $this->merger->merges);
@@ -146,7 +146,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $row = $this->row();
         $this->mark($row, 'head0', null, ForgePullRequestWrites::MARKER_LIFETIME_SECONDS + 1);
 
-        $this->writes->merge($row, 'merge');
+        $this->writes->merge($row, ['merge']);
 
         self::assertCount(1, $this->merger->merges);
         self::assertSame(['head1', self::NOW], $this->stored($row));
@@ -157,7 +157,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $row = $this->row();
         $this->deleteBehind($row);
 
-        $failure = $this->failure(fn () => $this->writes->merge($row, 'merge'));
+        $failure = $this->failure(fn () => $this->writes->merge($row, ['merge']));
 
         self::assertSame('not_found', $failure->cause);
         self::assertTrue($failure->permanent);
@@ -177,7 +177,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         };
 
         try {
-            $this->writes->merge($row, 'merge');
+            $this->writes->merge($row, ['merge']);
             self::fail('Expected PullRequestWriteFailed.');
         } catch (PullRequestWriteFailed) {
         }
@@ -189,7 +189,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
     {
         $row = $this->row(forge: 'gitlab');
 
-        $failure = $this->failure(fn () => $this->writes->merge($row, 'merge'));
+        $failure = $this->failure(fn () => $this->writes->merge($row, ['merge']));
 
         self::assertSame('no_writer', $failure->cause);
         self::assertTrue($failure->permanent);
@@ -200,7 +200,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
     {
         $row = $this->row(head: null);
 
-        $failure = $this->failure(fn () => $this->writes->merge($row, 'merge'));
+        $failure = $this->failure(fn () => $this->writes->merge($row, ['merge']));
 
         self::assertSame('no_head', $failure->cause);
         self::assertTrue($failure->permanent);
@@ -213,7 +213,7 @@ final class ForgePullRequestWritesTest extends KernelTestCase
         $row = $this->row();
 
         try {
-            $this->writes->merge($row, 'fast-forward');
+            $this->writes->merge($row, ['fast-forward']);
             self::fail('Expected InvalidArgumentException.');
         } catch (\InvalidArgumentException) {
         }

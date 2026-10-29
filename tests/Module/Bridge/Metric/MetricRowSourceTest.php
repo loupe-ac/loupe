@@ -7,9 +7,12 @@ namespace App\Tests\Module\Bridge\Metric;
 use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Metric\MetricRowSource;
+use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -71,7 +74,17 @@ final class MetricRowSourceTest extends KernelTestCase
         $facts = self::getContainer()->get(WorkerRunFactRepository::class);
         self::assertInstanceOf(WorkerRunFactRepository::class, $facts);
 
-        return new MetricRowSource($facts, $this->createStub(FinishedCardSourceInterface::class), $this->createStub(CardReportSourceInterface::class), $this->bucketTimeRepository());
+        $workRequests = self::getContainer()->get(WorkRequestRepository::class);
+        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
+        $reports = $this->createStub(CardReportSourceInterface::class);
+
+        return new MetricRowSource(
+            $facts,
+            $this->createStub(FinishedCardSourceInterface::class),
+            $reports,
+            $this->bucketTimeRepository(),
+            new TemplateMetricValues($workRequests, $reports, $this->createStub(TemplateMetrics::class), []),
+        );
     }
 
     private function bucketTimeRepository(): WorkerRunBucketTimeRepository

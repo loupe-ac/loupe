@@ -86,11 +86,6 @@ test('the backlog filter field and the board Find field have 16px text, and a Ba
         .boundingBox();
     expect(check?.height).toBeGreaterThanOrEqual(24);
     expect(check?.width).toBeGreaterThanOrEqual(24);
-
-    await page.goto(`/projects/${projectId}/board`);
-    expect(
-        await fontSizeOf(page, '.lp-board-toolbar__input.lp-touch-text'),
-    ).toBe('16px');
 });
 
 test('a utility beats the touch rule on display', async ({ page }) => {

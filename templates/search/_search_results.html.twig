@@ -1,7 +1,7 @@
 <section aria-label="{{ 'search.results'|trans }}" data-search-query="{{ view.query }}">
     {% for result in view.results.items %}
     <a class="lp-search-result" href="{{ result.url }}" data-search-kind="{{ result.kind }}" data-turbo-frame="_top">
-        <span>{{ result.title }}</span>
+        <span>{% if result.number %}#{{ result.number }} {% endif %}{{ result.title|reference_plain }}</span>
         <twig:Ds:StatusChip :dot="false">{{ ('search.kind.' ~ result.kind)|trans }}</twig:Ds:StatusChip>
     </a>
     {% else %}

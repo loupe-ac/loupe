@@ -15,15 +15,20 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CliCompatibility;
+use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\HostSampling;
+use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Bridge\Service\WorkRequestLease;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
+use App\Module\Bridge\ValueObject\BridgeSessionReading;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -38,6 +43,9 @@ final readonly class RecordBridgeHeartbeatHandler
     /** The reply repeats the outbox offers, so it needs no more than a bridge can start soon. */
     public const int MAX_WORK_REQUEST_OFFERS = 100;
 
+    /** A run younger than this stays open on an alive: false reading, which may predate the launch. */
+    private const string SESSION_GONE_GRACE = '-2 minutes';
+
     /** How far ahead of the server clock a sample may be, to allow for a small clock drift. */
     private const string MAX_SAMPLE_LEAD = '+5 minutes';
 
@@ -49,6 +57,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private HostSampling $hostSampling,
         private WorkerRunRepository $workerRuns,
         private WorkerRunFactWriter $factWriter,
+        private InteractiveRuns $interactiveRuns,
         private WorkerRunRetentionPolicy $retention,
         private WorkRequestLease $lease,
         private ProjectRepository $projects,
@@ -58,6 +67,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private Auditor $auditor,
         private EventDispatcherInterface $events,
         private ClockInterface $clock,
+        private HeldProjects $heldProjects,
     ) {
     }
 
@@ -182,7 +192,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $lostClaims = array_values(array_diff($named, $renewed));
             }
             $workRequests = $bridge->takesWorkRequests()
-                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS)
+                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS, $this->heldProjects->among($bridge->projects))
                 : [];
 
             // Read under the lock a new command takes, so the reply misses no command stored before it.
@@ -222,6 +232,8 @@ final readonly class RecordBridgeHeartbeatHandler
             $this->events->dispatch(new BridgeAvailabilityChanged(array_values(array_unique([...$followedBefore, ...$projects]))));
         }
 
+        $watchSessions = $this->applySessionReadings($command);
+
         $this->events->dispatch(new BridgeReported(array_values(array_unique([...$followedBefore, ...$projects]))));
 
         if ([] !== $renamedIn) {
@@ -239,7 +251,54 @@ final readonly class RecordBridgeHeartbeatHandler
             );
         }
 
-        return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims);
+        return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims, $watchSessions);
+    }
+
+    /**
+     * Applies the readings to the open interactive runs that this bridge launched, in any project of its owner, and
+     * returns the sessions it has to report on next. A reading for any other session changes nothing.
+     *
+     * @return list<string> RFC 4122 session ids
+     */
+    private function applySessionReadings(RecordBridgeHeartbeatCommand $command): array
+    {
+        $now = $this->clock->now();
+        $readings = [];
+        foreach ($command->interactiveSessions as $reading) {
+            $readings[$reading->sessionId->toRfc4122()] = $reading;
+        }
+
+        if ([] !== $readings) {
+            $this->em->wrapInTransaction(function () use ($command, $readings, $now): void {
+                $runs = $this->workerRuns->findOpenInteractiveOfBridgeForUpdate($command->bridgeId, $command->owner, array_map(static fn (BridgeSessionReading $reading): Uuid => $reading->sessionId, array_values($readings)));
+                foreach ($runs as $run) {
+                    $reading = $readings[$run->sessionId?->toRfc4122() ?? ''] ?? null;
+                    $activity = null === $reading ? null : self::activityOf($reading, $now);
+                    if (null !== $activity && (null === $run->lastActivityAt || $run->lastActivityAt < $activity)) {
+                        $run->lastActivityAt = $activity;
+                    }
+                }
+                $this->em->flush();
+            });
+
+            foreach ($readings as $reading) {
+                if (false === $reading->alive) {
+                    $this->interactiveRuns->closeLaunched($command->bridgeId, $command->owner, $reading->sessionId, $now->modify(self::SESSION_GONE_GRACE), WorkerRunCloseReason::SessionGone);
+                }
+            }
+        }
+
+        return $this->workerRuns->findOpenInteractiveSessionIdsOfBridge($command->bridgeId, $command->owner);
+    }
+
+    /** A live process is a sign of life now. Otherwise the transcript time counts, never later than now. */
+    private static function activityOf(BridgeSessionReading $reading, \DateTimeImmutable $now): ?\DateTimeImmutable
+    {
+        if (true === $reading->alive) {
+            return $now;
+        }
+
+        return null === $reading->transcriptAt ? null : min($reading->transcriptAt, $now);
     }
 
     /**

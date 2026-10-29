@@ -6,7 +6,7 @@ namespace App\Module\Workflow\Contract;
 
 use Symfony\Component\Uid\Uuid;
 
-/** What an action answers: it did its work, it was refused, or the card must pause. */
+/** What an action answers: it did its work, it was refused, the project holds its work, or the card must pause. */
 final readonly class ActionOutcome
 {
     public const string CODE_PATTERN = '/^[a-z][a-z0-9-]{0,63}$/D';
@@ -39,6 +39,12 @@ final readonly class ActionOutcome
     public static function refused(string $code): self
     {
         return new self(ActionOutcomeKind::Refused, self::code($code));
+    }
+
+    /** The project holds its new work. The action did nothing, and the engine writes no attempt and no backoff. */
+    public static function held(): self
+    {
+        return new self(ActionOutcomeKind::Held);
     }
 
     public static function pause(PauseKind $kind, string $code): self

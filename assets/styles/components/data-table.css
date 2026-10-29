@@ -31,6 +31,19 @@
     .lp-data-table__cell {
         @apply min-w-0;
     }
+    /* A cell that wraps its text and may hold a second line. */
+    .lp-data-table__cell--wrap {
+        @apply flex flex-col gap-0.5 py-2.5 wrap-anywhere;
+    }
+    .lp-data-table__cell--wrap > .lp-data-table__title {
+        @apply whitespace-normal;
+    }
+    .lp-data-table__sub {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-data-table__cell--code {
+        @apply font-mono text-xs;
+    }
     .lp-data-table__cell--end {
         @apply text-right;
     }

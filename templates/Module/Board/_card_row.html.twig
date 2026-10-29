@@ -9,16 +9,15 @@
    data-turbo-frame="card-drawer-frame"
    data-drawer-title="#{{ card.number }}"
    data-action="click->card-drawer#prepare"
-   data-board-filter-target="row"
    data-card-id="{{ card.id }}"
    data-column-id="{{ column.id }}"
    data-card-digest="{{ card_digest(card, feedbackCount, documentCount, progress, runWarning, markers, inboxItem) }}"
-   data-card-title="{{ card.title }}">
-    <span class="lp-board-list__work"><strong>#{{ card.number }} {{ card.title }}</strong>{% if markers is not null %}{% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, link: false} only %}{% endif %}</span>
+   data-card-title="{{ card.title|reference_plain }}">
+    <span class="lp-board-list__work"><strong>#{{ card.number }} {{ card.title|reference_plain }}</strong>{% if markers is not null %}{% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, link: false} only %}{% endif %}</span>
     <span>{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}{% include '@Board/_card_source_tag.html.twig' with {card: card} only %}</span>
     <span data-column-tag="{{ column.id }}">{% include '@Board/_column_tag.html.twig' with {column: column} only %}</span>
     {% if card.parent %}
-    {% embed '@Board/_card_marker.html.twig' with {marker: 'data-card-parent', tooltip: 'board.card.parent.tooltip'|trans({'%number%': card.parent.number, '%title%': card.parent.title}), card: card} only %}
+    {% embed '@Board/_card_marker.html.twig' with {marker: 'data-card-parent', tooltip: 'board.card.parent.tooltip'|trans({'%number%': card.parent.number, '%title%': card.parent.title|reference_plain}), card: card} only %}
         {% block marker %}#{{ card.parent.number }}{% endblock %}
     {% endembed %}
     {% else %}

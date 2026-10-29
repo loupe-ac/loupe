@@ -117,7 +117,7 @@ A marker has these parts:
 - A kind. See below.
 - A label. This is the reason that a reader sees.
 - A remedy. This is one line that says what clears the marker.
-- A link, optional. The value `agents` shows a link to the Agents page under the remedy. The value `ruleset-setup` shows a link to "Set up the ruleset" on this page.
+- A link, optional. The value `agents` shows a link to the Agents page under the remedy. The value `repositories` shows a link to the Repositories tab of the project settings.
 - Slots, optional. They name the slots where the marker applies.
 - A condition. The marker is on while the condition is true.
 
@@ -149,9 +149,9 @@ The shipped markers are:
 | Key | Kind | Shows when |
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
-| `run-stopped` | Stuck | The last worker run failed or had no result, and no work is under way |
+| `run-stopped` | Stuck | The last worker run failed or had no result, no work is under way, and no retry is due |
 | `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
-| `checks-failed` | Stuck | A pull request has failed checks and no fix is under way |
+| `checks-failed` | Stuck | A pull request has failed checks, no fix is under way, and no retry is due |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
@@ -165,8 +165,10 @@ The shipped markers are:
 | `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
+| `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
+| `repository-misfit` | Needs you | A rule of the card wants to ask for work, and the project holds new work because a repository has a blocking gap. The remedy line links to the Repositories tab |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
 | `waits-for-parent-branch` | Waiting | A pull request waits for a branch that no card owns |
 | `waiting-on-checks` | Waiting | The checks of a pull request run |
@@ -209,6 +211,8 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   the condition is false while a child has an open worker run.
 - `card.rule.held_by_blocker`: an open blocker alone holds a move rule of the
   card.
+- `card.rule.retry_scheduled`: a refused rule of the card waits for the delay
+  before its retry. The condition turns false at the due time.
 - `card.run.stopped`: the latest run of the card ended with a warning, and the
   card did not move after it ended.
 - `card.run.needs_person`: the newest run of the card blocked, gave up or waits
@@ -364,7 +368,10 @@ rule reads changes after the refusal, such as a new head commit. A "needs a
 person" stop is the exception, as a later paragraph says. The work then
 starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
-refusal also waits for its delay.
+refusal also waits for its delay. During the delay the card shows the
+`retry-scheduled` marker, which waits, and not `run-stopped` or
+`checks-failed`. When the retries and the repair run out, the card pauses and
+shows `paused`.
 
 A request can end while its rule still holds for a new reason. An example is a
 fix run that ends after the pull request became conflicting. The workflow then
@@ -460,6 +467,31 @@ card history records the pause and the release, with the person who released
 it. A pause that the workflow ends by itself shows in the history too, with
 Loupe as the actor and the reason. An agent ends a pause with the `card_pause_release` MCP tool.
 
+### Pause for a blocking repository gap
+
+The Repositories check of a project can find a blocking gap, which is a setting of
+a repository that contradicts the workflow, such as a review rule that the Loupe
+App cannot satisfy. While any repository of the project has a blocking gap, the
+project holds all new work:
+
+- A `request` rule of a card gets the outcome `held`. It writes no attempt, no
+  backoff and no pause. The card shows the `repository-misfit` marker, and the rule asks again by
+  itself when the hold ends.
+- A bridge cannot claim a request of the project. The claim is refused with
+  `project_held`, and the request does not show in the offers of a bridge.
+- When the hold starts, Loupe withdraws each open card request of the project, so
+  the work timeout never pauses a card for the hold. A request about another
+  subject, such as an analysis, stays open, and it gets a new timeout when the hold ends.
+- Work that a bridge already claimed, and a run that is under way, finishes.
+- Rules that start no worker still run: moves, writes to GitHub and merges.
+  A request for teardown or for the epic preview is held like any other.
+
+The hold follows the stored result of the check. A failed read keeps the last
+certain result, so a failed read neither starts nor ends the hold. A removed
+repository leaves the result at once. When no repository has a blocking gap
+any more, after a check or after a removal, the hold ends. Each held rule then asks
+for its work again, and the open work timeout starts over.
+
 ## Writes to GitHub
 
 A rule can write to a pull request: merge it, update its branch, change its
@@ -468,6 +500,12 @@ or post a comment on it. The rule
 alone decides each write, and the write happens when the rule fires. When the
 project has no GitHub App installation, the rule asks a bridge for the same work
 instead. See [Automation](board.md#automation).
+
+The `merge` write takes the parameter `methods`, a list of merge methods in order of preference. The Lifecycle
+template lists `squash`, `merge` and `rebase`. Loupe reads the merge switches of the repository and the merge
+methods that the rules of the base branch allow. It merges with the first method of the list that both allow. When
+the repository and its rules allow none of them, the write refuses with the cause `no_merge_method`, and a person
+changes the repository settings or the ruleset. A project that wants a different order edits the list in the template.
 
 The `merge-main-into-epic` write acts on a child in Next whose blocker outside
 its epic is done. It merges the default branch into the epic branch in each
@@ -518,6 +556,83 @@ request for a review that has findings. The comment holds the verdict, the
 summary of the agent, up to 20 finding titles, and links to the check and to the
 card. It leaves out the text of each finding. The comment goes out as the GitHub
 App, and it has no fallback. See [Agent review](#agent-review).
+
+## Outcomes and metrics
+
+A template declares the outcomes of its moves and the metrics about its work.
+Loupe checks both lists when it loads a template. The analytics pages and the
+experiment tables read the metrics from the stored data in a later release.
+
+### Outcomes
+
+The top-level `outcomes:` list names each outcome that a `move` may set. An entry
+is a key, or a map with a `key` and `delivered: true`. At most one outcome is
+delivered. A key is lowercase words joined with hyphens, at most 64 characters.
+
+```yaml
+outcomes:
+    - { key: merged, delivered: true }
+    - dropped
+```
+
+Both shipped templates declare `merged` as the delivered outcome.
+
+### Metrics
+
+The top-level `metrics:` list holds the metrics. Each metric has a `key`, a
+`label` and a `description`. The label and the description are plain English text
+and show as written. The label is at most 80 characters, and the description is
+at most 300. A key follows the rule of an outcome key. It cannot be the key of a
+metric that Loupe computes itself, such as `cost` or `runs`. Each metric has
+exactly one type: `count`, `rate` or `duration`.
+
+```yaml
+metrics:
+    - key: design-rounds
+      label: Design review rounds
+      description: The design revise rounds a finished card needed.
+      count: { role: design-revise }
+    - key: needed-fix
+      label: Cards that needed a fix
+      description: The share of finished cards with at least one fix round.
+      rate: { any: { role: fix } }
+    - key: hours-waiting-for-approval
+      label: Hours waiting for approval
+      description: The hours from the last agent review pass to ready to merge.
+      duration: { from: { last: agent-review-passed }, to: ready-to-merge }
+```
+
+A **count** counts the work requests of a card. Its filter takes `role`, `kind`
+and `reason`, alone or mixed. A count can add `splitBy` with one of these three
+names, to show one row for each value.
+
+A **rate** is the share of finished cards that match. `rate: { outcome: <key> }`
+matches a card when any of its moves set the outcome. `rate: { any: <filter> }`
+matches a card when the filter matches at least one of its work requests.
+
+A **duration** is the time from a start event to an end event. The events are
+`pr-opened`, `agent-review-passed`, `ready-to-merge` and `pr-merged`. The two
+slot events are `{ arrived: <slot> }` and `{ left: <slot> }`. The slot can be a
+slot key of the template, `@backlog` or `@terminal`. A duration runs from the
+first start to the last end after it. On `from`, `{ last: <event> }` starts at
+the last time the event happened. A card with a start and no end after it has
+no value.
+
+The Workflow page lists the metrics of the template in a **Metrics** section, after
+the card markers. Each row shows the label and the description, the key, the type
+and a sentence that says what the metric reads. A template that declares no
+metric shows a line that says so.
+
+Loupe refuses a template that names a value which none of its rules can produce.
+The error lists the values it knows. A role, a kind and a reason must come from
+a `request` rule of the template. A filter that mixes fields must match one
+`request` rule as a whole, so `{ role: fix, kind: review }` needs a single rule
+with both. The outcome of a rate must come from a `move`
+of the template. A `request` rule that sets no reason makes the fix reasons
+`conflict`, `checks-failed` and `changes-requested` known, and `unknown` too. A
+template whose `request` rules all set a reason knows only those reasons. The event `agent-review-passed` needs a `request` rule of the kind
+`review`. A slot event needs a slot that the template declares. The Simple
+template has no `review` request and no slots, so it cannot use these events.
 
 ## The Lifecycle template
 
@@ -1032,14 +1147,15 @@ The wait item "Waits for approval" opens when a person must review the card, whe
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
 of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
-Loupe reads the rulesets of the default branch of the repository. When a ruleset requires an approving review, or
-requires `Loupe / Approval` without the Loupe App as its source, the marker `ruleset-mismatch` shows Needs you on the
-card of an open pull request into that branch, with a link to the steps below. The Connections page shows the same warning under the repository.
+The Repositories tab of the project settings lists the settings of each repository that do not fit.
 Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
 
 #### Set up the ruleset
 
-The check only gates a merge when the repository ruleset requires it. Change the ruleset of the default branch once:
+The check only gates a merge when the repository ruleset requires it. The Repositories tab of the project settings
+writes these steps for each repository, with a `loupe-ruleset.json` file that you can import on GitHub. After the
+import, open the ruleset and check that `Loupe / Approval` shows the Loupe App as its source. Select **Check again**
+after a change. The same steps by hand:
 
 1. Accept the new **Commit statuses: read and write** permission of the Loupe GitHub App on each installation.
    GitHub lists the App as a source only with that permission. See [forge webhooks](../extending/forge-webhooks.md).
@@ -1252,11 +1368,12 @@ follows the project could take it. The card does not pause, and the module that
 owns the work reads the cause from the reason of the request. A request without
 the parameter waits for the work timeout instead.
 
-The `move` action takes the optional parameter `outcome`. It has one value,
-`merged`. A move that sets it records in the card history that the card moved
-because its pull request merged. The reports of an experiment count a merge
-from this value, whatever the id of the rule. The `merged` rule of the
-Lifecycle and Simple templates sets it.
+The `move` action takes the optional parameter `outcome`. Its value must be a
+key from the `outcomes:` list of the template, as [Outcomes and metrics](#outcomes-and-metrics)
+says. A move that sets it records the outcome in the card history. The `merged`
+rule of the Lifecycle and Simple templates sets `merged`. A template that
+sets an outcome which its list does not declare fails to load, and the error
+lists the outcomes it declares.
 
 A request rule can set the optional `cancelWhen` parameter. It holds a
 condition. While the condition is true, the engine withdraws the live request
