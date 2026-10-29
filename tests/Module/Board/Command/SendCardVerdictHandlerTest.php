@@ -17,6 +17,7 @@ use App\Module\Board\Entity\CardVerdictDelivery;
 use App\Module\Board\Entity\CardVerdictDeliveryState;
 use App\Module\Board\Entity\CardVerdictKind;
 use App\Module\Board\Entity\Forge;
+use App\Module\Board\Mcp\FeedbackMarkAddressedTool;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -31,6 +32,7 @@ use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Tests\Module\Board\CardVerdictScenario;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
+use App\Tests\Support\McpTokenScenario;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -43,6 +45,7 @@ final class SendCardVerdictHandlerTest extends KernelTestCase
 {
     use BoardToolScenario;
     use CardVerdictScenario;
+    use McpTokenScenario;
 
     private EntityManagerInterface $em;
     private RecordingAuditor $audit;
@@ -94,6 +97,39 @@ final class SendCardVerdictHandlerTest extends KernelTestCase
             self::assertSame(CardVerdictDeliveryState::Pending, $delivery->state);
             self::assertNull($delivery->settledAt);
         }
+    }
+
+    public function test_a_verdict_after_a_child_marked_the_epic_notes_and_merged_copies_the_new_note_only(): void
+    {
+        $epic = $this->card($this->project);
+        $epicPullRequest = $this->linkedPullRequest($epic, 7);
+        $built = [];
+        for ($i = 1; $i <= 11; ++$i) {
+            $built[] = (string) $this->note($epic, 'Built note '.$i, position: $i)->id;
+        }
+        $child = $this->card($this->project, number: 2);
+        $child->parent = $epic;
+        $childPullRequest = $this->linkedPullRequest($child, 9);
+        $this->em->flush();
+
+        $tool = self::getContainer()->get(FeedbackMarkAddressedTool::class);
+        self::assertInstanceOf(FeedbackMarkAddressedTool::class, $tool);
+        $this->actAsMcpTokenBoundTo($this->project);
+        self::assertSame($built, $tool($built)['addressed']);
+
+        $childPullRequest->state = PullRequestState::Merged;
+        $child->column = $this->column($this->project, 'done');
+        $new = $this->note($epic, 'The footer overlaps the launcher.', position: 12);
+        $this->em->flush();
+
+        $verdict = $this->send($epic, CardVerdictKind::RequestChanges, [(string) $epicPullRequest->id], 'One more.');
+
+        $this->em->clear();
+        $stored = $this->em->find(CardVerdict::class, $verdict->id);
+        self::assertInstanceOf(CardVerdict::class, $stored);
+        self::assertSame([(string) $new->id], array_column($stored->notes, 'id'));
+        $statuses = $this->em->getConnection()->fetchFirstColumn('SELECT DISTINCT status FROM site_review_comments WHERE id IN (?)', [$built], [\Doctrine\DBAL\ArrayParameterType::STRING]);
+        self::assertSame(['addressed'], $statuses);
     }
 
     public function test_a_later_edit_of_a_note_leaves_the_copy_alone(): void
