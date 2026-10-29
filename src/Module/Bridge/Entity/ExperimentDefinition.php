@@ -27,7 +27,7 @@ class ExperimentDefinition
     #[ORM\Column(name: 'metrics', type: Types::JSON, nullable: true)]
     public ?array $metrics = null;
 
-    /** @var array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null the goal and guards of the experiment page, or null for the defaults */
+    /** @var array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null the goal, guards and controls of the experiment page, or null for the defaults */
     #[ORM\Column(name: 'headline', type: Types::JSON, nullable: true)]
     public ?array $headline = null;
 

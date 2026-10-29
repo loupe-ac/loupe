@@ -1157,12 +1157,32 @@ work:
       guards: [merge-rate, fix-rounds]
 ```
 
-Both keys are optional, but a headline needs at least one. An entry with no
+Each key is optional, but a headline needs at least one of `goal`, `guards` and
+`controls`. An entry with no
 `goal` or no `guards` key uses the defaults of the server. An explicit
 `guards: []` means no guards. The goal metric cannot also be a guard. A goal
 with no `better` loads, and the Comparison tab then asks for a direction. The
 bridge sends the headline with each pin request, and sends nothing when the
 entry has no headline. It checks the shape of each key only.
+
+The `controls` key lists checks that a variant got its treatment. A control has
+four fields, and all four are required:
+
+```yaml
+    headline:
+      controls:
+        - {metric: "harness-events:diagnostics", variant: lsp, expect: "> 0", share: 0.5}
+```
+
+`metric` is a metric key. `variant` is a variant of the same entry. `expect` is
+a comparison (`>`, `>=`, `<`, `<=` or `==`) and a number, such as `"> 0"` or
+`">= 3"`. Quote the value, because YAML reads a bare `>` as a block scalar.
+`share` is the share of the cards with a value that must meet the expectation.
+It is above 0 and at most 1. The server judges the controls, and a control that
+does not pass holds the goal of the Comparison tab, as
+[Experiments](../using/experiments.md) says. The bridge sends the controls with
+the headline in each pin request. An entry can have at most 16 controls, and
+two controls cannot share a metric and a variant.
 
 The `experiment` field names the experiment of an entry with variants. Use it
 to start a new trial on a kind of work without mixing it with an old one. The
@@ -1192,7 +1212,11 @@ The bridge refuses the file, at start and on a reload, when:
 - an interactive entry or a command entry sets `variants`, `metrics`,
   `headline` or `experiment`
 - an entry sets `metrics`, `headline` or `experiment` and no `variants`
-- a `headline` has neither a `goal` nor `guards`
+- a `headline` has no `goal`, no `guards` and no `controls`
+- a control has no `share`, a `share` of 0 or above 1, an `expect` that is not a
+  comparison and a number, a variant that the entry does not declare, or a
+  metric key that does not match the shape
+- a headline lists more than 16 controls, or one metric and variant twice
 - a `goal` has a `better` other than `lower` or `higher`, or a metric key that
   does not match the shape. A `goal` with no `better` loads
 - a headline lists more than 16 guards, one guard twice, or the goal metric as

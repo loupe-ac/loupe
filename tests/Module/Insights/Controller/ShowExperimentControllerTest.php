@@ -337,6 +337,89 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-experiment-goal-sentence]'));
     }
 
+    public function test_a_failed_control_holds_the_goal_and_the_controls_table_sits_above_the_guards(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-controls@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->bindLifecycle($em, $project);
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'controls' => [
+            ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 1', 'share' => 0.5],
+            ['metric' => 'cost', 'variant' => 'b', 'expect' => '< 5', 'share' => 1.0],
+            ['metric' => 'harness-events:never-seen', 'variant' => 'b', 'expect' => '== 0', 'share' => 1.0],
+        ]];
+        $em->persist($definition);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $em->getConnection()->executeStatement("UPDATE bridge_worker_runs SET harness_events = CASE WHEN variant = 'a' THEN '{\"diagnostics\": 1}'::jsonb ELSE NULL END");
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        $goal = $crawler->filter('[data-experiment-goal]');
+        self::assertSame('held', $goal->attr('data-experiment-goal-state'));
+        self::assertCount(0, $goal->filter('[data-experiment-goal-problem]'));
+        self::assertSame('Goal · Cost per merged card · lower is better', trim($goal->filter('.lp-experiment-goal__label')->text()));
+        self::assertSame('Treatment not applied', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('Control failed', trim($goal->filter('.lp-status-chip--failed')->text()));
+        self::assertSame('Controls failed: 1 of 3. The panel names no winner. $2.00 (a) against $1.00 (b).', preg_replace('/\s+/', ' ', trim($goal->filter('[data-experiment-goal-hold]')->text())));
+        self::assertSame('failed', $goal->filter('[data-experiment-goal-hold]')->attr('data-experiment-goal-hold'));
+        $sections = $crawler->filter('[data-experiment-goal], h3.lp-experiment-section, [data-experiment-controls]')->each(static fn (Crawler $node): string => trim($node->attr('data-experiment-goal') ?? $node->attr('data-experiment-controls') ?? $node->text()));
+        self::assertSame(['', 'Controls', '', 'Guards', 'Variants'], \array_slice(array_values($sections), 0, 5));
+        self::assertSame(['Control', 'Variant', 'Cards that pass', 'Needs', 'Cards with data', 'Result'], $this->cells($crawler->filter('[data-experiment-controls] thead tr')));
+        self::assertSame(['Harness events: diagnostics > 1', 'a', '0%', '50%', '5 of 5', 'Failed'], $this->cells($crawler->filter('[data-experiment-control="harness-events:diagnostics"]')));
+        self::assertSame(['Cost < 5', 'b', '100%', '100%', '5 of 5', 'Passed'], $this->cells($crawler->filter('[data-experiment-control="cost"]')));
+        self::assertSame(['Harness events: never-seen == 0', 'b', '–', '100%', '0 of 5', 'No data'], $this->cells($crawler->filter('[data-experiment-control="harness-events:never-seen"]')));
+    }
+
+    public function test_a_hold_names_the_key_of_a_control_that_is_no_metric(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-control-typo@example.com');
+        $project = $this->boardProject($em, $owner);
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['controls' => [['metric' => 'lsp-diagnostcs', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5]]];
+        $em->persist($definition);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        $goal = $crawler->filter('[data-experiment-goal]');
+        self::assertSame('The control lsp-diagnostcs is not a metric of this project', trim($goal->filter('[data-experiment-goal-sentence]')->text()));
+        self::assertSame('No data', trim($goal->filter('.lp-status-chip--neutral')->text()));
+        self::assertSame(['lsp-diagnostcs > 0', 'a', '–', '50%', '–', 'No data'], $this->cells($crawler->filter('[data-experiment-control="lsp-diagnostcs"]')));
+    }
+
+    public function test_the_page_shows_no_controls_table_without_controls(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'experiment-no-controls@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->seedCosts($em, $project, 'a', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 1);
+        $this->seedCosts($em, $project, 'b', ['1.000000', '1.000000', '1.000000', '1.000000', '1.000000'], 6);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-experiment-controls]'));
+        self::assertNotSame('held', $crawler->filter('[data-experiment-goal]')->attr('data-experiment-goal-state'));
+    }
+
     /** @param list<string> $costs one merged card per cost, numbered from the given number */
     private function seedCosts(EntityManagerInterface $em, Project $project, string $variant, array $costs, int $firstNumber): void
     {

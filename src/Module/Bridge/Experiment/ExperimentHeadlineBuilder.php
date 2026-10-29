@@ -9,21 +9,39 @@ use App\Module\Bridge\Metric\MetricValueType;
 final class ExperimentHeadlineBuilder
 {
     /**
-     * @param list<string>           $variantNames sorted, so the first two are the ones compared
-     * @param array<string, int>     $finished     variant => finished cards
-     * @param list<ExperimentMetric> $guards
-     * @param ?GoalState             $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered
+     * @param list<string>            $variantNames sorted, so the first two are the ones compared
+     * @param array<string, int>      $finished     variant => finished cards
+     * @param list<ExperimentMetric>  $guards
+     * @param ?GoalState              $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered
+     * @param list<ExperimentControl> $controls     a control that does not pass holds the goal, before the card floor is read
      */
-    public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, ?GoalDirection $direction, array $guards, ?GoalState $problem = null): ExperimentHeadline
+    public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, ?GoalDirection $direction, array $guards, ?GoalState $problem = null, array $controls = []): ExperimentHeadline
     {
         $names = \array_slice($variantNames, 0, 2);
+        $hold = ControlEvaluator::hold($controls);
 
         return new ExperimentHeadline(
-            null === $problem && null !== $direction
-                ? self::goal($experiment, $names, $finished, $goal, $direction)
-                : new ExperimentGoal($goal, $direction, $problem ?? GoalState::NoDirection, self::arms($names, $finished, $goal), null, null, MetricValueType::Ratio !== $goal->valueType()),
+            self::answer($experiment, $names, $finished, $goal, $direction, $problem, $hold),
             array_map(static fn (ExperimentMetric $guard): ExperimentGuard => self::guard($experiment, $names, $finished, $guard), $guards),
+            $controls,
         );
+    }
+
+    /**
+     * @param list<string>       $names
+     * @param array<string, int> $finished
+     */
+    private static function answer(string $experiment, array $names, array $finished, ExperimentMetric $metric, ?GoalDirection $direction, ?GoalState $problem, ?GoalHold $hold): ExperimentGoal
+    {
+        $relative = MetricValueType::Ratio !== $metric->valueType();
+        if (null !== $hold) {
+            return new ExperimentGoal($metric, $direction, GoalState::Held, self::arms($names, $finished, $metric), null, null, $relative, $hold);
+        }
+        if (null === $problem && null !== $direction) {
+            return self::goal($experiment, $names, $finished, $metric, $direction);
+        }
+
+        return new ExperimentGoal($metric, $direction, $problem ?? GoalState::NoDirection, self::arms($names, $finished, $metric), null, null, $relative);
     }
 
     /**

@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Experiment\ControlResult;
+use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentGoal;
 use App\Module\Bridge\Experiment\ExperimentGuard;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\GoalDirection;
 use App\Module\Bridge\Experiment\GoalState;
+use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricValueType;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-/** The sentences and figures of the goal panel and the Guards table, as text. */
+/** The sentences and figures of the goal panel, the Controls table and the Guards table, as text. */
 final readonly class ExperimentHeadlineText
 {
     private const string MINUS = "\u{2212}";
@@ -55,6 +58,64 @@ final readonly class ExperimentHeadlineText
         };
 
         return $this->translator->trans('bridge.experiments.goal.sentence.'.$word, $parameters + ['%change%' => $this->changePercent($goal->change->point)]);
+    }
+
+    /** The large line of a held goal, such as "Treatment not applied". */
+    public function holdSentence(ExperimentGoal $goal): string
+    {
+        $hold = $goal->hold ?? throw new \LogicException('A held goal has a hold.');
+
+        return match ($hold->reason) {
+            ControlResult::UnknownMetric => $this->translator->trans('bridge.experiments.goal.hold.unknown', ['%metric%' => $hold->controls[0]->metric]),
+            ControlResult::NoData => $this->translator->trans('bridge.experiments.goal.hold.no_data'),
+            default => $this->translator->trans('bridge.experiments.goal.hold.failed'),
+        };
+    }
+
+    /** The line under a held goal: how many controls hold it, and the goal value of each variant. */
+    public function holdDetail(ExperimentGoal $goal): string
+    {
+        $hold = $goal->hold ?? throw new \LogicException('A held goal has a hold.');
+        $key = match ($hold->reason) {
+            ControlResult::UnknownMetric => 'unknown',
+            ControlResult::NoData => 'no_data',
+            default => 'failed',
+        };
+        $parts = [$this->translator->trans('bridge.experiments.goal.hold.detail.'.$key, ['%count%' => \count($hold->controls), '%total%' => $hold->total])];
+        $values = [];
+        foreach ($goal->arms as $arm) {
+            $point = $this->point($goal->metric, $arm->point);
+            if (null !== $point) {
+                $values[] = $point.' ('.$arm->variant.')';
+            }
+        }
+        if (2 === \count($values)) {
+            $parts[] = $values[0].' '.$this->translator->trans('bridge.experiments.goal.against').' '.$values[1].'.';
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /** The name of a control and its expectation, such as "Harness events: diagnostics > 0". */
+    public function controlLabel(ExperimentControl $control): string
+    {
+        $key = $control->metric;
+        $name = null;
+        foreach ([Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents] as $family) {
+            if (str_starts_with($key, $family->value.':')) {
+                $name = $this->translator->trans('analytics.metrics.metric.'.str_replace('-', '_', $family->value).'_named', [Metric::HarnessEvents === $family ? '%kind%' : '%bucket%' => substr($key, \strlen($family->value) + 1)]);
+                break;
+            }
+        }
+        $name ??= $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans('analytics.metrics.metric.'.$key));
+
+        return $name.' '.$control->expect;
+    }
+
+    /** A share of cards, such as "50%". */
+    public function share(float $share): string
+    {
+        return $this->percent($share);
     }
 
     /** The range of the change of the winner, such as "9% to 33% lower". Null when the goal has no change. */

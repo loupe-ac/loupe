@@ -113,6 +113,26 @@ final class ExperimentPinApiTest extends WebTestCase
         self::assertNull($this->allDefinitions()[0]->headline);
     }
 
+    public function test_the_controls_of_the_headline_are_stored_and_a_bad_control_drops_the_headline(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'pin-api-controls@example.com');
+        $project = $this->project($em, $owner, 'Pin Api Controls');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"controls":[{"metric":"harness-events:diagnostics","variant":"sonnet","expect":"> 0","share":0.5}]}}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['controls' => [['metric' => 'harness-events:diagnostics', 'variant' => 'sonnet', 'expect' => '> 0', 'share' => 0.5]]], $this->allDefinitions()[0]->headline);
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"controls":[{"metric":"cost","variant":"haiku","expect":"> 0","share":0.5}]}}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertNull($this->allDefinitions()[0]->headline);
+    }
+
     /** A metric fault never changes the variant of a run, and never refuses it. */
     public function test_invalid_metrics_still_pin_and_store_no_metrics(): void
     {

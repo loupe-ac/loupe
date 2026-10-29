@@ -13,8 +13,10 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Experiment\CardColumn;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
+use App\Module\Bridge\Experiment\ControlResult;
 use App\Module\Bridge\Experiment\ExperimentArm;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentGuard;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
@@ -30,9 +32,12 @@ use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
+use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\BucketRule;
+use App\Module\Bridge\Service\BucketRuleSourceInterface;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
@@ -56,6 +61,11 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 {
     use BridgeScenario;
 
+    public function __construct(
+        private readonly WorkerRunRepository $workerRunRepository,
+    ) {
+    }
+
     private const string EXPERIMENT = 'model-test';
 
     private EntityManagerInterface $em;
@@ -76,6 +86,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
     private array $milestones = [];
 
     private TemplateMetricSet $templateSet;
+
+    /** @var list<BucketRuleSourceInterface> */
+    private array $bucketRuleSources = [];
 
     /** The outcome a merged fixture card carries. */
     private string $outcomeKey = 'merged';
@@ -388,6 +401,175 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             }
         }
         $this->em->flush();
+    }
+
+    /**
+     * @param list<array{metric: string, variant: string, expect: string, share: float}> $controls
+     * @param array<string, list<?array<string, int>>>                                   $events   variant => the harness events of the one run of each finished card, null for a run that reported none
+     */
+    private function seedControlExperiment(array $controls, array $events): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'controls' => $controls];
+        $this->em->persist($definition);
+        $hour = 0;
+        foreach ($events as $variant => $runs) {
+            foreach ($runs as $map) {
+                $card = Uuid::v7();
+                $run = $this->experimentRun($card, $variant, at: \sprintf('+%d hours', ++$hour));
+                $run->harnessEvents = $map;
+                $this->seedUsage($this->em, $run, costUsd: 'a' === $variant ? '2.000000' : '1.000000');
+                $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+            }
+        }
+        $this->em->flush();
+    }
+
+    public function test_a_failed_control_holds_the_goal_and_every_card_stays_in_the_figures(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5]],
+            ['a' => [['diagnostics' => 2], [], [], [], null], 'b' => [[], [], []]],
+        );
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        [$control] = $view->headline->controls;
+        self::assertSame(ControlResult::Failed, $control->result);
+        self::assertSame(0.25, $control->passingShare);
+        self::assertSame(4, $control->cardsWithData);
+        self::assertSame(5, $control->cardsFinished);
+        self::assertSame(GoalState::Held, $view->headline->goal->state);
+        self::assertSame(ControlResult::Failed, $view->headline->goal->hold?->reason);
+        self::assertNull($view->headline->goal->winner);
+        self::assertSame([5, 3], array_map(static fn (ExperimentVariant $variant): int => $variant->cards, $view->variants));
+        self::assertSame([2.0, 1.0], array_map(static fn (ExperimentArm $arm): ?float => $arm->point, $view->headline->goal->arms));
+    }
+
+    public function test_a_passing_control_leaves_the_goal_to_the_data(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5]],
+            ['a' => [['diagnostics' => 1], ['diagnostics' => 3], []], 'b' => [[], []]],
+        );
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(ControlResult::Passed, $view->headline->controls[0]->result);
+        self::assertEqualsWithDelta(2 / 3, $view->headline->controls[0]->passingShare, 1e-9);
+        self::assertNull($view->headline->goal->hold);
+        self::assertSame(GoalState::NotEnoughCards, $view->headline->goal->state);
+    }
+
+    public function test_a_control_with_no_reported_event_has_no_data_and_holds_the_goal(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5]],
+            ['a' => [null, null], 'b' => [[]]],
+        );
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(ControlResult::NoData, $view->headline->controls[0]->result);
+        self::assertSame(0, $view->headline->controls[0]->cardsWithData);
+        self::assertSame(ControlResult::NoData, $view->headline->goal->hold?->reason);
+    }
+
+    public function test_a_card_with_no_value_is_left_out_of_the_share(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 1.0]],
+            ['a' => [['diagnostics' => 1], null, null], 'b' => [[]]],
+        );
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(ControlResult::Passed, $view->headline->controls[0]->result);
+        self::assertSame(1, $view->headline->controls[0]->cardsWithData);
+        self::assertSame(3, $view->headline->controls[0]->cardsFinished);
+    }
+
+    public function test_a_bucket_nobody_declared_is_an_unknown_metric_and_a_declared_one_is_not(): void
+    {
+        $this->bucketRuleSources = [new class implements BucketRuleSourceInterface {
+            #[\Override]
+            public function rulesFor(Project $project): array
+            {
+                return [new BucketRule('LSP', 'lsp')];
+            }
+        }];
+        $this->seedControlExperiment([
+            ['metric' => 'bucket-calls:lps', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
+            ['metric' => 'bucket-calls:lsp', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
+            ['metric' => 'bucket-calls:other', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
+            ['metric' => 'no-such-metric', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
+            ['metric' => 'harness-events:never-seen', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
+        ], ['a' => [null], 'b' => [null]]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(
+            [ControlResult::UnknownMetric, ControlResult::NoData, ControlResult::NoData, ControlResult::UnknownMetric, ControlResult::NoData],
+            array_map(static fn (ExperimentControl $control): ControlResult => $control->result, $view->headline->controls),
+        );
+        self::assertSame(ControlResult::UnknownMetric, $view->headline->goal->hold?->reason);
+        self::assertSame(['bucket-calls:lps', 'no-such-metric'], array_map(static fn (ExperimentControl $control): string => $control->metric, $view->headline->goal->hold->controls));
+    }
+
+    public function test_a_bucket_with_stored_rows_is_a_known_metric(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'bucket-calls:tests', 'variant' => 'a', 'expect' => '>= 3', 'share' => 1.0]],
+            ['a' => [[], []], 'b' => [[]]],
+        );
+        $run = $this->workerRunRepository->findOneBy(['variant' => 'a']);
+        self::assertNotNull($run);
+        $this->em->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => 'tests', 'ms' => 10, 'ms_with_subagents' => 10, 'calls' => 3]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(ControlResult::Passed, $view->headline->controls[0]->result);
+        self::assertSame(1, $view->headline->controls[0]->cardsWithData);
+    }
+
+    public function test_a_control_reads_a_template_metric_and_carries_its_label(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'merge-rate', 'variant' => 'a', 'expect' => '== 1', 'share' => 1.0]],
+            ['a' => [[], []], 'b' => [[]]],
+        );
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(ControlResult::Passed, $view->headline->controls[0]->result);
+        self::assertSame('Merge rate', $view->headline->controls[0]->templateLabel);
+    }
+
+    public function test_no_controls_when_the_command_skips_the_metrics(): void
+    {
+        $this->seedControlExperiment(
+            [['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5]],
+            ['a' => [[]], 'b' => [[]]],
+        );
+
+        $view = $this->show(withMetrics: false);
+
+        self::assertNotNull($view);
+        self::assertNull($view->headline);
     }
 
     public function test_a_goal_on_a_ratio_compares_the_winner_in_points(): void
@@ -1089,6 +1271,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             new TemplateMetricValues($container->get(WorkRequestRepository::class), $reports, $templates, [$milestones]),
             $templates,
             $container->get(MetricRowSource::class),
+            $container->get(WorkerRunBucketTimeRepository::class),
+            $this->bucketRuleSources,
         );
 
         return $handler(new ShowExperimentCommand($this->managedProject(), self::EXPERIMENT, $page, $variant, $leftOutOnly, $withMetrics));
