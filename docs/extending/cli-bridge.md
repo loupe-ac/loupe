@@ -1142,6 +1142,7 @@ An experiment can also list its `metrics`. Each key is a metric key that the
 experiments:
   implement:
     covers: [implement]
+    baseline: opus
     variants:
       - {name: opus, weight: 1, model: opus}
       - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
@@ -1166,6 +1167,7 @@ or `higher` is `better`. A guard is a metric that must not get worse:
 experiments:
   implement:
     covers: [implement]
+    baseline: opus
     variants:
       - {name: opus, weight: 1, model: opus}
       - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
@@ -1243,8 +1245,8 @@ The bridge refuses the file, at start and on a reload, when:
 - two variants of one experiment share a name
 - a variant name does not match `^[a-z0-9][a-z0-9_-]{0,63}$`
 
-A variant needs no `model` and no `account`, so a variant can be the control
-arm that runs the settings of the work entry.
+A variant needs no `model` and no `account`, so a variant can be the baseline
+that runs the settings of the work entry.
 
 Before a worker starts, the bridge draws a candidate variant. It hashes the
 experiment name and the card id onto the weights, so every bridge draws the same

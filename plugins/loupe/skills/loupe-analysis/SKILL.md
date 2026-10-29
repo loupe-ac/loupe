@@ -74,22 +74,33 @@ Pass `scope.range` as the `range` of each `metric_query`. Call `metric_list` fir
 
 ## Compare the variants of an experiment
 
-`scope.experiment` names the experiment. The comparison reads every card of the experiment, so `scope.range` is `all`. An experiment runs one kind of work with two or more variants, such as two models, and compares the cards each variant worked.
+`scope.experiment` names the experiment. The comparison reads every card of the experiment, so `scope.range` is `all`. An experiment runs one kind of work with two or more variants, such as two models, and compares the cards each variant worked. Each experiment names one variant as its baseline, and the comparison reads every other variant against it. No comparison reads two non-baseline variants against each other.
 
 ### Read the comparison
 
 1. Call `experiment_get` with `experiment` set to `scope.experiment`.
 2. Call it again with `page` 2, 3 and on while `hasMore` is true. Keep every row of `cards`.
-3. Read `variants`: the model, the weight, `cards`, `finishedCards`, `runs` and `costUsd` of each.
-4. Read `metrics`. For each metric, note the range of each variant in `byVariant` and its `clear` flag. Read the `parts` of `fix-rounds` too.
-5. Read `headline` and `minFinishedCards`.
-6. Note `unknownMetrics`. The rule declares these keys, and the server has no such metric. Say so in the report.
+3. Read `baseline`. It is null when the experiment names no baseline. Then `headline.comparisons` is empty and the experiment has no verdict, so say so in the report and go on to the confounders.
+4. Read `confidenceLevel`. The ranges are 95% for one comparison, and widen to 1 minus 5%/N for N comparisons, such as 97.5% for two. Say the level in the report. A wider range needs more cards before a variant clears the baseline.
+5. Read `variants`: the model, the weight, `cards`, `finishedCards`, `runs` and `costUsd` of each.
+6. Read `metrics`. For each metric, note the range of each variant in `byVariant` and its `clear` flag. `clear` is true when every variant is clear against the baseline, false when one is not, and null when there is no baseline. Read the `parts` of `fix-rounds` too.
+7. Read `headline`. `headline.goal` keeps only the metric, the direction and a `problem`. The results are in `headline.comparisons`, one for each variant other than the baseline. Read the `state` of each: `not-enough-cards`, `clear`, `not-clear` or `held`. Read its `change`, its `cardsBehind` and the `guards` changes. Each change reads the variant against the baseline. Read `headline.baselineArm` for the baseline figure, and `headline.controls`.
+8. Read `minFinishedCards`.
+9. Note `unknownMetrics`. The rule declares these keys, and the server has no such metric. Say so in the report.
+
+### Read the verdicts
+
+1. For each comparison, state the variant, the baseline, the change and its range, and the `state`.
+2. A `held` comparison is held. It is not lost and it is not clear. Read `holdReason` and `heldBy`, and name the controls that hold it. A held comparison has no change, so give no verdict for that variant. A control on the baseline holds every comparison.
+3. A `not-clear` comparison only leans. Say that it is not a result.
+4. A `not-enough-cards` comparison needs more cards. Use `cardsBehind` to say how many.
+5. Check `headline.goal.problem`. A value of `unknown-metric` or `no-direction` means the goal gives no comparison. Say so in the report.
 
 ### Check the sample
 
 1. Compare `finishedCards` of each variant with `minFinishedCards`.
 2. When a variant has fewer finished cards than the minimum, say that the sample is too small to call a result.
-3. Say the same when no metric is clear.
+3. Say the same when no metric is clear, or when no comparison is clear.
 4. In both cases, recommend more runs. Name how many more finished cards each variant needs to reach `minFinishedCards`.
 5. Keep reading. The confounders still help the next analysis.
 
@@ -115,7 +126,7 @@ A confounder is a cause other than the variant that changes a figure.
 
 ### Recommend
 
-1. Recommend one variant, or more runs. Give the reasons.
+1. Recommend a variant over the baseline, keep the baseline, or ask for more runs. Give the reasons. Base a recommendation on a `clear` comparison alone. A held comparison supports no recommendation.
 2. Join cost with quality. A cheaper variant with a lower merge rate, or with more fix rounds, is no clear win.
 3. Give the sample size of each claim, and say how sure you are: high, medium or low.
 4. Say which confounders weaken the result, and how much.

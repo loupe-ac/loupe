@@ -8,6 +8,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\CardRun;
+use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlEvaluator;
 use App\Module\Bridge\Experiment\ExperimentCard;
 use App\Module\Bridge\Experiment\ExperimentControl;
@@ -157,7 +158,8 @@ final readonly class ShowExperimentHandler
             }
         }
 
-        $variantNames = array_merge(array_keys($weights), array_values($pinVariants), array_keys($models));
+        $baseline = $definition?->baseline;
+        $variantNames = array_merge(array_keys($weights), array_values($pinVariants), array_keys($models), null === $baseline ? [] : [$baseline]);
 
         /** @var list<array{card: ExperimentCard, lastRunAt: ?\DateTimeImmutable}> $cards */
         $cards = [];
@@ -222,6 +224,10 @@ final readonly class ShowExperimentHandler
 
         $variantNames = array_values(array_unique(array_map(strval(...), $variantNames)));
         sort($variantNames, \SORT_STRING);
+        if (null !== $baseline) {
+            $variantNames = [$baseline, ...array_values(array_diff($variantNames, [$baseline]))];
+        }
+        $confidence = Confidence::forComparisons(null === $baseline ? 0 : \count($variantNames) - 1);
 
         $variants = [];
         $finished = [];
@@ -249,7 +255,7 @@ final readonly class ShowExperimentHandler
                 $wanted[$key] ??= $shape;
             }
         }
-        $computed = $command->withMetrics ? $this->metrics($project, $experiment, $variantNames, $kept, $finished, $fixCounts, $wanted) : [];
+        $computed = $command->withMetrics ? $this->metrics($project, $experiment, $variantNames, $baseline, $confidence, $kept, $finished, $fixCounts, $wanted) : [];
         $metrics = [];
         foreach ([] === $computed ? [] : array_keys($shapes) as $key) {
             $metrics[$key] = $computed[$key];
@@ -273,9 +279,11 @@ final readonly class ShowExperimentHandler
                 $experiment,
                 $variantNames,
                 $finished,
-                $computed[$goalKey] ?? new ExperimentMetric($goalKey, [], false),
+                $computed[$goalKey] ?? new ExperimentMetric($goalKey, [], null),
                 $direction,
                 array_map(static fn (string $key): ExperimentMetric => $computed[$key], $guardKeys),
+                $baseline,
+                $confidence,
                 $goalProblem,
                 $command->withMetrics ? $this->controls($project, $controlSpecs, $templates, $kept, $finished) : [],
             ),
@@ -492,7 +500,7 @@ final readonly class ShowExperimentHandler
      *
      * @return array<string, ExperimentMetric> shape key => metric
      */
-    private function metrics(Project $project, string $experiment, array $variantNames, array $kept, array $finished, CardRequestCounts $counts, array $shapes): array
+    private function metrics(Project $project, string $experiment, array $variantNames, ?string $baseline, Confidence $confidence, array $kept, array $finished, CardRequestCounts $counts, array $shapes): array
     {
         $delivered = [];
         $sampleIds = [];
@@ -506,7 +514,7 @@ final readonly class ShowExperimentHandler
         }
 
         // A sample gives the range and the card count that the floor of a clear answer reads.
-        $metric = static function (string $key, ?MetricShape $shape, callable $sample, array $parts = [], ?string $label = null) use ($variantNames): ExperimentMetric {
+        $metric = static function (string $key, ?MetricShape $shape, callable $sample, array $parts = [], ?string $label = null) use ($variantNames, $baseline): ExperimentMetric {
             $byVariant = [];
             $cardCounts = [];
             $samples = [];
@@ -514,12 +522,12 @@ final readonly class ShowExperimentHandler
                 [$byVariant[$name], $cardCounts[$name], $samples[$name]] = $sample($name);
             }
 
-            return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $byVariant, $cardCounts), array_values($parts), $shape, $label, $samples);
+            return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $baseline, $byVariant, $cardCounts), array_values($parts), $shape, $label, $samples);
         };
-        $bootstrap = static fn (MetricValueType $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $delivered, $experiment): array {
+        $bootstrap = static fn (MetricValueType $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $delivered, $experiment, $confidence): array {
             $values = array_values(array_filter(array_map($value, $delivered[$name]), static fn (int|float|null $item): bool => null !== $item));
 
-            return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values), $values];
+            return [self::interval($of, $experiment.':'.$key.':'.$name, $values, $confidence), \count($values), $values];
         };
 
         $namedValues = [];
@@ -534,17 +542,17 @@ final readonly class ShowExperimentHandler
         foreach ($shapes as $key => $shape) {
             $template = $shape->template;
             if (null !== $template) {
-                $metrics[$key] = $this->templateMetric($project, $template, $shape, $metric, $bootstrap, $kept, $finished, $delivered, $sampleIds, $counts, $experiment, $variantNames);
+                $metrics[$key] = $this->templateMetric($project, $template, $shape, $metric, $bootstrap, $kept, $finished, $delivered, $sampleIds, $counts, $experiment, $variantNames, $confidence);
                 continue;
             }
 
             $of = $shape->key->metric ?? throw new \LogicException('A built-in key has a metric.');
             $metrics[$key] = match ($of) {
-                Metric::StopRate => $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key): array {
+                Metric::StopRate => $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key, $confidence): array {
                     $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'experimentRuns')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
                     $values = array_values(array_map(static fn (WorkerRun $run): int => $run->state->isStop() ? 1 : 0, $closed));
 
-                    return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name], $values];
+                    return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values, $confidence), $finished[$name], $values];
                 }),
                 Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => $row['runCount'])),
                 Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static function (array $row) use ($key): ?float {
@@ -569,17 +577,17 @@ final readonly class ShowExperimentHandler
      * @param array<string, list<KeptCard>> $delivered
      * @param list<Uuid>                    $sampleIds    the finished cards of every variant
      */
-    private function templateMetric(Project $project, TemplateMetric $template, MetricShape $shape, callable $metric, callable $bootstrap, array $kept, array $finished, array $delivered, array $sampleIds, CardRequestCounts $counts, string $experiment, array $variantNames): ExperimentMetric
+    private function templateMetric(Project $project, TemplateMetric $template, MetricShape $shape, callable $metric, callable $bootstrap, array $kept, array $finished, array $delivered, array $sampleIds, CardRequestCounts $counts, string $experiment, array $variantNames, Confidence $confidence): ExperimentMetric
     {
         $values = $this->templateValues->valuesOf($project, $sampleIds, $template);
         $key = $template->key;
         $value = static fn (array $row): int|float|null => $values[$row['cardId']->toRfc4122()] ?? null;
 
         if (MetricType::Rate === $template->type) {
-            return $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key, $value): array {
+            return $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key, $value, $confidence): array {
                 $sample = array_values(array_map(static fn (array $row): int => (int) $value($row), array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['finished'])));
 
-                return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $sample), $finished[$name], $sample];
+                return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $sample, $confidence), $finished[$name], $sample];
             }, [], $template->label);
         }
 
@@ -630,28 +638,34 @@ final readonly class ShowExperimentHandler
      *
      * @param list<int|float> $values
      */
-    private static function interval(MetricValueType $type, string $seed, array $values): ?Interval
+    private static function interval(MetricValueType $type, string $seed, array $values, Confidence $confidence): ?Interval
     {
         return MetricValueType::Ratio === $type
-            ? Stats::wilson((int) array_sum($values), \count($values))
-            : Stats::bootstrapMean($values, $seed);
+            ? Stats::wilson((int) array_sum($values), \count($values), $confidence)
+            : Stats::bootstrapMean($values, $seed, $confidence);
     }
 
     /**
+     * True when every variant other than the baseline is clear against it. Null when the experiment has no baseline.
+     *
      * @param list<string>             $variantNames
      * @param array<string, ?Interval> $byVariant
      * @param array<string, int>       $counts       the cards behind each range
      */
-    private static function clear(array $variantNames, array $byVariant, array $counts): bool
+    private static function clear(array $variantNames, ?string $baseline, array $byVariant, array $counts): ?bool
     {
-        if (\count($variantNames) < 2) {
-            return false;
+        if (null === $baseline) {
+            return null;
         }
-        [$a, $b] = $variantNames;
-        $intervalA = $byVariant[$a] ?? null;
-        $intervalB = $byVariant[$b] ?? null;
+        $base = $byVariant[$baseline] ?? null;
+        foreach ($variantNames as $name) {
+            $own = $byVariant[$name] ?? null;
+            if ($name !== $baseline && (null === $base || null === $own || !Stats::isClear($base, $own, $counts[$baseline] ?? 0, $counts[$name] ?? 0))) {
+                return false;
+            }
+        }
 
-        return null !== $intervalA && null !== $intervalB && Stats::isClear($intervalA, $intervalB, $counts[$a] ?? 0, $counts[$b] ?? 0);
+        return true;
     }
 
     /**

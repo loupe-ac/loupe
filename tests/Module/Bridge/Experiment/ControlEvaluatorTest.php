@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge\Experiment;
 
 use App\Module\Bridge\Experiment\ControlEvaluator;
 use App\Module\Bridge\Experiment\ControlResult;
+use App\Module\Bridge\Experiment\ExperimentControl;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -122,15 +123,54 @@ final class ControlEvaluatorTest extends TestCase
         }
         $controls = ControlEvaluator::evaluate($specs, $values, ['a' => 1]);
 
-        $hold = ControlEvaluator::hold($controls);
+        $hold = ControlEvaluator::hold($controls, 'a', 'base');
 
         self::assertNotNull($hold);
         self::assertSame(ControlResult::Failed, $hold->reason);
         self::assertSame(['failed'], array_map(static fn ($control): string => $control->metric, $hold->controls));
         self::assertSame(4, $hold->total);
-        self::assertSame(ControlResult::UnknownMetric, ControlEvaluator::hold([$controls[1], $controls[0], $controls[3]])?->reason);
-        self::assertSame(ControlResult::NoData, ControlEvaluator::hold([$controls[0], $controls[3]])?->reason);
-        self::assertNull(ControlEvaluator::hold([$controls[3]]));
-        self::assertNull(ControlEvaluator::hold([]));
+        self::assertSame(ControlResult::UnknownMetric, ControlEvaluator::hold([$controls[1], $controls[0], $controls[3]], 'a', 'base')?->reason);
+        self::assertSame(ControlResult::NoData, ControlEvaluator::hold([$controls[0], $controls[3]], 'a', 'base')?->reason);
+        self::assertNull(ControlEvaluator::hold([$controls[3]], 'a', 'base'));
+        self::assertNull(ControlEvaluator::hold([], 'a', 'base'));
+    }
+
+    /** @return list<ExperimentControl> */
+    private static function failedOn(string $variant, string $other): array
+    {
+        return ControlEvaluator::evaluate(
+            [
+                ['metric' => 'events', 'variant' => $variant, 'expect' => '> 0', 'share' => 1.0],
+                ['metric' => 'events', 'variant' => $other, 'expect' => '> 0', 'share' => 1.0],
+            ],
+            ['events' => [$variant => [0], $other => [1]]],
+            [$variant => 1, $other => 1],
+        );
+    }
+
+    public function test_a_hold_reads_only_the_controls_of_the_variant_and_the_baseline(): void
+    {
+        $controls = [...self::failedOn('treated', 'base'), ...ControlEvaluator::evaluate(
+            [['metric' => 'events', 'variant' => 'other', 'expect' => '> 0', 'share' => 1.0]],
+            ['events' => ['other' => [0]]],
+            ['other' => 1],
+        )];
+
+        self::assertNull(ControlEvaluator::hold($controls, 'unrelated', 'base'));
+        $hold = ControlEvaluator::hold($controls, 'treated', 'base');
+        self::assertSame(ControlResult::Failed, $hold?->reason);
+        self::assertSame(['treated'], array_map(static fn (ExperimentControl $control): string => $control->variant, $hold->controls));
+        self::assertSame(2, $hold->total);
+    }
+
+    public function test_a_failed_baseline_control_holds_every_variant(): void
+    {
+        $controls = self::failedOn('base', 'treated');
+
+        foreach (['treated', 'another'] as $variant) {
+            $hold = ControlEvaluator::hold($controls, $variant, 'base');
+            self::assertSame(ControlResult::Failed, $hold?->reason, $variant);
+            self::assertSame(['base'], array_map(static fn (ExperimentControl $control): string => $control->variant, $hold->controls));
+        }
     }
 }
