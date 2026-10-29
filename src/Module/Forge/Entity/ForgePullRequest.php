@@ -153,6 +153,10 @@ class ForgePullRequest
     #[ORM\Column(length: 32, nullable: true)]
     public ?string $approvalCheckConclusion = null;
 
+    /** When Loupe last passed the approval check. A forge reading that started before it predates the check. */
+    #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, nullable: true, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL')]
+    public ?\DateTimeImmutable $approvalCheckPassedAt = null;
+
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $coveredSha = null;
 

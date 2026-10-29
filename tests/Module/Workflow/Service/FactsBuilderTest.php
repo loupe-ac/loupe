@@ -887,6 +887,23 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertFalse($this->facts($card)->pullRequest->mergeBlocked);
     }
 
+    public function test_a_blocked_reading_older_than_the_passed_approval_check_does_not_read_as_blocked(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-merge-blocked-stale');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->mergeability = PullRequestMergeability::Blocked;
+        $pullRequest->refreshedAt = new \DateTimeImmutable('2026-10-02 12:03:04');
+        $pullRequest->approvalCheckPassedAt = new \DateTimeImmutable('2026-10-02 12:03:21');
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->mergeBlocked, 'The reading saw the check missing, not a ruleset that blocks.');
+
+        $pullRequest->refreshedAt = new \DateTimeImmutable('2026-10-02 12:03:30');
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest->mergeBlocked);
+    }
+
     public function test_the_requests_to_the_forge_of_an_open_pull_request_expire_when_loupe_would_ask_again(): void
     {
         self::bootKernel();
