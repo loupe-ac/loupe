@@ -171,6 +171,9 @@ test('search shortcuts preserve page drafts and recover from a failed request', 
     const result = page.locator('[data-search-kind="document"]');
     await expect(result).toBeVisible();
     await expect(page.getByText('Could not search')).toBeHidden();
+    await expect(
+        page.locator('[data-topbar-search-target="progress"]'),
+    ).toBeHidden();
     await field.press('ArrowDown');
     await expect(result).toHaveAttribute('aria-selected', 'true');
     await expect(field).toBeFocused();
