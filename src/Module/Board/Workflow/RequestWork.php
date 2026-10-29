@@ -24,7 +24,7 @@ use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\WorkHolds;
 
-/** A fix request also writes the fix-requested card event that the experiment report counts. */
+/** A fix request also writes the fix-requested card event, which feeds the card history only. */
 final readonly class RequestWork implements Action, RetriesWhileTrue
 {
     public const string KEY = 'request';

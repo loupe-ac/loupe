@@ -12,7 +12,6 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\Actor;
-use App\Module\Workflow\Contract\CardEventCause;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,7 +32,7 @@ final class CardHistoryTabTest extends WebTestCase
         $next = CardEvent::columnDetail($this->column($project, 'next'));
         $events = $this->events();
         $events->record($card, CardEventKind::Created, Actor::Human, $owner, ['column' => $backlog], new \DateTimeImmutable('-3 hours'));
-        $events->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $backlog, 'to' => $next, 'cause' => CardEventCause::merged(12)->detail()], new \DateTimeImmutable('-2 hours'));
+        $events->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $backlog, 'to' => $next, 'cause' => ['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged']], new \DateTimeImmutable('-2 hours'));
         $events->record($card, CardEventKind::FixRequested, Actor::System, null, ['reason' => 'checks-failed', 'pullRequest' => 12], new \DateTimeImmutable('-1 hour'));
         $em->flush();
         $em->clear();
@@ -48,7 +47,7 @@ final class CardHistoryTabTest extends WebTestCase
         self::assertStringContainsString('Loupe asked for a fix on #12.', $rows->eq(0)->text());
         self::assertStringContainsString('Because the checks fail.', $rows->eq(0)->text());
         self::assertStringContainsString('Loupe moved it from Backlog to Next.', $rows->eq(1)->text());
-        self::assertStringContainsString('After #12 merged.', $rows->eq(1)->text());
+        self::assertStringContainsString('Via the merged workflow rule.', $rows->eq(1)->text());
         self::assertStringContainsString('Riley Chen created it in Backlog.', $rows->eq(2)->text());
         self::assertSame('3h ago', trim($rows->eq(2)->filter('time')->text()));
         self::assertCount(0, $crawler->filter('#card-panel-history turbo-frame'));

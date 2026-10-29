@@ -35,9 +35,25 @@ type Experiment struct {
 	Name     string    `yaml:"name"`
 	Variants []Variant `yaml:"variants"`
 	Metrics  []string  `yaml:"metrics"`
+	Headline *Headline `yaml:"headline"`
 
 	// settings holds the run settings of each variant, in variant order.
 	settings []RunSettings
+}
+
+// Headline is the goal and the guards of an experiment. A nil Guards means
+// the server's default guards, and an empty Guards means no guards.
+type Headline struct {
+	Goal   *Goal    `yaml:"goal"`
+	Guards []string `yaml:"guards"`
+}
+
+// Goal is the metric an experiment tries to move, and the direction that
+// counts as better. Better is lower, higher, or empty when the rule names
+// none.
+type Goal struct {
+	Metric string `yaml:"metric"`
+	Better string `yaml:"better"`
 }
 
 // Variant is one model or account of an experiment, and its share of the
@@ -90,12 +106,26 @@ func (e Experiment) Pick(cardKey string) Variant {
 func (e Experiment) clone() *Experiment {
 	e.Variants = slices.Clone(e.Variants)
 	e.Metrics = slices.Clone(e.Metrics)
+	e.Headline = e.Headline.clone()
 	e.settings = slices.Clone(e.settings)
 	for i := range e.settings {
 		e.settings[i] = e.settings[i].clone()
 	}
 
 	return &e
+}
+
+func (h *Headline) clone() *Headline {
+	if h == nil {
+		return nil
+	}
+	out := &Headline{Guards: slices.Clone(h.Guards)}
+	if h.Goal != nil {
+		goal := *h.Goal
+		out.Goal = &goal
+	}
+
+	return out
 }
 
 func checkExperiment(e Experiment) error {
@@ -123,6 +153,7 @@ func checkExperiment(e Experiment) error {
 	}
 
 	errs = append(errs, checkMetrics(e.Metrics)...)
+	errs = append(errs, checkHeadline(e.Headline)...)
 
 	return errors.Join(errs...)
 }
@@ -139,6 +170,44 @@ func checkMetrics(metrics []string) []error {
 			errs = append(errs, fmt.Errorf("metric %q is listed twice", key))
 		case !metricKeyPattern.MatchString(key):
 			errs = append(errs, fmt.Errorf("metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", key))
+		}
+		seen[key] = true
+	}
+
+	return errs
+}
+
+func checkHeadline(h *Headline) []error {
+	if h == nil {
+		return nil
+	}
+	var errs []error
+	if h.Goal == nil && h.Guards == nil {
+		errs = append(errs, errors.New("headline needs a goal or guards"))
+	}
+	if h.Goal != nil {
+		if !metricKeyPattern.MatchString(h.Goal.Metric) {
+			errs = append(errs, fmt.Errorf("headline goal: metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", h.Goal.Metric))
+		}
+		// An empty Better loads, so the Comparison tab can ask for a direction.
+		switch h.Goal.Better {
+		case "", "lower", "higher":
+		default:
+			errs = append(errs, fmt.Errorf("headline goal: better is lower or higher, got %q", h.Goal.Better))
+		}
+	}
+	if len(h.Guards) > MaxMetrics {
+		errs = append(errs, fmt.Errorf("headline has %d guards, and the server takes at most %d", len(h.Guards), MaxMetrics))
+	}
+	seen := map[string]bool{}
+	for _, key := range h.Guards {
+		switch {
+		case seen[key]:
+			errs = append(errs, fmt.Errorf("headline guard %q is listed twice", key))
+		case !metricKeyPattern.MatchString(key):
+			errs = append(errs, fmt.Errorf("headline guard %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", key))
+		case h.Goal != nil && key == h.Goal.Metric:
+			errs = append(errs, fmt.Errorf("headline guard %q is also the goal metric", key))
 		}
 		seen[key] = true
 	}

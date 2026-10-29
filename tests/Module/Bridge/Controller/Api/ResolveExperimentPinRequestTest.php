@@ -102,4 +102,74 @@ final class ResolveExperimentPinRequestTest extends TestCase
         self::assertNotNull($request->weights());
         self::assertNull($request->metrics());
     }
+
+    public function test_a_full_headline_is_kept(): void
+    {
+        $request = new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower'], 'guards' => ['merge-rate', 'fix-rounds']]);
+
+        self::assertSame(['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower'], 'guards' => ['merge-rate', 'fix-rounds']], $request->headline());
+    }
+
+    public function test_a_goal_alone_and_guards_alone_are_kept(): void
+    {
+        self::assertSame(['goal' => ['metric' => 'cost', 'better' => 'higher']], new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'cost', 'better' => 'higher']])->headline());
+        self::assertSame(['goal' => ['metric' => 'cost']], new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'cost']])->headline());
+        self::assertSame(['goal' => ['metric' => 'cost']], new ResolveExperimentPinRequest(headline: ['goal' => ['metric' => 'cost', 'better' => null]])->headline());
+        self::assertSame(['guards' => ['cost']], new ResolveExperimentPinRequest(headline: ['guards' => ['cost']])->headline());
+    }
+
+    public function test_empty_guards_mean_no_guards_and_stay(): void
+    {
+        self::assertSame(['guards' => []], new ResolveExperimentPinRequest(headline: ['guards' => []])->headline());
+    }
+
+    public function test_unknown_keys_are_dropped(): void
+    {
+        $request = new ResolveExperimentPinRequest(headline: ['extra' => 1, 'goal' => ['metric' => 'cost', 'better' => 'lower', 'weight' => 2], 'guards' => ['merge-rate']]);
+
+        self::assertSame(['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => ['merge-rate']], $request->headline());
+    }
+
+    public function test_sixteen_guards_are_kept(): void
+    {
+        $guards = array_map(static fn (int $i): string => 'm'.$i, range(1, ResolveExperimentPinRequest::MAX_METRICS));
+
+        self::assertSame(['guards' => $guards], new ResolveExperimentPinRequest(headline: ['guards' => $guards])->headline());
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidHeadlines(): iterable
+    {
+        yield 'absent' => [null];
+        yield 'empty' => [[]];
+        yield 'a string' => ['cost'];
+        yield 'a list' => [['cost']];
+        yield 'no known key' => [['extra' => 1]];
+        yield 'goal not an object' => [['goal' => 'cost']];
+        yield 'goal without metric' => [['goal' => ['better' => 'lower']]];
+        yield 'empty goal' => [['goal' => []]];
+        yield 'bad better' => [['goal' => ['metric' => 'cost', 'better' => 'up']]];
+        yield 'better capital' => [['goal' => ['metric' => 'cost', 'better' => 'Lower']]];
+        yield 'better not a string' => [['goal' => ['metric' => 'cost', 'better' => true]]];
+        yield 'goal metric a capital' => [['goal' => ['metric' => 'Cost', 'better' => 'lower']]];
+        yield 'goal metric a number' => [['goal' => ['metric' => 1, 'better' => 'lower']]];
+        yield 'goal metric trailing newline' => [['goal' => ['metric' => "cost\n", 'better' => 'lower']]];
+        yield 'guards a string' => [['guards' => 'cost']];
+        yield 'guards not a list' => [['guards' => ['a' => 'cost']]];
+        yield 'guards too many' => [['guards' => array_map(static fn (int $i): string => 'm'.$i, range(1, ResolveExperimentPinRequest::MAX_METRICS + 1))]];
+        yield 'guard a number' => [['guards' => ['cost', 1]]];
+        yield 'guard bad shape' => [['guards' => ['Cost']]];
+        yield 'guard repeat' => [['guards' => ['cost', 'cost']]];
+        yield 'goal metric in guards' => [['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => ['merge-rate', 'cost']]];
+        yield 'valid goal, bad guards' => [['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => ['cost', 'cost']]];
+    }
+
+    #[DataProvider('invalidHeadlines')]
+    public function test_an_invalid_headline_gives_null(mixed $headline): void
+    {
+        $request = new ResolveExperimentPinRequest('sonnet', ['opus', 'sonnet'], [1, 1], null, $headline);
+
+        self::assertNotNull($request->weights());
+        self::assertNull($request->headline());
+    }
 }

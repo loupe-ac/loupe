@@ -12,6 +12,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Workflow\MoveCard;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\ParameterType;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -61,12 +62,13 @@ final class MoveCardTest extends KernelTestCase
         self::assertSame(['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged'], $moves[0]->detail['cause']);
     }
 
-    public function test_the_outcome_parameter_takes_only_merged(): void
+    public function test_the_outcome_parameter_names_an_outcome_of_the_template(): void
     {
         $outcome = array_values(array_filter(MoveCard::parameters(), static fn ($parameter): bool => 'outcome' === $parameter->name));
 
         self::assertCount(1, $outcome);
-        self::assertSame(['merged'], $outcome[0]->choices);
+        self::assertSame(ParameterType::Outcome, $outcome[0]->type);
+        self::assertNull($outcome[0]->choices);
         self::assertFalse($outcome[0]->required);
     }
 

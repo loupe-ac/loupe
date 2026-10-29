@@ -8,6 +8,13 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class PullRequestFacts
 {
+    public const string REASON_CONFLICT = 'conflict';
+    public const string REASON_CHECKS_FAILED = 'checks-failed';
+    public const string REASON_CHANGES_REQUESTED = 'changes-requested';
+
+    /** Every reason `fixReason()` can answer. */
+    public const array FIX_REASONS = [self::REASON_CONFLICT, self::REASON_CHECKS_FAILED, self::REASON_CHANGES_REQUESTED];
+
     /**
      * @param bool               $baseIsMergeTarget   the base is the default branch or the branch of the card's epic
      * @param bool               $baseIsEpicBranch    the base is the branch of the card's epic
@@ -97,9 +104,9 @@ final readonly class PullRequestFacts
     public function fixReason(): ?string
     {
         return match (true) {
-            $this->conflicting => 'conflict',
-            ChecksState::Failed === $this->checks => 'checks-failed',
-            $this->changesRequested => 'changes-requested',
+            $this->conflicting => self::REASON_CONFLICT,
+            ChecksState::Failed === $this->checks => self::REASON_CHECKS_FAILED,
+            $this->changesRequested => self::REASON_CHANGES_REQUESTED,
             default => null,
         };
     }

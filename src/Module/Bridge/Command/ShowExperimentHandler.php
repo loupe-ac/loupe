@@ -6,31 +6,47 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\ExperimentCard;
-use App\Module\Bridge\Experiment\ExperimentHeadline;
+use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
+use App\Module\Bridge\Experiment\GoalDirection;
+use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
+use App\Module\Bridge\Metric\CardRequestCounts;
 use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRowSource;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricValueType;
+use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\View\CardTitleSourceInterface;
+use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\CountFilter;
+use App\Module\Workflow\Contract\MetricType;
+use App\Module\Workflow\Contract\TemplateMetric;
+use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Utils\PageList;
 use Symfony\Component\Uid\Uuid;
 
+/**
+ * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}
+ */
 final readonly class ShowExperimentHandler
 {
     public const int PER_PAGE = 20;
 
-    /** The metrics of an experiment whose rule declares none, in display order. */
+    /** The metrics of an experiment whose rule declares none, in display order. The ones the project's template does not declare drop out. */
+    public const array DEFAULT_GUARDS = [ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS];
+
     public const array DEFAULT_METRICS = [
         ExperimentMetric::MERGE_RATE,
         ExperimentMetric::STOP_RATE,
@@ -47,6 +63,8 @@ final readonly class ShowExperimentHandler
         private WorkerRunFactRepository $workerRunFacts,
         private CardReportSourceInterface $cardReports,
         private CardTitleSourceInterface $cardTitles,
+        private TemplateMetricValues $templateValues,
+        private TemplateMetrics $templates,
     ) {
     }
 
@@ -86,8 +104,11 @@ final readonly class ShowExperimentHandler
         }
 
         $ids = array_values($cardIds);
+        $templates = $this->templates->forProject($project->id ?? throw new \LogicException('A project has an id here.'));
         $historyStart = $this->cardReports->historyStartFor($project);
-        $outcomes = $this->cardReports->outcomesFor($project, $ids);
+        $delivered = $templates->delivered()?->key;
+        $outcomes = $this->cardReports->outcomesOfCards($project, $ids);
+        $fixCounts = $this->templateValues->countsOf($ids);
         $columns = $this->cardReports->columnsFor($project, $ids);
         $titles = $this->cardTitles->titlesFor($project, $ids);
         /** @var array<string, list<WorkerRunFact>> $facts */
@@ -99,14 +120,22 @@ final readonly class ShowExperimentHandler
         $weights = null === $definition ? [] : array_column($definition->weights, 'weight', 'name');
         // An empty declaration names no metric, so the defaults apply.
         $declared = $definition?->metrics ?: null;
-        $metricKeys = null === $declared ? self::DEFAULT_METRICS : array_values(array_unique(array_filter($declared, self::isKnownMetric(...))));
-        $unknownMetrics = null === $declared ? [] : array_values(array_unique(array_filter($declared, static fn (string $key): bool => !self::isKnownMetric($key))));
+        $shapes = [];
+        $unknownMetrics = [];
+        foreach ($declared ?? self::DEFAULT_METRICS as $key) {
+            $shape = self::shapeOf($key, $templates);
+            if (null !== $shape) {
+                $shapes[$key] = $shape;
+            } elseif (null !== $declared && !\in_array($key, $unknownMetrics, true)) {
+                $unknownMetrics[] = $key;
+            }
+        }
 
         $variantNames = array_merge(array_keys($weights), array_values($pinVariants), array_keys($models));
 
         /** @var list<array{card: ExperimentCard, lastRunAt: ?\DateTimeImmutable}> $cards */
         $cards = [];
-        /** @var array<string, list<array{outcome: CardOutcome, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}>> $kept variant => kept cards, a null cost when it is unknown */
+        /** @var array<string, list<KeptCard>> $kept variant => kept cards, a null cost when it is unknown */
         $kept = [];
         foreach ($cardIds as $id => $cardId) {
             $own = $experimentRuns[$id] ?? [];
@@ -115,7 +144,7 @@ final readonly class ShowExperimentHandler
             // A pin can switch before a run reports it, so the runs name the variant that did the work.
             $variant = null === $first ? $pinVariants[$id] ?? null : $first->variant;
             $leftOut = self::leftOut($own, $plainRuns[$id] ?? [], $pinVariants[$id] ?? null, $historyStart);
-            $outcome = $outcomes[$id] ?? new CardOutcome();
+            $isDelivered = null !== $delivered && \in_array($delivered, $outcomes[$id] ?? [], true);
             $column = $columns[$id] ?? null;
             $ownFacts = $facts[$id] ?? [];
             $costMicros = MetricRowSource::cardSum($ownFacts, Metric::Cost);
@@ -128,7 +157,7 @@ final readonly class ShowExperimentHandler
                     variant: $variant,
                     column: $column,
                     runs: \count($own),
-                    fixRounds: $outcome->totalFixRounds(),
+                    fixRounds: $fixCounts->matching($id, new CountFilter(role: 'fix')),
                     costMicros: $costMicros,
                     leftOut: $leftOut,
                 ),
@@ -136,8 +165,9 @@ final readonly class ShowExperimentHandler
             ];
             if ([] === $leftOut && null !== $variant) {
                 $kept[$variant][] = [
-                    'outcome' => $outcome,
-                    'finished' => $outcome->merged || true === $column?->terminal,
+                    'cardId' => $cardId,
+                    'delivered' => $isDelivered,
+                    'finished' => $isDelivered || true === $column?->terminal,
                     'runs' => $own,
                     'facts' => $ownFacts,
                     'costMicros' => $costMicros,
@@ -164,10 +194,18 @@ final readonly class ShowExperimentHandler
             );
         }
 
-        // The headline reads these three, whether the table shows them or not.
-        $computed = $command->withMetrics ? $this->metrics($experiment, $variantNames, $kept, $finished, array_values(array_unique([...$metricKeys, ExperimentMetric::COST, ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS]))) : [];
+        // The goal and the guards are computed even when the entry's metrics leave them out.
+        [$goalKey, $direction, $guardKeys, $unknownGuards, $goalProblem] = self::headlineSpec($definition?->headline, $templates);
+        $wanted = $shapes;
+        foreach ([$goalKey, ...$guardKeys] as $key) {
+            $shape = self::shapeOf($key, $templates);
+            if (null !== $shape) {
+                $wanted[$key] ??= $shape;
+            }
+        }
+        $computed = $command->withMetrics ? $this->metrics($project, $experiment, $variantNames, $kept, $finished, $fixCounts, array_values($wanted)) : [];
         $metrics = [];
-        foreach ([] === $computed ? [] : $metricKeys as $key) {
+        foreach ([] === $computed ? [] : array_keys($shapes) as $key) {
             $metrics[$key] = $computed[$key];
         }
 
@@ -185,11 +223,20 @@ final readonly class ShowExperimentHandler
         return new ExperimentReportView(
             project: $project,
             experiment: $experiment,
-            headline: [] === $computed ? null : self::headline($variantNames, $computed[ExperimentMetric::COST], $computed[ExperimentMetric::MERGE_RATE], $computed[ExperimentMetric::FIX_ROUNDS]),
+            headline: [] === $computed ? null : ExperimentHeadlineBuilder::build(
+                $experiment,
+                $variantNames,
+                $finished,
+                $computed[$goalKey] ?? new ExperimentMetric($goalKey, [], false),
+                $direction,
+                array_map(static fn (string $key): ExperimentMetric => $computed[$key], $guardKeys),
+                $goalProblem,
+            ),
             variants: $variants,
             metrics: $metrics,
             declaredMetrics: $declared,
             unknownMetrics: $unknownMetrics,
+            unknownGuards: $unknownGuards,
             includedCards: $included,
             leftOutCards: \count($cards) - $included,
             cards: array_column(\array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE), 'card'),
@@ -251,69 +298,63 @@ final readonly class ShowExperimentHandler
     }
 
     /**
-     * @param list<string>                                                                                                                          $variantNames
-     * @param array<string, list<array{outcome: CardOutcome, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}>> $kept
-     * @param array<string, int>                                                                                                                    $finished
-     * @param list<string>                                                                                                                          $keys         known metric keys
+     * @param list<string>                  $variantNames
+     * @param array<string, list<KeptCard>> $kept
+     * @param array<string, int>            $finished
+     * @param list<MetricShape>             $shapes       the metrics to compute
      *
-     * @return array<string, ExperimentMetric>
+     * @return array<string, ExperimentMetric> shape key => metric
      */
-    private function metrics(string $experiment, array $variantNames, array $kept, array $finished, array $keys): array
+    private function metrics(Project $project, string $experiment, array $variantNames, array $kept, array $finished, CardRequestCounts $counts, array $shapes): array
     {
-        $merged = [];
-        $reasons = [];
+        $delivered = [];
+        $sampleIds = [];
         foreach ($variantNames as $name) {
-            $merged[$name] = array_values(array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['outcome']->merged));
-            foreach ($merged[$name] as $row) {
-                $reasons += $row['outcome']->fixRounds;
+            $delivered[$name] = array_values(array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['delivered']));
+            foreach ($kept[$name] ?? [] as $row) {
+                if ($row['finished']) {
+                    $sampleIds[] = $row['cardId'];
+                }
             }
         }
-        $reasons = array_map(strval(...), array_keys($reasons));
-        sort($reasons, \SORT_STRING);
 
         // A sample gives the range and the card count that the floor of a clear answer reads.
-        $metric = static function (string $key, callable $sample, array $parts = []) use ($variantNames): ExperimentMetric {
+        $metric = static function (string $key, ?MetricShape $shape, callable $sample, array $parts = [], ?string $label = null) use ($variantNames): ExperimentMetric {
             $byVariant = [];
-            $counts = [];
+            $cardCounts = [];
+            $samples = [];
             foreach ($variantNames as $name) {
-                [$byVariant[$name], $counts[$name]] = $sample($name);
+                [$byVariant[$name], $cardCounts[$name], $samples[$name]] = $sample($name);
             }
 
-            return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $byVariant, $counts), array_values($parts));
+            return new ExperimentMetric($key, $byVariant, self::clear($variantNames, $byVariant, $cardCounts), array_values($parts), $shape, $label, $samples);
         };
-        $bootstrap = static fn (Metric $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $merged, $experiment): array {
-            $values = array_values(array_filter(array_map($value, $merged[$name]), static fn (int|float|null $item): bool => null !== $item));
+        $bootstrap = static fn (MetricValueType $of, string $key, callable $value): \Closure => static function (string $name) use ($of, $key, $value, $delivered, $experiment): array {
+            $values = array_values(array_filter(array_map($value, $delivered[$name]), static fn (int|float|null $item): bool => null !== $item));
 
-            return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values)];
+            return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values), $values];
         };
 
         $metrics = [];
-        foreach ($keys as $key) {
-            $of = Metric::from($key);
-            $metrics[$key] = match ($of) {
-                Metric::MergeRate => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
-                    $values = array_map(static fn (array $row): int => $row['outcome']->merged ? 1 : 0, array_values(array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['finished'])));
+        foreach ($shapes as $shape) {
+            $key = $shape->key->key();
+            $template = $shape->template;
+            if (null !== $template) {
+                $metrics[$key] = $this->templateMetric($project, $template, $shape, $metric, $bootstrap, $kept, $finished, $delivered, $sampleIds, $counts, $experiment, $variantNames);
+                continue;
+            }
 
-                    return [self::interval(Metric::MergeRate, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
-                }),
-                Metric::StopRate => $metric($key, static function (string $name) use ($kept, $finished, $experiment, $key): array {
+            $of = $shape->key->metric ?? throw new \LogicException('A built-in key has a metric.');
+            $metrics[$key] = match ($of) {
+                Metric::StopRate => $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key): array {
                     $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'runs')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
                     $values = array_values(array_map(static fn (WorkerRun $run): int => $run->state->isStop() ? 1 : 0, $closed));
 
-                    return [self::interval(Metric::StopRate, $experiment.':'.$key.':'.$name, $values), $finished[$name]];
+                    return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name], $values];
                 }),
-                Metric::FixRounds => $metric(
-                    $key,
-                    $bootstrap($of, $key, static fn (array $row): int => $row['outcome']->totalFixRounds()),
-                    array_map(
-                        static fn (string $reason): ExperimentMetric => $metric($reason, $bootstrap($of, $key.':'.$reason, static fn (array $row): int => $row['outcome']->fixRounds[$reason] ?? 0)),
-                        $reasons,
-                    ),
-                ),
-                Metric::HoursToMerge => $metric($key, $bootstrap($of, $key, static fn (array $row): ?float => $row['outcome']->hoursToMerge())),
-                Metric::Runs => $metric($key, $bootstrap($of, $key, static fn (array $row): int => \count($row['runs']))),
-                Metric::Cost => $metric($key, $bootstrap($of, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
-                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $bootstrap($of, $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
+                Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
+                Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
+                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
                 Metric::BucketTime => throw new \LogicException('A bucket time needs a bucket name, so an experiment cannot compare it.'),
             };
         }
@@ -321,10 +362,66 @@ final readonly class ShowExperimentHandler
         return $metrics;
     }
 
-    /** A bucket time needs a bucket name, which an experiment key cannot give. */
-    private static function isKnownMetric(string $key): bool
+    /**
+     * A rate reads the finished cards. A count and a duration read the delivered cards that have a value. A count that splits adds one row per value.
+     *
+     * @param list<string>                  $variantNames
+     * @param array<string, list<KeptCard>> $kept
+     * @param array<string, int>            $finished
+     * @param array<string, list<KeptCard>> $delivered
+     * @param list<Uuid>                    $sampleIds    the finished cards of every variant
+     */
+    private function templateMetric(Project $project, TemplateMetric $template, MetricShape $shape, callable $metric, callable $bootstrap, array $kept, array $finished, array $delivered, array $sampleIds, CardRequestCounts $counts, string $experiment, array $variantNames): ExperimentMetric
     {
-        return \in_array(Metric::tryFrom($key), Metric::standalone(), true);
+        $values = $this->templateValues->valuesOf($project, $sampleIds, $template);
+        $key = $template->key;
+        $value = static fn (array $row): int|float|null => $values[$row['cardId']->toRfc4122()] ?? null;
+
+        if (MetricType::Rate === $template->type) {
+            return $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key, $value): array {
+                $sample = array_values(array_map(static fn (array $row): int => (int) $value($row), array_filter($kept[$name] ?? [], static fn (array $row): bool => $row['finished'])));
+
+                return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $sample), $finished[$name], $sample];
+            }, [], $template->label);
+        }
+
+        $parts = [];
+        if (null !== $template->splitBy && null !== $template->filter) {
+            $field = $template->splitBy;
+            $filter = $template->filter;
+            $split = [];
+            foreach ($variantNames as $name) {
+                foreach ($delivered[$name] as $row) {
+                    foreach (array_keys($counts->split($row['cardId']->toRfc4122(), $filter, $field)) as $part) {
+                        $split[$part] = true;
+                    }
+                }
+            }
+            $partKeys = array_map(strval(...), array_keys($split));
+            sort($partKeys, \SORT_STRING);
+            foreach ($partKeys as $part) {
+                $parts[] = $metric(
+                    $part,
+                    null,
+                    $bootstrap(MetricValueType::Count, $key.':'.$part, static fn (array $row): int => $counts->split($row['cardId']->toRfc4122(), $filter, $field)[$part] ?? 0),
+                    [],
+                    'reason' === $field ? null : $part,
+                );
+            }
+        }
+
+        return $metric($key, $shape, $bootstrap($shape->valueType(), $key, $value), $parts, $template->label);
+    }
+
+    /** Null for a key that no metric has. A bucket time needs a bucket name, which an experiment key cannot give. */
+    private static function shapeOf(string $key, TemplateMetricSet $templates): ?MetricShape
+    {
+        $parsed = MetricKey::tryParse($key, $templates);
+        if (null === $parsed || Metric::BucketTime === $parsed->metric) {
+            return null;
+        }
+
+        return MetricShape::of($parsed, $templates);
     }
 
     /**
@@ -332,9 +429,9 @@ final readonly class ShowExperimentHandler
      *
      * @param list<int|float> $values
      */
-    private static function interval(Metric $metric, string $seed, array $values): ?Interval
+    private static function interval(MetricValueType $type, string $seed, array $values): ?Interval
     {
-        return MetricValueType::Ratio === $metric->valueType()
+        return MetricValueType::Ratio === $type
             ? Stats::wilson((int) array_sum($values), \count($values))
             : Stats::bootstrapMean($values, $seed);
     }
@@ -356,21 +453,41 @@ final readonly class ShowExperimentHandler
         return null !== $intervalA && null !== $intervalB && Stats::isClear($intervalA, $intervalB, $counts[$a] ?? 0, $counts[$b] ?? 0);
     }
 
-    /** @param list<string> $variantNames */
-    private static function headline(array $variantNames, ExperimentMetric $cost, ExperimentMetric $mergeRate, ExperimentMetric $fixRounds): ExperimentHeadline
+    /**
+     * The goal metric, its direction, and the guards. Without a goal the cost is the goal, and lower is better. A goal that no metric has, or that has no better way, comes back with the state that says so, and names no winner. A guard that no metric has falls out and is listed. Without guards the default guards apply, less the goal and the ones the template does not declare.
+     *
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     *
+     * @return array{string, ?GoalDirection, list<string>, list<string>, ?GoalState} goal key, direction, guard keys, unknown guard keys, the problem of the goal
+     */
+    private static function headlineSpec(?array $headline, TemplateMetricSet $templates): array
     {
-        $cheaper = null;
-        $saving = null;
-        if (\count($variantNames) >= 2) {
-            [$a, $b] = $variantNames;
-            $costA = $cost->for($a);
-            $costB = $cost->for($b);
-            if (null !== $costA && null !== $costB) {
-                [$cheaper, $low, $high] = $costA->point <= $costB->point ? [$a, $costA->point, $costB->point] : [$b, $costB->point, $costA->point];
-                $saving = $high > 0 ? 1 - $low / $high : null;
+        $goalKey = ExperimentMetric::COST;
+        $direction = GoalDirection::Lower;
+        $problem = null;
+        if (isset($headline['goal'])) {
+            $goalKey = $headline['goal']['metric'];
+            $direction = GoalDirection::tryFrom($headline['goal']['better'] ?? '');
+            if (null === self::shapeOf($goalKey, $templates)) {
+                $problem = GoalState::UnknownMetric;
+            } elseif (null === $direction) {
+                $problem = GoalState::NoDirection;
             }
         }
 
-        return new ExperimentHeadline($cheaper, $saving, $cost->clear, $mergeRate->clear && $fixRounds->clear);
+        $guardKeys = [];
+        $unknown = [];
+        foreach ($headline['guards'] ?? self::DEFAULT_GUARDS as $key) {
+            if ($key === $goalKey && !isset($headline['guards'])) {
+                continue;
+            }
+            if (null !== self::shapeOf($key, $templates)) {
+                $guardKeys[$key] = $key;
+            } elseif (isset($headline['guards'])) {
+                $unknown[$key] = $key;
+            }
+        }
+
+        return [$goalKey, $direction, array_values($guardKeys), array_values($unknown), $problem];
     }
 }

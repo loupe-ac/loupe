@@ -26,21 +26,23 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
     /**
      * Writes past the identity map, so clear the entity manager before a read.
      *
-     * @param list<array{name: string, weight: int}> $weights
-     * @param list<string>|null                      $metrics
+     * @param list<array{name: string, weight: int}>                                           $weights
+     * @param list<string>|null                                                                $metrics
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
      */
-    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, \DateTimeImmutable $reportedAt): void
+    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
-            'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, reported_at)'
-            .' VALUES (:id, :project, :experiment, :weights, :metrics, :reportedAt)'
-            .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, reported_at = EXCLUDED.reported_at',
+            'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, headline, reported_at)'
+            .' VALUES (:id, :project, :experiment, :weights, :metrics, :headline, :reportedAt)'
+            .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, headline = EXCLUDED.headline, reported_at = EXCLUDED.reported_at',
             [
                 'id' => Uuid::v7(),
                 'project' => $project->id,
                 'experiment' => $experiment,
                 'weights' => $weights,
                 'metrics' => $metrics,
+                'headline' => $headline,
                 'reportedAt' => $reportedAt,
             ],
             [
@@ -49,6 +51,7 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
                 'experiment' => Types::STRING,
                 'weights' => Types::JSON,
                 'metrics' => Types::JSON,
+                'headline' => Types::JSON,
                 'reportedAt' => Types::DATETIME_IMMUTABLE,
             ],
         );

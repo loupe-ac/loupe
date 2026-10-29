@@ -107,6 +107,17 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 		"bad metric key":               {entry("x", "prompt: x\nmetrics: [Cost]\n"+variants), `metric "Cost": a metric key is 1 to 64`},
 		"metric key too long":          {entry("x", "prompt: x\nmetrics: [c"+strings.Repeat("o", 64)+"]\n"+variants), "a metric key is 1 to 64"},
 		"repeated metric":              {entry("x", "prompt: x\nmetrics: [cost, cost]\n"+variants), `metric "cost" is listed twice`},
+		"interactive with headline":    {entry("x", interactive+"headline:\n  guards: [cost]"), "headline names worker behaviour"},
+		"command with headline":        {entry("x", command+"headline:\n  guards: [cost]"), "headline names agent behaviour"},
+		"headline without variants":    {entry("x", "prompt: x\nheadline:\n  guards: [cost]"), "headline needs variants, and only an experiment shows a headline"},
+		"empty headline":               {entry("x", "prompt: x\nheadline: {}\n"+variants), "headline needs a goal or guards"},
+		"goal without metric":          {entry("x", "prompt: x\nheadline:\n  goal: {better: lower}\n"+variants), "headline goal: metric \"\": a metric key is 1 to 64"},
+		"goal with bad better":         {entry("x", "prompt: x\nheadline:\n  goal: {metric: cost, better: up}\n"+variants), `headline goal: better is lower or higher, got "up"`},
+		"goal with bad metric":         {entry("x", "prompt: x\nheadline:\n  goal: {metric: Cost, better: lower}\n"+variants), `headline goal: metric "Cost": a metric key is 1 to 64`},
+		"bad guard key":                {entry("x", "prompt: x\nheadline:\n  guards: [Cost]\n"+variants), `headline guard "Cost": a metric key is 1 to 64`},
+		"repeated guard":               {entry("x", "prompt: x\nheadline:\n  guards: [cost, cost]\n"+variants), `headline guard "cost" is listed twice`},
+		"goal metric is also a guard":  {entry("x", "prompt: x\nheadline:\n  goal: {metric: cost, better: lower}\n  guards: [cost]\n"+variants), `headline guard "cost" is also the goal metric`},
+		"unknown headline field":       {entry("x", "prompt: x\nheadline:\n  guard: [cost]\n"+variants), "field guard not found"},
 		"command without run":          {entry("x", "action: command"), "run is required"},
 		"command timeout too long":     {entry("x", command+"timeout: 2h"), "the most it takes is 1h0m0s"},
 		"command timeout not duration": {entry("x", command+"timeout: soon"), `timeout "soon" is not a duration`},
@@ -933,5 +944,76 @@ func TestMatchWorkAppendsTheSuggestedPromptToASession(t *testing.T) {
 	w.Prompt = "something"
 	if m := s.MatchWork(w); m.Prompt != pairPlain.Prompt {
 		t.Fatalf("non-session prompt = %q, want %q", m.Prompt, pairPlain.Prompt)
+	}
+}
+
+func splitWithHeadline(t *testing.T, fields string) *Set {
+	t.Helper()
+	text, _ := file(t, strings.Replace(workFile, "    metrics: [cost, merge-rate]\n", "    metrics: [cost, merge-rate]\n"+fields, 1))
+	s, err := Parse([]byte(text), Defaults{Model: "haiku"})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	checkLoupe(t, s)
+
+	return s
+}
+
+func headlineOf(t *testing.T, fields string) *Headline {
+	t.Helper()
+	m := splitWithHeadline(t, fields).MatchWork(workRequest("split"))
+	if m.Experiment == nil {
+		t.Fatal("no experiment")
+	}
+
+	return m.Experiment.Headline
+}
+
+func TestParseKeepsAbsentAndEmptyGuardsApart(t *testing.T) {
+	if h := headlineOf(t, ""); h != nil {
+		t.Fatalf("headline = %+v", h)
+	}
+	h := headlineOf(t, "    headline:\n      goal: {metric: hours-to-merge, better: lower}\n")
+	if h == nil || h.Goal == nil || *h.Goal != (Goal{Metric: "hours-to-merge", Better: "lower"}) || h.Guards != nil {
+		t.Fatalf("headline = %+v", h)
+	}
+	h = headlineOf(t, "    headline:\n      guards: []\n")
+	if h == nil || h.Goal != nil || h.Guards == nil || len(h.Guards) != 0 {
+		t.Fatalf("headline = %+v", h)
+	}
+	h = headlineOf(t, "    headline:\n      goal: {metric: cost, better: higher}\n      guards: [merge-rate, fix-rounds]\n")
+	if h == nil || h.Goal.Better != "higher" || !slices.Equal(h.Guards, []string{"merge-rate", "fix-rounds"}) {
+		t.Fatalf("headline = %+v", h)
+	}
+}
+
+func TestParseKeepsAGoalWithNoDirection(t *testing.T) {
+	h := headlineOf(t, "    headline:\n      goal: {metric: cost}\n")
+	if h == nil || h.Goal == nil || *h.Goal != (Goal{Metric: "cost"}) {
+		t.Fatalf("headline = %+v", h)
+	}
+}
+
+func TestMatchWorkClonesTheHeadline(t *testing.T) {
+	s := splitWithHeadline(t, "    headline:\n      goal: {metric: cost, better: lower}\n      guards: [merge-rate]\n")
+	h := s.MatchWork(workRequest("split")).Experiment.Headline
+	h.Goal.Metric = "changed"
+	h.Guards[0] = "changed"
+	again := s.MatchWork(workRequest("split")).Experiment.Headline
+	if again.Goal.Metric != "cost" || again.Guards[0] != "merge-rate" {
+		t.Fatal("a caller changed the set's headline")
+	}
+}
+
+func TestParseRefusesTooManyGuards(t *testing.T) {
+	keys := make([]string, MaxMetrics+1)
+	for i := range keys {
+		keys[i] = "m" + strings.Repeat("a", i+1)
+	}
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n    headline:\n      guards: [" + strings.Join(keys, ", ") +
+		"]\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
+	text, _ := file(t, body)
+	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 guards, and the server takes at most 16") {
+		t.Fatalf("err = %v", err)
 	}
 }

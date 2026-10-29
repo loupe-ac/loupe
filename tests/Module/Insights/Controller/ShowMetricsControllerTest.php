@@ -36,7 +36,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(11, $form->filter('select[name="metric"] option'));
+        self::assertCount(10, $form->filter('select[name="metric"] option'));
         self::assertCount(1, $form->filter('noscript'));
 
         $empty = $crawler->filter('[data-metrics-empty]');
@@ -55,14 +55,13 @@ final class ShowMetricsControllerTest extends WebTestCase
         $em->clear();
 
         $client->loginUser($owner);
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=merge-rate&unit=run&statistic=p90&group=model');
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=stop-rate&unit=card&statistic=p90&group=model');
 
         self::assertResponseIsSuccessful();
         $form = $crawler->filter('form[data-metrics-form]');
-        self::assertSame(['card'], self::options($form, 'unit'));
+        self::assertSame(['run'], self::options($form, 'unit'));
         self::assertSame(['mean', 'count'], self::options($form, 'statistic'));
-        self::assertSame(['variant', 'card-type', 'none'], self::options($form, 'group'));
-        self::assertSame(['metric' => 'merge-rate', 'unit' => 'card', 'statistic' => 'mean', 'group' => 'none'], array_slice(self::selected($form), 0, 4));
+        self::assertSame(['metric' => 'stop-rate', 'unit' => 'run', 'statistic' => 'mean', 'group' => 'model'], array_slice(self::selected($form), 0, 4));
     }
 
     public function test_run_rows_fill_the_summary_and_the_chart(): void
@@ -187,7 +186,7 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(11, $select->children('option'));
+        self::assertCount(10, $select->children('option'));
         $group = $select->filter('optgroup');
         self::assertCount(1, $group);
         self::assertSame('Time buckets', $group->attr('label'));

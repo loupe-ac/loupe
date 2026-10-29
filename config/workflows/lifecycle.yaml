@@ -2,6 +2,34 @@ key: lifecycle
 version: 28
 defaultType: feature
 epicBranch: 'epic/{number}'
+outcomes:
+    - { key: merged, delivered: true }
+metrics:
+    - key: fix-rounds
+      label: Fix rounds
+      description: The fix rounds a finished card needed.
+      count: { role: fix }
+      splitBy: reason
+    - key: design-rounds
+      label: Design review rounds
+      description: The design revise rounds a finished card needed.
+      count: { role: design-revise }
+    - key: merge-rate
+      label: Merge rate
+      description: The share of finished cards that the merge rule ended.
+      rate: { outcome: merged }
+    - key: hours-to-merge
+      label: Hours to merge
+      description: The hours from the first pull request opening to the merge.
+      duration: { from: pr-opened, to: pr-merged }
+    - key: hours-to-agent-pass
+      label: Hours to agent review pass
+      description: The hours from the first pull request opening to the last agent review pass.
+      duration: { from: pr-opened, to: agent-review-passed }
+    - key: hours-waiting-for-approval
+      label: Hours waiting for approval
+      description: The hours from the last agent review pass to ready to merge.
+      duration: { from: { last: agent-review-passed }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
 repositorySettings:

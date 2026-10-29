@@ -49,7 +49,8 @@ cost and tokens count as none.
 With **By stage**, **By model**, **By variant**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version** or **By plugin version**, a card gives
 one row for each group that its runs used. A card whose runs used two variants
 gives two rows. Each row of a card outcome metric carries the whole outcome of
-the card. Thus the card counts once for each variant.
+the card. Thus the card counts once for each variant. This holds for the card
+metrics that the workflow template declares, such as **Merge rate**.
 
 The range keeps the rows whose time falls inside it. The metrics start with the
 oldest run that the server held at the upgrade. A run that the
@@ -68,10 +69,18 @@ not counted.
 | **Duration** | the time from the start to the end of a run | run, card |
 | **Runs** | the number of worker runs on a finished card | card |
 | **Stop rate** | the share of runs that reached an outcome and blocked, failed, gave no result or gave up | run |
-| **Merge rate** | the share of finished cards whose pull request merged | card |
-| **Fix rounds** | the number of fix rounds that a finished card needed | card |
-| **Hours to merge** | the hours from the first pull request opening to the last merge | card |
 | **Time in &lt;bucket&gt;** | the tool time of a run in one [time bucket](#time-buckets), such as **Time in git** | run, card |
+
+The workflow template of the project can declare more metrics. They appear
+after the built-in ones, with the label and the description from the template.
+Their unit is card, and they take the groups **By variant**, **By card type** and
+**No grouping**. The key of a template metric stays stable, so an address that
+names it keeps working. A project whose template declares no metric shows none.
+
+The shipped Lifecycle template declares **Fix rounds**, **Design review rounds**,
+**Merge rate**, **Hours to merge**, **Hours to agent review pass** and **Hours
+waiting for approval**. The shipped Simple template declares **Merge rate** and
+**Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
 
 The metric picker lists one **Time in** metric for each bucket that has data
 on a run of the project. A bucket has data on a run when the run stores a time
@@ -82,12 +91,11 @@ on each run with data. A card adds the time of its runs with data.
 
 The dollars are the API list price that claude reports. On a subscription, you
 do not pay this amount. A duration shows in milliseconds, seconds, minutes or
-hours. **Hours to merge** shows in hours. A rate shows as a percentage. With
+hours. A duration that a template declares shows in hours. A rate shows as a percentage. With
 **Count**, the summary and the chart show a number of rows for every metric.
 
-**Stop rate** and **Merge rate** take only **Mean** and **Count**. **Merge
-rate**, **Fix rounds** and **Hours to merge** take only **By variant**, **By
-card type** and **No grouping**.
+**Stop rate** takes only **Mean** and **Count**. A rate that a template declares
+takes the same two statistics.
 
 ## Statistics, groups, ranges and buckets
 

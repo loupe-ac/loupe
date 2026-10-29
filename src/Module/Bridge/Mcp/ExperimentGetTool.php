@@ -6,13 +6,16 @@ namespace App\Module\Bridge\Mcp;
 
 use App\Module\Bridge\Command\ShowExperimentCommand;
 use App\Module\Bridge\Command\ShowExperimentHandler;
+use App\Module\Bridge\Experiment\ExperimentArm;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentGuard;
+use App\Module\Bridge\Experiment\ExperimentHeadline;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
+use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\LeftOutReason;
 use App\Module\Bridge\Experiment\Stats;
-use App\Module\Bridge\Metric\Metric;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
@@ -22,10 +25,12 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * Reads the comparison of one experiment, and one page of its cards.
  *
  * @phpstan-type ExperimentRange array{point: float, low: float, high: float}
- * @phpstan-type ExperimentMetricRow array{key: string, valueType: string, clear: bool, byVariant: array<string, ExperimentRange|null>, parts: list<mixed>}
+ * @phpstan-type ExperimentArmRow array{name: string, point: ?float, finishedCards: int}
+ * @phpstan-type ExperimentHeadlineRow array{goal: array{key: string, label: string, valueType: ?string, direction: ?string, state: string, variants: list<ExperimentArmRow>, winner: ?string, changeKind: string, change: ExperimentRange|null}, guards: list<array{key: string, label: string, valueType: string, variants: list<ExperimentArmRow>, change: ExperimentRange|null}>}
+ * @phpstan-type ExperimentMetricRow array{key: string, label: string, valueType: string, clear: bool, byVariant: array<string, ExperimentRange|null>, parts: list<mixed>}
  * @phpstan-type ExperimentCardRow array{cardId: string, number: ?int, title: ?string, variant: ?string, column: ?string, runs: int, fixRounds: int, costUsd: ?float, leftOut: list<string>}
  */
-#[McpTool(name: self::NAME, description: 'Read the comparison of one experiment of this project, as its Comparison and Cards tabs show it. Pass experiment, the name of the experiment. The response has experiment, declaredMetrics (the metric keys the rule declares, in their order, or null when it declares none and the default metrics apply), unknownMetrics (the declared keys that no metric has), minFinishedCards, headline, variants, metrics, includedCards, leftOutCards and cards. A money value is in US dollars, a duration in milliseconds, hours-to-merge in hours, and a ratio is between 0 and 1. The figures compare the first two variants by name. headline has cheaperVariant (the variant with the lower cost per merged card, or null when the two have no cost each), saving (the share of the cost per merged card of the dearer variant that the cheaper one saves, or null), costClear (the cost gives a clear answer) and qualitySettled (the merge rate and the fix rounds both give a clear answer). Each variant has name, model (the model its latest run asked for), weight (null when the bridge sent none), cards and finishedCards (the kept cards, and those that merged or stand in a terminal column), runs and costUsd (null when no kept card reported usage). Each metric has key, valueType, clear, byVariant and parts. byVariant maps each variant to point, low and high, the value and its 95 percent range, or to null when the variant has no data. A metric is clear when each of the first two variants has at least minFinishedCards cards behind its range, and their ranges do not overlap or their points are within 10 percent of the larger one. A rate counts the finished cards, and a value per merged card counts the merged cards that have the value. parts has the same shape, one row per fix reason under fix-rounds, with the value type of its metric. includedCards and leftOutCards count the cards the figures keep and leave out. cards lists one page of cards, the latest run first, each with cardId, number, title, variant, column, runs, fixRounds, costUsd and leftOut. leftOut is empty for a kept card, else its reasons: switched (a run moved the card from a variant the rule no longer offers), mixed (its runs and its pin name more than one variant), before-test (a run with no experiment did the same kind of work on the card first), no-history (the card history starts after its first experiment run) and no-run (a pin names the card and no experiment run worked it). Filter the cards with variant, which keeps the kept cards of one variant, or with leftOutOnly. The cards are paginated: pass page to walk further, and keep going while hasMore is true. total counts the cards that match the filters. An experiment with no run and no pin in this project is refused.')]
+#[McpTool(name: self::NAME, description: 'Read the comparison of one experiment of this project, as its Comparison and Cards tabs show it. Pass experiment, the name of the experiment. The response has experiment, declaredMetrics (the metric keys the rule declares, in their order, or null when it declares none and the default metrics apply), unknownMetrics (the declared keys that no metric has), unknownGuards (the guard keys that no metric has, which the headline leaves out), minFinishedCards, headline, variants, metrics, includedCards, leftOutCards and cards. A money value is in US dollars, a duration of a built-in metric in milliseconds, a duration of a metric that the workflow template declares in hours, and a ratio is between 0 and 1. The figures compare the first two variants by name. headline has goal and guards. goal is what the experiment tries to improve, with key, label and valueType of its metric (valueType is null for an unknown-metric goal), direction (lower or higher, the better way, or null when the rule names none), state, variants (the first two variants by name, each with name, point and finishedCards, the cards behind its point: the finished cards for a rate, the delivered cards that have a value for any other metric), winner, changeKind and change. state is unknown-metric when the rule names a goal key that no metric has, no-direction when the rule names a goal with no better way, not-enough-cards when a variant has fewer than minFinishedCards cards behind its point, clear when the ranges of the two variants do not overlap, else not-clear. winner is the variant whose point is better in the direction, or null when state is unknown-metric, no-direction or not-enough-cards, or the two points are equal; a winner with state not-clear only leans. change is the change of the winner against the other variant, as point, low and high of a 95 percent range, or null. changeKind relative means change is a fraction of the point of the other variant, so -0.2 is 20 percent less. changeKind difference is for a goal of valueType ratio, and means change is the difference of the two ratios as a fraction between -1 and 1. guards lists the metrics that the experiment must not worsen, each with key, label, valueType, variants (name and point) and change, the second variant minus the first as a range in the unit of the metric, or null when a variant has no data. For a ratio the change is a difference of ratios between -1 and 1. Without a goal in the rule the goal is the cost, lower is better. Without guards in the rule the guards are the merge rate and the fix rounds, when the template declares them. An empty guard list means no guards. Each variant has name, model (the model its latest run asked for), weight (null when the bridge sent none), cards and finishedCards (the kept cards, and those that merged or stand in a terminal column), runs and costUsd (null when no kept card reported usage). Each metric has key, label (the name to show), valueType, clear, byVariant and parts. A metric that the workflow template declares has its own key and label. byVariant maps each variant to point, low and high, the value and its 95 percent range, or to null when the variant has no data. A metric is clear when each of the first two variants has at least minFinishedCards cards behind its range, and their ranges do not overlap or their points are within 10 percent of the larger one. A rate counts the finished cards, and a value per card counts the cards that ended with the delivered outcome of the template and have the value. A template with no delivered outcome gives no such cards. parts has the same shape, one row per value under a template count that splits by reason, role or kind, with the value type of its metric. includedCards and leftOutCards count the cards the figures keep and leave out. cards lists one page of cards, the latest run first, each with cardId, number, title, variant, column, runs, fixRounds, costUsd and leftOut. leftOut is empty for a kept card, else its reasons: switched (a run moved the card from a variant the rule no longer offers), mixed (its runs and its pin name more than one variant), before-test (a run with no experiment did the same kind of work on the card first), no-history (the card history starts after its first experiment run) and no-run (a pin names the card and no experiment run worked it). Filter the cards with variant, which keeps the kept cards of one variant, or with leftOutOnly. The cards are paginated: pass page to walk further, and keep going while hasMore is true. total counts the cards that match the filters. An experiment with no run and no pin in this project is refused.')]
 final readonly class ExperimentGetTool
 {
     public const string NAME = 'experiment_get';
@@ -43,7 +48,7 @@ final readonly class ExperimentGetTool
      * @param string|null $variant     only the kept cards of this variant
      * @param bool        $leftOutOnly only the cards the figures leave out
      *
-     * @return array{experiment: string, declaredMetrics: list<string>|null, unknownMetrics: list<string>, minFinishedCards: int, headline: array{cheaperVariant: ?string, saving: ?float, costClear: bool, qualitySettled: bool}, variants: list<array{name: string, model: ?string, weight: ?int, cards: int, finishedCards: int, runs: int, costUsd: ?float}>, metrics: list<ExperimentMetricRow>, includedCards: int, leftOutCards: int, cards: list<ExperimentCardRow>, page: int, totalPages: int, total: int, hasMore: bool}
+     * @return array{experiment: string, declaredMetrics: list<string>|null, unknownMetrics: list<string>, unknownGuards: list<string>, minFinishedCards: int, headline: ExperimentHeadlineRow, variants: list<array{name: string, model: ?string, weight: ?int, cards: int, finishedCards: int, runs: int, costUsd: ?float}>, metrics: list<ExperimentMetricRow>, includedCards: int, leftOutCards: int, cards: list<ExperimentCardRow>, page: int, totalPages: int, total: int, hasMore: bool}
      */
     public function __invoke(string $experiment, #[Schema(minimum: 1)] int $page = 1, ?string $variant = null, bool $leftOutOnly = false): array
     {
@@ -61,13 +66,9 @@ final readonly class ExperimentGetTool
                 'experiment' => $report->experiment,
                 'declaredMetrics' => $report->declaredMetrics,
                 'unknownMetrics' => $report->unknownMetrics,
+                'unknownGuards' => $report->unknownGuards,
                 'minFinishedCards' => Stats::MIN_FINISHED_CARDS,
-                'headline' => [
-                    'cheaperVariant' => $headline->cheaperVariant,
-                    'saving' => $headline->saving,
-                    'costClear' => $headline->costClear,
-                    'qualitySettled' => $headline->qualitySettled,
-                ],
+                'headline' => $this->headline($headline),
                 'variants' => array_map(static fn (ExperimentVariant $variant): array => [
                     'name' => $variant->name,
                     'model' => $variant->model,
@@ -78,7 +79,7 @@ final readonly class ExperimentGetTool
                     'costUsd' => self::usd($variant->costMicros),
                 ], $report->variants),
                 'metrics' => array_values(array_map(
-                    static fn (ExperimentMetric $metric): array => self::metric($metric, Metric::from($metric->key)->valueType()->value),
+                    fn (ExperimentMetric $metric): array => $this->metric($metric, self::valueType($metric), true),
                     $report->metrics,
                 )),
                 'includedCards' => $report->includedCards,
@@ -96,18 +97,65 @@ final readonly class ExperimentGetTool
         }
     }
 
+    /** @return ExperimentHeadlineRow */
+    private function headline(ExperimentHeadline $headline): array
+    {
+        $goal = $headline->goal;
+
+        return [
+            'goal' => [
+                'key' => $goal->metric->key,
+                'label' => GoalState::UnknownMetric === $goal->state ? $goal->metric->key : $this->label($goal->metric),
+                'valueType' => $goal->metric->valueType()?->value,
+                'direction' => $goal->direction?->value,
+                'state' => $goal->state->value,
+                'variants' => array_map(self::arm(...), $goal->arms),
+                'winner' => $goal->winner,
+                'changeKind' => $goal->relative ? 'relative' : 'difference',
+                'change' => self::range($goal->change),
+            ],
+            'guards' => array_map(fn (ExperimentGuard $guard): array => [
+                'key' => $guard->metric->key,
+                'label' => $this->label($guard->metric),
+                'valueType' => self::valueType($guard->metric),
+                'variants' => array_map(self::arm(...), $guard->arms),
+                'change' => self::range($guard->change),
+            ], $headline->guards),
+        ];
+    }
+
+    /** @return ExperimentArmRow */
+    private static function arm(ExperimentArm $arm): array
+    {
+        return ['name' => $arm->variant, 'point' => $arm->point, 'finishedCards' => $arm->finishedCards];
+    }
+
+    /** @return ExperimentRange|null */
+    private static function range(?Interval $interval): ?array
+    {
+        return null === $interval ? null : ['point' => $interval->point, 'low' => $interval->low, 'high' => $interval->high];
+    }
+
+    private static function valueType(ExperimentMetric $metric): string
+    {
+        return ($metric->valueType() ?? throw new \LogicException(\sprintf('The experiment metric %s has no value type.', $metric->key)))->value;
+    }
+
+    private function label(ExperimentMetric $metric): string
+    {
+        return $metric->label ?? $this->translator->trans('bridge.experiments.metric.'.$metric->key);
+    }
+
     /** @return ExperimentMetricRow */
-    private static function metric(ExperimentMetric $metric, string $valueType): array
+    private function metric(ExperimentMetric $metric, string $valueType, bool $top = false): array
     {
         return [
             'key' => $metric->key,
+            'label' => $top ? $this->label($metric) : ($metric->label ?? $metric->key),
             'valueType' => $valueType,
             'clear' => $metric->clear,
-            'byVariant' => array_map(
-                static fn (?Interval $interval): ?array => null === $interval ? null : ['point' => $interval->point, 'low' => $interval->low, 'high' => $interval->high],
-                $metric->byVariant,
-            ),
-            'parts' => array_map(static fn (ExperimentMetric $part): array => self::metric($part, $valueType), $metric->parts),
+            'byVariant' => array_map(self::range(...), $metric->byVariant),
+            'parts' => array_map(fn (ExperimentMetric $part): array => $this->metric($part, $valueType), $metric->parts),
         ];
     }
 

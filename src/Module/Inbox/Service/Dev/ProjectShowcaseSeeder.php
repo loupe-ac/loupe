@@ -26,6 +26,7 @@ use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
@@ -683,6 +684,21 @@ final readonly class ProjectShowcaseSeeder
         $this->cardEvents->record($card, CardEventKind::Created, Actor::Human, $owner, ['column' => $backlog, 'type' => $card->type], new \DateTimeImmutable('-4 days'));
         $this->cardEvents->record($card, CardEventKind::Moved, Actor::Agent, $owner, ['from' => $backlog, 'to' => $inProgress, 'cause' => null], new \DateTimeImmutable('-3 days'));
         $this->cardEvents->record($card, CardEventKind::FixRequested, Actor::System, null, ['reason' => 'checks-failed', 'pullRequest' => 441], new \DateTimeImmutable('-48 hours'));
+        $fix = new WorkRequest(
+            project: $project,
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            kind: 'fix',
+            capability: null,
+            ruleId: 'fix-on-failure',
+            createdAt: new \DateTimeImmutable('-48 hours'),
+        );
+        $fix->role = 'fix';
+        $fix->context = new WorkRequestContext(pullRequestNumber: 441, reason: 'checks-failed');
+        $fix->state = WorkRequestState::Done;
+        $fix->settledAt = new \DateTimeImmutable('-47 hours');
+        $this->em->persist($fix);
         $this->cardEvents->record($card, CardEventKind::RunFinished, Actor::Agent, $owner, [
             'runId' => (string) $finished->id,
             'workKind' => $finished->workKind,
@@ -693,7 +709,7 @@ final readonly class ProjectShowcaseSeeder
             'durationSeconds' => 434,
         ], $endedAt);
         $this->cardEvents->record($card, CardEventKind::ReadyToMerge, Actor::System, null, ['pullRequest' => 441], new \DateTimeImmutable('-30 hours'));
-        $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $inProgress, 'to' => $done, 'cause' => CardEventCause::merged(441)->detail()], new \DateTimeImmutable('-28 hours'));
+        $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => $inProgress, 'to' => $done, 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], new \DateTimeImmutable('-28 hours'));
         $this->cardEvents->record($card, CardEventKind::Moved, Actor::Human, $owner, ['from' => $done, 'to' => $inProgress, 'cause' => null], new \DateTimeImmutable('-6 hours'));
     }
 
