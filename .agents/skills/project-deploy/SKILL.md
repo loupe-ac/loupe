@@ -39,6 +39,7 @@ Record each item of the change that the deploy must handle:
 - A new messenger transport or schedule. It must reach `worker_command` in `terraform/main.tf` and the `worker` service in `docker/compose/prod.yaml`.
 - A new CSP origin in `config/packages/nelmio_security.yaml`.
 - A new external service and its `DiagnosticInterface` check.
+- A change to the bridge rule file format, with the edit it needs. Write the edit before `loupe update`, and never a `loupe bridge stop`.
 - The order of the steps, for example `terraform apply` before or after the image push.
 - The checks to do after the deploy.
 
@@ -134,7 +135,7 @@ just deploy          # build-prod, push-prod, then create-deployment --force-reb
 Or, when the image is already pushed:
 
 ```bash
-doctl apps create-deployment "$(cd terraform && terraform output -raw app_id)" --force-rebuild --wait
+doctl apps create-deployment "$(just tf-output -raw app_id | tail -1)" --force-rebuild --wait
 ```
 
 `--force-rebuild` is what makes the platform fetch the tag again. Without it a
@@ -200,7 +201,7 @@ It is where `TrustedProxyCheck` reports, so read it after any change to
 ## Which deployment is running, and why
 
 ```bash
-doctl apps list-deployments "$(cd terraform && terraform output -raw app_id)" -o json \
+doctl apps list-deployments "$(just tf-output -raw app_id | tail -1)" -o json \
   | python3 -c "
 import json,sys
 for d in json.load(sys.stdin)[:3]:
@@ -241,7 +242,7 @@ you the list has gone stale.
 `docs/operating/post-deploy-checks.md` is the operator-facing list. Run every check below that an agent can run, then report. Do not stop at the first pass.
 
 ```bash
-APP=$(cd terraform && terraform output -raw app_id)
+APP=$(just tf-output -raw app_id | tail -1)
 just healthz                                                            # version is the target sha
 curl -sS -o /dev/null -w '%{http_code}\n' https://app.loupe.ac/livez    # 200
 curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://app.loupe.ac/mcp  # 401, not 404 or 403
@@ -265,6 +266,15 @@ Run the two console checks in the `web` component. `doctl apps console` needs a 
 - Read the run log matches. Ignore lines from before the new deployment started.
 - Call `search_issues` through the Sentry MCP with `is:unresolved firstSeen:-1h environment:prod` on the `loupe` project. Read each new issue.
 - Run each check that the deploy notes ask for and that an agent can run.
+
+### Do every deploy-note step yourself
+
+Do each step of the deploy notes that an agent can do, without asking the owner again. The owner's go on the summary covers them. Hand a step to the owner only when it needs a browser, a session, or a secret that a hook refuses to you.
+
+- For a CLI change, run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/`. When it prints a file, push the next `cli/v*` tag at the deployed sha, and wait for the `CLI release` workflow. A tag is never moved, so a failed release gets the next patch tag.
+- For a bridge update, read `~/Library/Application Support/loupe/rules.yaml`, and copy it to a backup file next to it. Edit it when the release changes its format. Then run `loupe update`, and read `loupe --version` and the end of `bridge.log`.
+- A running bridge reads the file only at start and on `loupe bridge reload`. The update preflight reads the file on disk, so edit the file first and update after. Never run `loupe bridge stop` for an update, because it ends every running worker.
+- Run a backfill or a console command in the `web` console, as above.
 
 An agent cannot run the checks below. Give them to the owner:
 
