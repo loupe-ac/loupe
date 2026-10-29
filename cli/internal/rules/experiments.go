@@ -25,7 +25,7 @@ var experimentNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
 // metricKeyPattern is the shape the server takes for a metric key. The bridge
 // does not know the server's metrics, so it checks the shape only.
-var metricKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9:-]{0,63}$`)
+var metricKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_:-]{0,127}$`)
 
 // modelPattern refuses the control characters the server refuses in a model.
 var modelPattern = regexp.MustCompile(`^[^\p{C}]+$`)
@@ -169,7 +169,7 @@ func checkMetrics(metrics []string) []error {
 		case seen[key]:
 			errs = append(errs, fmt.Errorf("metric %q is listed twice", key))
 		case !metricKeyPattern.MatchString(key):
-			errs = append(errs, fmt.Errorf("metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", key))
+			errs = append(errs, fmt.Errorf("metric %q: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as merge-rate", key))
 		}
 		seen[key] = true
 	}
@@ -187,7 +187,7 @@ func checkHeadline(h *Headline) []error {
 	}
 	if h.Goal != nil {
 		if !metricKeyPattern.MatchString(h.Goal.Metric) {
-			errs = append(errs, fmt.Errorf("headline goal: metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", h.Goal.Metric))
+			errs = append(errs, fmt.Errorf("headline goal: metric %q: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as merge-rate", h.Goal.Metric))
 		}
 		// An empty Better loads, so the Comparison tab can ask for a direction.
 		switch h.Goal.Better {
@@ -205,7 +205,7 @@ func checkHeadline(h *Headline) []error {
 		case seen[key]:
 			errs = append(errs, fmt.Errorf("headline guard %q is listed twice", key))
 		case !metricKeyPattern.MatchString(key):
-			errs = append(errs, fmt.Errorf("headline guard %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", key))
+			errs = append(errs, fmt.Errorf("headline guard %q: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as merge-rate", key))
 		case h.Goal != nil && key == h.Goal.Metric:
 			errs = append(errs, fmt.Errorf("headline guard %q is also the goal metric", key))
 		}

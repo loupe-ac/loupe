@@ -89,7 +89,7 @@ final class ResolveExperimentPinRequestTest extends TestCase
         yield 'null in the list' => [['cost', null]];
         yield 'a capital' => [['Cost']];
         yield 'a digit first' => [['1cost']];
-        yield 'too long' => [['c'.str_repeat('o', 64)]];
+        yield 'too long' => [['c'.str_repeat('o', 128)]];
         yield 'a repeat' => [['cost', 'cost']];
         yield 'a trailing newline' => [["cost\n"]];
     }
