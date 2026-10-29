@@ -954,6 +954,21 @@ final class RotateSecretsTest extends TestCase
         self::assertStringContainsString('stripe_secret_key', $revoke);
     }
 
+    public function test_the_spaces_key_puts_the_secret_in_the_store_and_the_key_id_in_the_file(): void
+    {
+        $this->useStore(['SPACES_SECRET_ACCESS_KEY' => 'old-spaces-secret']);
+        $this->vars("spaces_access_id = \"old-spaces-id\"\n");
+
+        $process = $this->rotate(['spaces_access_id', 'spaces_secret_key'], "new-spaces-id\nnew-spaces-secret\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('new-spaces-secret', $this->stored('SPACES_SECRET_ACCESS_KEY'));
+        self::assertSame('', $this->stored('SPACES_ACCESS_KEY_ID'));
+        self::assertSame('', $this->stored('TF_VAR_spaces_access_id'));
+        self::assertSame('new-spaces-id', $this->value('spaces_access_id'));
+        self::assertStringNotContainsString('spaces-secret', (string) file_get_contents($this->dir.'/secrets.vars'));
+    }
+
     public function test_the_web_push_pair_puts_the_private_key_in_the_store_and_the_public_key_in_the_file(): void
     {
         $this->useStore(['TF_VAR_vapid_private_key' => 'old-private']);
