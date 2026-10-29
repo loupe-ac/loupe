@@ -6,6 +6,32 @@ import (
 	"time"
 )
 
+// refreshRetryDelays spaces the retries of a refresh whose answer never
+// arrived. A var, so a test can shorten it.
+var refreshRetryDelays = []time.Duration{2 * time.Second, 5 * time.Second}
+
+type transientError struct{ err error }
+
+func (e transientError) Error() string { return e.err.Error() }
+func (e transientError) Unwrap() error { return e.err }
+
+// Transient marks err as a transport failure: the request may have reached the
+// server, and no HTTP answer came back.
+func Transient(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return transientError{err}
+}
+
+// IsTransient reports whether err carries the Transient mark.
+func IsTransient(err error) bool {
+	var t transientError
+
+	return errors.As(err, &t)
+}
+
 // RotateOAuth gives a usable access token for the device login of baseURL.
 // stale is the access token the caller holds and can no longer use.
 //
@@ -44,6 +70,16 @@ func RotateOAuth(baseURL, stale string, validUntil time.Time, refresh func(refre
 		}
 
 		fresh, err := refresh(c.OAuth.RefreshToken)
+		// A transport failure can hide a rotation that the server finished.
+		// The server accepts the same refresh token again until its successor
+		// is used, so retry with it at once. An HTTP answer is never retried.
+		for _, delay := range refreshRetryDelays {
+			if err == nil || !IsTransient(err) {
+				break
+			}
+			time.Sleep(delay)
+			fresh, err = refresh(c.OAuth.RefreshToken)
+		}
 		if err != nil {
 			return err
 		}

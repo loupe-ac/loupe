@@ -1,5 +1,5 @@
 key: lifecycle
-version: 29
+version: 30
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -909,6 +909,16 @@ markers:
               - not: { card.held: {} }
               - card.children.finished: {}
               - not: { card.parent.run.active: {} }
+    - key: pull-requests-closed
+      kind: stuck
+      label: marker.pull_requests_closed
+      remedy: marker.pull_requests_closed.remedy
+      slots: [implementation]
+      when:
+          all:
+              - card.pr.all_closed_unmerged: {}
+              - not: { card.run.worker_active: {} }
+              - not: { card.held: {} }
     - key: nothing-happened
       kind: stuck
       label: marker.nothing_happened

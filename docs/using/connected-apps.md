@@ -137,7 +137,11 @@ The discovery document is at `/.well-known/oauth-authorization-server`
   Only a client that lists this grant can start a device flow, and it can ask
   only for a scope that needs no project.
 - The refresh token grant. Each refresh returns a new refresh token, and the
-  old one stops working.
+  old one stops working once the client uses the new one. If the answer of a
+  refresh is lost, the client can send the old token again. Loupe then issues a
+  new pair and revokes the unused one. This works for 7 days after the first
+  refresh. An operator sets the limit with `OAUTH_REFRESH_GRACE_SECONDS`, and
+  can turn the behavior off with the `oauth.refresh_reuse.enabled` flag.
 - The `iss` parameter on every redirect back to the app (RFC 9207).
 
 Access tokens are JWTs that live for one hour. Send them in an

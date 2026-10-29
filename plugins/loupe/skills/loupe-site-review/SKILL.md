@@ -179,6 +179,11 @@ mark on the strength of a plausible edit. Make the change, leave the item
 `Pending`, and report what you changed and what still needs verifying. The human
 then confirms and resolves.
 
+A child of an epic may mark the notes of its parent card that its build covers.
+It follows the same rule: it marks a parent note only after it verifies the fix
+on the rendered page of its own app. `feedback_mark_addressed` accepts any note
+of the project. A second mark of the same note returns `already_addressed`.
+
 Mark as each fix lands, not in one call at the end. The array parameter invites
 batching, but marking freezes the item (below). An item marked long before
 its fix is verified is a window in which the reviewer has lost control of it for

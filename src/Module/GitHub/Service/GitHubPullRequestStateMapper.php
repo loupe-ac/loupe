@@ -84,6 +84,7 @@ final readonly class GitHubPullRequestStateMapper
             latestApprovalId: $latestApprovalId,
             latestApproverLogin: $latestApproverLogin,
             title: $this->title($pullRequest),
+            closedAt: $this->time($pullRequest['closedAt'] ?? null),
         );
     }
 

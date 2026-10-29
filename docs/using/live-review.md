@@ -472,7 +472,10 @@ private-network rules can still block the request. Nobody tested that case. See
 The widget lists the notes that still wait on the agent, in the context of the
 panel: the locked card, or the destination of your review. A note stays in that
 list, where you can edit and delete it, until the agent marks it addressed.
-Then it **disappears from the widget**.
+Then it **disappears from the widget**. The worker that builds a card marks the
+notes that its build covers, after it checks the fix on the rendered page. A
+child of an epic marks the notes of its epic in the same way. A note that the
+worker cannot check stays open for you, and the next verdict copies it.
 
 The list is always open. It has no timestamps. Each row has one menu button.
 Its menu holds **Edit text**, **Mark resolved** and **Delete note**. With **A

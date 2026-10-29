@@ -150,10 +150,11 @@ The stage ends at the push. The app reads the pull request again after each push
 
 ## Finish without code
 
-A card can end its implementation with no pull request. The worker reports the finish, and a workflow rule moves the card to the terminal column. The worker never moves the card itself. Two cases exist, and each has its own form:
+A card can end its implementation with no pull request. The worker reports the finish, and a workflow rule moves the card to the terminal column. The worker never moves the card itself. Three cases exist, and each has its own form:
 
 1. Nothing to build. An answered decision of the tech design removes all the work of the card, or of the Breakdown entry of a child. An example is a note such as "no detector" on the only decision of the card.
 2. Delivered without code. The card asks only for a document, such as a measurement or a report, and no code change.
+3. Already delivered. The card links only reference pull requests. A reference pull request was merged or closed before its link, so the workflow does not count it as a work link. The worker proves on the base branch that the requirement of the card already holds, for example with the falsify step of the card body. A reference that names the source of a bug fails that proof, so the worker builds the fix.
 
 Use this section only when the case is clear from the design, its answers and the card body. When some work remains, build it from step 6. When you are not sure, record the block and stop with `STAGE RESULT: blocked: unsure whether the card has code to build`.
 
@@ -168,7 +169,13 @@ For a card delivered without code:
 2. Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final line: `Delivered without code: <document title>.`
 3. Stop with `STAGE RESULT: delivered without code <document review url> [reason: delivered-without-code]`, and the structured status `finished`.
 
-Both forms create no branch, no commit and no pull request. A card that links a pull request never takes this section, because the rules that move the card wait for a card with no pull request.
+For a card whose work a reference pull request already delivered:
+
+1. Prove on the base branch that the requirement holds. When the proof fails, build the card from step 6.
+2. Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final line: `Nothing to build: already delivered by pr:owner/repo#<number>.`
+3. Stop with `STAGE RESULT: nothing to build [reason: nothing-to-build]`, and the structured status `finished`.
+
+All forms create no branch, no commit and no pull request. A card with a work link never takes this section, because the rules that move the card wait for a card with no work link. A reference link is not a work link.
 
 ## Record a block
 

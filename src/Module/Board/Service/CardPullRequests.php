@@ -24,6 +24,8 @@ final readonly class CardPullRequests
 
     /**
      * A link that names no pull request, or that Forge does not track, gives nothing.
+     * A reference gives nothing either: a pull request that finished before the link of
+     * the card to it, so it is not the work of the card.
      *
      * @return list<ForgePullRequest> by forge, repository and number
      */
@@ -36,17 +38,47 @@ final readonly class CardPullRequests
     private function readForCard(Card $card): array
     {
         $keys = [];
+        $cutOffs = [];
         foreach ($this->cardPullRequests->findCurrentKeys($card) as $link) {
-            if (null !== $link['repository'] && null !== $link['number']) {
-                $keys[] = ['forge' => $link['forge'], 'repository' => $link['repository'], 'number' => $link['number']];
+            if (null === $link['repository'] || null === $link['number']) {
+                continue;
+            }
+            $keys[] = ['forge' => $link['forge'], 'repository' => $link['repository'], 'number' => $link['number']];
+            $cutOff = $link['predates_link_times'] ? $card->createdAt : $link['added_at'];
+            $id = self::identity($link['forge'], $link['repository'], $link['number']);
+            if (!isset($cutOffs[$id]) || $cutOff < $cutOffs[$id]) {
+                $cutOffs[$id] = $cutOff;
             }
         }
 
         $projectId = $card->project->id ?? throw new \LogicException('A stored card has a project id.');
-        $pullRequests = $this->forgePullRequests->findByKeys($projectId, $keys);
+        $pullRequests = array_filter(
+            $this->forgePullRequests->findByKeys($projectId, $keys),
+            static function (ForgePullRequest $pullRequest) use ($cutOffs): bool {
+                $finishedAt = self::finishedAt($pullRequest);
+                $cutOff = $cutOffs[self::identity($pullRequest->forge, $pullRequest->repository, $pullRequest->number)] ?? null;
+
+                return null === $finishedAt || null === $cutOff || $finishedAt > $cutOff;
+            },
+        );
+        $pullRequests = array_values($pullRequests);
         usort($pullRequests, static fn (ForgePullRequest $a, ForgePullRequest $b): int => [$a->forge, $a->repository, $a->number] <=> [$b->forge, $b->repository, $b->number]);
 
         return $pullRequests;
+    }
+
+    private static function finishedAt(ForgePullRequest $pullRequest): ?\DateTimeImmutable
+    {
+        return match ($pullRequest->state) {
+            PullRequestState::Merged => $pullRequest->mergedAt,
+            PullRequestState::Closed => $pullRequest->closedAt,
+            PullRequestState::Open => null,
+        };
+    }
+
+    private static function identity(string $forge, string $repository, int $number): string
+    {
+        return $forge.'/'.mb_strtolower($repository).'/'.$number;
     }
 
     public function childMergedInto(Card $parent, string $baseBranch): bool
