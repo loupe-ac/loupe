@@ -31,8 +31,8 @@ trait ResolvesBoundProject
 
     /**
      * A tool error rather than a transport failure, so a client cannot read a
-     * refusal as a dead session. A dead session answers 404 with a JSON-RPC
-     * body, and this travels inside a 200.
+     * refusal as a dead session. A dead session answers a bare 404, and
+     * this travels inside a 200.
      */
     private static function refusalMessage(ProjectResolution $resolution): string
     {
