@@ -7734,26 +7734,6 @@
     .lp-experiment-tabs {
         @apply mb-4;
     }
-    /* The padded body of the goal panel: its label, its answer and its figures. */
-    .lp-experiment-goal {
-        @apply flex flex-col gap-2 px-6 py-5;
-    }
-    .lp-experiment-goal__label {
-        @apply m-0 text-xs font-semibold leading-normal uppercase tracking-wider text-fg-dim;
-    }
-    .lp-experiment-goal__answer {
-        @apply flex flex-wrap items-center gap-3;
-    }
-    .lp-experiment-goal__sentence {
-        @apply m-0 font-display text-3xl font-extrabold tracking-tight text-ink;
-    }
-    /* The sentence when the data gives no answer yet. Define it after the sentence. */
-    .lp-experiment-goal__sentence--small {
-        @apply text-2xl;
-    }
-    .lp-experiment-goal__detail {
-        @apply m-0 text-sm leading-normal text-fg-mute;
-    }
     .lp-experiment-section {
         @apply mt-8 mb-0 text-base font-semibold text-ink;
     }
@@ -7792,13 +7772,6 @@
     /* A key of the bridge rule inside a sentence, such as a metric key, shown as the reader types it. */
     .lp-experiment-config-key {
         @apply rounded-md bg-surface-3 px-1.5 font-mono font-medium normal-case tracking-normal whitespace-nowrap text-ink;
-    }
-    /* A figure in the text of the goal panel. */
-    .lp-experiment-guards__value {
-        @apply font-mono text-xs leading-normal tabular-nums text-ink;
-    }
-    .lp-experiment-guards__range {
-        @apply font-mono text-xs leading-normal tabular-nums text-fg-dim;
     }
     /* A row that splits the metric above it, such as the fix rounds of one reason. */
     .lp-experiment-table__table .lp-experiment-table__part th {

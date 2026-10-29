@@ -9,7 +9,7 @@ final readonly class ExperimentComparison
 {
     public function __construct(
         public string $variant,
-        /** Held, UnknownMetric or NoDirection when the goal cannot be read, else NotEnoughCards, Clear or NotClear. */
+        /** Held when a control holds the comparison, else NotEnoughCards, Clear or NotClear. */
         public GoalState $state,
         /** The variant with its goal point and the cards behind it. */
         public ExperimentArm $arm,

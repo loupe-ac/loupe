@@ -11,6 +11,7 @@ use App\Module\Bridge\Mcp\ExperimentGetTool;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Tests\Module\Bridge\ExperimentScenario;
 use App\Tests\Support\McpTokenScenario;
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -155,6 +156,70 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame('hours-to-mrege', $goal['label']);
         self::assertNull($goal['valueType']);
         self::assertSame('unknown-metric', $goal['problem']);
+        self::assertSame([], $this->tool()('model-test')['headline']['comparisons']);
+    }
+
+    public function test_every_other_variant_is_compared_against_the_baseline_at_a_widened_level(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-three@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1], ['name' => 'c', 'weight' => 1]]);
+        $definition->baseline = 'b';
+        $definition->metrics = ['cost'];
+        $em->persist($definition);
+        $number = 0;
+        foreach (['a' => '4.000000', 'b' => '2.000000', 'c' => '1.000000'] as $variant => $cost) {
+            for ($i = 0; $i < 5; ++$i) {
+                $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, ++$number, merged: true), $variant), costUsd: $cost);
+            }
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool()('model-test');
+
+        self::assertSame('b', $result['baseline']);
+        self::assertSame(0.975, $result['confidenceLevel']);
+        self::assertSame('b', $result['headline']['baselineArm']['name'] ?? null);
+        self::assertSame(['a', 'c'], array_column($result['headline']['comparisons'], 'variant'));
+        self::assertSame(['clear', 'clear'], array_column($result['headline']['comparisons'], 'state'));
+        self::assertSame([1.0, -0.5], array_map(static fn (array $comparison): ?float => $comparison['change']['point'] ?? null, $result['headline']['comparisons']));
+        self::assertTrue($result['metrics'][0]['clear']);
+    }
+
+    public function test_an_experiment_with_no_baseline_has_no_comparison(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-nobaseline@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->metrics = ['cost'];
+        $em->persist($definition);
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a'), costUsd: '2.000000');
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i + 5, merged: true), 'b'), costUsd: '1.000000');
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool()('model-test');
+
+        self::assertNull($result['baseline']);
+        self::assertNull($result['headline']['baselineArm']);
+        self::assertSame([], $result['headline']['comparisons']);
+        self::assertSame(0.95, $result['confidenceLevel']);
+        self::assertNull($result['metrics'][0]['clear']);
+        self::assertSame(['a', 'b'], array_keys($result['metrics'][0]['byVariant']));
+    }
+
+    public function test_the_description_says_every_variant_is_compared_against_the_baseline(): void
+    {
+        $attributes = new \ReflectionClass(ExperimentGetTool::class)->getAttributes(McpTool::class);
+        $description = $attributes[0]->newInstance()->description ?? '';
+
+        self::assertStringContainsString('compared against the baseline', $description);
+        self::assertStringContainsString('comparisons is empty and baseline is null', $description);
+        self::assertStringContainsString('not-enough-cards, clear, not-clear or held', $description);
+        self::assertStringContainsString('confidenceLevel', $description);
+        self::assertStringNotContainsString('first two variants', $description);
+        self::assertStringNotContainsString('winner', $description);
     }
 
     public function test_a_failed_control_holds_its_comparison_and_the_tool_lists_it(): void

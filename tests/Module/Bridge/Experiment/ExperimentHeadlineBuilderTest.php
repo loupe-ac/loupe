@@ -187,21 +187,35 @@ final class ExperimentHeadlineBuilderTest extends TestCase
         self::assertNull($headline->comparisons[0]->hold);
     }
 
-    public function test_a_goal_with_a_problem_keeps_its_comparisons_and_names_the_problem(): void
+    public function test_a_goal_with_a_problem_names_it_and_builds_no_comparison(): void
     {
         $headline = self::build(self::metric(self::threeArms()), ['base' => 5, 'cheap' => 5, 'same' => 5], problem: GoalState::UnknownMetric);
 
         self::assertSame(GoalState::UnknownMetric, $headline->goal->problem);
-        self::assertSame([GoalState::UnknownMetric, GoalState::UnknownMetric], array_map(static fn ($comparison): GoalState => $comparison->state, $headline->comparisons));
-        self::assertSame([null, null], array_map(static fn ($comparison) => $comparison->change, $headline->comparisons));
+        self::assertSame('base', $headline->baseline);
+        self::assertSame([], $headline->comparisons);
     }
 
-    public function test_a_goal_with_no_direction_names_that_problem(): void
+    public function test_a_goal_with_no_direction_names_that_problem_and_builds_no_comparison(): void
     {
         $headline = self::build(self::metric(self::threeArms()), ['base' => 5, 'cheap' => 5, 'same' => 5], direction: null);
 
         self::assertNull($headline->goal->direction);
-        self::assertSame(GoalState::NoDirection, $headline->comparisons[0]->state);
+        self::assertSame(GoalState::NoDirection, $headline->goal->problem);
+        self::assertSame([], $headline->comparisons);
+    }
+
+    public function test_a_comparison_state_is_never_a_goal_problem(): void
+    {
+        $allowed = [GoalState::NotEnoughCards, GoalState::Clear, GoalState::NotClear, GoalState::Held];
+        $controls = [new ExperimentControl('cost', 'cheap', '> 0', 1.0, 0.0, 5, 5, ControlResult::Failed)];
+
+        $headline = self::build(self::metric(self::threeArms()), ['base' => 5, 'cheap' => 5, 'same' => 2], controls: $controls);
+
+        self::assertNull($headline->goal->problem);
+        foreach ($headline->comparisons as $comparison) {
+            self::assertContains($comparison->state, $allowed);
+        }
     }
 
     public function test_an_experiment_with_no_baseline_has_no_comparison(): void

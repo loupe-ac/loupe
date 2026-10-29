@@ -683,8 +683,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $goal = $view->headline->goal;
         self::assertSame('no-such-metric', $goal->metric->key);
         self::assertSame(GoalState::UnknownMetric, $goal->problem);
-        self::assertSame(GoalState::UnknownMetric, $view->headline->comparisons[0]->state);
-        self::assertNull($view->headline->comparisons[0]->change);
+        self::assertSame([], $view->headline->comparisons);
         self::assertSame([ExperimentMetric::MERGE_RATE], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
         self::assertSame(['bucket-time', 'no-such-metric', 'also-missing'], $view->unknownGuards);
         self::assertSame([], $view->unknownMetrics);
@@ -702,7 +701,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(ExperimentMetric::COST, $goal->metric->key);
         self::assertSame(GoalState::NoDirection, $goal->problem);
         self::assertNull($goal->direction);
-        self::assertSame(GoalState::NoDirection, $view->headline->comparisons[0]->state);
+        self::assertSame([], $view->headline->comparisons);
         self::assertSame([], $view->unknownGuards);
     }
 

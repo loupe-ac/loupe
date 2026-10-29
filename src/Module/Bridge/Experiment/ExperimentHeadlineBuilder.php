@@ -13,20 +13,27 @@ final class ExperimentHeadlineBuilder
      * @param array<string, int>      $finished     variant => finished cards
      * @param list<ExperimentMetric>  $guards
      * @param ?string                 $baseline     null for an experiment that names none, which has no comparison
-     * @param ?GoalState              $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered
+     * @param ?GoalState              $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered, which leaves no comparison
      * @param list<ExperimentControl> $controls     a control on a variant or on the baseline that does not pass holds the comparison, before the card floor is read
      */
     public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, ?GoalDirection $direction, array $guards, ?string $baseline, Confidence $confidence, ?GoalState $problem = null, array $controls = []): ExperimentHeadline
     {
-        $others = null === $baseline ? [] : array_values(array_filter($variantNames, static fn (string $name): bool => $name !== $baseline));
         $problem ??= null === $direction ? GoalState::NoDirection : null;
+        $comparisons = [];
+        if (null !== $baseline && null === $problem) {
+            foreach ($variantNames as $variant) {
+                if ($variant !== $baseline) {
+                    $comparisons[] = self::compare($experiment, $variant, $baseline, $finished, $goal, $guards, $confidence, $controls);
+                }
+            }
+        }
 
         return new ExperimentHeadline(
             new ExperimentGoal($goal, $direction, $problem),
             $baseline,
             $confidence,
             null === $baseline ? null : self::arm($baseline, $finished, $goal),
-            null === $baseline ? [] : array_map(static fn (string $variant): ExperimentComparison => self::compare($experiment, $variant, $baseline, $finished, $goal, $problem, $guards, $confidence, $controls), $others),
+            $comparisons,
             array_map(static fn (ExperimentMetric $guard): ExperimentGuard => new ExperimentGuard($guard, null === $baseline ? null : $guard->for($baseline)?->point), $guards),
             $controls,
         );
@@ -37,7 +44,7 @@ final class ExperimentHeadlineBuilder
      * @param list<ExperimentMetric>  $guards
      * @param list<ExperimentControl> $controls
      */
-    private static function compare(string $experiment, string $variant, string $baseline, array $finished, ExperimentMetric $goal, ?GoalState $problem, array $guards, Confidence $confidence, array $controls): ExperimentComparison
+    private static function compare(string $experiment, string $variant, string $baseline, array $finished, ExperimentMetric $goal, array $guards, Confidence $confidence, array $controls): ExperimentComparison
     {
         $relative = MetricValueType::Ratio !== $goal->valueType();
         $arm = self::arm($variant, $finished, $goal);
@@ -46,8 +53,6 @@ final class ExperimentHeadlineBuilder
         $change = null;
         if (null !== $hold) {
             $state = GoalState::Held;
-        } elseif (null !== $problem) {
-            $state = $problem;
         } else {
             $state = Stats::goalState($goal->for($baseline), $goal->for($variant), $base->finishedCards, $arm->finishedCards);
             if (GoalState::NotEnoughCards !== $state) {
