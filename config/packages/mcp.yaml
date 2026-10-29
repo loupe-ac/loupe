@@ -6,3 +6,6 @@ mcp:
     http:
         path: /mcp
         allowed_hosts: '%env(csv:MCP_ALLOWED_HOSTS)%'
+        session:
+            store: cache
+            ttl: 86400
