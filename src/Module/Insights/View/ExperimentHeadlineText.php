@@ -108,20 +108,23 @@ final readonly class ExperimentHeadlineText
         return null === $guard->change ? null : $this->signed($guard->metric, $guard->change->point);
     }
 
-    /** The range of the change of a guard, in the unit of its metric, such as "−12% to 0%". Null when a variant has no data. */
+    /** The range of the change of a guard, such as "−12 to 0 pp". Null when a variant has no data. */
     public function guardRange(ExperimentGuard $guard): ?string
     {
         $change = $guard->change;
         if (null === $change) {
             return null;
         }
-        $signed = MetricValueType::Ratio === $guard->metric->valueType()
-            ? $this->signedPercent(...)
-            : fn (float $value): string => $this->signed($guard->metric, $value);
+        if (MetricValueType::Ratio === $guard->metric->valueType()) {
+            return $this->translator->trans('bridge.experiments.guards.range_points', [
+                '%low%' => $this->signedPoints($change->low),
+                '%high%' => $this->signedPoints($change->high),
+            ]);
+        }
 
         return $this->translator->trans('bridge.experiments.guards.range', [
-            '%low%' => $signed($change->low),
-            '%high%' => $signed($change->high),
+            '%low%' => $this->signed($guard->metric, $change->low),
+            '%high%' => $this->signed($guard->metric, $change->high),
         ]);
     }
 
@@ -169,11 +172,11 @@ final readonly class ExperimentHeadlineText
         return (string) $formatter->format($fraction);
     }
 
-    private function signedPercent(float $ratio): string
+    private function signedPoints(float $ratio): string
     {
         $points = (int) round($ratio * 100);
 
-        return (0 === $points ? '' : ($points < 0 ? self::MINUS : '+')).$this->percent(abs($points) / 100);
+        return (0 === $points ? '' : ($points < 0 ? self::MINUS : '+')).abs($points);
     }
 
     private function signed(ExperimentMetric $metric, float $value): string

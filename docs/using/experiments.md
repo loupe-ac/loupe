@@ -47,7 +47,7 @@ that is a rate, such as the merge rate, gives the change in percentage points
 The **Guards** table follows the panel. A guard is a metric that the winner must
 not make worse. Each row shows the change from the first variant to the second,
 and the likely range of that change. A rate shows both rates, for example
-"92% to 86%", and its range in percent, for example "−12% to 0%". A guard with no data
+"92% to 86%", and its range in percentage points (pp). A guard with no data
 shows a dash. The page has no Guards table when the experiment has no guard.
 
 By default the goal is the cost per merged card, and lower is better. The

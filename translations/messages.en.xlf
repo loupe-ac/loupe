@@ -7184,6 +7184,7 @@
             <trans-unit id="bridge.experiments.guards.likely_range"><source>bridge.experiments.guards.likely_range</source><target>Likely range of the change</target></trans-unit>
             <trans-unit id="bridge.experiments.guards.rates"><source>bridge.experiments.guards.rates</source><target>%from% to %to%</target></trans-unit>
             <trans-unit id="bridge.experiments.guards.range"><source>bridge.experiments.guards.range</source><target>%low% to %high%</target></trans-unit>
+            <trans-unit id="bridge.experiments.guards.range_points"><source>bridge.experiments.guards.range_points</source><target>%low% to %high% pp</target></trans-unit>
             <trans-unit id="bridge.experiments.guards.unknown"><source>bridge.experiments.guards.unknown</source><target>The bridge rule names a guard that this server does not know: %metrics%. The page leaves it out.</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.heading"><source>bridge.experiments.variants.heading</source><target>Variants</target></trans-unit>
             <trans-unit id="bridge.experiments.variants.variant"><source>bridge.experiments.variants.variant</source><target>Variant</target></trans-unit>
