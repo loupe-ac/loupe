@@ -296,7 +296,7 @@ variable "oauth_trusted_client_ids" {
 variable "oauth_refresh_grace_seconds" {
   type        = string
   default     = ""
-  description = "OAUTH_REFRESH_GRACE_SECONDS: seconds a rotated refresh token stays redeemable, once, so a client whose refresh response was lost recovers instead of signing in again. 0 switches it off. Empty keeps the shipped default."
+  description = "OAUTH_REFRESH_GRACE_SECONDS: seconds a replaced refresh token stays redeemable while its successor is unused, so a client whose refresh response was lost recovers instead of signing in again. 0 switches it off. Empty keeps the shipped default (604800)."
 }
 
 variable "trusted_proxies" {

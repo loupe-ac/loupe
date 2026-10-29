@@ -4,45 +4,43 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Repository;
 
+use App\Module\OAuth\Install\OAuthInstallFlags;
 use League\OAuth2\Server\Entities\RefreshTokenEntityInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use Monolog\Attribute\WithMonologChannel;
-use Psr\Cache\CacheItemPoolInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\AutowireDecorated;
+use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
 /**
- * Accepts a refresh token once more for a short time after it rotated.
+ * Accepts a replaced refresh token again until its successor is used.
  *
  * The server revokes the old refresh token and issues the new pair before the
- * client has persisted anything. A response lost on the way back therefore
- * leaves the client holding a token the server has already refused, and no
- * endpoint hands the new one back, so the login is dead until the person signs
- * in again. The server is the only party that knows the rotation happened, so
- * the recovery has to live here.
- *
- * The window accepts the old token once and then closes, rather than staying
- * open for its whole length. Either the client's retry redeems it or nobody
- * does, so a captured token cannot be redeemed again and again.
+ * client has stored anything, so a lost answer leaves the client holding a
+ * token the server refuses. Each rotation records its successor. While the
+ * successor stays unused, and the first rotation is younger than the limit,
+ * the old token redeems again, and the unused successor pair is revoked.
  */
 #[AsDecorator('league.oauth2_server.repository.refresh_token')]
 #[WithMonologChannel('security')]
-final readonly class GracefulRefreshTokenRepository implements RefreshTokenRepositoryInterface
+final class GracefulRefreshTokenRepository implements RefreshTokenRepositoryInterface
 {
-    private const string KEY_PREFIX = 'oauth_refresh_grace_';
+    /** The token that this request revoked, until its successor is persisted. */
+    private ?string $rotating = null;
 
     public function __construct(
         #[AutowireDecorated]
-        private RefreshTokenRepositoryInterface $inner,
-
-        #[Autowire(service: 'cache.app')]
-        private CacheItemPoolInterface $grace,
-        private LoggerInterface $logger,
+        private readonly RefreshTokenRepositoryInterface $inner,
+        private readonly RefreshTokenRotationRepository $refreshTokenRotations,
+        private readonly FeatureFlagService $featureFlags,
+        private readonly ClockInterface $clock,
+        private readonly LoggerInterface $logger,
 
         #[Autowire(param: 'app.oauth.refresh_grace_seconds')]
-        private int $seconds = 60,
+        private readonly int $seconds = 604800,
     ) {
     }
 
@@ -56,57 +54,70 @@ final readonly class GracefulRefreshTokenRepository implements RefreshTokenRepos
     public function persistNewRefreshToken(RefreshTokenEntityInterface $refreshTokenEntity): void
     {
         $this->inner->persistNewRefreshToken($refreshTokenEntity);
+
+        if (null === $this->rotating) {
+            return;
+        }
+
+        $this->refreshTokenRotations->record($this->rotating, $refreshTokenEntity->getIdentifier(), $this->clock->now());
+        $this->rotating = null;
     }
 
     #[\Override]
     public function revokeRefreshToken(string $tokenId): void
     {
-        // Only the first revocation opens a window. A retry inside one revokes
-        // the same token again, and re-arming there would keep the old token
-        // redeemable for as long as it was presented.
-        $opensWindow = $this->seconds > 0 && !$this->inner->isRefreshTokenRevoked($tokenId);
-
+        $this->rotating = $tokenId;
         $this->inner->revokeRefreshToken($tokenId);
-
-        if (!$opensWindow) {
-            return;
-        }
-
-        $item = $this->grace->getItem(self::keyFor($tokenId));
-        $item->set(true);
-        $item->expiresAfter($this->seconds);
-        $this->grace->save($item);
     }
 
     /**
-     * Consuming the marker inside a question is a side effect, and it is where
-     * league gives the only hook: it asks this once per refresh, before it
-     * accepts the token.
+     * Revoking the unused successor is a side effect, and this question is the
+     * only hook league gives before it accepts the token. The row lock comes
+     * first, so the answer reflects whatever a concurrent request committed.
      */
     #[\Override]
     public function isRefreshTokenRevoked(string $tokenId): bool
     {
+        $this->refreshTokenRotations->lock($tokenId);
+
         if (!$this->inner->isRefreshTokenRevoked($tokenId)) {
             return false;
         }
-        if ($this->seconds <= 0) {
-            return true;
+
+        $reason = $this->refusalReason($tokenId);
+        if (null === $reason) {
+            return false;
         }
 
-        $key = self::keyFor($tokenId);
-        if (!$this->grace->hasItem($key)) {
-            return true;
-        }
+        $this->logger->info('oauth.refresh_token_reuse_refused', ['reason' => $reason]);
 
-        $this->grace->deleteItem($key);
-        $this->logger->info('oauth.refresh_token_grace_used', ['graceSeconds' => $this->seconds]);
-
-        return false;
+        return true;
     }
 
-    /** Hashed, so no token identifier reaches a cache key or a log line. */
-    private static function keyFor(string $tokenId): string
+    private function refusalReason(string $tokenId): ?string
     {
-        return self::KEY_PREFIX.hash('sha256', $tokenId);
+        if ($this->seconds <= 0 || !$this->featureFlags->isEnabled(OAuthInstallFlags::FLAG_REFRESH_REUSE, true)) {
+            return 'disabled';
+        }
+
+        $rotation = $this->refreshTokenRotations->find($tokenId);
+        if (null === $rotation) {
+            return 'no_rotation';
+        }
+
+        $age = $this->clock->now()->getTimestamp() - $rotation['rotatedAt']->getTimestamp();
+        if ($age > $this->seconds) {
+            return 'limit_passed';
+        }
+
+        $this->refreshTokenRotations->lock($rotation['successor']);
+        if ($this->refreshTokenRotations->isRevoked($rotation['successor'])) {
+            return 'successor_used';
+        }
+
+        $this->refreshTokenRotations->revokePair($rotation['successor']);
+        $this->logger->info('oauth.refresh_token_reuse_accepted', ['ageSeconds' => $age]);
+
+        return null;
     }
 }
