@@ -456,29 +456,6 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
     }
 
-    public function test_the_stored_app_approval_of_an_old_review_no_longer_counts(): void
-    {
-        self::bootKernel();
-        $project = $this->workflowProject('facts-pr-app-approval');
-        $card = $this->card($project, 'in-review');
-        $pullRequest = $this->pullRequest($card, base: 'main', head: 'feature');
-        $pullRequest->headSha = 'abc';
-        $pullRequest->appApprovalId = 'PRR_app';
-        $pullRequest->appApprovalSha = 'abc';
-        $this->em()->flush();
-
-        self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
-
-        $pullRequest->review = PullRequestReview::Approved;
-        $pullRequest->coveredSha = 'abc';
-        $this->em()->flush();
-        self::assertSame(1, $this->facts($card)->pullRequest->approvalsCoveringHead);
-
-        $pullRequest->headSha = 'def';
-        $this->em()->flush();
-        self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
-    }
-
     public function test_changes_are_requested_until_a_done_fix_run_that_opened_after_the_review_answers_them(): void
     {
         self::bootKernel();
@@ -840,8 +817,6 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->review = PullRequestReview::Approved;
         $pullRequest->approvalId = 'review-1';
         $pullRequest->coveredSha = 'abc';
-        $pullRequest->appApprovalId = 'PRR_app';
-        $pullRequest->appApprovalSha = 'abc';
         $this->em()->flush();
         self::assertTrue($this->waitsForApproval($card), 'A review waits for the check, which a person approval makes.');
 

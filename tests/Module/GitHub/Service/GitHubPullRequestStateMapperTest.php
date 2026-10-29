@@ -424,7 +424,7 @@ final class GitHubPullRequestStateMapperTest extends TestCase
     }
 
     #[DataProvider('appAuthors')]
-    public function test_an_approval_of_the_app_is_stored_apart_from_a_persons(string $type, string $login, bool $isApp): void
+    public function test_an_approval_of_the_app_is_not_a_persons(string $type, string $login, bool $isApp): void
     {
         $node = self::pullRequest604();
         $node['latestOpinionatedReviews'] = ['nodes' => [['id' => 'PRR_author', 'state' => 'APPROVED', 'submittedAt' => '2026-09-20T10:00:00Z', 'commit' => ['oid' => 'aaa1111'], 'author' => ['__typename' => $type, 'login' => $login]]]];
@@ -433,11 +433,9 @@ final class GitHubPullRequestStateMapperTest extends TestCase
 
         self::assertSame($isApp ? null : 'PRR_author', $snapshot->approvalId);
         self::assertSame($isApp ? null : 'PRR_author', $snapshot->latestApprovalId);
-        self::assertSame($isApp ? 'PRR_author' : null, $snapshot->appApprovalId);
-        self::assertSame($isApp ? 'aaa1111' : null, $snapshot->appApprovalSha);
     }
 
-    public function test_the_newest_approval_of_the_app_stands_beside_a_persons(): void
+    public function test_an_approval_of_the_app_leaves_a_persons_alone(): void
     {
         $app = ['__typename' => 'Bot', 'login' => 'loupe-ac'];
         $node = self::pullRequest604();
@@ -451,8 +449,6 @@ final class GitHubPullRequestStateMapperTest extends TestCase
 
         self::assertSame('PRR_person', $snapshot->approvalId);
         self::assertSame('riley', $snapshot->latestApproverLogin);
-        self::assertSame('PRR_app', $snapshot->appApprovalId);
-        self::assertSame('bbb2222', $snapshot->appApprovalSha);
     }
 
     public function test_no_app_slug_matches_no_review(): void
@@ -463,7 +459,6 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         foreach ([null, ''] as $slug) {
             $snapshot = self::mapper($slug)->map($node, self::rules604(), null);
 
-            self::assertNull($snapshot->appApprovalId);
             self::assertSame('PRR_app', $snapshot->approvalId);
         }
     }

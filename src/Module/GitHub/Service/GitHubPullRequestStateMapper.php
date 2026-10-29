@@ -47,7 +47,6 @@ final readonly class GitHubPullRequestStateMapper
         $mergeStateStatus = $pullRequest['mergeStateStatus'] ?? null;
         [$approvedAt, $approvalSha, $approvalId] = $this->approval($pullRequest);
         [$latestApprovedAt, $latestApprovalId, $latestApproverLogin] = $this->latestApproval($pullRequest);
-        [$appApprovalSha, $appApprovalId] = $this->appApproval($pullRequest);
         [$checks, $failedChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus);
         $mergeability = match (true) {
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
@@ -85,8 +84,6 @@ final readonly class GitHubPullRequestStateMapper
             latestApprovalId: $latestApprovalId,
             latestApproverLogin: $latestApproverLogin,
             title: $this->title($pullRequest),
-            appApprovalId: $appApprovalId,
-            appApprovalSha: $appApprovalSha,
         );
     }
 
@@ -184,34 +181,6 @@ final readonly class GitHubPullRequestStateMapper
         }
 
         return $newest;
-    }
-
-    /**
-     * The commit and review id of the newest approval that the App posted and that stands.
-     *
-     * @param array<mixed> $pullRequest
-     *
-     * @return array{?string, ?string}
-     */
-    private function appApproval(array $pullRequest): array
-    {
-        $nodes = $pullRequest['latestOpinionatedReviews']['nodes'] ?? [];
-        $newest = null;
-        $found = [null, null];
-        foreach (\is_array($nodes) ? $nodes : [] as $node) {
-            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null) || !$this->isAppReview($node)) {
-                continue;
-            }
-            $time = $this->time($node['submittedAt'] ?? null);
-            $oid = $node['commit']['oid'] ?? null;
-            $id = $node['id'] ?? null;
-            if (null !== $time && \is_string($oid) && '' !== $oid && \is_string($id) && '' !== $id && (null === $newest || $time > $newest)) {
-                $newest = $time;
-                $found = [$oid, $id];
-            }
-        }
-
-        return $found;
     }
 
     /**
