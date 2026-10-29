@@ -95,8 +95,10 @@ metric, a variant, an expectation and a share:
 
 This control says that at least half of the finished `lsp` cards must show a
 batch of diagnostics. A card passes when the sum of the metric over its
-experiment runs meets the expectation. A card with no value for the metric is
-left out. The control passes when the cards that pass, over the cards with a
+experiment runs meets the expectation. A run outside the experiment, such as a
+later review, never counts. So a control on `cost` or `runs` reads the covered
+runs, while the Metrics table counts every worker run of the card. A card with no
+value for the metric is left out. The control passes when the cards that pass, over the cards with a
 value, reach the share. A control can read any metric that the Comparison tab
 can show. The unit is the unit of the metric: dollars for a cost, milliseconds
 for a built-in duration, and hours for a duration that the workflow template

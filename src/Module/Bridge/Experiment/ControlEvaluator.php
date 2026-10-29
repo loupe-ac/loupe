@@ -9,8 +9,6 @@ final class ControlEvaluator
 {
     private const string EXPECT_PATTERN = '/^(>=|<=|>|<|==) *(-?[0-9]+(?:\.[0-9]+)?)$/D';
 
-    private const float EPSILON = 1e-9;
-
     /**
      * A card passes when its value meets the expectation. The control passes when the share of passing cards among the cards with data reaches its share.
      *
@@ -44,7 +42,7 @@ final class ControlEvaluator
 
             $passing = \count(array_filter($own, static fn (int|float $value): bool => self::meets($value, $spec['expect'])));
             $share = $passing / \count($own);
-            $controls[] = $make($share >= $spec['share'] - self::EPSILON ? ControlResult::Passed : ControlResult::Failed, $share, \count($own));
+            $controls[] = $make($share >= $spec['share'] ? ControlResult::Passed : ControlResult::Failed, $share, \count($own));
         }
 
         return $controls;
@@ -76,10 +74,10 @@ final class ControlEvaluator
 
         return match ($parts[1]) {
             '>' => $value > $limit,
-            '>=' => $value >= $limit - self::EPSILON,
+            '>=' => $value >= $limit,
             '<' => $value < $limit,
-            '<=' => $value <= $limit + self::EPSILON,
-            default => abs($value - $limit) < self::EPSILON,
+            '<=' => $value <= $limit,
+            default => (float) $value === $limit,
         };
     }
 }

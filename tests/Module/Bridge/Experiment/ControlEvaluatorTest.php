@@ -56,6 +56,24 @@ final class ControlEvaluatorTest extends TestCase
         self::assertEqualsWithDelta(1 / 3, $below->passingShare, 1e-9);
     }
 
+    public function test_a_share_just_below_the_required_share_fails(): void
+    {
+        $spec = ['metric' => 'harness-events:diagnostics', 'variant' => 'lsp', 'expect' => '> 0', 'share' => 0.333333334];
+
+        $control = ControlEvaluator::evaluate([$spec], ['harness-events:diagnostics' => ['lsp' => [1, 0, 0]]], ['lsp' => 3])[0];
+
+        self::assertSame(ControlResult::Failed, $control->result);
+    }
+
+    public function test_a_value_just_below_an_inclusive_limit_fails(): void
+    {
+        $spec = ['metric' => 'cost', 'variant' => 'a', 'expect' => '>= 1', 'share' => 1.0];
+
+        $control = ControlEvaluator::evaluate([$spec], ['cost' => ['a' => [0.9999999999]]], ['a' => 1])[0];
+
+        self::assertSame(ControlResult::Failed, $control->result);
+    }
+
     public function test_a_variant_with_no_value_has_no_data(): void
     {
         $controls = ControlEvaluator::evaluate(

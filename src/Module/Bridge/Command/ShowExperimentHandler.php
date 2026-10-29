@@ -46,7 +46,7 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, experimentRuns: list<WorkerRun>, allFacts: list<WorkerRunFact>, runCount: int, costMicros: ?int, coveredCostMicros: ?int}
+ * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, experimentRuns: list<WorkerRun>, allFacts: list<WorkerRunFact>, experimentFacts: list<WorkerRunFact>, runCount: int, costMicros: ?int, coveredCostMicros: ?int}
  * @phpstan-type ControlSpec array{metric: string, variant: string, expect: string, share: float}
  */
 final readonly class ShowExperimentHandler
@@ -212,6 +212,7 @@ final readonly class ShowExperimentHandler
                     'finished' => $isDelivered || true === $column?->terminal,
                     'experimentRuns' => array_values(array_filter($own, static fn (WorkerRun $run): bool => null !== $run->workKind && \in_array($run->workKind, $covered, true))),
                     'allFacts' => $allFacts,
+                    'experimentFacts' => $coveredFacts,
                     'runCount' => $runCount,
                     'costMicros' => $costMicros,
                     'coveredCostMicros' => $coveredCostMicros,
@@ -297,7 +298,7 @@ final readonly class ShowExperimentHandler
     }
 
     /**
-     * Judges each control on the finished, kept cards of its variant. The value of a card is the one the Metrics table uses for it, except that a control reads every finished card and not the delivered ones alone. A stop rate counts the stopped runs of the card.
+     * Judges each control on the finished, kept cards of its variant. A control reads every finished card, not the delivered ones alone. A run metric, cost and runs included, reads only the covered experiment runs of the card, so a run outside the experiment cannot pass it.
      *
      * @param list<ControlSpec>             $specs
      * @param array<string, list<KeptCard>> $kept
@@ -317,7 +318,7 @@ final readonly class ShowExperimentHandler
                 $values[$key] = null;
                 continue;
             }
-            $values[$key] = $this->controlValues($project, $key, $shape, $kept);
+            $values[$key] = $this->controlValues($project, $shape, $kept);
             if (null !== $shape->template) {
                 $labels[$key] = $shape->template->label;
             }
@@ -344,7 +345,7 @@ final readonly class ShowExperimentHandler
      *
      * @return array<string, list<int|float>> variant => the values of its finished cards that have one
      */
-    private function controlValues(Project $project, string $key, MetricShape $shape, array $kept): array
+    private function controlValues(Project $project, MetricShape $shape, array $kept): array
     {
         $rows = array_map(static fn (array $cards): array => array_values(array_filter($cards, static fn (array $card): bool => $card['finished'])), $kept);
         $template = $shape->template;
@@ -356,7 +357,7 @@ final readonly class ShowExperimentHandler
             $of = $shape->key->metric ?? throw new \LogicException('A built-in key has a metric.');
             $named = [];
             if (null !== $shape->key->name) {
-                $facts = array_merge([], ...array_map(static fn (array $cards): array => array_merge([], ...array_column($cards, 'allFacts')), array_values($rows)));
+                $facts = array_merge([], ...array_map(static fn (array $cards): array => array_merge([], ...array_column($cards, 'experimentFacts')), array_values($rows)));
                 $named = $this->metricRows->namedRunValues($facts, $of, $shape->key->name);
             }
             $value = match ($of) {
@@ -365,14 +366,10 @@ final readonly class ShowExperimentHandler
 
                     return [] === $closed ? null : \count(array_filter($closed, static fn (WorkerRun $run): bool => $run->state->isStop()));
                 },
-                Metric::Runs => static fn (array $card): int => $card['runCount'],
-                Metric::Cost => static function (array $card) use ($key): ?float {
-                    $micros = ExperimentMetric::COVERED_COST === $key ? $card['coveredCostMicros'] : $card['costMicros'];
-
-                    return null === $micros ? null : $micros / 1_000_000;
-                },
-                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => static fn (array $card): ?int => MetricRowSource::cardSum($card['allFacts'], $of),
-                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => static fn (array $card): ?int => MetricRowSource::namedCardSum($card['allFacts'], $named),
+                Metric::Runs => static fn (array $card): int => \count($card['experimentFacts']),
+                Metric::Cost => static fn (array $card): ?float => null === $card['coveredCostMicros'] ? null : $card['coveredCostMicros'] / 1_000_000,
+                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => static fn (array $card): ?int => MetricRowSource::cardSum($card['experimentFacts'], $of),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => static fn (array $card): ?int => MetricRowSource::namedCardSum($card['experimentFacts'], $named),
             };
         }
 

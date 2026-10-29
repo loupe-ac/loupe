@@ -460,6 +460,34 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(GoalState::NotEnoughCards, $view->headline->goal->state);
     }
 
+    public function test_a_control_reads_only_the_experiment_runs_of_a_card(): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->headline = ['controls' => [
+            ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 1.0],
+            ['metric' => 'input-tokens', 'variant' => 'a', 'expect' => '< 150', 'share' => 1.0],
+            ['metric' => 'cost', 'variant' => 'a', 'expect' => '< 3', 'share' => 1.0],
+            ['metric' => 'runs', 'variant' => 'a', 'expect' => '== 1', 'share' => 1.0],
+        ]];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $run = $this->experimentRun($card, 'a', at: '+1 hour');
+        $run->harnessEvents = [];
+        $this->seedUsage($this->em, $run, costUsd: '2.000000', inputTokens: 100);
+        $review = $this->plainRun($card, 'review', '+2 hours');
+        $review->harnessEvents = ['diagnostics' => 4];
+        $this->seedUsage($this->em, $review, costUsd: '2.000000', inputTokens: 100);
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+        $this->em->flush();
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame([], $view->cards[0]->leftOut);
+        self::assertSame([ControlResult::Failed, ControlResult::Passed, ControlResult::Passed, ControlResult::Passed], array_map(static fn ($control): ControlResult => $control->result, $view->headline->controls));
+    }
+
     public function test_a_control_with_no_reported_event_has_no_data_and_holds_the_goal(): void
     {
         $this->seedControlExperiment(
