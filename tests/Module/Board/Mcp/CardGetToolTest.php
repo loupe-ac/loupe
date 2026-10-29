@@ -108,7 +108,7 @@ final class CardGetToolTest extends KernelTestCase
         self::assertInstanceOf(Card::class, $card);
         $since = new \DateTimeImmutable('2026-10-02 09:00:00+00:00');
         $card->markers = [
-            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => $since->format(\DATE_ATOM)],
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'failed'], 'since' => $since->format(\DATE_ATOM)],
             ['key' => 'work_requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'remedy' => 'marker.work_requested.remedy', 'params' => [], 'since' => $since->modify('+5 minutes')->format(\DATE_ATOM)],
             ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => $since->format(\DATE_ATOM)],
         ];
@@ -120,7 +120,7 @@ final class CardGetToolTest extends KernelTestCase
             'kind' => 'stuck',
             'code' => 'paused',
             'since' => $since->format(\DATE_ATOM),
-            'reason' => 'Paused: review-failed.',
+            'reason' => 'Paused: The work failed.',
             'others' => [
                 ['kind' => 'working', 'code' => 'work_requested', 'reason' => 'Work waits for a bridge to take it.', 'since' => $since->modify('+5 minutes')->format(\DATE_ATOM)],
             ],
