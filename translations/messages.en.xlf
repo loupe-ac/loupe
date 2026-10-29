@@ -9685,8 +9685,8 @@
             <trans-unit id="marker.checks_failed.remedy"><source>marker.checks_failed.remedy</source><target>Fix the failing checks, or start a fix run.</target></trans-unit>
             <trans-unit id="marker.conflicting"><source>marker.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>
             <trans-unit id="marker.conflicting.remedy"><source>marker.conflicting.remedy</source><target>Merge the base branch into the pull request, or start a fix run.</target></trans-unit>
-            <trans-unit id="marker.ready_not_merged"><source>marker.ready_not_merged</source><target>Pull request #%number% is ready to merge, and no merge rule matches it.</target></trans-unit>
-            <trans-unit id="marker.ready_not_merged.remedy"><source>marker.ready_not_merged.remedy</source><target>Merge the pull request, or change the card so that a merge rule of its column matches it.</target></trans-unit>
+            <trans-unit id="marker.ready_not_merged"><source>marker.ready_not_merged</source><target>Pull request #%number% stayed ready to merge past the stuck delay, and no merge is under way.</target></trans-unit>
+            <trans-unit id="marker.ready_not_merged.remedy"><source>marker.ready_not_merged.remedy</source><target>Merge the pull request yourself. Or check the merge rules of the workflow and the pull request on the forge, and fix what keeps it from merging.</target></trans-unit>
             <trans-unit id="marker.pull_request_idle"><source>marker.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
             <trans-unit id="marker.pull_request_idle.remedy"><source>marker.pull_request_idle.remedy</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
             <trans-unit id="marker.nothing_happened"><source>marker.nothing_happened</source><target>Nothing has happened on this card for a while.</target></trans-unit>
