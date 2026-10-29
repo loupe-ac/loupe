@@ -9,9 +9,10 @@ The project values come from the optional `Preview` section of the profile. This
 Test the items in this order.
 
 1. The profile has a `Preview` section. When it has none, the check does not run, and the stage writes nothing about it.
-2. The diff of the branch against `<base>` changes a path that the `Paths` item of that section names. When this is false, the check does not run.
+2. The card of the request, from `card_get`, has a `type` other than `epic`. When its `type` is `epic`, the check does not run, and the stage writes no preview line. The epic preview refresh of the merge stage writes the preview section of an epic pull request, and no other stage does. Never infer an epic from the branch name.
+3. The diff of the branch against `<base>` changes a path that the `Paths` item of that section names. When this is false, the check does not run.
 
-Both tests true means the check applies. The list of required states is then never empty.
+All three tests true means the check applies. The list of required states is then never empty.
 
 ## Required states
 
