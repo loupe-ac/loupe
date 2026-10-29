@@ -29,7 +29,7 @@ interface PullRequestReviewPoster
      *
      * @param string $userId the id of the Loupe user whose forge account posted the review
      *
-     * @throws PullRequestReviewFailed with the same causes as a post, when the forge cannot list the reviews
+     * @throws PullRequestReviewFailed with the same causes as a post, when the forge cannot list the reviews, and a transient failure when it cannot list them all
      */
     public function findPosted(ForgePullRequest $pullRequest, string $marker, string $userId): ?PostedPullRequestReview;
 }

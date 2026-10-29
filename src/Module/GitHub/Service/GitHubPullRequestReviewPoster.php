@@ -74,7 +74,7 @@ final readonly class GitHubPullRequestReviewPoster implements PullRequestReviewP
             ?? throw new PullRequestReviewFailed('not_connected', permanent: true);
 
         try {
-            $reviews = $this->api->reviews($accessToken, GitHubPullRequestInstallations::repositoryPath($pullRequest->repository), $pullRequest->number);
+            [$reviews, $complete] = $this->api->reviews($accessToken, GitHubPullRequestInstallations::repositoryPath($pullRequest->repository), $pullRequest->number);
         } catch (GitHubUserApiFailed $e) {
             throw self::failed($e);
         }
@@ -83,6 +83,11 @@ final readonly class GitHubPullRequestReviewPoster implements PullRequestReviewP
             if ($connection->githubUserId === $review['userId'] && str_contains($review['body'], $marker)) {
                 return new PostedPullRequestReview($review['url']);
             }
+        }
+
+        // A review past the last page read can be the lost post, so only a full read may answer that none exists.
+        if (!$complete) {
+            throw new PullRequestReviewFailed('reviews_incomplete', permanent: false);
         }
 
         return null;

@@ -116,14 +116,14 @@ final readonly class GitHubUserApi
     /**
      * The reviews of the pull request, oldest first.
      *
-     * @return list<array{userId: ?int, body: string, url: ?string}>
+     * @return array{list<array{userId: ?int, body: string, url: ?string}>, bool} the reviews, and whether they are all of them
      *
      * @throws GitHubUserApiFailed
      */
     public function reviews(#[\SensitiveParameter] string $token, string $repositoryPath, int $number): array
     {
         $reviews = [];
-        [$entries] = $this->pages($token, $repositoryPath.'/pulls/'.$number.'/reviews', null);
+        [$entries, $complete] = $this->pages($token, $repositoryPath.'/pulls/'.$number.'/reviews', null);
         foreach ($entries as $entry) {
             $userId = \is_array($entry['user'] ?? null) ? ($entry['user']['id'] ?? null) : null;
             $body = $entry['body'] ?? null;
@@ -135,7 +135,7 @@ final readonly class GitHubUserApi
             ];
         }
 
-        return $reviews;
+        return [$reviews, $complete];
     }
 
     /**

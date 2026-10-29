@@ -257,6 +257,36 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
         self::assertStringEndsWith('page=2', $this->requests[1]['url']);
     }
 
+    public function test_a_lookup_that_stops_at_the_page_cap_without_the_marker_is_a_transient_failure(): void
+    {
+        $user = $this->connectedUser('find-capped', githubUserId: 77);
+        $full = json_encode(array_fill(0, 100, ['user' => ['id' => 77], 'body' => 'other', 'html_url' => 'u']), \JSON_THROW_ON_ERROR);
+        $this->responses = array_map(static fn (): MockResponse => new MockResponse($full), range(1, 10));
+        $this->responses[] = new MockResponse(json_encode([['user' => ['id' => 77], 'body' => '<!-- m -->']], \JSON_THROW_ON_ERROR));
+
+        try {
+            $this->poster()->findPosted($this->pullRequest('loupe-ac/loupe'), '<!-- m -->', (string) $user->id);
+            self::fail('Expected PullRequestReviewFailed.');
+        } catch (PullRequestReviewFailed $e) {
+            self::assertSame('reviews_incomplete', $e->cause);
+            self::assertFalse($e->permanent);
+        }
+        self::assertCount(10, $this->requests);
+    }
+
+    public function test_a_lookup_that_stops_at_the_page_cap_still_finds_a_marker_it_read(): void
+    {
+        $user = $this->connectedUser('find-capped-hit', githubUserId: 77);
+        $full = json_encode(array_fill(0, 100, ['user' => ['id' => 77], 'body' => 'other', 'html_url' => 'u']), \JSON_THROW_ON_ERROR);
+        $marked = array_fill(0, 100, ['user' => ['id' => 77], 'body' => '<!-- m -->', 'html_url' => 'https://github.com/r/pull/604#pullrequestreview-9']);
+        $this->responses = array_map(static fn (): MockResponse => new MockResponse($full), range(1, 9));
+        $this->responses[] = new MockResponse(json_encode($marked, \JSON_THROW_ON_ERROR));
+
+        $found = $this->poster()->findPosted($this->pullRequest('loupe-ac/loupe'), '<!-- m -->', (string) $user->id);
+
+        self::assertSame('https://github.com/r/pull/604#pullrequestreview-9', $found?->url);
+    }
+
     public function test_it_finds_nothing_when_no_review_of_the_user_carries_the_marker(): void
     {
         $user = $this->connectedUser('find-none', githubUserId: 77);
