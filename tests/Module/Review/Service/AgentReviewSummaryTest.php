@@ -198,6 +198,40 @@ final class AgentReviewSummaryTest extends TestCase
         self::assertSame('skipped', $this->summary->summarize($reviews, DocumentStatus::InReview, 4)['state'] ?? null);
     }
 
+    public function test_a_pass_with_a_finding_for_the_owner_uses_a_round_of_the_limit(): void
+    {
+        $reviews = [
+            $this->review(3, 'failure', [['important', null]]),
+            $this->review(2, 'success', [['important', 'to-owner']], needsPerson: true),
+            $this->review(1, 'failure', [['important', 'fixed']]),
+        ];
+
+        self::assertSame('failed', $this->summary->summarize($reviews, DocumentStatus::InReview, 3)['state'] ?? null);
+        self::assertSame('skipped', $this->summary->summarize($reviews, DocumentStatus::InReview, 4)['state'] ?? null);
+    }
+
+    public function test_a_pass_with_no_finding_for_the_owner_uses_no_round(): void
+    {
+        $reviews = [
+            $this->review(3, 'failure', [['important', null]]),
+            $this->review(2, 'success', [['nit', 'fixed']]),
+            $this->review(1, 'failure', [['important', 'fixed']]),
+        ];
+
+        self::assertSame('skipped', $this->summary->summarize($reviews, DocumentStatus::InReview, 3)['state'] ?? null);
+    }
+
+    public function test_an_answered_pass_for_the_owner_at_the_limit_passed(): void
+    {
+        $reviews = [
+            $this->review(3, 'success', [['important', 'to-owner']], needsPerson: true),
+            $this->review(2, 'failure', [['important', 'fixed']]),
+            $this->review(1, 'failure', [['important', 'fixed']]),
+        ];
+
+        self::assertSame('passed', $this->summary->summarize($reviews, DocumentStatus::InReview, 3)['state'] ?? null);
+    }
+
     public function test_a_workflow_with_no_limit_never_says_the_loop_failed(): void
     {
         $reviews = array_map(fn (int $version): array => $this->review($version, 'failure', [['important', null]]), [6, 5, 4, 3, 2, 1]);
