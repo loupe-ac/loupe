@@ -337,11 +337,30 @@ class Card implements ProjectScopedSubject
         return $types->get($this->type)->lane && $this->laneEnabled && !$this->column->terminal;
     }
 
-    /** Replaces every pull request link with the given set. An empty list clears them. */
+    /**
+     * Makes the card's pull request links match the given set exactly.
+     *
+     * A diff by URL. A URL that stays keeps its row, so it keeps its addedAt and
+     * its predatesLinkTimes flag. The given object for such a URL is dropped.
+     * A removed URL leaves the collection, and a new one is added after it.
+     */
     public function replacePullRequests(CardPullRequest ...$links): void
     {
-        $this->pullRequests->clear();
+        $wanted = [];
         foreach ($links as $link) {
+            $wanted[$link->url] ??= $link;
+        }
+
+        foreach ($this->pullRequests as $existing) {
+            if (isset($wanted[$existing->url])) {
+                unset($wanted[$existing->url]);
+
+                continue;
+            }
+            $this->pullRequests->removeElement($existing);
+        }
+
+        foreach ($wanted as $link) {
             $this->pullRequests->add($link);
         }
     }
