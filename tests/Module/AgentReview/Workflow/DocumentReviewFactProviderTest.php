@@ -74,6 +74,7 @@ final class DocumentReviewFactProviderTest extends KernelTestCase
         self::assertFalse($state->answered);
         self::assertFalse($state->needsPerson);
         self::assertSame(2, $state->failedCount);
+        self::assertSame(0, $state->ownerPassCount);
     }
 
     public function test_an_answered_review_and_a_question_for_a_person_show(): void
@@ -89,11 +90,27 @@ final class DocumentReviewFactProviderTest extends KernelTestCase
         self::assertTrue($before->needsPerson);
         self::assertFalse($before->answered);
         self::assertSame(0, $before->failedCount);
+        self::assertSame(1, $before->ownerPassCount);
 
         $review->answer([new DocumentReviewFindingAnswer(0, DocumentReviewAnswer::ToOwner)]);
         $this->em->flush();
 
         self::assertTrue($this->only($card)->answered);
+    }
+
+    public function test_only_passes_with_a_finding_for_a_person_count_as_owner_passes(): void
+    {
+        [$card, $document] = $this->cardWithDesign();
+        foreach ([[true], [false], []] as $needs) {
+            $findings = array_map(static fn (bool $needsPerson): AgentReviewFinding => new AgentReviewFinding(null, null, null, AgentReviewSeverity::Nit, 'Note', 'Body', AgentReviewCategory::Spec, $needsPerson), $needs);
+            $this->em->persist(new DocumentAgentReview($card->project, $card, $document, 1, 'Passed.', AgentReviewConclusion::Success, $findings));
+        }
+        $this->em->flush();
+
+        $state = $this->only($card);
+
+        self::assertSame(1, $state->ownerPassCount);
+        self::assertSame(0, $state->failedCount);
     }
 
     public function test_documents_that_are_not_tagged_drafts_are_left_out(): void

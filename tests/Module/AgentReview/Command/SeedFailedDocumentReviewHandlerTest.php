@@ -73,7 +73,7 @@ final class SeedFailedDocumentReviewHandlerTest extends KernelTestCase
         self::assertNotNull($handler(new SeedFailedDocumentReviewCommand($document)));
         self::assertNotNull($handler(new SeedFailedDocumentReviewCommand($document)));
 
-        self::assertSame(2, $reviews->countFailedByDocumentForCard($card)[(string) $document->id]);
+        self::assertSame(2, $reviews->countRoundsByDocumentForCard($card)[(string) $document->id]['failed']);
         self::assertCount(2, $reported);
         self::assertSame((string) $card->id, (string) $reported[0]->cardId);
         self::assertTrue($reported[0]->markersOnly);

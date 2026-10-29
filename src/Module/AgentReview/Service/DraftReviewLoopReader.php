@@ -61,9 +61,9 @@ final readonly class DraftReviewLoopReader implements DraftReviewLoops
             }
 
             $pause = $this->cardPauses->findActiveForCard($card);
-            $failed = $this->documentAgentReviews->countFailedByDocumentForCard($card)[(string) $document->id] ?? 0;
+            $counts = $this->documentAgentReviews->countRoundsByDocumentForCard($card)[(string) $document->id] ?? ['failed' => 0, 'ownerPasses' => 0];
             $loop = new DraftReviewLoop(
-                min($failed + 1, $limit),
+                min($counts['failed'] + $counts['ownerPasses'] + 1, $limit),
                 $limit,
                 null === $pause ? null : $this->pauseReasonText->forPause($pause->reason),
                 (string) $card->id,

@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\AgentReview\Service;
 
+use App\Module\AgentReview\Entity\AgentReviewCategory;
+use App\Module\AgentReview\Entity\AgentReviewConclusion;
+use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewSeverity;
+use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\AgentReview\Repository\DocumentAgentReviewRepository;
 use App\Module\AgentReview\Service\DraftReviewLoopReader;
 use App\Module\Board\Command\PauseCardCommand;
@@ -74,6 +79,42 @@ final class DraftReviewLoopReaderTest extends KernelTestCase
         $document = $this->draft($card, ['tech-design']);
         for ($version = 1; $version <= 7; ++$version) {
             $this->documentReview($this->project, $card, $document, 1, $version);
+        }
+
+        $loop = $this->loops()->of($document);
+
+        self::assertSame([6, 6], [$loop?->round, $loop?->limit]);
+    }
+
+    public function test_a_pass_with_a_finding_for_the_owner_counts_as_a_round(): void
+    {
+        $card = $this->cardIn('tech-design');
+        $document = $this->draft($card, ['tech-design']);
+        $this->documentReview($this->project, $card, $document, 1, 1);
+        $this->pass($card, $document, 2, needsPerson: true);
+
+        self::assertSame(3, $this->loops()->of($document)?->round);
+    }
+
+    public function test_a_pass_with_no_finding_for_the_owner_does_not_count(): void
+    {
+        $card = $this->cardIn('tech-design');
+        $document = $this->draft($card, ['tech-design']);
+        $this->documentReview($this->project, $card, $document, 1, 1);
+        $this->pass($card, $document, 2, needsPerson: false);
+
+        self::assertSame(2, $this->loops()->of($document)?->round);
+    }
+
+    public function test_passes_for_the_owner_and_failed_reviews_stop_at_the_limit(): void
+    {
+        $card = $this->cardIn('tech-design');
+        $document = $this->draft($card, ['tech-design']);
+        for ($version = 1; $version <= 3; ++$version) {
+            $this->documentReview($this->project, $card, $document, 1, $version);
+        }
+        for ($version = 4; $version <= 6; ++$version) {
+            $this->pass($card, $document, $version, needsPerson: true);
         }
 
         $loop = $this->loops()->of($document);
@@ -262,6 +303,20 @@ final class DraftReviewLoopReaderTest extends KernelTestCase
         $this->em->flush();
 
         return $document;
+    }
+
+    private function pass(Card $card, Document $document, int $version, bool $needsPerson): void
+    {
+        $this->em->persist(new DocumentAgentReview(
+            project: $this->project,
+            card: $card,
+            document: $document,
+            versionNumber: $version,
+            summary: 'Passed.',
+            conclusion: AgentReviewConclusion::Success,
+            findings: [new AgentReviewFinding(null, null, null, AgentReviewSeverity::Nit, 'Pick one', 'Body', AgentReviewCategory::Spec, $needsPerson)],
+        ));
+        $this->em->flush();
     }
 
     private function pause(Card $card, string $reason): void

@@ -35,9 +35,13 @@ final class DesignReviewConditionsTest extends TestCase
         yield 'passed with a question, not answered' => [self::state(AgentReviewConclusion::Success, needsPerson: true), false, true, false, true];
         yield 'passed with a question, answered before the revision' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true), true, false, false, true];
         yield 'passed without a question' => [self::state(AgentReviewConclusion::Success), false, false, true, false];
-        yield 'passed with a question, answered with a revision' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true, version: 2, reviewVersion: 1), false, false, true, false];
+        yield 'passed with a question, answered with a revision' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true, version: 2, reviewVersion: 1), true, false, false, true];
         yield 'passed review of an older version' => [self::state(AgentReviewConclusion::Success, version: 2, reviewVersion: 1), true, false, false, true];
         yield 'passed review of an older version after two failures' => [self::state(AgentReviewConclusion::Success, failed: 2, version: 3, reviewVersion: 2), true, false, false, true];
+        yield 'passed with a question at the round limit, not answered' => [self::state(AgentReviewConclusion::Success, needsPerson: true, failed: 2, ownerPasses: 1), false, true, false, true];
+        yield 'passed with a question at the round limit, answered' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true, failed: 2, ownerPasses: 1, version: 2, reviewVersion: 1), false, false, true, false];
+        yield 'failure after a pass with a question reaches the limit' => [self::state(AgentReviewConclusion::Failure, failed: 2, ownerPasses: 1), false, false, true, false];
+        yield 'failure after a pass with a question is still below the limit' => [self::state(AgentReviewConclusion::Failure, failed: 1, ownerPasses: 1), false, true, false, true];
         yield 'passed after two failures' => [self::state(AgentReviewConclusion::Success, failed: 2), false, false, true, false];
     }
 
@@ -105,6 +109,17 @@ final class DesignReviewConditionsTest extends TestCase
         self::assertNull($condition->evidence(self::facts(self::state(AgentReviewConclusion::Success)), self::PARAMS));
     }
 
+    public function test_the_round_label_counts_passes_with_a_question_and_stops_at_the_limit(): void
+    {
+        $condition = new DesignReviewRunning();
+
+        $second = $condition->evidence(self::facts(self::state(AgentReviewConclusion::Success, needsPerson: true, failed: 1, ownerPasses: 1)), self::PARAMS);
+        $capped = $condition->evidence(self::facts(self::state(AgentReviewConclusion::Success, needsPerson: true, failed: 2, ownerPasses: 1)), self::PARAMS);
+
+        self::assertSame(['%round%' => 3, '%limit%' => 3], $second?->params);
+        self::assertSame(['%round%' => 3, '%limit%' => 3], $capped?->params);
+    }
+
     public function test_each_condition_declares_its_parameters_and_reads(): void
     {
         foreach (self::conditions() as $condition) {
@@ -136,9 +151,9 @@ final class DesignReviewConditionsTest extends TestCase
     }
 
     /** @param list<string> $tags */
-    private static function state(?AgentReviewConclusion $conclusion = null, bool $answered = false, bool $needsPerson = false, int $failed = 0, int $version = 1, ?int $reviewVersion = null, array $tags = ['tech-design']): DocumentReviewState
+    private static function state(?AgentReviewConclusion $conclusion = null, bool $answered = false, bool $needsPerson = false, int $failed = 0, int $ownerPasses = 0, int $version = 1, ?int $reviewVersion = null, array $tags = ['tech-design']): DocumentReviewState
     {
-        return new DocumentReviewState('doc-'.uniqid(), $tags, $version, null === $conclusion ? null : 'review-'.uniqid(), null === $conclusion ? null : $reviewVersion ?? $version, $conclusion, $answered, $needsPerson, $failed);
+        return new DocumentReviewState('doc-'.uniqid(), $tags, $version, null === $conclusion ? null : 'review-'.uniqid(), null === $conclusion ? null : $reviewVersion ?? $version, $conclusion, $answered, $needsPerson, $failed, $ownerPasses);
     }
 
     private static function facts(DocumentReviewState ...$states): Facts

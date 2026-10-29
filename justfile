@@ -158,8 +158,9 @@ phpunit_processes := env("PHPUNIT_PROCESSES", "4")
 # XDEBUG_MODE lives here rather than in a compose overlay, so CI and a
 # workstation run the one command.
 # ParaTest runs PHPUNIT_PROCESSES workers, each on its own test database.
+# A worker restarts after 100 test files, because its memory grows with each one.
 phpunit *args:
-    bin/worktrees/compose-exec.sh env XDEBUG_MODE=off vendor/bin/paratest --processes={{phpunit_processes}} "$@"
+    bin/worktrees/compose-exec.sh env XDEBUG_MODE=off vendor/bin/paratest --processes={{phpunit_processes}} --max-batch-size=100 "$@"
 
 # Vitest over tests/js. Runs on the host, not in the container: it needs Node
 # alone, and the app it tests is a browser script.

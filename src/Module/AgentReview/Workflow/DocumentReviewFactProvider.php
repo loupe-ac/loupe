@@ -61,7 +61,7 @@ final readonly class DocumentReviewFactProvider implements FactProvider
         }
 
         $versions = $this->documentVersions->findLatestMetaByDocuments($drafts);
-        $failed = $this->documentAgentReviews->countFailedByDocumentForCard($card);
+        $counts = $this->documentAgentReviews->countRoundsByDocumentForCard($card);
 
         $states = [];
         foreach ($drafts as $document) {
@@ -76,7 +76,8 @@ final readonly class DocumentReviewFactProvider implements FactProvider
                 $review?->conclusion,
                 $review?->isAnswered() ?? false,
                 null !== $review && [] !== array_filter($review->findings(), static fn ($finding): bool => $finding->needsPerson),
-                $failed[$id] ?? 0,
+                $counts[$id]['failed'] ?? 0,
+                $counts[$id]['ownerPasses'] ?? 0,
             );
         }
 
@@ -89,7 +90,7 @@ final readonly class DocumentReviewFactProvider implements FactProvider
         $facts instanceof DocumentReviewFacts || throw new \LogicException('The provider fingerprints its own facts.');
 
         return FingerprintValue::sorted(array_map(
-            static fn (DocumentReviewState $document): array => [$document->documentId, FingerprintValue::sorted($document->tags), $document->versionNumber, $document->reviewId, $document->answered, $document->failedCount],
+            static fn (DocumentReviewState $document): array => [$document->documentId, FingerprintValue::sorted($document->tags), $document->versionNumber, $document->reviewId, $document->answered, $document->failedCount, $document->ownerPassCount],
             $facts->documents,
         ));
     }
