@@ -155,6 +155,7 @@ The shipped markers are:
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
+| `pull-requests-closed` | Stuck | Every pull request linked to a card in Implementation closed with no merge, no worker runs and the card is not held. A reference link does not count |
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
@@ -185,7 +186,7 @@ again. Each `child-` marker names the child whose marker of that kind began
 first, and counts from that time.
 
 The Simple template declares all of these markers except `pull-request-idle`,
-`nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
+`pull-requests-closed`, `nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
 
 The engine checks the markers of a card on every evaluation. This includes a held
 card and a board with the automation off. It stores the result on the card, with
@@ -699,11 +700,23 @@ with one of two reason codes:
 
 The bridge settles the `implement` request as done with that reason. The rule
 with the same name then moves the card to the terminal column. The rule waits
-while the card links a pull request, while it is an epic, and while work runs on
+while the card has a work link, while it is an epic, and while work runs on
 it. The card history says "Via the nothing-to-build workflow rule" or "Via the
 delivered-without-code workflow rule". The worker also adds one line to the card
 body that names the decision or the document. A parent epic counts the card as
 finished, as it counts any card in a terminal column.
+
+### Reference links
+
+A link to a pull request that was merged or closed before you linked it is a
+reference. Use a reference to record where a bug came from. The workflow does
+not count a reference as a work link. The condition `card.pr.linked`, the
+`merged` rule and every other pull request condition ignore it, and an
+implement request names no pull request for it. The card page still shows the
+link. A card that has only reference links gets implement work when it reaches
+Implementation, and it does not move to Done. A link on a card that existed
+before this rule is judged against the creation time of the card. A closed pull
+request counts as work until Loupe has read its close time.
 
 In a workflow file, the condition `card.run.finished_with` with a `kind` and a
 `reason` is true when the latest work request of the card is done, of

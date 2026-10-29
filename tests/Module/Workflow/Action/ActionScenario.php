@@ -157,9 +157,10 @@ trait ActionScenario
         ?string $head = null,
         ?string $headSha = 'head1',
         ?string $url = null,
+        ?\DateTimeImmutable $linkedAt = null,
     ): ForgePullRequest {
         $number = ++$this->pullRequestNumber;
-        $this->em()->persist(new CardPullRequest($card, $url ?? 'https://github.com/acme/widgets/pull/'.$number, Forge::GitHub, 'acme/widgets', $number));
+        $this->em()->persist(new CardPullRequest($card, $url ?? 'https://github.com/acme/widgets/pull/'.$number, Forge::GitHub, 'acme/widgets', $number, $linkedAt ?? new \DateTimeImmutable()));
         $pullRequest = new ForgePullRequest($card->project, 'github', 'acme/widgets', $number);
         $pullRequest->state = $state;
         $pullRequest->authorRead = true;

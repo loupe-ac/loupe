@@ -109,6 +109,22 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertSame([], $this->sent());
     }
 
+    public function test_a_read_that_fills_the_close_time_of_a_closed_row_announces_the_change(): void
+    {
+        $row = $this->row();
+        $row->apply(new PullRequestSnapshot(state: PullRequestState::Closed, headSha: 'abc'));
+        $this->em->flush();
+        self::assertNull($row->closedAt);
+        $closedAt = new \DateTimeImmutable('2026-10-20 08:30:00');
+        $this->reader->answers = [new PullRequestSnapshot(state: PullRequestState::Closed, headSha: 'abc', closedAt: $closedAt)];
+
+        $this->handle($row, self::NOW);
+
+        self::assertEquals($closedAt, $this->reload($row)->closedAt);
+        self::assertCount(1, $this->changes, 'A new close time decides whether a link counts as work, so the cards are evaluated again.');
+        self::assertTrue($this->changes[0]->previous->equals($this->changes[0]->current));
+    }
+
     public function test_a_verdict_rides_the_one_event_of_a_read_that_changed_the_state(): void
     {
         $row = $this->row();
@@ -307,7 +323,7 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-09-27 12:01:00'), $this->reload($row)->refreshedAt);
     }
 
-    public function test_an_open_and_merge_time_read_for_the_first_time_is_stored_and_announces_nothing(): void
+    public function test_an_open_and_merge_time_read_for_the_first_time_is_stored_and_announces_the_merge_time(): void
     {
         $row = $this->row();
         $opened = new \DateTimeImmutable('2026-09-20 08:00:00');
@@ -322,7 +338,7 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         $this->handle($row, '2026-09-27 12:00:30');
 
         self::assertSame(2, $this->reader->reads);
-        self::assertCount(1, $this->changes);
+        self::assertCount(2, $this->changes, 'The first read announces the state, and the second one announces the new merge time.');
         $fresh = $this->reload($row);
         self::assertEquals($opened, $fresh->openedAt);
         self::assertEquals($merged, $fresh->mergedAt);

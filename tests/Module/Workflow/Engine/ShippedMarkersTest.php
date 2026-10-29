@@ -61,7 +61,7 @@ final class ShippedMarkersTest extends KernelTestCase
     use MarkerScenario;
 
     private const array LIFECYCLE_KEYS = [
-        'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
+        'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'pull-requests-closed', 'nothing-happened',
         'document-in-review', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested', 'retry-scheduled',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
@@ -76,7 +76,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'pull-requests-closed', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -313,6 +313,25 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design'), provided: $quiet)));
         self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: $quiet)), 'the Next column stays silent');
         self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', childCount: 1, openChildCount: 1), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: $quiet)), 'an open child hides the pull request idle marker only');
+    }
+
+    public function test_a_card_whose_every_pull_request_closed_unmerged_is_stuck_in_implementation_and_hides_the_idle_marker(): void
+    {
+        $closed = FactsMother::pullRequest(state: PullRequestState::Closed, closedAt: new \DateTimeImmutable('2026-10-01 08:00:00'), number: 12);
+        $merged = FactsMother::pullRequest(state: PullRequestState::Merged, closedAt: new \DateTimeImmutable('2026-10-01 08:00:00'), number: 13);
+
+        self::assertSame(['pull-requests-closed'], $this->keys($this->closedFacts('implementation', [$closed])));
+        self::assertNotContains('pull-requests-closed', $this->keys($this->closedFacts('implementation', [$closed, $merged])), 'a merged pull request is not a closed end');
+        self::assertNotContains('pull-requests-closed', $this->keys($this->closedFacts('implementation', [])), 'a card with no work link');
+        self::assertNotContains('pull-requests-closed', $this->keys($this->closedFacts('in-review', [$closed])), 'the marker names the implementation slot only');
+    }
+
+    /** @param list<PullRequestFacts> $pullRequests */
+    private function closedFacts(string $slot, array $pullRequests): Facts
+    {
+        $quiet = [CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00'))];
+
+        return FactsMother::facts(card: FactsMother::card(slot: $slot), pullRequest: null, pullRequests: $pullRequests, provided: $quiet);
     }
 
     /** @return iterable<string, array{string, string, string}> */

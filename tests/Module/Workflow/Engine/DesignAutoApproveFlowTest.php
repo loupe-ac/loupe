@@ -11,6 +11,10 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\Service\CardPullRequests;
+use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Review\Command\AddCommentCommand;
 use App\Module\Review\Command\AddCommentHandler;
 use App\Module\Review\Command\CreateDocumentCommand;
@@ -90,6 +94,27 @@ final class DesignAutoApproveFlowTest extends KernelTestCase
         self::assertSame('in-progress', $this->fresh($card)->column->slug, 'The approval and the move ran in the pass.');
         self::assertNotEmpty($locks);
         self::assertSame([], array_values(array_filter($locks, static fn (string $sql): bool => 1 === preg_match('/\bFOR UPDATE\b/', $sql))), implode("\n", $locks));
+    }
+
+    public function test_a_new_card_that_links_a_merged_pull_request_gets_implement_work_and_stays_out_of_the_terminal_column(): void
+    {
+        $card = $this->card('bug');
+        $this->draft($card, self::CLEAN, review: AgentReviewConclusion::Success);
+        $reference = $this->pullRequest($card, PullRequestState::Merged);
+        $reference->mergedAt = new \DateTimeImmutable('-2 hours');
+        $this->em()->flush();
+        self::assertCount(1, $this->service(CardPullRequests::class)->currentUrls($card));
+
+        $this->evaluate($card);
+        $this->evaluate($card, '+1 minute');
+        $this->evaluate($card, '+2 minutes');
+
+        $card = $this->fresh($card);
+        self::assertSame('in-progress', $card->column->slug);
+        self::assertFalse($card->column->terminal);
+        $requests = $this->service(WorkRequestRepository::class)->findBy(['subjectId' => $card->id, 'kind' => 'implement']);
+        self::assertCount(1, $requests);
+        self::assertEquals(new WorkRequestContext(), $requests[0]->context);
     }
 
     public function test_a_product_design_approves_itself_whatever_the_card_type(): void

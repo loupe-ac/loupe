@@ -26,6 +26,7 @@ use App\Module\Board\Workflow\Condition\PullRequestMergeBlocked;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestParentMerged;
 use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
+use App\Module\Board\Workflow\Condition\PullRequestsAllClosedUnmerged;
 use App\Module\Board\Workflow\Condition\PullRequestsAllFinishedOneMerged;
 use App\Module\Board\Workflow\Condition\PullRequestStacked;
 use App\Module\Board\Workflow\Condition\PullRequestStackParent;
@@ -120,6 +121,12 @@ final class PullRequestConditionsTest extends TestCase
         yield 'all finished, one still open' => [new PullRequestsAllFinishedOneMerged(), [], self::all([$merged, $open]), false];
         yield 'all finished, none merged' => [new PullRequestsAllFinishedOneMerged(), [], self::all([$closedAnHourAgo]), false];
         yield 'all finished, none linked' => [new PullRequestsAllFinishedOneMerged(), [], self::all([]), false];
+
+        yield 'all closed unmerged, one closed' => [new PullRequestsAllClosedUnmerged(), [], self::all([$closedAnHourAgo]), true];
+        yield 'all closed unmerged, two closed' => [new PullRequestsAllClosedUnmerged(), [], self::all([$closedAnHourAgo, $closedAnHourAgo]), true];
+        yield 'all closed unmerged, one merged' => [new PullRequestsAllClosedUnmerged(), [], self::all([$closedAnHourAgo, $merged]), false];
+        yield 'all closed unmerged, one open' => [new PullRequestsAllClosedUnmerged(), [], self::all([$closedAnHourAgo, $open]), false];
+        yield 'all closed unmerged, none linked' => [new PullRequestsAllClosedUnmerged(), [], self::all([]), false];
 
         yield 'linked, open' => [new PullRequestLinked(), [], self::all([$open]), true];
         yield 'linked, merged' => [new PullRequestLinked(), [], self::all([$merged]), true];
@@ -231,6 +238,7 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 30], 'pr_ready_for', ['%delay%' => '30'], $one];
         yield 'card.pr.linked' => [new PullRequestLinked(), [], 'pr_linked', [], [PullRequestList::class]];
         yield 'card.pr.draft_open' => [new PullRequestDraftOpen(), [], 'pr_draft_open', [], [PullRequestList::class]];
+        yield 'card.pr.all_closed_unmerged' => [new PullRequestsAllClosedUnmerged(), [], 'pr_all_closed_unmerged', [], [PullRequestList::class]];
         yield 'card.pr.all_finished_one_merged' => [new PullRequestsAllFinishedOneMerged(), [], 'pr_all_finished_one_merged', [], [PullRequestList::class]];
     }
 

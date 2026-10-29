@@ -779,7 +779,7 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertSame([
             ['forge' => 'github', 'repository' => 'acme/widgets', 'number' => $existing->number],
             ['forge' => 'github', 'repository' => 'acme/widgets', 'number' => 900],
-        ], $this->service(CardPullRequestRepository::class)->findCurrentKeys($epic));
+        ], array_map(static fn (array $key): array => \array_slice($key, 0, 3, true), $this->service(CardPullRequestRepository::class)->findCurrentKeys($epic)));
     }
 
     public function test_an_epic_that_links_its_open_pull_request_opens_nothing(): void

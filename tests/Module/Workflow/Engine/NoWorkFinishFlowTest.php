@@ -19,6 +19,7 @@ use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
 use App\Outbox\OutboxWriter;
@@ -51,6 +52,23 @@ final class NoWorkFinishFlowTest extends KernelTestCase
         self::assertCount(1, $moves);
         self::assertSame(Actor::System, $moves[0]->actorKind);
         self::assertEquals(['type' => 'workflow-rule', 'rule' => $reason], $moves[0]->detail['cause']);
+    }
+
+    public function test_a_card_with_only_a_reference_link_moves_to_the_terminal_column_after_an_implement_run_with_no_code(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('no-work-finish-reference');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-progress');
+        $reference = $this->pullRequest($card, PullRequestState::Merged);
+        $reference->mergedAt = new \DateTimeImmutable('2026-10-01 08:00:00');
+        $this->em()->flush();
+
+        $this->evaluate($card, '2026-10-02 12:00:00');
+        $this->settle($this->openImplement($card), 'nothing-to-build', '2026-10-02 12:30:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertTrue($this->fresh($card)->column->terminal);
     }
 
     /** @return iterable<string, array{string}> */

@@ -526,6 +526,42 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->title);
     }
 
+    public function test_a_closed_payload_gives_the_close_time_and_no_merge_time(): void
+    {
+        $node = self::pullRequest604();
+        $node['state'] = 'CLOSED';
+        $node['mergedAt'] = null;
+        $node['closedAt'] = '2026-10-20T08:30:00Z';
+
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
+
+        self::assertSame(PullRequestState::Closed, $snapshot->state);
+        self::assertSame('2026-10-20 08:30:00', $snapshot->closedAt?->format('Y-m-d H:i:s'));
+        self::assertNull($snapshot->mergedAt);
+    }
+
+    public function test_a_merged_payload_gives_both_times(): void
+    {
+        $node = self::pullRequest604();
+        $node['state'] = 'MERGED';
+        $node['mergedAt'] = '2026-10-20T08:30:00Z';
+        $node['closedAt'] = '2026-10-20T08:30:00Z';
+
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
+
+        self::assertSame(PullRequestState::Merged, $snapshot->state);
+        self::assertSame('2026-10-20 08:30:00', $snapshot->mergedAt?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-10-20 08:30:00', $snapshot->closedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_an_open_payload_has_no_close_time(): void
+    {
+        $node = self::pullRequest604();
+        $node['closedAt'] = null;
+
+        self::assertNull(self::mapper()->map($node, self::rules604(), null)->closedAt);
+    }
+
     /** @return iterable<string, array{mixed, ?string, ?string}> */
     public static function authors(): iterable
     {
