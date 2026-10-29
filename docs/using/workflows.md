@@ -700,11 +700,23 @@ with one of two reason codes:
 
 The bridge settles the `implement` request as done with that reason. The rule
 with the same name then moves the card to the terminal column. The rule waits
-while the card links a pull request, while it is an epic, and while work runs on
+while the card has a work link, while it is an epic, and while work runs on
 it. The card history says "Via the nothing-to-build workflow rule" or "Via the
 delivered-without-code workflow rule". The worker also adds one line to the card
 body that names the decision or the document. A parent epic counts the card as
 finished, as it counts any card in a terminal column.
+
+### Reference links
+
+A link to a pull request that was merged or closed before you linked it is a
+reference. Use a reference to record where a bug came from. The workflow does
+not count a reference as a work link. The condition `card.pr.linked`, the
+`merged` rule and every other pull request condition ignore it, and an
+implement request names no pull request for it. The card page still shows the
+link. A card that has only reference links gets implement work when it reaches
+Implementation, and it does not move to Done. A link on a card that existed
+before this rule is judged against the creation time of the card. A closed pull
+request counts as work until Loupe has read its close time.
 
 In a workflow file, the condition `card.run.finished_with` with a `kind` and a
 `reason` is true when the latest work request of the card is done, of
