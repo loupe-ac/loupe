@@ -36,6 +36,7 @@ final class ResolveExperimentPinRequest
         public mixed $metrics = null,
         public mixed $headline = null,
         public mixed $covers = null,
+        public mixed $baseline = null,
     ) {
     }
 
@@ -238,6 +239,22 @@ final class ResolveExperimentPinRequest
         sort($kinds);
 
         return $kinds;
+    }
+
+    /**
+     * The variant the others are compared against. Null when it is not one of
+     * the variants of the request. A bad baseline never refuses the pin, so a
+     * bridge from before the baseline still runs, and the server keeps the
+     * stored one.
+     */
+    public function baseline(): ?string
+    {
+        $variants = $this->choice()['variants'] ?? null;
+        if (null === $variants || !\is_string($this->baseline) || !\in_array($this->baseline, $variants, true)) {
+            return null;
+        }
+
+        return $this->baseline;
     }
 
     public static function isName(string $name): bool

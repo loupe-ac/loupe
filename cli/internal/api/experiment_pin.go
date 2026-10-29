@@ -59,10 +59,10 @@ func (h ExperimentHeadline) MarshalJSON() ([]byte, error) {
 // order of variants. metrics are the metric keys the experiment declares,
 // which the server shows on its Comparison tab. headline is the goal and the
 // guards of the experiment, and a nil headline leaves the field out of the
-// body. covers are the kinds of work the experiment covers, which the server
+// body. baseline is the variant the others are compared against. covers are the kinds of work the experiment covers, which the server
 // keeps to judge the cards of the experiment. It answers the variant, and
 // the variant the pin moved from, or "" when the pin did not move.
-func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, cardID, candidate string, variants []string, weights []int, metrics []string, headline *ExperimentHeadline, covers []string) (string, string, error) {
+func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, cardID, candidate string, variants []string, weights []int, metrics []string, headline *ExperimentHeadline, covers []string, baseline string) (string, string, error) {
 	if variants == nil {
 		variants = []string{}
 	}
@@ -82,7 +82,8 @@ func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, c
 		Metrics   []string            `json:"metrics"`
 		Headline  *ExperimentHeadline `json:"headline,omitempty"`
 		Covers    []string            `json:"covers"`
-	}{candidate, variants, weights, metrics, headline, covers})
+		Baseline  string              `json:"baseline"`
+	}{candidate, variants, weights, metrics, headline, covers, baseline})
 	if err != nil {
 		return "", "", fmt.Errorf("encode the experiment pin: %w", err)
 	}

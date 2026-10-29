@@ -193,6 +193,29 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         self::assertSame(['implement', 'review'], $this->onlyDefinition()->covers);
     }
 
+    public function test_the_baseline_is_stored_and_a_request_with_none_keeps_it(): void
+    {
+        $this->boot();
+        [$owner, $project] = $this->scenario('pin-baseline');
+        $weights = [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]];
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights);
+
+        self::assertNull($this->onlyDefinition()->baseline);
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights, baseline: 'opus');
+
+        self::assertSame('opus', $this->onlyDefinition()->baseline);
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights);
+
+        self::assertSame('opus', $this->onlyDefinition()->baseline);
+
+        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights, baseline: 'sonnet');
+
+        self::assertSame('sonnet', $this->onlyDefinition()->baseline);
+    }
+
     public function test_covers_with_no_weights_store_no_definition(): void
     {
         $this->boot();
@@ -287,6 +310,7 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         ?array $metrics = null,
         ?array $headline = null,
         ?array $covers = null,
+        ?string $baseline = null,
     ): ResolveExperimentPinResult {
         $handler = self::getContainer()->get(ResolveExperimentPinHandler::class);
         self::assertInstanceOf(ResolveExperimentPinHandler::class, $handler);
@@ -302,6 +326,7 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
             metrics: $metrics,
             headline: $headline,
             covers: $covers,
+            baseline: $baseline,
         ));
     }
 

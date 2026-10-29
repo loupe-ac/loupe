@@ -1096,14 +1096,16 @@ the token.
 An experiment splits the cards of one or more kinds of work between models or
 accounts. It lives in the top-level `experiments:` block of the rule file, and
 the map key is the experiment name. The name has the shape of a variant name.
-`covers` lists the kinds of work that run on the variant of the card. Each
-variant has a `name` and a `weight`, and it can set a `model`, an `account` and
-`permissions`:
+`covers` lists the kinds of work that run on the variant of the card.
+`baseline` names the variant that the other variants are compared against, and
+every experiment needs one. Each variant has a `name` and a `weight`, and it can
+set a `model`, an `account` and `permissions`:
 
 ```yaml
 experiments:
   implement-php-lsp:
     covers: [implement, fix]
+    baseline: no-lsp
     variants:
       - {name: no-lsp, weight: 1}
       - name: lsp
@@ -1129,7 +1131,8 @@ A setting of a variant for a kind takes the first value that is not empty, in
 this order: the `kinds` entry of the variant for that kind, the variant, the
 work entry, then the account, as [Model and permissions](#model-and-permissions)
 says. A variant with no settings, such as `no-lsp` above, runs each covered kind
-on the settings of its work entry. A weight sets the share of the cards, so
+on the settings of its work entry. That variant is a good baseline, because it
+runs the settings you had before the experiment. A weight sets the share of the cards, so
 weights of 3 and 1 give the first variant three cards in four.
 
 An experiment can also list its `metrics`. Each key is a metric key that the
@@ -1213,6 +1216,8 @@ The bridge refuses the file, at start and on a reload, when:
 - `experiments:` is a list, as in an old file
 - an experiment name does not match `^[a-z0-9][a-z0-9_-]{0,63}$`
 - `covers` is empty, or lists a kind twice
+- an experiment has no `baseline`, or its `baseline` names no variant of that
+  experiment
 - a covered kind has no entry in `work:`, or its entry is an interactive entry,
   a command entry, or an entry for a subject other than a card
 - two experiments cover the same kind
@@ -1248,8 +1253,9 @@ pin of the card, through the
 [experiment pin endpoint](../reference/worker-runs.md#resolving-an-experiment-pin).
 The server keeps the first pin of each card, so a card keeps its variant on
 every later covered run, resumes included. Each pin request also sends the
-weight of each variant and the `covers` list. The server keeps the latest
-weights of each experiment.
+weight of each variant, the `covers` list and the `baseline`. The server keeps
+the latest weights and the latest baseline of each experiment. A change of the
+`baseline` applies at the next pin request of the experiment.
 
 A change to the weights moves only the cards that have no pin yet. When you
 remove a variant, its cards take the candidate on their next run. That run
@@ -1270,6 +1276,26 @@ A work request that names its own model joins no experiment. The
 compares the variants of each experiment. To end an experiment, remove its block
 from `experiments:`, and run `loupe bridge reload`. Each work entry then runs its
 own settings again.
+
+### Add the baseline to an experiment
+
+A file with an experiment that has no `baseline` fails to load with the new
+bridge. An update of a running bridge also fails its preflight against that
+file, and rolls back. An older bridge refuses the key, because it reads the
+known keys only. A running bridge reads the file only at start and on a reload,
+so edit the file first and update after. The workers keep running:
+
+1. Copy `rules.yaml` to a backup file next to it.
+2. Add `baseline: <variant name>` to each block under `experiments:`. Name the
+   variant that you want the other variants compared against.
+3. Do not run `loupe bridge reload` before the update, because the running
+   bridge still refuses the key.
+4. Run `loupe update`. The preflight of the new binary reads the edited file,
+   and the new image adopts the running workers.
+
+With `autoUpdate: true`, edit the file before the release arrives. A release that
+meets the old file rolls back and goes on the skip list in `update.json`, so run
+`loupe update` by hand after the edit.
 
 ### Move an old file to the block
 
