@@ -25,7 +25,7 @@ The configuration lives in `rules.yaml`, beside the CLI's `config.json`. Its
 `work:` map names each kind of work the bridge runs, and what it runs for it.
 The `projects` map gives each project the directory its workers run in. The
 bridge refuses to start without the file. A file that still lists `rules:` or
-`experiments:` fails to load, with a message that names the work map. The
+an `experiments:` list fails to load, with a message that names the work map. The
 bridge no longer matches events, so the event filters, `maxChain`, `resume` and
 `maxResumes` are gone.
 
@@ -84,8 +84,8 @@ Set `collect: false`, and the bridge sends no tool call and no timing of any
 run. It also takes and sends no [host sample](#host-samples). A reload applies
 a change to the key.
 
-A worker entry can also split its runs between models or accounts with
-variants, as [Experiments](#experiments) describes.
+An `experiments:` block can split the runs of a worker entry between models or
+accounts, as [Experiments](#experiments) describes.
 
 The bridge authenticates with a token that carries the agent scope. `loupe
 login` gets one through the OAuth device flow: it prints a link and a code, and
@@ -489,8 +489,8 @@ A variant with no `account` or no `permissions` takes the value of its entry.
 An [interactive entry](#interactive-action) takes its mode from its own
 `permissions` only. The model order is the same for it. The bridge log names
 the mode that ran in the `permission_mode` field. The `worker_started` line
-holds it for an entry with no variants, and `worker_variant` holds it for an
-experiment. The `run.json` file of the run holds it as `permissionMode`. The run page in
+holds it for a run outside an experiment, and `worker_variant` holds it for an
+experiment run. The `run.json` file of the run holds it as `permissionMode`. The run page in
 Loupe does not show it.
 
 Each run records its harness, its account and its model in Loupe. That holds
@@ -789,7 +789,7 @@ The MCP check fails in these cases:
   [A Codex account](#a-codex-account) describes.
 
 A failing account turns off its own entries only. An entry is off when its
-account, or the account of one of its variants, fails. Every other entry keeps
+account, or the account of a variant of an experiment that covers it, fails. Every other entry keeps
 running, and a request for an entry that is off waits, as it does when no
 bridge takes it. The log line `account_failed` names the account, the reason
 and the detail. The heartbeat sends each account with its harness, its state
@@ -1071,38 +1071,52 @@ the token.
 
 ## Experiments
 
-An experiment splits the cards of a kind of work between models or accounts.
-A worker entry of the [work map](#work-requests) lists its `variants`. The
-experiment takes the name of the kind, unless the entry sets `experiment`. Each variant has a `name`, a `weight`, and a `model`
-or an `account`. A variant can also set `permissions`. The entry sets no
-`model`:
+An experiment splits the cards of one or more kinds of work between models or
+accounts. It lives in the top-level `experiments:` block of the rule file, and
+the map key is the experiment name. The name has the shape of a variant name.
+`covers` lists the kinds of work that run on the variant of the card. Each
+variant has a `name` and a `weight`, and it can set a `model`, an `account` and
+`permissions`:
 
 ```yaml
+experiments:
+  implement-php-lsp:
+    covers: [implement, fix]
+    variants:
+      - {name: no-lsp, weight: 1}
+      - name: lsp
+        weight: 1
+        account: claude-worker-lsp
+        kinds:
+          fix: {model: claude-opus-5-5}
+
 work:
   implement:
     prompt: Implement card {cardNumber}.
-    variants:
-      - name: opus
-        weight: 1
-        model: opus
-      - name: sonnet
-        weight: 1
-        model: claude-sonnet-5-5
+    model: claude-sonnet-5-5
+  fix:
+    prompt: Fix card {cardNumber}.
 ```
 
-A variant with no `model` takes the model of its account, as
-[Model and permissions](#model-and-permissions) says. A variant with no
-`account` or no `permissions` takes the value of its entry. A variant's weight
-sets its share of the cards, so weights of 3 and 1 give the first variant three
-cards in four.
+Each covered kind asks the server for the pin of the card. The first covered run
+of a card pins its variant, and every later covered run of the card takes the
+same variant, a fix round included. A kind that `covers` does not list ignores
+the experiment.
 
-An entry with variants can also list its `metrics`. Each key is a metric key
-that the `metric_list` MCP tool names, such as `cost` or `merge-rate`:
+A setting of a variant for a kind takes the first value that is not empty, in
+this order: the `kinds` entry of the variant for that kind, the variant, the
+work entry, then the account, as [Model and permissions](#model-and-permissions)
+says. A variant with no settings, such as `no-lsp` above, runs each covered kind
+on the settings of its work entry. A weight sets the share of the cards, so
+weights of 3 and 1 give the first variant three cards in four.
+
+An experiment can also list its `metrics`. Each key is a metric key that the
+`metric_list` MCP tool names, such as `cost` or `merge-rate`:
 
 ```yaml
-work:
+experiments:
   implement:
-    prompt: Implement card {cardNumber}.
+    covers: [implement]
     variants:
       - {name: opus, weight: 1, model: opus}
       - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
@@ -1110,20 +1124,20 @@ work:
 ```
 
 The Comparison tab of the experiment shows the declared metrics in that order.
-An entry with no `metrics` shows the default six. The bridge sends the list
+An experiment with no `metrics` shows the default six. The bridge sends the list
 with each pin request, so the latest list wins. The bridge does not know the
 metrics of the server, so it checks the shape of each key only. The server
-shows a note for a key that it does not know. A key such as `merge-rate` is known only when the workflow template of the project declares it.
+shows a note for a key that it does not know. A key such as `merge-rate` is
+known only when the workflow template of the project declares it.
 
-An entry with variants can also set a `headline`. The headline picks the goal
-metric of the experiment and its guards. A goal names a `metric` and says
-whether `lower` or `higher` is `better`. A guard is a metric that must not get
-worse:
+An experiment can also set a `headline`. The headline picks the goal metric of
+the experiment and its guards. A goal names a `metric` and says whether `lower`
+or `higher` is `better`. A guard is a metric that must not get worse:
 
 ```yaml
-work:
+experiments:
   implement:
-    prompt: Implement card {cardNumber}.
+    covers: [implement]
     variants:
       - {name: opus, weight: 1, model: opus}
       - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
@@ -1132,67 +1146,61 @@ work:
       guards: [merge-rate, fix-rounds]
 ```
 
-Both keys are optional, but a headline needs at least one. An entry with no
+Both keys are optional, but a headline needs at least one. An experiment with no
 `goal` or no `guards` key uses the defaults of the server. An explicit
 `guards: []` means no guards. The goal metric cannot also be a guard. A goal
 with no `better` loads, and the Comparison tab then asks for a direction. The
 bridge sends the headline with each pin request, and sends nothing when the
-entry has no headline. It checks the shape of each key only.
+experiment has no headline. It checks the shape of each key only.
 
-The `experiment` field names the experiment of an entry with variants. Use it
-to start a new trial on a kind of work without mixing it with an old one. The
-old experiment keeps its cards, its pins and its figures:
-
-```yaml
-work:
-  implement:
-    prompt: Implement card {cardNumber}.
-    experiment: implement-php-lsp
-    variants:
-      - {name: no-lsp, weight: 1, model: claude-sonnet-5-5}
-      - {name: lsp, weight: 1, model: claude-sonnet-5-5, account: claude-worker-lsp}
-```
-
-An entry with no `experiment` field keeps the name of its kind. The name has the
-shape of a variant name. The bridge sends it with each pin request and each run
-report. A card that a pin holds in the old experiment has no pin in the new one,
-so it draws a variant again on its next run. The draw hashes the experiment name,
-so a new name gives each card a new draw. An experiment page leaves out a card
-that already ran the same kind of work in another experiment, as
+To start a new trial on a kind of work without mixing it with an old one, give
+the new experiment another name. The old experiment keeps its cards, its pins
+and its figures. A card that a pin holds in the old experiment has no pin in the
+new one, so it draws a variant again on its next run. The draw hashes the
+experiment name, so a new name gives each card a new draw. An experiment page
+leaves out a card that already ran a covered kind in another experiment, as
 [Experiments](../using/experiments.md) says.
 
 The bridge refuses the file, at start and on a reload, when:
 
-- an entry sets both `model` and `variants`
-- an interactive entry or a command entry sets `variants`, `metrics`,
-  `headline` or `experiment`
-- an entry sets `metrics`, `headline` or `experiment` and no `variants`
+- a work entry sets `variants`, `metrics`, `headline` or `experiment`. These keys
+  moved into the `experiments:` block, and the message names the entry
+- `experiments:` is a list, as in an old file
+- an experiment name does not match `^[a-z0-9][a-z0-9_-]{0,63}$`
+- `covers` is empty, or lists a kind twice
+- a covered kind has no entry in `work:`, or its entry is an interactive entry,
+  a command entry, or an entry for a subject other than a card
+- two experiments cover the same kind
+- a `kinds` entry of a variant names a kind that `covers` does not list
 - a `headline` has neither a `goal` nor `guards`
 - a `goal` has a `better` other than `lower` or `higher`, or a metric key that
   does not match the shape. A `goal` with no `better` loads
 - a headline lists more than 16 guards, one guard twice, or the goal metric as
   a guard
-- an `experiment` value does not match `^[a-z0-9][a-z0-9_-]{0,63}$`, an empty
-  value included
-- two entries name the same experiment, by the field or by the kind
-- an entry lists more than 16 metrics, or one metric twice
+- an experiment lists more than 16 metrics, or one metric twice
 - a metric key does not match `^[a-z][a-z0-9:-]{0,63}$`
-- an entry has no variants, or more than 32
+- an experiment has no variants, or more than 32
 - a variant has a weight below 1 or above 1,000,000
-- a variant sets neither `model` nor `account`
-- a variant has a model longer than 100 characters, with whitespace or with a
-  control character
-- a variant names an account that the `accounts` block does not declare
-- two variants of one entry share a name
+- a variant, or a `kinds` entry, has a model longer than 100 characters, with
+  whitespace or with a control character
+- a variant, or a `kinds` entry, names an account that the `accounts` block does
+  not declare, or a `permissions` level other than `read-only`, `workspace` or
+  `full`
+- two variants of one experiment share a name
 - a variant name does not match `^[a-z0-9][a-z0-9_-]{0,63}$`
 
+A variant needs no `model` and no `account`, so a variant can be the control
+arm that runs the settings of the work entry.
+
 Before a worker starts, the bridge draws a candidate variant. It hashes the
-experiment name and the card id onto the weights, so every bridge draws the same candidate
-for a card. The bridge then asks the server for the pin of the card, through the
+experiment name and the card id onto the weights, so every bridge draws the same
+candidate for a card, whatever the kind. The bridge then asks the server for the
+pin of the card, through the
 [experiment pin endpoint](../reference/worker-runs.md#resolving-an-experiment-pin).
 The server keeps the first pin of each card, so a card keeps its variant on
-every later run of the kind, resumes included. Each pin request also sends the
-weight of each variant. The server keeps the latest weights of each experiment.
+every later covered run, resumes included. Each pin request also sends the
+weight of each variant and the `covers` list. The server keeps the latest
+weights of each experiment.
 
 A change to the weights moves only the cards that have no pin yet. When you
 remove a variant, its cards take the candidate on their next run. That run
@@ -1208,11 +1216,27 @@ The `running` report and the outcome of the run carry `experiment`, `variant`,
 [Worker run API](../reference/worker-runs.md#reporting-a-run-state) page gives
 their rules. A live run keeps its variant through an [update](#updates).
 
-A card keeps its variant only in the kind that has the variants. Another kind
-with its own `model:` runs that model on the card. The
+A work request that names its own model joins no experiment. The
 [Experiments](../using/experiments.md) tab of the project's **Analytics** page
-compares the variants of each experiment. To end an experiment, give the entry a
-plain `model:` again, and remove its `variants:`. Then run `loupe bridge reload`.
+compares the variants of each experiment. To end an experiment, remove its block
+from `experiments:`, and run `loupe bridge reload`. Each work entry then runs its
+own settings again.
+
+### Move an old file to the block
+
+A file that still sets `variants` on a work entry fails to load with the new
+bridge. An update of a running bridge also fails its preflight against that
+file, and rolls back. To move the file:
+
+1. Stop the bridge with `loupe bridge stop`.
+2. Install the new CLI with `loupe update`.
+3. Move the `variants`, `metrics`, `headline` and `experiment` keys of each work
+   entry into a block of `experiments:`. The old `experiment` value becomes the
+   map key, and the kind of the entry goes into `covers`. Without an
+   `experiment` value, the map key is the name of the kind.
+4. Move the model that each variant set into its own `model` and `kinds`, and
+   set the `model` of the work entry for a kind that the variants do not name.
+5. Start the bridge.
 
 ## Updates
 
@@ -1633,7 +1657,7 @@ afterwards. It passes each element unchanged, and the removal shares the
 `timeout` of the entry. Each element takes the placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
-`permissions`, `variants`, `metrics`, `headline`, `workerPool`, `before`, `refresh` and `reset` on a command
+`permissions`, `workerPool`, `before`, `refresh` and `reset` on a command
 entry. A worker or interactive entry cannot set `params` or `description`.
 
 ### Command parameters
@@ -1792,7 +1816,7 @@ lives in one repository. The entry sets nothing else. When the run ends done,
 Loupe records on the epic the blockers that were done when the work opened.
 
 A worker entry takes `prompt`, `account`,
-`model`, `permissions`, `before`, `workerPool`, `variants`, `metrics` and `headline`. A command entry takes
+`model`, `permissions`, `before` and `workerPool`. A command entry takes
 `run` and `timeout`. The rule check
 refuses a field that the action does not use.
 
@@ -1817,7 +1841,7 @@ runs the analyses that the owner starts on the
 Loupe plugin does the work. A work request can name a model and an effort. A
 request model replaces the `model` of the entry. A request effort reaches
 claude as `--effort`. A work entry has no effort of its own. A request model
-also skips the [experiment](#experiments) draw of an entry with variants, so
+also skips the [experiment](#experiments) draw of a covered entry, so
 the run joins no experiment. An analysis always names its model and its
 effort.
 
@@ -2129,7 +2153,7 @@ work:
 ```
 
 An interactive entry takes `prompt`, `account`, `model` and `permissions`. The check
-refuses `before`, `variants`, `metrics`, `headline` and `workerPool` on it. It also refuses the action
+refuses `before` and `workerPool` on it. It also refuses the action
 on Windows, because the launch script is a POSIX shell script. The action works
 on macOS and Linux.
 
