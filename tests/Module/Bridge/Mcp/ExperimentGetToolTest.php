@@ -232,6 +232,7 @@ final class ExperimentGetToolTest extends KernelTestCase
             ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
             ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5],
         ]];
+        $definition->metrics = ['cost', 'harness-events:diagnostics'];
         $em->persist($definition);
         for ($i = 1; $i <= 5; ++$i) {
             $run = $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a');
@@ -242,8 +243,10 @@ final class ExperimentGetToolTest extends KernelTestCase
         $em->flush();
         $this->actAsMcpTokenBoundTo($project);
 
-        $headline = $this->tool()('model-test')['headline'];
+        $result = $this->tool()('model-test');
+        $headline = $result['headline'];
 
+        self::assertSame(['Cost per merged card', 'Harness events: diagnostics'], array_column($result['metrics'], 'label'));
         [$comparison] = $headline['comparisons'];
         self::assertSame('a', $comparison['variant']);
         self::assertSame('held', $comparison['state']);

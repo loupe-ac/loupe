@@ -205,6 +205,16 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertSame('sonnet needs 5 more cards', self::text()->needs($oneShort, new ExperimentArm('opus', 1.0, 9)));
     }
 
+    public function test_a_metric_that_names_a_bucket_or_an_event_reads_its_family_name(): void
+    {
+        self::assertSame('Harness events: diagnostics', self::text()->metricName(new ExperimentMetric('harness-events:diagnostics', [], null)));
+        self::assertSame('Calls in lsp', self::text()->metricName(new ExperimentMetric('bucket-calls:lsp', [], null)));
+        self::assertSame('Time in local-gate', self::text()->metricName(new ExperimentMetric('bucket-time:local-gate', [], null)));
+        self::assertSame('Time in tests, subagents included', self::text()->metricName(new ExperimentMetric('bucket-time-all:tests', [], null)));
+        self::assertSame('Cost per merged card', self::text()->metricName(new ExperimentMetric('cost', [], null)));
+        self::assertSame('Review rounds', self::text()->metricName(new ExperimentMetric('review-rounds', [], null, label: 'Review rounds')));
+    }
+
     private static function text(): ExperimentHeadlineText
     {
         $translator = new Translator('en');

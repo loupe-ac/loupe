@@ -14,6 +14,7 @@ use App\Module\Bridge\Experiment\ExperimentGuard;
 use App\Module\Bridge\Experiment\ExperimentGuardChange;
 use App\Module\Bridge\Experiment\ExperimentHeadline;
 use App\Module\Bridge\Experiment\ExperimentMetric;
+use App\Module\Bridge\Experiment\ExperimentMetricName;
 use App\Module\Bridge\Experiment\ExperimentVariant;
 use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
@@ -43,6 +44,7 @@ final readonly class ExperimentGetTool
         private BridgeSubjectResolver $subjects,
         private ShowExperimentHandler $showExperiment,
         private TranslatorInterface $translator,
+        private ExperimentMetricName $names,
     ) {
     }
 
@@ -112,7 +114,7 @@ final readonly class ExperimentGetTool
         return [
             'goal' => [
                 'key' => $goal->metric->key,
-                'label' => GoalState::UnknownMetric === $goal->problem ? $goal->metric->key : $this->label($goal->metric),
+                'label' => GoalState::UnknownMetric === $goal->problem ? $goal->metric->key : $this->names->of($goal->metric),
                 'valueType' => $goal->metric->valueType()?->value,
                 'direction' => $goal->direction?->value,
                 'problem' => $goal->problem?->value,
@@ -141,7 +143,7 @@ final readonly class ExperimentGetTool
             ], $headline->controls),
             'guards' => array_map(fn (ExperimentGuard $guard): array => [
                 'key' => $guard->metric->key,
-                'label' => $this->label($guard->metric),
+                'label' => $this->names->of($guard->metric),
                 'valueType' => self::valueType($guard->metric),
                 'baselinePoint' => $guard->baselinePoint,
             ], $headline->guards),
@@ -165,17 +167,12 @@ final readonly class ExperimentGetTool
         return ($metric->valueType() ?? throw new \LogicException(\sprintf('The experiment metric %s has no value type.', $metric->key)))->value;
     }
 
-    private function label(ExperimentMetric $metric): string
-    {
-        return $metric->label ?? $this->translator->trans('bridge.experiments.metric.'.$metric->key);
-    }
-
     /** @return ExperimentMetricRow */
     private function metric(ExperimentMetric $metric, string $valueType, bool $top = false): array
     {
         return [
             'key' => $metric->key,
-            'label' => $top ? $this->label($metric) : ($metric->label ?? $metric->key),
+            'label' => $top ? $this->names->of($metric) : ($metric->label ?? $metric->key),
             'valueType' => $valueType,
             'clear' => $metric->clear,
             'byVariant' => array_map(self::range(...), $metric->byVariant),

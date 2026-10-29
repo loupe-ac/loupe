@@ -28,7 +28,7 @@
         {% elseif goal.problem is not null %}
             <p class="lp-experiment-note" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.problem.value)|trans({'%metric%': '<code class="lp-experiment-config-key">' ~ goal.metric.key|e ~ '</code>', '%lower%': '<code class="lp-experiment-config-key">' ~ 'better: lower</code>', '%higher%': '<code class="lp-experiment-config-key">' ~ 'better: higher</code>'})|raw }}</p>
         {% else %}
-            {% set goalName = goal.metric.label ?? ('bridge.experiments.metric.' ~ goal.metric.key)|trans %}
+            {% set goalName = text.metricName(goal.metric) %}
             <h3 class="lp-experiment-section" data-experiment-goal-heading>{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalName, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</h3>
             <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
 <div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
@@ -146,7 +146,7 @@
                         {% for guard in headline.guards %}
                             {% set guardIndex = loop.index0 %}
                             <tr data-experiment-guard="{{ guard.metric.key }}">
-                                <th scope="row">{{ guard.metric.label ?? ('bridge.experiments.metric.' ~ guard.metric.key)|trans }}</th>
+                                <th scope="row">{{ text.metricName(guard.metric) }}</th>
                                 <td class="lp-experiment-table__number">{{ text.point(guard.metric, guard.baselinePoint) ?? '–' }}</td>
                                 {% for comparison in headline.comparisons %}
                                     {% set guardChange = comparison.guards[guardIndex] %}
@@ -217,7 +217,7 @@
             <tbody>
                 {% for metric in report.metrics %}
                     {% set format = metric.format %}
-                    {{ experimentRows.metric_row(metric, metric.label ?? ('bridge.experiments.metric.' ~ metric.key)|trans, format, report.variants, false) }}
+                    {{ experimentRows.metric_row(metric, text.metricName(metric), format, report.variants, false) }}
                     {% for part in metric.parts %}
                         {{ experimentRows.metric_row(part, part.label ?? (part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key})), format, report.variants, true) }}
                     {% endfor %}

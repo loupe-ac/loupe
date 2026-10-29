@@ -473,6 +473,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'controls' => [
             ['metric' => 'harness-events:diagnostics', 'variant' => 'c', 'expect' => '> 1', 'share' => 0.5],
         ]];
+        $definition->metrics = ['cost', 'harness-events:diagnostics'];
         $this->seedCosts($em, $project, 'a', ['4.000000', '4.000000', '4.000000', '4.000000', '4.000000'], 1);
         $this->seedCosts($em, $project, 'b', ['2.000000', '2.000000', '2.000000', '2.000000', '2.000000'], 6);
         $this->seedCosts($em, $project, 'c', ['5.000000', '5.000000', '5.000000', '5.000000', '5.000000'], 11);
@@ -490,6 +491,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertSame(['c', '$5.00', '–', '–', 'Control failed'], $this->cells($crawler->filter('[data-experiment-goal-row="c"]')));
         self::assertCount(0, $crawler->filter('[data-experiment-goal-hold="b"]'));
         self::assertSame('c: Controls failed: 1 of 1. The comparison names no winner.', trim($crawler->filter('[data-experiment-goal-hold="c"]')->text()));
+        self::assertStringStartsWith('Harness events: diagnostics', $this->cells($crawler->filter('[data-metric="harness-events:diagnostics"]'))[0]);
     }
 
     public function test_an_experiment_with_no_baseline_shows_a_note_and_no_comparison(): void

@@ -13,6 +13,7 @@ use App\Module\Bridge\Experiment\ExperimentGoal;
 use App\Module\Bridge\Experiment\ExperimentGuard;
 use App\Module\Bridge\Experiment\ExperimentGuardChange;
 use App\Module\Bridge\Experiment\ExperimentMetric;
+use App\Module\Bridge\Experiment\ExperimentMetricName;
 use App\Module\Bridge\Experiment\Stats;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricValueType;
@@ -25,11 +26,20 @@ final readonly class ExperimentHeadlineText
 
     private MetricValueFormatter $values;
 
+    private ExperimentMetricName $names;
+
     public function __construct(
         private TranslatorInterface $translator,
         private string $locale,
     ) {
         $this->values = new MetricValueFormatter($locale);
+        $this->names = new ExperimentMetricName($translator);
+    }
+
+    /** The name of a metric row, such as "Cost per merged card" or "Harness events: diagnostics". */
+    public function metricName(ExperimentMetric $metric): string
+    {
+        return $this->names->of($metric);
     }
 
     /** The change of the variant against the baseline, such as "12% cheaper" or "3 pp higher". The sign reads the same in every row. Null when the comparison has no change. */
@@ -89,14 +99,7 @@ final readonly class ExperimentHeadlineText
     public function controlLabel(ExperimentControl $control): string
     {
         $key = $control->metric;
-        $name = null;
-        foreach ([Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents] as $family) {
-            if (str_starts_with($key, $family->value.':')) {
-                $name = $this->translator->trans('analytics.metrics.metric.'.str_replace('-', '_', $family->value).'_named', [Metric::HarnessEvents === $family ? '%kind%' : '%bucket%' => substr($key, \strlen($family->value) + 1)]);
-                break;
-            }
-        }
-        $name ??= $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans(ExperimentMetric::COVERED_COST === $key ? 'bridge.experiments.metric.'.$key : 'analytics.metrics.metric.'.$key));
+        $name = $this->names->named($key) ?? $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans(ExperimentMetric::COVERED_COST === $key ? 'bridge.experiments.metric.'.$key : 'analytics.metrics.metric.'.$key));
 
         return $name.' '.$control->expect;
     }
