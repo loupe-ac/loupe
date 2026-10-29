@@ -151,13 +151,6 @@ class ForgePullRequest
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $appApprovalSha = null;
 
-    // The two columns stay until a follow-up migration drops them. Nothing reads or writes them.
-    #[ORM\Column(options: ['default' => false])]
-    public bool $baseRequiresReview = false;
-
-    #[ORM\Column(options: ['default' => false])]
-    public bool $approvalCheckUnpinned = false;
-
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $approvalCheckRunId = null;
 
