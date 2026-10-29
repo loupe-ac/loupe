@@ -10,6 +10,7 @@ use App\Module\Forge\Service\PullRequestCheckConclusion;
 use App\Module\Forge\Service\PullRequestCheckFailed;
 use App\Module\Forge\Service\PullRequestCheckWriters;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** Posts the approval check of a pull request. Loupe never posts an incomplete run, so a waiting pull request has no run. */
@@ -23,6 +24,7 @@ final readonly class ApprovalCheckPublisher
         private PullRequestCheckWriters $writers,
         private TranslatorInterface $translator,
         private EntityManagerInterface $em,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -58,6 +60,7 @@ final readonly class ApprovalCheckPublisher
         $pullRequest->approvalCheckRunId = (string) $runId;
         $pullRequest->approvalCheckSha = $headSha;
         $pullRequest->approvalCheckConclusion = self::PASSED;
+        $pullRequest->approvalCheckPassedAt = $this->clock->now();
         $this->em->flush();
 
         return true;
