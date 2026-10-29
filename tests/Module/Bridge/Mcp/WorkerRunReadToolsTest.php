@@ -330,11 +330,23 @@ final class WorkerRunReadToolsTest extends KernelTestCase
             [['bucket' => 'read', 'mainMs' => 1000, 'withSubagentsMs' => 4000, 'calls' => 9], ['bucket' => 'lsp', 'mainMs' => 0, 'withSubagentsMs' => 2000, 'calls' => 3]],
             $found['buckets'],
         );
-        self::assertSame(['diagnostics' => 2], $found['harnessEvents']);
+        self::assertSame('{"diagnostics":2}', json_encode($found['harnessEvents']));
 
         $none = $this->getTool()((string) $without->id)['runs'][0];
         self::assertNull($none['buckets']);
         self::assertNull($none['harnessEvents']);
+    }
+
+    public function test_get_keeps_a_reported_empty_harness_event_report_a_map(): void
+    {
+        [$project] = $this->projects('get-empty-events');
+        $em = $this->em();
+        $run = $this->seedRun($em, $project);
+        $run->harnessEvents = [];
+        $em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame('{}', json_encode($this->getTool()((string) $run->id)['runs'][0]['harnessEvents']));
     }
 
     public function test_get_reads_the_whole_series_oldest_first(): void

@@ -279,7 +279,8 @@ subagents. The most frequent kind comes first.
 
 `worker_run_get` returns the same figures. Each run has `buckets`, a list of
 `bucket`, `mainMs`, `withSubagentsMs` and `calls`, and `harnessEvents`, a map of
-kind to count. Both are `null` when Loupe holds no data.
+kind to count. The map is `{}` when the bridge reported a run with no events.
+Both are `null` when Loupe holds no data.
 
 ## A warning on the card
 
