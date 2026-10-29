@@ -5,12 +5,15 @@ package transcript
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -232,6 +235,79 @@ func Between(path string, since, until time.Time) (Usage, error) {
 	return usage, nil
 }
 
+// maxEventKinds is how many kinds of harness event one report holds.
+const maxEventKinds = 100
+
+var eventKind = regexp.MustCompile(`^[a-z0-9_.-]{1,64}$`)
+
+// CleanEvents is events with the kinds a report can carry: a kind that does
+// not match the pattern and a count below one drop out. When more than
+// maxEventKinds kinds remain, the largest counts stay, and a tie keeps the
+// name that sorts first. The result is never nil.
+func CleanEvents(events map[string]int64) map[string]int64 {
+	kinds := make([]string, 0, len(events))
+	for kind, n := range events {
+		if n > 0 && eventKind.MatchString(kind) {
+			kinds = append(kinds, kind)
+		}
+	}
+	slices.SortFunc(kinds, func(a, b string) int {
+		return cmp.Or(cmp.Compare(events[b], events[a]), strings.Compare(a, b))
+	})
+	kinds = kinds[:min(len(kinds), maxEventKinds)]
+	out := make(map[string]int64, len(kinds))
+	for _, kind := range kinds {
+		out[kind] = events[kind]
+	}
+
+	return out
+}
+
+// EventsBetween counts the harness events of the transcript and its subagent
+// transcripts from from on, and before to when to is set. An attachment line
+// counts under its attachment type and a system line under its subtype. A line
+// with no time or no valid kind counts nothing, and the result holds kinds and
+// counts alone. An unreadable subagent file counts nothing.
+func EventsBetween(path string, from, to time.Time) (map[string]int64, error) {
+	counts := map[string]int64{}
+	add := func(line []byte) {
+		var entry struct {
+			Type       string    `json:"type"`
+			Timestamp  time.Time `json:"timestamp"`
+			Subtype    string    `json:"subtype"`
+			Attachment struct {
+				Type string `json:"type"`
+			} `json:"attachment"`
+		}
+		if json.Unmarshal(line, &entry) != nil || entry.Timestamp.IsZero() ||
+			entry.Timestamp.Before(from) || (!to.IsZero() && !entry.Timestamp.Before(to)) {
+			return
+		}
+		kind := ""
+		switch entry.Type {
+		case "attachment":
+			kind = entry.Attachment.Type
+		case "system":
+			kind = entry.Subtype
+		}
+		if eventKind.MatchString(kind) {
+			counts[kind]++
+		}
+	}
+	if err := eachLineAny(path, add, `"attachment"`, `"system"`); err != nil {
+		return nil, err
+	}
+	subagents := filepath.Join(strings.TrimSuffix(path, ".jsonl"), "subagents")
+	files, _ := os.ReadDir(subagents)
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".jsonl") {
+			_ = eachLineAny(filepath.Join(subagents, f.Name()), add, `"attachment"`, `"system"`)
+		}
+	}
+
+	return CleanEvents(counts), nil
+}
+
 // decodeAssistant reads one assistant entry. An entry with no id, no time or
 // no usage counts nothing, and neither does the <synthetic> model Claude Code
 // uses for its own notices.
@@ -275,6 +351,11 @@ func decodeAssistant(line []byte) (string, message, time.Time, bool) {
 // hold a whole tool result, so it has no length limit. A torn last line, as a
 // killed process leaves, fails to decode and counts nothing.
 func eachLine(path, marker string, fn func(line []byte)) error {
+	return eachLineAny(path, fn, marker)
+}
+
+// eachLineAny is eachLine for the lines that hold any of the markers.
+func eachLineAny(path string, fn func(line []byte), markers ...string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("read the transcript: %w", err)
@@ -282,10 +363,13 @@ func eachLine(path, marker string, fn func(line []byte)) error {
 	defer f.Close()
 
 	r := bufio.NewReaderSize(f, 1<<16)
-	needle := []byte(marker)
+	needles := make([][]byte, len(markers))
+	for i, m := range markers {
+		needles[i] = []byte(m)
+	}
 	for {
 		line, err := r.ReadBytes('\n')
-		if bytes.Contains(line, needle) {
+		if slices.ContainsFunc(needles, func(n []byte) bool { return bytes.Contains(line, n) }) {
 			fn(line)
 		}
 		if errors.Is(err, io.EOF) {

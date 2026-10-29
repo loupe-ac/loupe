@@ -1558,4 +1558,59 @@ class WorkerRunRepository extends ServiceEntityRepository
 
         return array_map(static fn (mixed $id): Uuid => Uuid::fromString((string) $id), $ids);
     }
+
+    /**
+     * The count of one harness event kind on each run. A run with no map has null, and a run with a map that lacks the
+     * kind has 0.
+     *
+     * @param list<Uuid> $runIds
+     *
+     * @return array<string, int|null> run id => count
+     */
+    public function findHarnessEventCountsOfRuns(array $runIds, string $kind): array
+    {
+        $counts = [];
+        foreach (array_chunk($runIds, 1000) as $chunk) {
+            $rows = $this->getEntityManager()->getConnection()->fetchAllNumeric(
+                <<<'SQL'
+                    SELECT id,
+                        CASE WHEN harness_events IS NULL THEN NULL ELSE COALESCE((harness_events ->> :kind)::bigint, 0) END
+                    FROM bridge_worker_runs
+                    WHERE id IN (:runs)
+                    SQL,
+                ['kind' => $kind, 'runs' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $chunk)],
+                ['runs' => ArrayParameterType::STRING],
+            );
+            foreach ($rows as [$runId, $count]) {
+                $counts[(string) $runId] = null === $count ? null : (int) $count;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * The harness event kinds on the runs of the project, the largest total first, then by name.
+     *
+     * @return list<string>
+     */
+    public function findHarnessEventKindsOfProject(Project $project): array
+    {
+        /** @var list<string> $kinds */
+        $kinds = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT e.key
+                FROM bridge_worker_runs r
+                CROSS JOIN LATERAL jsonb_each_text(
+                    CASE WHEN jsonb_typeof(r.harness_events) = 'object' THEN r.harness_events ELSE '{}'::jsonb END
+                ) AS e
+                WHERE r.project_id = :project
+                GROUP BY e.key
+                ORDER BY SUM(e.value::bigint) DESC, e.key
+                SQL,
+            ['project' => (string) $project->id],
+        );
+
+        return $kinds;
+    }
 }

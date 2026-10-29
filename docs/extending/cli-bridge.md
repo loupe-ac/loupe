@@ -907,6 +907,28 @@ a server with agent push switched off. The bridge then logs
 of later runs still try, so the calls come back when agent push comes back on. Set `collect: false` in `rules.yaml` to send no tool call and no
 timing at all.
 
+## Harness events
+
+The harness adapter also counts the events that the harness writes beside the
+messages of a run. The bridge sends the counts with the outcome of the run in
+the field `harnessEvents`. The field is a map of
+kind to count, such as `{"diagnostics": 3, "hook_success": 12}`. The bridge
+sends only the kind and the count. It sends no event text and no payload.
+
+For Claude Code, a kind comes from the transcript. An `attachment` line gives
+the kind from its `attachment.type`. A `system` line gives the kind from its
+`subtype`. For Codex, a kind comes from the type of an `event_msg` line of the
+session file.
+
+A kind is 1 to 64 characters of a-z, 0-9, `_`, `.` and `-`. A count is an
+integer from 0 to 1,000,000,000. A report holds at most 100 kinds. The server
+refuses a report that breaks these limits with a 422.
+
+The server reads a missing `harnessEvents` as unknown counts, and an empty map
+`{}` as the count 0 for every kind. So a bridge sends the field only when it
+read the events of the run. The [Analytics](../using/analytics.md#harness-events)
+page shows the counts as the **Harness events** metrics.
+
 ## Host samples
 
 The bridge can sample the machine it runs on. A sample holds the use of each

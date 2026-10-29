@@ -209,12 +209,20 @@ type session struct {
 	lines    []time.Time
 	contexts []sample
 	calls    []rawCall
+	// messages are the events the thread logged, by kind.
+	messages []message
 	// spawns are the subagents the thread started.
 	spawns []spawn
 	// byID maps a call_id to its index in calls, and shells holds the index
 	// of each call that can run a shell command.
 	byID   map[string]int
 	shells []int
+}
+
+// message is one event line of the thread: its time and its type.
+type message struct {
+	at   time.Time
+	kind string
 }
 
 // sample is one value at one time.
@@ -300,6 +308,9 @@ func (s *session) event(at time.Time, raw json.RawMessage, previous *tokens) {
 	}
 	if json.Unmarshal(raw, &p) != nil {
 		return
+	}
+	if p.Type != "" && p.Type != "token_count" && p.Type != "item_completed" {
+		s.messages = append(s.messages, message{at: at, kind: p.Type})
 	}
 	switch {
 	case p.Type == "token_count" && p.Info != nil:
@@ -482,6 +493,7 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 		out.HarnessVersion = sess.version
 	}
 	if treeErr == nil && sess.id != "" {
+		out.HarnessEvents = transcript.CleanEvents(t.eventsBetween(run.Since, end))
 		out.CallsRead = true
 		out.Calls, out.Timing, out.PeakContextTokens = t.metrics(run.Since, end)
 	}

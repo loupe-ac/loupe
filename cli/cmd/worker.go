@@ -87,6 +87,9 @@ type workerResult struct {
 	// of the Loupe plugin it loaded, and empty when unknown.
 	harnessVersion string
 	skillVersion   string
+	// harnessEvents counts the events of the run by kind, and is nil when the
+	// harness could not read them.
+	harnessEvents map[string]int64
 }
 
 // workerProc is a started worker: its shell's pid, which leads its process
@@ -548,6 +551,7 @@ func workerOutcome(dir string, killed bool, waitErr error) workerResult {
 	res := decodeWorkerOutput(doc, head.buf.Bytes(), head.dropped, stderr.text())
 	res.streamed, res.calls, res.timing, res.peakContextTokens = doc.CallsRead, doc.Calls, doc.Timing, doc.PeakContextTokens
 	res.harnessVersion, res.skillVersion = doc.HarnessVersion, doc.SkillVersion
+	res.harnessEvents = doc.HarnessEvents
 	if readErr := errors.Join(cmp.Or(doc.ReadErr, headErr), stderrErr); readErr != nil {
 		res.output = strings.TrimLeft(res.output+"\n"+readErr.Error(), "\n")
 	}

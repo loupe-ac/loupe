@@ -8,12 +8,14 @@ use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Workflow\Contract\TemplateMetrics;
 
 final readonly class ListMetricsHandler
 {
     public function __construct(
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
+        private WorkerRunRepository $workerRuns,
         private TemplateMetrics $templateMetrics,
     ) {
     }
@@ -25,6 +27,6 @@ final readonly class ListMetricsHandler
             ...array_map(MetricShape::template(...), $this->templateMetrics->forProject($command->project->requireId())->metrics),
         ];
 
-        return new ListMetricsView($metrics, $this->workerRunBucketTimes->findBucketNamesOfProject($command->project));
+        return new ListMetricsView($metrics, $this->workerRunBucketTimes->findBucketNamesOfProject($command->project), $this->workerRuns->findHarnessEventKindsOfProject($command->project));
     }
 }

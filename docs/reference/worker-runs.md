@@ -260,6 +260,21 @@ run. The server stores a value from the outcome or the `stopped` report, and a
 report with no value keeps the stored value. A run with no value has an unknown
 peak.
 
+### Harness events
+
+An outcome or a `stopped` report can carry `harnessEvents`, an object that maps
+a kind to a count. A kind is 1 to 64 characters of a-z, 0-9, `_`, `.` and `-`.
+A count is an integer from 0 to 1,000,000,000. The object holds at most 100
+kinds, and it is an object, never a list. The server refuses any other shape with
+a 422. The bridge sends no event text.
+
+The server stores the object as the report gave it. A report with no
+`harnessEvents` keeps the stored object, and a report with an empty object `{}`
+replaces it with an empty object. A run with no stored object has unknown
+counts. A run with an object that lacks a kind has the count 0 for that kind.
+[Harness events](../extending/cli-bridge.md#harness-events) says how the bridge
+builds the object.
+
 ### How a report moves the run
 
 A run moves forward only. The open states rank `queued`, then `resumed`, then
@@ -812,7 +827,7 @@ its experiment weights and its card holds with it. Deleting an account deletes
 the same data of every project it owned, and removes the account's name from a hold it placed in
 another project. The account's data export holds each run in
 `worker_runs.json`, with its state, its history, its usage source, its worker pool, its `experiment`, `variant`,
-`requestedModel` and `switchedFrom`, its `harness`, `account`, `model`, `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion`, its `workRequestId`, `workKind` and `ruleId`, and its `toolTimeMs`, `idleGapMs` and `peakContextTokens`. It holds every usage
+`requestedModel` and `switchedFrom`, its `harness`, `account`, `model`, `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion`, its `workRequestId`, `workKind` and `ruleId`, and its `toolTimeMs`, `idleGapMs`, `peakContextTokens` and `harnessEvents`. It holds every usage
 row in `worker_run_usage.json`. It holds every tool call in
 `worker_run_tool_calls.json`, with its project, the `runKey` of its run, and the
 fields of [the tool call report](#reporting-the-tool-calls-of-a-run). It holds the time of each run in each bucket in

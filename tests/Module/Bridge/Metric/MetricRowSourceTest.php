@@ -10,6 +10,7 @@ use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Workflow\Contract\TemplateMetrics;
@@ -83,8 +84,17 @@ final class MetricRowSourceTest extends KernelTestCase
             $this->createStub(FinishedCardSourceInterface::class),
             $reports,
             $this->bucketTimeRepository(),
+            $this->workerRunRepository(),
             new TemplateMetricValues($workRequests, $reports, $this->createStub(TemplateMetrics::class), []),
         );
+    }
+
+    private function workerRunRepository(): WorkerRunRepository
+    {
+        $repository = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $repository);
+
+        return $repository;
     }
 
     private function bucketTimeRepository(): WorkerRunBucketTimeRepository

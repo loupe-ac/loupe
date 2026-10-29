@@ -70,6 +70,7 @@ not counted.
 | **Runs** | the number of worker runs on a finished card | card |
 | **Stop rate** | the share of runs that reached an outcome and blocked, failed, gave no result or gave up | run |
 | **Time in &lt;bucket&gt;** | the tool time of a run in one [time bucket](#time-buckets), such as **Time in git** | run, card |
+| **Harness events: &lt;kind&gt;** | the number of [harness events](#harness-events) of one kind in a run, such as **Harness events: diagnostics** | run, card |
 
 The workflow template of the project can declare more metrics. They appear
 after the built-in ones, with the label and the description from the template.
@@ -88,6 +89,25 @@ for it, and that time can be 0 ms. The time is unknown for a run with no
 tool-call data, such as a command run or an old run. An address can name any
 valid bucket that has no time. The Metrics tab then shows that bucket, with 0
 on each run with data. A card adds the time of its runs with data.
+
+### Harness events
+
+The harness writes small events beside the messages of a run, such as
+diagnostics, hook results and queued commands. The bridge counts them for each
+kind. Only the kind names and the counts leave the machine. No event text is
+sent. [Harness events](../extending/cli-bridge.md#harness-events) says how the
+bridge names and counts them.
+
+The metric picker lists one **Harness events** metric for each kind that a run
+of the project reported, the kind with the largest total first. The key of a
+metric is `harness-events:<kind>`, such as `harness-events:diagnostics`. A kind
+is 1 to 64 characters of a-z, 0-9, `_`, `.` and `-`.
+
+The count is 0 for a run that reported events and none of this kind. The count
+is unknown for a run that reported no events, such as a run of an older bridge.
+An address can name any valid kind that no run reported. The Metrics tab then
+shows that kind with 0 on each run that reported events. A card adds the counts
+of its runs with a known count. It is unknown when no run of the card has one.
 
 The dollars are the API list price that claude reports. On a subscription, you
 do not pay this amount. A duration shows in milliseconds, seconds, minutes or
@@ -176,7 +196,7 @@ the old address stay when the page knows them.
 ## Through the MCP
 
 The MCP tool `metric_query` returns the same numbers as this page, and
-`metric_list` lists the metrics. See [the MCP tools](mcp.md#what-the-tools-do).
+`metric_list` lists the metrics, with one `harness-events:<kind>` entry for each kind of the project. See [the MCP tools](mcp.md#what-the-tools-do).
 Over the MCP, the group of a bridge is its id, and the page shows its name.
 
 ## Reports

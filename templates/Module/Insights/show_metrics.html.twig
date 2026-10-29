@@ -12,10 +12,12 @@
 {% set metric = query.metric %}
 {% if metric.template is not null %}
     {% set metricName = metric.template.label %}
-{% elseif metric.key.bucketName is null %}
+{% elseif metric.key.name is null %}
     {% set metricName = ('analytics.metrics.metric.' ~ metric.key.key)|trans %}
+{% elseif metric.key.metric.value == 'harness-events' %}
+    {% set metricName = 'analytics.metrics.metric.harness_events_named'|trans({'%kind%': metric.key.name}) %}
 {% else %}
-    {% set metricName = 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': metric.key.bucketName}) %}
+    {% set metricName = 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': metric.key.name}) %}
 {% endif %}
 {% set rowsKey = 'analytics.metrics.rows.' ~ query.unit.value %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
@@ -36,7 +38,15 @@
                 {# A bucket name comes from the project rules, so it is rendered as text. Never add |raw here. #}
                 <optgroup label="{{ 'analytics.metrics.metric_group.bucket_time'|trans }}">
                     {% for name in bucketNames %}
-                    <option value="bucket-time:{{ name }}"{{ metric.key.bucketName is same as(name) ? ' selected' : '' }}>{{ 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': name}) }}</option>
+                    <option value="bucket-time:{{ name }}"{{ metric.key.name is same as(name) and metric.key.metric.value == 'bucket-time' ? ' selected' : '' }}>{{ 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': name}) }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+                {% if harnessEventKinds is not empty %}
+                {# A kind name comes from the bridge, so it is rendered as text. Never add |raw here. #}
+                <optgroup label="{{ 'analytics.metrics.metric_group.harness_events'|trans }}">
+                    {% for kind in harnessEventKinds %}
+                    <option value="harness-events:{{ kind }}"{{ metric.key.name is same as(kind) and metric.key.metric.value == 'harness-events' ? ' selected' : '' }}>{{ 'analytics.metrics.metric.harness_events_named'|trans({'%kind%': kind}) }}</option>
                     {% endfor %}
                 </optgroup>
                 {% endif %}

@@ -80,6 +80,7 @@ final readonly class WorkerRunExporter implements UserDataExporterInterface
                 'toolTimeMs' => $run->toolTimeMs,
                 'idleGapMs' => $run->idleGapMs,
                 'peakContextTokens' => $run->peakContextTokens,
+                'harnessEvents' => $run->harnessEvents,
                 'history' => $history[$run] ?? [],
             ];
         }

@@ -128,13 +128,20 @@ func (Harness) Interactive(program string, spec harness.Spec) string {
 
 // ReadRun reads the stdout of claude in dir. A stdout that does not read to
 // its end gives no calls and its error, and keeps the result line it held.
-func (Harness) ReadRun(dir string, _ harness.RunInfo) harness.Output {
+// The events come from the transcript of the session, and stay nil when it
+// does not read.
+func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 	out, err := ReadFile(filepath.Join(dir, "stdout"))
 	doc := decode(out.Result)
 	doc.ReadErr = err
 	if err == nil {
 		doc.CallsRead, doc.Calls, doc.Timing, doc.PeakContextTokens = true, out.Calls, out.Timing, out.PeakContextTokens
 		doc.HarnessVersion, doc.SkillVersion = out.HarnessVersion, out.SkillVersion
+	}
+	if path, err := h.find(run.SessionID); err == nil {
+		if events, err := transcript.EventsBetween(path, run.Since, time.Time{}); err == nil {
+			doc.HarnessEvents = events
+		}
 	}
 
 	return doc
