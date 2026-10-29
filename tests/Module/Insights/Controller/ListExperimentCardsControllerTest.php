@@ -36,6 +36,7 @@ final class ListExperimentCardsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('Cards', trim($crawler->filter('.lp-experiment-tabs [aria-current="page"]')->text()));
+        self::assertSame(['Card', 'Variant', 'Column', 'Runs', 'Covered cost', 'Fix rounds', 'Cost', 'Left out'], $crawler->filter('[role="columnheader"]')->each(static fn (Crawler $cell): string => trim($cell->text())));
         self::assertSame([(string) $switched->id, (string) $b->id, (string) $a->id], $crawler->filter('[data-experiment-card]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-card')));
         self::assertSame(['All', 'a', 'b', 'Left out'], $crawler->filter('[data-experiment-filter] a')->each(static fn (Crawler $link): string => trim($link->text())));
         self::assertSame($base.'?variant=b', $crawler->filter('[data-experiment-filter] a')->eq(2)->attr('href'));

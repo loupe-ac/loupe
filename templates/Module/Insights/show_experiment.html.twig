@@ -105,8 +105,8 @@
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cards'|trans }}</th>
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.finished'|trans }}</th>
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.runs'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cost'|trans }}</th>
                     <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.covered_cost'|trans }}</th>
+                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cost'|trans }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -118,8 +118,8 @@
                         <td class="lp-experiment-table__number">{{ variant.cards }}</td>
                         <td class="lp-experiment-table__number">{{ variant.finishedCards }}</td>
                         <td class="lp-experiment-table__number">{{ variant.runs }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.costMicros is null ? '–' : (variant.costMicros / 1000000)|format_currency('USD') }}</td>
                         <td class="lp-experiment-table__number">{{ variant.coveredCostMicros is null ? '–' : (variant.coveredCostMicros / 1000000)|format_currency('USD') }}</td>
+                        <td class="lp-experiment-table__number">{{ variant.costMicros is null ? '–' : (variant.costMicros / 1000000)|format_currency('USD') }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

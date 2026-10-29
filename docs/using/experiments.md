@@ -94,8 +94,8 @@ The variants table shows, for each variant:
 | Cards | the cards of the variant that the figures use |
 | Finished | the cards that merged or stand in a terminal column |
 | Runs | every worker run of those cards, of any kind of work |
-| Cost | the cost of those runs |
 | Covered cost | the cost of the runs of the experiment of a covered kind |
+| Cost | the cost of every worker run of those cards |
 
 The metrics table has one row per metric. Each variant has two columns: the
 value, and the **Likely range** around it. By default the table shows the merge
@@ -170,8 +170,8 @@ below the metrics shows how many cards are left out, and links to them.
 ## The Cards tab
 
 The **Cards** tab lists the cards of the experiment, 20 to a page, the latest
-run first. A row shows the card, the variant, the column, the runs, the fix
-rounds, the cost, the covered cost, and a tag for each reason that leaves the card out. The runs
+run first. A row shows the card, the variant, the column, the runs, the covered
+cost, the fix rounds, the cost, and a tag for each reason that leaves the card out. The runs
 and the cost count every worker run of the card. A cost shows a dash when no run
 of the card reported usage, or when the cost is unknown. Select a card to open it on the board.
 
