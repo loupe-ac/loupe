@@ -38,7 +38,7 @@ final class BucketRuleControllersTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-bucket-rule-form] form[method="post"][action="/projects/'.$projectId.'/analytics/time-buckets"]'));
     }
 
-    public function test_the_summary_shows_the_fallback_bucket_with_no_time_and_no_link(): void
+    public function test_the_summary_says_no_data_yet_and_shows_no_link_when_no_run_has_bucket_data(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('summary-empty');
@@ -59,7 +59,7 @@ final class BucketRuleControllersTest extends WebTestCase
         self::assertCount(1, $summary->filter('.lp-metric-table__cue[data-controller="overflow-cue"] > .lp-metric-table__scroll[data-overflow-cue-target="viewport"] > table'));
         self::assertCount(1, $summary->filter('.lp-metric-table__cue > .lp-overflow-cue__arrow--next'));
         self::assertSame(['other'], $summary->filter('[data-bucket-summary-row]')->each(static fn ($row): string => (string) $row->attr('data-bucket-summary-row')));
-        self::assertSame('No time yet', trim($summary->filter('[data-bucket-summary-no-time]')->text()));
+        self::assertSame('No data yet', trim($summary->filter('[data-bucket-summary-no-data]')->text()));
         self::assertCount(0, $summary->filter('a[data-bucket-summary-open]'));
     }
 
@@ -85,17 +85,48 @@ final class BucketRuleControllersTest extends WebTestCase
         $summary = $crawler->filter('[data-bucket-summary]');
         $rows = [];
         $summary->filter('[data-bucket-summary-row]')->each(static function ($row) use (&$rows): void {
-            $rows[(string) $row->attr('data-bucket-summary-row')] = 0 === $row->filter('[data-bucket-summary-no-time]')->count()
-                ? array_map(static fn (string $hook): string => trim($row->filter('[data-bucket-summary-'.$hook.']')->text()), ['total', 'median', 'runs', 'share'])
-                : 'No time yet' === trim($row->filter('[data-bucket-summary-no-time]')->text()) && 0 === $row->filter('a')->count();
+            $rows[(string) $row->attr('data-bucket-summary-row')] = array_map(static fn (string $hook): string => trim($row->filter('[data-bucket-summary-'.$hook.']')->text()), ['total', 'median', 'runs', 'share']);
         });
         self::assertSame([
             'tests' => ['4 s', '2 s', '2 of 3 runs', '36%'],
             'git' => ['4 s', '2 s', '2 of 3 runs', '36%'],
-            'docs' => true,
+            'docs' => ['0 ms', '0 ms', '2 of 3 runs', '0%'],
             'other' => ['1 s', '500 ms', '2 of 3 runs', '9%'],
             'deploy' => ['2 s', '1 s', '2 of 3 runs', '18%'],
         ], $rows);
+    }
+
+    public function test_a_bucket_with_zero_milliseconds_shows_numbers_and_a_link_when_runs_have_data(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $project = $this->scenarioProject('summary-zero');
+        $this->rule($project, 'Read:*', 'lsp', 0);
+        $first = $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('-2 days'));
+        $second = $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('-3 days'));
+        $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('-4 days'));
+        $this->seedBucketTimes($em, $first, ['other' => 1000]);
+        $this->seedBucketTimes($em, $second, ['other' => 3000]);
+        foreach ([[$first, 2, 500], [$second, 3, 1500]] as [$run, $calls, $ms]) {
+            $em->getConnection()->update('bridge_worker_run_bucket_times', ['ms_with_subagents' => $ms, 'calls' => $calls], ['run_id' => (string) $run->id, 'bucket' => 'other']);
+        }
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/time-buckets');
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-bucket-summary-row="lsp"]');
+        self::assertCount(0, $crawler->filter('[data-bucket-summary-no-data]'));
+        self::assertSame(
+            ['0 ms', '0 ms', '2 of 3 runs', '0%'],
+            array_map(static fn (string $hook): string => trim($row->filter('[data-bucket-summary-'.$hook.']')->text()), ['total', 'median', 'runs', 'share']),
+        );
+        self::assertSame(['0 ms', '0'], array_map(static fn (string $hook): string => trim($row->filter('[data-bucket-summary-'.$hook.']')->text()), ['with-subagents', 'calls']));
+        self::assertCount(1, $row->filter('a[data-bucket-summary-open]'));
+        $other = $crawler->filter('[data-bucket-summary-row="other"]');
+        self::assertSame(['2 s', '5'], array_map(static fn (string $hook): string => trim($other->filter('[data-bucket-summary-'.$hook.']')->text()), ['with-subagents', 'calls']));
     }
 
     public function test_a_bucket_link_opens_its_metric_per_run_in_the_range(): void
@@ -159,7 +190,7 @@ final class BucketRuleControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $summary = $crawler->filter('[data-bucket-summary]');
         self::assertSame(['1', 'other', '01'], $summary->filter('[data-bucket-summary-row]')->each(static fn ($row): string => (string) $row->attr('data-bucket-summary-row')));
-        self::assertSame(['3 s', '1 s'], $summary->filter('[data-bucket-summary-total]')->each(static fn ($cell): string => trim($cell->text())));
+        self::assertSame(['3 s', '0 ms', '1 s'], $summary->filter('[data-bucket-summary-total]')->each(static fn ($cell): string => trim($cell->text())));
     }
 
     public function test_the_range_leaves_an_older_run_out(): void

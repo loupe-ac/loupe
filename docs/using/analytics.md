@@ -348,11 +348,15 @@ the count of closed runs.
 | **Total** | the time of all the runs with data in the bucket |
 | **Median per run** | the middle time of a run with data. A run with no time in the bucket counts as 0 |
 | **Runs with data** | the runs with tool-call data, out of all the closed runs in the range |
+| **With subagents** | the time of all the runs in the bucket, subagent work included. It shows **No data** until Loupe computes the buckets of the project again |
+| **Calls** | the number of calls in the bucket, subagent calls included. It shows **No data** until Loupe computes the buckets of the project again |
 | **Share** | the part of the time of all the listed buckets |
 
 The range is **30 days**, **90 days** or **All time**, and its default is
-**90 days**. A bucket with no time in the range shows **No time yet**. A bucket
-with time has the link **Open in Metrics**. It opens the Metrics tab on the
+**90 days**. When no run in the range has tool-call data, every bucket shows
+**No data yet**. Otherwise a bucket with no time shows its figures as 0 ms,
+with the share 0%, so you can tell it apart from missing data. Each bucket has
+the link **Open in Metrics**. It opens the Metrics tab on the
 time in that bucket for each run, with the median and the same range.
 
 The MCP tools `analysis_get` and `analysis_report` let the agent read and
