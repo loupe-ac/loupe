@@ -254,7 +254,7 @@ final readonly class GitHubUserApi
                 'query' => ['per_page' => self::PAGE_SIZE, 'page' => $page],
             ]);
             $items = null === $key ? $body : ($body[$key] ?? null);
-            if (!\is_array($items) || !array_is_list($items)) {
+            if (!\is_array($items) || (null === $key && !array_is_list($items))) {
                 throw new GitHubUserApiFailed('malformed_body');
             }
 
