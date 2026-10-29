@@ -11,6 +11,7 @@ use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use App\Module\Bridge\View\WorkerRunBucketView;
 
 /**
  * Shapes worker runs and bridge commands for an MCP tool result.
@@ -19,7 +20,7 @@ use App\Module\Bridge\ValueObject\BridgeCommandState;
  * @phpstan-type UsageRow array{model: string, source: string, inputTokens: int, outputTokens: int, cacheReadTokens: int, cacheWriteTokens: int, costUsd: ?string}
  * @phpstan-type RunMetrics array{durationMs: ?int, costUsd: ?float, tokensIn: ?int, tokensOut: ?int, tokensCacheRead: ?int, tokensCacheWrite: ?int, toolTimeMs: ?int, modelTimeMs: ?int, toolCalls: ?int, failedCalls: ?int, longestCallMs: ?int, idleGapMs: ?int, subagentMs: ?int, peakContextTokens: ?int, meanCpuPct: ?float, peakMemBytes: ?int, peakSwapBytes: ?int, concurrentRuns: ?int, onBattery: ?bool}
  * @phpstan-type WorkerRunRow array{runId: string, runKey: ?string, kind: string, subjectType: string, subjectId: string, cardNumber: ?int, workRequestId: ?string, workKind: ?string, ruleId: ?string, state: string, sessionId: ?string, startedAt: ?string, endedAt: ?string, exitCode: ?int, bridgeId: ?string, harness: ?string, account: ?string, harnessSessionId: ?string, harnessVersion: ?string, cliVersion: ?string, skillVersion: ?string, pendingCommand: PendingCommand|null, reason: ?string, usage: list<UsageRow>, model: ?string, experiment: ?string, variant: ?string, metrics: RunMetrics|null}
- * @phpstan-type WorkerRunDetail array{runId: string, runKey: ?string, kind: string, subjectType: string, subjectId: string, cardNumber: ?int, workRequestId: ?string, workKind: ?string, ruleId: ?string, state: string, sessionId: ?string, startedAt: ?string, endedAt: ?string, exitCode: ?int, bridgeId: ?string, harness: ?string, account: ?string, harnessSessionId: ?string, harnessVersion: ?string, cliVersion: ?string, skillVersion: ?string, pendingCommand: PendingCommand|null, reason: ?string, usage: list<UsageRow>, model: ?string, experiment: ?string, variant: ?string, metrics: RunMetrics|null, continuesRunId: ?string, receivedAt: string, failureReason: ?string, output: string, stateChanges: list<array{state: string, at: string}>}
+ * @phpstan-type WorkerRunDetail array{runId: string, runKey: ?string, kind: string, subjectType: string, subjectId: string, cardNumber: ?int, workRequestId: ?string, workKind: ?string, ruleId: ?string, state: string, sessionId: ?string, startedAt: ?string, endedAt: ?string, exitCode: ?int, bridgeId: ?string, harness: ?string, account: ?string, harnessSessionId: ?string, harnessVersion: ?string, cliVersion: ?string, skillVersion: ?string, pendingCommand: PendingCommand|null, reason: ?string, usage: list<UsageRow>, model: ?string, experiment: ?string, variant: ?string, metrics: RunMetrics|null, continuesRunId: ?string, receivedAt: string, failureReason: ?string, output: string, stateChanges: list<array{state: string, at: string}>, buckets: list<array{bucket: string, mainMs: int, withSubagentsMs: ?int, calls: ?int}>|null, harnessEvents: \stdClass|null}
  * @phpstan-type BridgeCommandRow array{commandId: string, runId: string, kind: string, state: string, reason: ?string, requestedAt: string, expiresAt: string, settledAt: ?string}
  */
 final readonly class WorkerRunPayload
@@ -116,6 +117,10 @@ final readonly class WorkerRunPayload
                 static fn (WorkerRunStateChange $change): array => ['state' => $change->state->value, 'at' => $change->at->format(\DATE_ATOM)],
                 $stateChanges,
             ),
+            'buckets' => isset($readings->buckets[(string) $run->id])
+                ? array_map(static fn (WorkerRunBucketView $bucket): array => ['bucket' => $bucket->bucket, 'mainMs' => $bucket->mainMs, 'withSubagentsMs' => $bucket->withSubagentsMs, 'calls' => $bucket->calls], $readings->buckets[(string) $run->id])
+                : null,
+            'harnessEvents' => null === $run->harnessEvents ? null : (object) $run->harnessEvents,
         ];
     }
 

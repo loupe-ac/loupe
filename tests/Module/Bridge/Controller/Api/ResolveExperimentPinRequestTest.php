@@ -89,7 +89,7 @@ final class ResolveExperimentPinRequestTest extends TestCase
         yield 'null in the list' => [['cost', null]];
         yield 'a capital' => [['Cost']];
         yield 'a digit first' => [['1cost']];
-        yield 'too long' => [['c'.str_repeat('o', 64)]];
+        yield 'too long' => [['c'.str_repeat('o', 128)]];
         yield 'a repeat' => [['cost', 'cost']];
         yield 'a trailing newline' => [["cost\n"]];
     }
@@ -171,5 +171,41 @@ final class ResolveExperimentPinRequestTest extends TestCase
 
         self::assertNotNull($request->weights());
         self::assertNull($request->headline());
+    }
+
+    public function test_valid_covers_come_back_sorted(): void
+    {
+        $request = new ResolveExperimentPinRequest(covers: ['implement', 'review:agent', 'fix']);
+
+        self::assertSame(['fix', 'implement', 'review:agent'], $request->covers());
+    }
+
+    public function test_thirty_two_covers_are_kept(): void
+    {
+        $covers = array_map(static fn (int $i): string => 'k'.$i, range(1, ResolveExperimentPinRequest::MAX_COVERS));
+
+        self::assertCount(ResolveExperimentPinRequest::MAX_COVERS, new ResolveExperimentPinRequest(covers: $covers)->covers() ?? []);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidCovers(): iterable
+    {
+        yield 'absent' => [null];
+        yield 'a string' => ['fix'];
+        yield 'empty' => [[]];
+        yield 'not a list' => [['a' => 'fix']];
+        yield 'a duplicate' => [['fix', 'fix']];
+        yield 'too many' => [array_map(static fn (int $i): string => 'k'.$i, range(1, ResolveExperimentPinRequest::MAX_COVERS + 1))];
+        yield 'an int' => [[1]];
+        yield 'null in the list' => [['fix', null]];
+        yield 'upper case' => [['Fix']];
+        yield 'free text' => [['fix it']];
+        yield 'too long' => [[str_repeat('a', 41)]];
+    }
+
+    #[DataProvider('invalidCovers')]
+    public function test_invalid_covers_give_null(mixed $covers): void
+    {
+        self::assertNull(new ResolveExperimentPinRequest(covers: $covers)->covers());
     }
 }

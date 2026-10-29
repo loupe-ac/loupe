@@ -270,6 +270,45 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertCount(0, $noFactRow->filter('[data-worker-run-metrics]'));
     }
 
+    public function test_the_drawer_shows_the_time_buckets_and_harness_events_of_a_run(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'drawer-buckets-owner@example.com');
+        $project = $this->project($em, $owner, 'Drawer buckets');
+        $withBuckets = $this->seedRun($em, $project, cardNumber: 1);
+        $this->seedBucketFigures($em, $withBuckets, [['tests', 252_000, 363_000, 18], ['lsp', 0, 12_000, 3], ['old', 5000, null, null]]);
+        $withBuckets->harnessEvents = ['hook_success' => 4, 'edited_text_file' => 7, 'diagnostics' => 4];
+        $noBuckets = (string) $this->seedRun($em, $project, cardNumber: 2)->id;
+        $noEvents = $this->seedRun($em, $project, cardNumber: 3);
+        $noEvents->harnessEvents = [];
+        $em->flush();
+
+        $projectId = (string) $project->id;
+        $withId = (string) $withBuckets->id;
+        $noEventsId = (string) $noEvents->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs');
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('[data-worker-run-id="'.$withId.'"] [data-worker-run-bucket]');
+        self::assertSame(
+            [['tests', '4m 12s', '6m 3s', '18'], ['lsp', '0s', '12s', '3'], ['old', '5s', 'unknown', 'unknown']],
+            $rows->each(static fn (Crawler $row): array => array_map(trim(...), $row->filter('th, td')->each(static fn (Crawler $cell): string => $cell->text()))),
+        );
+        $events = $crawler->filter('[data-worker-run-id="'.$withId.'"] [data-worker-run-harness-events]');
+        self::assertSame(['edited_text_file', 'diagnostics', 'hook_success'], $events->filter('dt')->each(static fn (Crawler $term): string => trim($term->text())));
+
+        $empty = $crawler->filter('[data-worker-run-id="'.$noBuckets.'"]');
+        self::assertCount(1, $empty->filter('[data-worker-run-buckets-empty]'));
+        self::assertCount(0, $empty->filter('[data-worker-run-buckets]'));
+        self::assertCount(1, $empty->filter('[data-worker-run-harness-events-empty]'));
+        self::assertCount(1, $crawler->filter('[data-worker-run-id="'.$noEventsId.'"] [data-worker-run-harness-events-none]'));
+    }
+
     public function test_a_run_shows_its_worker_pool_in_the_row_and_the_drawer(): void
     {
         $client = static::createClient();

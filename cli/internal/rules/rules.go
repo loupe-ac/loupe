@@ -177,6 +177,9 @@ type File struct {
 	WorkerPools map[string]WorkerPool `yaml:"workerPools"`
 	// Work maps each work request kind the bridge claims to what it runs.
 	Work map[string]WorkEntry `yaml:"work"`
+	// Experiments maps an experiment name to the kinds of work it covers and
+	// the variants they run on.
+	Experiments map[string]ExperimentBlock `yaml:"experiments"`
 	// AcceptEntries lets the server add a command entry to this file. It is off
 	// when the key is absent.
 	AcceptEntries bool `yaml:"acceptEntries"`
@@ -485,7 +488,15 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		}
 		s.work[kind] = w
 	}
-	errs = append(errs, checkSharedExperiments(s.work)...)
+	covered, experimentErrs := checkExperiments(s.work, f.Experiments)
+	errs = append(errs, experimentErrs...)
+	for _, kind := range slices.Sorted(maps.Keys(covered)) {
+		e := covered[kind]
+		w := s.work[kind]
+		errs = append(errs, s.checkVariantAccounts(kind, &w, &e, declared, root)...)
+		w.experiment = &e
+		s.work[kind] = w
+	}
 	if s.appPrompts {
 		if err := checkPool("", f.WorkerPools, pools, known, s.maxWorkers); err != nil {
 			errs = append(errs, fmt.Errorf("appPrompts: %w", err))
@@ -640,29 +651,44 @@ func (s *Set) Isolation() string {
 	return cmp.Or(s.fileDefaults.Isolation, IsolationWorktree)
 }
 
-// checkWorkAccounts checks the account and the level of an entry and of its
-// variants, and fills the run settings of each.
+// checkWorkAccounts checks the account and the level of an entry, and fills
+// its run settings.
 func (s *Set) checkWorkAccounts(kind string, w *WorkEntry, declared []string, root *yaml.Node) []error {
 	at := func(path ...any) string { return lineOf(root, append([]any{"work", kind}, path...)...) }
 	prefix := fmt.Sprintf("work %q: ", kind)
 	errs := checkAccountName(at("account"), prefix+"account", w.Account, declared)
 	errs = append(errs, checkLevel(at("permissions"), prefix+"permissions", w.Permissions)...)
-	for i, v := range w.Variants {
-		vprefix := fmt.Sprintf("%svariant %q: ", prefix, v.Name)
-		errs = append(errs, checkAccountName(at("variants", i, "account"), vprefix+"account", v.Account, declared)...)
-		errs = append(errs, checkLevel(at("variants", i, "permissions"), vprefix+"permissions", v.Permissions)...)
-	}
 	switch w.Action {
 	case "":
 		w.run = s.resolve(w.Account, w.Model, w.Permissions, false)
-		if w.experiment != nil {
-			w.experiment.settings = make([]RunSettings, len(w.experiment.Variants))
-			for i, v := range w.experiment.Variants {
-				w.experiment.settings[i] = s.resolve(cmp.Or(v.Account, w.Account), v.Model, cmp.Or(v.Permissions, w.Permissions), false)
-			}
-		}
 	case ActionInteractive:
 		w.run = s.resolve(w.Account, w.Model, w.Permissions, true)
+	}
+
+	return errs
+}
+
+// checkVariantAccounts checks the account and the level of each variant of an
+// experiment for one covered kind, and fills its run settings. A setting takes
+// the first value that is not empty: the kinds entry of the variant for the
+// kind, the variant, the work entry, then the account.
+func (s *Set) checkVariantAccounts(kind string, w *WorkEntry, e *Experiment, declared []string, root *yaml.Node) []error {
+	var errs []error
+	e.settings = make([]RunSettings, len(e.Variants))
+	for i, v := range e.Variants {
+		at := func(path ...any) string {
+			return lineOf(root, append([]any{"experiments", e.Name, "variants", i}, path...)...)
+		}
+		prefix := fmt.Sprintf("experiment %q: variant %q: ", e.Name, v.Name)
+		errs = append(errs, checkAccountName(at("account"), prefix+"account", v.Account, declared)...)
+		errs = append(errs, checkLevel(at("permissions"), prefix+"permissions", v.Permissions)...)
+		for _, k := range slices.Sorted(maps.Keys(v.Kinds)) {
+			kprefix := fmt.Sprintf("%skind %q: ", prefix, k)
+			errs = append(errs, checkAccountName(at("kinds", k, "account"), kprefix+"account", v.Kinds[k].Account, declared)...)
+			errs = append(errs, checkLevel(at("kinds", k, "permissions"), kprefix+"permissions", v.Kinds[k].Permissions)...)
+		}
+		k := v.Kinds[kind]
+		e.settings[i] = s.resolve(cmp.Or(k.Account, v.Account, w.Account), cmp.Or(k.Model, v.Model, w.Model), cmp.Or(k.Permissions, v.Permissions, w.Permissions), false)
 	}
 
 	return errs
@@ -855,6 +881,26 @@ func decodeFile(data []byte) (File, *yaml.Node, error) {
 	return f, root, nil
 }
 
+// refuseOldExperimentKeys names each work entry that still holds the variants
+// of an experiment, which now live in the experiments block.
+func refuseOldExperimentKeys(top map[string]any) []error {
+	var errs []error
+	work, _ := top["work"].(map[string]any)
+	for _, kind := range slices.Sorted(maps.Keys(work)) {
+		entry, ok := work[kind].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, key := range []string{"experiment", "variants", "metrics", "headline"} {
+			if _, ok := entry[key]; ok {
+				errs = append(errs, fmt.Errorf("parse rule file: work entry %s sets %s; move the variants, metrics and headline of the experiment into an experiments: block, and list %s under its covers", kind, key, kind))
+			}
+		}
+	}
+
+	return errs
+}
+
 // refuseOldFormat names the work map for a file that still lists rules or
 // experiments. Loupe now decides when work runs, and the bridge only runs it.
 func refuseOldFormat(doc any) error {
@@ -866,9 +912,10 @@ func refuseOldFormat(doc any) error {
 	if _, ok := top["rules"]; ok {
 		errs = append(errs, errors.New("parse rule file: the rules list is gone, because Loupe now decides when work runs; map each kind of work request under work instead, such as work: {implement: {prompt: ...}}, and drop on, to, from, when, maxChain, resume and maxResumes"))
 	}
-	if _, ok := top["experiments"]; ok {
-		errs = append(errs, errors.New("parse rule file: the experiments list is gone; give a work entry its variants instead, and the experiment takes the name of its kind unless the entry sets experiment"))
+	if _, ok := top["experiments"].([]any); ok {
+		errs = append(errs, errors.New("parse rule file: the experiments list is gone; map each experiment name under experiments instead, with the covers, variants, metrics and headline of the experiment"))
 	}
+	errs = append(errs, refuseOldExperimentKeys(top)...)
 	// A file with no accounts block loads with its agents off, old keys and all.
 	if _, ok := top["accounts"]; !ok {
 		return errors.Join(errs...)
@@ -1513,23 +1560,4 @@ func renderArgv(run []string, v map[string]string) []string {
 	}
 
 	return out
-}
-
-// checkSharedExperiments refuses a name that two entries with variants share,
-// because the server keeps one set of weights and metrics for each name.
-func checkSharedExperiments(work map[string]WorkEntry) []error {
-	kinds := map[string][]string{}
-	for _, kind := range slices.Sorted(maps.Keys(work)) {
-		if e := work[kind].experiment; e != nil {
-			kinds[e.Name] = append(kinds[e.Name], kind)
-		}
-	}
-	var errs []error
-	for _, name := range slices.Sorted(maps.Keys(kinds)) {
-		if len(kinds[name]) > 1 {
-			errs = append(errs, fmt.Errorf("work entries %s both name experiment %s, and one experiment takes one entry", strings.Join(kinds[name], " and "), name))
-		}
-	}
-
-	return errs
 }

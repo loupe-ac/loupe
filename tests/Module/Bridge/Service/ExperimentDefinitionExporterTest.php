@@ -27,6 +27,7 @@ final class ExperimentDefinitionExporterTest extends KernelTestCase
         );
         $definition->metrics = ['merge-rate', 'cost'];
         $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => []];
+        $definition->covers = ['fix', 'implement'];
         $em->persist($definition);
         $em->persist(new ExperimentDefinition($this->project($em, $other, 'Other Project'), 'plan-model', [['name' => 'opus', 'weight' => 1]]));
         $em->flush();
@@ -40,6 +41,7 @@ final class ExperimentDefinitionExporterTest extends KernelTestCase
             'weights' => [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 3]],
             'metrics' => ['merge-rate', 'cost'],
             'headline' => ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => []],
+            'covers' => ['fix', 'implement'],
             'reportedAt' => '2026-09-14T11:00:00+00:00',
         ]], $rows);
     }

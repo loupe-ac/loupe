@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 
 /**
@@ -20,7 +21,9 @@ final class ResolveExperimentPinRequest
 
     public const int MAX_METRICS = 16;
 
-    private const string METRIC_KEY_PATTERN = '/^[a-z][a-z0-9:-]{0,63}$/D';
+    public const int MAX_COVERS = 32;
+
+    private const string METRIC_KEY_PATTERN = '/^[a-z][a-z0-9_:-]{0,127}$/D';
 
     public function __construct(
         public mixed $candidate = null,
@@ -28,6 +31,7 @@ final class ResolveExperimentPinRequest
         public mixed $weights = null,
         public mixed $metrics = null,
         public mixed $headline = null,
+        public mixed $covers = null,
     ) {
     }
 
@@ -156,6 +160,32 @@ final class ResolveExperimentPinRequest
         }
 
         return [] === $normalised ? null : $normalised;
+    }
+
+    /**
+     * The work kinds the experiment covers, sorted. Null when they are not a
+     * list of 1 to MAX_COVERS unique kinds of the right shape. A bad list never
+     * refuses the pin, so an older bridge that sends none still runs.
+     *
+     * @return non-empty-list<string>|null
+     */
+    public function covers(): ?array
+    {
+        $covers = $this->covers;
+        if (!\is_array($covers) || [] === $covers || !array_is_list($covers) || \count($covers) > self::MAX_COVERS) {
+            return null;
+        }
+
+        $kinds = [];
+        foreach ($covers as $kind) {
+            if (!\is_string($kind) || 1 !== preg_match(Bridge::WORK_KIND_PATTERN, $kind) || \in_array($kind, $kinds, true)) {
+                return null;
+            }
+            $kinds[] = $kind;
+        }
+        sort($kinds);
+
+        return $kinds;
     }
 
     public static function isName(string $name): bool

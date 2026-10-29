@@ -12,7 +12,6 @@ variable "do_token" {
 variable "spaces_access_id" {
   type        = string
   default     = null
-  sensitive   = true
   description = "Spaces access key id. Spaces authenticates with an S3-style key pair rather than the API token, so creating the export bucket needs this as well as do_token. Leave null to read SPACES_ACCESS_KEY_ID from the environment. Unused when create_export_bucket is false."
 }
 

@@ -50,7 +50,10 @@ and the likely range of that change. A rate shows both rates, for example
 "92% to 86%", and its range in percentage points (pp). A guard with no data
 shows a dash. The page has no Guards table when the experiment has no guard.
 
-By default the goal is the cost per merged card, and lower is better. The
+By default the goal is the cost per merged card, and lower is better. The cost
+counts every worker run of the card, such as the fix rounds and the reviews, and
+not only the runs of the experiment. Use the `covered-cost` key as a goal or a
+guard to compare the covered runs alone. The
 guards are the merge rate and the fix rounds per merged card, when the workflow
 template of the project declares them. An experiment can set another goal and
 other guards with a `headline` in `rules.yaml`:
@@ -76,17 +79,23 @@ is left out, and a note under the panel names it. The
 field: `headline.goal` has the metric, the direction, the state, the winner and
 the change, and `headline.guards` has one entry for each guard.
 
+An experiment covers one or more kinds of work, such as `implement` and `fix`.
+The bridge sends this list with the first request of each covered run. When no
+bridge sent a list, the page takes the kinds of the runs that name the
+experiment.
+
 The variants table shows, for each variant:
 
 | Column | Meaning |
 |---|---|
 | Variant | the name of the variant |
-| Model | the model that the latest run of the variant asked for |
+| Model | every model that the experiment runs of the variant asked for, sorted |
 | Weight | the weight of the variant, as the bridge last reported it |
 | Cards | the cards of the variant that the figures use |
 | Finished | the cards that merged or stand in a terminal column |
-| Runs | the experiment runs of those cards |
-| Cost | the cost of those runs |
+| Runs | every worker run of those cards, of any kind of work |
+| Covered cost | the cost of the runs of the experiment of a covered kind |
+| Cost | the cost of every worker run of those cards |
 
 The metrics table has one row per metric. Each variant has two columns: the
 value, and the **Likely range** around it. By default the table shows the merge
@@ -94,20 +103,30 @@ rate and the fix rounds. It leaves out a key that the workflow template of the
 project does not declare. An experiment can name other metrics, and a template
 metric shows with the label from the template.
 
+An experiment can also name a bucket or a harness event metric:
+`bucket-time:<name>`, `bucket-time-all:<name>`, `bucket-calls:<name>` and
+`harness-events:<kind>`. The [Analytics](analytics.md) page describes the four
+families. The value of a card is the sum of the values of its experiment runs.
+A run with no figure adds nothing, and a card whose runs have none shows no
+value. A bucket or a kind that no run has shows no data, not an error.
+
 | Metric | Meaning |
 |---|---|
 | Merge rate | the merged cards over the finished cards |
-| Stop rate | the runs that ended blocked, failed, with no result or gave up, over the runs that reached an outcome |
+| Stop rate | the covered runs of the experiment that ended blocked, failed, with no result or gave up, over the covered runs that reached an outcome |
 | Fix rounds per merged card | the fix requests of a merged card. A row for each reason follows: a conflict, failed checks, requested changes or a failed agent review (`agent-review`) |
-| Cost per merged card | the cost of the experiment runs of a merged card |
-| Output tokens per merged card | the output tokens of the experiment runs of a merged card |
+| Cost per merged card | the cost of every worker run of a merged card |
+| Covered cost per merged card | the cost of the runs of the experiment of a covered kind, for a merged card |
+| Runs per merged card | every worker run of a merged card |
+| Output tokens per merged card | the output tokens of every worker run of a merged card |
+| Run time per merged card | the run time of every worker run of a merged card |
 | Hours from open to merge | the time from the first pull request of a merged card to the last merge |
 | Design review rounds | the design revise requests of a finished card. The Lifecycle template declares it |
 | Hours to agent review pass | the time from the first pull request opening to the last agent review pass. The Lifecycle template declares it |
 
 The rows for the merge rate, the fix rounds and the times exist only when the
 workflow template of the project declares them.
-The cost and the output tokens use only the merged cards whose experiment runs
+The cost and the output tokens use only the merged cards whose worker runs
 reported usage. A card with no usage is not a card that cost nothing, so it
 stays out of these two samples. The same applies when one run of the card
 started and reported no usage, because the sum of the others is too low. It still counts in the other metrics. A card
@@ -150,17 +169,18 @@ below the metrics shows how many cards are left out, and links to them.
 |---|---|
 | Switched variant | a run of the card moved it from a variant that the rule no longer offered |
 | Mixed variants | the runs and the pin of the card name more than one variant |
-| Implemented before the test | a worker run of no experiment or of another experiment worked the card in the same column before the first run of this experiment |
+| Covered work before the test | a worker run of no experiment or of another experiment did a covered kind of work on the card before the first run of this experiment |
+| Covered work without the variant | a worker run of no experiment or of another experiment did a covered kind of work on the card at or after the first run of this experiment |
 | Run before the card history | the first experiment run of the card is older than the card history of the project |
 | No experiment run | a pin puts the card in the experiment, and no experiment run worked the card |
 
 ## The Cards tab
 
 The **Cards** tab lists the cards of the experiment, 20 to a page, the latest
-run first. A row shows the card, the variant, the column, the runs, the fix
-rounds, the cost, and a tag for each reason that leaves the card out. The cost
-shows a dash when no experiment run of the card reported usage, or when the
-cost is unknown. Select a card to open it on the board.
+run first. A row shows the card, the variant, the column, the runs, the covered
+cost, the fix rounds, the cost, and a tag for each reason that leaves the card out. The runs
+and the cost count every worker run of the card. A cost shows a dash when no run
+of the card reported usage, or when the cost is unknown. Select a card to open it on the board.
 
 The filters above the list show all the cards, the kept cards of one variant,
 or the cards that are left out. Each filter lands in the URL, so a filtered

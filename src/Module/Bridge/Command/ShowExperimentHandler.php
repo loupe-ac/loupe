@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
+use App\Module\Bridge\Experiment\CardRun;
 use App\Module\Bridge\Experiment\ExperimentCard;
 use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
 use App\Module\Bridge\Experiment\ExperimentMetric;
@@ -27,6 +28,7 @@ use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\View\CardTitleSourceInterface;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CountFilter;
@@ -38,7 +40,7 @@ use App\Utils\PageList;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, runs: list<WorkerRun>, facts: list<WorkerRunFact>, costMicros: ?int}
+ * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, experimentRuns: list<WorkerRun>, allFacts: list<WorkerRunFact>, runCount: int, costMicros: ?int, coveredCostMicros: ?int}
  */
 final readonly class ShowExperimentHandler
 {
@@ -52,6 +54,7 @@ final readonly class ShowExperimentHandler
         ExperimentMetric::STOP_RATE,
         ExperimentMetric::FIX_ROUNDS,
         ExperimentMetric::COST,
+        ExperimentMetric::COVERED_COST,
         ExperimentMetric::OUTPUT_TOKENS,
         ExperimentMetric::HOURS_TO_MERGE,
     ];
@@ -65,6 +68,7 @@ final readonly class ShowExperimentHandler
         private CardTitleSourceInterface $cardTitles,
         private TemplateMetricValues $templateValues,
         private TemplateMetrics $templates,
+        private MetricRowSource $metricRows,
     ) {
     }
 
@@ -83,21 +87,28 @@ final readonly class ShowExperimentHandler
         }
         /** @var array<string, non-empty-list<WorkerRun>> $experimentRuns oldest first */
         $experimentRuns = [];
-        /** @var array<string, list<WorkerRun>> $plainRuns runs of no experiment or of another one */
-        $plainRuns = [];
-        /** @var array<string, ?string> $models variant => model of its latest run */
+        /** @var array<string, list<WorkerRun>> $rows every worker run row of a card, oldest first */
+        $rows = [];
+        /** @var array<string, list<string>> $models variant => the models its experiment runs asked for */
         $models = [];
         foreach ($this->workerRuns->findWorkerRunsOfExperimentCards($project, $experiment) as $run) {
             $id = (string) $run->subjectId;
+            $rows[$id][] = $run;
             if ($experiment === $run->experiment) {
                 $cardIds[$id] = $run->subjectId;
                 $experimentRuns[$id][] = $run;
                 if (null !== $run->variant) {
-                    $models[$run->variant] = $run->requestedModel;
+                    $models[$run->variant] ??= [];
+                    if (null !== $run->requestedModel && !\in_array($run->requestedModel, $models[$run->variant], true)) {
+                        $models[$run->variant][] = $run->requestedModel;
+                    }
                 }
-            } else {
-                $plainRuns[$id][] = $run;
             }
+        }
+        // A card whose pin and run rows the sweep deleted stays on the page through its facts.
+        $experimentFacts = $this->workerRunFacts->findOfExperimentCards($project, $experiment);
+        foreach ($experimentFacts as $fact) {
+            $cardIds[(string) $fact->subjectId] = $fact->subjectId;
         }
         if ([] === $cardIds) {
             return null;
@@ -111,12 +122,15 @@ final readonly class ShowExperimentHandler
         $fixCounts = $this->templateValues->countsOf($ids);
         $columns = $this->cardReports->columnsFor($project, $ids);
         $titles = $this->cardTitles->titlesFor($project, $ids);
-        /** @var array<string, list<WorkerRunFact>> $facts */
+        /** @var array<string, list<WorkerRunFact>> $facts every worker fact of a card */
         $facts = [];
-        foreach ($this->workerRunFacts->findOfExperimentCards($project, $experiment) as $fact) {
-            $facts[(string) $fact->subjectId][] = $fact;
+        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
+            if (WorkerRunKind::Worker === $fact->kind) {
+                $facts[(string) $fact->subjectId][] = $fact;
+            }
         }
         $definition = $this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]);
+        $covered = $definition->covers ?? self::coveredKindsOf($experimentRuns, $experimentFacts);
         $weights = null === $definition ? [] : array_column($definition->weights, 'weight', 'name');
         // An empty declaration names no metric, so the defaults apply.
         $declared = $definition?->metrics ?: null;
@@ -139,15 +153,30 @@ final readonly class ShowExperimentHandler
         $kept = [];
         foreach ($cardIds as $id => $cardId) {
             $own = $experimentRuns[$id] ?? [];
-            $first = $own[0] ?? null;
-            $last = [] === $own ? null : $own[\count($own) - 1];
+            $allFacts = $facts[$id] ?? [];
+            $runs = self::cardRuns($rows[$id] ?? [], $allFacts);
+            $experimentCardRuns = array_values(array_filter($runs, static fn (CardRun $run): bool => $run->isOf($experiment)));
+            $first = $experimentCardRuns[0] ?? null;
+            $last = [] === $experimentCardRuns ? null : $experimentCardRuns[\count($experimentCardRuns) - 1];
             // A pin can switch before a run reports it, so the runs name the variant that did the work.
-            $variant = null === $first ? $pinVariants[$id] ?? null : $first->variant;
-            $leftOut = self::leftOut($own, $plainRuns[$id] ?? [], $pinVariants[$id] ?? null, $historyStart);
+            $variant = null;
+            foreach ($experimentCardRuns as $run) {
+                if (null !== $run->variant) {
+                    $variant = $run->variant;
+                    break;
+                }
+            }
+            $variant ??= $pinVariants[$id] ?? null;
+            if (null !== $variant) {
+                $variantNames[] = $variant;
+            }
+            $leftOut = self::leftOut($experiment, $runs, $own, $pinVariants[$id] ?? null, $historyStart, $covered);
             $isDelivered = null !== $delivered && \in_array($delivered, $outcomes[$id] ?? [], true);
             $column = $columns[$id] ?? null;
-            $ownFacts = $facts[$id] ?? [];
-            $costMicros = MetricRowSource::cardSum($ownFacts, Metric::Cost);
+            $costMicros = MetricRowSource::cardSum($allFacts, Metric::Cost);
+            $coveredFacts = array_values(array_filter($allFacts, static fn (WorkerRunFact $fact): bool => $experiment === $fact->experiment && null !== $fact->workKind && \in_array($fact->workKind, $covered, true)));
+            $coveredCostMicros = MetricRowSource::cardSum($coveredFacts, Metric::Cost);
+            $runCount = \count($allFacts);
 
             $cards[] = [
                 'card' => new ExperimentCard(
@@ -156,9 +185,10 @@ final readonly class ShowExperimentHandler
                     title: $titles[$id] ?? null,
                     variant: $variant,
                     column: $column,
-                    runs: \count($own),
+                    runs: $runCount,
                     fixRounds: $fixCounts->matching($id, new CountFilter(role: 'fix')),
                     costMicros: $costMicros,
+                    coveredCostMicros: $coveredCostMicros,
                     leftOut: $leftOut,
                 ),
                 'lastRunAt' => $last?->receivedAt,
@@ -168,9 +198,11 @@ final readonly class ShowExperimentHandler
                     'cardId' => $cardId,
                     'delivered' => $isDelivered,
                     'finished' => $isDelivered || true === $column?->terminal,
-                    'runs' => $own,
-                    'facts' => $ownFacts,
+                    'experimentRuns' => array_values(array_filter($own, static fn (WorkerRun $run): bool => null !== $run->workKind && \in_array($run->workKind, $covered, true))),
+                    'allFacts' => $allFacts,
+                    'runCount' => $runCount,
                     'costMicros' => $costMicros,
+                    'coveredCostMicros' => $coveredCostMicros,
                 ];
             }
         }
@@ -185,12 +217,13 @@ final readonly class ShowExperimentHandler
             $finished[$name] = \count(array_filter($rows, static fn (array $row): bool => $row['finished']));
             $variants[] = new ExperimentVariant(
                 name: $name,
-                model: $models[$name] ?? null,
+                models: self::sorted($models[$name] ?? []),
                 weight: $weights[$name] ?? null,
                 cards: \count($rows),
                 finishedCards: $finished[$name],
-                runs: array_sum(array_map(static fn (array $row): int => \count($row['runs']), $rows)),
-                costMicros: self::totalCost($rows),
+                runs: array_sum(array_column($rows, 'runCount')),
+                costMicros: self::totalCost($rows, 'costMicros'),
+                coveredCostMicros: self::totalCost($rows, 'coveredCostMicros'),
             );
         }
 
@@ -203,7 +236,7 @@ final readonly class ShowExperimentHandler
                 $wanted[$key] ??= $shape;
             }
         }
-        $computed = $command->withMetrics ? $this->metrics($project, $experiment, $variantNames, $kept, $finished, $fixCounts, array_values($wanted)) : [];
+        $computed = $command->withMetrics ? $this->metrics($project, $experiment, $variantNames, $kept, $finished, $fixCounts, $wanted) : [];
         $metrics = [];
         foreach ([] === $computed ? [] : array_keys($shapes) as $key) {
             $metrics[$key] = $computed[$key];
@@ -253,29 +286,87 @@ final readonly class ShowExperimentHandler
     /**
      * Null when no kept card reported usage, so the table does not show a cost of zero.
      *
-     * @param list<array{costMicros: ?int}> $rows
+     * @param list<KeptCard>                   $rows
+     * @param 'costMicros'|'coveredCostMicros' $column
      */
-    private static function totalCost(array $rows): ?int
+    private static function totalCost(array $rows, string $column): ?int
     {
-        $costs = array_filter(array_column($rows, 'costMicros'), static fn (?int $cost): bool => null !== $cost);
+        $costs = array_filter(array_column($rows, $column), static fn (?int $cost): bool => null !== $cost);
 
         return [] === $costs ? null : array_sum($costs);
     }
 
     /**
-     * @param list<WorkerRun> $experimentRuns oldest first
-     * @param list<WorkerRun> $plainRuns
+     * @param list<string> $models
+     *
+     * @return list<string>
+     */
+    private static function sorted(array $models): array
+    {
+        sort($models, \SORT_STRING);
+
+        return $models;
+    }
+
+    /**
+     * The kinds of the runs that name the experiment, for an experiment whose bridge reported no covered list.
+     *
+     * @param array<string, non-empty-list<WorkerRun>> $experimentRuns
+     * @param list<WorkerRunFact>                      $experimentFacts
+     *
+     * @return list<string>
+     */
+    private static function coveredKindsOf(array $experimentRuns, array $experimentFacts): array
+    {
+        $kinds = array_map(static fn (WorkerRun $run): ?string => $run->workKind, array_merge(...array_values($experimentRuns)));
+        $kinds = array_merge($kinds, array_map(static fn (WorkerRunFact $fact): ?string => $fact->workKind, $experimentFacts));
+        $kinds = array_values(array_unique(array_filter($kinds, static fn (?string $kind): bool => null !== $kind)));
+        sort($kinds, \SORT_STRING);
+
+        return $kinds;
+    }
+
+    /**
+     * The runs of one card, once per run id, oldest first. A run whose row the sweep deleted has a fact only, and a run that still runs has a row only.
+     *
+     * @param list<WorkerRun>     $rows
+     * @param list<WorkerRunFact> $facts
+     *
+     * @return list<CardRun>
+     */
+    private static function cardRuns(array $rows, array $facts): array
+    {
+        $runs = [];
+        foreach ($facts as $fact) {
+            $runs[$fact->runId->toRfc4122()] = CardRun::fromFact($fact);
+        }
+        foreach ($rows as $row) {
+            $run = CardRun::fromRun($row);
+            $runs[$run->runId->toRfc4122()] = $run;
+        }
+        $runs = array_values($runs);
+        usort($runs, static fn (CardRun $a, CardRun $b): int => [$a->receivedAt, $a->runId->toRfc4122()] <=> [$b->receivedAt, $b->runId->toRfc4122()]);
+
+        return $runs;
+    }
+
+    /**
+     * @param list<CardRun>   $runs           every worker run of the card, oldest first
+     * @param list<WorkerRun> $experimentRuns the run rows of the experiment, oldest first, which alone hold a switch
+     * @param list<string>    $covered
      *
      * @return list<LeftOutReason>
      */
-    private static function leftOut(array $experimentRuns, array $plainRuns, ?string $pinVariant, ?\DateTimeImmutable $historyStart): array
+    private static function leftOut(string $experiment, array $runs, array $experimentRuns, ?string $pinVariant, ?\DateTimeImmutable $historyStart, array $covered): array
     {
-        $first = $experimentRuns[0] ?? null;
-        $variants = array_map(static fn (WorkerRun $run): ?string => $run->variant, $experimentRuns);
+        $experimentCardRuns = array_values(array_filter($runs, static fn (CardRun $run): bool => $run->isOf($experiment)));
+        $first = $experimentCardRuns[0] ?? null;
+        $variants = array_map(static fn (CardRun $run): ?string => $run->variant, $experimentCardRuns);
         if (null !== $first) {
             $variants[] = $pinVariant;
         }
         $variants = array_unique(array_filter($variants, static fn (?string $variant): bool => null !== $variant));
+        $plainCovered = array_filter($runs, static fn (CardRun $run): bool => !$run->isOf($experiment) && $run->isOfKind($covered));
 
         $reasons = [];
         if ([] !== array_filter($experimentRuns, static fn (WorkerRun $run): bool => null !== $run->switchedFrom)) {
@@ -284,8 +375,11 @@ final readonly class ShowExperimentHandler
         if (\count($variants) > 1) {
             $reasons[] = LeftOutReason::Mixed;
         }
-        if (null !== $first && [] !== array_filter($plainRuns, static fn (WorkerRun $run): bool => $run->workKind === $first->workKind && $run->receivedAt < $first->receivedAt)) {
+        if (null !== $first && [] !== array_filter($plainCovered, static fn (CardRun $run): bool => $run->receivedAt < $first->receivedAt)) {
             $reasons[] = LeftOutReason::BeforeTest;
+        }
+        if (null !== $first && [] !== array_filter($plainCovered, static fn (CardRun $run): bool => $run->receivedAt >= $first->receivedAt)) {
+            $reasons[] = LeftOutReason::CoveredWithoutVariant;
         }
         if (null !== $first && (null === $historyStart || $first->receivedAt < $historyStart)) {
             $reasons[] = LeftOutReason::NoHistory;
@@ -301,7 +395,7 @@ final readonly class ShowExperimentHandler
      * @param list<string>                  $variantNames
      * @param array<string, list<KeptCard>> $kept
      * @param array<string, int>            $finished
-     * @param list<MetricShape>             $shapes       the metrics to compute
+     * @param array<string, MetricShape>    $shapes       the metrics to compute, by experiment key
      *
      * @return array<string, ExperimentMetric> shape key => metric
      */
@@ -335,9 +429,16 @@ final readonly class ShowExperimentHandler
             return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values), $values];
         };
 
+        $namedValues = [];
+        $keptFacts = array_merge([], ...array_map(static fn (array $row): array => $row['allFacts'], array_merge([], ...array_values($kept))));
+        foreach ($shapes as $key => $shape) {
+            if (null !== $shape->key->name) {
+                $namedValues[$key] = $this->metricRows->namedRunValues($keptFacts, $shape->key->metric ?? throw new \LogicException('A named key has a built-in metric.'), $shape->key->name);
+            }
+        }
+
         $metrics = [];
-        foreach ($shapes as $shape) {
-            $key = $shape->key->key();
+        foreach ($shapes as $key => $shape) {
             $template = $shape->template;
             if (null !== $template) {
                 $metrics[$key] = $this->templateMetric($project, $template, $shape, $metric, $bootstrap, $kept, $finished, $delivered, $sampleIds, $counts, $experiment, $variantNames);
@@ -347,15 +448,19 @@ final readonly class ShowExperimentHandler
             $of = $shape->key->metric ?? throw new \LogicException('A built-in key has a metric.');
             $metrics[$key] = match ($of) {
                 Metric::StopRate => $metric($key, $shape, static function (string $name) use ($kept, $finished, $experiment, $key): array {
-                    $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'runs')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
+                    $closed = array_filter(array_merge(...array_column($kept[$name] ?? [], 'experimentRuns')), static fn (WorkerRun $run): bool => $run->state->isOutcome());
                     $values = array_values(array_map(static fn (WorkerRun $run): int => $run->state->isStop() ? 1 : 0, $closed));
 
                     return [self::interval(MetricValueType::Ratio, $experiment.':'.$key.':'.$name, $values), $finished[$name], $values];
                 }),
-                Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
-                Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
-                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
-                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => throw new \LogicException('A named metric needs a name, so an experiment cannot compare it.'),
+                Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => $row['runCount'])),
+                Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static function (array $row) use ($key): ?float {
+                    $micros = ExperimentMetric::COVERED_COST === $key ? $row['coveredCostMicros'] : $row['costMicros'];
+
+                    return null === $micros ? null : $micros / 1_000_000;
+                })),
+                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['allFacts'], $of))),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['allFacts'], $namedValues[$key] ?? []))),
             };
         }
 
@@ -413,11 +518,14 @@ final readonly class ShowExperimentHandler
         return $metric($key, $shape, $bootstrap($shape->valueType(), $key, $value), $parts, $template->label);
     }
 
-    /** Null for a key that no metric has. A named metric needs a name, which an experiment cannot compare. */
+    /** Null for a key that no metric has. */
     private static function shapeOf(string $key, TemplateMetricSet $templates): ?MetricShape
     {
+        if (ExperimentMetric::COVERED_COST === $key) {
+            return new MetricShape(new MetricKey(Metric::Cost));
+        }
         $parsed = MetricKey::tryParse($key, $templates);
-        if (null === $parsed || true === $parsed->metric?->isNamed()) {
+        if (null === $parsed) {
             return null;
         }
 

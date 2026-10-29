@@ -93,10 +93,13 @@ final readonly class VerdictReviewSettler
         $reviewerForgeId = $this->forgeAccount->forgeUserIdOf($reviewer);
         $own = null !== $reviewerForgeId && $reviewerForgeId === $pullRequest->authorId;
         $kind = $own ? PullRequestReviewKind::Comment : PullRequestReviewKind::from($verdict->kind->value);
-        $body = $this->body($delivery->verdict->card, $verdict->message, $verdict->notes);
+        $marker = \sprintf('<!-- loupe-verdict-delivery:%s -->', $delivery->id ?? throw new \LogicException('A pending delivery is stored.'));
+        $body = $this->body($delivery->verdict->card, $marker, $verdict->message, $verdict->notes);
 
         try {
-            $url = $poster->post($pullRequest, $kind, $body, (string) $reviewer->id);
+            // A post whose answer was lost still made the review, so a retry must find it rather than post it again.
+            $posted = $poster->findPosted($pullRequest, $marker, (string) $reviewer->id);
+            $url = null === $posted ? $poster->post($pullRequest, $kind, $body, (string) $reviewer->id) : $posted->url;
         } catch (PullRequestReviewFailed $e) {
             if (\in_array($e->cause, ['not_connected', 'connection_expired'], true)) {
                 return $this->finish($delivery, CardVerdictDeliveryState::Refused, CardVerdictDelivery::REASON_CONNECTION_EXPIRED);
@@ -144,12 +147,13 @@ final readonly class VerdictReviewSettler
 
     /**
      * The first line names the Loupe site review and links to the notes, and to the preview when a note names one.
+     * The marker follows it, so the forge's cut of a long body keeps the marker.
      *
      * @param list<array{id: string, url: ?string, body: string, anchorCount: int}> $notes
      */
-    private function body(Card $card, string $message, array $notes): string
+    private function body(Card $card, string $marker, string $message, array $notes): string
     {
-        $parts = [$this->sourceLine($card, $notes)];
+        $parts = [$this->sourceLine($card, $notes)."\n".$marker];
         if ('' !== trim($message)) {
             $parts[] = trim($message);
         }

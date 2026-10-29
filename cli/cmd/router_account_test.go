@@ -223,8 +223,7 @@ func TestTheStartLineNamesTheAccountAndTheMode(t *testing.T) {
 // settings: its config folder, its env file, its model and its mode.
 func TestAVariantRunsWithTheSettingsOfItsAccount(t *testing.T) {
 	h, rec, f := withAccounts(t, func(body string) string {
-		return strings.Replace(body, "    prompt: Card {cardNumber}.\n",
-			"    prompt: Card {cardNumber}.\n    variants:\n      - {name: one, weight: 1, account: a}\n      - {name: two, weight: 1, account: b}\n", 1)
+		return body + "experiments:\n  plan:\n    covers: [plan]\n    variants:\n      - {name: one, weight: 1, account: a}\n      - {name: two, weight: 1, account: b}\n"
 	})
 	h.pins(func(context.Context, string) (string, string, error) { return "two", "", nil })
 
@@ -540,8 +539,7 @@ func TestAReloadDropsAQueuedResumeWhoseAccountIsGone(t *testing.T) {
 // an unfinished run resumes when its transcript is in the variant's folder.
 func TestAWorkRequestResumesASessionInTheFolderOfItsVariant(t *testing.T) {
 	h, _, f := withAccounts(t, func(body string) string {
-		return strings.Replace(body, "  plan:\n    prompt: Card {cardNumber}.\n",
-			"  plan:\n    prompt: Card {cardNumber}.\n    variants:\n      - {name: on-b, weight: 1, account: b}\n", 1)
+		return body + "experiments:\n  plan:\n    covers: [plan]\n    variants:\n      - {name: on-b, weight: 1, account: b}\n"
 	})
 	writeTranscript(t, f.configB, unfinishedSession, "{}")
 	work := h.withWork()
@@ -560,8 +558,7 @@ func TestAWorkRequestResumesASessionInTheFolderOfItsVariant(t *testing.T) {
 // session. The run then starts a new session on that account.
 func TestAResumeStartsFreshWhenThePinnedVariantCannotFindTheSession(t *testing.T) {
 	h, _, f := withAccounts(t, func(body string) string {
-		return strings.Replace(body, "  plan:\n    prompt: Card {cardNumber}.\n",
-			"  plan:\n    prompt: Card {cardNumber}.\n    variants:\n      - {name: on-a, weight: 1, account: a}\n      - {name: on-b, weight: 1, account: b}\n", 1)
+		return body + "experiments:\n  plan:\n    covers: [plan]\n    variants:\n      - {name: on-a, weight: 1, account: a}\n      - {name: on-b, weight: 1, account: b}\n"
 	})
 	writeTranscript(t, f.configA, unfinishedSession, "{}")
 	h.pins(func(context.Context, string) (string, string, error) { return "on-b", "", nil })
@@ -615,8 +612,7 @@ func TestAResumeReportsTheVariantOnlyWhenItRunsWithItsSettings(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, rec, _ := withAccounts(t, func(body string) string {
-				return strings.Replace(body, "  plan:\n    prompt: Card {cardNumber}.\n",
-					"  plan:\n    prompt: Card {cardNumber}.\n    variants:\n      - {name: on-a, weight: 1, account: a}\n      - {name: on-b, weight: 1, account: b}\n", 1)
+				return body + "experiments:\n  plan:\n    covers: [plan]\n    variants:\n      - {name: on-a, weight: 1, account: a}\n      - {name: on-b, weight: 1, account: b}\n"
 			})
 			h.transcripts(true)
 			h.pins(func(context.Context, string) (string, string, error) { return "on-a", "", nil })
