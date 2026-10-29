@@ -291,7 +291,7 @@ func TestEventsBetweenCountsAttachmentsSystemLinesAndHookRefusals(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int64{"diagnostics": 3, "todo_reminder": 1, "compact_boundary": 2, "local_command": 1, "hook_refused": 3}
+	want := map[string]int64{"diagnostics": 3, "todo_reminder": 1, "compact_boundary": 2, "local_command": 1, "hook_refused": 4}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("events = %v, want %v", got, want)
 	}

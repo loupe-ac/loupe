@@ -243,7 +243,9 @@ metric shows with the label from the template.
 An experiment can also name a bucket or a harness event metric:
 `bucket-time:<name>`, `bucket-time-all:<name>`, `bucket-calls:<name>` and
 `harness-events:<kind>`. The [Analytics](analytics.md) page describes the four
-families. The value of a card is the sum of the values of its experiment runs.
+families. `harness-events:hook_refused` counts the tool calls that a Claude Code
+`PreToolUse` hook refused, such as a hook that refuses a `Bash` command an arm
+wants to prevent. The value of a card is the sum of the values of its experiment runs.
 A run with no figure adds nothing, and a card whose runs have none shows no
 value. A bucket or a kind that no run has shows no data, not an error.
 
