@@ -15,53 +15,125 @@ The list shows one row for each experiment that a run or a pin names. A row
 shows the name, the number of cards and the time of the last run. The latest
 run comes first. Select a name to open the comparison of that experiment.
 
-A project with no experiment shows how to start one. Give a worker entry of the
-`work:` map in `rules.yaml` its variants. The kind of the entry names the
-experiment, unless the entry sets `experiment`. To start a new trial on a kind
-that has an old one, set `experiment` to a new name. The old experiment keeps
-its page. A variant sets a `model` or an
-[`account`](../extending/cli-bridge.md#accounts), and it can set `permissions`.
-A variant with no model takes the model of its account, or the `--model` flag
-of the bridge when the account names none.
+A project with no experiment shows how to start one. Add an experiment to the
+top-level `experiments:` block of `rules.yaml`. The map key names the
+experiment, and `covers` lists the kinds of work it runs. Name one variant as the
+`baseline`. To start a new trial on a kind that has an old one, give the new
+experiment another name. The old experiment keeps its page. A variant sets a
+`model` or an [`account`](../extending/cli-bridge.md#accounts), and it can set
+`permissions`. A variant with no model takes the model of its account, or the
+`--model` flag of the bridge when the account names none.
+
+```yaml
+experiments:
+  implement-php-lsp:
+    covers: [implement]
+    baseline: no-lsp
+    variants:
+      - {name: no-lsp, weight: 1, model: opus}
+      - {name: lsp, weight: 1, model: opus, account: claude-worker-lsp}
+
+work:
+  implement:
+    prompt: Implement card {cardNumber}.
+```
+
+The bridge refuses a file whose experiment has no `baseline`, or whose
+`baseline` names no variant of that experiment. The
+[bridge reference](../extending/cli-bridge.md#experiments) lists every refusal.
 
 ## The comparison
 
-The **Comparison** tab starts with the **Goal** panel. The goal is the metric
-that the experiment tries to improve, and the direction that is better: `lower`
-or `higher`. The panel names the better of the first two variants by name and
-says by how much, for example "sonnet is 22% faster than opus". It also shows
-the value of each variant and the likely range of the change.
+The Comparison tab compares every variant against the baseline. The baseline is
+the variant that the `baseline` key of the experiment names, such as the variant
+that runs your settings from before the trial. The bridge sends the baseline
+with each pin request. A change of the `baseline` in `rules.yaml` applies at the
+next pin request of the experiment, and the whole page then reads against the
+new baseline.
 
-The panel has three states:
+The page puts the baseline first, with a **Baseline** tag. The other variants
+follow by name. The page compares each of them against the baseline, and never
+against each other. With three variants, the page makes two comparisons.
 
-| State | Meaning |
+An experiment that the server holds with no baseline shows the Variants and
+Metrics tables with their values. The Goal and the Guards are replaced by this
+note: "This experiment names no baseline. Add `baseline:` to it in the bridge
+rule file to compare the variants." The Metrics rows show no **Too few cards**
+chip. An experiment gets this note when no bridge sent its baseline yet, such as
+an experiment from before the `baseline` key.
+
+### The goal
+
+The **Goal** section starts with a heading that names the metric and the
+direction that is better, for example "Goal, hours to merge, lower is better".
+Its table has one row for each variant. The columns are the variant, the value
+of the goal metric, the change against the baseline, the likely range of the
+change, and the result.
+
+The baseline row has no change. Each other row says by how much the variant
+differs from the baseline, for example "12% cheaper" or "6 pp higher". The change
+always reads the variant against the baseline, so a sign means the same in every
+row. A goal that is a rate, such as the merge rate, gives the change in
+percentage points (pp) instead of a share.
+
+The large word of a change is "faster" for a duration, "cheaper" for the cost,
+"fewer" for a count, and "lower" or "higher" for any other metric. The row says
+"level" when the two values are equal, and "under 1%" when the change rounds to
+zero.
+
+The result column has these states:
+
+| Result | Meaning |
 |---|---|
-| Not enough cards yet | A variant has fewer than 5 cards behind the figure of the goal. A rate counts the finished cards. A value for each merged card counts the merged cards that have a value. The panel shows the count of each variant, up to 5 |
-| Not clear yet | Each variant has at least 5 cards behind the figure, and the likely ranges of the two variants overlap. The better variant only leans ahead |
-| Clear | Each variant has at least 5 cards behind the figure, and the likely ranges do not overlap |
+| Needs N more cards | The variant or the baseline has fewer than 5 cards behind the figure of the goal. A rate counts the finished cards. A value for each merged card counts the merged cards that have a value. N is the shortfall of the arm with fewer cards |
+| Not clear yet | Both arms have at least 5 cards behind the figure, and the likely range of the variant overlaps the likely range of the baseline. The variant only leans ahead |
+| Clear | Both arms have at least 5 cards behind the figure, and the two likely ranges do not overlap |
+| Control failed, or No data | A control holds this comparison. [Controls](#controls) says when |
 
-Close values do not make the answer clear, unlike in the metrics table. The panel says "The variants are level" when the two values are equal, and "under 1%" when the change rounds to zero. The large line uses "faster" for a duration, "cheaper" for the cost, "fewer" for a count, and "lower" or "higher" for any other metric. A goal
-that is a rate, such as the merge rate, gives the change in percentage points
-(pp) instead of a share, for example "6 pp higher".
+A variant with no card behind the figure shows a dash as its value, no change
+and no range. Its result asks for 5 more cards. Close values do not make the goal
+clear, unlike in the metrics table.
 
-The **Guards** table follows the panel. A guard is a metric that the winner must
-not make worse. Each row shows the change from the first variant to the second,
-and the likely range of that change. A rate shows both rates, for example
-"92% to 86%", and its range in percentage points (pp). A guard with no data
-shows a dash. The page has no Guards table when the experiment has no guard.
+### The range level and the number of comparisons
+
+A page with one comparison uses likely ranges of 95%. A page with N comparisons
+uses ranges of 1 minus 5% over N: 97.5% for two comparisons and 98.3% for
+three. More comparisons give more chances of a false "clear", and a wider range
+makes up for it. An arm then needs more cards before its range clears the
+baseline. A note under the goal names the level, for example "The ranges are
+widened to 97.5% because the page makes 2 comparisons against no-lsp".
+
+The level covers the goal, the guards and the Metrics table. An experiment with
+no baseline makes no comparison, and its ranges stay at 95%. The count follows
+the variants that the page shows, including a variant that the rule no longer
+offers but that still has kept cards.
+
+### Guards
+
+The **Guards** table follows the goal. A guard is a metric that a variant must
+not make worse than the baseline. Each guard is a row. The first column holds
+the value of the baseline. Each other variant has two columns: its value, and
+the change against the baseline with its likely range, such as "+5 pp (-6 to
++15)". A rate shows the rates and a range in percentage points (pp). A guard
+with no data shows a dash. The page has no Guards table when the experiment has
+no guard.
+
+A guard shows a change and a range. It gives no pass or fail result.
+
+### The goal and the guards in `rules.yaml`
 
 By default the goal is the cost per merged card, and lower is better. The cost
 counts every worker run of the card, such as the fix rounds and the reviews, and
 not only the runs of the experiment. Use the `covered-cost` key as a goal or a
-guard to compare the covered runs alone. The
-guards are the merge rate and the fix rounds per merged card, when the workflow
-template of the project declares them. An experiment can set another goal and
-other guards with a `headline` in `rules.yaml`:
+guard to compare the covered runs alone. The guards are the merge rate and the
+fix rounds per merged card, when the workflow template of the project declares
+them. An experiment can set another goal and other guards with a `headline`:
 
 ```yaml
-work:
+experiments:
   implement:
-    prompt: Implement card {cardNumber}.
+    covers: [implement]
+    baseline: opus
     variants:
       - {name: opus, weight: 1, model: opus}
       - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
@@ -70,15 +142,21 @@ work:
       guards: [merge-rate, fix-rounds]
 ```
 
-A goal with a key that no metric has, or a goal with no `better`, names no
-winner. The panel then says what is wrong, for example "The headline goal
+A goal with a key that no metric has, or a goal with no `better`, gives no
+comparison. The section then says what is wrong, for example "The headline goal
 hours-to-mrege is not a metric of this project". A guard key that no metric has
-is left out, and a note under the panel names it. The
+is left out, and a note under the goal names it. The
 [bridge reference](../extending/cli-bridge.md) says how the bridge checks a
-`headline`. The `experiment_get` tool returns the same answer in its `headline`
-field: `headline.goal` has the metric, the direction, the state, the winner and
-the change, `headline.guards` has one entry for each guard, and
-`headline.controls` has one entry for each control.
+`headline`.
+
+The `experiment_get` tool returns the same answer. `baseline` names the
+baseline, which is null when the experiment names none. `confidenceLevel` is
+the level of the ranges. `headline.goal` keeps the metric and the direction.
+`headline.baselineArm` holds the baseline figure. `headline.comparisons` holds
+one entry for each other variant, with its state, its change and the change of
+each guard. The list is empty when the experiment has no baseline.
+`headline.guards` has one entry for each guard, and `headline.controls` has one
+entry for each control.
 
 ### Controls
 
@@ -104,20 +182,25 @@ can show. The unit is the unit of the metric: dollars for a cost, milliseconds
 for a built-in duration, and hours for a duration that the workflow template
 declares.
 
-A control that does not pass holds the goal. The goal panel names no winner and
-says why in its large line:
+A control that does not pass holds comparisons, and the held row shows the value
+of its variant with no change and no range:
 
-| Large line | Cause |
+- A control on a variant holds only the comparison of that variant.
+- A control on the baseline holds every comparison, because every comparison
+  uses the baseline.
+
+The result chip of a held row says why:
+
+| Result chip | Cause |
 |---|---|
-| Treatment not applied | A control failed. A red chip reads "Control failed" |
-| Control has no data yet | No finished card of the variant has a value for the metric of a control |
-| The control `<key>` is not a metric of this project | The key of a control names no metric, or a bucket that the project does not have |
+| Control failed | A control failed. The treatment did not happen |
+| No data | No finished card of the variant has a value for the metric of a control, or the key of a control names no metric of this project |
 
-The line under it counts the controls that hold the goal, and shows the goal
-value of each variant. When more than one cause applies, the panel shows the
-first in the order of the table. This message wins over "Not enough cards yet".
+When more than one cause applies, the row shows the first in the order of the
+table. A held comparison is held, and it is neither lost nor clear. This message
+wins over "Needs N more cards".
 
-A held goal changes no figure. Every card and every run stays in the goal, the
+A hold changes no figure. Every card and every run stays in the goal, the
 Guards table, the Variants table and the Metrics table. A `harness-events` key
 is never unknown. A kind that no run reported shows no data.
 
@@ -125,17 +208,18 @@ The **Controls** table sits above the Guards table. It shows only when the
 experiment declares controls. Each row has the control with its expectation, the
 variant, the share of cards that pass, the share it needs, the cards with data
 over the finished cards, and a result chip: Passed, Failed or No data. A control
-with an unknown metric also shows No data. The `experiment_get` tool returns the
-same answer in `headline.controls`. When a control holds the goal,
-`headline.goal.state` is `held`, `holdReason` names the cause, and `heldBy`
-lists the keys of the controls with that cause.
+with an unknown metric also shows No data. In `experiment_get`, a comparison
+that a control holds has the state `held`. Its `holdReason` names the cause, and
+`heldBy` lists the keys of the controls with that cause. A held comparison
+returns no change.
 
 An experiment covers one or more kinds of work, such as `implement` and `fix`.
 The bridge sends this list with the first request of each covered run. When no
 bridge sent a list, the page takes the kinds of the runs that name the
 experiment.
 
-The variants table shows, for each variant:
+The variants table shows the baseline first, with its **Baseline** tag. It shows,
+for each variant:
 
 | Column | Meaning |
 |---|---|
@@ -149,7 +233,9 @@ The variants table shows, for each variant:
 | Cost | the cost of every worker run of those cards |
 
 The metrics table has one row per metric. Each variant has two columns: the
-value, and the **Likely range** around it. By default the table shows the merge
+value, and the **Likely range** around it. The baseline columns come first, then
+the other variants. A note under the table names the level of the ranges and
+says that each variant is compared against the baseline. By default the table shows the merge
 rate and the fix rounds. It leaves out a key that the workflow template of the
 project does not declare. An experiment can name other metrics, and a template
 metric shows with the label from the template.
@@ -190,22 +276,31 @@ moved to a terminal column is finished, but it did not end with that outcome.
 
 ## The likely range
 
-The likely range holds the true value 95 times in 100. A rate uses the Wilson
-interval. A value per merged card uses a bootstrap of the mean. The bootstrap
-has a fixed seed, so a page shows the same range on each load.
+The likely range holds the true value 95 times in 100 for one comparison. With
+N comparisons it holds the value 1 minus 5%/N of the time, as
+[The range level and the number of comparisons](#the-range-level-and-the-number-of-comparisons)
+says. A rate uses the Wilson interval. A value per merged card uses a bootstrap
+of the mean. The bootstrap has a fixed seed, so a page shows the same range on
+each load.
 
-A metric compares the first two variants by name. It gives a clear answer when
-each of the two variants has at least 5 cards behind its value, and one of
-these is true:
+A metric row compares each variant against the baseline. The comparison of one
+variant gives a clear answer when the variant and the baseline each have at
+least 5 cards behind their value, and one of these is true:
 
 - The two ranges do not overlap.
 - The two values are within 10% of each other.
 
+The close-values test reads no range, so a wider range does not change it.
+
 A rate counts the finished cards. A value per merged card counts only the
 merged cards that have the value, such as a cost or the two times of a merge.
 
-A metric with no clear answer shows a **Too few cards** chip. An experiment
-with one variant never gives a clear answer.
+A metric row shows one **Too few cards** chip when any of its comparisons
+against the baseline has no clear answer. A row with no chip has a clear answer
+for every variant. An experiment with no baseline or with one variant makes no
+comparison, so its rows show no chip. In `experiment_get`, the `clear` flag of a
+metric is true when every comparison is clear, false when one is not, and null
+when the experiment has no baseline.
 
 Press **Analyse this experiment** below the metrics to ask an agent to explain
 the comparison. The link opens the [Reports](analytics.md#reports) tab, with
