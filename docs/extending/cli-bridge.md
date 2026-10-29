@@ -1275,17 +1275,22 @@ own settings again.
 
 A file that still sets `variants` on a work entry fails to load with the new
 bridge. An update of a running bridge also fails its preflight against that
-file, and rolls back. To move the file:
+file, and rolls back. A running bridge reads the file only at start and on a
+reload, so edit the file first and update after. The workers keep running:
 
-1. Stop the bridge with `loupe bridge stop`.
-2. Install the new CLI with `loupe update`.
-3. Move the `variants`, `metrics`, `headline` and `experiment` keys of each work
+1. Copy `rules.yaml` to a backup file next to it.
+2. Move the `variants`, `metrics`, `headline` and `experiment` keys of each work
    entry into a block of `experiments:`. The old `experiment` value becomes the
    map key, and the kind of the entry goes into `covers`. Without an
    `experiment` value, the map key is the name of the kind.
-4. Move the model that each variant set into its own `model` and `kinds`, and
+3. Move the model that each variant set into its own `model` and `kinds`, and
    set the `model` of the work entry for a kind that the variants do not name.
-5. Start the bridge.
+4. Run `loupe update`. The preflight of the new binary reads the edited file,
+   and the new image adopts the running workers.
+
+Do not run `loupe bridge reload` between steps 2 and 4, because the old bridge
+refuses the new file. When no bridge runs, `loupe update` installs the binary,
+and `loupe bridge run -d` starts it.
 
 ## Updates
 
