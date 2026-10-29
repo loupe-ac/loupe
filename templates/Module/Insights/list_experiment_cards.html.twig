@@ -39,6 +39,7 @@
         {label: 'bridge.experiments.cards.column.variant'|trans},
         {label: 'bridge.experiments.cards.column.column'|trans},
         {label: 'bridge.experiments.cards.column.runs'|trans, align: 'end'},
+        {label: 'bridge.experiments.cards.column.covered_cost'|trans, align: 'end'},
         {label: 'bridge.experiments.cards.column.fix_rounds'|trans, align: 'end'},
         {label: 'bridge.experiments.cards.column.cost'|trans, align: 'end'},
         {label: 'bridge.experiments.cards.column.left_out'|trans},
@@ -54,6 +55,7 @@
             <span class="lp-data-table__cell" role="cell">{{ card.variant ?? '–' }}</span>
             <span class="lp-data-table__cell" role="cell" data-experiment-card-column>{{ card.column is not null ? card.column.label|trans : '–' }}</span>
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-runs>{{ card.runs }}</span>
+            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-covered-cost>{{ card.coveredCostMicros is null ? '–' : (card.coveredCostMicros / 1000000)|format_currency('USD') }}</span>
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ card.fixRounds }}</span>
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-cost>{{ card.costMicros is null ? '–' : (card.costMicros / 1000000)|format_currency('USD') }}</span>
             <span class="lp-data-table__cell lp-experiment-reasons" role="cell">

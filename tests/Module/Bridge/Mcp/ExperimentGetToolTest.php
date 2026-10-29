@@ -67,8 +67,8 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame([['name' => 'a', 'point' => 1.0, 'finishedCards' => 5], ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5]], $result['headline']['guards'][0]['variants']);
         self::assertEqualsWithDelta(0.0, $result['headline']['guards'][0]['change']['point'] ?? null, 1e-12);
         self::assertSame([
-            ['name' => 'a', 'model' => 'model-a', 'weight' => 3, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 10.0],
-            ['name' => 'b', 'model' => 'model-b', 'weight' => 1, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 5.0],
+            ['name' => 'a', 'models' => ['model-a'], 'weight' => 3, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 10.0, 'coveredCostUsd' => 10.0],
+            ['name' => 'b', 'models' => ['model-b'], 'weight' => 1, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 5.0, 'coveredCostUsd' => 5.0],
         ], $result['variants']);
 
         self::assertSame(['cost', 'merge-rate'], array_column($result['metrics'], 'key'));
@@ -97,9 +97,35 @@ final class ExperimentGetToolTest extends KernelTestCase
             'runs' => 1,
             'fixRounds' => 0,
             'costUsd' => null,
+            'coveredCostUsd' => null,
             'leftOut' => ['switched'],
         ], $result['cards'][0]);
         self::assertSame(2.0, $this->cardOf($result['cards'], 1)['costUsd']);
+        self::assertSame(2.0, $this->cardOf($result['cards'], 1)['coveredCostUsd']);
+    }
+
+    public function test_it_answers_the_covered_cost_beside_the_cost_of_every_run(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-covered@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['cost', 'covered-cost'];
+        $definition->covers = ['implement'];
+        $em->persist($definition);
+        $card = $this->experimentCard($em, $project, 1, merged: true);
+        $this->seedUsage($em, $this->experimentRun($em, $project, $card, 'a', at: '-3 hours'), costUsd: '1.000000');
+        $this->seedUsage($em, $this->experimentRun($em, $project, $card, 'a', at: '-2 hours', workKind: 'fix'), costUsd: '2.000000');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool()('model-test');
+
+        self::assertSame(['cost', 'covered-cost'], array_column($result['metrics'], 'key'));
+        self::assertSame('Covered cost per merged card', $result['metrics'][1]['label']);
+        self::assertSame('money', $result['metrics'][1]['valueType']);
+        self::assertSame(3.0, $result['metrics'][0]['byVariant']['a']['point'] ?? null);
+        self::assertSame(1.0, $result['metrics'][1]['byVariant']['a']['point'] ?? null);
+        self::assertSame([2, 3.0, 1.0], [$result['variants'][0]['runs'], $result['variants'][0]['costUsd'], $result['variants'][0]['coveredCostUsd']]);
+        self::assertSame([2, 3.0, 1.0], [$result['cards'][0]['runs'], $result['cards'][0]['costUsd'], $result['cards'][0]['coveredCostUsd']]);
     }
 
     public function test_a_goal_that_no_metric_has_names_no_winner(): void
@@ -220,9 +246,9 @@ final class ExperimentGetToolTest extends KernelTestCase
     }
 
     /**
-     * @param list<array{cardId: string, number: ?int, costUsd: ?float}> $cards
+     * @param list<array{cardId: string, number: ?int, costUsd: ?float, coveredCostUsd: ?float}> $cards
      *
-     * @return array{cardId: string, number: ?int, costUsd: ?float}
+     * @return array{cardId: string, number: ?int, costUsd: ?float, coveredCostUsd: ?float}
      */
     private function cardOf(array $cards, int $number): array
     {

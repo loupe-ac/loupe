@@ -595,7 +595,7 @@ class WorkerRunRepository extends ServiceEntityRepository
 
     /**
      * Every worker run, of any experiment or of none, of the cards that ran in
-     * the experiment or are pinned to it. Oldest first.
+     * the experiment, are pinned to it, or keep a fact of it. Oldest first.
      *
      * @return list<WorkerRun>
      */
@@ -606,9 +606,11 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->andWhere('r.kind = :worker')
             ->andWhere(\sprintf(
                 'r.subjectType = :cardSubject AND (r.subjectId IN (SELECT e.subjectId FROM %1$s e WHERE e.project = :project AND e.experiment = :experiment AND e.subjectType = :cardSubject)'
-                .' OR r.subjectId IN (SELECT pin.cardId FROM %2$s pin WHERE pin.project = :project AND pin.experiment = :experiment))',
+                .' OR r.subjectId IN (SELECT pin.cardId FROM %2$s pin WHERE pin.project = :project AND pin.experiment = :experiment)'
+                .' OR r.subjectId IN (SELECT f.subjectId FROM %3$s f WHERE f.project = :project AND f.experiment = :experiment AND f.subjectType = :cardSubject))',
                 WorkerRun::class,
                 ExperimentPin::class,
+                WorkerRunFact::class,
             ))
             ->setParameter('project', $project)
             ->setParameter('worker', WorkerRunKind::Worker->value)

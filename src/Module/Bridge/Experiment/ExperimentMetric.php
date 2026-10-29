@@ -20,6 +20,9 @@ final readonly class ExperimentMetric
 
     public const string COST = Metric::Cost->value;
 
+    /** The cost of the covered runs. It reads the cost metric, and has a key of its own. */
+    public const string COVERED_COST = 'covered-cost';
+
     public const string OUTPUT_TOKENS = Metric::OutputTokens->value;
 
     public const string HOURS_TO_MERGE = 'hours-to-merge';
