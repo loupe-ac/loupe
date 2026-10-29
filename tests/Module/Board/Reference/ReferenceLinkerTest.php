@@ -101,6 +101,20 @@ final class ReferenceLinkerTest extends KernelTestCase
         );
     }
 
+    public function test_a_paused_card_link_tooltip_says_the_pause_reason_in_words(): void
+    {
+        $project = $this->project();
+        $card = $this->card($project);
+        $card->markers = [
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'failed'], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM)],
+        ];
+        $this->em->flush();
+
+        $html = $this->linker->link($this->region('<p>See <span data-ref-card="1">card #1</span>.</p>'), $project);
+
+        self::assertStringContainsString(' · Paused: The work failed."', $html);
+    }
+
     public function test_prose_links_in_any_case_and_in_a_list(): void
     {
         $project = $this->project();

@@ -58,6 +58,15 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertStringEndsWith('/board/cards/'.$tile->attr('data-card-id'), (string) $link->attr('href'));
     }
 
+    public function test_a_paused_tile_says_the_pause_reason_in_words(): void
+    {
+        $tile = $this->tile(MarkerMother::markers(MarkerMother::marker('paused', MarkerKind::Stuck, ['%reason%' => 'failed'])));
+
+        $tooltip = $tile->filter('.lp-tooltip');
+        self::assertStringContainsString('Paused: The work failed.', $tooltip->text());
+        self::assertStringNotContainsString('Paused: failed.', $tooltip->text());
+    }
+
     public function test_a_state_marker_with_a_link_adds_it_to_the_tile_tooltip_and_not_to_a_row(): void
     {
         $card = $this->storedCard();

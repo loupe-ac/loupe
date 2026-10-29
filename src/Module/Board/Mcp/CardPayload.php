@@ -19,6 +19,7 @@ use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\CardAgentReviews;
+use App\Module\Board\Service\CardMarkerText;
 use App\Module\Board\Service\CardPullRequestStates;
 use App\Module\Board\Service\PullRequestStates;
 use App\Module\Board\Service\PullRequestStateView;
@@ -30,7 +31,6 @@ use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\StoredMarker;
 use Symfony\Component\Uid\Uuid;
-use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * The one shape every board tool returns a card in, so a card read by card_list
@@ -64,7 +64,7 @@ final readonly class CardPayload
         private CardPauseRepository $cardPauses,
         private CardTypeCatalog $catalog,
         private CardAgentReviews $agentReviews,
-        private TranslatorInterface $translator,
+        private CardMarkerText $markerText,
         private CardArtifactRepository $cardArtifacts,
         private SiteReviewScreenshotRepository $siteReviewScreenshots,
     ) {
@@ -263,23 +263,18 @@ final readonly class CardPayload
                 'kind' => $state->kind->value,
                 'code' => $state->key,
                 'since' => $state->since->format(\DATE_ATOM),
-                'reason' => $this->sentence($state),
+                'reason' => $this->markerText->label($state),
                 'others' => array_map(
                     fn (StoredMarker $other): array => [
                         'kind' => $other->kind->value,
                         'code' => $other->key,
-                        'reason' => $this->sentence($other),
+                        'reason' => $this->markerText->label($other),
                         'since' => $other->since->format(\DATE_ATOM),
                     ],
                     array_values(array_filter($markers->others(), static fn (StoredMarker $other): bool => MarkerKind::Chip !== $other->kind)),
                 ),
             ],
         ];
-    }
-
-    private function sentence(StoredMarker $marker): string
-    {
-        return $this->translator->trans($marker->label, $marker->params);
     }
 
     /**
