@@ -228,6 +228,13 @@ it, `claude -p` ends a worker 600 seconds after its main turn when a background
 subagent still runs, and exits 0. An operator who sets the variable, even to an
 empty value, keeps that value.
 
+At start, `loupe bridge run` removes the session variables of Claude Code from its own
+environment: `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_CHILD_SESSION`,
+`CLAUDE_PID`, the messaging and bridge variables, and the like. It also removes the Loupe run
+variables of an outer worker. Every worker, `before` command, hook and terminal window then
+starts clean, so you can restart the bridge from a Claude Code session without the workers
+turning transcript saving off. Settings such as `CLAUDE_CONFIG_DIR` stay.
+
 The bridge also gives each worker a connect limit of 150 seconds for its MCP
 servers. Claude Code waits 30 seconds by default, which is less than the
 retries of `loupe mcp` can need. The bridge sets `MCP_TIMEOUT=150000`, and an

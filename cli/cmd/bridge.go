@@ -94,6 +94,7 @@ func newBridgeRunCmd() *cobra.Command {
 			"while its card has a worker. The bridge writes one JSON " +
 			"object per line to stdout and to --log-file.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			dropInheritedSession()
 			if o.daemon {
 				return startDaemon(cmd, o)
 			}
