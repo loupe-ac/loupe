@@ -30,13 +30,14 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
      * @param list<string>|null                                                                                                                                                       $metrics
      * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
      * @param list<string>|null                                                                                                                                                       $covers   null keeps the stored list
+     * @param string|null                                                                                                                                                             $baseline null keeps the stored baseline
      */
-    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt, ?array $covers = null): void
+    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt, ?array $covers = null, ?string $baseline = null): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
-            'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, headline, covers, reported_at)'
-            .' VALUES (:id, :project, :experiment, :weights, :metrics, :headline, :covers, :reportedAt)'
-            .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, headline = EXCLUDED.headline, covers = COALESCE(EXCLUDED.covers, bridge_experiment_definitions.covers), reported_at = EXCLUDED.reported_at',
+            'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, headline, covers, baseline, reported_at)'
+            .' VALUES (:id, :project, :experiment, :weights, :metrics, :headline, :covers, :baseline, :reportedAt)'
+            .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, headline = EXCLUDED.headline, covers = COALESCE(EXCLUDED.covers, bridge_experiment_definitions.covers), baseline = COALESCE(EXCLUDED.baseline, bridge_experiment_definitions.baseline), reported_at = EXCLUDED.reported_at',
             [
                 'id' => Uuid::v7(),
                 'project' => $project->id,
@@ -45,6 +46,7 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
                 'metrics' => $metrics,
                 'headline' => $headline,
                 'covers' => $covers,
+                'baseline' => $baseline,
                 'reportedAt' => $reportedAt,
             ],
             [
@@ -55,6 +57,7 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
                 'metrics' => Types::JSON,
                 'headline' => Types::JSON,
                 'covers' => Types::JSON,
+                'baseline' => Types::STRING,
                 'reportedAt' => Types::DATETIME_IMMUTABLE,
             ],
         );

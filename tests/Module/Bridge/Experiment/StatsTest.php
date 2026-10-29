@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Experiment;
 
+use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\Stats;
@@ -14,7 +15,7 @@ final class StatsTest extends TestCase
 {
     public function test_wilson_gives_the_known_range_for_eight_of_ten(): void
     {
-        $interval = Stats::wilson(8, 10);
+        $interval = Stats::wilson(8, 10, Confidence::forComparisons(1));
 
         self::assertNotNull($interval);
         self::assertEqualsWithDelta(0.4902, $interval->low, 0.0001);
@@ -24,7 +25,7 @@ final class StatsTest extends TestCase
 
     public function test_wilson_starts_at_zero_for_no_successes(): void
     {
-        $interval = Stats::wilson(0, 10);
+        $interval = Stats::wilson(0, 10, Confidence::forComparisons(1));
 
         self::assertNotNull($interval);
         self::assertSame(0.0, $interval->low);
@@ -34,7 +35,7 @@ final class StatsTest extends TestCase
 
     public function test_wilson_ends_at_one_for_all_successes(): void
     {
-        $interval = Stats::wilson(10, 10);
+        $interval = Stats::wilson(10, 10, Confidence::forComparisons(1));
 
         self::assertNotNull($interval);
         self::assertEqualsWithDelta(0.7225, $interval->low, 0.0001);
@@ -43,28 +44,28 @@ final class StatsTest extends TestCase
 
     public function test_wilson_has_no_range_for_no_trials(): void
     {
-        self::assertNull(Stats::wilson(0, 0));
+        self::assertNull(Stats::wilson(0, 0, Confidence::forComparisons(1)));
     }
 
     public function test_bootstrap_gives_the_same_range_for_the_same_seed(): void
     {
         $values = [3, 7, 1, 9, 4, 6, 2, 8, 5, 10];
 
-        self::assertEquals(Stats::bootstrapMean($values, 'seed-a'), Stats::bootstrapMean($values, 'seed-a'));
+        self::assertEquals(Stats::bootstrapMean($values, 'seed-a', Confidence::forComparisons(1)), Stats::bootstrapMean($values, 'seed-a', Confidence::forComparisons(1)));
     }
 
     public function test_bootstrap_gives_another_range_for_another_seed(): void
     {
         $values = [3, 7, 1, 9, 4, 6, 2, 8, 5, 10];
 
-        self::assertNotEquals(Stats::bootstrapMean($values, 'seed-a'), Stats::bootstrapMean($values, 'seed-b'));
+        self::assertNotEquals(Stats::bootstrapMean($values, 'seed-a', Confidence::forComparisons(1)), Stats::bootstrapMean($values, 'seed-b', Confidence::forComparisons(1)));
     }
 
     public function test_bootstrap_range_contains_the_mean(): void
     {
         $values = [3, 7, 1, 9, 4, 6, 2, 8, 5, 10];
 
-        $interval = Stats::bootstrapMean($values, 'seed-a');
+        $interval = Stats::bootstrapMean($values, 'seed-a', Confidence::forComparisons(1));
 
         self::assertNotNull($interval);
         self::assertSame(5.5, $interval->point);
@@ -76,19 +77,19 @@ final class StatsTest extends TestCase
 
     public function test_bootstrap_of_one_value_is_that_value(): void
     {
-        self::assertEquals(new Interval(4.0, 4.0, 4.0), Stats::bootstrapMean([4], 'seed-a'));
+        self::assertEquals(new Interval(4.0, 4.0, 4.0), Stats::bootstrapMean([4], 'seed-a', Confidence::forComparisons(1)));
     }
 
     public function test_bootstrap_refuses_no_resamples(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        Stats::bootstrapMean([1, 2], 'seed-a', 0);
+        Stats::bootstrapMean([1, 2], 'seed-a', Confidence::forComparisons(1), 0);
     }
 
     public function test_bootstrap_has_no_range_for_no_values(): void
     {
-        self::assertNull(Stats::bootstrapMean([], 'seed-a'));
+        self::assertNull(Stats::bootstrapMean([], 'seed-a', Confidence::forComparisons(1)));
     }
 
     /**
@@ -119,7 +120,7 @@ final class StatsTest extends TestCase
 
     public function test_change_range_gives_the_relative_change_of_the_mean(): void
     {
-        $range = Stats::changeRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a');
+        $range = Stats::changeRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a', Confidence::forComparisons(1));
 
         self::assertNotNull($range);
         self::assertEqualsWithDelta(-0.5, $range->point, 1e-12);
@@ -133,20 +134,20 @@ final class StatsTest extends TestCase
         $a = [10, 11, 9, 10, 10, 12, 8];
         $b = [5, 5, 6, 4, 5, 6, 4];
 
-        self::assertEquals(Stats::changeRange($a, $b, 'seed-a'), Stats::changeRange($a, $b, 'seed-a'));
-        self::assertNotEquals(Stats::changeRange($a, $b, 'seed-a'), Stats::changeRange($a, $b, 'seed-b'));
+        self::assertEquals(Stats::changeRange($a, $b, 'seed-a', Confidence::forComparisons(1)), Stats::changeRange($a, $b, 'seed-a', Confidence::forComparisons(1)));
+        self::assertNotEquals(Stats::changeRange($a, $b, 'seed-a', Confidence::forComparisons(1)), Stats::changeRange($a, $b, 'seed-b', Confidence::forComparisons(1)));
     }
 
     public function test_change_range_has_no_range_for_a_zero_mean_or_an_empty_sample(): void
     {
-        self::assertNull(Stats::changeRange([0, 0, 0], [1, 2, 3], 'seed-a'));
-        self::assertNull(Stats::changeRange([], [1, 2, 3], 'seed-a'));
-        self::assertNull(Stats::changeRange([1, 2, 3], [], 'seed-a'));
+        self::assertNull(Stats::changeRange([0, 0, 0], [1, 2, 3], 'seed-a', Confidence::forComparisons(1)));
+        self::assertNull(Stats::changeRange([], [1, 2, 3], 'seed-a', Confidence::forComparisons(1)));
+        self::assertNull(Stats::changeRange([1, 2, 3], [], 'seed-a', Confidence::forComparisons(1)));
     }
 
     public function test_change_range_skips_a_resample_whose_baseline_mean_is_zero(): void
     {
-        $range = Stats::changeRange([0, 0, 0, 0, 0, 0, 0, 0, 0, 10], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], 'seed-a');
+        $range = Stats::changeRange([0, 0, 0, 0, 0, 0, 0, 0, 0, 10], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], 'seed-a', Confidence::forComparisons(1));
 
         self::assertNotNull($range);
         self::assertEqualsWithDelta(4.0, $range->point, 1e-12);
@@ -155,19 +156,19 @@ final class StatsTest extends TestCase
 
     public function test_difference_range_gives_the_absolute_difference_of_the_means(): void
     {
-        $range = Stats::differenceRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a');
+        $range = Stats::differenceRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a', Confidence::forComparisons(1));
 
         self::assertNotNull($range);
         self::assertEqualsWithDelta(-5.0, $range->point, 1e-12);
         self::assertLessThan(0.0, $range->high);
-        self::assertEquals($range, Stats::differenceRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a'));
-        self::assertNull(Stats::differenceRange([], [1], 'seed-a'));
+        self::assertEquals($range, Stats::differenceRange([10, 11, 9, 10, 10, 12, 8], [5, 5, 6, 4, 5, 6, 4], 'seed-a', Confidence::forComparisons(1)));
+        self::assertNull(Stats::differenceRange([], [1], 'seed-a', Confidence::forComparisons(1)));
     }
 
     public function test_newcombe_gives_the_known_range_for_the_difference_of_two_proportions(): void
     {
         // 56 of 70 against 48 of 80: the hybrid score range of 0.2 is 0.0524 to 0.3339.
-        $range = Stats::newcombe(48, 80, 56, 70);
+        $range = Stats::newcombe(48, 80, 56, 70, Confidence::forComparisons(1));
 
         self::assertNotNull($range);
         self::assertEqualsWithDelta(0.2, $range->point, 1e-12);
@@ -177,13 +178,13 @@ final class StatsTest extends TestCase
 
     public function test_newcombe_is_signed_and_needs_trials_on_both_sides(): void
     {
-        $range = Stats::newcombe(56, 70, 48, 80);
+        $range = Stats::newcombe(56, 70, 48, 80, Confidence::forComparisons(1));
 
         self::assertNotNull($range);
         self::assertEqualsWithDelta(-0.2, $range->point, 1e-12);
         self::assertEqualsWithDelta(-0.3339, $range->low, 0.0001);
-        self::assertNull(Stats::newcombe(0, 0, 1, 2));
-        self::assertNull(Stats::newcombe(1, 2, 0, 0));
+        self::assertNull(Stats::newcombe(0, 0, 1, 2, Confidence::forComparisons(1)));
+        self::assertNull(Stats::newcombe(1, 2, 0, 0, Confidence::forComparisons(1)));
     }
 
     /**

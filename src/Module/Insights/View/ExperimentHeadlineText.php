@@ -4,110 +4,102 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlResult;
+use App\Module\Bridge\Experiment\ExperimentArm;
+use App\Module\Bridge\Experiment\ExperimentComparison;
 use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentGoal;
 use App\Module\Bridge\Experiment\ExperimentGuard;
+use App\Module\Bridge\Experiment\ExperimentGuardChange;
 use App\Module\Bridge\Experiment\ExperimentMetric;
-use App\Module\Bridge\Experiment\GoalDirection;
-use App\Module\Bridge\Experiment\GoalState;
+use App\Module\Bridge\Experiment\ExperimentMetricName;
+use App\Module\Bridge\Experiment\Stats;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricValueType;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-/** The sentences and figures of the goal panel, the Controls table and the Guards table, as text. */
+/** The change, the range and the Result text of the goal table, and the figures of the Controls and Guards tables. */
 final readonly class ExperimentHeadlineText
 {
     private const string MINUS = "\u{2212}";
 
     private MetricValueFormatter $values;
 
+    private ExperimentMetricName $names;
+
     public function __construct(
         private TranslatorInterface $translator,
         private string $locale,
     ) {
         $this->values = new MetricValueFormatter($locale);
+        $this->names = new ExperimentMetricName($translator);
     }
 
-    /** The answer of the goal, such as "sonnet is 22% faster than opus". */
-    public function sentence(ExperimentGoal $goal): string
+    /** The name of a metric row, such as "Cost per merged card" or "Harness events: diagnostics". */
+    public function metricName(ExperimentMetric $metric): string
     {
-        if (GoalState::NotEnoughCards === $goal->state) {
-            return $this->translator->trans('bridge.experiments.goal.sentence.not_enough');
+        return $this->names->of($metric);
+    }
+
+    /** The change of the variant against the baseline, such as "12% cheaper" or "3 pp higher". The sign reads the same in every row. Null when the comparison has no change. */
+    public function change(ExperimentGoal $goal, ExperimentComparison $comparison): ?string
+    {
+        $change = $comparison->change;
+        if (null === $change) {
+            return null;
         }
-        if (null === $goal->winner || null === $goal->direction) {
-            return $this->translator->trans('bridge.experiments.goal.sentence.level');
+        if (0.0 === $change->point) {
+            return $this->translator->trans('bridge.experiments.goal.change.level');
         }
 
-        $parameters = ['%winner%' => $goal->winner, '%other%' => self::other($goal)];
-        if (null === $goal->change) {
-            return $this->translator->trans('bridge.experiments.goal.sentence.ahead', $parameters);
-        }
-        if (!$goal->relative) {
-            $parameters['%count%'] = $this->points($goal->change->point);
-
-            return $this->translator->trans('bridge.experiments.goal.sentence.points_'.$goal->direction->value, $parameters);
+        $less = $change->point < 0;
+        if (!$comparison->relative) {
+            return $this->translator->trans('bridge.experiments.goal.change.points_'.($less ? 'lower' : 'higher'), ['%count%' => $this->points($change->point)]);
         }
 
-        $lower = GoalDirection::Lower === $goal->direction;
         $word = match ($goal->metric->valueType()) {
-            MetricValueType::Duration => $lower ? 'faster' : 'slower',
-            MetricValueType::Money => $lower ? 'cheaper' : 'dearer',
-            MetricValueType::Count => $lower ? 'fewer' : 'more',
-            default => $lower ? 'lower' : 'higher',
+            MetricValueType::Duration => $less ? 'faster' : 'slower',
+            MetricValueType::Money => $less ? 'cheaper' : 'dearer',
+            MetricValueType::Count => $less ? 'fewer' : 'more',
+            default => $less ? 'lower' : 'higher',
         };
 
-        return $this->translator->trans('bridge.experiments.goal.sentence.'.$word, $parameters + ['%change%' => $this->changePercent($goal->change->point)]);
+        return $this->translator->trans('bridge.experiments.goal.change.'.$word, ['%change%' => $this->changePercent($change->point)]);
     }
 
-    /** The large line of a held goal, such as "Treatment not applied". */
-    public function holdSentence(ExperimentGoal $goal): string
+    /** The chip text of a comparison that is short of cards, such as "lsp-skill needs 2 more cards". Each side below the floor is named. */
+    public function needs(ExperimentComparison $comparison, ExperimentArm $baseline): string
     {
-        $hold = $goal->hold ?? throw new \LogicException('A held goal has a hold.');
+        $parts = [];
+        foreach ([$baseline, $comparison->arm] as $arm) {
+            $missing = Stats::MIN_FINISHED_CARDS - $arm->finishedCards;
+            if ($missing > 0) {
+                $parts[] = $this->translator->trans('bridge.experiments.goal.needs', ['%variant%' => $arm->variant, '%count%' => $missing]);
+            }
+        }
 
-        return match ($hold->reason) {
-            ControlResult::UnknownMetric => $this->translator->trans('bridge.experiments.goal.hold.unknown', ['%metric%' => $hold->controls[0]->metric]),
-            ControlResult::NoData => $this->translator->trans('bridge.experiments.goal.hold.no_data'),
-            default => $this->translator->trans('bridge.experiments.goal.hold.failed'),
-        };
+        return [] === $parts ? $this->translator->trans('bridge.experiments.goal.not_enough') : implode(', ', $parts);
     }
 
-    /** The line under a held goal: how many controls hold it, and the goal value of each variant. */
-    public function holdDetail(ExperimentGoal $goal): string
+    /** Why a comparison names no result: how many controls on its two arms hold it. */
+    public function holdReason(ExperimentComparison $comparison): string
     {
-        $hold = $goal->hold ?? throw new \LogicException('A held goal has a hold.');
+        $hold = $comparison->hold ?? throw new \LogicException('A held comparison has a hold.');
         $key = match ($hold->reason) {
             ControlResult::UnknownMetric => 'unknown',
             ControlResult::NoData => 'no_data',
             default => 'failed',
         };
-        $parts = [$this->translator->trans('bridge.experiments.goal.hold.detail.'.$key, ['%count%' => \count($hold->controls), '%total%' => $hold->total])];
-        $values = [];
-        foreach ($goal->arms as $arm) {
-            $point = $this->point($goal->metric, $arm->point);
-            if (null !== $point) {
-                $values[] = $point.' ('.$arm->variant.')';
-            }
-        }
-        if (2 === \count($values)) {
-            $parts[] = $values[0].' '.$this->translator->trans('bridge.experiments.goal.against').' '.$values[1].'.';
-        }
 
-        return implode(' ', $parts);
+        return $this->translator->trans('bridge.experiments.goal.hold.detail.'.$key, ['%count%' => \count($hold->controls), '%total%' => $hold->total]);
     }
 
     /** The name of a control and its expectation, such as "Harness events: diagnostics > 0". */
     public function controlLabel(ExperimentControl $control): string
     {
         $key = $control->metric;
-        $name = null;
-        foreach ([Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents] as $family) {
-            if (str_starts_with($key, $family->value.':')) {
-                $name = $this->translator->trans('analytics.metrics.metric.'.str_replace('-', '_', $family->value).'_named', [Metric::HarnessEvents === $family ? '%kind%' : '%bucket%' => substr($key, \strlen($family->value) + 1)]);
-                break;
-            }
-        }
-        $name ??= $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans(ExperimentMetric::COVERED_COST === $key ? 'bridge.experiments.metric.'.$key : 'analytics.metrics.metric.'.$key));
+        $name = $this->names->named($key) ?? $control->templateLabel ?? (ControlResult::UnknownMetric === $control->result ? $key : $this->translator->trans(ExperimentMetric::COVERED_COST === $key ? 'bridge.experiments.metric.'.$key : 'analytics.metrics.metric.'.$key));
 
         return $name.' '.$control->expect;
     }
@@ -118,19 +110,19 @@ final readonly class ExperimentHeadlineText
         return $this->percent($share);
     }
 
-    /** The range of the change of the winner, such as "9% to 33% lower". Null when the goal has no change. */
-    public function range(ExperimentGoal $goal): ?string
+    /** The range of the change of the variant against the baseline, such as "9% to 33% lower". Null when the comparison has no change. */
+    public function range(ExperimentComparison $comparison): ?string
     {
-        $change = $goal->change;
+        $change = $comparison->change;
         if (null === $change) {
             return null;
         }
 
         if ($change->low < 0 && $change->high > 0) {
             return $this->translator->trans('bridge.experiments.goal.range.across', [
-                '%low%' => $this->magnitude($change->low, $goal->relative, true),
+                '%low%' => $this->magnitude($change->low, $comparison->relative, true),
                 '%lowWord%' => $this->translator->trans('bridge.experiments.goal.lower'),
-                '%high%' => $this->magnitude($change->high, $goal->relative, true),
+                '%high%' => $this->magnitude($change->high, $comparison->relative, true),
                 '%highWord%' => $this->translator->trans('bridge.experiments.goal.higher'),
             ]);
         }
@@ -138,8 +130,8 @@ final readonly class ExperimentHeadlineText
         [$near, $far, $word] = $change->high <= 0 ? [$change->high, $change->low, 'lower'] : [$change->low, $change->high, 'higher'];
 
         return $this->translator->trans('bridge.experiments.goal.range.between', [
-            '%near%' => $this->magnitude($near, $goal->relative, false),
-            '%far%' => $this->magnitude($far, $goal->relative, true),
+            '%near%' => $this->magnitude($near, $comparison->relative, false),
+            '%far%' => $this->magnitude($far, $comparison->relative, true),
             '%word%' => $this->translator->trans('bridge.experiments.goal.'.$word),
         ]);
     }
@@ -154,50 +146,41 @@ final readonly class ExperimentHeadlineText
         return MetricValueType::Ratio === $metric->valueType() ? $this->percent($point) : $this->values->format($point, $metric->shape);
     }
 
-    /** The first column of a guard: the two rates, or the signed change of the second variant. Null when a variant has no data. */
-    public function guardChange(ExperimentGuard $guard): ?string
+    /** The level of the ranges, such as "97.5%". */
+    public function level(Confidence $confidence): string
     {
-        if (MetricValueType::Ratio === $guard->metric->valueType()) {
-            [$first, $second] = [$guard->arms[0]->point ?? null, $guard->arms[1]->point ?? null];
-            if (null === $first || null === $second) {
-                return null;
-            }
-
-            return $this->translator->trans('bridge.experiments.guards.rates', ['%from%' => $this->percent($first), '%to%' => $this->percent($second)]);
-        }
-
-        return null === $guard->change ? null : $this->signed($guard->metric, $guard->change->point);
+        return $this->percent($confidence->level, 1);
     }
 
-    /** The range of the change of a guard, such as "−12 to 0 pp". Null when a variant has no data. */
-    public function guardRange(ExperimentGuard $guard): ?string
+    /** The level as a count in 100, such as "97.5". */
+    public function levelOutOf100(Confidence $confidence): string
     {
-        $change = $guard->change;
-        if (null === $change) {
+        $formatter = new \NumberFormatter($this->locale, \NumberFormatter::DECIMAL);
+        $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 1);
+
+        return (string) $formatter->format($confidence->level * 100);
+    }
+
+    /** The change of a guard from the baseline to one variant with its range, such as "+5 pp (\u{2212}6 to +15)". Null when an arm has no data. */
+    public function guardChange(ExperimentGuard $guard, ExperimentGuardChange $change): ?string
+    {
+        $range = $change->change;
+        if (null === $range) {
             return null;
         }
         if (MetricValueType::Ratio === $guard->metric->valueType()) {
-            return $this->translator->trans('bridge.experiments.guards.range_points', [
-                '%low%' => $this->signedPoints($change->low),
-                '%high%' => $this->signedPoints($change->high),
+            return $this->translator->trans('bridge.experiments.guards.change_points', [
+                '%change%' => $this->signedPoints($range->point),
+                '%low%' => $this->signedPoints($range->low),
+                '%high%' => $this->signedPoints($range->high),
             ]);
         }
 
-        return $this->translator->trans('bridge.experiments.guards.range', [
-            '%low%' => $this->signed($guard->metric, $change->low),
-            '%high%' => $this->signed($guard->metric, $change->high),
+        return $this->translator->trans('bridge.experiments.guards.change_range', [
+            '%change%' => $this->signed($guard->metric, $range->point),
+            '%low%' => $this->signed($guard->metric, $range->low),
+            '%high%' => $this->signed($guard->metric, $range->high),
         ]);
-    }
-
-    private static function other(ExperimentGoal $goal): string
-    {
-        foreach ($goal->arms as $arm) {
-            if ($arm->variant !== $goal->winner) {
-                return $arm->variant;
-            }
-        }
-
-        return '';
     }
 
     private function magnitude(float $value, bool $relative, bool $unit): string
@@ -215,7 +198,7 @@ final readonly class ExperimentHeadlineText
         return (int) round(abs($ratio) * 100);
     }
 
-    /** A winner differs from the other variant, so a change that rounds to 0% reads "under 1%". */
+    /** A change that rounds to 0% reads "under 1%". */
     private function changePercent(float $fraction): string
     {
         if (0.0 === round(abs($fraction) * 100)) {
@@ -225,10 +208,10 @@ final readonly class ExperimentHeadlineText
         return $this->percent(abs($fraction));
     }
 
-    private function percent(float $fraction): string
+    private function percent(float $fraction, int $digits = 0): string
     {
         $formatter = new \NumberFormatter($this->locale, \NumberFormatter::PERCENT);
-        $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 0);
+        $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, $digits);
 
         return (string) $formatter->format($fraction);
     }

@@ -11,6 +11,7 @@ use App\Module\Bridge\Mcp\ExperimentGetTool;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Tests\Module\Bridge\ExperimentScenario;
 use App\Tests\Support\McpTokenScenario;
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -29,6 +30,7 @@ final class ExperimentGetToolTest extends KernelTestCase
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get@example.com'));
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 3], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->metrics = ['cost', 'merge-rate', 'no-such-metric'];
         $em->persist($definition);
         for ($i = 1; $i <= 5; ++$i) {
@@ -48,27 +50,30 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame(['no-such-metric'], $result['unknownMetrics']);
         self::assertSame(Stats::MIN_FINISHED_CARDS, $result['minFinishedCards']);
         self::assertSame([], $result['unknownGuards']);
+        self::assertSame('a', $result['baseline']);
+        self::assertSame(0.95, $result['confidenceLevel']);
         self::assertSame([
             'key' => 'cost',
             'label' => 'Cost per merged card',
             'valueType' => 'money',
             'direction' => 'lower',
+            'problem' => null,
+        ], $result['headline']['goal']);
+        self::assertSame(['name' => 'a', 'point' => 2.0, 'cardsBehind' => 5], $result['headline']['baselineArm']);
+        self::assertSame([[
+            'variant' => 'b',
             'state' => 'clear',
-            'variants' => [
-                ['name' => 'a', 'point' => 2.0, 'finishedCards' => 5],
-                ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5],
-            ],
-            'winner' => 'b',
+            'point' => 1.0,
+            'cardsBehind' => 5,
             'changeKind' => 'relative',
             'change' => ['point' => -0.5, 'low' => -0.5, 'high' => -0.5],
             'holdReason' => null,
             'heldBy' => null,
-        ], $result['headline']['goal']);
+            'guards' => [['key' => 'merge-rate', 'point' => 1.0, 'change' => $result['headline']['comparisons'][0]['guards'][0]['change']]],
+        ]], $result['headline']['comparisons']);
+        self::assertEqualsWithDelta(0.0, $result['headline']['comparisons'][0]['guards'][0]['change']['point'] ?? null, 1e-12);
         self::assertSame([], $result['headline']['controls']);
-        self::assertSame(['merge-rate'], array_column($result['headline']['guards'], 'key'));
-        self::assertSame('ratio', $result['headline']['guards'][0]['valueType']);
-        self::assertSame([['name' => 'a', 'point' => 1.0, 'finishedCards' => 5], ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5]], $result['headline']['guards'][0]['variants']);
-        self::assertEqualsWithDelta(0.0, $result['headline']['guards'][0]['change']['point'] ?? null, 1e-12);
+        self::assertSame([['key' => 'merge-rate', 'label' => 'Merge rate', 'valueType' => 'ratio', 'baselinePoint' => 1.0]], $result['headline']['guards']);
         self::assertSame([
             ['name' => 'a', 'models' => ['model-a'], 'weight' => 3, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 10.0, 'coveredCostUsd' => 10.0],
             ['name' => 'b', 'models' => ['model-b'], 'weight' => 1, 'cards' => 5, 'finishedCards' => 5, 'runs' => 5, 'costUsd' => 5.0, 'coveredCostUsd' => 5.0],
@@ -131,11 +136,12 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame([2, 3.0, 1.0], [$result['cards'][0]['runs'], $result['cards'][0]['costUsd'], $result['cards'][0]['coveredCostUsd']]);
     }
 
-    public function test_a_goal_that_no_metric_has_names_no_winner(): void
+    public function test_a_goal_that_no_metric_has_names_the_problem(): void
     {
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get-typo@example.com'));
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'a';
         $definition->headline = ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower'], 'guards' => []];
         $em->persist($definition);
         for ($i = 1; $i <= 5; ++$i) {
@@ -149,20 +155,84 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame('hours-to-mrege', $goal['key']);
         self::assertSame('hours-to-mrege', $goal['label']);
         self::assertNull($goal['valueType']);
-        self::assertSame('unknown-metric', $goal['state']);
-        self::assertNull($goal['winner']);
-        self::assertNull($goal['change']);
+        self::assertSame('unknown-metric', $goal['problem']);
+        self::assertSame([], $this->tool()('model-test')['headline']['comparisons']);
     }
 
-    public function test_a_failed_control_holds_the_goal_and_the_tool_lists_it(): void
+    public function test_every_other_variant_is_compared_against_the_baseline_at_a_widened_level(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-three@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1], ['name' => 'c', 'weight' => 1]]);
+        $definition->baseline = 'b';
+        $definition->metrics = ['cost'];
+        $em->persist($definition);
+        $number = 0;
+        foreach (['a' => '4.000000', 'b' => '2.000000', 'c' => '1.000000'] as $variant => $cost) {
+            for ($i = 0; $i < 5; ++$i) {
+                $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, ++$number, merged: true), $variant), costUsd: $cost);
+            }
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool()('model-test');
+
+        self::assertSame('b', $result['baseline']);
+        self::assertSame(0.975, $result['confidenceLevel']);
+        self::assertSame('b', $result['headline']['baselineArm']['name'] ?? null);
+        self::assertSame(['a', 'c'], array_column($result['headline']['comparisons'], 'variant'));
+        self::assertSame(['clear', 'clear'], array_column($result['headline']['comparisons'], 'state'));
+        self::assertSame([1.0, -0.5], array_map(static fn (array $comparison): ?float => $comparison['change']['point'] ?? null, $result['headline']['comparisons']));
+        self::assertTrue($result['metrics'][0]['clear']);
+    }
+
+    public function test_an_experiment_with_no_baseline_has_no_comparison(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-nobaseline@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->metrics = ['cost'];
+        $em->persist($definition);
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a'), costUsd: '2.000000');
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i + 5, merged: true), 'b'), costUsd: '1.000000');
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool()('model-test');
+
+        self::assertNull($result['baseline']);
+        self::assertNull($result['headline']['baselineArm']);
+        self::assertSame([], $result['headline']['comparisons']);
+        self::assertSame(0.95, $result['confidenceLevel']);
+        self::assertNull($result['metrics'][0]['clear']);
+        self::assertSame(['a', 'b'], array_keys($result['metrics'][0]['byVariant']));
+    }
+
+    public function test_the_description_says_every_variant_is_compared_against_the_baseline(): void
+    {
+        $attributes = new \ReflectionClass(ExperimentGetTool::class)->getAttributes(McpTool::class);
+        $description = $attributes[0]->newInstance()->description ?? '';
+
+        self::assertStringContainsString('compared against the baseline', $description);
+        self::assertStringContainsString('comparisons is empty and baseline is null', $description);
+        self::assertStringContainsString('not-enough-cards, clear, not-clear or held', $description);
+        self::assertStringContainsString('confidenceLevel', $description);
+        self::assertStringNotContainsString('first two variants', $description);
+        self::assertStringNotContainsString('winner', $description);
+    }
+
+    public function test_a_failed_control_holds_its_comparison_and_the_tool_lists_it(): void
     {
         $em = $this->em();
         $project = $this->boardProject($em, $this->user($em, 'experiment-get-controls@example.com'));
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->baseline = 'b';
         $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => [], 'controls' => [
             ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
             ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5],
         ]];
+        $definition->metrics = ['cost', 'harness-events:diagnostics'];
         $em->persist($definition);
         for ($i = 1; $i <= 5; ++$i) {
             $run = $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a');
@@ -173,12 +243,16 @@ final class ExperimentGetToolTest extends KernelTestCase
         $em->flush();
         $this->actAsMcpTokenBoundTo($project);
 
-        $headline = $this->tool()('model-test')['headline'];
+        $result = $this->tool()('model-test');
+        $headline = $result['headline'];
 
-        self::assertSame('held', $headline['goal']['state']);
-        self::assertSame('failed', $headline['goal']['holdReason']);
-        self::assertSame(['harness-events:diagnostics'], $headline['goal']['heldBy']);
-        self::assertNull($headline['goal']['winner']);
+        self::assertSame(['Cost per merged card', 'Harness events: diagnostics'], array_column($result['metrics'], 'label'));
+        [$comparison] = $headline['comparisons'];
+        self::assertSame('a', $comparison['variant']);
+        self::assertSame('held', $comparison['state']);
+        self::assertSame('failed', $comparison['holdReason']);
+        self::assertSame(['harness-events:diagnostics'], $comparison['heldBy']);
+        self::assertNull($comparison['change']);
         self::assertSame([
             ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5, 'passingShare' => 0.2, 'cardsWithData' => 5, 'cardsFinished' => 5, 'result' => 'failed'],
             ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5, 'passingShare' => null, 'cardsWithData' => 0, 'cardsFinished' => 5, 'result' => 'unknown-metric'],
@@ -203,12 +277,12 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame('fix-rounds', $metric['key']);
         self::assertSame('Fix rounds', $metric['label']);
         self::assertSame('count', $metric['valueType']);
-        self::assertFalse($metric['clear']);
+        self::assertNull($metric['clear']);
         self::assertSame([[
             'key' => 'conflict',
             'label' => 'conflict',
             'valueType' => 'count',
-            'clear' => false,
+            'clear' => null,
             'byVariant' => ['a' => ['point' => 1.0, 'low' => 1.0, 'high' => 1.0]],
             'parts' => [],
         ]], $metric['parts']);

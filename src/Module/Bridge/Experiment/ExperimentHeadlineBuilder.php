@@ -9,105 +9,92 @@ use App\Module\Bridge\Metric\MetricValueType;
 final class ExperimentHeadlineBuilder
 {
     /**
-     * @param list<string>            $variantNames sorted, so the first two are the ones compared
+     * @param list<string>            $variantNames the variants in the order the report shows them
      * @param array<string, int>      $finished     variant => finished cards
      * @param list<ExperimentMetric>  $guards
-     * @param ?GoalState              $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered
-     * @param list<ExperimentControl> $controls     a control that does not pass holds the goal, before the card floor is read
+     * @param ?string                 $baseline     null for an experiment that names none, which has no comparison
+     * @param ?GoalState              $problem      UnknownMetric or NoDirection when the rule names a goal that cannot be answered, which leaves no comparison
+     * @param list<ExperimentControl> $controls     a control on a variant or on the baseline that does not pass holds the comparison, before the card floor is read
      */
-    public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, ?GoalDirection $direction, array $guards, ?GoalState $problem = null, array $controls = []): ExperimentHeadline
+    public static function build(string $experiment, array $variantNames, array $finished, ExperimentMetric $goal, ?GoalDirection $direction, array $guards, ?string $baseline, Confidence $confidence, ?GoalState $problem = null, array $controls = []): ExperimentHeadline
     {
-        $names = \array_slice($variantNames, 0, 2);
-        $hold = ControlEvaluator::hold($controls);
+        $problem ??= null === $direction ? GoalState::NoDirection : null;
+        $comparisons = [];
+        if (null !== $baseline && null === $problem) {
+            foreach ($variantNames as $variant) {
+                if ($variant !== $baseline) {
+                    $comparisons[] = self::compare($experiment, $variant, $baseline, $finished, $goal, $guards, $confidence, $controls);
+                }
+            }
+        }
 
         return new ExperimentHeadline(
-            self::answer($experiment, $names, $finished, $goal, $direction, $problem, $hold),
-            array_map(static fn (ExperimentMetric $guard): ExperimentGuard => self::guard($experiment, $names, $finished, $guard), $guards),
+            new ExperimentGoal($goal, $direction, $problem),
+            $baseline,
+            $confidence,
+            null === $baseline ? null : self::arm($baseline, $finished, $goal),
+            $comparisons,
+            array_map(static fn (ExperimentMetric $guard): ExperimentGuard => new ExperimentGuard($guard, null === $baseline ? null : $guard->for($baseline)?->point), $guards),
             $controls,
         );
     }
 
     /**
-     * @param list<string>       $names
-     * @param array<string, int> $finished
+     * @param array<string, int>      $finished
+     * @param list<ExperimentMetric>  $guards
+     * @param list<ExperimentControl> $controls
      */
-    private static function answer(string $experiment, array $names, array $finished, ExperimentMetric $metric, ?GoalDirection $direction, ?GoalState $problem, ?GoalHold $hold): ExperimentGoal
+    private static function compare(string $experiment, string $variant, string $baseline, array $finished, ExperimentMetric $goal, array $guards, Confidence $confidence, array $controls): ExperimentComparison
     {
-        $relative = MetricValueType::Ratio !== $metric->valueType();
-        if (null !== $hold) {
-            return new ExperimentGoal($metric, $direction, GoalState::Held, self::arms($names, $finished, $metric), null, null, $relative, $hold);
-        }
-        if (null === $problem && null !== $direction) {
-            return self::goal($experiment, $names, $finished, $metric, $direction);
-        }
-
-        return new ExperimentGoal($metric, $direction, $problem ?? GoalState::NoDirection, self::arms($names, $finished, $metric), null, null, $relative);
-    }
-
-    /**
-     * @param list<string>       $names
-     * @param array<string, int> $finished
-     */
-    private static function goal(string $experiment, array $names, array $finished, ExperimentMetric $metric, GoalDirection $direction): ExperimentGoal
-    {
-        $behind = array_map(static fn (string $name): int => min($finished[$name] ?? 0, \count($metric->samples[$name] ?? [])), $names);
-        $arms = self::arms($names, array_combine($names, $behind), $metric);
-        $relative = MetricValueType::Ratio !== $metric->valueType();
-        if (2 !== \count($names)) {
-            return new ExperimentGoal($metric, $direction, GoalState::NotEnoughCards, $arms, null, null, $relative);
-        }
-
-        [$a, $b] = $names;
-        $state = Stats::goalState($metric->for($a), $metric->for($b), $behind[0], $behind[1]);
-        $pointA = $metric->for($a)?->point;
-        $pointB = $metric->for($b)?->point;
-        if (GoalState::NotEnoughCards === $state || null === $pointA || null === $pointB || $pointA === $pointB) {
-            return new ExperimentGoal($metric, $direction, $state, $arms, null, null, $relative);
-        }
-
-        $aWins = GoalDirection::Lower === $direction ? $pointA < $pointB : $pointA > $pointB;
-        [$winner, $other] = $aWins ? [$a, $b] : [$b, $a];
-        $change = $relative
-            ? Stats::changeRange($metric->samples[$other] ?? [], $metric->samples[$winner] ?? [], $experiment.':'.$metric->key.':change')
-            : self::proportions($metric, $other, $winner);
-
-        return new ExperimentGoal($metric, $direction, $state, $arms, $winner, $change, $relative);
-    }
-
-    /**
-     * @param list<string>       $names
-     * @param array<string, int> $finished
-     */
-    private static function guard(string $experiment, array $names, array $finished, ExperimentMetric $metric): ExperimentGuard
-    {
+        $relative = MetricValueType::Ratio !== $goal->valueType();
+        $arm = self::arm($variant, $finished, $goal);
+        $base = self::arm($baseline, $finished, $goal);
+        $hold = ControlEvaluator::hold($controls, $variant, $baseline);
         $change = null;
-        if (2 === \count($names)) {
-            [$a, $b] = $names;
-            $change = MetricValueType::Ratio === $metric->valueType()
-                ? self::proportions($metric, $a, $b)
-                : Stats::differenceRange($metric->samples[$a] ?? [], $metric->samples[$b] ?? [], $experiment.':'.$metric->key.':guard');
+        if (null !== $hold) {
+            $state = GoalState::Held;
+        } else {
+            $state = Stats::goalState($goal->for($baseline), $goal->for($variant), $base->finishedCards, $arm->finishedCards);
+            if (GoalState::NotEnoughCards !== $state) {
+                $change = $relative
+                    ? Stats::changeRange($goal->samples[$baseline] ?? [], $goal->samples[$variant] ?? [], $experiment.':'.$goal->key.':change:'.$variant, $confidence)
+                    : self::proportions($goal, $baseline, $variant, $confidence);
+            }
         }
 
-        return new ExperimentGuard($metric, self::arms($names, $finished, $metric), $change);
+        return new ExperimentComparison(
+            $variant,
+            $state,
+            $arm,
+            $relative,
+            $change,
+            $hold,
+            array_map(static fn (ExperimentMetric $guard): ExperimentGuardChange => new ExperimentGuardChange(
+                $guard->key,
+                $guard->for($variant)?->point,
+                MetricValueType::Ratio === $guard->valueType()
+                    ? self::proportions($guard, $baseline, $variant, $confidence)
+                    : Stats::differenceRange($guard->samples[$baseline] ?? [], $guard->samples[$variant] ?? [], $experiment.':'.$guard->key.':guard:'.$variant, $confidence),
+            ), $guards),
+        );
     }
 
     /** The difference of the ratio of one variant minus the ratio of another, from the 0 and 1 samples behind them. */
-    private static function proportions(ExperimentMetric $metric, string $from, string $to): ?Interval
+    private static function proportions(ExperimentMetric $metric, string $from, string $to, Confidence $confidence): ?Interval
     {
         $a = $metric->samples[$from] ?? [];
         $b = $metric->samples[$to] ?? [];
 
-        return Stats::newcombe((int) array_sum($a), \count($a), (int) array_sum($b), \count($b));
+        return Stats::newcombe((int) array_sum($a), \count($a), (int) array_sum($b), \count($b), $confidence);
     }
 
     /**
-     * @param list<string>       $names
-     * @param array<string, int> $finished
+     * The point of a variant, and the cards behind it: the cards of its sample, up to its finished cards.
      *
-     * @return list<ExperimentArm>
+     * @param array<string, int> $finished
      */
-    private static function arms(array $names, array $finished, ExperimentMetric $metric): array
+    private static function arm(string $variant, array $finished, ExperimentMetric $metric): ExperimentArm
     {
-        return array_map(static fn (string $name): ExperimentArm => new ExperimentArm($name, $metric->for($name)?->point, $finished[$name] ?? 0), $names);
+        return new ExperimentArm($variant, $metric->for($variant)?->point, min($finished[$variant] ?? 0, \count($metric->samples[$variant] ?? [])));
     }
 }

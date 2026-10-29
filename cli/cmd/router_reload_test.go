@@ -714,7 +714,7 @@ func TestDiffRulesSeesAChangedVariant(t *testing.T) {
 	parse := func(model string) *rules.Set {
 		t.Helper()
 		body := "accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\n" +
-			"work:\n  plan:\n    prompt: go\nexperiments:\n  plan:\n    covers: [plan]\n    variants:\n      - {name: a, weight: 1, model: " + model + "}\n"
+			"work:\n  plan:\n    prompt: go\nexperiments:\n  plan:\n    covers: [plan]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: " + model + "}\n"
 		set, err := rules.Parse([]byte(body), rules.Defaults{})
 		if err != nil {
 			t.Fatal(err)

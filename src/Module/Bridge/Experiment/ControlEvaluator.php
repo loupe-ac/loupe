@@ -49,16 +49,17 @@ final class ControlEvaluator
     }
 
     /**
-     * The controls that hold the goal back, for the first kind of result in this order: failed, unknown metric, no data. Null when every control passes.
+     * The controls on the variant or the baseline that hold the comparison back, for the first kind of result in this order: failed, unknown metric, no data. Null when each of those controls passes. A control on another variant is not read.
      *
      * @param list<ExperimentControl> $controls
      */
-    public static function hold(array $controls): ?GoalHold
+    public static function hold(array $controls, string $variant, string $baseline): ?GoalHold
     {
+        $read = array_values(array_filter($controls, static fn (ExperimentControl $control): bool => $variant === $control->variant || $baseline === $control->variant));
         foreach ([ControlResult::Failed, ControlResult::UnknownMetric, ControlResult::NoData] as $reason) {
-            $held = array_values(array_filter($controls, static fn (ExperimentControl $control): bool => $reason === $control->result));
+            $held = array_values(array_filter($read, static fn (ExperimentControl $control): bool => $reason === $control->result));
             if ([] !== $held) {
-                return new GoalHold($reason, $held, \count($controls));
+                return new GoalHold($reason, $held, \count($read));
             }
         }
 

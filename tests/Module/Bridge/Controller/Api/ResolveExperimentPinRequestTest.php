@@ -263,4 +263,32 @@ final class ResolveExperimentPinRequestTest extends TestCase
     {
         self::assertNull(new ResolveExperimentPinRequest(covers: $covers)->covers());
     }
+
+    public function test_a_baseline_that_is_a_variant_comes_back(): void
+    {
+        $request = new ResolveExperimentPinRequest('sonnet', ['opus', 'sonnet'], baseline: 'opus');
+
+        self::assertSame('opus', $request->baseline());
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidBaselines(): iterable
+    {
+        yield 'absent' => [null];
+        yield 'not a variant' => ['haiku'];
+        yield 'an int' => [1];
+        yield 'a list' => [['opus']];
+        yield 'empty' => [''];
+    }
+
+    #[DataProvider('invalidBaselines')]
+    public function test_an_invalid_baseline_gives_null(mixed $baseline): void
+    {
+        self::assertNull(new ResolveExperimentPinRequest('sonnet', ['opus', 'sonnet'], baseline: $baseline)->baseline());
+    }
+
+    public function test_a_baseline_with_invalid_variants_gives_null(): void
+    {
+        self::assertNull(new ResolveExperimentPinRequest('sonnet', ['opus', 'opus'], baseline: 'opus')->baseline());
+    }
 }

@@ -23,7 +23,7 @@ func TestResolveExperimentPinSendsTheContractBody(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	variant, switchedFrom, err := New(server.URL, "secret", server.Client()).
-		ResolveExperimentPin(context.Background(), "my project", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 2}, []string{"cost", "merge-rate"}, nil, []string{"implement", "fix"})
+		ResolveExperimentPin(context.Background(), "my project", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 2}, []string{"cost", "merge-rate"}, nil, []string{"implement", "fix"}, "opus")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestResolveExperimentPinSendsTheContractBody(t *testing.T) {
 	if auth != "Bearer secret" || contentType != "application/json" {
 		t.Fatalf("auth = %q, content type = %q", auth, contentType)
 	}
-	if want := `{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,2],"metrics":["cost","merge-rate"],"covers":["implement","fix"]}`; body != want {
+	if want := `{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,2],"metrics":["cost","merge-rate"],"covers":["implement","fix"],"baseline":"opus"}`; body != want {
 		t.Fatalf("body = %s, want %s", body, want)
 	}
 }
@@ -53,10 +53,10 @@ func TestResolveExperimentPinSendsAnEmptyMetricList(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	if _, _, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil, nil, nil); err != nil {
+		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil, nil, nil, ""); err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"candidate":"sonnet","variants":[],"weights":[],"metrics":[],"covers":[]}`; body != want {
+	if want := `{"candidate":"sonnet","variants":[],"weights":[],"metrics":[],"covers":[],"baseline":""}`; body != want {
 		t.Fatalf("body = %s, want %s", body, want)
 	}
 }
@@ -68,7 +68,7 @@ func TestResolveExperimentPinReadsASwitchedPin(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	variant, switchedFrom, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 1}, nil, nil, nil)
+		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"opus", "sonnet"}, []int{1, 1}, nil, nil, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestResolveExperimentPinNamesEachFailure(t *testing.T) {
 			t.Cleanup(server.Close)
 
 			variant, _, err := New(server.URL, "t", server.Client()).
-				ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil, nil, nil)
+				ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil, nil, nil, "")
 			if err == nil {
 				t.Fatalf("variant = %q, want an error", variant)
 			}
@@ -124,7 +124,7 @@ func TestResolveExperimentPinStopsAtTheDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	_, _, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(ctx, "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil, nil, nil)
+		ResolveExperimentPin(ctx, "loupe", "impl-model", pinCard, "sonnet", []string{"sonnet"}, []int{1}, nil, nil, nil, "")
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want the deadline", err)
 	}
@@ -140,7 +140,7 @@ func pinBody(t *testing.T, headline *ExperimentHeadline) string {
 	}))
 	t.Cleanup(server.Close)
 	if _, _, err := New(server.URL, "t", server.Client()).
-		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil, headline, nil); err != nil {
+		ResolveExperimentPin(context.Background(), "loupe", "impl-model", pinCard, "sonnet", nil, nil, nil, headline, nil, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -153,14 +153,14 @@ func TestResolveExperimentPinSendsTheHeadlineOnlyWhenSet(t *testing.T) {
 		want     string
 	}{
 		"goal and guards": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "hours-to-merge", Better: "lower"}, Guards: []string{"merge-rate"}},
-			`,"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":["merge-rate"]},"covers":[]}`},
-		"goal alone":   {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost", Better: "higher"}}, `,"headline":{"goal":{"metric":"cost","better":"higher"}},"covers":[]}`},
-		"no direction": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost"}}, `,"headline":{"goal":{"metric":"cost"}},"covers":[]}`},
-		"no guards":    {&ExperimentHeadline{Guards: []string{}}, `,"headline":{"guards":[]},"covers":[]}`},
-		"default only": {&ExperimentHeadline{}, `,"headline":{},"covers":[]}`},
+			`,"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":["merge-rate"]},"covers":[],"baseline":""}`},
+		"goal alone":   {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost", Better: "higher"}}, `,"headline":{"goal":{"metric":"cost","better":"higher"}},"covers":[],"baseline":""}`},
+		"no direction": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost"}}, `,"headline":{"goal":{"metric":"cost"}},"covers":[],"baseline":""}`},
+		"no guards":    {&ExperimentHeadline{Guards: []string{}}, `,"headline":{"guards":[]},"covers":[],"baseline":""}`},
+		"default only": {&ExperimentHeadline{}, `,"headline":{},"covers":[],"baseline":""}`},
 		"controls": {&ExperimentHeadline{Controls: []ExperimentControl{{Metric: "harness-events:diagnostics", Variant: "lsp", Expect: "> 0", Share: 0.5}}},
-			`,"headline":{"controls":[{"metric":"harness-events:diagnostics","variant":"lsp","expect":"\u003e 0","share":0.5}]},"covers":[]}`},
-		"unset": {nil, `,"covers":[]}`},
+			`,"headline":{"controls":[{"metric":"harness-events:diagnostics","variant":"lsp","expect":"\u003e 0","share":0.5}]},"covers":[],"baseline":""}`},
+		"unset": {nil, `,"covers":[],"baseline":""}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			want := `{"candidate":"sonnet","variants":[],"weights":[],"metrics":[]` + tc.want
