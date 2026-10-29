@@ -158,7 +158,9 @@ func TestResolveExperimentPinSendsTheHeadlineOnlyWhenSet(t *testing.T) {
 		"no direction": {&ExperimentHeadline{Goal: &ExperimentGoal{Metric: "cost"}}, `,"headline":{"goal":{"metric":"cost"}},"covers":[]}`},
 		"no guards":    {&ExperimentHeadline{Guards: []string{}}, `,"headline":{"guards":[]},"covers":[]}`},
 		"default only": {&ExperimentHeadline{}, `,"headline":{},"covers":[]}`},
-		"unset":        {nil, `,"covers":[]}`},
+		"controls": {&ExperimentHeadline{Controls: []ExperimentControl{{Metric: "harness-events:diagnostics", Variant: "lsp", Expect: "> 0", Share: 0.5}}},
+			`,"headline":{"controls":[{"metric":"harness-events:diagnostics","variant":"lsp","expect":"\u003e 0","share":0.5}]},"covers":[]}`},
+		"unset": {nil, `,"covers":[]}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			want := `{"candidate":"sonnet","variants":[],"weights":[],"metrics":[]` + tc.want

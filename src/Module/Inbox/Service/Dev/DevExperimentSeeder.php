@@ -77,8 +77,8 @@ final readonly class DevExperimentSeeder
      * False when the project already holds the experiment, so a second run adds nothing. With $metrics, the
      * experiment lists those metrics, and each merged card gets a pull request that opened and merged.
      *
-     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
-     * @param list<string>|null                                                                $metrics
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
+     * @param list<string>|null                                                                                                                                                       $metrics
      */
     public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null, ?array $metrics = null): bool
     {

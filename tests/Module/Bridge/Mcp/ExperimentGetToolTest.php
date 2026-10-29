@@ -61,7 +61,10 @@ final class ExperimentGetToolTest extends KernelTestCase
             'winner' => 'b',
             'changeKind' => 'relative',
             'change' => ['point' => -0.5, 'low' => -0.5, 'high' => -0.5],
+            'holdReason' => null,
+            'heldBy' => null,
         ], $result['headline']['goal']);
+        self::assertSame([], $result['headline']['controls']);
         self::assertSame(['merge-rate'], array_column($result['headline']['guards'], 'key'));
         self::assertSame('ratio', $result['headline']['guards'][0]['valueType']);
         self::assertSame([['name' => 'a', 'point' => 1.0, 'finishedCards' => 5], ['name' => 'b', 'point' => 1.0, 'finishedCards' => 5]], $result['headline']['guards'][0]['variants']);
@@ -149,6 +152,37 @@ final class ExperimentGetToolTest extends KernelTestCase
         self::assertSame('unknown-metric', $goal['state']);
         self::assertNull($goal['winner']);
         self::assertNull($goal['change']);
+    }
+
+    public function test_a_failed_control_holds_the_goal_and_the_tool_lists_it(): void
+    {
+        $em = $this->em();
+        $project = $this->boardProject($em, $this->user($em, 'experiment-get-controls@example.com'));
+        $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
+        $definition->headline = ['goal' => ['metric' => 'cost', 'better' => 'lower'], 'guards' => [], 'controls' => [
+            ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5],
+            ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5],
+        ]];
+        $em->persist($definition);
+        for ($i = 1; $i <= 5; ++$i) {
+            $run = $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i, merged: true), 'a');
+            $run->harnessEvents = 1 === $i ? ['diagnostics' => 1] : [];
+            $this->seedUsage($em, $run, costUsd: '2.000000');
+            $this->seedUsage($em, $this->experimentRun($em, $project, $this->experimentCard($em, $project, $i + 5, merged: true), 'b'), costUsd: '1.000000');
+        }
+        $em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $headline = $this->tool()('model-test')['headline'];
+
+        self::assertSame('held', $headline['goal']['state']);
+        self::assertSame('failed', $headline['goal']['holdReason']);
+        self::assertSame(['harness-events:diagnostics'], $headline['goal']['heldBy']);
+        self::assertNull($headline['goal']['winner']);
+        self::assertSame([
+            ['metric' => 'harness-events:diagnostics', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5, 'passingShare' => 0.2, 'cardsWithData' => 5, 'cardsFinished' => 5, 'result' => 'failed'],
+            ['metric' => 'bucket-calls:lps', 'variant' => 'b', 'expect' => '> 0', 'share' => 0.5, 'passingShare' => null, 'cardsWithData' => 0, 'cardsFinished' => 5, 'result' => 'unknown-metric'],
+        ], $headline['controls']);
     }
 
     public function test_the_metric_parts_take_the_value_type_of_their_metric(): void

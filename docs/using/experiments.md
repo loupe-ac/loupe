@@ -77,7 +77,58 @@ is left out, and a note under the panel names it. The
 [bridge reference](../extending/cli-bridge.md) says how the bridge checks a
 `headline`. The `experiment_get` tool returns the same answer in its `headline`
 field: `headline.goal` has the metric, the direction, the state, the winner and
-the change, and `headline.guards` has one entry for each guard.
+the change, `headline.guards` has one entry for each guard, and
+`headline.controls` has one entry for each control.
+
+### Controls
+
+A control checks that a variant got its treatment. An experiment can win on
+cost while the treatment never happened. For example, a variant with a language
+server can look cheaper while the language server never ran. A control names a
+metric, a variant, an expectation and a share:
+
+```yaml
+    headline:
+      controls:
+        - {metric: "harness-events:diagnostics", variant: lsp, expect: "> 0", share: 0.5}
+```
+
+This control says that at least half of the finished `lsp` cards must show a
+batch of diagnostics. A card passes when the sum of the metric over its
+experiment runs meets the expectation. A run outside the experiment, such as a
+later review, never counts. So a control on `cost` or `runs` reads the covered
+runs, while the Metrics table counts every worker run of the card. A card with no
+value for the metric is left out. The control passes when the cards that pass, over the cards with a
+value, reach the share. A control can read any metric that the Comparison tab
+can show. The unit is the unit of the metric: dollars for a cost, milliseconds
+for a built-in duration, and hours for a duration that the workflow template
+declares.
+
+A control that does not pass holds the goal. The goal panel names no winner and
+says why in its large line:
+
+| Large line | Cause |
+|---|---|
+| Treatment not applied | A control failed. A red chip reads "Control failed" |
+| Control has no data yet | No finished card of the variant has a value for the metric of a control |
+| The control `<key>` is not a metric of this project | The key of a control names no metric, or a bucket that the project does not have |
+
+The line under it counts the controls that hold the goal, and shows the goal
+value of each variant. When more than one cause applies, the panel shows the
+first in the order of the table. This message wins over "Not enough cards yet".
+
+A held goal changes no figure. Every card and every run stays in the goal, the
+Guards table, the Variants table and the Metrics table. A `harness-events` key
+is never unknown. A kind that no run reported shows no data.
+
+The **Controls** table sits above the Guards table. It shows only when the
+experiment declares controls. Each row has the control with its expectation, the
+variant, the share of cards that pass, the share it needs, the cards with data
+over the finished cards, and a result chip: Passed, Failed or No data. A control
+with an unknown metric also shows No data. The `experiment_get` tool returns the
+same answer in `headline.controls`. When a control holds the goal,
+`headline.goal.state` is `held`, `holdReason` names the cause, and `heldBy`
+lists the keys of the controls with that cause.
 
 An experiment covers one or more kinds of work, such as `implement` and `fix`.
 The bridge sends this list with the first request of each covered run. When no

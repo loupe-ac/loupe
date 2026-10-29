@@ -24,6 +24,8 @@ final readonly class ExperimentGoal
         public ?Interval $change,
         /** True when the change is a fraction of the other point. False for a ratio goal, whose change is a difference of two ratios between -1 and 1. */
         public bool $relative,
+        /** Set when the state is Held. */
+        public ?GoalHold $hold = null,
     ) {
     }
 }
