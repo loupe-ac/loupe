@@ -155,6 +155,7 @@ The shipped markers are:
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
+| `pull-requests-closed` | Stuck | Every pull request linked to a card in Implementation closed with no merge, no worker runs and the card is not held. A reference link does not count |
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
@@ -185,7 +186,7 @@ again. Each `child-` marker names the child whose marker of that kind began
 first, and counts from that time.
 
 The Simple template declares all of these markers except `pull-request-idle`,
-`nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
+`pull-requests-closed`, `nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
 
 The engine checks the markers of a card on every evaluation. This includes a held
 card and a board with the automation off. It stores the result on the card, with

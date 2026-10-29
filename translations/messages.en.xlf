@@ -9198,6 +9198,8 @@
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_draft_open"><source>workflow.waiting.pr_draft_open</source><target>Waiting: no open pull request of the card is a draft.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_draft_open"><source>workflow.waiting.not.pr_draft_open</source><target>Waiting: an open pull request of the card is a draft.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_all_closed_unmerged"><source>workflow.waiting.pr_all_closed_unmerged</source><target>Waiting: a pull request is open or merged, or none is linked.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_all_closed_unmerged"><source>workflow.waiting.not.pr_all_closed_unmerged</source><target>Waiting: every linked pull request is closed with no merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_all_finished_one_merged"><source>workflow.waiting.pr_all_finished_one_merged</source><target>Waiting: a pull request is still open, or none is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_all_finished_one_merged"><source>workflow.waiting.not.pr_all_finished_one_merged</source><target>Waiting: no pull request is open, and one is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_done_at_head"><source>workflow.waiting.run_done_at_head</source><target>Waiting: no matching work request ended done at the current head of the pull request.</target></trans-unit>
@@ -9689,6 +9691,8 @@
             <trans-unit id="marker.ready_not_merged.remedy"><source>marker.ready_not_merged.remedy</source><target>Merge the pull request yourself. Or check the merge rules of the workflow and the pull request on the forge, and fix what keeps it from merging.</target></trans-unit>
             <trans-unit id="marker.pull_request_idle"><source>marker.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
             <trans-unit id="marker.pull_request_idle.remedy"><source>marker.pull_request_idle.remedy</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
+            <trans-unit id="marker.pull_requests_closed"><source>marker.pull_requests_closed</source><target>Every pull request of this card closed with no merge.</target></trans-unit>
+            <trans-unit id="marker.pull_requests_closed.remedy"><source>marker.pull_requests_closed.remedy</source><target>Reopen the pull request, or remove the link so the card gets implement work again.</target></trans-unit>
             <trans-unit id="marker.nothing_happened"><source>marker.nothing_happened</source><target>Nothing has happened on this card for a while.</target></trans-unit>
             <trans-unit id="marker.nothing_happened.remedy"><source>marker.nothing_happened.remedy</source><target>Read the card history to learn why nothing moved. Then start the work again, or move the card.</target></trans-unit>
             <trans-unit id="marker.document_in_review"><source>marker.document_in_review</source><target>The document "%title%" waits for your review.</target></trans-unit>
