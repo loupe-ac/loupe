@@ -175,7 +175,9 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             baseIsDefault: null !== $base && $base === $pullRequest->defaultBranch,
             approvalCheckPassed: $approvalCheckPassed,
             canPostCheck: $installed,
-            mergeBlocked: PullRequestMergeability::Blocked === $pullRequest->mergeability,
+            // A reading taken before Loupe passed its check reads the missing check as the block.
+            mergeBlocked: PullRequestMergeability::Blocked === $pullRequest->mergeability
+                && (null === $pullRequest->approvalCheckPassedAt || $pullRequest->refreshedAt > $pullRequest->approvalCheckPassedAt),
         );
     }
 
