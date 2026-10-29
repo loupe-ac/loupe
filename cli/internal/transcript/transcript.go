@@ -265,9 +265,10 @@ func CleanEvents(events map[string]int64) map[string]int64 {
 
 // EventsBetween counts the harness events of the transcript and its subagent
 // transcripts from from on, and before to when to is set. An attachment line
-// counts under its attachment type and a system line under its subtype. A line
-// with no time or no valid kind counts nothing, and the result holds kinds and
-// counts alone. An unreadable subagent file counts nothing.
+// counts under its attachment type, a system line under its subtype, and a tool
+// result that a PreToolUse hook refused under hook_refused. A line with no time
+// or no valid kind counts nothing, and the result holds kinds and counts alone.
+// An unreadable subagent file counts nothing.
 func EventsBetween(path string, from, to time.Time) (map[string]int64, error) {
 	counts := map[string]int64{}
 	add := func(line []byte) {
@@ -278,6 +279,9 @@ func EventsBetween(path string, from, to time.Time) (map[string]int64, error) {
 			Attachment struct {
 				Type string `json:"type"`
 			} `json:"attachment"`
+			Message struct {
+				Content json.RawMessage `json:"content"`
+			} `json:"message"`
 		}
 		if json.Unmarshal(line, &entry) != nil || entry.Timestamp.IsZero() ||
 			entry.Timestamp.Before(from) || (!to.IsZero() && !entry.Timestamp.Before(to)) {
@@ -289,23 +293,68 @@ func EventsBetween(path string, from, to time.Time) (map[string]int64, error) {
 			kind = entry.Attachment.Type
 		case "system":
 			kind = entry.Subtype
+		case "user":
+			counts[hookRefused] += hookRefusals(entry.Message.Content)
 		}
 		if eventKind.MatchString(kind) {
 			counts[kind]++
 		}
 	}
-	if err := eachLineAny(path, add, `"attachment"`, `"system"`); err != nil {
+	if err := eachLineAny(path, add, `"attachment"`, `"system"`, refusalMarker); err != nil {
 		return nil, err
 	}
 	subagents := filepath.Join(strings.TrimSuffix(path, ".jsonl"), "subagents")
 	files, _ := os.ReadDir(subagents)
 	for _, f := range files {
 		if !f.IsDir() && strings.HasSuffix(f.Name(), ".jsonl") {
-			_ = eachLineAny(filepath.Join(subagents, f.Name()), add, `"attachment"`, `"system"`)
+			_ = eachLineAny(filepath.Join(subagents, f.Name()), add, `"attachment"`, `"system"`, refusalMarker)
 		}
 	}
 
 	return CleanEvents(counts), nil
+}
+
+const (
+	hookRefused   = "hook_refused"
+	refusalMarker = `"PreToolUse:`
+)
+
+// hookRefusals counts the failed tool results of a user message whose text
+// starts with the PreToolUse refusal prefix of Claude Code.
+func hookRefusals(content json.RawMessage) int64 {
+	var blocks []struct {
+		Type    string          `json:"type"`
+		IsError bool            `json:"is_error"`
+		Content json.RawMessage `json:"content"`
+	}
+	if json.Unmarshal(content, &blocks) != nil {
+		return 0
+	}
+	var n int64
+	for _, b := range blocks {
+		if b.Type == "tool_result" && b.IsError && strings.HasPrefix(resultText(b.Content), "PreToolUse:") {
+			n++
+		}
+	}
+
+	return n
+}
+
+// resultText is the text of a tool result: the string itself, or the text of
+// its first block.
+func resultText(content json.RawMessage) string {
+	var text string
+	if json.Unmarshal(content, &text) == nil {
+		return text
+	}
+	var blocks []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(content, &blocks) == nil && len(blocks) > 0 {
+		return blocks[0].Text
+	}
+
+	return ""
 }
 
 // decodeAssistant reads one assistant entry. An entry with no id, no time or

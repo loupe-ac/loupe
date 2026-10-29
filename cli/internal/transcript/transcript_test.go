@@ -284,14 +284,14 @@ func eventsPath() string {
 	return filepath.Join("testdata", "events", "sess.jsonl")
 }
 
-func TestEventsBetweenCountsAttachmentsAndSystemLines(t *testing.T) {
+func TestEventsBetweenCountsAttachmentsSystemLinesAndHookRefusals(t *testing.T) {
 	from := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 10, 8, 10, 1, 0, 0, time.UTC)
 	got, err := EventsBetween(eventsPath(), from, to)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int64{"diagnostics": 3, "todo_reminder": 1, "compact_boundary": 2, "local_command": 1}
+	want := map[string]int64{"diagnostics": 3, "todo_reminder": 1, "compact_boundary": 2, "local_command": 1, "hook_refused": 4}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("events = %v, want %v", got, want)
 	}
