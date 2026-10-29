@@ -23,4 +23,13 @@ interface PullRequestReviewPoster
      * @throws PullRequestReviewFailed when the forge does not take the review. The causes `not_connected` and `connection_expired` mean the user holds no working forge connection.
      */
     public function post(ForgePullRequest $pullRequest, PullRequestReviewKind $kind, string $body, string $userId): ?string;
+
+    /**
+     * Finds a review on the pull request that the user's forge account posted, with the marker in its body.
+     *
+     * @param string $userId the id of the Loupe user whose forge account posted the review
+     *
+     * @throws PullRequestReviewFailed with the same causes as a post, when the forge cannot list the reviews
+     */
+    public function findPosted(ForgePullRequest $pullRequest, string $marker, string $userId): ?PostedPullRequestReview;
 }

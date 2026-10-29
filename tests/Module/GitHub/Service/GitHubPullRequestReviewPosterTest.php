@@ -221,6 +221,88 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
         self::assertFalse($failure->permanent);
     }
 
+    public function test_it_finds_the_review_of_the_user_that_carries_the_marker(): void
+    {
+        $user = $this->connectedUser('find-ok', githubUserId: 77);
+        $this->responses = [new MockResponse(json_encode([
+            ['user' => ['id' => 78], 'body' => 'x <!-- m -->', 'html_url' => 'https://github.com/r/pull/604#pullrequestreview-1'],
+            ['user' => null, 'body' => 'x <!-- m -->', 'html_url' => 'https://github.com/r/pull/604#pullrequestreview-2'],
+            ['user' => ['id' => 77], 'body' => 'other', 'html_url' => 'https://github.com/r/pull/604#pullrequestreview-3'],
+            ['user' => ['id' => 77], 'body' => "Text\n<!-- m -->", 'html_url' => 'https://github.com/r/pull/604#pullrequestreview-4'],
+        ], \JSON_THROW_ON_ERROR))];
+
+        $found = $this->poster()->findPosted($this->pullRequest('loupe-ac/lou pe'), '<!-- m -->', (string) $user->id);
+
+        self::assertSame('https://github.com/r/pull/604#pullrequestreview-4', $found?->url);
+        self::assertCount(1, $this->requests);
+        self::assertSame('GET', $this->requests[0]['method']);
+        self::assertSame('https://api.github.com/repos/loupe-ac/lou%20pe/pulls/604/reviews?per_page=100&page=1', $this->requests[0]['url']);
+        self::assertContains('Authorization: Bearer the-access-token', $this->requests[0]['options']['headers'] ?? []);
+    }
+
+    public function test_it_reads_every_page_of_reviews(): void
+    {
+        $user = $this->connectedUser('find-pages', githubUserId: 77);
+        $full = array_fill(0, 100, ['user' => ['id' => 77], 'body' => 'other', 'html_url' => 'u']);
+        $this->responses = [
+            new MockResponse(json_encode($full, \JSON_THROW_ON_ERROR)),
+            new MockResponse(json_encode([['user' => ['id' => 77], 'body' => '<!-- m -->']], \JSON_THROW_ON_ERROR)),
+        ];
+
+        $found = $this->poster()->findPosted($this->pullRequest('loupe-ac/loupe'), '<!-- m -->', (string) $user->id);
+
+        self::assertNotNull($found);
+        self::assertNull($found->url);
+        self::assertCount(2, $this->requests);
+        self::assertStringEndsWith('page=2', $this->requests[1]['url']);
+    }
+
+    public function test_it_finds_nothing_when_no_review_of_the_user_carries_the_marker(): void
+    {
+        $user = $this->connectedUser('find-none', githubUserId: 77);
+        $this->responses = [new MockResponse('[{"user":{"id":78},"body":"<!-- m -->"}]')];
+
+        self::assertNull($this->poster()->findPosted($this->pullRequest('loupe-ac/loupe'), '<!-- m -->', (string) $user->id));
+    }
+
+    public function test_a_lookup_without_a_connection_is_not_connected(): void
+    {
+        $user = $this->user('find-unconnected');
+
+        try {
+            $this->poster()->findPosted($this->pullRequest('loupe-ac/loupe'), '<!-- m -->', (string) $user->id);
+            self::fail('Expected PullRequestReviewFailed.');
+        } catch (PullRequestReviewFailed $e) {
+            self::assertSame('not_connected', $e->cause);
+            self::assertTrue($e->permanent);
+        }
+        self::assertSame([], $this->requests);
+    }
+
+    /** @return iterable<string, array{MockResponse, string, bool}> */
+    public static function lookupFailures(): iterable
+    {
+        yield 'server error' => [new MockResponse('{}', ['http_code' => 502]), 'api_failed_http_status_502', false];
+        yield 'transport' => [new MockResponse('', ['error' => 'Could not resolve host']), 'api_failed_transport', false];
+        yield 'not a list' => [new MockResponse('{"message":"x"}'), 'api_failed_malformed_body', false];
+        yield 'refused' => [new MockResponse('{}', ['http_code' => 404]), 'permission', true];
+    }
+
+    #[DataProvider('lookupFailures')]
+    public function test_a_failed_lookup_throws_like_a_failed_post(MockResponse $response, string $cause, bool $permanent): void
+    {
+        $user = $this->connectedUser('find-fail-'.$cause);
+        $this->responses = [$response];
+
+        try {
+            $this->poster()->findPosted($this->pullRequest('loupe-ac/loupe'), '<!-- m -->', (string) $user->id);
+            self::fail('Expected PullRequestReviewFailed.');
+        } catch (PullRequestReviewFailed $e) {
+            self::assertSame($cause, $e->cause);
+            self::assertSame($permanent, $e->permanent);
+        }
+    }
+
     /** @return array<string, mixed> */
     private function sentBody(): array
     {
@@ -274,15 +356,15 @@ final class GitHubPullRequestReviewPosterTest extends KernelTestCase
         $users = self::getContainer()->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
 
-        return new GitHubPullRequestReviewPoster($users, new GitHubUserTokenRefresher($connections, $api, $this->em, $clock, new RecordingLogger()), $api);
+        return new GitHubPullRequestReviewPoster($users, new GitHubUserTokenRefresher($connections, $api, $this->em, $clock, new RecordingLogger()), $api, $connections);
     }
 
-    private function connectedUser(string $label, bool $expired = false): User
+    private function connectedUser(string $label, bool $expired = false, ?int $githubUserId = null): User
     {
         $user = $this->user($label);
         $connection = new GitHubUserConnection(
             $user,
-            random_int(1, 1_000_000),
+            $githubUserId ?? random_int(1, 1_000_000),
             'octocat-'.$label,
             'the-access-token',
             'the-refresh-token',

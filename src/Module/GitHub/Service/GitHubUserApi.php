@@ -114,6 +114,31 @@ final readonly class GitHubUserApi
     }
 
     /**
+     * The reviews of the pull request, oldest first.
+     *
+     * @return list<array{userId: ?int, body: string, url: ?string}>
+     *
+     * @throws GitHubUserApiFailed
+     */
+    public function reviews(#[\SensitiveParameter] string $token, string $repositoryPath, int $number): array
+    {
+        $reviews = [];
+        [$entries] = $this->pages($token, $repositoryPath.'/pulls/'.$number.'/reviews', null);
+        foreach ($entries as $entry) {
+            $userId = \is_array($entry['user'] ?? null) ? ($entry['user']['id'] ?? null) : null;
+            $body = $entry['body'] ?? null;
+            $url = $entry['html_url'] ?? null;
+            $reviews[] = [
+                'userId' => \is_int($userId) ? $userId : null,
+                'body' => \is_string($body) ? $body : '',
+                'url' => \is_string($url) && '' !== $url ? $url : null,
+            ];
+        }
+
+        return $reviews;
+    }
+
+    /**
      * @return list<GitHubUserInstallation>
      *
      * @throws GitHubUserApiFailed
@@ -214,13 +239,13 @@ final readonly class GitHubUserApi
     }
 
     /**
-     * A full last page counts as incomplete, because GitHub may hold more.
+     * A full last page counts as incomplete, because GitHub may hold more. A null key reads a body that is the list itself.
      *
      * @return array{list<array<mixed>>, bool} the entries, and whether they are all of them
      *
      * @throws GitHubUserApiFailed
      */
-    private function pages(string $token, string $path, string $key): array
+    private function pages(#[\SensitiveParameter] string $token, string $path, ?string $key): array
     {
         $entries = [];
         for ($page = 1; $page <= self::MAX_PAGES; ++$page) {
@@ -228,8 +253,8 @@ final readonly class GitHubUserApi
                 'headers' => ['Authorization' => 'Bearer '.$token],
                 'query' => ['per_page' => self::PAGE_SIZE, 'page' => $page],
             ]);
-            $items = $body[$key] ?? null;
-            if (!\is_array($items)) {
+            $items = null === $key ? $body : ($body[$key] ?? null);
+            if (!\is_array($items) || !array_is_list($items)) {
                 throw new GitHubUserApiFailed('malformed_body');
             }
 
