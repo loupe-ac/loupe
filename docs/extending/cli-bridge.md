@@ -907,6 +907,28 @@ a server with agent push switched off. The bridge then logs
 of later runs still try, so the calls come back when agent push comes back on. Set `collect: false` in `rules.yaml` to send no tool call and no
 timing at all.
 
+## Harness events
+
+The harness adapter also counts the events that the harness writes beside the
+messages of a run. The bridge sends the counts with the outcome of the run in
+the field `harnessEvents`. The field is a map of
+kind to count, such as `{"diagnostics": 3, "hook_success": 12}`. The bridge
+sends only the kind and the count. It sends no event text and no payload.
+
+For Claude Code, a kind comes from the transcript. An `attachment` line gives
+the kind from its `attachment.type`. A `system` line gives the kind from its
+`subtype`. For Codex, a kind comes from the type of an `event_msg` line of the
+session file.
+
+A kind is 1 to 64 characters of a-z, 0-9, `_`, `.` and `-`. A count is an
+integer from 0 to 1,000,000,000. A report holds at most 100 kinds. The server
+refuses a report that breaks these limits with a 422.
+
+The server reads a missing `harnessEvents` as unknown counts, and an empty map
+`{}` as the count 0 for every kind. So a bridge sends the field only when it
+read the events of the run. The [Analytics](../using/analytics.md#harness-events)
+page shows the counts as the **Harness events** metrics.
+
 ## Host samples
 
 The bridge can sample the machine it runs on. A sample holds the use of each
@@ -1129,6 +1151,9 @@ with each pin request, so the latest list wins. The bridge does not know the
 metrics of the server, so it checks the shape of each key only. The server
 shows a note for a key that it does not know. A key such as `merge-rate` is
 known only when the workflow template of the project declares it.
+A key can also name a bucket or a harness event, such as `bucket-calls:tests` or
+`harness-events:edited_text_file`, so a metric key allows underscores and runs
+to 128 characters.
 
 An experiment can also set a `headline`. The headline picks the goal metric of
 the experiment and its guards. A goal names a `metric` and says whether `lower`
@@ -1146,12 +1171,32 @@ experiments:
       guards: [merge-rate, fix-rounds]
 ```
 
-Both keys are optional, but a headline needs at least one. An experiment with no
+Each key is optional, but a headline needs at least one of `goal`, `guards` and
+`controls`. An experiment with no
 `goal` or no `guards` key uses the defaults of the server. An explicit
 `guards: []` means no guards. The goal metric cannot also be a guard. A goal
 with no `better` loads, and the Comparison tab then asks for a direction. The
 bridge sends the headline with each pin request, and sends nothing when the
 experiment has no headline. It checks the shape of each key only.
+
+The `controls` key lists checks that a variant got its treatment. A control has
+four fields, and all four are required:
+
+```yaml
+    headline:
+      controls:
+        - {metric: "harness-events:diagnostics", variant: lsp, expect: "> 0", share: 0.5}
+```
+
+`metric` is a metric key. `variant` is a variant of the same experiment. `expect` is
+a comparison (`>`, `>=`, `<`, `<=` or `==`) and a number, such as `"> 0"` or
+`">= 3"`. Quote the value, because YAML reads a bare `>` as a block scalar.
+`share` is the share of the cards with a value that must meet the expectation.
+It is above 0 and at most 1. The server judges the controls, and a control that
+does not pass holds the goal of the Comparison tab, as
+[Experiments](../using/experiments.md) says. The bridge sends the controls with
+the headline in each pin request. An experiment can have at most 16 controls, and
+two controls cannot share a metric and a variant.
 
 To start a new trial on a kind of work without mixing it with an old one, give
 the new experiment another name. The old experiment keeps its cards, its pins
@@ -1172,13 +1217,17 @@ The bridge refuses the file, at start and on a reload, when:
   a command entry, or an entry for a subject other than a card
 - two experiments cover the same kind
 - a `kinds` entry of a variant names a kind that `covers` does not list
-- a `headline` has neither a `goal` nor `guards`
+- a `headline` has no `goal`, no `guards` and no `controls`
+- a control has no `share`, a `share` of 0 or above 1, an `expect` that is not a
+  comparison and a number, a variant that the experiment does not declare, or a
+  metric key that does not match the shape
+- a headline lists more than 16 controls, or one metric and variant twice
 - a `goal` has a `better` other than `lower` or `higher`, or a metric key that
   does not match the shape. A `goal` with no `better` loads
 - a headline lists more than 16 guards, one guard twice, or the goal metric as
   a guard
 - an experiment lists more than 16 metrics, or one metric twice
-- a metric key does not match `^[a-z][a-z0-9:-]{0,63}$`
+- a metric key does not match `^[a-z][a-z0-9_:-]{0,127}$`
 - an experiment has no variants, or more than 32
 - a variant has a weight below 1 or above 1,000,000
 - a variant, or a `kinds` entry, has a model longer than 100 characters, with

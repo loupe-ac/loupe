@@ -30,7 +30,7 @@ final readonly class ResolveExperimentPinCommand
         public ?array $weights = null,
         /** @var list<string>|null */
         public ?array $metrics = null,
-        /** @var array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null */
+        /** @var array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null */
         public ?array $headline = null,
         /** @var non-empty-list<string>|null */
         public ?array $covers = null,

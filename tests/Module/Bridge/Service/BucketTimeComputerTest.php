@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Service;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
+use App\Module\Bridge\Service\BucketFigures;
 use App\Module\Bridge\Service\BucketRule;
 use App\Module\Bridge\Service\BucketRuleSourceInterface;
 use App\Module\Bridge\Service\BucketTimeComputer;
@@ -34,15 +35,15 @@ final class BucketTimeComputerTest extends KernelTestCase
             $this->call(6, 100, ['Grep']),
         ], $rules);
 
-        self::assertSame(['git' => 1000, 'shell' => 500, 'reading' => 250, 'other' => 100], $times);
+        self::assertSame(['git' => 1000, 'shell' => 500, 'reading' => 250, 'other' => 100], self::main($times));
     }
 
     public function test_a_rule_earlier_in_the_order_wins_over_a_later_one_that_also_matches(): void
     {
         $call = $this->call(0, 1000, ['Bash(git status)']);
 
-        self::assertSame(['shell' => 1000], $this->computer([])->timesOf([$call], [new BucketRule('Bash(*)', 'shell'), new BucketRule('Bash(git *)', 'git')]));
-        self::assertSame(['git' => 1000], $this->computer([])->timesOf([$call], [new BucketRule('Bash(git *)', 'git'), new BucketRule('Bash(*)', 'shell')]));
+        self::assertSame(['shell' => 1000], self::main($this->computer([])->timesOf([$call], [new BucketRule('Bash(*)', 'shell'), new BucketRule('Bash(git *)', 'git')])));
+        self::assertSame(['git' => 1000], self::main($this->computer([])->timesOf([$call], [new BucketRule('Bash(git *)', 'git'), new BucketRule('Bash(*)', 'shell')])));
     }
 
     public function test_calls_that_overlap_count_once_in_their_bucket(): void
@@ -57,14 +58,14 @@ final class BucketTimeComputerTest extends KernelTestCase
             $this->call(1500, 100, ['Read']),
         ], $rules);
 
-        self::assertSame(['shell' => 1700, 'other' => 100], $times);
+        self::assertSame(['shell' => 1700, 'other' => 100], self::main($times));
     }
 
     public function test_a_call_that_ends_where_the_next_begins_adds_both_lengths(): void
     {
         $times = $this->computer([])->timesOf([$this->call(0, 1000, ['Read']), $this->call(1000, 500, ['Read'])], []);
 
-        self::assertSame(['other' => 1500], $times);
+        self::assertSame(['other' => 1500], self::main($times));
     }
 
     public function test_the_start_keeps_its_milliseconds(): void
@@ -75,7 +76,7 @@ final class BucketTimeComputerTest extends KernelTestCase
             $this->call(0, 1, ['Read'], '.251000'),
         ], []);
 
-        self::assertSame(['other' => 2], $times);
+        self::assertSame(['other' => 2], self::main($times));
     }
 
     public function test_a_subagent_call_and_a_call_with_no_duration_add_nothing(): void
@@ -86,15 +87,40 @@ final class BucketTimeComputerTest extends KernelTestCase
             $this->call(20000, null, ['Read']),
         ], []);
 
-        self::assertSame(['other' => 1000], $times);
+        self::assertSame(['other' => 1000], self::main($times));
     }
 
-    public function test_a_run_whose_calls_all_add_nothing_has_no_time_in_the_fallback_bucket(): void
+    public function test_a_subagent_call_adds_no_main_time_and_a_call_with_no_duration_adds_no_time_at_all(): void
     {
-        $computer = $this->computer([]);
+        $times = $this->computer([])->timesOf([
+            $this->call(0, 1000, ['Read']),
+            $this->call(2000, 9000, ['Read'], inSubagent: true),
+            $this->call(20000, null, ['Read']),
+        ], []);
 
-        self::assertSame(['other' => 0], $computer->timesOf([$this->call(0, 100, ['Read'], inSubagent: true)], []));
-        self::assertSame([], $computer->timesOf([], []));
+        self::assertEquals(['other' => new BucketFigures(1000, 10000, 3)], $times);
+    }
+
+    public function test_calls_of_a_subagent_count_in_their_bucket_and_merge_into_the_time_with_subagents(): void
+    {
+        $rules = [new BucketRule('LSP', 'lsp'), new BucketRule('Bash(*)', 'shell')];
+
+        $times = $this->computer([])->timesOf([
+            $this->call(0, 1000, ['Bash(a)']),
+            $this->call(500, 1000, ['Bash(b)'], inSubagent: true),
+            $this->call(5000, 100, ['LSP'], inSubagent: true),
+            $this->call(6000, null, ['LSP'], inSubagent: true),
+        ], $rules);
+
+        self::assertEquals([
+            'shell' => new BucketFigures(1000, 1500, 2),
+            'lsp' => new BucketFigures(0, 100, 2),
+        ], $times);
+    }
+
+    public function test_a_run_with_no_call_has_no_figures(): void
+    {
+        self::assertSame([], $this->computer([])->timesOf([], []));
     }
 
     public function test_it_replaces_the_rows_of_a_run_and_a_second_run_changes_nothing(): void
@@ -103,13 +129,14 @@ final class BucketTimeComputerTest extends KernelTestCase
         $project = $this->project($this->em(), $this->user($this->em(), 'bucket-computer-'.uniqid().'@example.com'), 'Bucket computer');
         $run = $this->seedRun($this->em(), $project);
         $this->store($run, [$this->call(0, 1000, ['Bash(git push)']), $this->call(2000, 300, ['Read'])]);
-        $this->bucketTimes()->replaceForRun($this->idOf($run), ['stale' => 7, 'other' => 1]);
+        $this->bucketTimes()->replaceForRun($this->idOf($run), self::figures(['stale' => 7, 'other' => 1]));
         $computer = $this->computer([new BucketRule('Bash(git *)', 'git')]);
 
         $computer->recompute($project, [$this->idOf($run)]);
         $computer->recompute($project, [$this->idOf($run)]);
 
         self::assertSame(['git' => 1000, 'other' => 300], $this->rowsOf($run));
+        self::assertSame(['git' => 1, 'other' => 1], $this->callsOf($run));
     }
 
     public function test_a_run_with_no_tool_call_keeps_no_row(): void
@@ -117,7 +144,7 @@ final class BucketTimeComputerTest extends KernelTestCase
         self::bootKernel();
         $project = $this->project($this->em(), $this->user($this->em(), 'bucket-computer-none-'.uniqid().'@example.com'), 'Bucket none');
         $run = $this->seedRun($this->em(), $project);
-        $this->bucketTimes()->replaceForRun($this->idOf($run), ['other' => 5]);
+        $this->bucketTimes()->replaceForRun($this->idOf($run), self::figures(['other' => 5]));
 
         $this->computer([])->recompute($project, [$this->idOf($run)]);
 
@@ -202,6 +229,26 @@ final class BucketTimeComputerTest extends KernelTestCase
         ksort($rows);
 
         return array_map(intval(...), $rows);
+    }
+
+    /** @return array<string, int> */
+    private function callsOf(WorkerRun $run): array
+    {
+        /** @var array<string, int> $rows */
+        $rows = $this->em()->getConnection()->fetchAllKeyValue('SELECT bucket, calls FROM bridge_worker_run_bucket_times WHERE run_id = :run ORDER BY bucket', ['run' => (string) $run->id]);
+        ksort($rows);
+
+        return array_map(intval(...), $rows);
+    }
+
+    /**
+     * @param array<int|string, BucketFigures> $figures
+     *
+     * @return array<int|string, int>
+     */
+    private static function main(array $figures): array
+    {
+        return array_map(static fn (BucketFigures $figure): int => $figure->ms, $figures);
     }
 
     private function idOf(WorkerRun $run): Uuid

@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge\Controller;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -416,6 +417,55 @@ final class WorkerRunStatesApiTest extends WebTestCase
             static fn (WorkerRun $run): ?int => $run->peakContextTokens,
             $this->allRuns(),
         ));
+    }
+
+    public function test_an_outcome_stores_its_harness_events(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-events@example.com');
+        $project = $this->project($em, $owner, 'Run States Events');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(array_merge(self::outcome(), [
+            'harnessEvents' => ['diagnostics' => 3, 'hook_success' => 0],
+        ])));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(['diagnostics' => 3, 'hook_success' => 0], $this->onlyRun()->harnessEvents);
+    }
+
+    public function test_an_empty_map_stores_empty_and_an_absent_field_stores_null(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-events-empty@example.com');
+        $project = $this->project($em, $owner, 'Run States Events Empty');
+        $raw = $this->agentToken($client, $owner);
+        $empty = (string) Uuid::v4();
+        $absent = (string) Uuid::v4();
+
+        $this->put($client, $this->path($project->id, $empty), $raw, $this->payload(array_merge(self::outcome(), ['harnessEvents' => new \stdClass()])));
+        self::assertResponseStatusCodeSame(201);
+        $this->put($client, $this->path($project->id, $absent), $raw, $this->payload(self::outcome()));
+        self::assertResponseStatusCodeSame(201);
+
+        $runs = [];
+        foreach ($this->allRuns() as $run) {
+            $runs[(string) $run->runKey] = $run;
+        }
+        self::assertSame([], $runs[$empty]->harnessEvents);
+        self::assertNull($runs[$absent]->harnessEvents);
+
+        $repository = static::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $repository);
+        $emptyId = $runs[$empty]->id ?? throw new \LogicException('A stored run has an id.');
+        $absentId = $runs[$absent]->id ?? throw new \LogicException('A stored run has an id.');
+        self::assertSame(
+            [(string) $emptyId => 0, (string) $absentId => null],
+            $repository->findHarnessEventCountsOfRuns([$emptyId, $absentId], 'diagnostics'),
+        );
+        self::assertSame([], $repository->findHarnessEventKindsOfProject($runs[$empty]->project));
     }
 
     /** The bridge sends usage with an outcome alone, so the server checks it on any state and stores it from an outcome. */
@@ -1081,6 +1131,16 @@ final class WorkerRunStatesApiTest extends WebTestCase
         yield 'a drop reason the bridge does not send' => [['state' => 'dropped', 'reason' => 'bored']];
         yield 'a replacement that is not a uuid' => [['state' => 'replaced', 'replacedBy' => 'nope']];
         yield 'a chain cap of zero' => [['state' => 'waiting-for-person', 'maxChain' => 0]];
+        yield 'harness events as a list' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => [3, 4]])];
+        yield 'a harness event kind in capitals' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['Diagnostics' => 1]])];
+        yield 'a harness event kind with a space' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['hook success' => 1]])];
+        yield 'a harness event kind that is too long' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => [str_repeat('a', 65) => 1]])];
+        yield 'a negative harness event count' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['diagnostics' => -1]])];
+        yield 'a harness event count over the cap' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['diagnostics' => 1_000_000_001]])];
+        yield 'a fractional harness event count' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['diagnostics' => 1.5]])];
+        yield 'a harness event count as text' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['diagnostics' => '3']])];
+        yield 'a harness event count of null' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['diagnostics' => null]])];
+        yield 'more than 100 harness event kinds' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => array_fill_keys(array_map(static fn (int $i): string => 'kind'.$i, range(1, 101)), 1)])];
         yield 'a negative peak context' => [array_merge($result, ['state' => 'succeeded', 'peakContextTokens' => -1])];
         yield 'a peak context as text' => [array_merge($result, ['state' => 'succeeded', 'peakContextTokens' => 'many'])];
         foreach (self::invalidUsage() as $name => $usage) {

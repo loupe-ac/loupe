@@ -70,6 +70,9 @@ not counted.
 | **Runs** | the number of worker runs on a finished card | card |
 | **Stop rate** | the share of runs that reached an outcome and blocked, failed, gave no result or gave up | run |
 | **Time in &lt;bucket&gt;** | the tool time of a run in one [time bucket](#time-buckets), such as **Time in git** | run, card |
+| **Time in &lt;bucket&gt;, subagents included** | the tool time of a run in one time bucket, with the calls of subagents | run, card |
+| **Calls in &lt;bucket&gt;** | the number of tool calls of a run in one time bucket, subagent calls included | run, card |
+| **Harness events: &lt;kind&gt;** | the number of [harness events](#harness-events) of one kind in a run, such as **Harness events: diagnostics** | run, card |
 
 The workflow template of the project can declare more metrics. They appear
 after the built-in ones, with the label and the description from the template.
@@ -88,6 +91,35 @@ for it, and that time can be 0 ms. The time is unknown for a run with no
 tool-call data, such as a command run or an old run. An address can name any
 valid bucket that has no time. The Metrics tab then shows that bucket, with 0
 on each run with data. A card adds the time of its runs with data.
+
+The **Time in** metric counts the main session alone, because the time of a
+subagent already sits inside the call that started it. The two other metrics
+of a bucket include the subagents. **Time in &lt;bucket&gt;, subagents
+included** merges the calls of the main session and of its subagents, so it can
+be longer than the run. **Calls in &lt;bucket&gt;** counts every call, also a
+call that has no duration. Their keys are `bucket-time-all:<name>` and
+`bucket-calls:<name>`. A run that Loupe has not computed since these metrics
+came has no value for them. Run `php bin/console app:bridge:recompute-bucket-times`
+once to fill them for past runs. It queues one computation for each project.
+
+### Harness events
+
+The harness writes small events beside the messages of a run, such as
+diagnostics, hook results and queued commands. The bridge counts them for each
+kind. Only the kind names and the counts leave the machine. No event text is
+sent. [Harness events](../extending/cli-bridge.md#harness-events) says how the
+bridge names and counts them.
+
+The metric picker lists one **Harness events** metric for each kind that a run
+of the project reported, the kind with the largest total first. The key of a
+metric is `harness-events:<kind>`, such as `harness-events:diagnostics`. A kind
+is 1 to 64 characters of a-z, 0-9, `_`, `.` and `-`.
+
+The count is 0 for a run that reported events and none of this kind. The count
+is unknown for a run that reported no events, such as a run of an older bridge.
+An address can name any valid kind that no run reported. The Metrics tab then
+shows that kind with 0 on each run that reported events. A card adds the counts
+of its runs with a known count. It is unknown when no run of the card has one.
 
 The dollars are the API list price that claude reports. On a subscription, you
 do not pay this amount. A duration shows in milliseconds, seconds, minutes or
@@ -176,7 +208,7 @@ the old address stay when the page knows them.
 ## Through the MCP
 
 The MCP tool `metric_query` returns the same numbers as this page, and
-`metric_list` lists the metrics. See [the MCP tools](mcp.md#what-the-tools-do).
+`metric_list` lists the metrics, with one `harness-events:<kind>` entry for each kind of the project. See [the MCP tools](mcp.md#what-the-tools-do).
 Over the MCP, the group of a bridge is its id, and the page shows its name.
 
 ## Reports
@@ -301,7 +333,9 @@ characters of lower case letters, digits, `_` and `-`.
 The first rule that matches a call takes it. A call that no rule takes counts
 in the bucket `other`. Use **Move up** and **Move down** to change the order.
 A project holds at most 50 rules. After each change, Loupe computes the bucket
-times of the runs of the project again, in the background.
+times of the runs of the project again, in the background. The computation
+stores three figures for each run and bucket: the main-session time, the time
+with subagents, and the number of calls with subagents.
 
 The section **Time per bucket** shows the time in each bucket over the closed
 runs of a range. It lists the buckets that the rules name, in rule order. Then
@@ -314,13 +348,19 @@ the count of closed runs.
 | **Total** | the time of all the runs with data in the bucket |
 | **Median per run** | the middle time of a run with data. A run with no time in the bucket counts as 0 |
 | **Runs with data** | the runs with tool-call data, out of all the closed runs in the range |
+| **With subagents** | the time of all the runs in the bucket, subagent work included. It shows **No data** until Loupe computes the buckets of the project again |
+| **Calls** | the number of calls in the bucket, subagent calls included. It shows **No data** until Loupe computes the buckets of the project again |
 | **Share** | the part of the time of all the listed buckets |
 
 The range is **30 days**, **90 days** or **All time**, and its default is
-**90 days**. A bucket with no time in the range shows **No time yet**. A bucket
-with time has the link **Open in Metrics**. It opens the Metrics tab on the
+**90 days**. When no run in the range has tool-call data, the section shows
+**No data yet** in place of the table. Otherwise a bucket with no time shows its figures as 0 ms,
+with the share 0%, so you can tell it apart from missing data. Each bucket has
+the link **Open in Metrics**. It opens the Metrics tab on the
 time in that bucket for each run, with the median and the same range.
 
 The MCP tools `analysis_get` and `analysis_report` let the agent read and
 finish an analysis. `analytics_settings_get` and `analytics_settings_update`
-read and change the settings. See [the MCP tools](mcp.md#what-the-tools-do).
+read and change the settings. `bucket_rule_list`, `bucket_rule_create`,
+`bucket_rule_move` and `bucket_rule_delete` read and change the time bucket
+rules, as the Time buckets page does. See [the MCP tools](mcp.md#what-the-tools-do).

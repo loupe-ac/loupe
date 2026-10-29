@@ -29,6 +29,7 @@ final readonly class WorkerRunListItem
      * @param ?string                    $cardTitle null when the card is gone or the board is off
      * @param ?WorkerRunControl          $control   null when the row offers no action and shows no notice
      * @param ?WorkerRunFact             $fact      null when the run has no metrics row
+     * @param ?list<WorkerRunBucketView> $buckets   null when the run has no bucket rows
      */
     public function __construct(
         public WorkerRun $run,
@@ -37,6 +38,7 @@ final readonly class WorkerRunListItem
         public ?string $cardTitle,
         public ?WorkerRunControl $control = null,
         public ?WorkerRunFact $fact = null,
+        public ?array $buckets = null,
     ) {
         $this->state = $run->state;
         $this->interactive = WorkerRunKind::Interactive === $run->kind;
@@ -58,6 +60,19 @@ final readonly class WorkerRunListItem
             static fn (mixed $value): string => \is_string($value) ? $value : json_encode($value, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE),
             $this->run->resultFields ?? [],
         );
+    }
+
+    /**
+     * The harness events of the run, the most frequent kind first.
+     *
+     * @return array<string, int>
+     */
+    public function harnessEvents(): array
+    {
+        $events = $this->run->harnessEvents ?? [];
+        uksort($events, static fn (int|string $a, int|string $b): int => [$events[$b], (string) $a] <=> [$events[$a], (string) $b]);
+
+        return $events;
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Module\Bridge\Mcp\MetricQueryTool;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Module\Workflow\Contract\TemplateMetricSet;
@@ -113,7 +114,10 @@ final class MetricToolsTest extends KernelTestCase
         $metrics = $this->listTool()()['metrics'];
 
         $keys = array_column($metrics, 'key');
-        self::assertSame(['bucket-time:build', 'bucket-time:other', 'bucket-time:tests'], \array_slice($keys, -3));
+        self::assertSame(
+            ['bucket-time:build', 'bucket-time:other', 'bucket-time:tests', 'bucket-time-all:build', 'bucket-time-all:other', 'bucket-time-all:tests', 'bucket-calls:build', 'bucket-calls:other', 'bucket-calls:tests'],
+            \array_slice($keys, -9),
+        );
         self::assertNotContains('bucket-time', $keys);
         self::assertNotContains('bucket-time:elsewhere', $keys);
         self::assertSame([
@@ -124,6 +128,84 @@ final class MetricToolsTest extends KernelTestCase
             'groups' => ['stage', 'model', 'variant', 'card-type', 'bridge', 'harness', 'account', 'harness-version', 'cli-version', 'skill-version', 'none'],
             'description' => Metric::BucketTime->description(),
         ], array_column($metrics, null, 'key')['bucket-time:build']);
+        $calls = array_column($metrics, null, 'key')['bucket-calls:build'];
+        self::assertSame('count', $calls['valueType']);
+        self::assertSame(Metric::BucketCalls->description(), $calls['description']);
+        self::assertSame('duration', array_column($metrics, null, 'key')['bucket-time-all:build']['valueType']);
+    }
+
+    public function test_the_bucket_calls_and_the_time_with_subagents_of_a_run_are_zero_or_unknown(): void
+    {
+        [$project] = $this->projects('metric-bucket-calls');
+        $ended = new \DateTimeImmutable('-2 days')->setTime(9, 0);
+        $inBucket = $this->fact($project, $ended, 1, runId: $this->runWithBuckets($project, ['tests' => 4000, 'other' => 1000], true));
+        $otherBucket = $this->fact($project, $ended->modify('-1 hour'), 1, runId: $this->runWithBuckets($project, ['other' => 700], true));
+        $oldRows = $this->fact($project, $ended->modify('-2 hours'), 1, runId: $this->runWithBuckets($project, ['tests' => 900]));
+        $noRows = $this->fact($project, $ended->modify('-3 hours'), 1);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $calls = $this->queryTool()(unit: 'run', metric: 'bucket-calls:tests', statistic: 'sum');
+        $all = $this->queryTool()(unit: 'run', metric: 'bucket-time-all:tests', statistic: 'sum');
+
+        self::assertSame([(string) $inBucket => 3, (string) $otherBucket => 0, (string) $oldRows => null, (string) $noRows => null], array_column($calls['series'][0]['rows'], 'value', 'id'));
+        self::assertSame([(string) $inBucket => 8000, (string) $otherBucket => 0, (string) $oldRows => null, (string) $noRows => null], array_column($all['series'][0]['rows'], 'value', 'id'));
+        self::assertSame(['value' => 3, 'rows' => 2], $calls['series'][0]['total']);
+    }
+
+    public function test_the_list_adds_one_entry_for_each_harness_event_kind_largest_total_first(): void
+    {
+        [$project, $other] = $this->projects('metric-list-events');
+        $this->runWithEvents($project, ['diagnostics' => 3, 'hook_success' => 10]);
+        $this->runWithEvents($project, ['diagnostics' => 4, 'queued_command' => 7]);
+        $this->runWithEvents($project, []);
+        $this->runWithEvents($project, null);
+        $this->runWithEvents($other, ['elsewhere' => 99]);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $metrics = $this->listTool()()['metrics'];
+
+        $keys = array_column($metrics, 'key');
+        self::assertSame(['harness-events:hook_success', 'harness-events:diagnostics', 'harness-events:queued_command'], \array_slice($keys, -3));
+        self::assertNotContains('harness-events', $keys);
+        self::assertSame([
+            'key' => 'harness-events:diagnostics',
+            'units' => ['run', 'card'],
+            'valueType' => 'count',
+            'statistics' => ['median', 'mean', 'sum', 'p90', 'count'],
+            'groups' => ['stage', 'model', 'variant', 'card-type', 'bridge', 'harness', 'account', 'harness-version', 'cli-version', 'skill-version', 'none'],
+            'description' => Metric::HarnessEvents->description(),
+        ], array_column($metrics, null, 'key')['harness-events:diagnostics']);
+    }
+
+    public function test_a_harness_events_run_has_the_count_zero_or_unknown(): void
+    {
+        [$project] = $this->projects('metric-events-run');
+        $ended = new \DateTimeImmutable('-2 days')->setTime(9, 0);
+        $counted = $this->fact($project, $ended, 1, runId: $this->runWithEvents($project, ['diagnostics' => 4, 'other' => 1]));
+        $missingKind = $this->fact($project, $ended->modify('-1 hour'), 1, runId: $this->runWithEvents($project, ['other' => 2]));
+        $empty = $this->fact($project, $ended->modify('-2 hours'), 1, runId: $this->runWithEvents($project, []));
+        $noMap = $this->fact($project, $ended->modify('-3 hours'), 1, runId: $this->runWithEvents($project, null));
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->queryTool()(unit: 'run', metric: 'harness-events:diagnostics', statistic: 'sum');
+
+        self::assertSame('harness-events:diagnostics', $result['metric']);
+        $series = $result['series'][0];
+        self::assertSame(['value' => 4, 'rows' => 3], $series['total']);
+        self::assertSame(
+            [(string) $counted => 4, (string) $missingKind => 0, (string) $empty => 0, (string) $noMap => null],
+            array_column($series['rows'], 'value', 'id'),
+        );
+    }
+
+    public function test_a_harness_events_metric_without_a_valid_kind_is_refused(): void
+    {
+        [$project] = $this->projects('metric-events-name');
+        $this->actAsMcpTokenBoundTo($project);
+
+        foreach (['harness-events', 'harness-events:', 'harness-events:Diagnostics', 'harness-events:a b', 'harness-events:'.str_repeat('a', 65)] as $metric) {
+            self::assertStringContainsString('needs the name of a harness event kind', $this->refusal(unit: 'run', metric: $metric, statistic: 'sum'), $metric);
+        }
     }
 
     public function test_the_list_refuses_an_unbound_token(): void
@@ -184,7 +266,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, merge-rate, hours-to-merge, bucket-time:<name>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(
@@ -227,7 +309,7 @@ final class MetricToolsTest extends KernelTestCase
         [$project] = $this->projects('metric-bucket-name');
         $this->actAsMcpTokenBoundTo($project);
 
-        foreach (['bucket-time', 'bucket-time:', 'bucket-time:Tests', 'bucket-time:a b', 'bucket-time:'.str_repeat('a', 65)] as $metric) {
+        foreach (['bucket-time', 'bucket-time:', 'bucket-time:Tests', 'bucket-time:a b', 'bucket-time:'.str_repeat('a', 65), 'bucket-calls', 'bucket-calls:Tests', 'bucket-time-all:', 'bucket-time-all:a.b'] as $metric) {
             self::assertStringContainsString('needs the name of a bucket', $this->refusal(unit: 'run', metric: $metric, statistic: 'sum'), $metric);
         }
         self::assertStringContainsString('Unknown metric "cost:tests"', $this->refusal(unit: 'run', metric: 'cost:tests', statistic: 'sum'));
@@ -269,14 +351,29 @@ final class MetricToolsTest extends KernelTestCase
      *
      * @return Uuid the id of a stored run of the project that has the bucket rows
      */
-    private function runWithBuckets(Project $project, array $times): Uuid
+    private function runWithBuckets(Project $project, array $times, bool $withFigures = false): Uuid
     {
         $run = $this->seedRun($this->em(), $project);
         // The fact listener wrote a fact row for the run, and the test writes its own.
         $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = :run', ['run' => (string) $run->id]);
         foreach ($times as $bucket => $ms) {
-            $this->em()->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => (string) $bucket, 'ms' => $ms]);
+            $this->em()->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => (string) $bucket, 'ms' => $ms] + ($withFigures ? ['ms_with_subagents' => $ms * 2, 'calls' => 3] : []));
         }
+
+        return $run->id ?? throw new \LogicException('A stored run has an id.');
+    }
+
+    /**
+     * @param array<string, int>|null $events
+     *
+     * @return Uuid the id of a stored run of the project that holds the harness events
+     */
+    private function runWithEvents(Project $project, ?array $events): Uuid
+    {
+        $run = $this->seedRun($this->em(), $project);
+        $run->harnessEvents = $events;
+        $this->em()->flush();
+        $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = :run', ['run' => (string) $run->id]);
 
         return $run->id ?? throw new \LogicException('A stored run has an id.');
     }
@@ -339,8 +436,10 @@ final class MetricToolsTest extends KernelTestCase
         self::assertInstanceOf(BridgeSubjectResolver::class, $subjects);
         $buckets = self::getContainer()->get(WorkerRunBucketTimeRepository::class);
         self::assertInstanceOf(WorkerRunBucketTimeRepository::class, $buckets);
+        $runs = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $runs);
 
-        return new MetricListTool($subjects, new ListMetricsHandler($buckets, self::templateMetrics($templates)));
+        return new MetricListTool($subjects, new ListMetricsHandler($buckets, $runs, self::templateMetrics($templates)));
     }
 
     private function queryTool(?TemplateMetricSet $templates = null): MetricQueryTool

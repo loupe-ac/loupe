@@ -86,6 +86,7 @@ final class ReportWorkerRunStateController extends AppController
             cliVersion: $payload->cliVersion,
             skillVersion: $payload->skillVersion,
             peakContextTokens: $payload->peakContextTokens,
+            harnessEvents: $payload->harnessEvents(),
         ));
 
         if (null === $result->run) {

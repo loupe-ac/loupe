@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\TemplateMetric;
@@ -23,6 +24,7 @@ final readonly class MetricRowSource
         private FinishedCardSourceInterface $finishedCards,
         private CardReportSourceInterface $cardReports,
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
+        private WorkerRunRepository $workerRuns,
         private TemplateMetricValues $templateValues,
     ) {
     }
@@ -36,8 +38,8 @@ final readonly class MetricRowSource
         $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
 
         return MetricUnit::Run === $unit
-            ? $this->runRows($project, $metric, $group, $from, $shape->key->bucketName)
-            : $this->cardRows($project, $metric, $group, $from, $shape->key->bucketName);
+            ? $this->runRows($project, $metric, $group, $from, $shape->key->name)
+            : $this->cardRows($project, $metric, $group, $from, $shape->key->name);
     }
 
     /** Reads the same runs as a run query with no stage grouping. */
@@ -45,19 +47,22 @@ final readonly class MetricRowSource
     {
         $facts = $this->workerRunFacts->findClosedSince($project, $from, false);
 
+        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts);
+
         return new BucketTimes(
             \count($facts),
-            [] === $facts ? [] : $this->workerRunBucketTimes->findAllMillisecondsOfRuns(array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts)),
+            [] === $facts ? [] : $this->workerRunBucketTimes->findAllMillisecondsOfRuns($runIds),
+            [] === $facts ? [] : $this->workerRunBucketTimes->findAllSubagentFiguresOfRuns($runIds),
         );
     }
 
     /** @return list<MetricRow> */
-    private function runRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $bucketName): array
+    private function runRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $name): array
     {
         // A stage belongs to the card workflow, so a stage grouping reads card runs alone.
         $facts = $this->workerRunFacts->findClosedSince($project, $from, MetricGroup::Stage === $group);
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, self::cardIdsOf($facts)) : [];
-        $times = $this->bucketTimesOf($facts, $bucketName);
+        $times = $this->namedRunValues($facts, $metric, $name);
 
         return array_map(
             static fn (WorkerRunFact $fact): MetricRow => new MetricRow(
@@ -65,7 +70,7 @@ final readonly class MetricRowSource
                 $fact->cardNumber,
                 self::groupOf($fact, $group, $types),
                 $fact->endedAt ?? $fact->receivedAt,
-                null === $bucketName ? self::runValue($fact, $metric) : $times[(string) $fact->runId] ?? null,
+                null === $name ? self::runValue($fact, $metric) : $times[(string) $fact->runId] ?? null,
             ),
             $facts,
         );
@@ -117,7 +122,7 @@ final readonly class MetricRowSource
     }
 
     /** @return list<MetricRow> */
-    private function cardRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $bucketName): array
+    private function cardRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $name): array
     {
         $cards = $this->finishedCards->finishedCards($project, $from);
         if ([] === $cards) {
@@ -129,7 +134,7 @@ final readonly class MetricRowSource
         foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
             $factsByCard[(string) $fact->subjectId][] = $fact;
         }
-        $times = $this->bucketTimesOf(array_merge(...array_values($factsByCard)), $bucketName);
+        $times = $this->namedRunValues(array_merge(...array_values($factsByCard)), $metric, $name);
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
 
         $rows = [];
@@ -154,7 +159,7 @@ final readonly class MetricRowSource
                     $card->number,
                     $partition['group'],
                     $card->completedAt,
-                    self::cardValue($partition['facts'], $metric, $bucketName, $times),
+                    self::cardValue($partition['facts'], $metric, $name, $times),
                 );
             }
         }
@@ -165,13 +170,23 @@ final readonly class MetricRowSource
     /**
      * @param list<WorkerRunFact> $facts
      *
-     * @return array<string, int> run id => milliseconds, for a bucket-time query alone
+     * @return array<string, int|null> run id => value, for a named-metric query alone. A run with no entry has no value.
      */
-    private function bucketTimesOf(array $facts, ?string $bucketName): array
+    public function namedRunValues(array $facts, Metric $metric, ?string $name): array
     {
-        return null === $bucketName || [] === $facts
-            ? []
-            : $this->workerRunBucketTimes->findMillisecondsOfRuns(array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts), $bucketName);
+        if (null === $name || [] === $facts) {
+            return [];
+        }
+
+        $ids = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts);
+
+        return match ($metric) {
+            Metric::BucketTime => $this->workerRunBucketTimes->findMillisecondsOfRuns($ids, $name),
+            Metric::BucketTimeAll => $this->workerRunBucketTimes->findMillisecondsWithSubagentsOfRuns($ids, $name),
+            Metric::BucketCalls => $this->workerRunBucketTimes->findCallsOfRuns($ids, $name),
+            Metric::HarnessEvents => $this->workerRuns->findHarnessEventCountsOfRuns($ids, $name),
+            default => throw new \LogicException(\sprintf('The metric %s takes no name.', $metric->value)),
+        };
     }
 
     /**
@@ -225,29 +240,38 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
-            Metric::Runs, Metric::BucketTime => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
+            Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }
 
     /**
-     * A bucket-time sum counts the runs that have bucket data, and a run with
-     * none adds nothing, because a command run or an old run never has any.
-     *
-     * @param list<WorkerRunFact> $facts
-     * @param array<string, int>  $times run id => milliseconds, for a bucket-time query alone
+     * @param list<WorkerRunFact>     $facts
+     * @param array<string, int|null> $times run id => value, for a named-metric query alone
      */
-    private static function cardValue(array $facts, Metric $metric, ?string $bucketName, array $times): int|float|null
+    private static function cardValue(array $facts, Metric $metric, ?string $name, array $times): int|float|null
     {
         if (Metric::Runs === $metric) {
             return \count($facts);
         }
-        if (null !== $bucketName) {
-            $known = array_filter(array_map(static fn (WorkerRunFact $fact): ?int => $times[(string) $fact->runId] ?? null, $facts), static fn (?int $ms): bool => null !== $ms);
-
-            return [] === $known ? null : array_sum($known);
+        if (null !== $name) {
+            return self::namedCardSum($facts, $times);
         }
 
         return self::inDollars(self::cardSum($facts, $metric), $metric);
+    }
+
+    /**
+     * A named-metric sum counts the runs that have data, and a run with none
+     * adds nothing, because a command run or an old run never has any.
+     *
+     * @param list<WorkerRunFact>     $facts
+     * @param array<string, int|null> $times run id => value
+     */
+    public static function namedCardSum(array $facts, array $times): ?int
+    {
+        $known = array_filter(array_map(static fn (WorkerRunFact $fact): ?int => $times[(string) $fact->runId] ?? null, $facts), static fn (?int $value): bool => null !== $value);
+
+        return [] === $known ? null : array_sum($known);
     }
 
     /**

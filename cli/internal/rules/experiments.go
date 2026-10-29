@@ -20,6 +20,7 @@ const (
 	MaxModelLength = 100
 	MaxWeight      = 1_000_000
 	MaxMetrics     = 16
+	MaxControls    = 16
 )
 
 // experimentNamePattern is the shape the server takes for an experiment or a
@@ -28,7 +29,11 @@ var experimentNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
 // metricKeyPattern is the shape the server takes for a metric key. The bridge
 // does not know the server's metrics, so it checks the shape only.
-var metricKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9:-]{0,63}$`)
+var metricKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_:-]{0,127}$`)
+
+// expectPattern is the shape the server takes for the expectation of a control:
+// a comparison and a number.
+var expectPattern = regexp.MustCompile(`^(>=|<=|>|<|==) *-?[0-9]+(\.[0-9]+)?$`)
 
 // modelPattern refuses the control characters the server refuses in a model.
 var modelPattern = regexp.MustCompile(`^[^\p{C}]+$`)
@@ -56,11 +61,22 @@ type Experiment struct {
 	settings []RunSettings
 }
 
-// Headline is the goal and the guards of an experiment. A nil Guards means
-// the server's default guards, and an empty Guards means no guards.
+// Headline is the goal, the guards and the controls of an experiment. A nil
+// Guards means the server's default guards, and an empty Guards means no
+// guards.
 type Headline struct {
-	Goal   *Goal    `yaml:"goal"`
-	Guards []string `yaml:"guards"`
+	Goal     *Goal     `yaml:"goal"`
+	Guards   []string  `yaml:"guards"`
+	Controls []Control `yaml:"controls"`
+}
+
+// Control checks that a variant got its treatment. It holds when at least
+// Share of the cards of the variant that have a value for Metric meet Expect.
+type Control struct {
+	Metric  string   `yaml:"metric"`
+	Variant string   `yaml:"variant"`
+	Expect  string   `yaml:"expect"`
+	Share   *float64 `yaml:"share"`
 }
 
 // Goal is the metric an experiment tries to move, and the direction that
@@ -143,7 +159,13 @@ func (h *Headline) clone() *Headline {
 	if h == nil {
 		return nil
 	}
-	out := &Headline{Guards: slices.Clone(h.Guards)}
+	out := &Headline{Guards: slices.Clone(h.Guards), Controls: slices.Clone(h.Controls)}
+	for i := range out.Controls {
+		if share := out.Controls[i].Share; share != nil {
+			copied := *share
+			out.Controls[i].Share = &copied
+		}
+	}
 	if h.Goal != nil {
 		goal := *h.Goal
 		out.Goal = &goal
@@ -177,7 +199,7 @@ func checkExperiment(e Experiment) error {
 	}
 
 	errs = append(errs, checkMetrics(e.Metrics)...)
-	errs = append(errs, checkHeadline(e.Headline)...)
+	errs = append(errs, checkHeadline(e.Headline, names)...)
 
 	return errors.Join(errs...)
 }
@@ -193,7 +215,7 @@ func checkMetrics(metrics []string) []error {
 		case seen[key]:
 			errs = append(errs, fmt.Errorf("metric %q is listed twice", key))
 		case !metricKeyPattern.MatchString(key):
-			errs = append(errs, fmt.Errorf("metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", key))
+			errs = append(errs, fmt.Errorf("metric %q: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as merge-rate", key))
 		}
 		seen[key] = true
 	}
@@ -201,17 +223,18 @@ func checkMetrics(metrics []string) []error {
 	return errs
 }
 
-func checkHeadline(h *Headline) []error {
+func checkHeadline(h *Headline, variants map[string]bool) []error {
 	if h == nil {
 		return nil
 	}
 	var errs []error
-	if h.Goal == nil && h.Guards == nil {
-		errs = append(errs, errors.New("headline needs a goal or guards"))
+	if h.Goal == nil && h.Guards == nil && len(h.Controls) == 0 {
+		errs = append(errs, errors.New("headline needs a goal, guards or controls"))
 	}
+	errs = append(errs, checkControls(h.Controls, variants)...)
 	if h.Goal != nil {
 		if !metricKeyPattern.MatchString(h.Goal.Metric) {
-			errs = append(errs, fmt.Errorf("headline goal: metric %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", h.Goal.Metric))
+			errs = append(errs, fmt.Errorf("headline goal: metric %q: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as merge-rate", h.Goal.Metric))
 		}
 		// An empty Better loads, so the Comparison tab can ask for a direction.
 		switch h.Goal.Better {
@@ -229,11 +252,42 @@ func checkHeadline(h *Headline) []error {
 		case seen[key]:
 			errs = append(errs, fmt.Errorf("headline guard %q is listed twice", key))
 		case !metricKeyPattern.MatchString(key):
-			errs = append(errs, fmt.Errorf("headline guard %q: a metric key is 1 to 64 lowercase letters, digits, colons and hyphens, and starts with a letter, such as merge-rate", key))
+			errs = append(errs, fmt.Errorf("headline guard %q: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as merge-rate", key))
 		case h.Goal != nil && key == h.Goal.Metric:
 			errs = append(errs, fmt.Errorf("headline guard %q is also the goal metric", key))
 		}
 		seen[key] = true
+	}
+
+	return errs
+}
+
+func checkControls(controls []Control, variants map[string]bool) []error {
+	var errs []error
+	if len(controls) > MaxControls {
+		errs = append(errs, fmt.Errorf("headline has %d controls, and the server takes at most %d", len(controls), MaxControls))
+	}
+	seen := map[[2]string]bool{}
+	for _, c := range controls {
+		name := fmt.Sprintf("headline control %q on variant %q", c.Metric, c.Variant)
+		switch {
+		case !metricKeyPattern.MatchString(c.Metric):
+			errs = append(errs, fmt.Errorf("%s: a metric key is 1 to 128 lowercase letters, digits, underscores, colons and hyphens, and starts with a letter, such as harness-events:diagnostics", name))
+		case !variants[c.Variant]:
+			errs = append(errs, fmt.Errorf("%s: the experiment declares no variant %q", name, c.Variant))
+		case seen[[2]string{c.Metric, c.Variant}]:
+			errs = append(errs, fmt.Errorf("%s is listed twice", name))
+		}
+		seen[[2]string{c.Metric, c.Variant}] = true
+		if !expectPattern.MatchString(c.Expect) {
+			errs = append(errs, fmt.Errorf("%s: expect %q is a comparison and a number, such as \"> 0\" or \">= 3\"", name, c.Expect))
+		}
+		switch {
+		case c.Share == nil:
+			errs = append(errs, fmt.Errorf("%s: share is required, a fraction above 0 and at most 1, such as 0.5", name))
+		case !(*c.Share > 0 && *c.Share <= 1):
+			errs = append(errs, fmt.Errorf("%s: share must be above 0 and at most 1, got %v", name, *c.Share))
+		}
 	}
 
 	return errs

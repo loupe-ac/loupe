@@ -13,6 +13,10 @@ use App\Module\Insights\Mcp\AnalysisGetTool;
 use App\Module\Insights\Mcp\AnalysisReportTool;
 use App\Module\Insights\Mcp\AnalyticsSettingsGetTool;
 use App\Module\Insights\Mcp\AnalyticsSettingsUpdateTool;
+use App\Module\Insights\Mcp\BucketRuleCreateTool;
+use App\Module\Insights\Mcp\BucketRuleDeleteTool;
+use App\Module\Insights\Mcp\BucketRuleListTool;
+use App\Module\Insights\Mcp\BucketRuleMoveTool;
 use App\Module\Project\Mcp\AdvertisedTools;
 use Mcp\Capability\Registry;
 use Mcp\Server;
@@ -42,6 +46,10 @@ final class InsightsToolRegistrationTest extends KernelTestCase
         yield 'analysis_report' => [AnalysisReportTool::NAME, AnalysisReportTool::class];
         yield 'analytics_settings_get' => [AnalyticsSettingsGetTool::NAME, AnalyticsSettingsGetTool::class];
         yield 'analytics_settings_update' => [AnalyticsSettingsUpdateTool::NAME, AnalyticsSettingsUpdateTool::class];
+        yield 'bucket_rule_list' => [BucketRuleListTool::NAME, BucketRuleListTool::class];
+        yield 'bucket_rule_create' => [BucketRuleCreateTool::NAME, BucketRuleCreateTool::class];
+        yield 'bucket_rule_move' => [BucketRuleMoveTool::NAME, BucketRuleMoveTool::class];
+        yield 'bucket_rule_delete' => [BucketRuleDeleteTool::NAME, BucketRuleDeleteTool::class];
     }
 
     /** @param class-string $toolClass */
@@ -75,8 +83,8 @@ final class InsightsToolRegistrationTest extends KernelTestCase
         self::assertIsInt($start);
 
         self::assertSame(
-            [MetricQueryTool::NAME, ExperimentGetTool::NAME, AnalysisGetTool::NAME, AnalysisReportTool::NAME, AnalyticsSettingsGetTool::NAME, AnalyticsSettingsUpdateTool::NAME, BridgeListTool::NAME],
-            \array_slice($names, $start, 7),
+            [MetricQueryTool::NAME, ExperimentGetTool::NAME, AnalysisGetTool::NAME, AnalysisReportTool::NAME, AnalyticsSettingsGetTool::NAME, AnalyticsSettingsUpdateTool::NAME, BucketRuleListTool::NAME, BucketRuleCreateTool::NAME, BucketRuleMoveTool::NAME, BucketRuleDeleteTool::NAME, BridgeListTool::NAME],
+            \array_slice($names, $start, 11),
         );
     }
 

@@ -13,6 +13,7 @@ use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
+use App\Module\Bridge\Service\BucketFigures;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -147,11 +148,29 @@ trait BridgeScenario
         return $usage;
     }
 
+    /**
+     * @param array<int|string, int> $times bucket name => milliseconds
+     *
+     * @return array<int|string, BucketFigures> one call per bucket, with no time of subagents
+     */
+    private static function figures(array $times): array
+    {
+        return array_map(static fn (int $ms): BucketFigures => new BucketFigures($ms, $ms, 1), $times);
+    }
+
     /** @param array<int|string, int> $times bucket name => milliseconds */
     private function seedBucketTimes(EntityManagerInterface $em, WorkerRun $run, array $times): void
     {
         foreach ($times as $bucket => $ms) {
             $em->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => (string) $bucket, 'ms' => $ms]);
+        }
+    }
+
+    /** @param list<array{string, int, ?int, ?int}> $rows bucket, main ms, ms with subagents, calls */
+    private function seedBucketFigures(EntityManagerInterface $em, WorkerRun $run, array $rows): void
+    {
+        foreach ($rows as [$bucket, $ms, $withSubagents, $calls]) {
+            $em->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => $bucket, 'ms' => $ms, 'ms_with_subagents' => $withSubagents, 'calls' => $calls]);
         }
     }
 

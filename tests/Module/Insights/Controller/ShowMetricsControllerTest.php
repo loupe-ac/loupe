@@ -187,13 +187,61 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
         self::assertCount(10, $select->children('option'));
-        $group = $select->filter('optgroup');
-        self::assertCount(1, $group);
-        self::assertSame('Time buckets', $group->attr('label'));
+        $groups = $select->filter('optgroup');
+        self::assertCount(3, $groups);
+        self::assertSame(['Time buckets', 'Time buckets, subagents included', 'Calls in time buckets'], $groups->each(static fn (Crawler $group): string => (string) $group->attr('label')));
+        $group = $groups->eq(0);
         self::assertSame(['bucket-time:git', 'bucket-time:tests'], $group->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame(['Time in git', 'Time in tests'], $group->filter('option')->each(static fn (Crawler $option): string => trim($option->text())));
-        self::assertCount(0, $group->filter('option[selected]'));
+        self::assertSame(['bucket-time-all:git', 'bucket-time-all:tests'], $groups->eq(1)->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        self::assertSame(['Calls in git', 'Calls in tests'], $groups->eq(2)->filter('option')->each(static fn (Crawler $option): string => trim($option->text())));
+        self::assertCount(0, $select->filter('optgroup option[selected]'));
         self::assertSame('cost', $select->filter('option[selected]')->attr('value'));
+    }
+
+    public function test_the_picker_lists_the_harness_event_kinds_in_their_own_group_largest_total_first(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'metrics-events-picker@example.com');
+        $project = $this->project($em, $owner, 'Events picker');
+        $first = $this->seedRun($em, $project);
+        $first->harnessEvents = ['diagnostics' => 3, 'hook_success' => 10];
+        $second = $this->seedRun($em, $project);
+        $second->harnessEvents = ['diagnostics' => 4];
+        $em->flush();
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics');
+
+        self::assertResponseIsSuccessful();
+        $group = $crawler->filter('form[data-metrics-form] select[name="metric"] optgroup');
+        self::assertCount(1, $group);
+        self::assertSame('Harness events', $group->attr('label'));
+        self::assertSame(['harness-events:hook_success', 'harness-events:diagnostics'], $group->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        self::assertSame(['Harness events: hook_success', 'Harness events: diagnostics'], $group->filter('option')->each(static fn (Crawler $option): string => trim($option->text())));
+    }
+
+    public function test_a_selected_harness_event_kind_with_no_data_stays_in_the_picker(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'metrics-events-selected@example.com');
+        $project = $this->project($em, $owner, 'Events selected');
+        $this->seedRun($em, $project);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=harness-events:diagnostics');
+
+        self::assertResponseIsSuccessful();
+        $selected = $crawler->filter('select[name="metric"] option[selected]');
+        self::assertCount(1, $selected);
+        self::assertSame('harness-events:diagnostics', $selected->attr('value'));
+        self::assertSame('Harness events: diagnostics', trim($selected->text()));
     }
 
     public function test_a_bucket_metric_shows_the_time_of_its_bucket_and_leaves_a_run_with_no_data_out(): void
@@ -254,7 +302,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=bucket-time:deploy&unit=run&statistic=count&range=all');
 
         self::assertResponseIsSuccessful();
-        $group = $crawler->filter('form[data-metrics-form] select[name="metric"] optgroup');
+        $group = $crawler->filter('form[data-metrics-form] select[name="metric"] optgroup')->eq(0);
         self::assertSame(['bucket-time:deploy', 'bucket-time:git'], $group->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame('bucket-time:deploy', $group->filter('option[selected]')->attr('value'));
 

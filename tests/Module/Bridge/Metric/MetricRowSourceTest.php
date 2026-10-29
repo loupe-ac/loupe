@@ -10,6 +10,7 @@ use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Workflow\Contract\TemplateMetrics;
@@ -33,11 +34,11 @@ final class MetricRowSourceTest extends KernelTestCase
         $open = $this->seedRun($em, $project, state: WorkerRunState::Running, endedAt: new \DateTimeImmutable('2026-09-03 10:00:00'));
         $elsewhere = $this->seedRun($em, $other, endedAt: new \DateTimeImmutable('2026-09-03 10:00:00'));
         $bucketTimes = $this->bucketTimeRepository();
-        $bucketTimes->replaceForRun($withData->id ?? throw new \LogicException(), ['tests' => 40, 'git' => 2]);
-        $bucketTimes->replaceForRun($analysis->id ?? throw new \LogicException(), ['git' => 5]);
-        $bucketTimes->replaceForRun($old->id ?? throw new \LogicException(), ['git' => 7]);
-        $bucketTimes->replaceForRun($open->id ?? throw new \LogicException(), ['git' => 8]);
-        $bucketTimes->replaceForRun($elsewhere->id ?? throw new \LogicException(), ['git' => 9]);
+        $bucketTimes->replaceForRun($withData->id ?? throw new \LogicException(), self::figures(['tests' => 40, 'git' => 2]));
+        $bucketTimes->replaceForRun($analysis->id ?? throw new \LogicException(), self::figures(['git' => 5]));
+        $bucketTimes->replaceForRun($old->id ?? throw new \LogicException(), self::figures(['git' => 7]));
+        $bucketTimes->replaceForRun($open->id ?? throw new \LogicException(), self::figures(['git' => 8]));
+        $bucketTimes->replaceForRun($elsewhere->id ?? throw new \LogicException(), self::figures(['git' => 9]));
 
         $times = $this->source()->bucketTimes($project, new \DateTimeImmutable('2026-09-01 00:00:00'));
 
@@ -83,8 +84,17 @@ final class MetricRowSourceTest extends KernelTestCase
             $this->createStub(FinishedCardSourceInterface::class),
             $reports,
             $this->bucketTimeRepository(),
+            $this->workerRunRepository(),
             new TemplateMetricValues($workRequests, $reports, $this->createStub(TemplateMetrics::class), []),
         );
+    }
+
+    private function workerRunRepository(): WorkerRunRepository
+    {
+        $repository = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $repository);
+
+        return $repository;
     }
 
     private function bucketTimeRepository(): WorkerRunBucketTimeRepository

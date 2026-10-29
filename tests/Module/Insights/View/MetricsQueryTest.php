@@ -92,13 +92,25 @@ final class MetricsQueryTest extends TestCase
         $query = self::from($params);
 
         self::assertSame(Metric::BucketTime, $query->metric->key->metric);
-        self::assertSame('git', $query->metric->key->bucketName);
+        self::assertSame('git', $query->metric->key->name);
         self::assertSame($params, $query->routeParams());
+    }
+
+    public function test_a_harness_events_key_reads_the_count_of_that_kind_and_round_trips(): void
+    {
+        $params = ['unit' => 'run', 'metric' => 'harness-events:hook_success', 'statistic' => 'sum', 'group' => 'model', 'range' => 'all', 'bucket' => 'day'];
+        $query = self::from($params);
+
+        self::assertSame(Metric::HarnessEvents, $query->metric->key->metric);
+        self::assertSame('hook_success', $query->metric->key->name);
+        self::assertSame($params, $query->routeParams());
+        self::assertSame('cost', self::from(['metric' => 'harness-events:Bad'])->metric->key->key());
+        self::assertSame('cost', self::from(['metric' => 'harness-events'])->metric->key->key());
     }
 
     public function test_a_standalone_metric_has_no_bucket_name(): void
     {
-        self::assertNull(self::from(['metric' => 'duration'])->metric->key->bucketName);
+        self::assertNull(self::from(['metric' => 'duration'])->metric->key->name);
     }
 
     /** @return iterable<string, array{string}> */
@@ -117,7 +129,7 @@ final class MetricsQueryTest extends TestCase
         $query = self::from(['metric' => $metric]);
 
         self::assertSame('cost', $query->metric->key->key());
-        self::assertNull($query->metric->key->bucketName);
+        self::assertNull($query->metric->key->name);
         self::assertSame([], $query->routeParams());
     }
 

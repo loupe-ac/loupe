@@ -8,7 +8,9 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\CardRun;
+use App\Module\Bridge\Experiment\ControlEvaluator;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
@@ -26,8 +28,11 @@ use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
+use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\BucketRule;
+use App\Module\Bridge\Service\BucketRuleSourceInterface;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\View\CardTitleSourceInterface;
 use App\Module\Project\Entity\Project;
@@ -37,10 +42,12 @@ use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Utils\PageList;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, experimentRuns: list<WorkerRun>, allFacts: list<WorkerRunFact>, runCount: int, costMicros: ?int, coveredCostMicros: ?int}
+ * @phpstan-type KeptCard array{cardId: Uuid, delivered: bool, finished: bool, experimentRuns: list<WorkerRun>, allFacts: list<WorkerRunFact>, experimentFacts: list<WorkerRunFact>, runCount: int, costMicros: ?int, coveredCostMicros: ?int}
+ * @phpstan-type ControlSpec array{metric: string, variant: string, expect: string, share: float}
  */
 final readonly class ShowExperimentHandler
 {
@@ -68,6 +75,12 @@ final readonly class ShowExperimentHandler
         private CardTitleSourceInterface $cardTitles,
         private TemplateMetricValues $templateValues,
         private TemplateMetrics $templates,
+        private MetricRowSource $metricRows,
+        private WorkerRunBucketTimeRepository $workerRunBucketTimes,
+
+        /** @var iterable<BucketRuleSourceInterface> */
+        #[AutowireIterator('app.bucket_rule_source')]
+        private iterable $bucketRuleSources,
     ) {
     }
 
@@ -199,6 +212,7 @@ final readonly class ShowExperimentHandler
                     'finished' => $isDelivered || true === $column?->terminal,
                     'experimentRuns' => array_values(array_filter($own, static fn (WorkerRun $run): bool => null !== $run->workKind && \in_array($run->workKind, $covered, true))),
                     'allFacts' => $allFacts,
+                    'experimentFacts' => $coveredFacts,
                     'runCount' => $runCount,
                     'costMicros' => $costMicros,
                     'coveredCostMicros' => $coveredCostMicros,
@@ -227,7 +241,7 @@ final readonly class ShowExperimentHandler
         }
 
         // The goal and the guards are computed even when the entry's metrics leave them out.
-        [$goalKey, $direction, $guardKeys, $unknownGuards, $goalProblem] = self::headlineSpec($definition?->headline, $templates);
+        [$goalKey, $direction, $guardKeys, $unknownGuards, $goalProblem, $controlSpecs] = self::headlineSpec($definition?->headline, $templates);
         $wanted = $shapes;
         foreach ([$goalKey, ...$guardKeys] as $key) {
             $shape = self::shapeOf($key, $templates);
@@ -263,6 +277,7 @@ final readonly class ShowExperimentHandler
                 $direction,
                 array_map(static fn (string $key): ExperimentMetric => $computed[$key], $guardKeys),
                 $goalProblem,
+                $command->withMetrics ? $this->controls($project, $controlSpecs, $templates, $kept, $finished) : [],
             ),
             variants: $variants,
             metrics: $metrics,
@@ -280,6 +295,85 @@ final readonly class ShowExperimentHandler
             variantFilter: $command->variant,
             leftOutOnly: $command->leftOutOnly,
         );
+    }
+
+    /**
+     * Judges each control on the finished, kept cards of its variant. A control reads every finished card, not the delivered ones alone. A run metric, cost and runs included, reads only the covered experiment runs of the card, so a run outside the experiment cannot pass it.
+     *
+     * @param list<ControlSpec>             $specs
+     * @param array<string, list<KeptCard>> $kept
+     * @param array<string, int>            $finished
+     *
+     * @return list<ExperimentControl>
+     */
+    private function controls(Project $project, array $specs, TemplateMetricSet $templates, array $kept, array $finished): array
+    {
+        $values = [];
+        $labels = [];
+        $buckets = null;
+        foreach (array_unique(array_column($specs, 'metric')) as $key) {
+            $shape = self::shapeOf($key, $templates);
+            $isBucket = null !== $shape && null !== $shape->key->name && Metric::HarnessEvents !== $shape->key->metric;
+            if (null === $shape || ($isBucket && !\in_array($shape->key->name, $buckets ??= $this->bucketNames($project), true))) {
+                $values[$key] = null;
+                continue;
+            }
+            $values[$key] = $this->controlValues($project, $shape, $kept);
+            if (null !== $shape->template) {
+                $labels[$key] = $shape->template->label;
+            }
+        }
+
+        return ControlEvaluator::evaluate($specs, $values, $finished, $labels);
+    }
+
+    /** @return list<string> the buckets the rules of the project name, the fallback bucket, and the buckets with stored rows */
+    private function bucketNames(Project $project): array
+    {
+        $names = [BucketRule::FALLBACK, ...$this->workerRunBucketTimes->findBucketNamesOfProject($project)];
+        foreach ($this->bucketRuleSources as $source) {
+            foreach ($source->rulesFor($project) as $rule) {
+                $names[] = $rule->bucket;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * @param array<string, list<KeptCard>> $kept
+     *
+     * @return array<string, list<int|float>> variant => the values of its finished cards that have one
+     */
+    private function controlValues(Project $project, MetricShape $shape, array $kept): array
+    {
+        $rows = array_map(static fn (array $cards): array => array_values(array_filter($cards, static fn (array $card): bool => $card['finished'])), $kept);
+        $template = $shape->template;
+        if (null !== $template) {
+            $ids = array_merge([], ...array_map(static fn (array $cards): array => array_column($cards, 'cardId'), array_values($rows)));
+            $byCard = $this->templateValues->valuesOf($project, $ids, $template);
+            $value = static fn (array $card): int|float|null => MetricType::Rate === $template->type ? (int) ($byCard[$card['cardId']->toRfc4122()] ?? 0) : ($byCard[$card['cardId']->toRfc4122()] ?? null);
+        } else {
+            $of = $shape->key->metric ?? throw new \LogicException('A built-in key has a metric.');
+            $named = [];
+            if (null !== $shape->key->name) {
+                $facts = array_merge([], ...array_map(static fn (array $cards): array => array_merge([], ...array_column($cards, 'experimentFacts')), array_values($rows)));
+                $named = $this->metricRows->namedRunValues($facts, $of, $shape->key->name);
+            }
+            $value = match ($of) {
+                Metric::StopRate => static function (array $card): ?int {
+                    $closed = array_filter($card['experimentRuns'], static fn (WorkerRun $run): bool => $run->state->isOutcome());
+
+                    return [] === $closed ? null : \count(array_filter($closed, static fn (WorkerRun $run): bool => $run->state->isStop()));
+                },
+                Metric::Runs => static fn (array $card): int => \count($card['experimentFacts']),
+                Metric::Cost => static fn (array $card): ?float => null === $card['coveredCostMicros'] ? null : $card['coveredCostMicros'] / 1_000_000,
+                Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => static fn (array $card): ?int => MetricRowSource::cardSum($card['experimentFacts'], $of),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => static fn (array $card): ?int => MetricRowSource::namedCardSum($card['experimentFacts'], $named),
+            };
+        }
+
+        return array_map(static fn (array $cards): array => array_values(array_filter(array_map($value, $cards), static fn (int|float|null $item): bool => null !== $item)), $rows);
     }
 
     /**
@@ -428,6 +522,14 @@ final readonly class ShowExperimentHandler
             return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values), $values];
         };
 
+        $namedValues = [];
+        $keptFacts = array_merge([], ...array_map(static fn (array $row): array => $row['experimentFacts'], array_merge([], ...array_values($kept))));
+        foreach ($shapes as $key => $shape) {
+            if (null !== $shape->key->name) {
+                $namedValues[$key] = $this->metricRows->namedRunValues($keptFacts, $shape->key->metric ?? throw new \LogicException('A named key has a built-in metric.'), $shape->key->name);
+            }
+        }
+
         $metrics = [];
         foreach ($shapes as $key => $shape) {
             $template = $shape->template;
@@ -451,7 +553,7 @@ final readonly class ShowExperimentHandler
                     return null === $micros ? null : $micros / 1_000_000;
                 })),
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['allFacts'], $of))),
-                Metric::BucketTime => throw new \LogicException('A bucket time needs a bucket name, so an experiment cannot compare it.'),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['experimentFacts'], $namedValues[$key] ?? []))),
             };
         }
 
@@ -509,14 +611,14 @@ final readonly class ShowExperimentHandler
         return $metric($key, $shape, $bootstrap($shape->valueType(), $key, $value), $parts, $template->label);
     }
 
-    /** Null for a key that no metric has. A bucket time needs a bucket name, which an experiment key cannot give. */
+    /** Null for a key that no metric has. */
     private static function shapeOf(string $key, TemplateMetricSet $templates): ?MetricShape
     {
         if (ExperimentMetric::COVERED_COST === $key) {
             return new MetricShape(new MetricKey(Metric::Cost));
         }
         $parsed = MetricKey::tryParse($key, $templates);
-        if (null === $parsed || Metric::BucketTime === $parsed->metric) {
+        if (null === $parsed) {
             return null;
         }
 
@@ -555,9 +657,9 @@ final readonly class ShowExperimentHandler
     /**
      * The goal metric, its direction, and the guards. Without a goal the cost is the goal, and lower is better. A goal that no metric has, or that has no better way, comes back with the state that says so, and names no winner. A guard that no metric has falls out and is listed. Without guards the default guards apply, less the goal and the ones the template does not declare.
      *
-     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
      *
-     * @return array{string, ?GoalDirection, list<string>, list<string>, ?GoalState} goal key, direction, guard keys, unknown guard keys, the problem of the goal
+     * @return array{string, ?GoalDirection, list<string>, list<string>, ?GoalState, list<ControlSpec>} goal key, direction, guard keys, unknown guard keys, the problem of the goal, the controls
      */
     private static function headlineSpec(?array $headline, TemplateMetricSet $templates): array
     {
@@ -587,6 +689,6 @@ final readonly class ShowExperimentHandler
             }
         }
 
-        return [$goalKey, $direction, array_values($guardKeys), array_values($unknown), $problem];
+        return [$goalKey, $direction, array_values($guardKeys), array_values($unknown), $problem, $headline['controls'] ?? []];
     }
 }

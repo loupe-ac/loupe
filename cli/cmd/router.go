@@ -1573,6 +1573,9 @@ func (r *router) outcome(p pending, e endedRun) api.RunStateReport {
 	report.Usage = r.usage(p, e.res.usage)
 	report.PeakContextTokens = e.res.peakContextTokens
 	report.HarnessVersion, report.SkillVersion = e.res.harnessVersion, e.res.skillVersion
+	if e.res.harnessEvents != nil {
+		report.HarnessEvents = &e.res.harnessEvents
+	}
 
 	return report
 }
@@ -1806,6 +1809,9 @@ func headlineOf(h *rules.Headline) *api.ExperimentHeadline {
 	out := &api.ExperimentHeadline{Guards: slices.Clone(h.Guards)}
 	if h.Goal != nil {
 		out.Goal = &api.ExperimentGoal{Metric: h.Goal.Metric, Better: h.Goal.Better}
+	}
+	for _, c := range h.Controls {
+		out.Controls = append(out.Controls, api.ExperimentControl{Metric: c.Metric, Variant: c.Variant, Expect: c.Expect, Share: *c.Share})
 	}
 
 	return out

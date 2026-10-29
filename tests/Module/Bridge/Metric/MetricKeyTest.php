@@ -13,14 +13,14 @@ use PHPUnit\Framework\TestCase;
 
 final class MetricKeyTest extends TestCase
 {
-    public function test_a_standalone_key_parses_with_no_bucket_name(): void
+    public function test_a_standalone_key_parses_with_no_name(): void
     {
         foreach (Metric::standalone() as $metric) {
             $key = MetricKey::tryParse($metric->value, new TemplateMetricSet());
 
             self::assertNotNull($key);
             self::assertSame($metric, $key->metric);
-            self::assertNull($key->bucketName);
+            self::assertNull($key->name);
             self::assertNull($key->templateKey);
             self::assertFalse($key->isTemplate());
             self::assertSame($metric->value, $key->key());
@@ -33,15 +33,47 @@ final class MetricKeyTest extends TestCase
 
         self::assertNotNull($key);
         self::assertSame(Metric::BucketTime, $key->metric);
-        self::assertSame('git_push-2', $key->bucketName);
+        self::assertSame('git_push-2', $key->name);
         self::assertSame('bucket-time:git_push-2', $key->key());
+    }
+
+    public function test_the_bucket_call_and_time_with_subagents_keys_parse_with_a_bucket_name(): void
+    {
+        foreach ([Metric::BucketCalls, Metric::BucketTimeAll] as $metric) {
+            $key = MetricKey::tryParse($metric->value.':git_push-2', new TemplateMetricSet());
+
+            self::assertSame($metric, $key?->metric);
+            self::assertSame('git_push-2', $key->name);
+            self::assertSame($metric->value.':git_push-2', $key->key());
+        }
+        self::assertSame(Metric::BucketTime, MetricKey::tryParse('bucket-time:all', new TemplateMetricSet())?->metric);
+        self::assertSame(\App\Module\Bridge\Metric\MetricValueType::Count, Metric::BucketCalls->valueType());
+        self::assertSame(\App\Module\Bridge\Metric\MetricValueType::Duration, Metric::BucketTimeAll->valueType());
+    }
+
+    public function test_a_harness_events_key_parses_with_its_kind(): void
+    {
+        $key = MetricKey::tryParse('harness-events:hook_success.v2-x', new TemplateMetricSet());
+
+        self::assertNotNull($key);
+        self::assertSame(Metric::HarnessEvents, $key->metric);
+        self::assertSame('hook_success.v2-x', $key->name);
+        self::assertSame('harness-events:hook_success.v2-x', $key->key());
+        self::assertSame($key->key(), new MetricKey(Metric::HarnessEvents, 'hook_success.v2-x')->key());
+    }
+
+    public function test_only_the_named_metrics_leave_the_standalone_list(): void
+    {
+        self::assertSame([Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents], array_values(array_filter(Metric::cases(), static fn (Metric $metric): bool => $metric->isNamed())));
+        self::assertNotContains(Metric::HarnessEvents, Metric::standalone());
+        self::assertNotContains(Metric::BucketTime, Metric::standalone());
     }
 
     public function test_a_bucket_name_of_64_characters_parses(): void
     {
         $name = str_repeat('a', 64);
 
-        self::assertSame($name, MetricKey::tryParse('bucket-time:'.$name, new TemplateMetricSet())?->bucketName);
+        self::assertSame($name, MetricKey::tryParse('bucket-time:'.$name, new TemplateMetricSet())?->name);
     }
 
     public function test_a_key_of_the_template_set_parses_as_a_template_key(): void
@@ -50,7 +82,7 @@ final class MetricKeyTest extends TestCase
 
         self::assertNotNull($key);
         self::assertNull($key->metric);
-        self::assertNull($key->bucketName);
+        self::assertNull($key->name);
         self::assertSame('merge-rate', $key->templateKey);
         self::assertTrue($key->isTemplate());
         self::assertSame('merge-rate', $key->key());
@@ -81,6 +113,14 @@ final class MetricKeyTest extends TestCase
         yield 'name with a space' => ['bucket-time:a b'];
         yield 'name with a new line' => ["bucket-time:tests\n"];
         yield 'name of 65 characters' => ['bucket-time:'.str_repeat('a', 65)];
+        yield 'bucket calls with no name' => ['bucket-calls'];
+        yield 'bucket calls with a dot' => ['bucket-calls:a.b'];
+        yield 'bucket time all with an empty name' => ['bucket-time-all:'];
+        yield 'harness events with no kind' => ['harness-events'];
+        yield 'harness events with an empty kind' => ['harness-events:'];
+        yield 'harness events kind in upper case' => ['harness-events:Diagnostics'];
+        yield 'harness events kind of 65 characters' => ['harness-events:'.str_repeat('a', 65)];
+        yield 'bucket time with a dot' => ['bucket-time:a.b'];
         yield 'standalone metric with a name' => ['cost:tests'];
         yield 'template metric with a name' => ['merge-rate:tests'];
     }
@@ -96,6 +136,9 @@ final class MetricKeyTest extends TestCase
         $refused = [
             [Metric::BucketTime, null, null],
             [Metric::BucketTime, 'Tests', null],
+            [Metric::HarnessEvents, null, null],
+            [Metric::HarnessEvents, 'Tests', null],
+            [Metric::BucketTime, 'a.b', null],
             [Metric::Cost, 'tests', null],
             [Metric::Cost, null, 'merge-rate'],
             [null, null, null],

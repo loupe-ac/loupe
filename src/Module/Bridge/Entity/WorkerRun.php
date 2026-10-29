@@ -89,6 +89,12 @@ class WorkerRun implements ProjectScopedSubject
 
     public const int MAX_HARNESS_LENGTH = 40;
 
+    public const string HARNESS_EVENT_KIND_PATTERN = '/^[a-z0-9_.-]{1,64}$/D';
+
+    public const int MAX_HARNESS_EVENT_KINDS = 100;
+
+    public const int MAX_HARNESS_EVENT_COUNT = 1_000_000_000;
+
     /** The name of a harness, such as claude-code or codex. */
     public const string HARNESS_PATTERN = '/^[a-z][a-z0-9-]{0,39}$/D';
 
@@ -231,6 +237,15 @@ class WorkerRun implements ProjectScopedSubject
     /** The largest context of the main session in one turn, in tokens. Null when unknown. */
     #[ORM\Column(name: 'peak_context_tokens', type: Types::BIGINT, nullable: true)]
     public ?int $peakContextTokens = null;
+
+    /**
+     * The count of each kind of harness event in the run, as the bridge counted them. Null when the bridge sent none.
+     * A kind the map lacks counts as zero.
+     *
+     * @var array<string, int>|null
+     */
+    #[ORM\Column(name: 'harness_events', type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $harnessEvents = null;
 
     /**
      * The inbox ask whose blocking question about this run's card the worker asked. A plain id, because Bridge imports

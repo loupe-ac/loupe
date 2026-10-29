@@ -21,9 +21,13 @@ final class ResolveExperimentPinRequest
 
     public const int MAX_METRICS = 16;
 
+    public const int MAX_CONTROLS = 16;
+
+    public const string EXPECT_PATTERN = '/^(>=|<=|>|<|==) *-?[0-9]+(\.[0-9]+)?$/D';
+
     public const int MAX_COVERS = 32;
 
-    private const string METRIC_KEY_PATTERN = '/^[a-z][a-z0-9:-]{0,63}$/D';
+    private const string METRIC_KEY_PATTERN = '/^[a-z][a-z0-9_:-]{0,127}$/D';
 
     public function __construct(
         public mixed $candidate = null,
@@ -117,12 +121,14 @@ final class ResolveExperimentPinRequest
     }
 
     /**
-     * The goal and the guards of the experiment page. Null when the headline is
-     * not an object, or one of its parts is malformed, or it holds neither
-     * part. Keys it does not know drop out. An empty guards list stays, and
-     * means no guards. A goal with no better way stays, so the page can say so.
+     * The goal, the guards and the controls of the experiment page. Null when
+     * the headline is not an object, or one of its parts is malformed, or it
+     * holds no part. Keys it does not know drop out. An empty guards list
+     * stays, and means no guards. A goal with no better way stays, so the page
+     * can say so. A control names a declared variant, a comparison with a
+     * number, and a share above 0 up to 1.
      *
-     * @return array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null
+     * @return array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null
      */
     public function headline(): ?array
     {
@@ -159,7 +165,53 @@ final class ResolveExperimentPinRequest
             $normalised['guards'] = $keys;
         }
 
+        if (\array_key_exists('controls', $headline)) {
+            $controls = $this->controls($headline['controls']);
+            if (null === $controls) {
+                return null;
+            }
+            if ([] !== $controls) {
+                $normalised['controls'] = $controls;
+            }
+        }
+
         return [] === $normalised ? null : $normalised;
+    }
+
+    /**
+     * Null when the controls are not a list of at most MAX_CONTROLS well formed entries with no repeat of a metric and a variant.
+     *
+     * @return list<array{metric: string, variant: string, expect: string, share: float}>|null
+     */
+    private function controls(mixed $controls): ?array
+    {
+        $variants = $this->choice()['variants'] ?? null;
+        if (!\is_array($controls) || !array_is_list($controls) || \count($controls) > self::MAX_CONTROLS || null === $variants) {
+            return null;
+        }
+
+        $normalised = [];
+        $seen = [];
+        foreach ($controls as $control) {
+            if (!\is_array($control) || array_is_list($control)) {
+                return null;
+            }
+            $metric = $control['metric'] ?? null;
+            $variant = $control['variant'] ?? null;
+            $expect = $control['expect'] ?? null;
+            $share = $control['share'] ?? null;
+            if (!\is_string($metric) || 1 !== preg_match(self::METRIC_KEY_PATTERN, $metric)
+                || !\is_string($variant) || !\in_array($variant, $variants, true)
+                || !\is_string($expect) || 1 !== preg_match(self::EXPECT_PATTERN, $expect)
+                || !(\is_int($share) || \is_float($share)) || !($share > 0 && $share <= 1)
+                || isset($seen[$metric."\0".$variant])) {
+                return null;
+            }
+            $seen[$metric."\0".$variant] = true;
+            $normalised[] = ['metric' => $metric, 'variant' => $variant, 'expect' => $expect, 'share' => (float) $share];
+        }
+
+        return $normalised;
     }
 
     /**

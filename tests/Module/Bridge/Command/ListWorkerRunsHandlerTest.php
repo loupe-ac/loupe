@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\ListWorkerRunsCommand;
 use App\Module\Bridge\Command\ListWorkerRunsHandler;
 use App\Module\Bridge\Command\ListWorkerRunsView;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
@@ -69,7 +70,7 @@ final class ListWorkerRunsHandlerTest extends KernelTestCase
         self::assertInstanceOf(BridgeLabels::class, $names);
         $facts = self::getContainer()->get(WorkerRunFactRepository::class);
         self::assertInstanceOf(WorkerRunFactRepository::class, $facts);
-        $handler = new ListWorkerRunsHandler($runs, $changes, $source, $controls, new MockClock('2026-09-25 12:00:00'), $names, $facts);
+        $handler = new ListWorkerRunsHandler($runs, $changes, $source, $controls, new MockClock('2026-09-25 12:00:00'), $names, $facts, self::getContainer()->get(WorkerRunBucketTimeRepository::class));
 
         $view = $handler(new ListWorkerRunsCommand($project, new WorkerRunListQuery()));
 

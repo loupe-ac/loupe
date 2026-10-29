@@ -89,7 +89,7 @@ final class ResolveExperimentPinRequestTest extends TestCase
         yield 'null in the list' => [['cost', null]];
         yield 'a capital' => [['Cost']];
         yield 'a digit first' => [['1cost']];
-        yield 'too long' => [['c'.str_repeat('o', 64)]];
+        yield 'too long' => [['c'.str_repeat('o', 128)]];
         yield 'a repeat' => [['cost', 'cost']];
         yield 'a trailing newline' => [["cost\n"]];
     }
@@ -135,6 +135,61 @@ final class ResolveExperimentPinRequestTest extends TestCase
         $guards = array_map(static fn (int $i): string => 'm'.$i, range(1, ResolveExperimentPinRequest::MAX_METRICS));
 
         self::assertSame(['guards' => $guards], new ResolveExperimentPinRequest(headline: ['guards' => $guards])->headline());
+    }
+
+    public function test_controls_are_kept_with_the_share_as_a_float(): void
+    {
+        $request = new ResolveExperimentPinRequest('lsp', ['lsp', 'no-lsp'], [1, 1], null, ['controls' => [
+            ['metric' => 'harness-events:diagnostics', 'variant' => 'lsp', 'expect' => '> 0', 'share' => 1, 'extra' => true],
+            ['metric' => 'bucket-calls:lsp', 'variant' => 'no-lsp', 'expect' => '== 0', 'share' => 0.5],
+        ]]);
+
+        self::assertSame(['controls' => [
+            ['metric' => 'harness-events:diagnostics', 'variant' => 'lsp', 'expect' => '> 0', 'share' => 1.0],
+            ['metric' => 'bucket-calls:lsp', 'variant' => 'no-lsp', 'expect' => '== 0', 'share' => 0.5],
+        ]], $request->headline());
+    }
+
+    public function test_controls_sit_beside_a_goal_and_guards(): void
+    {
+        $request = new ResolveExperimentPinRequest('a', ['a', 'b'], [1, 1], null, ['goal' => ['metric' => 'cost'], 'guards' => [], 'controls' => [['metric' => 'cost', 'variant' => 'a', 'expect' => '>=1.5', 'share' => 0.25]]]);
+
+        self::assertSame(['goal' => ['metric' => 'cost'], 'guards' => [], 'controls' => [['metric' => 'cost', 'variant' => 'a', 'expect' => '>=1.5', 'share' => 0.25]]], $request->headline());
+    }
+
+    public function test_empty_controls_alone_give_no_headline(): void
+    {
+        self::assertNull(new ResolveExperimentPinRequest('a', ['a'], [1], null, ['controls' => []])->headline());
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidControls(): iterable
+    {
+        $valid = ['metric' => 'cost', 'variant' => 'a', 'expect' => '> 0', 'share' => 0.5];
+        yield 'not a list' => [['x' => $valid]];
+        yield 'a string' => ['cost'];
+        yield 'too many' => [array_map(static fn (int $i): array => ['metric' => 'm'.$i] + $valid, range(1, ResolveExperimentPinRequest::MAX_CONTROLS + 1))];
+        yield 'an entry that is a list' => [[['cost', 'a', '> 0', 0.5]]];
+        yield 'metric bad shape' => [[['metric' => 'Cost'] + $valid]];
+        yield 'metric missing' => [[['variant' => 'a', 'expect' => '> 0', 'share' => 0.5]]];
+        yield 'variant not declared' => [[['variant' => 'z'] + $valid]];
+        yield 'variant a number' => [[['variant' => 1] + $valid]];
+        yield 'expect without a number' => [[['expect' => '>'] + $valid]];
+        yield 'expect not a comparison' => [[['expect' => 'about 3'] + $valid]];
+        yield 'expect trailing newline' => [[['expect' => "> 0\n"] + $valid]];
+        yield 'share missing' => [[['metric' => 'cost', 'variant' => 'a', 'expect' => '> 0']]];
+        yield 'share zero' => [[['share' => 0] + $valid]];
+        yield 'share above one' => [[['share' => 1.5] + $valid]];
+        yield 'share a string' => [[['share' => '0.5'] + $valid]];
+        yield 'repeat' => [[$valid, ['expect' => '< 5'] + $valid]];
+    }
+
+    #[DataProvider('invalidControls')]
+    public function test_invalid_controls_give_no_headline(mixed $controls): void
+    {
+        $request = new ResolveExperimentPinRequest('a', ['a', 'b'], [1, 1], null, ['goal' => ['metric' => 'cost'], 'controls' => $controls]);
+
+        self::assertNull($request->headline());
     }
 
     /** @return iterable<string, array{mixed}> */

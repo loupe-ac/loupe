@@ -26,10 +26,10 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
     /**
      * Writes past the identity map, so clear the entity manager before a read.
      *
-     * @param list<array{name: string, weight: int}>                                           $weights
-     * @param list<string>|null                                                                $metrics
-     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
-     * @param list<string>|null                                                                $covers   null keeps the stored list
+     * @param list<array{name: string, weight: int}>                                                                                                                                  $weights
+     * @param list<string>|null                                                                                                                                                       $metrics
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
+     * @param list<string>|null                                                                                                                                                       $covers   null keeps the stored list
      */
     public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt, ?array $covers = null): void
     {

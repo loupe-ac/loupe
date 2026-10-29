@@ -1,0 +1,13 @@
+{"type":"user","timestamp":"2026-10-08T10:00:00.000Z","message":{"content":"read /Users/someone/secret/file.txt please"}}
+{"type":"attachment","timestamp":"2026-10-08T09:59:59.000Z","attachment":{"type":"diagnostics","files":["/Users/someone/before.go"]}}
+{"type":"attachment","timestamp":"2026-10-08T10:00:01.000Z","attachment":{"type":"diagnostics","files":["/Users/someone/secret/file.go"],"text":"error: secret text"}}
+{"type":"attachment","timestamp":"2026-10-08T10:00:02.000Z","attachment":{"type":"diagnostics","content":"more text"}}
+{"type":"attachment","timestamp":"2026-10-08T10:00:03.000Z","attachment":{"type":"todo_reminder","content":"/Users/someone/todo"}}
+{"type":"attachment","timestamp":"2026-10-08T10:00:04.000Z","attachment":{"type":"Bad Kind/../path"}}
+{"type":"attachment","timestamp":"2026-10-08T10:00:05.000Z","attachment":{"type":""}}
+{"type":"attachment","attachment":{"type":"no_timestamp"}}
+{"type":"system","timestamp":"2026-10-08T10:00:06.000Z","subtype":"compact_boundary","content":"summary text"}
+{"type":"system","timestamp":"2026-10-08T10:00:07.000Z","subtype":"compact_boundary"}
+{"type":"system","timestamp":"2026-10-08T10:00:08.000Z"}
+{"type":"attachment","timestamp":"2026-10-08T10:05:00.000Z","attachment":{"type":"diagnostics"}}
+{"type":"attachment","timestamp":"2026-10-08T10:00:09.000Z","attachment":{"type":"diagnostics"

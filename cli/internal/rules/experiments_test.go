@@ -289,3 +289,16 @@ func uuidV7(rng *rand.Rand) string {
 
 	return fmt.Sprintf("%08x-%04x-7%03x-%04x-%012x", ms>>16, ms&0xffff, a&0xfff, 0x8000|(b>>48)&0x3fff, b&0xffffffffffff)
 }
+
+func TestMetricKeyPatternTakesBucketAndHarnessEventKeys(t *testing.T) {
+	for _, key := range []string{"harness-events:edited_text_file", "bucket-calls:tests", "bucket-time-all:" + strings.Repeat("a", 64)} {
+		if !metricKeyPattern.MatchString(key) {
+			t.Errorf("metric key %q was refused", key)
+		}
+	}
+	for _, key := range []string{"Cost", "_cost", "c" + strings.Repeat("o", 128)} {
+		if metricKeyPattern.MatchString(key) {
+			t.Errorf("metric key %q was accepted", key)
+		}
+	}
+}

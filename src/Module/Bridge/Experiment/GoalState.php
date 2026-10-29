@@ -14,4 +14,6 @@ enum GoalState: string
     case UnknownMetric = 'unknown-metric';
     /** The rule names a goal with no better way. */
     case NoDirection = 'no-direction';
+    /** A control of the experiment failed, has no data, or names no metric, so the goal names no winner. */
+    case Held = 'held';
 }

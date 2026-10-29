@@ -9,7 +9,9 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Insights\Command\ReportAnalysisHandler;
 use App\Module\Insights\Command\UpdateAnalyticsSettingsHandler;
+use App\Module\Insights\Entity\InsightsBucketRule;
 use App\Module\Insights\Entity\Proposal;
+use App\Module\Insights\Service\BucketRuleWriter;
 use Mcp\Exception\ToolCallException;
 
 /** Renders a handler's DomainErrors as the message an agent reads. An unmapped key gives a generic message, never the key. */
@@ -45,6 +47,10 @@ final readonly class InsightsToolErrorMessages
             UpdateAnalyticsSettingsHandler::INVALID_EFFORT => \sprintf('Use one of: %s.', implode(', ', WorkRequest::EFFORTS)),
             UpdateAnalyticsSettingsHandler::INVALID_SUBCOMMAND_PROGRAMS => 'A program name is 1 to 40 characters of letters, digits and . _ + -.',
             UpdateAnalyticsSettingsHandler::TOO_MANY_SUBCOMMAND_PROGRAMS => \sprintf('Pass at most %d programs.', ToolCallCollectionSettings::MAX_PROJECT_PROGRAMS),
+            BucketRuleWriter::PATTERN_BLANK => 'A pattern must not be blank.',
+            BucketRuleWriter::PATTERN_TOO_LONG => \sprintf('A pattern must be at most %d characters.', InsightsBucketRule::MAX_PATTERN_LENGTH),
+            BucketRuleWriter::BUCKET_INVALID => \sprintf('A bucket name is 1 to %d characters: lower case letters, digits, underscore and hyphen.', InsightsBucketRule::MAX_BUCKET_LENGTH),
+            BucketRuleWriter::LIMIT_REACHED => \sprintf('A project holds at most %d rules. Delete a rule with bucket_rule_delete first.', InsightsBucketRule::MAX_PER_PROJECT),
             default => self::UNMAPPED,
         };
     }

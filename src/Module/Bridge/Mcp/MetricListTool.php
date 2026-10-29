@@ -20,7 +20,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-type MetricListEntry array{label?: string, key: string, units: list<string>, valueType: string, statistics: list<string>, groups: list<string>, description: string}
  */
-#[McpTool(name: self::NAME, description: 'List the metrics that metric_query reads. Each metric has key, units (run, card or both), valueType (money in US dollars, tokens, duration, count or ratio), statistics, groups and description. Pass the key as the metric of metric_query, with one of its units, statistics and groups. A built-in duration is in milliseconds. The workflow template of the project may declare more metrics. They have a label, a unit of card alone, and a duration in hours. One bucket-time:<name> entry exists for each bucket that has time on a run of the project.')]
+#[McpTool(name: self::NAME, description: 'List the metrics that metric_query reads. Each metric has key, units (run, card or both), valueType (money in US dollars, tokens, duration, count or ratio), statistics, groups and description. Pass the key as the metric of metric_query, with one of its units, statistics and groups. A built-in duration is in milliseconds. The workflow template of the project may declare more metrics. They have a label, a unit of card alone, and a duration in hours. One bucket-time:<name>, bucket-time-all:<name> and bucket-calls:<name> entry exists for each bucket that has tool calls on a run of the project, and one harness-events:<kind> entry for each kind of harness event on a run of the project.')]
 final readonly class MetricListTool
 {
     public const string NAME = 'metric_list';
@@ -39,7 +39,11 @@ final readonly class MetricListTool
 
             return ['metrics' => [
                 ...array_map(self::entry(...), $view->metrics),
-                ...array_map(static fn (string $name): array => self::entry(new MetricShape(new MetricKey(Metric::BucketTime, $name))), $view->bucketNames),
+                ...array_merge(...array_map(
+                    static fn (Metric $family): array => array_map(static fn (string $name): array => self::entry(new MetricShape(new MetricKey($family, $name))), $view->bucketNames),
+                    [Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls],
+                )),
+                ...array_map(static fn (string $kind): array => self::entry(new MetricShape(new MetricKey(Metric::HarnessEvents, $kind))), $view->harnessEventKinds),
             ]];
         } catch (ToolCallException $e) {
             throw $e;

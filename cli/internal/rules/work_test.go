@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,18 +110,25 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 		"command with variants":        {entry("x", command+variants), "work entry x sets variants; move the variants"},
 		"command with workerPool":      {entry("x", command+"workerPool: quick"), "workerPool names agent behaviour"},
 		"command with metrics":         {entry("x", command+"metrics: [cost]"), "work entry x sets metrics; move the variants"},
-		"bad metric key":               {exp("metrics: [Cost]\n" + variants), `metric "Cost": a metric key is 1 to 64`},
-		"metric key too long":          {exp("metrics: [c" + strings.Repeat("o", 64) + "]\n" + variants), "a metric key is 1 to 64"},
+		"bad metric key":               {exp("metrics: [Cost]\n" + variants), `metric "Cost": a metric key is 1 to 128`},
+		"metric key too long":          {exp("metrics: [c" + strings.Repeat("o", 128) + "]\n" + variants), "a metric key is 1 to 128"},
 		"repeated metric":              {exp("metrics: [cost, cost]\n" + variants), `metric "cost" is listed twice`},
 		"interactive with headline":    {entry("x", interactive+"headline:\n  guards: [cost]"), "work entry x sets headline; move the variants"},
 		"command with headline":        {entry("x", command+"headline:\n  guards: [cost]"), "work entry x sets headline; move the variants"},
-		"empty headline":               {exp("headline: {}\n" + variants), "headline needs a goal or guards"},
-		"goal without metric":          {exp("headline:\n  goal: {better: lower}\n" + variants), "headline goal: metric \"\": a metric key is 1 to 64"},
+		"empty headline":               {exp("headline: {}\n" + variants), "headline needs a goal, guards or controls"},
+		"goal without metric":          {exp("headline:\n  goal: {better: lower}\n" + variants), "headline goal: metric \"\": a metric key is 1 to 128"},
 		"goal with bad better":         {exp("headline:\n  goal: {metric: cost, better: up}\n" + variants), `headline goal: better is lower or higher, got "up"`},
-		"goal with bad metric":         {exp("headline:\n  goal: {metric: Cost, better: lower}\n" + variants), `headline goal: metric "Cost": a metric key is 1 to 64`},
-		"bad guard key":                {exp("headline:\n  guards: [Cost]\n" + variants), `headline guard "Cost": a metric key is 1 to 64`},
+		"goal with bad metric":         {exp("headline:\n  goal: {metric: Cost, better: lower}\n" + variants), `headline goal: metric "Cost": a metric key is 1 to 128`},
+		"bad guard key":                {exp("headline:\n  guards: [Cost]\n" + variants), `headline guard "Cost": a metric key is 1 to 128`},
 		"repeated guard":               {exp("headline:\n  guards: [cost, cost]\n" + variants), `headline guard "cost" is listed twice`},
 		"goal metric is also a guard":  {exp("headline:\n  goal: {metric: cost, better: lower}\n  guards: [cost]\n" + variants), `headline guard "cost" is also the goal metric`},
+		"control without share":        {exp("headline:\n  controls:\n    - {metric: harness-events:diagnostics, variant: a, expect: \"> 0\"}\n" + variants), `headline control "harness-events:diagnostics" on variant "a": share is required`},
+		"control share above 1":        {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 1.5}\n" + variants), "share must be above 0 and at most 1, got 1.5"},
+		"control share of 0":           {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 0}\n" + variants), "share must be above 0 and at most 1, got 0"},
+		"control on bad variant":       {exp("headline:\n  controls:\n    - {metric: cost, variant: zzz, expect: \"> 0\", share: 0.5}\n" + variants), `the experiment declares no variant "zzz"`},
+		"control with bad expect":      {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"about 3\", share: 0.5}\n" + variants), `expect "about 3" is a comparison and a number`},
+		"control with bad metric":      {exp("headline:\n  controls:\n    - {metric: Cost, variant: a, expect: \"> 0\", share: 0.5}\n" + variants), `headline control "Cost" on variant "a": a metric key is 1 to 128`},
+		"repeated control":             {exp("headline:\n  controls:\n    - {metric: cost, variant: a, expect: \"> 0\", share: 0.5}\n    - {metric: cost, variant: a, expect: \"> 1\", share: 0.5}\n" + variants), `headline control "cost" on variant "a" is listed twice`},
 		"unknown headline field":       {exp("headline:\n  guard: [cost]\n" + variants), "field guard not found"},
 		"command without run":          {entry("x", "action: command"), "run is required"},
 		"command timeout too long":     {entry("x", command+"timeout: 2h"), "the most it takes is 1h0m0s"},
@@ -1017,6 +1025,41 @@ func TestParseRefusesTooManyGuards(t *testing.T) {
 		"]\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
 	text, _ := file(t, body)
 	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 guards, and the server takes at most 16") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestParseKeepsTheControlsOfAHeadline(t *testing.T) {
+	h := headlineOf(t, "    headline:\n      controls:\n        - {metric: 'harness-events:diagnostics', variant: a, expect: \"> 0\", share: 0.5}\n")
+	if h == nil || h.Goal != nil || h.Guards != nil || len(h.Controls) != 1 {
+		t.Fatalf("headline = %+v", h)
+	}
+	c := h.Controls[0]
+	if c.Metric != "harness-events:diagnostics" || c.Variant != "a" || c.Expect != "> 0" || c.Share == nil || *c.Share != 0.5 {
+		t.Fatalf("control = %+v", c)
+	}
+}
+
+func TestMatchWorkClonesTheControls(t *testing.T) {
+	s := splitWithHeadline(t, "    headline:\n      controls:\n        - {metric: cost, variant: a, expect: '> 0', share: 0.5}\n")
+	h := s.MatchWork(workRequest("split")).Experiment.Headline
+	h.Controls[0].Metric = "changed"
+	*h.Controls[0].Share = 1
+	again := s.MatchWork(workRequest("split")).Experiment.Headline
+	if again.Controls[0].Metric != "cost" || *again.Controls[0].Share != 0.5 {
+		t.Fatal("a caller changed the set's controls")
+	}
+}
+
+func TestParseRefusesTooManyControls(t *testing.T) {
+	var lines []string
+	for i := 0; i <= MaxControls; i++ {
+		lines = append(lines, fmt.Sprintf("        - {metric: m%s, variant: a, expect: '> 0', share: 0.5}", strings.Repeat("a", i+1)))
+	}
+	body := "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\nexperiments:\n  trial:\n    covers: [x]\n    headline:\n      controls:\n" + strings.Join(lines, "\n") +
+		"\n    variants:\n      - {name: a, weight: 1, model: opus}\n"
+	text, _ := file(t, body)
+	if _, err := Parse([]byte(text), Defaults{}); err == nil || !strings.Contains(err.Error(), "headline has 17 controls, and the server takes at most 16") {
 		t.Fatalf("err = %v", err)
 	}
 }
