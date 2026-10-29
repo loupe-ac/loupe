@@ -129,6 +129,34 @@ class WorkerRunBucketTimeRepository extends ServiceEntityRepository
     }
 
     /**
+     * The time with subagents and the calls each of the runs has in each of its buckets. A figure of a row from before
+     * the column existed is null. A run with no rows has no entry.
+     *
+     * @param list<Uuid> $runIds
+     *
+     * @return array<string, array<int|string, array{msWithSubagents: int|null, calls: int|null}>> run id => bucket name => figures
+     */
+    public function findAllSubagentFiguresOfRuns(array $runIds): array
+    {
+        $figures = [];
+        foreach (array_chunk($runIds, 1000) as $chunk) {
+            $rows = $this->getEntityManager()->getConnection()->fetchAllNumeric(
+                'SELECT run_id, bucket, ms_with_subagents, calls FROM bridge_worker_run_bucket_times WHERE run_id IN (:runs)',
+                ['runs' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $chunk)],
+                ['runs' => ArrayParameterType::STRING],
+            );
+            foreach ($rows as [$runId, $bucket, $msWithSubagents, $calls]) {
+                $figures[(string) $runId][(string) $bucket] = [
+                    'msWithSubagents' => null === $msWithSubagents ? null : (int) $msWithSubagents,
+                    'calls' => null === $calls ? null : (int) $calls,
+                ];
+            }
+        }
+
+        return $figures;
+    }
+
+    /**
      * The rows of each run, the largest time first. A run with no rows has no entry. PHP turns a numeric bucket name
      * into an int key, so the name is cast back.
      *

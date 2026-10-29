@@ -47,9 +47,12 @@ final readonly class MetricRowSource
     {
         $facts = $this->workerRunFacts->findClosedSince($project, $from, false);
 
+        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts);
+
         return new BucketTimes(
             \count($facts),
-            [] === $facts ? [] : $this->workerRunBucketTimes->findAllMillisecondsOfRuns(array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts)),
+            [] === $facts ? [] : $this->workerRunBucketTimes->findAllMillisecondsOfRuns($runIds),
+            [] === $facts ? [] : $this->workerRunBucketTimes->findAllSubagentFiguresOfRuns($runIds),
         );
     }
 
