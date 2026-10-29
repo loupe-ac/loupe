@@ -21,15 +21,25 @@ type ExperimentGoal struct {
 	Better string `json:"better,omitempty"`
 }
 
-// ExperimentHeadline is the goal and the guards of an experiment. A nil Goal
-// or a nil Guards is left out of the body, so the server uses its default. An
-// empty, non-nil Guards is sent as an empty list, which means no guards.
-type ExperimentHeadline struct {
-	Goal   *ExperimentGoal
-	Guards []string
+// ExperimentControl checks that a variant got its treatment.
+type ExperimentControl struct {
+	Metric  string  `json:"metric"`
+	Variant string  `json:"variant"`
+	Expect  string  `json:"expect"`
+	Share   float64 `json:"share"`
 }
 
-// MarshalJSON leaves out an unset goal and unset guards.
+// ExperimentHeadline is the goal, the guards and the controls of an
+// experiment. A nil Goal or a nil Guards is left out of the body, so the
+// server uses its default. An empty, non-nil Guards is sent as an empty list,
+// which means no guards. Empty Controls are left out.
+type ExperimentHeadline struct {
+	Goal     *ExperimentGoal
+	Guards   []string
+	Controls []ExperimentControl
+}
+
+// MarshalJSON leaves out an unset goal, unset guards and empty controls.
 func (h ExperimentHeadline) MarshalJSON() ([]byte, error) {
 	var guards *[]string
 	if h.Guards != nil {
@@ -37,9 +47,10 @@ func (h ExperimentHeadline) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(struct {
-		Goal   *ExperimentGoal `json:"goal,omitempty"`
-		Guards *[]string       `json:"guards,omitempty"`
-	}{h.Goal, guards})
+		Goal     *ExperimentGoal     `json:"goal,omitempty"`
+		Guards   *[]string           `json:"guards,omitempty"`
+		Controls []ExperimentControl `json:"controls,omitempty"`
+	}{h.Goal, guards, h.Controls})
 }
 
 // ResolveExperimentPin asks the server which variant of an experiment a card

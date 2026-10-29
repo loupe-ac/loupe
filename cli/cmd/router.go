@@ -1810,6 +1810,9 @@ func headlineOf(h *rules.Headline) *api.ExperimentHeadline {
 	if h.Goal != nil {
 		out.Goal = &api.ExperimentGoal{Metric: h.Goal.Metric, Better: h.Goal.Better}
 	}
+	for _, c := range h.Controls {
+		out.Controls = append(out.Controls, api.ExperimentControl{Metric: c.Metric, Variant: c.Variant, Expect: c.Expect, Share: *c.Share})
+	}
 
 	return out
 }
