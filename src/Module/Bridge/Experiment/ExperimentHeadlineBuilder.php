@@ -68,7 +68,7 @@ final class ExperimentHeadlineBuilder
         $aWins = GoalDirection::Lower === $direction ? $pointA < $pointB : $pointA > $pointB;
         [$winner, $other] = $aWins ? [$a, $b] : [$b, $a];
         $change = $relative
-            ? Stats::changeRange($metric->samples[$other] ?? [], $metric->samples[$winner] ?? [], $experiment.':'.$metric->key.':change')
+            ? Stats::changeRange($metric->samples[$other] ?? [], $metric->samples[$winner] ?? [], $experiment.':'.$metric->key.':change', Confidence::forComparisons(1))
             : self::proportions($metric, $other, $winner);
 
         return new ExperimentGoal($metric, $direction, $state, $arms, $winner, $change, $relative);
@@ -85,7 +85,7 @@ final class ExperimentHeadlineBuilder
             [$a, $b] = $names;
             $change = MetricValueType::Ratio === $metric->valueType()
                 ? self::proportions($metric, $a, $b)
-                : Stats::differenceRange($metric->samples[$a] ?? [], $metric->samples[$b] ?? [], $experiment.':'.$metric->key.':guard');
+                : Stats::differenceRange($metric->samples[$a] ?? [], $metric->samples[$b] ?? [], $experiment.':'.$metric->key.':guard', Confidence::forComparisons(1));
         }
 
         return new ExperimentGuard($metric, self::arms($names, $finished, $metric), $change);
@@ -97,7 +97,7 @@ final class ExperimentHeadlineBuilder
         $a = $metric->samples[$from] ?? [];
         $b = $metric->samples[$to] ?? [];
 
-        return Stats::newcombe((int) array_sum($a), \count($a), (int) array_sum($b), \count($b));
+        return Stats::newcombe((int) array_sum($a), \count($a), (int) array_sum($b), \count($b), Confidence::forComparisons(1));
     }
 
     /**

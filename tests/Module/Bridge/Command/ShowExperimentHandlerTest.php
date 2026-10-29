@@ -13,6 +13,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Experiment\CardColumn;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
+use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlResult;
 use App\Module\Bridge\Experiment\ExperimentArm;
 use App\Module\Bridge\Experiment\ExperimentCard;
@@ -230,7 +231,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view);
         self::assertEquals(new Interval(1.0, 1.0, 1.0), $view->metrics[ExperimentMetric::COST]->for('a'));
         self::assertEquals(new Interval(20.0, 20.0, 20.0), $view->metrics[ExperimentMetric::OUTPUT_TOKENS]->for('a'));
-        self::assertEquals(Stats::wilson(2, 2), $view->metrics[ExperimentMetric::MERGE_RATE]->for('a'));
+        self::assertEquals(Stats::wilson(2, 2, Confidence::forComparisons(1)), $view->metrics[ExperimentMetric::MERGE_RATE]->for('a'));
         self::assertSame(1.0, $view->metrics[ExperimentMetric::FIX_ROUNDS]->for('a')?->point);
         self::assertSame(1_000_000, $view->variants[0]->costMicros);
         self::assertSame([(string) $noUsage => null, (string) $withUsage => 1_000_000], array_combine(
@@ -328,20 +329,20 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame([ExperimentMetric::MERGE_RATE, ExperimentMetric::STOP_RATE, ExperimentMetric::FIX_ROUNDS, ExperimentMetric::COST, ExperimentMetric::COVERED_COST, ExperimentMetric::OUTPUT_TOKENS, ExperimentMetric::HOURS_TO_MERGE], array_keys($view->metrics));
 
         $mergeRate = $view->metrics[ExperimentMetric::MERGE_RATE];
-        self::assertEquals(Stats::wilson(5, 6), $mergeRate->for('a'));
-        self::assertEquals(Stats::wilson(5, 5), $mergeRate->for('b'));
+        self::assertEquals(Stats::wilson(5, 6, Confidence::forComparisons(1)), $mergeRate->for('a'));
+        self::assertEquals(Stats::wilson(5, 5, Confidence::forComparisons(1)), $mergeRate->for('b'));
         self::assertFalse($mergeRate->clear);
 
         $stopRate = $view->metrics[ExperimentMetric::STOP_RATE];
-        self::assertEquals(Stats::wilson(2, 9), $stopRate->for('a'));
-        self::assertEquals(Stats::wilson(0, 5), $stopRate->for('b'));
+        self::assertEquals(Stats::wilson(2, 9, Confidence::forComparisons(1)), $stopRate->for('a'));
+        self::assertEquals(Stats::wilson(0, 5, Confidence::forComparisons(1)), $stopRate->for('b'));
 
         $fixRounds = $view->metrics[ExperimentMetric::FIX_ROUNDS];
-        self::assertEquals(Stats::bootstrapMean([0, 1, 2, 1, 1], 'model-test:fix-rounds:a'), $fixRounds->for('a'));
+        self::assertEquals(Stats::bootstrapMean([0, 1, 2, 1, 1], 'model-test:fix-rounds:a', Confidence::forComparisons(1)), $fixRounds->for('a'));
         self::assertSame(1.0, $fixRounds->for('b')?->point);
         self::assertTrue($fixRounds->clear);
         self::assertSame(['changes-requested', 'checks-failed', 'conflict'], array_map(static fn (ExperimentMetric $part): string => $part->key, $fixRounds->parts));
-        self::assertEquals(Stats::bootstrapMean([0, 1, 1, 0, 0], 'model-test:fix-rounds:conflict:a'), $fixRounds->parts[2]->for('a'));
+        self::assertEquals(Stats::bootstrapMean([0, 1, 1, 0, 0], 'model-test:fix-rounds:conflict:a', Confidence::forComparisons(1)), $fixRounds->parts[2]->for('a'));
         self::assertSame(0.0, $fixRounds->parts[0]->for('b')?->point);
 
         $cost = $view->metrics[ExperimentMetric::COST];
@@ -368,9 +369,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame([ExperimentMetric::MERGE_RATE, ExperimentMetric::FIX_ROUNDS], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
         $mergeRate = $view->headline->guards[0];
         self::assertEquals([new ExperimentArm('a', 5 / 6, 6), new ExperimentArm('b', 1.0, 5)], $mergeRate->arms);
-        self::assertEquals(Stats::newcombe(5, 6, 5, 5), $mergeRate->change);
+        self::assertEquals(Stats::newcombe(5, 6, 5, 5, Confidence::forComparisons(1)), $mergeRate->change);
         $fixRounds = $view->headline->guards[1];
-        self::assertEquals(Stats::differenceRange([0, 1, 2, 1, 1], [1, 1, 1, 1, 1], 'model-test:fix-rounds:guard'), $fixRounds->change);
+        self::assertEquals(Stats::differenceRange([0, 1, 2, 1, 1], [1, 1, 1, 1, 1], 'model-test:fix-rounds:guard', Confidence::forComparisons(1)), $fixRounds->change);
         self::assertSame([], $view->unknownGuards);
     }
 
@@ -609,9 +610,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(GoalDirection::Higher, $goal->direction);
         self::assertFalse($goal->relative);
         self::assertSame('b', $goal->winner);
-        self::assertEquals(Stats::newcombe(2, 5, 5, 5), $goal->change);
+        self::assertEquals(Stats::newcombe(2, 5, 5, 5, Confidence::forComparisons(1)), $goal->change);
         self::assertSame([ExperimentMetric::COST], array_map(static fn (ExperimentGuard $guard): string => $guard->metric->key, $view->headline->guards));
-        self::assertEquals(Stats::differenceRange([2.0, 2.0, 2.0, 2.0, 2.0], [1.0, 1.0, 1.0, 1.0, 1.0], 'model-test:cost:guard'), $view->headline->guards[0]->change);
+        self::assertEquals(Stats::differenceRange([2.0, 2.0, 2.0, 2.0, 2.0], [1.0, 1.0, 1.0, 1.0, 1.0], 'model-test:cost:guard', Confidence::forComparisons(1)), $view->headline->guards[0]->change);
     }
 
     public function test_the_headline_leans_to_the_better_point_when_the_ranges_overlap(): void
@@ -766,10 +767,10 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertNotNull($view);
         self::assertSame(['harness-events:diagnostics', 'bucket-calls:tests', 'bucket-time-all:tests', 'bucket-time:tests'], array_keys($view->metrics));
         self::assertSame([], $view->unknownMetrics);
-        self::assertEquals(Stats::bootstrapMean([5, 0], 'model-test:harness-events:diagnostics:a'), $view->metrics['harness-events:diagnostics']->for('a'));
-        self::assertEquals(Stats::bootstrapMean([10], 'model-test:bucket-calls:tests:a'), $view->metrics['bucket-calls:tests']->for('a'));
-        self::assertEquals(Stats::bootstrapMean([2000], 'model-test:bucket-time-all:tests:a'), $view->metrics['bucket-time-all:tests']->for('a'));
-        self::assertEquals(Stats::bootstrapMean([1500], 'model-test:bucket-time:tests:a'), $view->metrics['bucket-time:tests']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([5, 0], 'model-test:harness-events:diagnostics:a', Confidence::forComparisons(1)), $view->metrics['harness-events:diagnostics']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([10], 'model-test:bucket-calls:tests:a', Confidence::forComparisons(1)), $view->metrics['bucket-calls:tests']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([2000], 'model-test:bucket-time-all:tests:a', Confidence::forComparisons(1)), $view->metrics['bucket-time-all:tests']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([1500], 'model-test:bucket-time:tests:a', Confidence::forComparisons(1)), $view->metrics['bucket-time:tests']->for('a'));
     }
 
     public function test_a_named_metric_reads_only_the_experiment_runs_of_a_card(): void
@@ -795,8 +796,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertSame([], $view->cards[0]->leftOut);
-        self::assertEquals(Stats::bootstrapMean([1], 'model-test:harness-events:diagnostics:a'), $view->metrics['harness-events:diagnostics']->for('a'));
-        self::assertEquals(Stats::bootstrapMean([2], 'model-test:bucket-calls:tests:a'), $view->metrics['bucket-calls:tests']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([1], 'model-test:harness-events:diagnostics:a', Confidence::forComparisons(1)), $view->metrics['harness-events:diagnostics']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([2], 'model-test:bucket-calls:tests:a', Confidence::forComparisons(1)), $view->metrics['bucket-calls:tests']->for('a'));
     }
 
     public function test_a_declaration_picks_the_known_metrics_in_its_order(): void
@@ -821,8 +822,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame(['duration', 'input-tokens', 'runs', 'harness-events:diagnostics'], array_keys($view->metrics));
         self::assertSame(['foo', 'bar', 'bucket-time', 'harness-events'], $view->unknownMetrics);
         self::assertEquals(new Interval(100.0, 100.0, 100.0), $view->metrics['input-tokens']->for('a'));
-        self::assertEquals(Stats::bootstrapMean([300_000, 600_000], 'model-test:duration:a'), $view->metrics['duration']->for('a'));
-        self::assertEquals(Stats::bootstrapMean([1, 2], 'model-test:runs:a'), $view->metrics['runs']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([300_000, 600_000], 'model-test:duration:a', Confidence::forComparisons(1)), $view->metrics['duration']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([1, 2], 'model-test:runs:a', Confidence::forComparisons(1)), $view->metrics['runs']->for('a'));
     }
 
     public function test_the_headline_reads_the_cost_that_a_declaration_leaves_out(): void
@@ -901,7 +902,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($view);
         self::assertEquals(new Interval(40.0, 40.0, 40.0), $view->metrics[ExperimentMetric::OUTPUT_TOKENS]->for('a'));
-        self::assertEquals(Stats::bootstrapMean([1.0, 3.0], 'model-test:cost:a'), $view->metrics[ExperimentMetric::COST]->for('a'));
+        self::assertEquals(Stats::bootstrapMean([1.0, 3.0], 'model-test:cost:a', Confidence::forComparisons(1)), $view->metrics[ExperimentMetric::COST]->for('a'));
     }
 
     public function test_the_cards_tab_shows_an_unknown_cost_for_a_card_with_an_unpriced_run(): void
@@ -1218,12 +1219,12 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $rounds = $view->metrics['design-rounds'];
         self::assertSame('Design rounds', $rounds->label);
         self::assertSame(MetricValueType::Count, $rounds->valueType());
-        self::assertEquals(Stats::bootstrapMean([2, 2], 'model-test:design-rounds:a'), $rounds->for('a'));
+        self::assertEquals(Stats::bootstrapMean([2, 2], 'model-test:design-rounds:a', Confidence::forComparisons(1)), $rounds->for('a'));
         self::assertSame(['checks-failed', 'conflict'], array_map(static fn (ExperimentMetric $part): string => $part->key, $rounds->parts));
         self::assertNull($rounds->parts[0]->label);
         self::assertNull($rounds->parts[0]->shape);
-        self::assertEquals(Stats::bootstrapMean([0, 1], 'model-test:design-rounds:checks-failed:a'), $rounds->parts[0]->for('a'));
-        self::assertEquals(Stats::bootstrapMean([2, 1], 'model-test:design-rounds:conflict:a'), $rounds->parts[1]->for('a'));
+        self::assertEquals(Stats::bootstrapMean([0, 1], 'model-test:design-rounds:checks-failed:a', Confidence::forComparisons(1)), $rounds->parts[0]->for('a'));
+        self::assertEquals(Stats::bootstrapMean([2, 1], 'model-test:design-rounds:conflict:a', Confidence::forComparisons(1)), $rounds->parts[1]->for('a'));
     }
 
     public function test_a_count_that_splits_by_role_labels_its_rows_with_the_role(): void
@@ -1319,8 +1320,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
         self::assertNotNull($withBoth);
         self::assertNotNull($withOne);
-        self::assertEquals(Stats::wilson(1, 2), $withBoth->metrics[ExperimentMetric::STOP_RATE]->for('a'));
-        self::assertEquals(Stats::wilson(0, 1), $withOne->metrics[ExperimentMetric::STOP_RATE]->for('a'));
+        self::assertEquals(Stats::wilson(1, 2, Confidence::forComparisons(1)), $withBoth->metrics[ExperimentMetric::STOP_RATE]->for('a'));
+        self::assertEquals(Stats::wilson(0, 1, Confidence::forComparisons(1)), $withOne->metrics[ExperimentMetric::STOP_RATE]->for('a'));
     }
 
     public function test_a_variant_lists_every_model_that_its_runs_asked_for_in_order(): void

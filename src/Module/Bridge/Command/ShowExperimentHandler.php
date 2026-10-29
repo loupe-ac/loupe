@@ -8,6 +8,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\CardRun;
+use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlEvaluator;
 use App\Module\Bridge\Experiment\ExperimentCard;
 use App\Module\Bridge\Experiment\ExperimentControl;
@@ -633,8 +634,8 @@ final readonly class ShowExperimentHandler
     private static function interval(MetricValueType $type, string $seed, array $values): ?Interval
     {
         return MetricValueType::Ratio === $type
-            ? Stats::wilson((int) array_sum($values), \count($values))
-            : Stats::bootstrapMean($values, $seed);
+            ? Stats::wilson((int) array_sum($values), \count($values), Confidence::forComparisons(1))
+            : Stats::bootstrapMean($values, $seed, Confidence::forComparisons(1));
     }
 
     /**

@@ -11,21 +11,20 @@ final class Stats
 {
     public const int MIN_FINISHED_CARDS = 5;
 
-    private const float Z = 1.959964;
-
     private const float CLOSE_POINTS = 0.1;
 
-    public static function wilson(int $successes, int $trials): ?Interval
+    public static function wilson(int $successes, int $trials, Confidence $confidence): ?Interval
     {
         if ($trials <= 0) {
             return null;
         }
 
         $point = $successes / $trials;
-        $zz = self::Z ** 2;
+        $z = $confidence->z();
+        $zz = $z ** 2;
         $denominator = 1 + $zz / $trials;
         $centre = ($point + $zz / (2 * $trials)) / $denominator;
-        $margin = self::Z / $denominator * sqrt($point * (1 - $point) / $trials + $zz / (4 * $trials ** 2));
+        $margin = $z / $denominator * sqrt($point * (1 - $point) / $trials + $zz / (4 * $trials ** 2));
 
         // At 0 or all successes the exact bound is 0 or 1; the float sum misses it.
         return new Interval(
@@ -40,7 +39,7 @@ final class Stats
      *
      * @param list<float|int> $values
      */
-    public static function bootstrapMean(array $values, string $seed, int $resamples = 2000): ?Interval
+    public static function bootstrapMean(array $values, string $seed, Confidence $confidence, int $resamples = 2000): ?Interval
     {
         if ($resamples < 1) {
             throw new \InvalidArgumentException('A bootstrap needs at least one resample.');
@@ -65,8 +64,8 @@ final class Stats
         $last = $resamples - 1;
 
         return new Interval(
-            (float) $means[(int) floor(0.025 * $last)],
-            (float) $means[(int) ceil(0.975 * $last)],
+            (float) $means[(int) floor($confidence->lowPercentile() * $last)],
+            (float) $means[(int) ceil($confidence->highPercentile() * $last)],
             array_sum($values) / $count,
         );
     }
@@ -77,7 +76,7 @@ final class Stats
      * @param list<float|int> $a
      * @param list<float|int> $b
      */
-    public static function changeRange(array $a, array $b, string $seed, int $resamples = 2000): ?Interval
+    public static function changeRange(array $a, array $b, string $seed, Confidence $confidence, int $resamples = 2000): ?Interval
     {
         if ([] === $a || [] === $b) {
             return null;
@@ -90,7 +89,7 @@ final class Stats
 
         $changes = self::resampledDifferences($a, $b, $seed, $resamples, true);
 
-        return self::percentiles($changes, (array_sum($b) / \count($b) - $meanA) / $meanA);
+        return self::percentiles($changes, (array_sum($b) / \count($b) - $meanA) / $meanA, $confidence);
     }
 
     /**
@@ -99,7 +98,7 @@ final class Stats
      * @param list<float|int> $a
      * @param list<float|int> $b
      */
-    public static function differenceRange(array $a, array $b, string $seed, int $resamples = 2000): ?Interval
+    public static function differenceRange(array $a, array $b, string $seed, Confidence $confidence, int $resamples = 2000): ?Interval
     {
         if ([] === $a || [] === $b) {
             return null;
@@ -108,16 +107,17 @@ final class Stats
         return self::percentiles(
             self::resampledDifferences($a, $b, $seed, $resamples, false),
             array_sum($b) / \count($b) - array_sum($a) / \count($a),
+            $confidence,
         );
     }
 
     /**
      * The Newcombe hybrid score range of the difference of two proportions, b minus a.
      */
-    public static function newcombe(int $successesA, int $trialsA, int $successesB, int $trialsB): ?Interval
+    public static function newcombe(int $successesA, int $trialsA, int $successesB, int $trialsB, Confidence $confidence): ?Interval
     {
-        $a = self::wilson($successesA, $trialsA);
-        $b = self::wilson($successesB, $trialsB);
+        $a = self::wilson($successesA, $trialsA, $confidence);
+        $b = self::wilson($successesB, $trialsB, $confidence);
         if (null === $a || null === $b) {
             return null;
         }
@@ -199,7 +199,7 @@ final class Stats
     }
 
     /** @param list<float> $values */
-    private static function percentiles(array $values, float $point): ?Interval
+    private static function percentiles(array $values, float $point, Confidence $confidence): ?Interval
     {
         if ([] === $values) {
             return null;
@@ -208,6 +208,6 @@ final class Stats
         sort($values);
         $last = \count($values) - 1;
 
-        return new Interval($values[(int) floor(0.025 * $last)], $values[(int) ceil(0.975 * $last)], $point);
+        return new Interval($values[(int) floor($confidence->lowPercentile() * $last)], $values[(int) ceil($confidence->highPercentile() * $last)], $point);
     }
 }
