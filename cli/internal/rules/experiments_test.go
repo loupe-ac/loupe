@@ -199,3 +199,16 @@ func TestParseRefusesASharedExperimentName(t *testing.T) {
 		})
 	}
 }
+
+func TestMetricKeyPatternTakesBucketAndHarnessEventKeys(t *testing.T) {
+	for _, key := range []string{"harness-events:edited_text_file", "bucket-calls:tests", "bucket-time-all:" + strings.Repeat("a", 64)} {
+		if !metricKeyPattern.MatchString(key) {
+			t.Errorf("metric key %q was refused", key)
+		}
+	}
+	for _, key := range []string{"Cost", "_cost", "c" + strings.Repeat("o", 128)} {
+		if metricKeyPattern.MatchString(key) {
+			t.Errorf("metric key %q was accepted", key)
+		}
+	}
+}

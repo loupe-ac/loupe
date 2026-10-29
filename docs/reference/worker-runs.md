@@ -608,7 +608,7 @@ The endpoint needs a token with the `agent` scope.
 | `variants` | required. The variants the rule offers now, as a list of 1 to 32 unique names. Each name matches `^[a-z0-9][a-z0-9_-]{0,63}$` |
 | `candidate` | required. The variant the bridge drew for the card. It must be one of `variants` |
 | `weights` | optional. The weight of each variant, in the order of `variants`. Each weight is an integer from 1 to 1000000 |
-| `metrics` | optional. The metric keys the Comparison tab of the experiment shows, in this order, as a list of 1 to 16 unique keys. Each key matches `^[a-z][a-z0-9:-]{0,63}$`. A key such as `merge-rate` shows only when the workflow template of the project declares it |
+| `metrics` | optional. The metric keys the Comparison tab of the experiment shows, in this order, as a list of 1 to 16 unique keys. Each key matches `^[a-z][a-z0-9_:-]{0,127}$`. A key such as `merge-rate` shows only when the workflow template of the project declares it |
 
 The server keeps the latest valid `weights` of each experiment in a project. It
 ignores a `weights` list that breaks its rule, and still resolves the pin. A

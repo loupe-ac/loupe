@@ -59,7 +59,7 @@ final readonly class MetricRowSource
         // A stage belongs to the card workflow, so a stage grouping reads card runs alone.
         $facts = $this->workerRunFacts->findClosedSince($project, $from, MetricGroup::Stage === $group);
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, self::cardIdsOf($facts)) : [];
-        $times = $this->namedValuesOf($facts, $metric, $name);
+        $times = $this->namedRunValues($facts, $metric, $name);
 
         return array_map(
             static fn (WorkerRunFact $fact): MetricRow => new MetricRow(
@@ -131,7 +131,7 @@ final readonly class MetricRowSource
         foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
             $factsByCard[(string) $fact->subjectId][] = $fact;
         }
-        $times = $this->namedValuesOf(array_merge(...array_values($factsByCard)), $metric, $name);
+        $times = $this->namedRunValues(array_merge(...array_values($factsByCard)), $metric, $name);
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
 
         $rows = [];
@@ -169,7 +169,7 @@ final readonly class MetricRowSource
      *
      * @return array<string, int|null> run id => value, for a named-metric query alone. A run with no entry has no value.
      */
-    private function namedValuesOf(array $facts, Metric $metric, ?string $name): array
+    public function namedRunValues(array $facts, Metric $metric, ?string $name): array
     {
         if (null === $name || [] === $facts) {
             return [];
@@ -242,9 +242,6 @@ final readonly class MetricRowSource
     }
 
     /**
-     * A named-metric sum counts the runs that have data, and a run with none
-     * adds nothing, because a command run or an old run never has any.
-     *
      * @param list<WorkerRunFact>     $facts
      * @param array<string, int|null> $times run id => value, for a named-metric query alone
      */
@@ -254,12 +251,24 @@ final readonly class MetricRowSource
             return \count($facts);
         }
         if (null !== $name) {
-            $known = array_filter(array_map(static fn (WorkerRunFact $fact): ?int => $times[(string) $fact->runId] ?? null, $facts), static fn (?int $ms): bool => null !== $ms);
-
-            return [] === $known ? null : array_sum($known);
+            return self::namedCardSum($facts, $times);
         }
 
         return self::inDollars(self::cardSum($facts, $metric), $metric);
+    }
+
+    /**
+     * A named-metric sum counts the runs that have data, and a run with none
+     * adds nothing, because a command run or an old run never has any.
+     *
+     * @param list<WorkerRunFact>     $facts
+     * @param array<string, int|null> $times run id => value
+     */
+    public static function namedCardSum(array $facts, array $times): ?int
+    {
+        $known = array_filter(array_map(static fn (WorkerRunFact $fact): ?int => $times[(string) $fact->runId] ?? null, $facts), static fn (?int $value): bool => null !== $value);
+
+        return [] === $known ? null : array_sum($known);
     }
 
     /**

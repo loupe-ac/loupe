@@ -1136,6 +1136,9 @@ An entry with no `metrics` shows the default six. The bridge sends the list
 with each pin request, so the latest list wins. The bridge does not know the
 metrics of the server, so it checks the shape of each key only. The server
 shows a note for a key that it does not know. A key such as `merge-rate` is known only when the workflow template of the project declares it.
+A key can also name a bucket or a harness event, such as `bucket-calls:tests` or
+`harness-events:edited_text_file`, so a metric key allows underscores and runs
+to 128 characters.
 
 An entry with variants can also set a `headline`. The headline picks the goal
 metric of the experiment and its guards. A goal names a `metric` and says
@@ -1198,7 +1201,7 @@ The bridge refuses the file, at start and on a reload, when:
   value included
 - two entries name the same experiment, by the field or by the kind
 - an entry lists more than 16 metrics, or one metric twice
-- a metric key does not match `^[a-z][a-z0-9:-]{0,63}$`
+- a metric key does not match `^[a-z][a-z0-9_:-]{0,127}$`
 - an entry has no variants, or more than 32
 - a variant has a weight below 1 or above 1,000,000
 - a variant sets neither `model` nor `account`

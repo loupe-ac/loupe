@@ -65,6 +65,7 @@ final readonly class ShowExperimentHandler
         private CardTitleSourceInterface $cardTitles,
         private TemplateMetricValues $templateValues,
         private TemplateMetrics $templates,
+        private MetricRowSource $metricRows,
     ) {
     }
 
@@ -335,6 +336,14 @@ final readonly class ShowExperimentHandler
             return [self::interval($of, $experiment.':'.$key.':'.$name, $values), \count($values), $values];
         };
 
+        $namedValues = [];
+        $keptFacts = array_merge([], ...array_map(static fn (array $row): array => $row['facts'], array_merge([], ...array_values($kept))));
+        foreach ($shapes as $shape) {
+            if (null !== $shape->key->name) {
+                $namedValues[$shape->key->key()] = $this->metricRows->namedRunValues($keptFacts, $shape->key->metric ?? throw new \LogicException('A named key has a built-in metric.'), $shape->key->name);
+            }
+        }
+
         $metrics = [];
         foreach ($shapes as $shape) {
             $key = $shape->key->key();
@@ -355,7 +364,7 @@ final readonly class ShowExperimentHandler
                 Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
                 Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
-                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => throw new \LogicException('A named metric needs a name, so an experiment cannot compare it.'),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['facts'], $namedValues[$key] ?? []))),
             };
         }
 
@@ -413,11 +422,11 @@ final readonly class ShowExperimentHandler
         return $metric($key, $shape, $bootstrap($shape->valueType(), $key, $value), $parts, $template->label);
     }
 
-    /** Null for a key that no metric has. A named metric needs a name, which an experiment cannot compare. */
+    /** Null for a key that no metric has. */
     private static function shapeOf(string $key, TemplateMetricSet $templates): ?MetricShape
     {
         $parsed = MetricKey::tryParse($key, $templates);
-        if (null === $parsed || true === $parsed->metric?->isNamed()) {
+        if (null === $parsed) {
             return null;
         }
 
