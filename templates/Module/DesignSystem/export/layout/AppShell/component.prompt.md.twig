@@ -22,5 +22,7 @@ Pass `counts` to put a number beside a nav link, such as `counts={{ '{{' }} agen
 
 The app hides some links behind a feature flag or a role, and so does the shell. Pass `features={{ '{{' }} inbox: true {{ '}}' }}` to show Needs you and All inboxes, and `artifacts: true` to show Artifacts. Pass `admin` to show the Admin link. Every flag is off by default, as on a fresh install.
 
+A full-width page, such as the board, passes `shellWidth="full"`. Without it, the shell insets the page to the default frame. The page then frames its content as the app does: `<div className="lp-split-page lp-workspace lp-workspace--full"><div className="lp-split-region">…</div></div>`. Without that frame, the board touches the sidebar.
+
 `active` takes the name of a nav link. The wrapper holds the same links as the app, with the same labels. The component emits the real `{{ entry.rootClass }}`, `lp-sidebar`, `lp-topbar` and `lp-main` classes of the app.
 {% endautoescape %}
