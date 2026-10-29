@@ -1102,6 +1102,21 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertEquals([new ExperimentVariant('a', [], null, 1, 0, 3, 7_000_000, 3_000_000)], $view->variants);
     }
 
+    public function test_a_plain_covered_run_with_no_fact_leaves_out_a_card_that_its_facts_keep(): void
+    {
+        $card = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($card, 'a', at: '+1 hour'), costUsd: '1.000000');
+        $this->sweepRows($card);
+        $running = $this->plainRun($card, 'implement', '+2 hours', WorkerRunState::Running);
+        // A fact write that fails after the commit leaves the row with no fact.
+        $this->em->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = :run', ['run' => (string) $running->id]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([(string) $card => ['covered-without-variant']], $this->reasonsById($view, [$card]));
+    }
+
     private function sweepRows(Uuid $card): void
     {
         $this->em->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE subject_id = :card', ['card' => (string) $card]);
@@ -1262,9 +1277,9 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         return $run;
     }
 
-    private function plainRun(Uuid $cardId, string $workKind, string $at): WorkerRun
+    private function plainRun(Uuid $cardId, string $workKind, string $at, WorkerRunState $state = WorkerRunState::Succeeded): WorkerRun
     {
-        return $this->seedRun($this->em, $this->managedProject(), receivedAt: $this->start->modify($at), workKind: $workKind, cardId: $cardId, state: WorkerRunState::Succeeded);
+        return $this->seedRun($this->em, $this->managedProject(), receivedAt: $this->start->modify($at), workKind: $workKind, cardId: $cardId, state: $state);
     }
 
     /**
