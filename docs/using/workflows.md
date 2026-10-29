@@ -954,7 +954,9 @@ this loop runs:
    `agent-review`. The revise worker changes the draft and answers each
    finding with `document_review_answer`. A finding can be fixed, not changed
    with a reason, or sent to you. The new version gets a new review.
-3. The loop ends when a review passes, or after 6 failed reviews, so a draft gets up to 5 revisions. The app then
+3. The loop ends when a review passes with no finding for you, or when the draft used 6 rounds. A failed review uses
+   a round, and so does a passed review with a finding for you. A passed review with a finding for you is
+   answered, and the revised version gets a new review. The app then
    publishes the draft with the `publish-documents` action. The document
    reaches your inbox in review.
 
@@ -969,21 +971,21 @@ true, so Loupe withdraws the live review or revision request. The publish rule w
 active on the card, so it never cancels the worker that is ending.
 
 Four conditions of the **Agent review** group read the loop of a draft with a
-`tag`. Each takes the `tag` and `rounds`, the number of failed reviews that
-ends the loop:
+`tag`. Each takes the `tag` and `rounds`, the number of rounds that ends the
+loop. A failed review and a passed review with a finding for the owner each use one round:
 
 | Condition | True when |
 |---|---|
 | `design_review.due` | a draft with the tag has a version that no review read, or a review that a revision answered, and its loop is not finished |
 | `design_review.fix_due` | the review of the current version of a draft with the tag failed, has no answers, and asks for a revision |
-| `design_review.finished` | each draft with the tag has a finished loop, and at least one such draft exists. A loop is finished when the review of the current version passed, or a fix round answered a passed review with a question for the owner and revised the draft when an answer is fixed or for the owner, or the draft used all its failed reviews |
+| `design_review.finished` | each draft with the tag has a finished loop, and at least one such draft exists. A loop is finished when the review of the current version passed with no finding for the owner, or the draft used all its rounds, and the last review failed or passed with a finding for the owner that a fix round answered |
 | `design_review.running` | a draft with the tag has a loop that is not finished. The marker `design-review-running` reads it |
 
 The summary below a published design reads its limit from the same setting. It takes the `rounds` of a
 `design_review.finished` check that a `publish-documents` rule for the tag requires: the whole condition, or an entry of
 an `all:` list. A check under `not:` or `any:` does not count. A document with both design tags takes the smaller limit.
 A workflow with no such check gives no limit, so the summary never says that the review did not pass. The summary counts
-only the failed reviews of the card that holds the newest review.
+only the rounds of the card that holds the newest review.
 
 Lifecycle uses them in these rules, for the slots Product design and Tech
 design. Each name starts with the slot key, `product-design` or `tech-design`:
@@ -991,7 +993,7 @@ design. Each name starts with the slot key, `product-design` or `tech-design`:
 | Rule | Does |
 |---|---|
 | `<slot>-review` | When `design_review.due` holds, asks for work of kind `design-review` on the draft. It waits while work or a worker of the design kind or its revise kind is active. In Product design it also waits while an interactive session is open. A failed run that ends with no review is tried again |
-| `<slot>-review-fix` | When `design_review.fix_due` holds, asks for the revise kind with the reason `agent-review`. The limit is 5 rounds |
+| `<slot>-review-fix` | When `design_review.fix_due` holds, asks for the revise kind with the reason `agent-review`. The limit is 6 rounds |
 | `<slot>-review-publish` | When `design_review.finished` holds and no work or worker is active on the card, runs `publish-documents`. Product design publishes the documents with the tag `product-design`. Tech design publishes the tag `tech-design` and the tag `deploy-notes` |
 
 The action `publish-documents` takes a `tags` list. It publishes each draft

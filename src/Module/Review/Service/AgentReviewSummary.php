@@ -43,7 +43,7 @@ final readonly class AgentReviewSummary
 
     /**
      * @param list<DocumentAgentReviewSummary> $newestFirst
-     * @param ?int                             $roundLimit  the failed reviews after which the loop gives up, or null when the workflow has no limit
+     * @param ?int                             $roundLimit  the failed reviews, and passes with a finding for the owner, after which the loop gives up, or null when the workflow has no limit
      *
      * @return ?Summary
      */
@@ -53,7 +53,7 @@ final readonly class AgentReviewSummary
             return null;
         }
 
-        $failed = \count(array_filter($newestFirst, static fn (array $review): bool => 'success' !== $review['conclusion'] && $review['cardId'] === $newestFirst[0]['cardId']));
+        $failed = \count(array_filter($newestFirst, static fn (array $review): bool => $review['cardId'] === $newestFirst[0]['cardId'] && ('success' !== $review['conclusion'] || self::hasOwnerFinding($review))));
         $state = match (true) {
             $this->loopPassed($newestFirst[0]) => 'passed',
             null !== $roundLimit && $failed >= $roundLimit => 'failed',
@@ -139,7 +139,13 @@ final readonly class AgentReviewSummary
             return false;
         }
 
-        return $review['answered'] || [] === array_filter($review['findings'], static fn (array $finding): bool => $finding['needsPerson']);
+        return $review['answered'] || !self::hasOwnerFinding($review);
+    }
+
+    /** @param DocumentAgentReviewSummary $review */
+    private static function hasOwnerFinding(array $review): bool
+    {
+        return [] !== array_filter($review['findings'], static fn (array $finding): bool => $finding['needsPerson']);
     }
 
     /**

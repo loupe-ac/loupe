@@ -38,7 +38,7 @@ final readonly class SeedFailedDocumentReviewHandler
             return null;
         }
 
-        $failed = $this->documentAgentReviews->countFailedByDocumentForCard($card)[(string) $document->id] ?? 0;
+        $failed = $this->documentAgentReviews->countRoundsByDocumentForCard($card)[(string) $document->id]['failed'] ?? 0;
 
         $review = new DocumentAgentReview(
             project: $card->project,

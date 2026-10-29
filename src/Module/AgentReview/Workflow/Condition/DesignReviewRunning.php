@@ -24,7 +24,7 @@ final readonly class DesignReviewRunning extends DesignReviewCondition implement
     {
         $running = $this->matching($facts, $params)[0] ?? null;
 
-        return null === $running ? null : new Evidence(['%round%' => $running->failedCount + 1, '%limit%' => ParameterValue::int($params, 'rounds')]);
+        return null === $running ? null : new Evidence(['%round%' => min($running->usedRounds() + 1, ParameterValue::int($params, 'rounds')), '%limit%' => ParameterValue::int($params, 'rounds')]);
     }
 
     #[\Override]

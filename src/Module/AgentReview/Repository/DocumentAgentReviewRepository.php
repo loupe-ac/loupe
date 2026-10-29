@@ -45,22 +45,28 @@ class DocumentAgentReviewRepository extends ServiceEntityRepository
         return $conclusions;
     }
 
-    /** @return array<string, int> the number of failed reviews of each document for the card, keyed by document id */
-    public function countFailedByDocumentForCard(Card $card): array
+    /**
+     * @return array<string, array{failed: int, ownerPasses: int}> the failed reviews, and the passed reviews with a finding for the owner, of each document for the card, keyed by document id
+     */
+    public function countRoundsByDocumentForCard(Card $card): array
     {
-        $rows = $this->createQueryBuilder('r')
-            ->select('IDENTITY(r.document) AS documentId', 'COUNT(r.id) AS failed')
-            ->andWhere('r.card = :card')
-            ->andWhere('r.conclusion = :conclusion')
-            ->groupBy('r.document')
-            ->setParameter('card', $card)
-            ->setParameter('conclusion', AgentReviewConclusion::Failure)
-            ->getQuery()
-            ->getArrayResult();
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+                SELECT document_id,
+                       COUNT(*) FILTER (WHERE conclusion = 'failure') AS failed,
+                       COUNT(*) FILTER (WHERE conclusion = 'success' AND EXISTS (
+                           SELECT 1 FROM json_array_elements(findings) f WHERE (f->>'needsPerson')::boolean
+                       )) AS owner_passes
+                FROM document_agent_reviews
+                WHERE card_id = :card
+                GROUP BY document_id
+                SQL,
+            ['card' => ($card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122()],
+        );
 
         $counts = [];
         foreach ($rows as $row) {
-            $counts[(string) $row['documentId']] = (int) $row['failed'];
+            $counts[(string) $row['document_id']] = ['failed' => (int) $row['failed'], 'ownerPasses' => (int) $row['owner_passes']];
         }
 
         return $counts;
