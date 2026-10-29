@@ -255,6 +255,33 @@ code and a message, and `worker_run_resume` takes up to 50 runs in one call.
 There is no tool that pauses a bridge, and no tool that runs a command again.
 Each run row carries its `kind`: `worker`, `interactive` or `command`. `worker_run_list` also filters by `harness`, `account` and `model`, and each row carries them with `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion`.
 
+## Time buckets and harness events of one run
+
+The drawer of a run shows two sections for a run that is not a command.
+
+**Time buckets** has one row for each bucket of the
+[bucket rules](analytics.md) that the run used. **Main session** is the time
+the main session spent in the bucket, and its rows add up to the share of the
+run that the [Time buckets page](analytics.md) shows. **With subagents** is the
+time of every call of the run in the bucket, the calls of subagents included.
+Calls that overlap in one bucket count once. This is agent time, not wall-clock
+time, so the column can add up to more than the run lasted. **Calls** counts
+every call in the bucket, subagents included. A bucket that only subagents used
+shows 0s in the first column. The rows start with the largest time.
+
+A run that the bridge sent no tool calls for shows a line instead of the table.
+A row from before the release shows **unknown** in the last two columns until
+the buckets of the project are recomputed.
+
+**Harness events** lists each kind of event that the harness gave the agent
+with no tool call, such as `diagnostics`, with its count. The count includes
+subagents. The most frequent kind comes first.
+
+`worker_run_get` returns the same figures. Each run has `buckets`, a list of
+`bucket`, `mainMs`, `withSubagentsMs` and `calls`, and `harnessEvents`, a map of
+kind to count. The map is `{}` when the bridge reported a run with no events.
+Both are `null` when Loupe holds no data.
+
 ## A warning on the card
 
 A card whose latest outcome is **Gave up**, **Blocked**, **Failed** or **No

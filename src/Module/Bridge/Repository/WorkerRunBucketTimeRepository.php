@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkerRunBucketTime;
 use App\Module\Bridge\Service\BucketFigures;
+use App\Module\Bridge\View\WorkerRunBucketView;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
@@ -125,6 +126,31 @@ class WorkerRunBucketTimeRepository extends ServiceEntityRepository
         }
 
         return $times;
+    }
+
+    /**
+     * The rows of each run, the largest time first. A run with no rows has no entry. PHP turns a numeric bucket name
+     * into an int key, so the name is cast back.
+     *
+     * @param list<Uuid> $runIds
+     *
+     * @return array<string, list<WorkerRunBucketView>> run id => buckets
+     */
+    public function findViewsOfRuns(array $runIds): array
+    {
+        $views = [];
+        foreach (array_chunk($runIds, 1000) as $chunk) {
+            $rows = $this->getEntityManager()->getConnection()->fetchAllNumeric(
+                'SELECT run_id, bucket, ms, ms_with_subagents, calls FROM bridge_worker_run_bucket_times WHERE run_id IN (:runs) ORDER BY GREATEST(ms, COALESCE(ms_with_subagents, 0)) DESC, bucket ASC',
+                ['runs' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $chunk)],
+                ['runs' => ArrayParameterType::STRING],
+            );
+            foreach ($rows as [$runId, $bucket, $ms, $withSubagents, $calls]) {
+                $views[(string) $runId][] = new WorkerRunBucketView((string) $bucket, (int) $ms, null === $withSubagents ? null : (int) $withSubagents, null === $calls ? null : (int) $calls);
+            }
+        }
+
+        return $views;
     }
 
     /**
