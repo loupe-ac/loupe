@@ -7,12 +7,12 @@ namespace App\Module\Bridge\Metric;
 use App\Module\Bridge\Cost\FinishedCard;
 use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Entity\WorkerRunFact;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\TemplateMetric;
 use Symfony\Component\Uid\Uuid;
 
 /** Turns the fact rows and the finished cards into one metric row per run or per card. */
@@ -23,15 +23,21 @@ final readonly class MetricRowSource
         private FinishedCardSourceInterface $finishedCards,
         private CardReportSourceInterface $cardReports,
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
+        private TemplateMetricValues $templateValues,
     ) {
     }
 
     /** @return list<MetricRow> */
-    public function rows(Project $project, MetricUnit $unit, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $bucketName = null): array
+    public function rows(Project $project, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from): array
     {
+        if (null !== $shape->template) {
+            return MetricUnit::Card === $unit ? $this->templateRows($project, $shape->template, $group, $from) : [];
+        }
+        $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
+
         return MetricUnit::Run === $unit
-            ? $this->runRows($project, $metric, $group, $from, $bucketName)
-            : $this->cardRows($project, $metric, $group, $from, $bucketName);
+            ? $this->runRows($project, $metric, $group, $from, $shape->key->bucketName)
+            : $this->cardRows($project, $metric, $group, $from, $shape->key->bucketName);
     }
 
     /** Reads the same runs as a run query with no stage grouping. */
@@ -65,6 +71,51 @@ final readonly class MetricRowSource
         );
     }
 
+    /**
+     * One row per finished card, with a value for every card. A variant grouping gives the whole card value to each variant its
+     * runs name, as a built-in card metric does, so a card worked in two variants counts once in each.
+     *
+     * @return list<MetricRow>
+     */
+    private function templateRows(Project $project, TemplateMetric $template, MetricGroup $group, ?\DateTimeImmutable $from): array
+    {
+        $cards = $this->finishedCards->finishedCards($project, $from);
+        if ([] === $cards) {
+            return [];
+        }
+
+        $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
+        $values = $this->templateValues->valuesOf($project, $ids, $template);
+        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
+        $variants = MetricGroup::Variant === $group ? $this->variantsOf($project, $ids) : [];
+
+        $rows = [];
+        foreach ($cards as $card) {
+            $id = (string) $card->id;
+            $groups = MetricGroup::Variant === $group ? $variants[$id] ?? [null] : [$types[$id] ?? null];
+            foreach ($groups as $key) {
+                $rows[] = new MetricRow($card->id, $card->number, $key, $card->completedAt, $values[$id] ?? null);
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, list<?string>> card id => each variant its runs name, null for a run with none
+     */
+    private function variantsOf(Project $project, array $ids): array
+    {
+        $variants = [];
+        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
+            $variants[(string) $fact->subjectId][$fact->variant ?? ''] = $fact->variant;
+        }
+
+        return array_map(array_values(...), $variants);
+    }
+
     /** @return list<MetricRow> */
     private function cardRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $bucketName): array
     {
@@ -75,13 +126,10 @@ final readonly class MetricRowSource
 
         $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
         $factsByCard = [];
-        if (!$metric->isCardOutcome() || $group->isRunGrouping()) {
-            foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
-                $factsByCard[(string) $fact->subjectId][] = $fact;
-            }
+        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
+            $factsByCard[(string) $fact->subjectId][] = $fact;
         }
         $times = $this->bucketTimesOf(array_merge(...array_values($factsByCard)), $bucketName);
-        $outcomes = $metric->isCardOutcome() ? $this->cardReports->outcomesFor($project, $ids) : [];
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
 
         $rows = [];
@@ -106,9 +154,7 @@ final readonly class MetricRowSource
                     $card->number,
                     $partition['group'],
                     $card->completedAt,
-                    $metric->isCardOutcome()
-                        ? self::outcomeValue($outcomes[$id] ?? new CardOutcome(), $metric)
-                        : self::cardValue($partition['facts'], $metric, $bucketName, $times),
+                    self::cardValue($partition['facts'], $metric, $bucketName, $times),
                 );
             }
         }
@@ -179,7 +225,7 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
-            Metric::Runs, Metric::MergeRate, Metric::FixRounds, Metric::HoursToMerge, Metric::BucketTime => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
+            Metric::Runs, Metric::BucketTime => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }
 
@@ -239,15 +285,5 @@ final readonly class MetricRowSource
     private static function inDollars(?int $value, Metric $metric): int|float|null
     {
         return Metric::Cost === $metric && null !== $value ? $value / 1_000_000.0 : $value;
-    }
-
-    private static function outcomeValue(CardOutcome $outcome, Metric $metric): int|float|null
-    {
-        return match ($metric) {
-            Metric::MergeRate => $outcome->merged ? 1 : 0,
-            Metric::FixRounds => $outcome->totalFixRounds(),
-            Metric::HoursToMerge => $outcome->hoursToMerge(),
-            default => throw new \LogicException(\sprintf('The metric %s is no card outcome.', $metric->value)),
-        };
     }
 }

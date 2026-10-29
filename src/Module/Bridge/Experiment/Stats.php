@@ -72,6 +72,78 @@ final class Stats
     }
 
     /**
+     * A percentile bootstrap of the change of the mean of b against the mean of a, as a fraction of the mean of a. A resample whose mean of a is zero has no change and drops out.
+     *
+     * @param list<float|int> $a
+     * @param list<float|int> $b
+     */
+    public static function changeRange(array $a, array $b, string $seed, int $resamples = 2000): ?Interval
+    {
+        if ([] === $a || [] === $b) {
+            return null;
+        }
+
+        $meanA = array_sum($a) / \count($a);
+        if (0.0 === (float) $meanA) {
+            return null;
+        }
+
+        $changes = self::resampledDifferences($a, $b, $seed, $resamples, true);
+
+        return self::percentiles($changes, (array_sum($b) / \count($b) - $meanA) / $meanA);
+    }
+
+    /**
+     * A percentile bootstrap of the difference of the mean of b and the mean of a.
+     *
+     * @param list<float|int> $a
+     * @param list<float|int> $b
+     */
+    public static function differenceRange(array $a, array $b, string $seed, int $resamples = 2000): ?Interval
+    {
+        if ([] === $a || [] === $b) {
+            return null;
+        }
+
+        return self::percentiles(
+            self::resampledDifferences($a, $b, $seed, $resamples, false),
+            array_sum($b) / \count($b) - array_sum($a) / \count($a),
+        );
+    }
+
+    /**
+     * The Newcombe hybrid score range of the difference of two proportions, b minus a.
+     */
+    public static function newcombe(int $successesA, int $trialsA, int $successesB, int $trialsB): ?Interval
+    {
+        $a = self::wilson($successesA, $trialsA);
+        $b = self::wilson($successesB, $trialsB);
+        if (null === $a || null === $b) {
+            return null;
+        }
+
+        $difference = $b->point - $a->point;
+
+        return new Interval(
+            $difference - sqrt(($b->point - $b->low) ** 2 + ($a->high - $a->point) ** 2),
+            $difference + sqrt(($b->high - $b->point) ** 2 + ($a->point - $a->low) ** 2),
+            $difference,
+        );
+    }
+
+    /**
+     * Whether the data answers the goal: the ranges of the two variants do not overlap. Close points do not count.
+     */
+    public static function goalState(?Interval $a, ?Interval $b, int $finishedA, int $finishedB): GoalState
+    {
+        if (null === $a || null === $b || $finishedA < self::MIN_FINISHED_CARDS || $finishedB < self::MIN_FINISHED_CARDS) {
+            return GoalState::NotEnoughCards;
+        }
+
+        return $a->high < $b->low || $b->high < $a->low ? GoalState::Clear : GoalState::NotClear;
+    }
+
+    /**
      * Whether two arms give a clear answer: a real difference, or points too close to matter.
      */
     public static function isClear(Interval $a, Interval $b, int $finishedA, int $finishedB): bool
@@ -87,5 +159,55 @@ final class Stats
         $larger = max(abs($a->point), abs($b->point));
 
         return 0.0 === $larger || abs($a->point - $b->point) <= self::CLOSE_POINTS * $larger;
+    }
+
+    /**
+     * @param non-empty-list<float|int> $a
+     * @param non-empty-list<float|int> $b
+     *
+     * @return list<float>
+     */
+    private static function resampledDifferences(array $a, array $b, string $seed, int $resamples, bool $relative): array
+    {
+        if ($resamples < 1) {
+            throw new \InvalidArgumentException('A bootstrap needs at least one resample.');
+        }
+
+        $countA = \count($a);
+        $countB = \count($b);
+        $randomizer = new Randomizer(new Mt19937(crc32($seed)));
+        $differences = [];
+        for ($i = 0; $i < $resamples; ++$i) {
+            $sumA = 0;
+            for ($j = 0; $j < $countA; ++$j) {
+                $sumA += $a[$randomizer->getInt(0, $countA - 1)];
+            }
+            $sumB = 0;
+            for ($j = 0; $j < $countB; ++$j) {
+                $sumB += $b[$randomizer->getInt(0, $countB - 1)];
+            }
+            $meanA = $sumA / $countA;
+            $meanB = $sumB / $countB;
+            if (!$relative) {
+                $differences[] = (float) ($meanB - $meanA);
+            } elseif (0.0 !== (float) $meanA) {
+                $differences[] = ($meanB - $meanA) / $meanA;
+            }
+        }
+
+        return $differences;
+    }
+
+    /** @param list<float> $values */
+    private static function percentiles(array $values, float $point): ?Interval
+    {
+        if ([] === $values) {
+            return null;
+        }
+
+        sort($values);
+        $last = \count($values) - 1;
+
+        return new Interval($values[(int) floor(0.025 * $last)], $values[(int) ceil(0.975 * $last)], $point);
     }
 }

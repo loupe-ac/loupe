@@ -147,7 +147,7 @@ class CardEventRepository extends ServiceEntityRepository
      * @param list<Uuid>          $cardIds
      * @param list<CardEventKind> $kinds
      *
-     * @return list<array{cardId: string, kind: ?CardEventKind, detail: array<mixed>}>
+     * @return list<array{cardId: string, kind: ?CardEventKind, detail: array<mixed>, at: ?\DateTimeImmutable}>
      */
     public function findKindsOfCards(Project $project, array $cardIds, array $kinds): array
     {
@@ -155,9 +155,10 @@ class CardEventRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{card_id: string, kind: ?string, detail: ?string}> $rows */
-        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT c.id AS card_id, e.kind, e.detail
+        $connection = $this->getEntityManager()->getConnection();
+        /** @var list<array{card_id: string, kind: ?string, detail: ?string, occurred_at: ?string}> $rows */
+        $rows = $connection->fetchAllAssociative(
+            'SELECT c.id AS card_id, e.kind, e.detail, e.occurred_at
             FROM board_cards c
             LEFT JOIN board_card_events e ON e.card_id = c.id AND e.kind IN (:kinds)
             WHERE c.project_id = :project AND c.id IN (:cards)
@@ -170,13 +171,18 @@ class CardEventRepository extends ServiceEntityRepository
             ['cards' => ArrayParameterType::STRING, 'kinds' => ArrayParameterType::STRING],
         );
 
-        return array_map(static function (array $row): array {
+        $type = Type::getType(Types::DATETIME_IMMUTABLE);
+        $platform = $connection->getDatabasePlatform();
+
+        return array_map(static function (array $row) use ($type, $platform): array {
             $detail = null === $row['detail'] ? [] : json_decode($row['detail'], true, flags: \JSON_THROW_ON_ERROR);
+            $at = $type->convertToPHPValue($row['occurred_at'], $platform);
 
             return [
                 'cardId' => $row['card_id'],
                 'kind' => null === $row['kind'] ? null : CardEventKind::from($row['kind']),
                 'detail' => \is_array($detail) ? $detail : [],
+                'at' => $at instanceof \DateTimeImmutable ? $at : null,
             ];
         }, $rows);
     }

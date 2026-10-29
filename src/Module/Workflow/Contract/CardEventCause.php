@@ -16,11 +16,6 @@ final readonly class CardEventCause
     ) {
     }
 
-    public static function merged(int $prNumber): self
-    {
-        return new self('merged', ['pullRequest' => $prNumber]);
-    }
-
     public static function checksPassed(int $prNumber): self
     {
         return new self('checks-passed', ['pullRequest' => $prNumber]);

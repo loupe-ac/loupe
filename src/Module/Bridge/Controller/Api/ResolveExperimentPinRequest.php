@@ -27,6 +27,7 @@ final class ResolveExperimentPinRequest
         public mixed $variants = null,
         public mixed $weights = null,
         public mixed $metrics = null,
+        public mixed $headline = null,
     ) {
     }
 
@@ -109,6 +110,52 @@ final class ResolveExperimentPinRequest
         }
 
         return $keys;
+    }
+
+    /**
+     * The goal and the guards of the experiment page. Null when the headline is
+     * not an object, or one of its parts is malformed, or it holds neither
+     * part. Keys it does not know drop out. An empty guards list stays, and
+     * means no guards. A goal with no better way stays, so the page can say so.
+     *
+     * @return array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null
+     */
+    public function headline(): ?array
+    {
+        $headline = $this->headline;
+        if (!\is_array($headline) || [] === $headline || array_is_list($headline)) {
+            return null;
+        }
+
+        $normalised = [];
+        if (\array_key_exists('goal', $headline)) {
+            $goal = $headline['goal'];
+            if (!\is_array($goal) || !\is_string($goal['metric'] ?? null) || 1 !== preg_match(self::METRIC_KEY_PATTERN, $goal['metric'])
+                || !\in_array($better = $goal['better'] ?? null, [null, 'lower', 'higher'], true)) {
+                return null;
+            }
+            $normalised['goal'] = null === $better ? ['metric' => $goal['metric']] : ['metric' => $goal['metric'], 'better' => $better];
+        }
+
+        if (\array_key_exists('guards', $headline)) {
+            $guards = $headline['guards'];
+            if (!\is_array($guards) || !array_is_list($guards) || \count($guards) > self::MAX_METRICS) {
+                return null;
+            }
+            $keys = [];
+            foreach ($guards as $key) {
+                if (!\is_string($key) || 1 !== preg_match(self::METRIC_KEY_PATTERN, $key) || \in_array($key, $keys, true)) {
+                    return null;
+                }
+                $keys[] = $key;
+            }
+            if (isset($normalised['goal']) && \in_array($normalised['goal']['metric'], $keys, true)) {
+                return null;
+            }
+            $normalised['guards'] = $keys;
+        }
+
+        return [] === $normalised ? null : $normalised;
     }
 
     public static function isName(string $name): bool

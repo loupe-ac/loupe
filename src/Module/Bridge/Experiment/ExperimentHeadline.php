@@ -8,13 +8,9 @@ namespace App\Module\Bridge\Experiment;
 final readonly class ExperimentHeadline
 {
     public function __construct(
-        /** The variant with the lower cost per merged card. Null when two variants do not both have one. */
-        public ?string $cheaperVariant,
-        /** The share of the dearer variant's cost per merged card that the cheaper one saves. */
-        public ?float $saving,
-        public bool $costClear,
-        /** The merge rate and the fix rounds both give a clear answer. */
-        public bool $qualitySettled,
+        public ExperimentGoal $goal,
+        /** @var list<ExperimentGuard> */
+        public array $guards,
     ) {
     }
 }

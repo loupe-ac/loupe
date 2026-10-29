@@ -290,7 +290,7 @@ final class CardExporterTest extends KernelTestCase
         self::assertInstanceOf(CardEventRepository::class, $events);
         $createdAt = new \DateTimeImmutable('2026-03-01 09:00:00');
         $events->record($card, CardEventKind::Created, Actor::Human, $owner, ['column' => ['slug' => 'backlog']], $createdAt);
-        $events->record($card, CardEventKind::Moved, Actor::System, null, ['cause' => ['type' => 'merged', 'pullRequest' => 5]], $createdAt->modify('+1 hour'));
+        $events->record($card, CardEventKind::Moved, Actor::System, null, ['cause' => ['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged']], $createdAt->modify('+1 hour'));
         $this->em->flush();
         $this->em->clear();
 
@@ -298,7 +298,7 @@ final class CardExporterTest extends KernelTestCase
 
         self::assertIsArray($rows[0]);
         self::assertEquals([
-            ['kind' => 'moved', 'occurredAt' => $createdAt->modify('+1 hour')->format(\DateTimeInterface::ATOM), 'actorKind' => 'system', 'detail' => ['cause' => ['type' => 'merged', 'pullRequest' => 5]]],
+            ['kind' => 'moved', 'occurredAt' => $createdAt->modify('+1 hour')->format(\DateTimeInterface::ATOM), 'actorKind' => 'system', 'detail' => ['cause' => ['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged']]],
             ['kind' => 'created', 'occurredAt' => $createdAt->format(\DateTimeInterface::ATOM), 'actorKind' => 'human', 'detail' => ['column' => ['slug' => 'backlog']]],
         ], $rows[0]['history']);
     }

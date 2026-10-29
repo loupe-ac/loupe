@@ -7,6 +7,8 @@ namespace App\Module\Inbox\Service\Dev;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -14,12 +16,17 @@ use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEventCause;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
@@ -66,15 +73,22 @@ final readonly class DevExperimentSeeder
     ) {
     }
 
-    /** False when the project already holds the experiment, so a second run adds nothing. */
-    public function seed(Project $project): bool
+    /**
+     * False when the project already holds the experiment, so a second run adds nothing. With $metrics, the
+     * experiment lists those metrics, and each merged card gets a pull request that opened and merged.
+     *
+     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>}|null $headline
+     * @param list<string>|null                                                                $metrics
+     */
+    public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null, ?array $metrics = null): bool
     {
-        if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EXPERIMENT]) instanceof ExperimentDefinition) {
+        if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
             return false;
         }
 
-        $definition = new ExperimentDefinition($project, self::EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
-        $definition->metrics = ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
+        $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+        $definition->metrics = $metrics ?? ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
+        $definition->headline = $headline;
         $this->em->persist($definition);
 
         $columns = [];
@@ -87,17 +101,21 @@ final readonly class DevExperimentSeeder
             $column = $columns[$slug] ?? throw new \LogicException(\sprintf('The project has a %s column.', $slug));
             $card = $this->card($project, $column, $title, $type, $number + $index, $at->modify('-10 days'));
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
-            $this->em->persist(new ExperimentPin($project, $cardId, self::EXPERIMENT, $variant, $at, $at));
+            $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
 
+            $openedAt = $at->modify('+20 hours');
             foreach ($runs as [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
-                $this->run($project, $card, $variant, $at, $minutes, $cost);
+                $this->run($project, $card, $experiment, $variant, $at, $minutes, $cost);
             }
             foreach ($fixReasons as $reason) {
-                $this->cardEvents->record($card, CardEventKind::FixRequested, Actor::System, null, ['reason' => $reason], $at->modify('+1 hour'));
+                $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
             }
             if ($merged) {
-                $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => ['type' => 'merged', 'pullRequest' => $card->number]], $at->modify('+2 hours'));
+                $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
+                if (null !== $metrics) {
+                    $this->pullRequest($project, $card, $openedAt, $at->modify('+2 hours'));
+                }
             }
             if ($column->terminal) {
                 $card->completedAt = $at->modify('+2 hours');
@@ -118,8 +136,37 @@ final readonly class DevExperimentSeeder
         return $card;
     }
 
+    private function pullRequest(Project $project, Card $card, \DateTimeImmutable $openedAt, \DateTimeImmutable $mergedAt): void
+    {
+        $this->em->persist(new CardPullRequest($card, 'https://github.com/example/experiment/pull/'.$card->number, Forge::GitHub, 'example/experiment', $card->number));
+        $state = new ForgePullRequest($project, 'github', 'example/experiment', $card->number);
+        $state->openedAt = $openedAt;
+        $state->mergedAt = $mergedAt;
+        $this->em->persist($state);
+    }
+
+    /** A settled fix request, which the experiment counts as a fix round of the reason. */
+    private function fixRequest(Project $project, Card $card, string $reason, \DateTimeImmutable $at): void
+    {
+        $request = new WorkRequest(
+            project: $project,
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            kind: 'fix',
+            capability: null,
+            ruleId: 'fix-on-failure',
+            createdAt: $at,
+        );
+        $request->role = 'fix';
+        $request->context = new WorkRequestContext(reason: $reason);
+        $request->state = WorkRequestState::Done;
+        $request->settledAt = $at->modify('+10 minutes');
+        $this->em->persist($request);
+    }
+
     /** WorkerRunFactListener writes the fact row of the run on flush. */
-    private function run(Project $project, Card $card, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd): void
+    private function run(Project $project, Card $card, string $experiment, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd): void
     {
         $run = new WorkerRun(
             project: $project,
@@ -137,7 +184,7 @@ final readonly class DevExperimentSeeder
             output: 'The pull request is open.',
             receivedAt: $endedAt,
         );
-        $run->experiment = self::EXPERIMENT;
+        $run->experiment = $experiment;
         $run->variant = $variant;
         $run->requestedModel = self::MODELS[$variant];
         $run->recordHarness('claude-code', 'claude', null, null);

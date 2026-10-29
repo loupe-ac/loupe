@@ -71,7 +71,6 @@ final class CardHistoryEntryTest extends TestCase
     /** @return iterable<string, array{array<string, mixed>, ?TranslatableMessage}> */
     public static function causes(): iterable
     {
-        yield 'merged' => [['type' => 'merged', 'pullRequest' => 12], new TranslatableMessage('board.card.history.cause.merged', ['%pr%' => 12])];
         yield 'checks passed' => [['type' => 'checks-passed', 'pullRequest' => 12], new TranslatableMessage('board.card.history.cause.checks_passed', ['%pr%' => 12])];
         yield 'document approved' => [['type' => 'document-approved', 'document' => 'Tech design'], new TranslatableMessage('board.card.history.cause.document_approved', ['%document%' => 'Tech design'])];
         yield 'epic reconciled' => [['type' => 'epic-reconciled', 'child' => 7], new TranslatableMessage('board.card.history.cause.epic_reconciled', ['%child%' => 7])];
@@ -84,7 +83,7 @@ final class CardHistoryEntryTest extends TestCase
         yield 'workflow rule' => [['type' => 'workflow-rule', 'rule' => 'merge-on-green'], new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => 'merge-on-green'])];
         yield 'column deleted' => [['type' => 'column-deleted', 'column' => 'board.column.next'], new TranslatableMessage('board.card.history.cause.column_deleted', ['%column%' => new TranslatableMessage('board.column.next')])];
         yield 'an unknown type' => [['type' => 'moon-phase'], null];
-        yield 'a cause with its field missing' => [['type' => 'merged'], null];
+        yield 'a cause with its field missing' => [['type' => 'checks-passed'], null];
         yield 'a cause with no type' => [['pullRequest' => 12], null];
     }
 

@@ -10,22 +10,37 @@ use App\Module\Bridge\Command\MetricQueryHandler;
 use App\Module\Bridge\Command\MetricQueryView;
 use App\Module\Bridge\Cost\FinishedCard;
 use App\Module\Bridge\Cost\FinishedCardSourceInterface;
-use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
+use App\Module\Bridge\Metric\CardMilestone;
+use App\Module\Bridge\Metric\CardMilestoneSourceInterface;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricRow;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\CountFilter;
+use App\Module\Workflow\Contract\DurationEvent;
+use App\Module\Workflow\Contract\MetricType;
+use App\Module\Workflow\Contract\TemplateMetric;
+use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\TemplateMetricSets;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -47,8 +62,11 @@ final class MetricQueryHandlerTest extends KernelTestCase
     /** @var array<string, string> */
     private array $types = [];
 
-    /** @var array<string, CardOutcome> */
+    /** @var array<string, list<string>> */
     private array $outcomes = [];
+
+    /** @var array<string, list<CardMilestone>> */
+    private array $milestones = [];
 
     protected function setUp(): void
     {
@@ -148,22 +166,10 @@ final class MetricQueryHandlerTest extends KernelTestCase
         $this->fact($unknown, endedAt: '2026-10-03 09:00:00');
         $this->fact($zero, endedAt: '2026-10-03 09:00:00', runId: $this->runWithBuckets(['other' => 9]));
 
-        $view = $this->query(MetricUnit::Card, Metric::BucketTime, MetricStatistic::Sum, bucketName: 'tests');
+        $view = $this->query(MetricUnit::Card, new MetricShape(new MetricKey(Metric::BucketTime, 'tests')), MetricStatistic::Sum);
 
         self::assertSame([3 => 0, 2 => null, 1 => 4000], array_column(array_map(static fn (MetricRow $row): array => ['n' => $row->cardNumber, 'v' => $row->value], $view->series[0]->rows), 'v', 'n'));
         self::assertEquals(new MetricPoint(null, 4000, 2), $view->series[0]->total);
-    }
-
-    public function test_a_bucket_time_query_needs_a_name_and_no_other_metric_takes_one(): void
-    {
-        foreach ([[Metric::BucketTime, null], [Metric::Cost, 'tests']] as [$metric, $name]) {
-            try {
-                $this->query(MetricUnit::Run, $metric, MetricStatistic::Sum, bucketName: $name);
-                self::fail('Expected a refusal.');
-            } catch (\LogicException) {
-                self::addToAssertionCount(1);
-            }
-        }
     }
 
     /**
@@ -225,17 +231,6 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertEquals(new MetricPoint(null, 1, 1), $view->series[1]->total);
     }
 
-    public function test_the_card_outcomes_give_the_merge_rate_and_the_fix_rounds(): void
-    {
-        $merged = $this->finishedCard(1, '2026-10-02 10:00:00');
-        $this->finishedCard(2, '2026-10-03 10:00:00');
-        $this->outcomes = [(string) $merged => new CardOutcome(fixRounds: ['conflict' => 2, 'review' => 1], merged: true)];
-
-        self::assertEquals(new MetricPoint(null, 0.5, 2), $this->query(MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean)->series[0]->total);
-        self::assertEquals(new MetricPoint(null, 3, 2), $this->query(MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum)->series[0]->total);
-        self::assertEquals(new MetricPoint(null, null, 0), $this->query(MetricUnit::Card, Metric::HoursToMerge, MetricStatistic::Mean)->series[0]->total);
-    }
-
     public function test_a_run_of_another_subject_counts_only_where_no_card_is_needed(): void
     {
         $card = $this->finishedCard(1, '2026-10-02 10:00:00');
@@ -293,23 +288,148 @@ final class MetricQueryHandlerTest extends KernelTestCase
         );
     }
 
-    /** @return iterable<string, array{MetricUnit, Metric, MetricStatistic, MetricGroup, string}> */
+    public function test_a_template_rate_of_any_fix_request_counts_a_card_with_none_as_false(): void
+    {
+        $cards = [];
+        foreach ([1, 3, 0, 0] as $i => $fixes) {
+            $cards[$i] = $this->finishedCard($i + 1, '2026-10-0'.($i + 1).' 10:00:00');
+            for ($n = 0; $n < $fixes; ++$n) {
+                $this->request($cards[$i], 'fix', 'fix', 'checks-failed');
+            }
+            $this->request($cards[$i], 'implement', null, null);
+        }
+        $this->request(Uuid::v7(), 'fix', 'fix', 'conflict');
+        $needed = new TemplateMetric('needed-fix', 'Needed a fix', 'Cards that needed a fix.', MetricType::Rate, filter: new CountFilter(role: 'fix'));
+
+        $view = $this->query(MetricUnit::Card, MetricShape::template($needed), MetricStatistic::Mean);
+
+        $series = $view->series[0];
+        self::assertEquals(new MetricPoint(null, 0.5, 4), $series->total);
+        self::assertSame([0, 0, 1, 1], array_map(static fn (MetricRow $row): int|float|null => $row->value, $series->rows));
+    }
+
+    public function test_a_template_count_sums_the_requests_that_the_filter_picks(): void
+    {
+        $first = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $second = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $third = $this->finishedCard(3, '2026-10-04 10:00:00');
+        $this->request($first, 'fix', 'fix', 'conflict');
+        $this->request($first, 'fix', 'fix', 'checks-failed');
+        $this->request($first, 'review', 'code-review', 'checks-failed');
+        $this->request($second, 'fix', 'fix', 'conflict');
+        $conflicts = new TemplateMetric('conflicts', 'Conflicts', 'Fix requests for a conflict.', MetricType::Count, filter: new CountFilter(role: 'fix', reason: 'conflict'), splitBy: 'reason');
+
+        $view = $this->query(MetricUnit::Card, MetricShape::template($conflicts), MetricStatistic::Sum);
+
+        self::assertEquals(new MetricPoint(null, 2, 3), $view->series[0]->total);
+        $values = [];
+        foreach ($view->series[0]->rows as $row) {
+            $values[(string) $row->unitId] = $row->value;
+        }
+        $expected = [(string) $first => 1, (string) $second => 1, (string) $third => 0];
+        ksort($expected);
+        ksort($values);
+        self::assertSame($expected, $values);
+    }
+
+    public function test_a_template_rate_of_an_outcome_is_true_when_any_move_set_it(): void
+    {
+        $merged = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $other = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $this->finishedCard(3, '2026-10-04 10:00:00');
+        $this->outcomes = [(string) $merged => ['abandoned', 'merged'], (string) $other => ['abandoned']];
+        $rate = new TemplateMetric('merge-rate', 'Merge rate', 'Cards that merged.', MetricType::Rate, outcome: 'merged');
+
+        $view = $this->query(MetricUnit::Card, MetricShape::template($rate), MetricStatistic::Mean);
+
+        self::assertEquals(new MetricPoint(null, 1 / 3, 3), $view->series[0]->total);
+    }
+
+    public function test_a_template_duration_is_in_hours_and_leaves_a_card_with_no_start_or_end_out(): void
+    {
+        $merged = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $open = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $none = $this->finishedCard(3, '2026-10-04 10:00:00');
+        $this->milestones = [
+            (string) $merged => [
+                new CardMilestone(DurationEvent::PR_OPENED, new \DateTimeImmutable('2026-10-01 08:00:00')),
+                new CardMilestone(DurationEvent::PR_MERGED, new \DateTimeImmutable('2026-10-01 11:30:00')),
+            ],
+            (string) $open => [new CardMilestone(DurationEvent::PR_OPENED, new \DateTimeImmutable('2026-10-01 08:00:00'))],
+        ];
+        $hours = new TemplateMetric('hours-to-merge', 'Hours to merge', 'Hours.', MetricType::Duration, from: new DurationEvent(DurationEvent::PR_OPENED), to: new DurationEvent(DurationEvent::PR_MERGED));
+
+        $view = $this->query(MetricUnit::Card, MetricShape::template($hours), MetricStatistic::Mean);
+
+        self::assertEquals(new MetricPoint(null, 3.5, 1), $view->series[0]->total);
+        $values = [];
+        foreach ($view->series[0]->rows as $row) {
+            $values[(string) $row->unitId] = $row->value;
+        }
+        $expected = [(string) $merged => 3.5, (string) $open => null, (string) $none => null];
+        ksort($expected);
+        ksort($values);
+        self::assertSame($expected, $values);
+    }
+
+    public function test_a_template_metric_groups_by_card_type_and_gives_each_variant_of_its_runs_the_whole_value(): void
+    {
+        $bug = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $feature = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $mixed = $this->finishedCard(3, '2026-10-04 10:00:00');
+        $unrun = $this->finishedCard(4, '2026-10-05 10:00:00');
+        $this->types = [(string) $bug => 'bug', (string) $feature => 'feature', (string) $mixed => 'feature', (string) $unrun => 'feature'];
+        $this->fact($bug, endedAt: '2026-10-01 09:00:00', variant: 'a');
+        $this->fact($bug, endedAt: '2026-10-01 10:00:00', variant: 'a');
+        $this->fact($feature, endedAt: '2026-10-01 09:00:00', variant: 'b');
+        $this->fact($mixed, endedAt: '2026-10-01 09:00:00', variant: 'a');
+        $this->fact($mixed, endedAt: '2026-10-01 10:00:00', variant: 'b');
+        $this->request($bug, 'fix', 'fix', null);
+        $this->request($mixed, 'fix', 'fix', null);
+        $this->request($mixed, 'fix', 'fix', null);
+        $count = new TemplateMetric('fix-rounds', 'Fix rounds', 'Fixes.', MetricType::Count, filter: new CountFilter(role: 'fix'));
+
+        $byType = $this->query(MetricUnit::Card, MetricShape::template($count), MetricStatistic::Sum, MetricGroup::CardType);
+        $byVariant = $this->query(MetricUnit::Card, MetricShape::template($count), MetricStatistic::Sum, MetricGroup::Variant);
+
+        self::assertSame(['bug', 'feature'], array_map(static fn (MetricSeries $series): ?string => $series->group, $byType->series));
+        self::assertSame(['a', 'b', null], array_map(static fn (MetricSeries $series): ?string => $series->group, $byVariant->series));
+        self::assertEquals(new MetricPoint(null, 3, 2), $byVariant->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 2, 2), $byVariant->series[1]->total);
+        self::assertEquals(new MetricPoint(null, 0, 1), $byVariant->series[2]->total);
+    }
+
+    private function request(Uuid $card, string $kind, ?string $role, ?string $reason): void
+    {
+        $request = $this->seedWorkRequest($this->em, $this->project, $card, $kind, state: WorkRequestState::Done, subject: WorkSubject::card($card));
+        $request->role = $role;
+        $request->context = new WorkRequestContext(reason: $reason);
+        $this->em->flush();
+    }
+
+    /** @return iterable<string, array{MetricUnit, MetricShape, MetricStatistic, MetricGroup, string}> */
     public static function refusals(): iterable
     {
-        yield 'a card metric on the run unit' => [MetricUnit::Run, Metric::Runs, MetricStatistic::Sum, MetricGroup::None, 'unit'];
-        yield 'the stop rate on the card unit' => [MetricUnit::Card, Metric::StopRate, MetricStatistic::Mean, MetricGroup::None, 'unit'];
-        yield 'a percentile of a ratio' => [MetricUnit::Run, Metric::StopRate, MetricStatistic::P90, MetricGroup::None, 'statistic'];
-        yield 'a sum of a ratio' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Sum, MetricGroup::None, 'statistic'];
-        yield 'a card outcome by stage' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::Stage, 'group'];
-        yield 'fix rounds by model' => [MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum, MetricGroup::Model, 'group'];
-        yield 'hours to merge by bridge' => [MetricUnit::Card, Metric::HoursToMerge, MetricStatistic::Median, MetricGroup::Bridge, 'group'];
-        yield 'the merge rate by harness' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::Harness, 'group'];
-        yield 'the merge rate by skill version' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::SkillVersion, 'group'];
-        yield 'fix rounds by account' => [MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum, MetricGroup::Account, 'group'];
+        $built = static fn (Metric $metric): MetricShape => new MetricShape(new MetricKey($metric));
+        $rate = MetricShape::template(TemplateMetricSets::rate());
+        $count = MetricShape::template(TemplateMetricSets::count());
+        $duration = MetricShape::template(TemplateMetricSets::duration());
+
+        yield 'a card metric on the run unit' => [MetricUnit::Run, $built(Metric::Runs), MetricStatistic::Sum, MetricGroup::None, 'unit'];
+        yield 'the stop rate on the card unit' => [MetricUnit::Card, $built(Metric::StopRate), MetricStatistic::Mean, MetricGroup::None, 'unit'];
+        yield 'a percentile of a ratio' => [MetricUnit::Run, $built(Metric::StopRate), MetricStatistic::P90, MetricGroup::None, 'statistic'];
+        yield 'a template metric on the run unit' => [MetricUnit::Run, $rate, MetricStatistic::Mean, MetricGroup::None, 'unit'];
+        yield 'a sum of a template rate' => [MetricUnit::Card, $rate, MetricStatistic::Sum, MetricGroup::None, 'statistic'];
+        yield 'a template rate by stage' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::Stage, 'group'];
+        yield 'a template count by model' => [MetricUnit::Card, $count, MetricStatistic::Sum, MetricGroup::Model, 'group'];
+        yield 'a template duration by bridge' => [MetricUnit::Card, $duration, MetricStatistic::Median, MetricGroup::Bridge, 'group'];
+        yield 'a template rate by harness' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::Harness, 'group'];
+        yield 'a template rate by skill version' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::SkillVersion, 'group'];
+        yield 'a template count by account' => [MetricUnit::Card, $count, MetricStatistic::Sum, MetricGroup::Account, 'group'];
     }
 
     #[DataProvider('refusals')]
-    public function test_it_refuses_a_combination_the_metric_does_not_allow(MetricUnit $unit, Metric $metric, MetricStatistic $statistic, MetricGroup $group, string $field): void
+    public function test_it_refuses_a_combination_the_metric_does_not_allow(MetricUnit $unit, MetricShape $metric, MetricStatistic $statistic, MetricGroup $group, string $field): void
     {
         try {
             $this->query($unit, $metric, $statistic, $group);
@@ -319,8 +439,9 @@ final class MetricQueryHandlerTest extends KernelTestCase
         }
     }
 
-    private function query(MetricUnit $unit, Metric $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None, ?string $bucketName = null): MetricQueryView
+    private function query(MetricUnit $unit, Metric|MetricShape $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None): MetricQueryView
     {
+        $shape = $metric instanceof MetricShape ? $metric : new MetricShape(new MetricKey($metric));
         $finished = new readonly class($this->finished) implements FinishedCardSourceInterface {
             /** @param list<FinishedCard> $cards */
             public function __construct(
@@ -336,8 +457,8 @@ final class MetricQueryHandlerTest extends KernelTestCase
         };
         $reports = new readonly class($this->types, $this->outcomes) implements CardReportSourceInterface {
             /**
-             * @param array<string, string>      $types
-             * @param array<string, CardOutcome> $outcomes
+             * @param array<string, string>       $types
+             * @param array<string, list<string>> $outcomes
              */
             public function __construct(
                 private array $types,
@@ -352,7 +473,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
             }
 
             #[\Override]
-            public function outcomesFor(Project $project, array $cardIds): array
+            public function outcomesOfCards(Project $project, array $cardIds): array
             {
                 return $this->outcomes;
             }
@@ -373,9 +494,27 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertInstanceOf(WorkerRunFactRepository::class, $facts);
         $bucketTimes = self::getContainer()->get(WorkerRunBucketTimeRepository::class);
         self::assertInstanceOf(WorkerRunBucketTimeRepository::class, $bucketTimes);
-        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes), new MockClock(self::NOW.' UTC'));
+        $milestones = new readonly class($this->milestones) implements CardMilestoneSourceInterface {
+            /** @param array<string, list<CardMilestone>> $milestones */
+            public function __construct(
+                private array $milestones,
+            ) {
+            }
 
-        return $handler(new MetricQueryCommand($this->project, $unit, $metric, $statistic, $group, MetricRange::ThirtyDays, MetricBucket::Day, $bucketName));
+            #[\Override]
+            public function milestonesOf(Project $project, array $cardIds, TemplateMetricSet $templates): array
+            {
+                return $this->milestones;
+            }
+        };
+        $templates = $this->createStub(TemplateMetrics::class);
+        $templates->method('forProject')->willReturn(new TemplateMetricSet());
+        $workRequests = self::getContainer()->get(WorkRequestRepository::class);
+        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
+        $values = new TemplateMetricValues($workRequests, $reports, $templates, [$milestones]);
+        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $values), new MockClock(self::NOW.' UTC'));
+
+        return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, MetricRange::ThirtyDays, MetricBucket::Day));
     }
 
     private function finishedCard(int $number, string $completedAt): Uuid
@@ -403,6 +542,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?string $harnessVersion = null,
         ?string $cliVersion = null,
         ?string $skillVersion = null,
+        ?string $variant = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -424,6 +564,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'harness_version' => $harnessVersion,
             'cli_version' => $cliVersion,
             'skill_version' => $skillVersion,
+            'variant' => $variant,
         ]);
 
         return $runId;
