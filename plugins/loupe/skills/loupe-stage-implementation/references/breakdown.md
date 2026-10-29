@@ -119,6 +119,7 @@ A Breakdown child has the entry line in its body. A standalone child has none, f
 7. When the card body asks for something that the design of the epic contradicts, stop with `STAGE RESULT: blocked: card body conflicts with the epic design`. Name the conflict in the sentences after it.
 8. A standalone child that links no approved tech design stops with `STAGE RESULT: blocked: needs its own tech design: move the card to Tech design`.
 9. Every child that builds UI reads the prototype of its epic: a Breakdown child, a standalone child with its own design, and an epic-design child. It calls `card_get` on `parent.cardId`, and reads the `artifacts` of that card next to its own, as `SKILL.md` step 9 says. The breakdown copies no artifact link onto a child.
+10. A Breakdown child and an epic-design child read the pending notes of the parent card with `card_get` on `parent.cardId`. They mark only the notes that their own entry or card body builds, and only after the rendered check of `SKILL.md` step 13a. Another child marks the notes of its own entry.
 
 ## Build a follow-up
 
