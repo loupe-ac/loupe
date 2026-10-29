@@ -279,8 +279,8 @@ final class ForgeWriteTest extends KernelTestCase
         $run = $this->checkWriter->published[0];
         self::assertSame(['Loupe / Approval', 'abc123', PullRequestCheckConclusion::Success, null], [$run['name'], $run['sha'], $run['conclusion'], $run['runId']]);
         self::assertSame([], $this->writer->calls);
-        $row = $this->em()->getConnection()->fetchAssociative('SELECT approval_check_run_id, approval_check_sha, approval_check_conclusion FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]);
-        self::assertSame(['approval_check_run_id' => '101', 'approval_check_sha' => 'abc123', 'approval_check_conclusion' => 'success'], $row);
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT approval_check_run_id, approval_check_sha, approval_check_conclusion, approval_check_passed_at FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]);
+        self::assertSame(['approval_check_run_id' => '101', 'approval_check_sha' => 'abc123', 'approval_check_conclusion' => 'success', 'approval_check_passed_at' => '2026-10-02 12:00:00'], $row);
         $this->em()->flush();
         self::assertEquals([['pullRequest' => $pullRequest->number, 'headSha' => 'abc123', 'rule' => 'test-rule']], $this->historyDetails($card, CardEventKind::AutoApproved));
     }
@@ -1380,6 +1380,7 @@ final class ForgeWriteTest extends KernelTestCase
                 new PullRequestCheckWriters([$this->checkWriter]),
                 $this->service(TranslatorInterface::class),
                 $this->service(EntityManagerInterface::class),
+                new MockClock('2026-10-02 12:00:00'),
             ),
             new AgentReviewCheckPublisher(
                 $this->service(AgentReviewPosts::class),
