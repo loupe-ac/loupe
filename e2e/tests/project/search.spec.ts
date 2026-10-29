@@ -168,6 +168,9 @@ test('search shortcuts preserve page drafts and recover from a failed request', 
     await expect(field).toHaveValue(query);
     await page.unroute(searchPattern);
     await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(
+        page.locator('[data-topbar-search-target="progress"]'),
+    ).toBeHidden();
     const result = page.locator('[data-search-kind="document"]');
     await expect(result).toBeVisible();
     await expect(page.getByText('Could not search')).toBeHidden();

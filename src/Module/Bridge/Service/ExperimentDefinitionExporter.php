@@ -31,6 +31,7 @@ final readonly class ExperimentDefinitionExporter implements UserDataExporterInt
                 'weights' => $definition->weights,
                 'metrics' => $definition->metrics,
                 'headline' => $definition->headline,
+                'covers' => $definition->covers,
                 'reportedAt' => $definition->reportedAt->format(\DateTimeInterface::ATOM),
             ];
         }
