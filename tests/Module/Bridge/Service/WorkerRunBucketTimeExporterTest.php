@@ -23,15 +23,15 @@ final class WorkerRunBucketTimeExporterTest extends KernelTestCase
         $run = $this->seedRun($em, $this->project($em, $exporting, 'Bucket Export'), runKey: $runKey);
         $otherRun = $this->seedRun($em, $this->project($em, $this->user($em, 'bucket-export-other@example.com'), 'Other Bucket Export'));
         $repository = $this->repository();
-        $repository->replaceForRun($run->id ?? throw new \LogicException(), ['tests' => 40, 'build' => 2]);
-        $repository->replaceForRun($otherRun->id ?? throw new \LogicException(), ['tests' => 9]);
+        $repository->replaceForRun($run->id ?? throw new \LogicException(), self::figures(['tests' => 40, 'build' => 2]));
+        $repository->replaceForRun($otherRun->id ?? throw new \LogicException(), self::figures(['tests' => 9]));
         $em->clear();
 
         $rows = iterator_to_array(new WorkerRunBucketTimeExporter($repository)->export($exporting), false);
 
         self::assertSame([
-            ['project' => 'Bucket Export', 'runKey' => $runKey->toRfc4122(), 'bucket' => 'build', 'ms' => 2],
-            ['project' => 'Bucket Export', 'runKey' => $runKey->toRfc4122(), 'bucket' => 'tests', 'ms' => 40],
+            ['project' => 'Bucket Export', 'runKey' => $runKey->toRfc4122(), 'bucket' => 'build', 'ms' => 2, 'msWithSubagents' => 2, 'calls' => 1],
+            ['project' => 'Bucket Export', 'runKey' => $runKey->toRfc4122(), 'bucket' => 'tests', 'ms' => 40, 'msWithSubagents' => 40, 'calls' => 1],
         ], $rows);
     }
 

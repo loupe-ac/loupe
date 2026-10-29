@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Repository;
 
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
+use App\Module\Bridge\Service\BucketFigures;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -20,15 +21,15 @@ final class WorkerRunBucketTimeRepositoryTest extends KernelTestCase
         $run = $this->seedRun($this->em(), $this->project($this->em(), $this->user($this->em(), 'bucket-repo-'.uniqid().'@example.com'), 'Bucket repo'));
         $runId = $run->id ?? throw new \LogicException('A stored run has an id.');
 
-        $this->repository()->replaceForRun($runId, ['a' => 1, 'b' => 2]);
-        $this->repository()->replaceForRun($runId, ['b' => 5, '123' => 7]);
-        $this->repository()->replaceForRun($runId, ['b' => 5, '123' => 7]);
+        $this->repository()->replaceForRun($runId, self::figures(['a' => 1, 'b' => 2]));
+        $this->repository()->replaceForRun($runId, self::figures(['b' => 5, '123' => 7]));
+        $this->repository()->replaceForRun($runId, self::figures(['b' => 5, '123' => 7]));
 
         $rows = $this->em()->getConnection()->fetchAllKeyValue('SELECT bucket, ms FROM bridge_worker_run_bucket_times WHERE run_id = :run', ['run' => (string) $runId]);
         ksort($rows);
         self::assertSame(['123' => 7, 'b' => 5], array_map(intval(...), $rows));
 
-        $this->repository()->replaceForRun($runId, []);
+        $this->repository()->replaceForRun($runId, self::figures([]));
 
         self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_bucket_times WHERE run_id = :run', ['run' => (string) $runId]));
     }
@@ -52,8 +53,8 @@ final class WorkerRunBucketTimeRepositoryTest extends KernelTestCase
         $both = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
         $onlyOther = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
         $none = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
-        $this->repository()->replaceForRun($both, ['tests' => 40, 'other' => 2]);
-        $this->repository()->replaceForRun($onlyOther, ['other' => 3]);
+        $this->repository()->replaceForRun($both, self::figures(['tests' => 40, 'other' => 2]));
+        $this->repository()->replaceForRun($onlyOther, self::figures(['other' => 3]));
 
         $times = $this->repository()->findMillisecondsOfRuns([$both, $onlyOther, $none], 'tests');
 
@@ -69,9 +70,9 @@ final class WorkerRunBucketTimeRepositoryTest extends KernelTestCase
         $one = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
         $none = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
         $unasked = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
-        $this->repository()->replaceForRun($both, ['tests' => 40, 'other' => 2]);
-        $this->repository()->replaceForRun($one, ['git' => 3, '123' => 4]);
-        $this->repository()->replaceForRun($unasked, ['git' => 9]);
+        $this->repository()->replaceForRun($both, self::figures(['tests' => 40, 'other' => 2]));
+        $this->repository()->replaceForRun($one, self::figures(['git' => 3, '123' => 4]));
+        $this->repository()->replaceForRun($unasked, self::figures(['git' => 9]));
 
         $times = $this->repository()->findAllMillisecondsOfRuns([$both, $one, $none]);
         ksort($times);
@@ -86,12 +87,33 @@ final class WorkerRunBucketTimeRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository()->findAllMillisecondsOfRuns([]));
     }
 
+    public function test_it_stores_and_reads_the_calls_and_the_time_with_subagents_of_a_bucket(): void
+    {
+        self::bootKernel();
+        $project = $this->project($this->em(), $this->user($this->em(), 'bucket-repo-figures-'.uniqid().'@example.com'), 'Bucket figures');
+        $both = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
+        $subagentOnly = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
+        $old = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
+        $none = $this->seedRun($this->em(), $project)->id ?? throw new \LogicException();
+        $this->repository()->replaceForRun($both, ['lsp' => new BucketFigures(100, 400, 3), 'other' => new BucketFigures(5, 5, 1)]);
+        $this->repository()->replaceForRun($subagentOnly, ['other' => new BucketFigures(5, 5, 1)]);
+        $this->em()->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $old, 'bucket' => 'lsp', 'ms' => 9]);
+        $this->em()->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $old, 'bucket' => 'other', 'ms' => 1, 'ms_with_subagents' => 1, 'calls' => 1]);
+        $runs = [$both, $subagentOnly, $old, $none];
+
+        self::assertEquals([(string) $both => 3, (string) $subagentOnly => 0], $this->repository()->findCallsOfRuns($runs, 'lsp'));
+        self::assertEquals([(string) $both => 400, (string) $subagentOnly => 0], $this->repository()->findMillisecondsWithSubagentsOfRuns($runs, 'lsp'));
+        // The old row holds no figure, so the whole run reads no data, also in a bucket whose row is complete.
+        self::assertArrayNotHasKey((string) $old, $this->repository()->findCallsOfRuns($runs, 'other'));
+        self::assertSame([], $this->repository()->findCallsOfRuns([], 'lsp'));
+    }
+
     public function test_the_rows_go_with_the_run(): void
     {
         self::bootKernel();
         $run = $this->seedRun($this->em(), $this->project($this->em(), $this->user($this->em(), 'bucket-repo-cascade-'.uniqid().'@example.com'), 'Bucket cascade'));
         $runId = $run->id ?? throw new \LogicException();
-        $this->repository()->replaceForRun($runId, ['a' => 1]);
+        $this->repository()->replaceForRun($runId, self::figures(['a' => 1]));
 
         $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE id = :id', ['id' => (string) $runId]);
 

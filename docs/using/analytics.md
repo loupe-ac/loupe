@@ -70,6 +70,8 @@ not counted.
 | **Runs** | the number of worker runs on a finished card | card |
 | **Stop rate** | the share of runs that reached an outcome and blocked, failed, gave no result or gave up | run |
 | **Time in &lt;bucket&gt;** | the tool time of a run in one [time bucket](#time-buckets), such as **Time in git** | run, card |
+| **Time in &lt;bucket&gt;, subagents included** | the tool time of a run in one time bucket, with the calls of subagents | run, card |
+| **Calls in &lt;bucket&gt;** | the number of tool calls of a run in one time bucket, subagent calls included | run, card |
 | **Harness events: &lt;kind&gt;** | the number of [harness events](#harness-events) of one kind in a run, such as **Harness events: diagnostics** | run, card |
 
 The workflow template of the project can declare more metrics. They appear
@@ -89,6 +91,16 @@ for it, and that time can be 0 ms. The time is unknown for a run with no
 tool-call data, such as a command run or an old run. An address can name any
 valid bucket that has no time. The Metrics tab then shows that bucket, with 0
 on each run with data. A card adds the time of its runs with data.
+
+The **Time in** metric counts the main session alone, because the time of a
+subagent already sits inside the call that started it. The two other metrics
+of a bucket include the subagents. **Time in &lt;bucket&gt;, subagents
+included** merges the calls of the main session and of its subagents, so it can
+be longer than the run. **Calls in &lt;bucket&gt;** counts every call, also a
+call that has no duration. Their keys are `bucket-time-all:<name>` and
+`bucket-calls:<name>`. A run that Loupe has not computed since these metrics
+came has no value for them. Run `php bin/console app:bridge:recompute-bucket-times`
+once to fill them for past runs. It queues one computation for each project.
 
 ### Harness events
 
@@ -321,7 +333,9 @@ characters of lower case letters, digits, `_` and `-`.
 The first rule that matches a call takes it. A call that no rule takes counts
 in the bucket `other`. Use **Move up** and **Move down** to change the order.
 A project holds at most 50 rules. After each change, Loupe computes the bucket
-times of the runs of the project again, in the background.
+times of the runs of the project again, in the background. The computation
+stores three figures for each run and bucket: the main-session time, the time
+with subagents, and the number of calls with subagents.
 
 The section **Time per bucket** shows the time in each bucket over the closed
 runs of a range. It lists the buckets that the rules name, in rule order. Then

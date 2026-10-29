@@ -8390,7 +8390,11 @@
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.bucket_time_all_named"><source>analytics.metrics.metric.bucket_time_all_named</source><target>Time in %bucket%, subagents included</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.bucket_calls_named"><source>analytics.metrics.metric.bucket_calls_named</source><target>Calls in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.bucket_time"><source>analytics.metrics.metric_group.bucket_time</source><target>Time buckets</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric_group.bucket_time_all"><source>analytics.metrics.metric_group.bucket_time_all</source><target>Time buckets, subagents included</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric_group.bucket_calls"><source>analytics.metrics.metric_group.bucket_calls</source><target>Calls in time buckets</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.run"><source>analytics.metrics.unit.run</source><target>Per run</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.card"><source>analytics.metrics.unit.card</source><target>Per finished card</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.median"><source>analytics.metrics.statistic.median</source><target>Median</target></trans-unit>

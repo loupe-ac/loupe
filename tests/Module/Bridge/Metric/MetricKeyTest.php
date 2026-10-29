@@ -37,6 +37,20 @@ final class MetricKeyTest extends TestCase
         self::assertSame('bucket-time:git_push-2', $key->key());
     }
 
+    public function test_the_bucket_call_and_time_with_subagents_keys_parse_with_a_bucket_name(): void
+    {
+        foreach ([Metric::BucketCalls, Metric::BucketTimeAll] as $metric) {
+            $key = MetricKey::tryParse($metric->value.':git_push-2', new TemplateMetricSet());
+
+            self::assertSame($metric, $key?->metric);
+            self::assertSame('git_push-2', $key->name);
+            self::assertSame($metric->value.':git_push-2', $key->key());
+        }
+        self::assertSame(Metric::BucketTime, MetricKey::tryParse('bucket-time:all', new TemplateMetricSet())?->metric);
+        self::assertSame(\App\Module\Bridge\Metric\MetricValueType::Count, Metric::BucketCalls->valueType());
+        self::assertSame(\App\Module\Bridge\Metric\MetricValueType::Duration, Metric::BucketTimeAll->valueType());
+    }
+
     public function test_a_harness_events_key_parses_with_its_kind(): void
     {
         $key = MetricKey::tryParse('harness-events:hook_success.v2-x', new TemplateMetricSet());
@@ -50,7 +64,7 @@ final class MetricKeyTest extends TestCase
 
     public function test_only_the_named_metrics_leave_the_standalone_list(): void
     {
-        self::assertSame([Metric::BucketTime, Metric::HarnessEvents], array_values(array_filter(Metric::cases(), static fn (Metric $metric): bool => $metric->isNamed())));
+        self::assertSame([Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents], array_values(array_filter(Metric::cases(), static fn (Metric $metric): bool => $metric->isNamed())));
         self::assertNotContains(Metric::HarnessEvents, Metric::standalone());
         self::assertNotContains(Metric::BucketTime, Metric::standalone());
     }
@@ -99,6 +113,9 @@ final class MetricKeyTest extends TestCase
         yield 'name with a space' => ['bucket-time:a b'];
         yield 'name with a new line' => ["bucket-time:tests\n"];
         yield 'name of 65 characters' => ['bucket-time:'.str_repeat('a', 65)];
+        yield 'bucket calls with no name' => ['bucket-calls'];
+        yield 'bucket calls with a dot' => ['bucket-calls:a.b'];
+        yield 'bucket time all with an empty name' => ['bucket-time-all:'];
         yield 'harness events with no kind' => ['harness-events'];
         yield 'harness events with an empty kind' => ['harness-events:'];
         yield 'harness events kind in upper case' => ['harness-events:Diagnostics'];

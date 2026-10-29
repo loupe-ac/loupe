@@ -355,7 +355,7 @@ final readonly class ShowExperimentHandler
                 Metric::Runs => $metric($key, $shape, $bootstrap(MetricValueType::Count, $key, static fn (array $row): int => \count($row['runs']))),
                 Metric::Cost => $metric($key, $shape, $bootstrap(MetricValueType::Money, $key, static fn (array $row): ?float => null === $row['costMicros'] ? null : $row['costMicros'] / 1_000_000)),
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['facts'], $of))),
-                Metric::BucketTime, Metric::HarnessEvents => throw new \LogicException('A named metric needs a name, so an experiment cannot compare it.'),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => throw new \LogicException('A named metric needs a name, so an experiment cannot compare it.'),
             };
         }
 

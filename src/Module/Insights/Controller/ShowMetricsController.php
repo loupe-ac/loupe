@@ -46,7 +46,7 @@ class ShowMetricsController extends AppController
         $eventKinds = $list->harnessEventKinds;
         $selected = $query->metric->key->name;
         // A valid name with no data on any run still reads as 0, so the picker keeps it.
-        if (null !== $selected && Metric::BucketTime === $query->metric->key->metric && !\in_array($selected, $bucketNames, true)) {
+        if (null !== $selected && \in_array($query->metric->key->metric, [Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls], true) && !\in_array($selected, $bucketNames, true)) {
             $bucketNames[] = $selected;
         }
         if (null !== $selected && Metric::HarnessEvents === $query->metric->key->metric && !\in_array($selected, $eventKinds, true)) {
