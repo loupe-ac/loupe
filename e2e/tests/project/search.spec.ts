@@ -84,7 +84,9 @@ test('project search finds documents and pages from the top bar', async ({
     );
 
     await field.fill(`missing${query}`);
-    await expect(page.getByRole('status')).toContainText('No results for');
+    await expect(
+        page.locator('#topbar-search-results').getByRole('status'),
+    ).toContainText('No results for');
     await field.press('Enter');
     await expect(page).toHaveURL(
         new RegExp(`/projects/${projectId}/search\\?query=missing`),
