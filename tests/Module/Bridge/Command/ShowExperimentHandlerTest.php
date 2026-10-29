@@ -772,6 +772,33 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertEquals(Stats::bootstrapMean([1500], 'model-test:bucket-time:tests:a'), $view->metrics['bucket-time:tests']->for('a'));
     }
 
+    public function test_a_named_metric_reads_only_the_experiment_runs_of_a_card(): void
+    {
+        $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);
+        $definition->metrics = ['harness-events:diagnostics', 'bucket-calls:tests'];
+        $this->em->persist($definition);
+        $card = Uuid::v7();
+        $run = $this->experimentRun($card, 'a', at: '+1 hour');
+        $run->harnessEvents = ['diagnostics' => 1];
+        $this->seedUsage($this->em, $run, costUsd: '1.000000');
+        $review = $this->plainRun($card, 'review', '+2 hours');
+        $review->harnessEvents = ['diagnostics' => 4];
+        $this->seedUsage($this->em, $review, costUsd: '1.000000');
+        $this->outcomes[(string) $card] = new CardOutcomeFixture(merged: true);
+        $this->em->flush();
+        $connection = $this->em->getConnection();
+        foreach ([[$run, 2], [$review, 7]] as [$row, $calls]) {
+            $connection->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $row->id, 'bucket' => 'tests', 'ms' => 100, 'ms_with_subagents' => 100, 'calls' => $calls]);
+        }
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([], $view->cards[0]->leftOut);
+        self::assertEquals(Stats::bootstrapMean([1], 'model-test:harness-events:diagnostics:a'), $view->metrics['harness-events:diagnostics']->for('a'));
+        self::assertEquals(Stats::bootstrapMean([2], 'model-test:bucket-calls:tests:a'), $view->metrics['bucket-calls:tests']->for('a'));
+    }
+
     public function test_a_declaration_picks_the_known_metrics_in_its_order(): void
     {
         $definition = new ExperimentDefinition($this->project, self::EXPERIMENT, [['name' => 'a', 'weight' => 1]]);

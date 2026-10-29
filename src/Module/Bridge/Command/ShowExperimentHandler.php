@@ -523,7 +523,7 @@ final readonly class ShowExperimentHandler
         };
 
         $namedValues = [];
-        $keptFacts = array_merge([], ...array_map(static fn (array $row): array => $row['allFacts'], array_merge([], ...array_values($kept))));
+        $keptFacts = array_merge([], ...array_map(static fn (array $row): array => $row['experimentFacts'], array_merge([], ...array_values($kept))));
         foreach ($shapes as $key => $shape) {
             if (null !== $shape->key->name) {
                 $namedValues[$key] = $this->metricRows->namedRunValues($keptFacts, $shape->key->metric ?? throw new \LogicException('A named key has a built-in metric.'), $shape->key->name);
@@ -553,7 +553,7 @@ final readonly class ShowExperimentHandler
                     return null === $micros ? null : $micros / 1_000_000;
                 })),
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['allFacts'], $of))),
-                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['allFacts'], $namedValues[$key] ?? []))),
+                Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['experimentFacts'], $namedValues[$key] ?? []))),
             };
         }
 
