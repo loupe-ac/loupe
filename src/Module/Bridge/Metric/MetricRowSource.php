@@ -179,6 +179,8 @@ final readonly class MetricRowSource
 
         return match ($metric) {
             Metric::BucketTime => $this->workerRunBucketTimes->findMillisecondsOfRuns($ids, $name),
+            Metric::BucketTimeAll => $this->workerRunBucketTimes->findMillisecondsWithSubagentsOfRuns($ids, $name),
+            Metric::BucketCalls => $this->workerRunBucketTimes->findCallsOfRuns($ids, $name),
             Metric::HarnessEvents => $this->workerRuns->findHarnessEventCountsOfRuns($ids, $name),
             default => throw new \LogicException(\sprintf('The metric %s takes no name.', $metric->value)),
         };
@@ -235,7 +237,7 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
-            Metric::Runs, Metric::BucketTime, Metric::HarnessEvents => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
+            Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }
 

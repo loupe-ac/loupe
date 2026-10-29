@@ -11,7 +11,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The time a run spent in one bucket of the project rules. The repository
+ * The time and the calls of a run in one bucket of the project rules. The repository
  * writes the row with SQL, so a repeated computation changes nothing.
  */
 #[ORM\Entity(repositoryClass: WorkerRunBucketTimeRepository::class)]
@@ -35,6 +35,13 @@ class WorkerRunBucketTime
 
         #[ORM\Column(name: 'ms', type: Types::BIGINT)]
         public readonly int $ms,
+
+        // Null on a row that no recompute has touched since the column was added.
+        #[ORM\Column(name: 'ms_with_subagents', type: Types::BIGINT, nullable: true)]
+        public readonly ?int $msWithSubagents = null,
+
+        #[ORM\Column(name: 'calls', type: Types::INTEGER, nullable: true)]
+        public readonly ?int $calls = null,
     ) {
     }
 }

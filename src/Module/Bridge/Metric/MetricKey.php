@@ -83,7 +83,7 @@ final readonly class MetricKey
     private static function isValidName(Metric $metric, string $name): bool
     {
         return 1 === preg_match(match ($metric) {
-            Metric::BucketTime => BucketRule::NAME_PATTERN,
+            Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls => BucketRule::NAME_PATTERN,
             Metric::HarnessEvents => WorkerRun::HARNESS_EVENT_KIND_PATTERN,
             default => throw new \LogicException(\sprintf('The metric %s takes no name.', $metric->value)),
         }, $name);

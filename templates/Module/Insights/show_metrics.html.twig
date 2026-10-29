@@ -17,7 +17,7 @@
 {% elseif metric.key.metric.value == 'harness-events' %}
     {% set metricName = 'analytics.metrics.metric.harness_events_named'|trans({'%kind%': metric.key.name}) %}
 {% else %}
-    {% set metricName = 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': metric.key.name}) %}
+    {% set metricName = ('analytics.metrics.metric.' ~ metric.key.metric.value|replace({'-': '_'}) ~ '_named')|trans({'%bucket%': metric.key.name}) %}
 {% endif %}
 {% set rowsKey = 'analytics.metrics.rows.' ~ query.unit.value %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
@@ -36,11 +36,14 @@
                 {% endfor %}
                 {% if bucketNames is not empty %}
                 {# A bucket name comes from the project rules, so it is rendered as text. Never add |raw here. #}
-                <optgroup label="{{ 'analytics.metrics.metric_group.bucket_time'|trans }}">
+                {% for family in ['bucket-time', 'bucket-time-all', 'bucket-calls'] %}
+                {% set familyKey = family|replace({'-': '_'}) %}
+                <optgroup label="{{ ('analytics.metrics.metric_group.' ~ familyKey)|trans }}">
                     {% for name in bucketNames %}
-                    <option value="bucket-time:{{ name }}"{{ metric.key.name is same as(name) and metric.key.metric.value == 'bucket-time' ? ' selected' : '' }}>{{ 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': name}) }}</option>
+                    <option value="{{ family }}:{{ name }}"{{ metric.key.name is same as(name) and metric.key.metric.value == family ? ' selected' : '' }}>{{ ('analytics.metrics.metric.' ~ familyKey ~ '_named')|trans({'%bucket%': name}) }}</option>
                     {% endfor %}
                 </optgroup>
+                {% endfor %}
                 {% endif %}
                 {% if harnessEventKinds is not empty %}
                 {# A kind name comes from the bridge, so it is rendered as text. Never add |raw here. #}

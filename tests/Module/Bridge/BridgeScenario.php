@@ -13,6 +13,7 @@ use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
+use App\Module\Bridge\Service\BucketFigures;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -145,6 +146,16 @@ trait BridgeScenario
         $em->flush();
 
         return $usage;
+    }
+
+    /**
+     * @param array<int|string, int> $times bucket name => milliseconds
+     *
+     * @return array<int|string, BucketFigures> one call per bucket, with no time of subagents
+     */
+    private static function figures(array $times): array
+    {
+        return array_map(static fn (int $ms): BucketFigures => new BucketFigures($ms, $ms, 1), $times);
     }
 
     /** @param array<int|string, int> $times bucket name => milliseconds */

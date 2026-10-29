@@ -187,12 +187,15 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
         self::assertCount(10, $select->children('option'));
-        $group = $select->filter('optgroup');
-        self::assertCount(1, $group);
-        self::assertSame('Time buckets', $group->attr('label'));
+        $groups = $select->filter('optgroup');
+        self::assertCount(3, $groups);
+        self::assertSame(['Time buckets', 'Time buckets, subagents included', 'Calls in time buckets'], $groups->each(static fn (Crawler $group): string => (string) $group->attr('label')));
+        $group = $groups->eq(0);
         self::assertSame(['bucket-time:git', 'bucket-time:tests'], $group->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame(['Time in git', 'Time in tests'], $group->filter('option')->each(static fn (Crawler $option): string => trim($option->text())));
-        self::assertCount(0, $group->filter('option[selected]'));
+        self::assertSame(['bucket-time-all:git', 'bucket-time-all:tests'], $groups->eq(1)->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        self::assertSame(['Calls in git', 'Calls in tests'], $groups->eq(2)->filter('option')->each(static fn (Crawler $option): string => trim($option->text())));
+        self::assertCount(0, $select->filter('optgroup option[selected]'));
         self::assertSame('cost', $select->filter('option[selected]')->attr('value'));
     }
 
@@ -299,7 +302,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=bucket-time:deploy&unit=run&statistic=count&range=all');
 
         self::assertResponseIsSuccessful();
-        $group = $crawler->filter('form[data-metrics-form] select[name="metric"] optgroup');
+        $group = $crawler->filter('form[data-metrics-form] select[name="metric"] optgroup')->eq(0);
         self::assertSame(['bucket-time:deploy', 'bucket-time:git'], $group->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame('bucket-time:deploy', $group->filter('option[selected]')->attr('value'));
 

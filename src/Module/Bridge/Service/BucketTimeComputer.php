@@ -12,10 +12,10 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Sorts the main-session tool calls of a run into the buckets of the project
- * rules, and stores the time of each bucket. The first rule that matches any
+ * Sorts the tool calls of a run into the buckets of the project
+ * rules, and stores the time and the calls of each bucket. The first rule that matches any
  * signature of a call takes the whole call, and a call no rule takes goes to
- * the fallback bucket. Calls that overlap count once in their bucket.
+ * the fallback bucket. Calls that overlap count once in their time.
  */
 final readonly class BucketTimeComputer
 {
@@ -31,7 +31,7 @@ final readonly class BucketTimeComputer
 
     /**
      * Replaces the bucket rows of each run. A run with no tool call keeps no
-     * row, so its time stays unknown.
+     * row, so its figures stay unknown.
      *
      * @param list<Uuid> $runIds
      */
@@ -50,30 +50,43 @@ final readonly class BucketTimeComputer
     }
 
     /**
+     * The main-session time skips every subagent call, because the time of a subagent already sits inside the Agent
+     * call of the main session. The time with subagents merges every call. A count has no overlap, so it holds every
+     * matched call, with a duration or not.
+     *
      * @param list<array{signatures: list<string>, startedAt: \DateTimeImmutable, durationMs: ?int, inSubagent: bool}> $calls
      * @param list<BucketRule>                                                                                         $rules
      *
-     * @return array<int|string, int> bucket name => milliseconds
+     * @return array<int|string, BucketFigures> bucket name => figures
      */
     public function timesOf(array $calls, array $rules): array
     {
-        /** @var array<string, list<array{int, int}>> $intervals */
-        $intervals = [];
+        /** @var array<string, list<array{int, int}>> $main */
+        $main = [];
+        /** @var array<string, list<array{int, int}>> $all */
+        $all = [];
+        /** @var array<string, int> $counts */
+        $counts = [];
         foreach ($calls as $call) {
-            if ($call['inSubagent'] || null === $call['durationMs']) {
+            $bucket = self::bucketOf($call['signatures'], $rules);
+            $counts[$bucket] = ($counts[$bucket] ?? 0) + 1;
+            if (null === $call['durationMs']) {
                 continue;
             }
             $start = (int) $call['startedAt']->format('U') * 1000 + intdiv((int) $call['startedAt']->format('u'), 1000);
-            $intervals[self::bucketOf($call['signatures'], $rules)][] = [$start, $start + max(0, $call['durationMs'])];
+            $interval = [$start, $start + max(0, $call['durationMs'])];
+            $all[$bucket][] = $interval;
+            if (!$call['inSubagent']) {
+                $main[$bucket][] = $interval;
+            }
         }
 
-        $times = array_map(self::unionLength(...), $intervals);
-        // A run with calls and no countable time is known, with no time in any bucket.
-        if ([] === $times && [] !== $calls) {
-            $times[BucketRule::FALLBACK] = 0;
+        $figures = [];
+        foreach ($counts as $bucket => $count) {
+            $figures[$bucket] = new BucketFigures(self::unionLength($main[$bucket] ?? []), self::unionLength($all[$bucket] ?? []), $count);
         }
 
-        return $times;
+        return $figures;
     }
 
     /**
@@ -96,6 +109,9 @@ final readonly class BucketTimeComputer
     /** @param list<array{int, int}> $intervals */
     private static function unionLength(array $intervals): int
     {
+        if ([] === $intervals) {
+            return 0;
+        }
         sort($intervals);
         $total = 0;
         $end = null;

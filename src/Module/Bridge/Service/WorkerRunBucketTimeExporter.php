@@ -30,6 +30,8 @@ final readonly class WorkerRunBucketTimeExporter implements UserDataExporterInte
                 'runKey' => $time->run->runKey?->toRfc4122(),
                 'bucket' => $time->bucket,
                 'ms' => $time->ms,
+                'msWithSubagents' => $time->msWithSubagents,
+                'calls' => $time->calls,
             ];
         }
     }

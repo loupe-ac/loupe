@@ -173,6 +173,24 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertEquals(new MetricPoint(null, 4000, 2), $view->series[0]->total);
     }
 
+    public function test_a_card_bucket_call_count_adds_the_runs_with_a_count_and_is_unknown_for_an_old_row(): void
+    {
+        $known = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $old = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $zero = $this->finishedCard(3, '2026-10-03 11:00:00');
+        $this->fact($known, endedAt: '2026-10-01 09:00:00', runId: $this->runWithBuckets(['tests' => 1500], true));
+        $this->fact($known, endedAt: '2026-10-02 09:00:00', runId: $this->runWithBuckets(['tests' => 2500, 'other' => 9], true));
+        $this->fact($old, endedAt: '2026-10-03 09:00:00', runId: $this->runWithBuckets(['tests' => 100]));
+        $this->fact($zero, endedAt: '2026-10-03 09:00:00', runId: $this->runWithBuckets(['other' => 9], true));
+
+        $calls = $this->query(MetricUnit::Card, new MetricShape(new MetricKey(Metric::BucketCalls, 'tests')), MetricStatistic::Sum);
+        $withSubagents = $this->query(MetricUnit::Card, new MetricShape(new MetricKey(Metric::BucketTimeAll, 'tests')), MetricStatistic::Sum);
+
+        $byCard = static fn (MetricQueryView $view): array => array_column(array_map(static fn (MetricRow $row): array => ['n' => $row->cardNumber, 'v' => $row->value], $view->series[0]->rows), 'v', 'n');
+        self::assertSame([3 => 0, 2 => null, 1 => 6], $byCard($calls));
+        self::assertSame([3 => 0, 2 => null, 1 => 8000], $byCard($withSubagents));
+    }
+
     public function test_a_card_harness_event_count_adds_the_runs_with_a_map_and_is_unknown_with_none(): void
     {
         $known = $this->finishedCard(1, '2026-10-02 10:00:00');
@@ -210,13 +228,13 @@ final class MetricQueryHandlerTest extends KernelTestCase
      *
      * @return Uuid the id of a stored run that has the bucket rows
      */
-    private function runWithBuckets(array $times): Uuid
+    private function runWithBuckets(array $times, bool $withFigures = false): Uuid
     {
         $run = $this->seedRun($this->em, $this->project);
         // The fact listener wrote a fact row for the run, and the test writes its own.
         $this->em->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = :run', ['run' => (string) $run->id]);
         foreach ($times as $bucket => $ms) {
-            $this->em->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => (string) $bucket, 'ms' => $ms]);
+            $this->em->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => (string) $bucket, 'ms' => $ms] + ($withFigures ? ['ms_with_subagents' => $ms * 2, 'calls' => 3] : []));
         }
 
         return $run->id ?? throw new \LogicException('A stored run has an id.');
