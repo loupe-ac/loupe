@@ -166,6 +166,14 @@ trait BridgeScenario
         }
     }
 
+    /** @param list<array{string, int, ?int, ?int}> $rows bucket, main ms, ms with subagents, calls */
+    private function seedBucketFigures(EntityManagerInterface $em, WorkerRun $run, array $rows): void
+    {
+        foreach ($rows as [$bucket, $ms, $withSubagents, $calls]) {
+            $em->getConnection()->insert('bridge_worker_run_bucket_times', ['id' => (string) Uuid::v7(), 'run_id' => (string) $run->id, 'bucket' => $bucket, 'ms' => $ms, 'ms_with_subagents' => $withSubagents, 'calls' => $calls]);
+        }
+    }
+
     /** With no kind given, Bash is shell and any other tool is tool. */
     private function seedToolCall(WorkerRun $run, int $seq = 1, string $tool = 'Bash', ?WorkerRunToolCallKind $kind = null): void
     {

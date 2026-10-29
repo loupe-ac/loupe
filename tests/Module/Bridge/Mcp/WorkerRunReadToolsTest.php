@@ -314,6 +314,29 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         $this->listTool()();
     }
 
+    public function test_get_carries_the_bucket_figures_and_the_harness_events_of_each_run(): void
+    {
+        [$project] = $this->projects('get-buckets');
+        $em = $this->em();
+        $with = $this->seedRun($em, $project);
+        $this->seedBucketFigures($em, $with, [['read', 1000, 4000, 9], ['lsp', 0, 2000, 3]]);
+        $with->harnessEvents = ['diagnostics' => 2];
+        $without = $this->seedRun($em, $project);
+        $em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $found = $this->getTool()((string) $with->id)['runs'][0];
+        self::assertSame(
+            [['bucket' => 'read', 'mainMs' => 1000, 'withSubagentsMs' => 4000, 'calls' => 9], ['bucket' => 'lsp', 'mainMs' => 0, 'withSubagentsMs' => 2000, 'calls' => 3]],
+            $found['buckets'],
+        );
+        self::assertSame(['diagnostics' => 2], $found['harnessEvents']);
+
+        $none = $this->getTool()((string) $without->id)['runs'][0];
+        self::assertNull($none['buckets']);
+        self::assertNull($none['harnessEvents']);
+    }
+
     public function test_get_reads_the_whole_series_oldest_first(): void
     {
         [$project] = $this->projects('get-series');

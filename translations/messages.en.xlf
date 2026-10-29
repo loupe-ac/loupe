@@ -7288,6 +7288,16 @@
             <trans-unit id="bridge.worker_runs.details.metric.cache_read_tokens"><source>bridge.worker_runs.details.metric.cache_read_tokens</source><target>Cache read tokens</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cache_write_tokens"><source>bridge.worker_runs.details.metric.cache_write_tokens</source><target>Cache write tokens</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.model"><source>bridge.worker_runs.details.metric.model</source><target>Model</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets"><source>bridge.worker_runs.details.buckets</source><target>Time buckets</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets_empty"><source>bridge.worker_runs.details.buckets_empty</source><target>The bridge sent no tool calls for this run, so it has no bucket times.</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets.bucket"><source>bridge.worker_runs.details.buckets.bucket</source><target>Bucket</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets.main"><source>bridge.worker_runs.details.buckets.main</source><target>Main session</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets.all"><source>bridge.worker_runs.details.buckets.all</source><target>With subagents</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets.calls"><source>bridge.worker_runs.details.buckets.calls</source><target>Calls</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.buckets_note"><source>bridge.worker_runs.details.buckets_note</source><target>With subagents adds the time of the subagents, so it can be longer than the run. Calls count subagents too.</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.harness_events"><source>bridge.worker_runs.details.harness_events</source><target>Harness events</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.harness_events_empty"><source>bridge.worker_runs.details.harness_events_empty</source><target>The bridge did not report harness events for this run.</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.harness_events_none"><source>bridge.worker_runs.details.harness_events_none</source><target>The run had no harness events.</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.result_fields"><source>bridge.worker_runs.details.result_fields</source><target>Result fields</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.unreported"><source>bridge.worker_runs.details.unreported</source><target>The bridge does not report the agent identity or the triggering event.</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.timeline"><source>bridge.worker_runs.details.timeline</source><target>Reported timeline</target></trans-unit>
