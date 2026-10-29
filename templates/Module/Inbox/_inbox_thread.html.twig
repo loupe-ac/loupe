@@ -5,7 +5,7 @@
 {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
 {% set todoButtons = todoButtons ?? null %}
 {% set withNote = (withNote ?? true) and not todoButtons %}
-{% set shownWaits = watch is null ? [] : inbox_waits_in_order(watch.waits) %}
+{% set shownWaits = watch is null ? [] : inbox_page_waits(watch.waits) %}
 {% set statuses = reply ? inbox_action_statuses(item) : [] %}
 {% set lastStatus = statuses|last %}
 {# Another open wait, or an expired or cancelled action, brings the reply card back. #}
@@ -25,6 +25,7 @@
 {% set addEntryDialog = runCommand and runCommand.canAddEntry and not answering %}
 {% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', held: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
 <div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% elseif addEntryDialog %} data-controller="modal"{% endif %}>
+    {% if shownWaits %}
     <ul class="lp-inbox-thread__messages" data-inbox-waits>
         {% for wait in shownWaits %}
             {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
@@ -52,6 +53,7 @@
             </li>
         {% endfor %}
     </ul>
+    {% endif %}
 
     {% for status in statuses %}
         {% set requestedTime = status.action.requestedAt|date('H:i') %}

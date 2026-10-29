@@ -306,6 +306,42 @@ final class CardWaitTextTest extends KernelTestCase
         self::assertSame([$open, $pause, $ended], $this->text->inOrder([$pause, $ended, $open]));
     }
 
+    public function test_the_page_leaves_out_a_main_pause_that_only_repeats_the_title(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 42);
+        $em->flush();
+        $this->workerRun($card->id, 'implement', WorkerRunState::Blocked, new \DateTimeImmutable('2026-10-29 12:36:30'));
+        $pause = $this->pauseWait($card, 'blocked', PauseKind::WorkStopped, new \DateTimeImmutable('2026-10-29 12:36:34'));
+        $run = $this->runWait();
+        $run->endedAt = new \DateTimeImmutable('2026-10-29 12:37:16');
+
+        self::assertSame([$run], $this->text->pageWaits([$pause, $run]));
+        self::assertSame([], $this->text->pageWaits([$pause]));
+    }
+
+    public function test_the_page_keeps_a_main_pause_that_names_the_failed_run(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 43);
+        $em->flush();
+        $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $pause = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+
+        self::assertSame([$pause], $this->text->pageWaits([$pause]));
+    }
+
+    public function test_the_page_keeps_a_pause_when_another_wait_leads(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 44);
+        $em->flush();
+        $pause = $this->pauseWait($card, 'needs-person', PauseKind::Rule, new \DateTimeImmutable('2026-10-26 10:01:00'));
+        $pullRequest = new InboxCardWait($pause->watch, 'waits-for-approval', InboxCardWaitType::PullRequest, 'marker.waits_for_approval', pullRequestId: Uuid::v7(), headSha: 'abc123');
+
+        self::assertSame([$pullRequest, $pause], $this->text->pageWaits([$pause, $pullRequest]));
+    }
+
     public function test_a_rule_pause_names_no_run_and_words_an_unknown_code(): void
     {
         $em = $this->em();
