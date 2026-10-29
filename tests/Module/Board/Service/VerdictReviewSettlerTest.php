@@ -96,12 +96,12 @@ final class VerdictReviewSettlerTest extends KernelTestCase
             ['id' => 'note-1', 'url' => 'https://app.example/a', 'body' => 'Footer overlaps', 'anchorCount' => 1],
             ['id' => 'note-2', 'url' => 'https://app.example/b', 'body' => 'Logo is blurry', 'anchorCount' => 0],
         ];
-        $this->delivery($card, 7, CardVerdictKind::RequestChanges, 'Two problems', $notes);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::RequestChanges, 'Two problems', $notes);
 
         $this->settle($card);
 
         self::assertSame(
-            $this->sourceLine($card, ' · [Open the preview](https://app.example/a)')."\n\nTwo problems\n\nhttps://app.example/a\n\nFooter overlaps\n<!-- loupe-note:note-1 -->\n\nhttps://app.example/b\n\nLogo is blurry\n<!-- loupe-note:note-2 -->",
+            $this->sourceLine($card, ' · [Open the preview](https://app.example/a)', $delivery)."\n\nTwo problems\n\nhttps://app.example/a\n\nFooter overlaps\n<!-- loupe-note:note-1 -->\n\nhttps://app.example/b\n\nLogo is blurry\n<!-- loupe-note:note-2 -->",
             $this->poster->posts[0]['body'],
         );
     }
@@ -110,12 +110,12 @@ final class VerdictReviewSettlerTest extends KernelTestCase
     {
         $card = $this->card($this->project);
         $notes = [['id' => 'note-1', 'url' => 'not a url', 'body' => 'Footer overlaps', 'anchorCount' => 0]];
-        $this->delivery($card, 7, CardVerdictKind::RequestChanges, '', $notes);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::RequestChanges, '', $notes);
 
         $this->settle($card);
 
         self::assertSame(
-            $this->sourceLine($card)."\n\nnot a url\n\nFooter overlaps\n<!-- loupe-note:note-1 -->",
+            $this->sourceLine($card, delivery: $delivery)."\n\nnot a url\n\nFooter overlaps\n<!-- loupe-note:note-1 -->",
             $this->poster->posts[0]['body'],
         );
     }
@@ -124,12 +124,12 @@ final class VerdictReviewSettlerTest extends KernelTestCase
     {
         $card = $this->card($this->project);
         $notes = [['id' => 'note-1', 'url' => null, 'body' => 'Button is clipped', 'anchorCount' => 0]];
-        $this->delivery($card, 7, CardVerdictKind::RequestChanges, '', $notes);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::RequestChanges, '', $notes);
 
         $this->settle($card);
 
         self::assertSame(
-            $this->sourceLine($card)."\n\nButton is clipped\n<!-- loupe-note:note-1 -->",
+            $this->sourceLine($card, delivery: $delivery)."\n\nButton is clipped\n<!-- loupe-note:note-1 -->",
             $this->poster->posts[0]['body'],
         );
     }
@@ -137,11 +137,11 @@ final class VerdictReviewSettlerTest extends KernelTestCase
     public function test_an_approval_with_no_message_and_no_note_names_the_site_review(): void
     {
         $card = $this->card($this->project);
-        $this->delivery($card, 7, CardVerdictKind::Approve, '');
+        $delivery = $this->delivery($card, 7, CardVerdictKind::Approve, '');
 
         $this->settle($card);
 
-        self::assertSame([['kind' => PullRequestReviewKind::Approve, 'body' => $this->sourceLine($card)]], $this->postedKindsAndBodies());
+        self::assertSame([['kind' => PullRequestReviewKind::Approve, 'body' => $this->sourceLine($card, delivery: $delivery)]], $this->postedKindsAndBodies());
     }
 
     public function test_a_review_on_the_reviewers_own_pull_request_is_a_comment(): void
@@ -153,18 +153,18 @@ final class VerdictReviewSettlerTest extends KernelTestCase
 
         self::assertSame(CardVerdictDeliveryState::Commented, $delivery->state);
         self::assertSame(PullRequestReviewKind::Comment, $this->poster->posts[0]['kind']);
-        self::assertSame($this->sourceLine($card), $this->poster->posts[0]['body']);
+        self::assertSame($this->sourceLine($card, delivery: $delivery), $this->poster->posts[0]['body']);
     }
 
     public function test_an_own_pull_request_comment_keeps_the_message(): void
     {
         $card = $this->card($this->project);
-        $this->delivery($card, 7, CardVerdictKind::RequestChanges, 'Needs work', authorId: '4242');
+        $delivery = $this->delivery($card, 7, CardVerdictKind::RequestChanges, 'Needs work', authorId: '4242');
 
         $this->settle($card);
 
         self::assertSame(PullRequestReviewKind::Comment, $this->poster->posts[0]['kind']);
-        self::assertSame($this->sourceLine($card)."\n\nNeeds work", $this->poster->posts[0]['body']);
+        self::assertSame($this->sourceLine($card, delivery: $delivery)."\n\nNeeds work", $this->poster->posts[0]['body']);
     }
 
     public function test_an_unread_author_is_read_before_the_review_is_posted(): void
@@ -350,6 +350,99 @@ final class VerdictReviewSettlerTest extends KernelTestCase
         self::assertCount(1, $this->poster->posts);
     }
 
+    public function test_the_body_carries_the_marker_of_its_delivery_once(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::RequestChanges, 'Fix the footer');
+
+        $this->settle($card);
+
+        self::assertNotNull($delivery->id);
+        self::assertSame(1, substr_count($this->poster->posts[0]['body'], $this->marker($delivery)));
+    }
+
+    public function test_a_review_that_the_forge_took_but_did_not_answer_is_not_posted_again(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::RequestChanges, 'Fix the footer');
+        $this->poster->failure = new PullRequestReviewFailed('api_failed_transport', false);
+        $this->poster->failAfterPosting = true;
+
+        self::assertSame('api_failed_transport', $this->settle($card));
+        self::assertSame(CardVerdictDeliveryState::Pending, $delivery->state);
+
+        $this->poster->failure = null;
+        self::assertNull($this->settle($card));
+
+        self::assertCount(1, $this->poster->posts);
+        self::assertSame(CardVerdictDeliveryState::Posted, $delivery->state);
+        self::assertSame('https://github.com/acme/widgets/pull/7#pullrequestreview-1', $delivery->reviewUrl);
+    }
+
+    public function test_a_marked_review_on_the_reviewers_own_pull_request_settles_as_a_comment(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::Approve, '', authorId: '4242');
+        $this->em->flush();
+        $this->poster->reviews[] = ['number' => 7, 'userId' => (string) $this->project->owner->id, 'body' => 'Earlier text '.$this->marker($delivery), 'url' => 'https://github.com/acme/widgets/pull/7#pullrequestreview-5'];
+
+        self::assertNull($this->settle($card));
+
+        self::assertSame([], $this->poster->posts);
+        self::assertSame(CardVerdictDeliveryState::Commented, $delivery->state);
+        self::assertSame('https://github.com/acme/widgets/pull/7#pullrequestreview-5', $delivery->reviewUrl);
+    }
+
+    public function test_a_review_by_another_user_with_the_marker_does_not_settle_the_delivery(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::Approve, '');
+        $this->em->flush();
+        $this->poster->reviews[] = ['number' => 7, 'userId' => 'someone-else', 'body' => $this->marker($delivery), 'url' => null];
+
+        $this->settle($card);
+
+        self::assertCount(1, $this->poster->posts);
+        self::assertSame(CardVerdictDeliveryState::Posted, $delivery->state);
+    }
+
+    public function test_a_failed_lookup_leaves_the_delivery_pending_and_posts_nothing(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::Approve, '');
+        $this->poster->lookupFailure = new PullRequestReviewFailed('api_failed_http_status_502', false);
+
+        self::assertSame('api_failed_http_status_502', $this->settle($card));
+
+        self::assertSame([], $this->poster->posts);
+        self::assertSame(CardVerdictDeliveryState::Pending, $delivery->state);
+    }
+
+    public function test_a_permanently_failed_lookup_is_refused_with_its_cause(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::Approve, '');
+        $this->poster->lookupFailure = new PullRequestReviewFailed('permission', true);
+
+        self::assertNull($this->settle($card));
+
+        self::assertSame([], $this->poster->posts);
+        self::assertSame(CardVerdictDeliveryState::Refused, $delivery->state);
+        self::assertSame('permission', $delivery->reason);
+    }
+
+    public function test_with_no_marked_review_the_lookup_runs_and_the_review_is_posted(): void
+    {
+        $card = $this->card($this->project);
+        $delivery = $this->delivery($card, 7, CardVerdictKind::Approve, '');
+
+        $this->settle($card);
+
+        self::assertSame(1, $this->poster->lookups);
+        self::assertCount(1, $this->poster->posts);
+        self::assertSame(CardVerdictDeliveryState::Posted, $delivery->state);
+    }
+
     /** @return list<array{kind: PullRequestReviewKind, body: string}> */
     private function postedKindsAndBodies(): array
     {
@@ -387,7 +480,7 @@ final class VerdictReviewSettlerTest extends KernelTestCase
         );
     }
 
-    private function sourceLine(Card $card, string $suffix = ''): string
+    private function sourceLine(Card $card, string $suffix = '', ?CardVerdictDelivery $delivery = null): string
     {
         $url = $this->service(PinnedUrlGenerator::class)->generate('app_board_card', [
             'projectId' => (string) $card->project->id,
@@ -395,7 +488,14 @@ final class VerdictReviewSettlerTest extends KernelTestCase
             'tab' => 'feedback',
         ]);
 
-        return \sprintf('Sent from the Loupe live review of card %d. [Open the notes in Loupe](%s)%s', $card->number, $url, $suffix);
+        $line = \sprintf('Sent from the Loupe live review of card %d. [Open the notes in Loupe](%s)%s', $card->number, $url, $suffix);
+
+        return null === $delivery ? $line : $line."\n".$this->marker($delivery);
+    }
+
+    private function marker(CardVerdictDelivery $delivery): string
+    {
+        return '<!-- loupe-verdict-delivery:'.$delivery->id.' -->';
     }
 
     private function settler(): VerdictReviewSettler

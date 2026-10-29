@@ -1333,7 +1333,10 @@ requests, as soon as the rule fires:
 
 - The verdict becomes a review under the reviewer's own GitHub account. On the
   reviewer's own pull request it becomes a comment. Each review opens with a
-  line that names the Loupe live review and links to the card.
+  line that names the Loupe live review and links to the card. A hidden marker
+  follows that line. Before Loupe posts a review, it looks for a review of the
+  reviewer that carries the marker. When it finds one, it posts nothing, so a
+  retry after a lost answer from GitHub does not post the review twice.
 - The check fails while a pending note that a verdict carried remains. The check
   also runs when nobody sends a verdict. It is green until a verdict carries a
   note. When two cards link one pull request, the check counts the pending notes
