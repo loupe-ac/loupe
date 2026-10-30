@@ -10,6 +10,7 @@ use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Experiment\CardRun;
 use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlEvaluator;
+use App\Module\Bridge\Experiment\ExperimentArchiveState;
 use App\Module\Bridge\Experiment\ExperimentCard;
 use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
@@ -27,6 +28,7 @@ use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
+use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
@@ -71,6 +73,7 @@ final readonly class ShowExperimentHandler
         private WorkerRunRepository $workerRuns,
         private ExperimentPinRepository $experimentPins,
         private ExperimentDefinitionRepository $experimentDefinitions,
+        private ExperimentArchiveRepository $experimentArchives,
         private WorkerRunFactRepository $workerRunFacts,
         private CardReportSourceInterface $cardReports,
         private CardTitleSourceInterface $cardTitles,
@@ -272,6 +275,8 @@ final readonly class ShowExperimentHandler
         $page = min(max(1, $command->page), intdiv(\PHP_INT_MAX, self::PER_PAGE));
         $included = \count(array_filter($cards, static fn (array $row): bool => $row['card']->included()));
 
+        $archive = $this->experimentArchives->findOneByName($project, $experiment);
+
         return new ExperimentReportView(
             project: $project,
             experiment: $experiment,
@@ -302,6 +307,7 @@ final readonly class ShowExperimentHandler
             page: $page,
             variantFilter: $command->variant,
             leftOutOnly: $command->leftOutOnly,
+            archived: null !== $archive && ExperimentArchiveState::isArchived($archive, $this->workerRuns->findExperimentRunIdsReceivedFrom($project, $experiment, $archive->archivedAt)),
         );
     }
 

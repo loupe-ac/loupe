@@ -10,6 +10,8 @@ final readonly class ListExperimentsCommand
 {
     public function __construct(
         public Project $project,
+        /** True lists the archived experiments, false the others. */
+        public bool $archived = false,
     ) {
     }
 }

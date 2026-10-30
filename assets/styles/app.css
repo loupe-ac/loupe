@@ -7701,10 +7701,10 @@
 
     /* ── Experiments ───────────────────────────────────────────────── */
 
-    /* Experiment, Cards, Last run. */
+    /* Experiment, Cards, Last run, Actions. */
     .lp-data-table--experiments {
         --lp-data-table-columns: minmax(0, 1fr) calc(var(--spacing) * 28)
-            calc(var(--spacing) * 32);
+            calc(var(--spacing) * 32) calc(var(--spacing) * 12);
     }
     /* Card, Variant, Column, Runs, Fix rounds, Cost, Left out. */
     .lp-data-table--experiment-cards {
@@ -7730,6 +7730,9 @@
     }
     .lp-experiment-heading__name {
         @apply m-0 font-mono text-lg font-bold text-ink;
+    }
+    .lp-experiment-heading__archive {
+        @apply ml-auto;
     }
     .lp-experiment-tabs {
         @apply mb-4;

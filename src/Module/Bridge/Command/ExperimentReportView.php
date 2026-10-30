@@ -41,6 +41,7 @@ final readonly class ExperimentReportView
         public int $page,
         public ?string $variantFilter,
         public bool $leftOutOnly,
+        public bool $archived = false,
     ) {
     }
 }
