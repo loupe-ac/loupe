@@ -196,6 +196,15 @@ final class BarLayoutTest extends TestCase
         }
     }
 
+    public function test_a_week_with_no_rows_keeps_an_empty_column(): void
+    {
+        $layout = self::build(MetricChartType::Bars, [ChartSeries::of(null, ['2026-09-14' => 1, '2026-09-28' => 2])]);
+
+        self::assertNotNull($layout);
+        self::assertSame(['2026-09-14', '2026-09-21', '2026-09-28'], array_map(static fn ($bucket): string => $bucket->start->format('Y-m-d'), $layout->buckets));
+        self::assertSame([], $layout->buckets[1]->bars);
+    }
+
     /** @param list<MetricSeries> $series */
     private static function build(MetricChartType $type, array $series, ?bool $adds = null): ?BarLayout
     {

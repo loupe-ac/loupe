@@ -173,6 +173,27 @@ final class LineLayoutTest extends TestCase
         self::assertSame('M209.33 170.67 L500 93.33 L790.67 16', $layout->lines[0]->path);
     }
 
+    public function test_a_week_that_no_series_has_rows_in_keeps_its_place_and_breaks_the_line(): void
+    {
+        $layout = self::build([
+            ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-28' => 3.0]),
+            ChartSeries::of('b', ['2026-09-14' => 2.0, '2026-09-28' => 2.0]),
+        ]);
+
+        self::assertNotNull($layout);
+        self::assertSame('M209.33 170.67 M790.67 16', $layout->lines[0]->path);
+        self::assertCount(3, $layout->hoverTargets);
+        self::assertSame([], $layout->hoverTargets[1]->rows);
+    }
+
+    public function test_an_empty_month_between_two_months_keeps_its_place(): void
+    {
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Month, [ChartSeries::of(null, ['2026-01-01' => 1.0, '2026-03-01' => 3.0])], new MetricValueFormatter('en'), false);
+
+        self::assertNotNull($layout);
+        self::assertSame('M209.33 170.67 M790.67 16', $layout->lines[0]->path);
+    }
+
     public function test_a_series_with_no_known_value_still_draws_an_axis(): void
     {
         $layout = self::build([ChartSeries::of(null, ['2026-09-28' => null])]);

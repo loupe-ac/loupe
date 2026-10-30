@@ -47,7 +47,7 @@ final readonly class MetricChartTimeAxis
             return null;
         }
         ksort($starts);
-        $starts = array_values($starts);
+        $starts = self::withEmptyBuckets($bucket, array_values($starts));
 
         $bucketWidth = (MetricChartScale::PLOT_RIGHT - MetricChartScale::PLOT_LEFT) / \count($starts);
         $tickStep = self::tickStep($bucket, \count($starts));
@@ -99,6 +99,33 @@ final readonly class MetricChartTimeAxis
             MetricBucket::Week => $start->modify('+6 days'),
             MetricBucket::Month => $start->modify('last day of this month'),
         };
+    }
+
+    /**
+     * Every calendar bucket from the first start to the last, so a bucket with no rows keeps its width.
+     *
+     * @param non-empty-list<\DateTimeImmutable> $starts oldest first
+     *
+     * @return non-empty-list<\DateTimeImmutable>
+     */
+    private static function withEmptyBuckets(MetricBucket $bucket, array $starts): array
+    {
+        $step = match ($bucket) {
+            MetricBucket::Day => '+1 day',
+            MetricBucket::Week => '+7 days',
+            MetricBucket::Month => '+1 month',
+        };
+        $last = $starts[\count($starts) - 1];
+        $all = [];
+        foreach ($starts as $start) {
+            $all[$start->getTimestamp()] = $start;
+        }
+        for ($start = $starts[0]->modify($step); $start < $last; $start = $start->modify($step)) {
+            $all[$start->getTimestamp()] ??= $start;
+        }
+        ksort($all);
+
+        return array_values($all);
     }
 
     private static function middle(int $index, float $bucketWidth): float
