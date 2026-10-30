@@ -196,6 +196,53 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         self::assertSame(['cancelled', 'loupe', 'card-deleted', null], $this->record($cancelled));
     }
 
+    public function test_the_trigger_maps_a_declined_note_the_old_app_edits_after_the_migration(): void
+    {
+        $declined = $this->item(InboxItemKind::Todo);
+        $this->em->flush();
+        $this->migrate('down');
+        $this->storeOld($declined, 'declined', closeNote: 'Not now');
+        $this->migrate('up');
+
+        $this->storeOld($declined, 'declined', closeNote: 'Later', throughAgent: true);
+
+        self::assertSame(['declined', 'owner-through-agent', null, 'Later'], $this->record($declined));
+    }
+
+    public function test_the_trigger_maps_a_review_row_the_old_app_stores_after_the_item(): void
+    {
+        $byPerson = $this->item(InboxItemKind::Review);
+        $byRule = $this->item(InboxItemKind::Review, InboxAskOrigin::Loupe);
+        $automaticByPerson = $this->item(InboxItemKind::Review, InboxAskOrigin::Loupe);
+        $rows = [$this->review($byPerson, null, withVerdict: false), $this->review($byRule, null, withVerdict: false), $this->review($automaticByPerson, null, withVerdict: false)];
+        $ruleReview = $this->documentReview($rows[1], 'tech-design-auto-approve');
+        $personReview = $this->documentReview($rows[2], null);
+        $this->em->flush();
+
+        $this->storeOld($byPerson, 'done');
+        $this->storeOld($byRule, 'done');
+        $this->storeOld($automaticByPerson, 'done');
+        $this->storeOldReview($rows[0], 'Add a retry limit.', null);
+        $this->storeOldReview($rows[1], null, $ruleReview);
+        $this->storeOldReview($rows[2], 'Looks right.', $personReview);
+
+        self::assertSame(['resolved', 'owner', null, 'Add a retry limit.'], $this->record($byPerson));
+        self::assertSame(['resolved', 'rule', null, null], $this->record($byRule));
+        self::assertSame(['resolved', 'owner', null, 'Looks right.'], $this->record($automaticByPerson));
+    }
+
+    public function test_the_review_trigger_leaves_what_the_new_app_writes_alone(): void
+    {
+        $review = $this->item(InboxItemKind::Review);
+        $row = $this->review($review, null, withVerdict: false);
+        $this->em->flush();
+
+        $this->connection->executeStatement("UPDATE inbox_items SET state = 'resolved', closed_by = 'owner-through-agent', note = 'Ship it' WHERE id = ?", [(string) $review->id]);
+        $this->connection->executeStatement("UPDATE inbox_reviews SET verdict = 'approved' WHERE id = ?", [(string) $row->id]);
+
+        self::assertSame(['resolved', 'owner-through-agent', null, 'Ship it'], $this->record($review));
+    }
+
     private function item(InboxItemKind $kind, InboxAskOrigin $origin = InboxAskOrigin::Agent): InboxItem
     {
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: $kind, title: 'Item '.$this->number, blocking: false, origin: $origin);
@@ -249,6 +296,24 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         $this->connection->executeStatement(
             'UPDATE inbox_items SET state = ?, answer_text = ?, close_note = ?, responded_through_agent = ? WHERE id = ?',
             [$state, $answerText, $closeNote, $throughAgent ? 'true' : 'false', (string) $item->id],
+        );
+    }
+
+    private function documentReview(InboxReview $row, ?string $workflowRule): Review
+    {
+        $document = $row->document ?? throw new \LogicException('A document review row.');
+        $review = new Review($document->currentVersion(), Verdict::Approved, $this->project->owner, workflowRule: $workflowRule);
+        $this->em->persist($review);
+
+        return $review;
+    }
+
+    /** Writes the review row the way the old app did, after the item and in the same transaction. */
+    private function storeOldReview(InboxReview $row, ?string $note, ?Review $documentReview): void
+    {
+        $this->connection->executeStatement(
+            "UPDATE inbox_reviews SET verdict = 'approved', note = ?, document_review_id = ? WHERE id = ?",
+            [$note, null === $documentReview ? null : (string) $documentReview->id, (string) $row->id],
         );
     }
 
