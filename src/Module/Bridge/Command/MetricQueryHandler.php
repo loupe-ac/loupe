@@ -76,6 +76,11 @@ final readonly class MetricQueryHandler
                 static fn (MetricRow $row): MetricRow => new MetricRow($row->unitId, $row->cardNumber, $row->group, $row->time->add($length), $row->value),
                 $this->rows->rows($command->project, $command->unit, $metric, $command->group, $previousFrom, $from),
             );
+            if (true === $metric->key->metric?->isBucketEach()) {
+                $names = array_values(array_unique(array_map(static fn (MetricRow $row): string => (string) $row->group, [...$rows, ...$previousRows])));
+                $rows = MetricRowSource::withBucketNames($rows, $names);
+                $previousRows = MetricRowSource::withBucketNames($previousRows, $names);
+            }
         }
 
         $byGroup = self::byGroup($rows);

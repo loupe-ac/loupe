@@ -614,6 +614,35 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertSame([3, 3], array_map(static fn (MetricSeries $series): int|float|null => $series->total->value, $calls->series));
     }
 
+    public function test_a_bucket_time_each_compare_fills_a_bucket_of_one_period_with_zero_in_the_other(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cardNumber: 1, runId: $this->runWithBuckets(['tests' => 1500]));
+        $this->fact(Uuid::v7(), endedAt: '2026-08-11 09:00:00', cardNumber: 2, runId: $this->runWithBuckets(['edits' => 500]));
+
+        $view = $this->query(MetricUnit::Run, Metric::BucketTimeEach, MetricStatistic::Mean, compare: MetricCompare::Previous);
+
+        self::assertSame(['edits', 'tests'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        [$edits, $tests] = $view->series;
+        self::assertEquals(new MetricPoint(null, 0.0, 1), $edits->total);
+        self::assertEquals(new MetricPoint(null, 500.0, 1), $edits->comparison?->previous);
+        self::assertNotNull($tests->comparison);
+        self::assertEquals(new MetricPoint(null, 0.0, 1), $tests->comparison->previous);
+        self::assertSame(1500.0, $tests->comparison->change);
+        self::assertSame(MetricChangeKind::Absolute, $tests->comparison->changeKind);
+    }
+
+    public function test_a_bucket_time_each_compare_by_card_fills_a_bucket_of_one_period_with_zero_in_the_other(): void
+    {
+        $this->fact($this->finishedCard(1, '2026-09-10 10:00:00'), endedAt: '2026-09-10 09:00:00', runId: $this->runWithBuckets(['tests' => 1500], true));
+        $this->fact($this->finishedCard(2, '2026-08-11 10:00:00'), endedAt: '2026-08-11 09:00:00', runId: $this->runWithBuckets(['edits' => 500], true));
+
+        $view = $this->query(MetricUnit::Card, Metric::BucketCallsEach, MetricStatistic::Sum, compare: MetricCompare::Previous);
+
+        self::assertSame(['edits', 'tests'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        self::assertEquals(new MetricPoint(null, 0, 1), $view->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 0, 1), $view->series[1]->comparison?->previous);
+    }
+
     public function test_a_bucket_time_each_query_leaves_a_run_with_no_bucket_data_out(): void
     {
         $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00');

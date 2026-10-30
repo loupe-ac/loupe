@@ -122,6 +122,34 @@ final readonly class MetricRowSource
         return $rows;
     }
 
+    /**
+     * Gives each run or card of grouped bucket rows a 0 row for each name it lacks. A name of the other compared
+     * period is a bucket that no run of this period touched.
+     *
+     * @param list<MetricRow> $rows
+     * @param list<string>    $names
+     *
+     * @return list<MetricRow>
+     */
+    public static function withBucketNames(array $rows, array $names): array
+    {
+        $held = [];
+        $first = [];
+        foreach ($rows as $row) {
+            $held[(string) $row->unitId][(string) $row->group] = true;
+            $first[(string) $row->unitId] ??= $row;
+        }
+        foreach ($first as $unitId => $row) {
+            foreach ($names as $name) {
+                if (!isset($held[$unitId][$name])) {
+                    $rows[] = new MetricRow($row->unitId, $row->cardNumber, $name, $row->time, 0);
+                }
+            }
+        }
+
+        return $rows;
+    }
+
     /** Reads the same runs as a run query with no stage grouping. */
     public function bucketTimes(Project $project, ?\DateTimeImmutable $from): BucketTimes
     {
