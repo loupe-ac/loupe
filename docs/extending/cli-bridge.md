@@ -865,6 +865,16 @@ writes a `login_resumed` event and carries on with no restart. A bridge that
 starts with an expired login still exits, and the error tells you to run
 `loupe login`.
 
+Loupe also tells a quiet bridge with an expired login from other silence. The
+server tags each refresh token with the login it belongs to, and a refresh
+copies the tag to the new token. Each heartbeat records the login of its access
+token on the bridge. When the bridge goes quiet and its login holds no refresh
+token that is neither revoked nor expired, the Agents page, the Connect page
+and Workshop show "Login expired", and `bridge_list` reports
+`quietCause: login-expired`. Any other quiet bridge shows "Stale". A bridge
+that went quiet before this feature, or whose last refresh answer was lost
+more than the refresh grace period ago, still shows "Stale".
+
 `loupe bridge status` shows whether a bridge waits for a new login, with the
 last error and the running workers. `loupe status` adds a `Bridges:` line, and
 it fails while a bridge waits for a login. See the

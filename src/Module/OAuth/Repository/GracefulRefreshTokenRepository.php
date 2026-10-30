@@ -35,6 +35,7 @@ final class GracefulRefreshTokenRepository implements RefreshTokenRepositoryInte
         #[AutowireDecorated]
         private readonly RefreshTokenRepositoryInterface $inner,
         private readonly RefreshTokenRotationRepository $refreshTokenRotations,
+        private readonly RefreshTokenLoginRepository $refreshTokenLogins,
         private readonly FeatureFlagService $featureFlags,
         private readonly ClockInterface $clock,
         private readonly LoggerInterface $logger,
@@ -54,6 +55,7 @@ final class GracefulRefreshTokenRepository implements RefreshTokenRepositoryInte
     public function persistNewRefreshToken(RefreshTokenEntityInterface $refreshTokenEntity): void
     {
         $this->inner->persistNewRefreshToken($refreshTokenEntity);
+        $this->refreshTokenLogins->tag($refreshTokenEntity->getIdentifier(), $this->rotating);
 
         if (null === $this->rotating) {
             return;
