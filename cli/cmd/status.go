@@ -58,6 +58,9 @@ func newStatusCmd() *cobra.Command {
 			"With no rule file, it checks no account. It also notes what the rule file lacks to run work " +
 			"in this directory: a permission default, a prompt source, or a project that maps this " +
 			"directory. A note never fails the check, and `loupe init` fixes it.\n\n" +
+			"The `Bridges:` line counts the running bridges and gives their login state. No running bridge " +
+			"is reported and does not fail the check. A bridge that waits for a new login fails it. " +
+			"`loupe bridge status` gives the detail.\n\n" +
 			"The last line on stdout is `" + statusPass + "` or `" + statusFail + "`. A failure " +
 			"exits non-zero, and the error on stderr says what to run next. Read the exit " +
 			"status, because the error comes after the verdict when the two streams merge.",
@@ -69,6 +72,7 @@ func newStatusCmd() *cobra.Command {
 			current, err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
 			noteClaudeCode(out)
 			err = errors.Join(err, checkStatusAccounts(cmd.Context(), out, rulesPath))
+			err = errors.Join(err, checkStatusBridges(out))
 			noteRuleGaps(out, rulesPath, current)
 			if err != nil {
 				fmt.Fprintln(out, statusFail)
@@ -178,6 +182,25 @@ func checkStatusAccounts(ctx context.Context, out io.Writer, rulesPath string) e
 	}
 	if len(failing) > 0 {
 		return fmt.Errorf("the bridge runs no work on the failing accounts %s: fix them, then run `loupe bridge reload`", strings.Join(failing, ", "))
+	}
+
+	return nil
+}
+
+// checkStatusBridges prints one line about the running bridges. No running
+// bridge is reported and does not fail. A bridge that waits for a new login
+// fails.
+func checkStatusBridges(out io.Writer) error {
+	reports, err := collectBridges()
+	if err != nil {
+		fmt.Fprintf(out, "Bridges:     could not list them: %v\n", err)
+
+		return nil
+	}
+	line, expired := bridgesLine(reports)
+	fmt.Fprintf(out, "Bridges:     %s\n", line)
+	if expired {
+		return errLoginExpired
 	}
 
 	return nil

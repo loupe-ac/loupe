@@ -22,6 +22,7 @@ final readonly class AgentHealthChip
     public static function for(Bridge $bridge, BridgeStatus $status): self
     {
         $state = match (true) {
+            $status->quiet && $status->loginExpired => 'login_expired',
             $status->quiet => 'stale',
             $bridge->pauseRequested && true === $bridge->pausedReported => 'paused',
             $bridge->pauseRequested => 'pausing',
@@ -29,6 +30,12 @@ final readonly class AgentHealthChip
             default => 'healthy',
         };
 
-        return new self($state, 'bridge.agents.status.'.$state, 'healthy' === $state ? 'ok' : 'pending');
+        $tone = match ($state) {
+            'healthy' => 'ok',
+            'login_expired' => 'failed',
+            default => 'pending',
+        };
+
+        return new self($state, 'bridge.agents.status.'.$state, $tone);
     }
 }

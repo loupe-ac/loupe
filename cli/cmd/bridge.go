@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -53,7 +54,7 @@ func newBridgeCmd() *cobra.Command {
 		Use:   "bridge",
 		Short: "Run Loupe work requests in local workers",
 	}
-	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd(), newBridgeLogsCmd())
+	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgeStatusCmd(), newBridgePreflightCmd(), newBridgeHooksCmd(), newBridgeLogsCmd())
 
 	return cmd
 }
@@ -123,6 +124,7 @@ type bridgeLog struct {
 	path string
 	file *logfile.Writer
 	log  *slog.Logger
+	last *lastErrorTracker
 	// name is the bridge name that each entry carries.
 	name *bridgeLogName
 }
@@ -141,7 +143,9 @@ func openBridgeLog(cmd *cobra.Command, logFile, rulesPath string) (*bridgeLog, e
 	name := &bridgeLogName{}
 	name.set(logName(rules.NameOf(rulesPath)))
 
-	return &bridgeLog{path: path, file: f, name: name, log: newNamedBridgeLogger(bridgeLogWriter(f, cmd.OutOrStdout()), name)}, nil
+	log, last := newNamedTrackedLogger(bridgeLogWriter(f, cmd.OutOrStdout()), name)
+
+	return &bridgeLog{path: path, file: f, name: name, log: log, last: last}, nil
 }
 
 func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
@@ -291,6 +295,9 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		cursorFile: cursorFile,
 		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
+		rulesPath:  path,
+		logPath:    bl.path,
+		lastError:  bl.last,
 		onRules:    ident.update,
 	}
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
@@ -399,8 +406,22 @@ func newBridgeLogger(w io.Writer) *slog.Logger {
 	return newNamedBridgeLogger(w, nil)
 }
 
+// newTrackedLogger is newBridgeLogger with a tracker of the last record at the
+// level Warn or above.
+func newTrackedLogger(w io.Writer) (*slog.Logger, *lastErrorTracker) {
+	return newNamedTrackedLogger(w, nil)
+}
+
 // newNamedBridgeLogger is newBridgeLogger with the bridge name on each entry.
 func newNamedBridgeLogger(w io.Writer, name *bridgeLogName) *slog.Logger {
+	log, _ := newNamedTrackedLogger(w, name)
+
+	return log
+}
+
+// newNamedTrackedLogger is newTrackedLogger with the bridge name on each entry.
+func newNamedTrackedLogger(w io.Writer, name *bridgeLogName) (*slog.Logger, *lastErrorTracker) {
+	last := &lastErrorTracker{}
 	var h slog.Handler = slog.NewJSONHandler(w, &slog.HandlerOptions{
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.MessageKey {
@@ -414,7 +435,57 @@ func newNamedBridgeLogger(w io.Writer, name *bridgeLogName) *slog.Logger {
 		h = namedHandler{Handler: h, name: name}
 	}
 
-	return slog.New(h)
+	return slog.New(&lastErrorHandler{Handler: h, last: last}), last
+}
+
+// lastErrorTracker keeps the last record at the level Warn or above.
+type lastErrorTracker struct {
+	mu   sync.Mutex
+	last *statusError
+}
+
+func (t *lastErrorTracker) get() *statusError {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.last == nil {
+		return nil
+	}
+	c := *t.last
+
+	return &c
+}
+
+// lastErrorHandler passes each record to the wrapped handler and tells the
+// tracker about the ones at Warn or above.
+type lastErrorHandler struct {
+	slog.Handler
+	last *lastErrorTracker
+}
+
+func (h *lastErrorHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level >= slog.LevelWarn {
+		e := statusError{Event: r.Message, Time: r.Time}
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key == "message" || (a.Key == "error" && e.Message == "") {
+				e.Message = a.Value.String()
+			}
+
+			return true
+		})
+		h.last.mu.Lock()
+		h.last.last = &e
+		h.last.mu.Unlock()
+	}
+
+	return h.Handler.Handle(ctx, r)
+}
+
+func (h *lastErrorHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &lastErrorHandler{Handler: h.Handler.WithAttrs(attrs), last: h.last}
+}
+
+func (h *lastErrorHandler) WithGroup(name string) slog.Handler {
+	return &lastErrorHandler{Handler: h.Handler.WithGroup(name), last: h.last}
 }
 
 // defaultLogPath names the log the bridge appends to. The temp directory is the
@@ -570,7 +641,8 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 				return r.credentials.answer(ctx, runID)
 			},
-			env: r.runEnv,
+			env:    r.runEnv,
+			status: r.status,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					problem := "this bridge runs no update checks"
@@ -722,4 +794,42 @@ func jwtRefresher(cfg config.Config, bridgeID, first string, onRefresh func(api.
 
 		return events.JWT, nil
 	}
+}
+
+// status describes the bridge for the status op. It reads state and makes no
+// request, so it answers while the login is expired.
+func (r *router) status() statusResult {
+	res := statusResult{
+		Name:      r.rules().Name(),
+		RulesPath: r.rulesPath,
+		PID:       os.Getpid(),
+		Version:   cliVersion(),
+		LogFile:   r.logPath,
+		Login:     loginValid,
+		Workers:   []statusWorker{},
+	}
+	if g := currentBridgeGate(); g != nil && g.expired() {
+		res.Login = loginExpired
+	}
+	if r.lastError != nil {
+		res.LastError = r.lastError.get()
+	}
+	r.mu.Lock()
+	if r.heartbeat != nil {
+		res.LastHeartbeatAt = r.heartbeat.lastOK.Load()
+	}
+	for _, run := range r.live {
+		w := statusWorker{Card: run.p.work.CardNumber, Kind: run.p.work.Kind, StartedAt: run.began}
+		if w.Card == 0 {
+			w.Card = run.p.event.CardNumber
+		}
+		if w.Kind == "" {
+			w.Kind = run.p.rule
+		}
+		res.Workers = append(res.Workers, w)
+	}
+	r.mu.Unlock()
+	slices.SortFunc(res.Workers, func(a, b statusWorker) int { return a.StartedAt.Compare(b.StartedAt) })
+
+	return res
 }

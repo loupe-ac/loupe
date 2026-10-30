@@ -44,6 +44,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
                 $repository['path'] ?? null,
                 $repository['remoteUrl'] ?? null,
                 null !== $connection->bridge->gitIdentities,
+                $connection->status->loginExpired,
             );
         }
 
@@ -60,7 +61,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
         return array_map(static function ($bridge) use ($statuses, $url): WorkshopConnection {
             $id = (string) $bridge->id;
 
-            return new WorkshopConnection($id, $bridge->cliVersion, $statuses[$id]->quiet, $url.'#agent-connection-'.$id, $bridge->label);
+            return new WorkshopConnection($id, $bridge->cliVersion, $statuses[$id]->quiet, $url.'#agent-connection-'.$id, $bridge->label, loginExpired: $statuses[$id]->loginExpired);
         }, $bridges);
     }
 }
