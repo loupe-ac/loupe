@@ -23,7 +23,7 @@
                         <time datetime="{{ bridge.lastSeenAt|date('c') }}">{{ 'inbox.ask.bridge.last_heard'|trans({'%time%': bridge.lastSeenAt|relative_time(bridge.checkedAt)}) }}</time>{# @design-system-ignore #}
                     {% endif %}
                     {% if bridge.quiet %}{{ 'inbox.ask.bridge.quiet'|trans }}{% endif %}
-                    {% if bridge.loginExpired %}{{ 'inbox.ask.bridge.login_expired'|trans }}{% endif %}
+                    {% if bridge.loginExpired %}<span data-inbox-login-expired>{{ 'inbox.ask.bridge.login_expired'|trans }}</span>{% endif %}
                 </span>
             {% elseif state == 'none' %}
                 <span class="lp-tooltip__line">{{ 'inbox.presence.no_bridge'|trans }}</span>
