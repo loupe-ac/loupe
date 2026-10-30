@@ -583,6 +583,52 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
     }
 
+    #[DataProvider('itemsThatForbidDismiss')]
+    public function test_an_item_that_forbids_dismiss_shows_no_dismiss_button(string $kind): void
+    {
+        $this->seedColumns($this->project);
+        $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Export card', 'Body', number: 1);
+        $this->em->persist($card);
+        $item = match ($kind) {
+            'review-pull-request', 'review-document' => new InboxItem($this->project, 2, InboxItemKind::Review, 'Review it', true, origin: InboxAskOrigin::Agent),
+            default => $this->todo($this->em, $this->project, 2),
+        };
+        $this->em->persist($item);
+        if ('review-pull-request' === $kind) {
+            $target = new CardPullRequest($card, 'https://github.com/example/project/pull/12');
+            $this->em->persist($target);
+            $this->em->persist(new InboxReview($item, $target));
+        }
+        if ('review-document' === $kind) {
+            $document = new Document($this->owner, $this->project, 'Review design');
+            $document->addVersion('# Design', '<h1>Design</h1>');
+            $this->em->persist($document);
+            $this->em->persist(new InboxReview($item, $document));
+        }
+        if ('todo-with-suggestion' === $kind) {
+            $item->suggestedActions = [['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]];
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $item->dismissible = false;
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertGreaterThan(0, $crawler->filter('#inbox-item-2 form')->count());
+        self::assertCount(0, $crawler->filter('#inbox-item-2 [formaction*="/actions/dismiss"]'));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function itemsThatForbidDismiss(): iterable
+    {
+        yield 'to-do' => ['todo'];
+        yield 'to-do with a suggestion' => ['todo-with-suggestion'];
+        yield 'pull request review' => ['review-pull-request'];
+        yield 'document review' => ['review-document'];
+    }
+
     public function test_a_done_on_a_final_to_do_is_refused_in_place(): void
     {
         $item = $this->answered($this->em, $this->todo($this->em, $this->project, 2), InboxItemState::Declined);

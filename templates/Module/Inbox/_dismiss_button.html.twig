@@ -1,2 +1,2 @@
-{#- Dismiss, beside the response it replaces. It posts the form it sits in, or the form that formId names, to the dismiss action, with the note the reader typed. Props: actionParams, formId (optional), label (translation key). -#}
-<twig:Ds:Button variant="ghost" size="sm" type="submit" :form="formId ?? null" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))">{{ label|trans }}</twig:Ds:Button>
+{#- Dismiss, beside the response it replaces. It posts the form it sits in, or the form that formId names, to the dismiss action, with the note the reader typed. Props: actionParams, dismissible (the flag of the item, which hides the button when false), formId (optional), label (translation key). -#}
+{% if dismissible %}<twig:Ds:Button variant="ghost" size="sm" type="submit" :form="formId ?? null" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))">{{ label|trans }}</twig:Ds:Button>{% endif %}

@@ -95,7 +95,7 @@
         {# A question that its agent gave suggestions offers its actions in a reply card below the answer form. The answer carries the owner's words, so the card takes no note. An action does not answer the question, so the item stays open. #}
         {% set questionSplit = item.kind.value == 'question' and item.suggestedActions and not inbox_actions(item, hostCardId ?? null).isEmpty %}
         {% if todoSplit %}
-            {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: null, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: true, todoButtons: {formId: responseForm.vars.id, dismissLabel: dismissLabel, note: responseForm.note}} only %}
+            {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: null, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: true, todoButtons: {formId: responseForm.vars.id, dismissible: item.dismissible, dismissLabel: dismissLabel, note: responseForm.note}} only %}
         {% endif %}
         <div class="lp-inbox-item__actions">
             {% if item.kind.value in ['question', 'workflow'] %}
@@ -138,9 +138,7 @@
                     <twig:Ds:FieldErrors :fieldView="responseForm" />
                     {{ form_widget(responseForm._token) }}
                     <div class="lp-inbox-item__buttons">
-                        {% if item.dismissible %}
-                            {% include '@Inbox/_dismiss_button.html.twig' with {actionParams: actionParams, label: dismissLabel} only %}
-                        {% endif %}
+                        {% include '@Inbox/_dismiss_button.html.twig' with {actionParams: actionParams, dismissible: item.dismissible, label: dismissLabel} only %}
                         <twig:Ds:Button variant="primary" size="sm" type="submit">
                             {{ 'inbox.answer.submit'|trans }}
                         </twig:Ds:Button>
@@ -149,11 +147,11 @@
             {% elseif item.kind.value == 'review' and not item.isAutomatic() %}
                 {% if review and review.targetKind.value == 'pull-request' and review.pullRequest and safe_pull_request_url(review.pullRequest.url) %}
                     {% set reviewFormShown = true %}
-                    {% include '@Inbox/_pull_request_review_form.html.twig' with {review: review, form: responseForm, actionParams: actionParams, responseFrame: responseFrame, dismissLabel: dismissLabel} only %}
+                    {% include '@Inbox/_pull_request_review_form.html.twig' with {review: review, form: responseForm, actionParams: actionParams, responseFrame: responseFrame, dismissible: item.dismissible, dismissLabel: dismissLabel} only %}
                 {% elseif review and review.document %}
                     {% if is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::REVIEW_DOCUMENT'), item) %}
                         {% set reviewFormShown = true %}
-                        {% include '@Inbox/_document_review_form.html.twig' with {review: review, form: responseForm, actionParams: actionParams, responseFrame: responseFrame, dismissLabel: dismissLabel, documentCard: app.request.attributes.get('_route') != 'app_document_review'} only %}
+                        {% include '@Inbox/_document_review_form.html.twig' with {review: review, form: responseForm, actionParams: actionParams, responseFrame: responseFrame, dismissible: item.dismissible, dismissLabel: dismissLabel, documentCard: app.request.attributes.get('_route') != 'app_document_review'} only %}
                     {% else %}
                         <p role="status">{{ 'inbox.review.error.target_unavailable'|trans }}</p>
                     {% endif %}
@@ -185,7 +183,7 @@
                     <twig:Ds:FieldErrors :fieldView="responseForm.note" />
                     {{ form_widget(responseForm._token) }}
                     <div class="lp-inbox-item__buttons">
-                        {% include '@Inbox/_dismiss_button.html.twig' with {actionParams: actionParams, label: dismissLabel} only %}
+                        {% include '@Inbox/_dismiss_button.html.twig' with {actionParams: actionParams, dismissible: item.dismissible, label: dismissLabel} only %}
                         <twig:Ds:Button variant="primary" size="sm" type="submit">
                             {{ 'inbox.done.submit'|trans }}
                         </twig:Ds:Button>

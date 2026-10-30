@@ -8,6 +8,6 @@
     {{ form_widget(form.expectedUrl, {attr: {'data-form-draft-target': 'guard'}}) }}
     <twig:Ds:FieldErrors :fieldView="form.expectedUrl" />
     {% include '@Inbox/_verdict_block.html.twig' with {form: form} only %}
-    <div class="lp-inbox-item__buttons">{% include '@Inbox/_dismiss_button.html.twig' with {actionParams: actionParams, label: dismissLabel} only %}<twig:Ds:Button variant="primary" type="submit">{{ 'inbox.review.submit'|trans }}</twig:Ds:Button></div>
+    <div class="lp-inbox-item__buttons">{% include '@Inbox/_dismiss_button.html.twig' with {actionParams: actionParams, dismissible: dismissible, label: dismissLabel} only %}<twig:Ds:Button variant="primary" type="submit">{{ 'inbox.review.submit'|trans }}</twig:Ds:Button></div>
 {{ form_widget(form._token) }}
 {{ form_end(form, {render_rest: false}) }}

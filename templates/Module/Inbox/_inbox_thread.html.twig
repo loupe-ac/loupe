@@ -1,6 +1,6 @@
 {#- A wait item as a thread: what stopped, the owner's reply with its split button, and the actions the owner already took.
    Params: item, watch (InboxCardWatch), inbox, refusedForm, actionParams, responseFrame, hostCardId, cardDrawer,
-   reply (whether this page takes the owner's reply), todoButtons (optional: formId, dismissLabel and note field of the to-do's response form),
+   reply (whether this page takes the owner's reply), todoButtons (optional: formId, dismissible, dismissLabel and note field of the to-do's response form),
    withNote (optional, default true: whether the reply card takes a note for the action). -#}
 {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
 {% set todoButtons = todoButtons ?? null %}
@@ -132,7 +132,7 @@
                 <div class="lp-comment-composer__actions">
                     <twig:Ds:Hint as="span" class="inbox-split__hint">{{ actions.main and actions.main.action.runCommand ? (runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '') : (withNote ? 'inbox.thread.note_hint'|trans : '') }}</twig:Ds:Hint>
                     {% if todoButtons %}
-                        {% include '@Inbox/_dismiss_button.html.twig' with {formId: todoButtons.formId, actionParams: actionParams, label: todoButtons.dismissLabel} only %}
+                        {% include '@Inbox/_dismiss_button.html.twig' with {formId: todoButtons.formId, actionParams: actionParams, dismissible: todoButtons.dismissible, label: todoButtons.dismissLabel} only %}
                         <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ todoButtons.formId }}" data-inbox-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
                     {% endif %}
                     {% if not actions.main and not actions.menu and actions.dismiss %}
