@@ -6,8 +6,10 @@ namespace App\Module\Inbox\Repository;
 
 use App\Doctrine\SearchLanguage;
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
@@ -219,6 +221,30 @@ class InboxItemRepository extends ServiceEntityRepository
             ->andWhere(\sprintf('NOT EXISTS (SELECT u.id FROM %s u JOIN u.card uc JOIN uc.column k WHERE u.item = i AND k.terminal = false)', InboxItemCard::class))
             ->setParameter('cards', array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $cardIds))
             ->setParameter('open', InboxItemState::Open)
+            ->orderBy('i.number', 'ASC')
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getResult();
+    }
+
+    /**
+     * The open items of an agent linked to the card whose other linked cards
+     * all sit in terminal columns, locked for update. An item with no other
+     * card matches. The caller holds a transaction.
+     *
+     * @return list<InboxItem>
+     */
+    public function findOpenAgentItemsEndingWithCard(Card $card): array
+    {
+        /* @var list<InboxItem> */
+        return $this->createQueryBuilder('i')
+            ->andWhere(\sprintf('EXISTS (SELECT m.id FROM %s m WHERE m.item = i AND m.card = :card)', InboxItemCard::class))
+            ->andWhere('i.state = :open')
+            ->andWhere('i.origin = :agent')
+            ->andWhere(\sprintf('NOT EXISTS (SELECT u.id FROM %s u JOIN u.card uc JOIN uc.column k WHERE u.item = i AND u.card <> :card AND k.terminal = false)', InboxItemCard::class))
+            ->setParameter('card', $card)
+            ->setParameter('open', InboxItemState::Open)
+            ->setParameter('agent', InboxAskOrigin::Agent)
             ->orderBy('i.number', 'ASC')
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
