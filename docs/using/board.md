@@ -1006,7 +1006,7 @@ An agent drives the board through the MCP endpoint. See
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
 | `card_get_history` | Exactly one of `cardId` and `number`. `page` and `perPage` are optional. |
-| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards` and `requiresHumanReview` are optional. |
+| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards`, `requiresHumanReview` and `values` are optional. |
 | `card_run_open` | `sessionId`, `name` and exactly one of `cardId` and `number` are required. `status` is optional. |
 | `card_run_close` | `sessionId` and exactly one of `cardId` and `number` are required. |
 | `column_create` | `label` is required. |
@@ -1131,7 +1131,7 @@ carries `kind`, `occurredAt` and `actor`.
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
 `override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
-`approval-dismissed` or `human-review-changed`. `actor` carries `kind` and
+`approval-dismissed`, `human-review-changed` or `value-changed`. `actor` carries `kind` and
 `name`. Its `kind` is `human`, `agent`, `reviewer` or `system`. `name` is the
 current name of the person
 behind the event. It is null when there is no person, such as for a deleted
@@ -1173,6 +1173,10 @@ A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
 `ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
 `rule` or `rollout`. `ruleId` names the workflow rule that set the switch, and
 is null for any other cause.
+
+A `value-changed` event sets `valueChange`, with `key`, `value` and `previous`.
+`key` is the declared key of the card value that changed. `previous` is null when
+the key was unset.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.

@@ -21,9 +21,11 @@ use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardMarkerText;
 use App\Module\Board\Service\CardPullRequestStates;
+use App\Module\Board\Service\CardValueReader;
 use App\Module\Board\Service\PullRequestStates;
 use App\Module\Board\Service\PullRequestStateView;
 use App\Module\Board\Service\StoredCardMarkers;
+use App\Module\Board\View\CardValueView;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
@@ -51,7 +53,8 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type CardStateReasonSummary array{kind: string, code: string, reason: string, since: string}
  * @phpstan-type CardStateSummary array{kind: string, code: string, since: string, reason: string, others: list<CardStateReasonSummary>}
  * @phpstan-type CardListStateSummary array{kind: string, code: string, since: string}
- * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, requiresHumanReview: bool, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
+ * @phpstan-type CardValueSummary array{key: string, type: string, value: mixed, writer: ?array{kind: string, name: ?string}, updatedAt: ?string}
+ * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, requiresHumanReview: bool, values: list<CardValueSummary>, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
  * @phpstan-type CardListSummary array{cardId: string, number: int, title: string, type: string, status: string, reporter: string, parentCardId: ?string, updatedAt: string, state: ?CardListStateSummary}
  */
 final readonly class CardPayload
@@ -67,6 +70,7 @@ final readonly class CardPayload
         private CardMarkerText $markerText,
         private CardArtifactRepository $cardArtifacts,
         private SiteReviewScreenshotRepository $siteReviewScreenshots,
+        private CardValueReader $cardValues,
     ) {
     }
 
@@ -80,14 +84,15 @@ final readonly class CardPayload
     {
         $card = $view->card;
 
-        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->markers, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? [], $this->siteReviewScreenshots->findSizesByComments(self::commentsOf($view->siteReviewLinks)));
+        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->markers, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? [], $this->siteReviewScreenshots->findSizesByComments(self::commentsOf($view->siteReviewLinks)), $this->cardValues->forCard($card));
     }
 
     /**
      * Many cards in one read, so a board-sized list costs one comment query,
      * one card link query, one children query, one parent query, one pause
      * query and one query for each map of the pull request states rather
-     * than one of each per card.
+     * than one of each per card. The values cost one query for each card when
+     * the template declares a key, and none when it declares none.
      *
      * @param list<Card> $cards
      *
@@ -121,6 +126,7 @@ final readonly class CardPayload
                 StoredCardMarkers::of($card),
                 $artifactsByCard[(string) $card->id] ?? [],
                 $sizes,
+                $this->cardValues->forCard($card),
             ),
             $cards,
         );
@@ -173,10 +179,11 @@ final readonly class CardPayload
      * @param array<string, AgentReviewSummary>                   $reviews      keyed by pull request link id
      * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts
      * @param array<string, ScreenshotSize>                       $sizes        the screenshot size of each comment that has one, keyed by comment id
+     * @param list<CardValueView>                                 $values       one for each key the template declares
      *
      * @return CardSummary
      */
-    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, StoredCardMarkers $markers, array $artifacts, array $sizes): array
+    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, StoredCardMarkers $markers, array $artifacts, array $sizes, array $values): array
     {
         $progress = $this->catalog->forProject($card->project->requireId())->get($card->type)->children
             ? ['done' => \count(array_filter($children, static fn (Card $child): bool => $child->column->terminal)), 'total' => \count($children)]
@@ -250,6 +257,16 @@ final readonly class CardPayload
             'parent' => null === $card->parent ? null : self::reference($card->parent),
             'laneEnabled' => $card->laneEnabled,
             'requiresHumanReview' => $card->requiresHumanReview,
+            'values' => array_map(
+                static fn (CardValueView $value): array => [
+                    'key' => $value->key,
+                    'type' => $value->type->value,
+                    'value' => $value->value,
+                    'writer' => null === $value->writerKind ? null : ['kind' => $value->writerKind->value, 'name' => $value->writerUser?->fullName],
+                    'updatedAt' => $value->updatedAt?->format(\DATE_ATOM),
+                ],
+                $values,
+            ),
             'children' => array_map(self::reference(...), $children),
             'progress' => $progress,
             'pause' => null === $pause ? null : [

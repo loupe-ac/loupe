@@ -14,7 +14,9 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Service\BoardColumns;
+use App\Module\Board\Service\CardValueWriter;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Workflow\Contract\CardValueType;
 use Mcp\Exception\ToolCallException;
 
 /**
@@ -37,13 +39,14 @@ final readonly class BoardToolErrorMessages
         $names = $argumentNames + ['parent' => 'parentCardId'];
         $lines = [];
         foreach ($errors->errors as $argument => $key) {
-            $lines[] = \sprintf('%s: %s', $names[$argument] ?? $argument, self::sentence($key));
+            $lines[] = \sprintf('%s: %s', $names[$argument] ?? $argument, self::sentence($key, $errors->parameters[$argument] ?? []));
         }
 
         return new ToolCallException(implode("\n", $lines), previous: $errors);
     }
 
-    private static function sentence(string $key): string
+    /** @param array<string, int|string> $parameters the placeholders of the key */
+    private static function sentence(string $key, array $parameters): string
     {
         return match ($key) {
             'board.card.error.title_blank' => 'A card title must not be blank.',
@@ -64,6 +67,9 @@ final readonly class BoardToolErrorMessages
             'board.card.error.run_name_blank' => 'Pass the name of the skill that runs the session, such as loupe:product-design.',
             'board.card.error.run_name_too_long' => \sprintf('A run name must be at most %d characters.', WorkerRun::MAX_WORK_KIND_LENGTH),
             'board.card.error.search_query_blank' => 'Pass a query to search for. To read the whole board instead, call card_list.',
+            CardValueWriter::WRONG_TYPE_PREFIX.CardValueType::Bool->value => 'This key takes true or false.',
+            CardValueWriter::UNDECLARED_KEY => \sprintf('The workflow template declares no key %s. Declared keys: %s.', $parameters['%key%'] ?? '', $parameters['%declared%'] ?? ''),
+            CardValueWriter::UNDECLARED_KEY_NONE => \sprintf('The workflow template declares no key %s. Declared keys: none.', $parameters['%key%'] ?? ''),
             BoardColumns::SLUG_EMPTY => 'A column label needs at least one letter or digit, because the slug comes from the label.',
             BoardColumns::SLUG_INVALID => 'The slug that comes from this label is not valid. Use letters, digits and spaces in the label.',
             BoardColumns::SLUG_TAKEN => 'Another column on this board already has the slug that comes from this label. Choose another label.',
