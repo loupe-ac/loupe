@@ -4184,7 +4184,7 @@ final class EngineTest extends KernelTestCase
 
         $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')]);
 
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)));
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), new EventDispatcher());
         $evaluations = 0;
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
@@ -4527,6 +4527,10 @@ final class EngineTest extends KernelTestCase
             public function forCards(array $cardIds): void
             {
                 ($this->evaluate)();
+            }
+
+            public function forPersonWaiting(array $cardIds): void
+            {
             }
 
             public function isOn(): bool

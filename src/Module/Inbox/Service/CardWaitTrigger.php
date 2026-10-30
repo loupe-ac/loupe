@@ -11,6 +11,7 @@ use App\Module\Inbox\Messenger\ReconcileCardWaits;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -36,6 +37,15 @@ final readonly class CardWaitTrigger
         }
 
         $this->bus->dispatch(new ReconcileCardWaits($projectId->toRfc4122(), array_values(array_unique($cardIds))));
+    }
+
+    /** The reconcile of a card that a person waits on rides the interactive transport, so it skips the jobs backlog. */
+    public function forPersonWaiting(Uuid $projectId, string $cardId): void
+    {
+        $this->bus->dispatch(
+            new ReconcileCardWaits($projectId->toRfc4122(), [$cardId], personWaiting: true),
+            [new TransportNamesStamp([CardEvaluations::INTERACTIVE_TRANSPORT])],
+        );
     }
 
     /**

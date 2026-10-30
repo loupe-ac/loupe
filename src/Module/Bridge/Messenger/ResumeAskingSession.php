@@ -12,6 +12,7 @@ final readonly class ResumeAskingSession
         public string $bridgeId,
         public string $sessionId,
         public \DateTimeImmutable $askClosedAt,
+        public bool $personWaiting = false,
     ) {
     }
 }

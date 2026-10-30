@@ -145,7 +145,7 @@ Once a minute, the worker sends two gauges for each message queue to Sentry. The
 
 A message waits when it is due and no worker holds a live claim on it. A claim stays live for one hour. This is the same rule as the worker check on `/admin/status`.
 
-Each gauge has two attributes. `queue_name` is the queue in the database: `jobs`, `card_eval`, `card_sweep` and `failed`. Each queue has the name of its transport. `transport` is the name of the transport in `config/packages/messenger.yaml`. An empty queue reports `0` for both gauges, so a flat line means an empty queue and a blank line means the task did not run.
+Each gauge has two attributes. `queue_name` is the queue in the database: `interactive`, `jobs`, `card_eval`, `card_sweep` and `failed`. Each queue has the name of its transport. `transport` is the name of the transport in `config/packages/messenger.yaml`. An empty queue reports `0` for both gauges, so a flat line means an empty queue and a blank line means the task did not run.
 
 Create two metric monitors in Sentry once the first points arrive:
 
