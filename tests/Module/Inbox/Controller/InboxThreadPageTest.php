@@ -92,6 +92,32 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertStringContainsString('Closed 30m ago: answered by you', trim($crawler->filter('.lp-inbox-ask__byline .lp-status-chip')->text()));
     }
 
+    public function test_the_chip_of_an_ask_whose_items_ended_differently_names_each_outcome(): void
+    {
+        $question = $this->answered($this->em, $this->question($this->em, $this->project, 1));
+        $todo = $this->answered($this->em, $this->todo($this->em, $this->project, 2), InboxItemState::Declined);
+        $withdrawn = $this->answered($this->em, $this->todo($this->em, $this->project, 3, 'Check the logs'), InboxItemState::Cancelled);
+        $this->askHolding($this->em, $this->project, [$question, $todo, $withdrawn], closedAt: new \DateTimeImmutable('-30 minutes'));
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?side=closed');
+
+        self::assertSame(
+            'Closed 30m ago: answered by you, dismissed by you, withdrawn by the agent',
+            trim($crawler->filter('.lp-inbox-ask__byline .lp-status-chip')->text()),
+        );
+    }
+
+    public function test_the_chip_names_an_outcome_that_two_items_share_once(): void
+    {
+        $first = $this->answered($this->em, $this->todo($this->em, $this->project, 1), InboxItemState::Declined);
+        $second = $this->answered($this->em, $this->todo($this->em, $this->project, 2, 'Check the logs'), InboxItemState::Declined);
+        $this->askHolding($this->em, $this->project, [$first, $second], closedAt: new \DateTimeImmutable('-30 minutes'));
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?side=closed');
+
+        self::assertSame('Closed 30m ago: dismissed by you', trim($crawler->filter('.lp-inbox-ask__byline .lp-status-chip')->text()));
+    }
+
     /** @return iterable<string, array{InboxCloser, InboxCloseCause|null, string, string}> */
     public static function closers(): iterable
     {
