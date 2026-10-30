@@ -17,8 +17,16 @@ Each phase has a stable ID, so a comment can cite it. The workflow starts this s
 3. T2: Options. Show two or three solution shapes, and recommend one with a confidence and the strongest argument against it (Q2). Skip this phase when the solution is obvious from the code and the requirement. The options and the reason each lost go in "Alternatives".
 4. T3: Decisions. Ask one question per open decision, with the rules of `question-rules.md`. Ask about every decision in the chat, including a low-impact one. Q6 does not apply: a technical choice is what this session settles. Name the cost of each option in proportion (`tech-document.md` "Facts and recommendations"). Defer a decision only on the owner's word (Q8).
 5. T4: Size. Judge the size, as "Judge the size" of `tech-document.md` says. When the design needs more than one pull request, draft the Breakdown entries and show them to the owner in one message. Ask whether the cut is right.
-6. T5: Write and link. Write the design and the deploy notes, link them, close the run, and stop, as `SKILL.md` says.
+6. T5: Recap. Let the owner check every decision before you write the design. Skip the recap when the session settled no decision.
+   - List each decision in one line, with its number, in the order you settled it: the solution shape of T2, each answer of T3, and the cut of T4. Mark a deferred decision "deferred".
+   - Ask with AskUserQuestion, with the two options "Looks right" and "Correct something". Put the whole recap in the `preview` of each option, because the question box hides the chat text above it.
+   - When AskUserQuestion is missing, post the recap as plain chat text, and end the turn. The owner's next message is the answer.
+   - When the owner picks "Correct something", read the correction from the owner's next message. A correction that states the new answer updates the decision.
+   - A correction that opens a new choice, or changes an answer that a later answer depends on, needs a new question. Ask it with the rules of `question-rules.md`.
+   - Then show only the changed lines in the same question form, and wait again.
+   - Stop when the owner picks "Looks right", or when the reply holds no correction.
+7. T6: Write and link. Write the design and the deploy notes, link them, close the run, and stop, as `SKILL.md` says.
 
 ## When to stop asking
 
-Stop when no open decision is left, then run T4 and T5. Use no fixed cap of questions. The design is the full readback: ask for no confirmation in the terminal after the last decision. A correction comes back as a review comment, and `loupe-stage-fix-round` answers it.
+Stop when no open decision is left, then run T4, T5 and T6. Use no fixed cap of questions. After the recap of T5, the design is the full readback: ask for no other confirmation in the terminal. A correction after that comes back as a review comment, and `loupe-stage-fix-round` answers it.
