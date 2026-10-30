@@ -224,7 +224,10 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
         $this->answer($client, $document, ['clear' => '1'], self::TURBO);
 
         self::assertResponseIsSuccessful();
-        self::assertSame('Cleared.', self::statusMessage((string) $client->getResponse()->getContent()));
+        $body = (string) $client->getResponse()->getContent();
+        self::assertSame('Cleared.', self::statusMessage($body));
+        self::assertMatchesRegularExpression('~target="review-toolbar-decisions-count">\s*<template>0/1</template>~', $body);
+        self::assertMatchesRegularExpression('~target="review-toolbar-decisions-label">\s*<template>Decisions panel, 0 of 1 answered</template>~', $body);
         self::assertSame([], $this->selections()->findByDocumentAndDecisionId($document, 'deploy-target'));
         self::assertNull($this->answerRow($document));
     }
