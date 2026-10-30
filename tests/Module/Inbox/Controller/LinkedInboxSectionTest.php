@@ -76,6 +76,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertSame(['2', '1'], $section->filter('[data-inbox-item]')->each(static fn (Crawler $node): string => (string) $node->attr('data-inbox-item')));
         self::assertCount(1, $section->filter('[data-inbox-linked-open] [data-inbox-item="2"]'));
         self::assertCount(1, $section->filter('[data-inbox-linked-closed] [data-inbox-item="1"]'));
+        self::assertSame(['Review pull request 482', 'Which column?'], $section->filter('[data-inbox-item] > .lp-inbox-item__head h3')->each(static fn (Crawler $node): string => $node->text()));
         self::assertStringContainsString('export', $section->filter('#inbox-item-2')->closest('[data-inbox-linked-entry]')?->filter('[data-inbox-linked-context]')->text() ?? '');
         // The forms post back with the card as the page to return to.
         $action = (string) $section->filter('form[name="inbox_response_'.$open->id.'"]')->attr('action');

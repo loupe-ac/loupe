@@ -7,5 +7,5 @@
         {% apply link_references(ask.project) %}<div class="prose lp-prose lp-inbox-linked__context-text" data-references>{{ ask.context|inbox_markdown }}</div>{% endapply %}
     </div>
     {% endif %}
-    {% include '@Inbox/_inbox_thread.html.twig' with {item: item, ask: null, inbox: inbox, refusedForm: refusedForm ?? null, hostCardId: hostCardId ?? null, cardDrawer: false} only %}
+    {% include '@Inbox/_inbox_thread.html.twig' with {item: item, ask: null, inbox: inbox, refusedForm: refusedForm ?? null, hostCardId: hostCardId ?? null, showHead: true, cardDrawer: false} only %}
 </div>
