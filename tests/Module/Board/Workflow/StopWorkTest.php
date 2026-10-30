@@ -70,6 +70,24 @@ final class StopWorkTest extends KernelTestCase
         self::assertNotContains((string) $ended->id, array_column(array_map(static fn (CardEvent $row): array => $row->detail, $rows), 'runId'));
     }
 
+    public function test_it_leaves_an_open_background_run_that_a_person_started(): void
+    {
+        [$card, $bridge] = $this->card('stop-work-person');
+        $project = $card->project;
+        $cardId = $card->id;
+        $personRequest = $this->seedWorkRequest($this->em(), $project, $cardId, 'resume', state: WorkRequestState::Claimed, ruleId: 'inbox:ask-answer');
+        $byRequest = $this->seedRun($this->em(), $project, workKind: 'resume', cardId: $cardId, state: WorkerRunState::Running, workRequestId: $personRequest->id);
+        $byCopy = $this->seedRun($this->em(), $project, workKind: 'resume', cardId: $cardId, state: WorkerRunState::Running, workRequestId: Uuid::v7(), ruleId: 'inbox:start-session');
+        $byRule = $this->seedRun($this->em(), $project, workKind: 'implement', bridgeId: $bridge->id, cardId: $cardId, state: WorkerRunState::Running);
+
+        self::assertEquals(ActionOutcome::done(), $this->stop($card));
+
+        $stopped = array_map(static fn ($command): string => (string) $command->workerRun->id, $this->service(BridgeCommandRepository::class)->findAll());
+        self::assertSame([(string) $byRule->id], $stopped);
+        self::assertNotContains((string) $byRequest->id, $stopped);
+        self::assertNotContains((string) $byCopy->id, $stopped);
+    }
+
     public function test_it_takes_the_bridge_locks_in_bridge_order_before_it_locks_a_work_request(): void
     {
         [$card] = $this->card('stop-work-order');

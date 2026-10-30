@@ -1293,6 +1293,16 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) when: pr.approval_covers_head: parameter "min" must be a positive integer'];
+        yield 'work active with an origin that is not rule' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['card.run.work_active' => ['origin' => 'person']];
+
+            return $t;
+        }, 'rules[2] (merge) when: card.run.work_active: parameter "origin" must be one of: rule'];
+        yield 'work active with an origin that is not a string' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['card.run.work_active' => ['origin' => 3]];
+
+            return $t;
+        }, 'rules[2] (merge) when: card.run.work_active: parameter "origin" must be a non-empty string'];
         yield 'wrongly typed boolean parameter' => [static function (array $t): array {
             $t['rules'][2]['when'] = ['card.inbox.open_question' => ['blocking' => 'yes']];
 

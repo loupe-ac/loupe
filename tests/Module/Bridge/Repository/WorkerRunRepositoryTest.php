@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -167,6 +168,26 @@ final class WorkerRunRepositoryTest extends KernelTestCase
         );
         self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId)));
         self::assertSame([], $runs->findOpenWorkSinceOfCard(Uuid::v7()));
+    }
+
+    public function test_find_open_work_since_of_card_can_leave_out_the_runs_that_a_person_started(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'open-origin-'.uniqid().'@example.com'), 'Open origin');
+        $cardId = Uuid::v7();
+        $person = $this->seedWorkRequest($em, $project, $cardId, 'resume', state: WorkRequestState::Claimed, ruleId: 'inbox:ask-answer');
+
+        $this->seedRun($em, $project, workKind: 'resume', cardId: $cardId, state: WorkerRunState::Running, workRequestId: $person->id);
+        $this->seedRun($em, $project, workKind: 'session', cardId: $cardId, state: WorkerRunState::Running, workRequestId: Uuid::v7(), ruleId: 'inbox:start-session');
+        $this->seedRun($em, $project, workKind: 'fix', cardId: $cardId, state: WorkerRunState::Running, workRequestId: Uuid::v7(), ruleId: 'fix-on-entry');
+        $this->seedRun($em, $project, workKind: 'implement', cardId: $cardId, state: WorkerRunState::Running);
+
+        $runs = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $runs);
+
+        self::assertSame(['fix', 'implement', 'resume', 'session'], array_keys($runs->findOpenWorkSinceOfCard($cardId)));
+        self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId, ruleOwnedOnly: true)));
     }
 
     public function test_find_oldest_open_interactive_row_of_card_answers_the_oldest_open_session(): void

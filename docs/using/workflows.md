@@ -286,6 +286,11 @@ Markers also read conditions that rules already use: `pr.open`,
 `pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
 `card.run.worker_active`.
 
+Both run conditions take an optional `kind`. They also take an optional `origin`,
+whose only value is `rule`. With `origin: rule`, work that a person started, such
+as a "Send an agent" action on an inbox item, does not count. With no `origin`,
+all work counts.
+
 ### Markers that open inbox items
 
 The top-level `inbox:` list names the markers that open an item in the inbox.
