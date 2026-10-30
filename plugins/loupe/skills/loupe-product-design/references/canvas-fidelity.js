@@ -325,8 +325,29 @@ async function render(playwrightPath, folder, outFolder, options) {
     });
 }
 
+// Lists each {{value}} that the source of a board puts in the text of an SVG
+// <text>, <tspan> or <textPath>. The runtime wraps it in a <span> that a browser
+// does not draw. Reads the source, so it also finds one in a branch that the
+// first render of the board leaves out, such as a chart type the board starts without.
+function findTemplateInSvgText(source) {
+    const found = [];
+    for (const svg of source.match(/<svg\b[\s\S]*?<\/svg>/gi) ?? []) {
+        for (const hit of svg.matchAll(/<(text|tspan|textPath)\b[^>]*>([^<]*\{\{[^<]*)/gi)) {
+            found.push({ tag: hit[1], text: hit[2].trim().slice(0, 60) });
+        }
+    }
+
+    return found;
+}
+
 async function scan(playwrightPath, folder, options) {
     let count = 0;
+    for (const entry of pageMap(folder, options)) {
+        for (const hit of findTemplateInSvgText(fs.readFileSync(path.join(folder, entry.board), 'utf8'))) {
+            console.log(`${entry.board}: "${hit.text}" in an SVG <${hit.tag}> of the source`);
+            count++;
+        }
+    }
     await withLive(playwrightPath, folder, options, async ({ browser, origin, map }) => {
         for (const entry of map) {
             const page = await openLive(browser, origin, entry);
@@ -338,7 +359,7 @@ async function scan(playwrightPath, folder, options) {
             await page.close();
         }
     });
-    console.log(count === 0 ? 'pass: no HTML inside an <svg>' : `fail: ${count} element(s) of HTML inside an <svg>`);
+    console.log(count === 0 ? 'pass: no HTML or {{value}} inside an <svg>' : `fail: ${count} place(s) with HTML or a {{value}} inside an <svg>`);
 
     return count === 0 ? 0 : 1;
 }
@@ -406,7 +427,7 @@ async function main(argv) {
     return 0;
 }
 
-module.exports = { findHtmlInSvg, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
+module.exports = { findHtmlInSvg, findTemplateInSvgText, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
 
 if (require.main === module) {
     main(process.argv.slice(2)).then(

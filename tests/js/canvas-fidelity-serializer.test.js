@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 const require = createRequire(import.meta.url);
 const {
     findHtmlInSvg,
+    findTemplateInSvgText,
     manifest,
     pageMap,
     rebaseDocument,
@@ -93,6 +94,27 @@ describe('serializeDocument', () => {
         document.body.append(svg);
 
         expect(findHtmlInSvg(document)).toHaveLength(0);
+    });
+});
+
+describe('findTemplateInSvgText', () => {
+    it('finds a value in the text of an SVG text, also in a branch the first render leaves out', () => {
+        const source =
+            '<sc-if value="{{isDonut}}"><svg viewBox="0 0 10 10"><path d="{{a.d}}"></path>' +
+            '<text x="5" style="fill: red;">{{donutTotal}}</text><text><tspan>{{sub}} cards</tspan></text></svg></sc-if>';
+
+        expect(findTemplateInSvgText(source)).toEqual([
+            { tag: 'text', text: '{{donutTotal}}' },
+            { tag: 'tspan', text: '{{sub}} cards' },
+        ]);
+    });
+
+    it('ignores a value in an attribute, outside an SVG, or in a label laid over the chart', () => {
+        const source =
+            '<p>{{title}}</p><svg><text x="{{x}}">$1.00</text><path d="{{d}}"></path></svg>' +
+            '<div style="position: absolute;">{{label}}</div>';
+
+        expect(findTemplateInSvgText(source)).toEqual([]);
     });
 });
 
