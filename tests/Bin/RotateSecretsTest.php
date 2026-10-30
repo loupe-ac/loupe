@@ -1167,6 +1167,25 @@ final class RotateSecretsTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string}>
+     */
+    public static function operatorScripts(): iterable
+    {
+        yield 'rotate-secrets' => ['bin/rotate-secrets'];
+        yield 'tf-secrets' => ['bin/tf-secrets'];
+        yield 'tf-secrets library' => ['bin/lib/tf-secrets.sh'];
+    }
+
+    // The tests run bash 5 in the container, and an operator on macOS runs bash 3.2.
+    #[DataProvider('operatorScripts')]
+    public function test_the_script_uses_no_builtin_that_macos_bash_lacks(string $path): void
+    {
+        $source = (string) file_get_contents(\dirname(__DIR__, 2).'/'.$path);
+
+        self::assertDoesNotMatchRegularExpression('/\b(mapfile|readarray|coproc)\b|declare -A|local -n/', $source);
+    }
+
+    /**
      * @return array<string, string>
      */
     private function env(): array

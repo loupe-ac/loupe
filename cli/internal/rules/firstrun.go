@@ -16,6 +16,13 @@ import (
 // writes.
 const ProductDesignKind = "product-design"
 
+// TechDesignSessionKind is the work kind of the interactive tech design entry
+// that first-run writes beside the product-design entry.
+const TechDesignSessionKind = "tech-design-session"
+
+// techDesignSessionPrompt is the prompt of that entry.
+const techDesignSessionPrompt = "/loupe:tech-design {cardNumber}"
+
 // productDesignPrompt is the prompt of that entry.
 const productDesignPrompt = "/loupe:product-design {cardNumber}"
 
@@ -97,7 +104,7 @@ func FirstRun(o FirstRunOptions) ([]byte, error) {
 		"projects", projectsNode(o),
 	)
 	if launch := o.Terminal(); launch != nil {
-		top.Content = append(top.Content, scalarNode("launch"), launchNode(launch), scalarNode("work"), mappingNode(ProductDesignKind, productDesignNode()))
+		top.Content = append(top.Content, scalarNode("launch"), launchNode(launch), scalarNode("work"), mappingNode(ProductDesignKind, productDesignNode(), TechDesignSessionKind, techDesignSessionNode()))
 	}
 
 	return encodeRules(&yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{top}})
@@ -262,6 +269,10 @@ func addMissing(top *yaml.Node, o FirstRunOptions, launch []string) ([]string, e
 	if _, ok := lookup(work, ProductDesignKind); !ok {
 		work.Content = append(work.Content, scalarNode(ProductDesignKind), productDesignNode())
 		added = append(added, "work."+ProductDesignKind)
+	}
+	if _, ok := lookup(work, TechDesignSessionKind); !ok {
+		work.Content = append(work.Content, scalarNode(TechDesignSessionKind), techDesignSessionNode())
+		added = append(added, "work."+TechDesignSessionKind)
 	}
 
 	return added, nil
@@ -431,4 +442,8 @@ func launchNode(argv []string) *yaml.Node {
 
 func productDesignNode() *yaml.Node {
 	return mappingNode("action", scalarNode(ActionInteractive), "prompt", scalarNode(productDesignPrompt))
+}
+
+func techDesignSessionNode() *yaml.Node {
+	return mappingNode("action", scalarNode(ActionInteractive), "prompt", scalarNode(techDesignSessionPrompt))
 }

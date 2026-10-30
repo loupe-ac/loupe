@@ -116,10 +116,12 @@ placeholder_env() {
 # right. Terraform prints warnings on standard output, so only the last line
 # counts. Standard error is dropped because a parse error quotes a line.
 tfvars_file_b64() {
-    local name=$1 extra=${2:-} out ph=() args
+    local name=$1 extra=${2:-} out ph=() args line
     args=(-no-color "-var-file=$(ts_absolute "$TF_SECRETS_TFVARS")")
     [ -z "$extra" ] || args+=("-var-file=$(ts_absolute "$extra")")
-    env_name_of "$name" > /dev/null 2>&1 || mapfile -t ph < <(placeholder_env)
+    if ! env_name_of "$name" > /dev/null 2>&1; then
+        while IFS= read -r line; do ph+=("$line"); done < <(placeholder_env)
+    fi
     out=$(env ${ph[@]+"${ph[@]}"} TF_INPUT=0 terraform -chdir="$TF_SECRETS_ROOT" console "${args[@]}" 2> /dev/null \
         <<< "nonsensitive(var.$name == null) ? \"unset\" : base64encode(nonsensitive(var.$name))" | tail -n 1) \
         || ts_fail "terraform could not read $name."

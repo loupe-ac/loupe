@@ -32,7 +32,9 @@ final readonly class WorkerRunFactProvider extends BridgeFactProvider
     {
         $since = $this->workerRuns->findOpenWorkSinceOfCard($card->id);
 
-        return new WorkerRunFacts(array_map(strval(...), array_keys($since)), $since);
+        $ruleSince = $this->workerRuns->findOpenWorkSinceOfCard($card->id, ruleOwnedOnly: true);
+
+        return new WorkerRunFacts(array_map(strval(...), array_keys($since)), $since, array_map(strval(...), array_keys($ruleSince)), $ruleSince);
     }
 
     #[\Override]
@@ -40,6 +42,9 @@ final readonly class WorkerRunFactProvider extends BridgeFactProvider
     {
         $facts instanceof WorkerRunFacts || throw new \LogicException('The provider fingerprints its own facts.');
 
-        return FingerprintValue::sorted($facts->activeKinds);
+        $active = FingerprintValue::sorted($facts->activeKinds);
+        $rule = FingerprintValue::sorted($facts->activeRuleKinds);
+
+        return $active === $rule ? $active : [$active, $rule];
     }
 }

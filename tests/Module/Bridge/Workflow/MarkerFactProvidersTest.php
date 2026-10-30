@@ -8,6 +8,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -64,6 +65,42 @@ final class MarkerFactProvidersTest extends KernelTestCase
 
         self::assertSame(['review', 'fix'], $facts->activeKinds);
         self::assertEquals(['review' => new \DateTimeImmutable('2026-10-02 09:30:00'), 'fix' => new \DateTimeImmutable('2026-10-02 09:40:00')], $facts->since);
+    }
+
+    public function test_a_work_request_that_a_person_started_counts_as_active_but_not_as_rule_work(): void
+    {
+        $this->requestWork($this->card, 'fix', '2026-10-02 09:40:00');
+        $provider = $this->provider(WorkRequestFactProvider::class);
+        $before = $provider->fingerprint($this->build(WorkRequestFactProvider::class, WorkRequestFacts::class));
+
+        $person = $this->personRequest('resume', '2026-10-02 09:30:00');
+        $facts = $this->build(WorkRequestFactProvider::class, WorkRequestFacts::class);
+
+        self::assertSame(['resume', 'fix'], $facts->activeKinds);
+        self::assertSame(['fix'], $facts->activeRuleKinds);
+        self::assertSame(['fix'], array_keys($facts->ruleSince));
+        self::assertNotSame($before, $provider->fingerprint($facts));
+
+        $person->state = WorkRequestState::Cancelled;
+        $this->em()->flush();
+        self::assertSame($before, $provider->fingerprint($this->build(WorkRequestFactProvider::class, WorkRequestFacts::class)));
+    }
+
+    public function test_a_worker_run_takes_its_origin_from_its_work_request_then_from_its_own_rule_id(): void
+    {
+        $person = $this->personRequest('resume', '2026-10-02 09:30:00');
+        $this->openRun($this->card, 'fix', '2026-10-02 09:00:00');
+        $this->linkedRun($person->id, 'resume', null);
+        $this->linkedRun(null, 'product-design', 'inbox:start-session');
+        $this->linkedRun($person->id, 'breakdown', 'plan-on-entry');
+        $this->linkedRun(Uuid::v7(), 'review', 'review-on-entry');
+        $provider = $this->provider(WorkerRunFactProvider::class);
+
+        $facts = $this->build(WorkerRunFactProvider::class, WorkerRunFacts::class);
+
+        self::assertSame(['breakdown', 'fix', 'product-design', 'resume', 'review'], $facts->activeKinds);
+        self::assertSame(['fix', 'review'], $facts->activeRuleKinds, 'The request outranks the copy on the run. A run with no id or a lost request reads its own copy, and a run with none is a rule\'s.');
+        self::assertSame($provider->fingerprint($facts), $provider->fingerprint($this->build(WorkerRunFactProvider::class, WorkerRunFacts::class)));
     }
 
     public function test_an_open_interactive_run_is_an_open_session(): void
@@ -140,6 +177,36 @@ final class MarkerFactProvidersTest extends KernelTestCase
         $this->em()->flush();
 
         self::assertSame([], $this->build(WorkTakerFactProvider::class, WorkTakerFacts::class)->readings);
+    }
+
+    private function personRequest(string $kind, string $at): WorkRequest
+    {
+        $request = new WorkRequest($this->card->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('A flushed card has an id.'), $this->card->number, $kind, null, 'inbox:ask-answer', new \DateTimeImmutable($at));
+        $this->em()->persist($request);
+        $this->em()->flush();
+
+        return $request;
+    }
+
+    private function linkedRun(?Uuid $workRequestId, string $workKind, ?string $ruleId): WorkerRun
+    {
+        $run = new WorkerRun(
+            project: $this->card->project,
+            bridgeId: Uuid::v7(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $this->card->id ?? throw new \LogicException('A flushed card has an id.'),
+            cardNumber: $this->card->number,
+            workKind: $workKind,
+            state: WorkerRunState::Running,
+            startedAt: new \DateTimeImmutable('2026-10-02 09:10:00'),
+            receivedAt: new \DateTimeImmutable('2026-10-02 09:10:00'),
+            workRequestId: $workRequestId,
+            ruleId: $ruleId,
+        );
+        $this->em()->persist($run);
+        $this->em()->flush();
+
+        return $run;
     }
 
     private function workerRun(WorkerRunKind $kind, WorkerRunState $state, string $at, ?string $workKind): WorkerRun

@@ -21,7 +21,7 @@ rules as instructions, so write each one as a short, direct sentence.
 
 | Section | What it holds | Read by |
 |---|---|---|
-| `Instruction files` | The files and skills a worker loads before it changes code, such as `AGENTS.md` or `CONTRIBUTING.md`, and the writing style | Every stage |
+| `Instruction files` | The files and skills a worker loads before it changes code, such as `AGENTS.md` or `CONTRIBUTING.md`, and the writing style | Every stage, and the interactive design sessions |
 | `Environment` | A check that the worker is in its own folder | Implementation, fix round |
 | `Gate` | The base branch, and the commands to run before a push, in order | Implementation, fix round, merge, breakdown |
 | `Code review` | A review step before the push, and the rule that it passed. Write "none" when the gate has no review step | Implementation |

@@ -99,6 +99,7 @@ trait BridgeScenario
         ?string $model = null,
         ?string $harnessSessionId = null,
         ?string $role = null,
+        ?string $ruleId = null,
     ): WorkerRun {
         $run = new WorkerRun(
             project: AgentCredential::managed($em, $project, $project->id),
@@ -119,6 +120,7 @@ trait BridgeScenario
             receivedAt: $receivedAt,
             kind: $kind,
             workRequestId: $workRequestId,
+            ruleId: $ruleId,
             role: $role,
         );
         $run->workerPool = $workerPool;

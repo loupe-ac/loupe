@@ -327,7 +327,9 @@ func checkSubject(w *WorkEntry) []error {
 // MatchWork matches a work request against the work map. It checks the
 // request first, so its prompt holds checked values only. An unmapped project
 // skips as Unmapped. An unknown kind, an invalid request or dead work skips as
-// NoRule. The server already checked the capability. A kind the map does not
+// NoRule. A request with the interactive capability skips as NoRule unless
+// an interactive entry holds its kind. The server already checked the other
+// capabilities. A kind the map does not
 // hold runs the app prompt of the request, when the set has appPrompts and the
 // prompt is valid.
 func (s *Set) MatchWork(w api.WorkRequest) Match {
@@ -338,7 +340,11 @@ func (s *Set) MatchWork(w api.WorkRequest) Match {
 	if m.Skip == Run && s.RunCommandRefusal(w) != "" {
 		return Match{Skip: NoRule, Project: m.Project}
 	}
-	if _, mapped := s.entry(w); m.Skip == Run && !mapped && !s.removesWorktree(w) && !validAppPrompt(w.Prompt) {
+	entry, mapped := s.entry(w)
+	if m.Skip == Run && w.Capability == CapabilityInteractive && (!mapped || entry.Action != ActionInteractive) {
+		return Match{Skip: NoRule, Project: m.Project}
+	}
+	if m.Skip == Run && !mapped && !s.removesWorktree(w) && !validAppPrompt(w.Prompt) {
 		return Match{Skip: NoRule, Project: m.Project}
 	}
 
