@@ -62,6 +62,11 @@ final class ResolveExperimentPinController extends AppController
             return $this->json(['error' => 'invalid_variants'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $baseline = $payload?->baseline();
+        if (null === $baseline) {
+            return $this->json(['error' => 'invalid_baseline'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $result = ($this->resolveExperimentPin)(new ResolveExperimentPinCommand(
             owner: $user,
             handle: $handle,
@@ -69,11 +74,11 @@ final class ResolveExperimentPinController extends AppController
             experiment: $experiment,
             candidate: $choice['candidate'],
             variants: $choice['variants'],
+            baseline: $baseline,
             weights: $payload?->weights(),
             metrics: $payload?->metrics(),
             headline: $payload?->headline(),
             covers: $payload?->covers(),
-            baseline: $payload?->baseline(),
         ));
 
         if (null === $result->variant) {

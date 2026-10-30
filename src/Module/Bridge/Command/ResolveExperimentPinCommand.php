@@ -15,8 +15,7 @@ use Symfony\Component\Uid\Uuid;
  * the goal and the guards of the experiment, and is null when the bridge sent
  * none or an invalid one. The covers are the work kinds the experiment treats,
  * and are null when the bridge sent no valid list. The baseline is the variant
- * the others are compared against, and is null when the bridge sent none or a
- * name that is not one of the variants.
+ * the others are compared against, and is one of the variants.
  */
 final readonly class ResolveExperimentPinCommand
 {
@@ -28,6 +27,7 @@ final readonly class ResolveExperimentPinCommand
         public string $candidate,
         /** @var non-empty-list<string> */
         public array $variants,
+        public string $baseline,
         /** @var list<array{name: string, weight: int}>|null */
         public ?array $weights = null,
         /** @var list<string>|null */
@@ -36,7 +36,6 @@ final readonly class ResolveExperimentPinCommand
         public ?array $headline = null,
         /** @var non-empty-list<string>|null */
         public ?array $covers = null,
-        public ?string $baseline = null,
     ) {
     }
 }

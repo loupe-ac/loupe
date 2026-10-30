@@ -611,7 +611,7 @@ The endpoint needs a token with the `agent` scope.
 | `candidate` | required. The variant the bridge drew for the card. It must be one of `variants` |
 | `weights` | optional. The weight of each variant, in the order of `variants`. Each weight is an integer from 1 to 1000000 |
 | `covers` | optional. The work kinds the experiment covers, as a list of 1 to 32 unique kinds. Each kind matches `^(?:[a-z][a-z0-9-]{0,39}:)?[a-z][a-z0-9-]{0,39}$`, such as `implement` or `review:agent` |
-| `baseline` | optional. The variant the other variants are compared against. It must be one of `variants` |
+| `baseline` | required. The variant the other variants are compared against. It must be one of `variants` |
 | `metrics` | optional. The metric keys the Comparison tab of the experiment shows, in this order, as a list of 1 to 16 unique keys. Each key matches `^[a-z][a-z0-9_:-]{0,127}$`. A key such as `merge-rate` shows only when the workflow template of the project declares it |
 
 The server keeps the latest valid `weights` of each experiment in a project. It
@@ -623,10 +623,9 @@ with valid weights and no valid `covers` keeps the stored list, so a bridge that
 sends none never clears it. A bridge that sends a new valid list replaces the
 stored one. A fault in `covers` never refuses the request.
 
-The server stores a valid `baseline` with the weights. A request with valid
-weights and no valid `baseline` keeps the stored one, so a bridge that sends none
-never clears it. A baseline that is not one of `variants` is ignored, and never
-refuses the request.
+The server stores the `baseline` with the weights, and replaces the stored one
+at each request that carries valid weights. A request with no `baseline`, or with
+one that is not one of `variants`, gets a 422 and pins nothing.
 
 The server stores the valid `metrics` with the weights, so a request with no
 valid `weights` stores no metrics. A request with valid weights and no valid
@@ -662,6 +661,7 @@ Two first calls for one card get the same answer, because the first pin stays.
 | 422 | `{"error":"invalid_card_id"}` | `cardId` is not a uuid |
 | 422 | `{"error":"invalid_experiment"}` | `experiment` breaks the name pattern |
 | 422 | `{"error":"invalid_variants"}` | the body is empty, `variants` breaks its rule, or `candidate` is not one of `variants` |
+| 422 | `{"error":"invalid_baseline"}` | `baseline` is missing, or is not one of `variants` |
 | 429 | | the token went over the rate limit. See [Rate limit](#rate-limit) |
 
 Every refusal the endpoint makes carries an error code. The 400 and the 415 come

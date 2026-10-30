@@ -193,21 +193,13 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         self::assertSame(['implement', 'review'], $this->onlyDefinition()->covers);
     }
 
-    public function test_the_baseline_is_stored_and_a_request_with_none_keeps_it(): void
+    public function test_the_baseline_is_stored_and_a_changed_one_replaces_it(): void
     {
         $this->boot();
         [$owner, $project] = $this->scenario('pin-baseline');
         $weights = [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]];
 
-        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights);
-
-        self::assertNull($this->onlyDefinition()->baseline);
-
         $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights, baseline: 'opus');
-
-        self::assertSame('opus', $this->onlyDefinition()->baseline);
-
-        $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights);
 
         self::assertSame('opus', $this->onlyDefinition()->baseline);
 
@@ -310,7 +302,7 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         ?array $metrics = null,
         ?array $headline = null,
         ?array $covers = null,
-        ?string $baseline = null,
+        string $baseline = 'opus',
     ): ResolveExperimentPinResult {
         $handler = self::getContainer()->get(ResolveExperimentPinHandler::class);
         self::assertInstanceOf(ResolveExperimentPinHandler::class, $handler);
@@ -322,11 +314,11 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
             experiment: $experiment,
             candidate: $candidate,
             variants: $variants,
+            baseline: $baseline,
             weights: $weights,
             metrics: $metrics,
             headline: $headline,
             covers: $covers,
-            baseline: $baseline,
         ));
     }
 

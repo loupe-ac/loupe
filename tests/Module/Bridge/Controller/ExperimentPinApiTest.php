@@ -21,7 +21,7 @@ final class ExperimentPinApiTest extends WebTestCase
 {
     use BridgeScenario;
 
-    private const string BODY = '{"candidate":"sonnet","variants":["opus","sonnet"]}';
+    private const string BODY = '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus"}';
 
     public function test_the_first_call_pins_the_candidate_and_the_next_keeps_it(): void
     {
@@ -37,12 +37,12 @@ final class ExperimentPinApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         self::assertJsonStringEqualsJsonString('{"variant":"sonnet","switchedFrom":null}', $this->body($client));
 
-        $this->put($client, $path, $raw, '{"candidate":"opus","variants":["opus","sonnet"]}');
+        $this->put($client, $path, $raw, '{"candidate":"opus","variants":["opus","sonnet"],"baseline":"opus"}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertJsonStringEqualsJsonString('{"variant":"sonnet","switchedFrom":null}', $this->body($client));
 
-        $this->put($client, $path, $raw, '{"candidate":"opus","variants":["opus","haiku"]}');
+        $this->put($client, $path, $raw, '{"candidate":"opus","variants":["opus","haiku"],"baseline":"opus"}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertJsonStringEqualsJsonString('{"variant":"opus","switchedFrom":"sonnet"}', $this->body($client));
@@ -61,7 +61,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3]}',
+            '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3]}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -72,7 +72,7 @@ final class ExperimentPinApiTest extends WebTestCase
         self::assertSame([['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 3]], $definitions[0]->weights);
     }
 
-    public function test_the_baseline_is_stored_and_a_bad_one_keeps_the_stored_one(): void
+    public function test_the_baseline_is_stored_and_a_changed_one_replaces_it(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -81,14 +81,45 @@ final class ExperimentPinApiTest extends WebTestCase
         $raw = $this->agentToken($client, $owner);
         $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
 
-        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"baseline":"opus"}');
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3]}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame('opus', $this->allDefinitions()[0]->baseline);
 
-        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"baseline":"haiku"}');
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"sonnet","weights":[1,3]}');
 
         self::assertResponseStatusCodeSame(200);
+        self::assertSame('sonnet', $this->allDefinitions()[0]->baseline);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function invalidBaselineBodies(): iterable
+    {
+        yield 'no baseline' => ['{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3]}'];
+        yield 'null' => ['{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":null,"weights":[1,3]}'];
+        yield 'not a variant' => ['{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"haiku","weights":[1,3]}'];
+        yield 'not a string' => ['{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":1,"weights":[1,3]}'];
+    }
+
+    #[DataProvider('invalidBaselineBodies')]
+    public function test_a_request_with_no_valid_baseline_is_refused_and_changes_nothing(string $body): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $suffix = md5($body);
+        $owner = $this->user($em, 'pin-api-no-baseline-'.$suffix.'@example.com');
+        $project = $this->project($em, $owner, 'Pin Api No Baseline '.substr($suffix, 0, 6));
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
+
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3]}');
+        self::assertResponseStatusCodeSame(200);
+
+        $this->put($client, $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()), $raw, $body);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertJsonStringEqualsJsonString('{"error":"invalid_baseline"}', $this->body($client));
+        self::assertCount(1, $this->allPins());
         self::assertSame('opus', $this->allDefinitions()[0]->baseline);
     }
 
@@ -104,7 +135,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"metrics":["merge-rate","cost","no-such-metric"]}',
+            '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"metrics":["merge-rate","cost","no-such-metric"]}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -122,12 +153,12 @@ final class ExperimentPinApiTest extends WebTestCase
         $raw = $this->agentToken($client, $owner);
         $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
 
-        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":[]}}');
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"headline":{"goal":{"metric":"hours-to-merge","better":"lower"},"guards":[]}}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower'], 'guards' => []], $this->allDefinitions()[0]->headline);
 
-        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"goal":{"metric":"cost","better":"up"}}}');
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"headline":{"goal":{"metric":"cost","better":"up"}}}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertNull($this->allDefinitions()[0]->headline);
@@ -142,12 +173,12 @@ final class ExperimentPinApiTest extends WebTestCase
         $raw = $this->agentToken($client, $owner);
         $path = $this->path((string) $project->id, 'impl-model', (string) Uuid::v7());
 
-        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"controls":[{"metric":"harness-events:diagnostics","variant":"sonnet","expect":"> 0","share":0.5}]}}');
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"headline":{"controls":[{"metric":"harness-events:diagnostics","variant":"sonnet","expect":"> 0","share":0.5}]}}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(['controls' => [['metric' => 'harness-events:diagnostics', 'variant' => 'sonnet', 'expect' => '> 0', 'share' => 0.5]]], $this->allDefinitions()[0]->headline);
 
-        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"headline":{"controls":[{"metric":"cost","variant":"haiku","expect":"> 0","share":0.5}]}}');
+        $this->put($client, $path, $raw, '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"headline":{"controls":[{"metric":"cost","variant":"haiku","expect":"> 0","share":0.5}]}}');
 
         self::assertResponseStatusCodeSame(200);
         self::assertNull($this->allDefinitions()[0]->headline);
@@ -166,7 +197,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"metrics":["cost","cost"]}',
+            '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"metrics":["cost","cost"]}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -189,7 +220,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1,3],"metrics":["cost"]}',
+            '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1,3],"metrics":["cost"]}',
         );
         self::assertResponseStatusCodeSame(200);
         self::assertSame(['cost'], $this->allDefinitions()[0]->metrics);
@@ -198,7 +229,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"opus","variants":["opus","sonnet"],"weights":[2,3]}',
+            '{"candidate":"opus","variants":["opus","sonnet"],"baseline":"opus","weights":[2,3]}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -220,7 +251,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"1","variants":["0","1"],"weights":[1,2]}',
+            '{"candidate":"1","variants":["0","1"],"baseline":"0","weights":[1,2]}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -242,7 +273,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"sonnet","variants":["opus","sonnet"],"weights":[1]}',
+            '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","weights":[1]}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -264,7 +295,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            '{"candidate":"sonnet","variants":["opus","sonnet"],"future":{"a":1}}',
+            '{"candidate":"sonnet","variants":["opus","sonnet"],"baseline":"opus","future":{"a":1}}',
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -414,7 +445,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $client,
             $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()),
             $raw,
-            json_encode(['candidate' => 'v31', 'variants' => $variants], \JSON_THROW_ON_ERROR),
+            json_encode(['candidate' => 'v31', 'variants' => $variants, 'baseline' => 'v0'], \JSON_THROW_ON_ERROR),
         );
 
         self::assertResponseStatusCodeSame(200);
