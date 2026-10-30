@@ -30,6 +30,7 @@ final readonly class UpdateCardOutcome
         /** Whether the update held the card, which is announced after the commit. */
         public bool $held,
         public bool $humanReviewChanged = false,
+        public bool $valuesChanged = false,
     ) {
     }
 }

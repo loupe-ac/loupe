@@ -663,6 +663,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 ```
 
 The bridge prints this example when it finds no file, or an empty one.
@@ -821,6 +824,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 ```
 
 The top-level `launch` block names the terminal command. `command` is an argv

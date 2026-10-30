@@ -6499,6 +6499,18 @@
                 <source>board.card.error.column_changed</source>
                 <target>Someone moved this card to another column. Reload the page and try again.</target>
             </trans-unit>
+            <trans-unit id="board.card.error.value_type_bool">
+                <source>board.card.error.value_type_bool</source>
+                <target>This key takes true or false.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_undeclared">
+                <source>board.card.error.value_key_undeclared</source>
+                <target>The workflow template declares no key %key%. Declared keys: %declared%.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_undeclared_none">
+                <source>board.card.error.value_key_undeclared_none</source>
+                <target>The workflow template declares no key %key%. Declared keys: none.</target>
+            </trans-unit>
             <trans-unit id="board.card.error.title_blank">
                 <source>board.card.error.title_blank</source>
                 <target>Give the card a title.</target>
@@ -7719,6 +7731,8 @@
             <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
             <trans-unit id="board.card.history.human_review_on"><source>board.card.history.human_review_on</source><target>%actor% turned on human review.</target></trans-unit>
             <trans-unit id="board.card.history.human_review_off"><source>board.card.history.human_review_off</source><target>%actor% turned off human review.</target></trans-unit>
+            <trans-unit id="board.card.history.value_on"><source>board.card.history.value_on</source><target>%actor% turned on %subject%.</target></trans-unit>
+            <trans-unit id="board.card.history.value_off"><source>board.card.history.value_off</source><target>%actor% turned off %subject%.</target></trans-unit>
             <trans-unit id="board.card.history.cause.human_review_rollout"><source>board.card.history.cause.human_review_rollout</source><target>Set when the human review switch shipped, because an artifact reached the card.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
@@ -7827,6 +7841,11 @@
             <trans-unit id="board.card.human_review.tooltip"><source>board.card.human_review.tooltip</source><target>On: the pull request waits for your approval. Off: the workflow can approve it.</target></trans-unit>
             <trans-unit id="board.card.human_review.rules_link"><source>board.card.human_review.rules_link</source><target>See the rules</target></trans-unit>
             <trans-unit id="board.card.human_review.error.not_saved"><source>board.card.human_review.error.not_saved</source><target>The review setting was not saved. Reload the page and try again.</target></trans-unit>
+            <trans-unit id="board.card.values.title"><source>board.card.values.title</source><target>Values</target></trans-unit>
+            <trans-unit id="board.card.values.help_label"><source>board.card.values.help_label</source><target>About this setting</target></trans-unit>
+            <trans-unit id="board.card.values.set_by"><source>board.card.values.set_by</source><target>Set by %writer%</target></trans-unit>
+            <trans-unit id="board.card.values.not_set"><source>board.card.values.not_set</source><target>Not set</target></trans-unit>
+            <trans-unit id="board.card.values.error.not_saved"><source>board.card.values.error.not_saved</source><target>The value was not saved. Reload the page and try again.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.error.not_saved"><source>board.card.lane.error.not_saved</source><target>The lane setting was not saved. Reload the page and try again.</target></trans-unit>
@@ -9051,12 +9070,20 @@
             <trans-unit id="github.app.flash.repositories_elsewhere"><source>github.app.flash.repositories_elsewhere</source><target>{0}No repository belongs to another project.|{1}1 repository belongs to another project, so Loupe did not connect it.|]1,Inf[%count% repositories belong to another project, so Loupe did not connect them.</target></trans-unit>
 
             <!-- Workflow conditions: what a rule waits for -->
+            <trans-unit id="workflow.value.tech_design_interactive.label"><source>workflow.value.tech_design_interactive.label</source><target>Tech design</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.caption"><source>workflow.value.tech_design_interactive.caption</source><target>Interactive session</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.help"><source>workflow.value.tech_design_interactive.help</source><target>Turn this on to write the tech design in a session with you. The workflow then asks your bridge for a terminal in place of an autonomous agent.</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.history"><source>workflow.value.tech_design_interactive.history</source><target>the interactive session for tech design</target></trans-unit>
             <trans-unit id="workflow.waiting.card_in_slot"><source>workflow.waiting.card_in_slot</source><target>Waiting: the card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_in_slot"><source>workflow.waiting.not.card_in_slot</source><target>Waiting: the card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_in_slot"><source>workflow.waiting.parent_in_slot</source><target>Waiting: the parent card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.parent_in_slot"><source>workflow.waiting.not.parent_in_slot</source><target>Waiting: the parent card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_type"><source>workflow.waiting.card_type</source><target>Waiting: the card type is not %type%.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_type"><source>workflow.waiting.not.card_type</source><target>Waiting: the card type is %type%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value"><source>workflow.waiting.card_value</source><target>Waiting: the card value "%key%" is not %value%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value"><source>workflow.waiting.not.card_value</source><target>Waiting: the card value "%key%" is %value%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value_set"><source>workflow.waiting.card_value_set</source><target>Waiting: the card holds no value for "%key%".</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value_set"><source>workflow.waiting.not.card_value_set</source><target>Waiting: the card holds a value for "%key%".</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_open_blocker"><source>workflow.waiting.card_has_open_blocker</source><target>Waiting: the card has no open blocker.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_has_open_blocker"><source>workflow.waiting.not.card_has_open_blocker</source><target>Waiting: a blocking card is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_parent_epic_branch_synced"><source>workflow.waiting.card_parent_epic_branch_synced</source><target>Waiting: the default branch is not yet merged into the epic branch.</target></trans-unit>

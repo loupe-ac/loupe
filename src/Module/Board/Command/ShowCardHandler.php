@@ -13,6 +13,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardPullRequestStates;
+use App\Module\Board\Service\CardValueReader;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
@@ -30,6 +31,7 @@ final readonly class ShowCardHandler
         private CardAgentReviews $agentReviews,
         private CardArtifactRepository $cardArtifacts,
         private SiteReviewScreenshotRepository $siteReviewScreenshots,
+        private CardValueReader $cardValues,
     ) {
     }
 
@@ -65,6 +67,7 @@ final readonly class ShowCardHandler
             $this->agentReviews->forCards([$command->card]),
             $this->cardArtifacts->findWithLatestVersionForCards([$command->card])[$cardId] ?? [],
             $this->siteReviewScreenshots->findSizesByComments(array_map(static fn (CardSiteReviewComment $link): SiteReviewComment => $link->comment, $links)),
+            $this->cardValues->forCard($command->card),
         );
     }
 }

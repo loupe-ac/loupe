@@ -62,6 +62,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 ```
 
 - `appPrompts` lets the bridge run the prompt that ships with Loupe for a kind
@@ -70,9 +73,11 @@ work:
   finds. This is `claude-code`, or `codex` when only `codex` is on your `PATH`.
 - `defaults.permissions` is `workspace`.
 - `projects` maps the project to the directory of the repository.
-- `work.product-design` is an interactive entry. It opens a terminal window,
-  through `launch`, so you can talk to the agent. `loupe init` writes `launch`
-  and this entry only when it knows a terminal. macOS always has one. On Linux,
+- `work.product-design` and `work.tech-design-session` are interactive entries.
+  They open a terminal window, through `launch`, so you can talk to the agent.
+  The second one runs when a card has its "Interactive session" switch on under
+  Tech design. `loupe init` writes `launch` and these entries only when it
+  knows a terminal. macOS always has one. On Linux,
   it looks for a common terminal program on your `PATH`.
 
 On a machine with no known terminal, `loupe init` says that product design waits

@@ -195,6 +195,7 @@ final class CardAuditTrailTest extends KernelTestCase
             'parentChanged' => false,
             'laneChanged' => false,
             'humanReviewChanged' => false,
+            'valuesChanged' => false,
             'pullRequestsReplaced' => false,
             'documentsReplaced' => false,
             'artifactsReplaced' => false,

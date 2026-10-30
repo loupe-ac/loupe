@@ -15,7 +15,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * or malformed key reads null rather than fail the whole page.
  *
  * @phpstan-type CardEventColumnSummary array{id: string, slug: string, label: string}
- * @phpstan-type CardEventSummary array{kind: string, occurredAt: string, actor: array{kind: string, name: ?string}, from: ?CardEventColumnSummary, to: ?CardEventColumnSummary, cause: ?array<mixed>, run: ?array<string, mixed>, reason: ?string, pullRequest: ?int, pause: ?array{kind: ?string, ruleId: ?string, releaseReason: ?string}, override: ?array{approver: ?string, headSha: ?string}, document: ?array{documentId: ?string, title: ?string, rule: ?string, verdict: ?string, withdrawn: ?string, refusal: ?string}, humanReview: ?array{value: ?bool, cause: ?string, ruleId: ?string}}
+ * @phpstan-type CardEventSummary array{kind: string, occurredAt: string, actor: array{kind: string, name: ?string}, from: ?CardEventColumnSummary, to: ?CardEventColumnSummary, cause: ?array<mixed>, run: ?array<string, mixed>, reason: ?string, pullRequest: ?int, pause: ?array{kind: ?string, ruleId: ?string, releaseReason: ?string}, override: ?array{approver: ?string, headSha: ?string}, document: ?array{documentId: ?string, title: ?string, rule: ?string, verdict: ?string, withdrawn: ?string, refusal: ?string}, humanReview: ?array{value: ?bool, cause: ?string, ruleId: ?string}, valueChange: ?array{key: ?string, value: ?bool, previous: ?bool}}
  */
 final readonly class CardEventPayload
 {
@@ -75,6 +75,11 @@ final readonly class CardEventPayload
                 'value' => \is_bool($detail['value'] ?? null) ? $detail['value'] : null,
                 'cause' => self::text($detail['cause'] ?? null),
                 'ruleId' => self::text($detail['ruleId'] ?? null),
+            ] : null,
+            'valueChange' => CardEventKind::ValueChanged === $event->kind ? [
+                'key' => self::text($detail['key'] ?? null),
+                'value' => \is_bool($detail['value'] ?? null) ? $detail['value'] : null,
+                'previous' => \is_bool($detail['previous'] ?? null) ? $detail['previous'] : null,
             ] : null,
         ];
     }
