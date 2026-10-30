@@ -53,7 +53,7 @@ final class BridgeLoginLivenessTest extends KernelTestCase
         self::assertEquals($login, $this->bridges()->findOneByOwnerAndId($owner, $bridgeId)?->loginId);
     }
 
-    public function test_a_new_token_with_no_tagged_login_keeps_the_stored_one(): void
+    public function test_a_new_token_with_no_tagged_login_clears_the_stored_one(): void
     {
         self::bootKernel();
         $login = Uuid::v7();
@@ -68,7 +68,7 @@ final class BridgeLoginLivenessTest extends KernelTestCase
 
         $bridge = $this->bridges()->findOneByOwnerAndId($owner, $bridgeId);
         self::assertSame('access-2', $bridge?->loginAccessTokenId);
-        self::assertEquals($login, $bridge->loginId);
+        self::assertNull($bridge->loginId);
     }
 
     public function test_only_a_quiet_bridge_with_an_expired_login_reads_login_expired(): void

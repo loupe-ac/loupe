@@ -112,7 +112,7 @@ final readonly class RecordBridgeHeartbeatHandler
             $bridge->installMethod = $command->installMethod;
             if (null !== $command->accessTokenId && $bridge->loginAccessTokenId !== $command->accessTokenId) {
                 $bridge->loginAccessTokenId = $command->accessTokenId;
-                $bridge->loginId = $this->logins->loginOfAccessToken($command->accessTokenId) ?? $bridge->loginId;
+                $bridge->loginId = $this->logins->loginOfAccessToken($command->accessTokenId);
             }
             $poolsChanged = null !== $command->workerPools && $bridge->workerPools !== $command->workerPools;
             if (null !== $command->workerPools) {
