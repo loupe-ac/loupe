@@ -7707,6 +7707,8 @@
             <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
             <trans-unit id="board.card.history.human_review_on"><source>board.card.history.human_review_on</source><target>%actor% turned on human review.</target></trans-unit>
             <trans-unit id="board.card.history.human_review_off"><source>board.card.history.human_review_off</source><target>%actor% turned off human review.</target></trans-unit>
+            <trans-unit id="board.card.history.value_on"><source>board.card.history.value_on</source><target>%actor% turned on %subject%.</target></trans-unit>
+            <trans-unit id="board.card.history.value_off"><source>board.card.history.value_off</source><target>%actor% turned off %subject%.</target></trans-unit>
             <trans-unit id="board.card.history.cause.human_review_rollout"><source>board.card.history.cause.human_review_rollout</source><target>Set when the human review switch shipped, because an artifact reached the card.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
@@ -7815,6 +7817,11 @@
             <trans-unit id="board.card.human_review.tooltip"><source>board.card.human_review.tooltip</source><target>On: the pull request waits for your approval. Off: the workflow can approve it.</target></trans-unit>
             <trans-unit id="board.card.human_review.rules_link"><source>board.card.human_review.rules_link</source><target>See the rules</target></trans-unit>
             <trans-unit id="board.card.human_review.error.not_saved"><source>board.card.human_review.error.not_saved</source><target>The review setting was not saved. Reload the page and try again.</target></trans-unit>
+            <trans-unit id="board.card.values.title"><source>board.card.values.title</source><target>Values</target></trans-unit>
+            <trans-unit id="board.card.values.help_label"><source>board.card.values.help_label</source><target>About this setting</target></trans-unit>
+            <trans-unit id="board.card.values.set_by"><source>board.card.values.set_by</source><target>Set by %writer%</target></trans-unit>
+            <trans-unit id="board.card.values.not_set"><source>board.card.values.not_set</source><target>Not set</target></trans-unit>
+            <trans-unit id="board.card.values.error.not_saved"><source>board.card.values.error.not_saved</source><target>The value was not saved. Reload the page and try again.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.error.not_saved"><source>board.card.lane.error.not_saved</source><target>The lane setting was not saved. Reload the page and try again.</target></trans-unit>

@@ -10,6 +10,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\View\CardHistoryEntry;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Workflow\Contract\CardValueKeys;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ShowCardHistoryHandler
@@ -19,6 +20,7 @@ final readonly class ShowCardHistoryHandler
     public function __construct(
         private CardEventRepository $cardEvents,
         private WorkerRunRepository $workerRuns,
+        private CardValueKeys $valueKeys,
     ) {
     }
 
@@ -39,13 +41,20 @@ final readonly class ShowCardHistoryHandler
         $runIds = array_values(array_filter(array_map(CardHistoryEntry::runIdOf(...), $events)));
         $existing = $this->workerRuns->findExistingIds($command->card->project, array_map(Uuid::fromString(...), $runIds));
 
+        $historyPhrases = [];
+        if ([] !== array_filter($events, static fn (CardEvent $event): bool => CardEventKind::ValueChanged === $event->kind)) {
+            foreach ($this->valueKeys->forProject($command->card->project->requireId()) as $key) {
+                $historyPhrases[$key->key] = $key->history;
+            }
+        }
+
         return new CardHistoryView(
             $command->card,
             $command->beforeId?->toRfc4122(),
-            array_map(static function (CardEvent $event) use ($existing): CardHistoryEntry {
+            array_map(static function (CardEvent $event) use ($existing, $historyPhrases): CardHistoryEntry {
                 $runId = CardHistoryEntry::runIdOf($event);
 
-                return CardHistoryEntry::of($event, null !== $runId && \in_array(Uuid::fromString($runId)->toRfc4122(), $existing, true));
+                return CardHistoryEntry::of($event, null !== $runId && \in_array(Uuid::fromString($runId)->toRfc4122(), $existing, true), $historyPhrases);
             }, $events),
             $last?->occurredAt->format(ShowCardHistoryCommand::CURSOR_FORMAT),
             $last?->id?->toRfc4122(),

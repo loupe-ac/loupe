@@ -7,6 +7,7 @@ namespace App\Module\Board\View;
 use App\Module\Account\Entity\User;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardValueType;
+use Symfony\Component\Translation\TranslatableMessage;
 
 /**
  * One declared key of a card with the value it holds.
@@ -29,5 +30,13 @@ final readonly class CardValueView
         public ?User $writerUser = null,
         public ?\DateTimeImmutable $updatedAt = null,
     ) {
+    }
+
+    /** Who wrote the value, named as the card history names an actor. Null when the card holds no value. */
+    public function setBy(): ?TranslatableMessage
+    {
+        return null === $this->writerKind
+            ? null
+            : new TranslatableMessage('board.card.values.set_by', ['%writer%' => CardHistoryEntry::actorLabel($this->writerKind, $this->writerUser)]);
     }
 }

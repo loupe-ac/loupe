@@ -189,6 +189,7 @@
                     <dt>{{ 'board.card.human_review.field'|trans }}</dt>
                     <dd>{% include '@Board/_card_human_review.html.twig' with {card: card, error: null} only %}</dd>
                 </div>
+                {% include '@Board/_card_values.html.twig' with {card: card, values: values} only %}
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.type'|trans }}</dt><dd>{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.reporter'|trans }}</dt><dd>{{ ('board.card.reporter.' ~ card.reporter.value)|trans }}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.source'|trans }}</dt><dd>{{ ('board.card.source.' ~ card.source.kind.value)|trans }}</dd></div>
