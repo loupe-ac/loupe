@@ -1134,6 +1134,30 @@ final class RotateSecretsTest extends TestCase
         self::assertStringNotContainsString($new, $process->getOutput().$process->getErrorOutput());
     }
 
+    public function test_an_apply_that_changes_folder_still_finds_the_store_of_a_relative_terraform_root(): void
+    {
+        $this->useStore(['TF_VAR_install_token' => 'old']);
+        rename($this->dir.'/store.yaml', $this->dir.'/tf/secrets.enc.yaml');
+        $this->storeEnv = [];
+        $repo = \dirname(__DIR__, 2);
+        file_put_contents($this->dir.'/apply.sh', <<<SH
+            #!/usr/bin/env bash
+            cd "{$this->dir}/tf" && "{$repo}/bin/tf-secrets" exec -- sh -c 'printf %s "\${TF_VAR_install_token:-none}" > "{$this->dir}/applied"'
+            SH);
+        $relative = 'var/'.basename($this->dir);
+        symlink($this->dir, $repo.'/'.$relative);
+
+        try {
+            $process = $this->rotate(['install_token'], '', ['ROTATE_TF_ROOT' => $relative.'/tf', 'ROTATE_TFVARS' => $relative.'/secrets.vars']);
+        } finally {
+            unlink($repo.'/'.$relative);
+        }
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertStringNotContainsString('no secret store', $process->getErrorOutput());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', (string) file_get_contents($this->dir.'/applied'));
+    }
+
     public function test_the_script_is_valid_bash(): void
     {
         $process = new Process(['bash', '-n', \dirname(__DIR__, 2).'/bin/rotate-secrets']);
