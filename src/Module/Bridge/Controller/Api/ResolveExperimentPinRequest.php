@@ -243,9 +243,7 @@ final class ResolveExperimentPinRequest
 
     /**
      * The variant the others are compared against. Null when it is not one of
-     * the variants of the request. A bad baseline never refuses the pin, so a
-     * bridge from before the baseline still runs, and the server keeps the
-     * stored one.
+     * the variants of the request, and the controller then refuses the pin.
      */
     public function baseline(): ?string
     {
