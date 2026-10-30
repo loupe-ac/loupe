@@ -37,6 +37,10 @@ final readonly class InboxThreadActionBuilder
         $dismiss = null;
         $default = null;
         foreach ($this->itemActions->forItem($item) as $action) {
+            // The response forms of the page carry these, so the split button has a row for Dismiss on a wait item alone.
+            if ($action->kind->isResponse() && !(InboxActionKind::Dismiss === $action->kind && $item->isAutomatic())) {
+                continue;
+            }
             $row = $this->row($item, $action, $hostCardId);
             if (null === $row) {
                 continue;

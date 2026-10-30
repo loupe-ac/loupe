@@ -597,35 +597,14 @@ for (const surface of ['page', 'drawer']) {
         await expect(question.locator('[data-inbox-response]')).toContainText(
             'The importer reads CSV.',
         );
-        // Decline carries whatever stands in the item's own answer field.
-        await question
-            .getByLabel('Note for the agent')
-            .fill('Wait for the new importer.');
-        if (surface === 'drawer') {
-            await drawer.getByRole('link', { name: 'Close card' }).click();
-            await expect(drawer).toBeHidden();
-            await page.getByRole('link', { name: /Ship the export/ }).click();
-            await drawer.getByRole('tab', { name: 'Conversation' }).click();
-            await expect(
-                question.getByLabel('Note for the agent'),
-            ).toBeVisible();
-            await expect(question.getByLabel('Note for the agent')).toHaveValue(
-                'Wait for the new importer.',
-            );
-        }
-        await question.getByRole('button', { name: 'Decline' }).click();
-        await expect(page.locator('.lp-flash')).toContainText(
-            `Item ${questionNumber} is closed.`,
-        );
-        await expect(question.locator('[data-inbox-response]')).toContainText(
-            'Wait for the new importer.',
-        );
-        await expect(page).toHaveURL(
-            surface === 'drawer' ? boardUrl : `${cardUrl}?tab=conversation`,
-        );
+        // A sent answer is final, so the closed question offers no form to change or decline it.
         await expect(
-            page.getByRole('tab', { name: 'Conversation' }),
-        ).toHaveAttribute('aria-selected', 'true');
+            question.locator('[data-inbox-editable="no"]'),
+        ).toBeVisible();
+        await expect(question.locator('form')).toHaveCount(0);
+        await expect(
+            question.getByRole('button', { name: 'Decline' }),
+        ).toHaveCount(0);
         if (surface === 'drawer') {
             await expect(drawer).toBeVisible();
             await page.keyboard.press('Escape');
@@ -635,9 +614,9 @@ for (const surface of ['page', 'drawer']) {
             ).toBeFocused();
         }
         await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
-        // The decline replaced the answer, and the inbox reads the same record.
+        // The inbox reads the same record.
         await expect(
             page.locator(`#inbox-item-${questionNumber} [data-inbox-response]`),
-        ).toContainText('Wait for the new importer.');
+        ).toContainText('The importer reads CSV.');
     });
 }

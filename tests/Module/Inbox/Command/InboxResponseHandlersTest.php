@@ -99,7 +99,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 
-    public function test_a_to_do_already_done_is_not_marked_done_again(): void
+    public function test_a_to_do_already_done_is_refused_as_final_and_keeps_its_stamp(): void
     {
         $stale = $this->todo($this->em, $this->project, 1);
         // An older page marked it done after this request loaded the item.
@@ -108,7 +108,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
             [(string) $stale->id],
         );
 
-        self::assertSame(['item' => 'inbox.done.error.already_done'], $this->refusal(fn () => $this->markDone($stale)));
+        self::assertSame(['item' => 'inbox.item.error.final'], $this->refusal(fn () => $this->markDone($stale)));
         self::assertSame('2026-01-01 00:00:00', $this->reload($stale)->updatedAt->format('Y-m-d H:i:s'));
     }
 
@@ -121,18 +121,18 @@ final class InboxResponseHandlersTest extends KernelTestCase
         self::assertSame(['item' => 'inbox.done.error.not_a_todo'], $this->refusal(fn () => $this->markDone($question)));
     }
 
-    public function test_an_answer_changes_while_no_closed_ask_holds_the_item_and_keeps_its_close_time(): void
+    public function test_a_sent_answer_is_final_even_while_every_ask_that_holds_the_item_is_open(): void
     {
         $item = $this->question($this->em, $this->project, 1);
         $this->askHolding($this->em, $this->project, [$item]);
         $this->answered($this->em, $item);
         $closedAt = $item->closedAt;
 
-        $this->answer($item, '1', '');
+        self::assertSame(['selectedOptions' => 'inbox.item.error.final'], $this->refusal(fn () => $this->answer($item, '1', '')));
 
         $this->em->clear();
         $stored = $this->reload($item);
-        self::assertSame([1], $stored->selectedOptions);
+        self::assertSame([0], $stored->selectedOptions);
         // The column keeps whole seconds.
         self::assertSame($closedAt?->format('Y-m-d H:i:s'), $stored->closedAt?->format('Y-m-d H:i:s'));
     }
@@ -167,13 +167,12 @@ final class InboxResponseHandlersTest extends KernelTestCase
         $item = $this->todo($this->em, $this->project, 1);
         $this->answered($this->em, $item, InboxItemState::Cancelled);
 
-        self::assertSame(['item' => 'inbox.item.error.closed_by_agent'], $this->refusal(fn () => $this->markDone($item)));
+        self::assertSame(['item' => 'inbox.item.error.final'], $this->refusal(fn () => $this->markDone($item)));
     }
 
-    public function test_a_decline_clears_an_earlier_answer_and_keeps_the_note(): void
+    public function test_a_decline_trims_its_note_and_clears_the_options(): void
     {
         $item = $this->question($this->em, $this->project, 1, freeText: true);
-        $this->answer($item, '0', 'JSON');
 
         $this->decline($item, '  Not sure what you mean.  ');
 
@@ -185,7 +184,18 @@ final class InboxResponseHandlersTest extends KernelTestCase
         self::assertSame(InboxCloser::Owner, $stored->closedBy);
     }
 
-    public function test_a_decline_from_a_stale_copy_clears_an_answer_another_request_stored(): void
+    public function test_a_decline_after_an_answer_is_refused_and_keeps_the_answer(): void
+    {
+        $item = $this->question($this->em, $this->project, 1, freeText: true);
+        $this->answer($item, '0', 'JSON');
+
+        self::assertSame(['closeNote' => 'inbox.item.error.final'], $this->refusal(fn () => $this->decline($item, 'Changed my mind.')));
+
+        $stored = $this->reload($item);
+        self::assertSame([InboxItemState::Resolved, [0], 'JSON'], [$stored->state, $stored->selectedOptions, $stored->note]);
+    }
+
+    public function test_a_decline_from_a_stale_copy_does_not_overwrite_an_answer_another_request_stored(): void
     {
         $item = $this->question($this->em, $this->project, 1, freeText: true);
         // Another request answers and commits after this one loaded the item.
@@ -194,16 +204,13 @@ final class InboxResponseHandlersTest extends KernelTestCase
             [(string) $item->id],
         );
 
-        $this->decline($item, 'Changed my mind.');
+        self::assertSame(['closeNote' => 'inbox.item.error.final'], $this->refusal(fn () => $this->decline($item, 'Changed my mind.')));
 
-        $this->em->clear();
         $stored = $this->reload($item);
-        self::assertSame(InboxItemState::Declined, $stored->state);
-        self::assertSame([], $stored->selectedOptions);
-        self::assertSame('Changed my mind.', $stored->note);
+        self::assertSame([InboxItemState::Resolved, [1], 'CSV'], [$stored->state, $stored->selectedOptions, $stored->note]);
     }
 
-    public function test_a_response_through_an_agent_is_closed_by_owner_through_agent_and_a_page_response_by_the_owner(): void
+    public function test_a_response_through_an_agent_is_closed_by_owner_through_agent_and_a_second_response_is_refused(): void
     {
         $item = $this->question($this->em, $this->project, 1);
 
@@ -211,8 +218,8 @@ final class InboxResponseHandlersTest extends KernelTestCase
         $stored = $this->reload($item);
         self::assertSame([InboxCloser::OwnerThroughAgent, null], [$stored->closedBy, $stored->closeCause]);
 
-        $this->answer($stored, '1', '');
-        self::assertSame(InboxCloser::Owner, $this->reload($item)->closedBy);
+        self::assertSame(['selectedOptions' => 'inbox.item.error.final'], $this->refusal(fn () => $this->answer($stored, '1', '')));
+        self::assertSame(InboxCloser::OwnerThroughAgent, $this->reload($item)->closedBy);
     }
 
     public function test_a_page_response_is_closed_by_the_owner(): void
@@ -224,7 +231,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
         self::assertSame(InboxCloser::Owner, $this->reload($item)->closedBy);
     }
 
-    public function test_a_decline_through_an_agent_is_closed_by_owner_through_agent_and_a_page_decline_by_the_owner(): void
+    public function test_a_decline_through_an_agent_is_closed_by_owner_through_agent_and_a_second_decline_is_refused(): void
     {
         $item = $this->question($this->em, $this->project, 1);
 
@@ -232,8 +239,8 @@ final class InboxResponseHandlersTest extends KernelTestCase
         $stored = $this->reload($item);
         self::assertSame([InboxItemState::Declined, InboxCloser::OwnerThroughAgent, null], [$stored->state, $stored->closedBy, $stored->closeCause]);
 
-        $this->decline($stored, 'Still no.');
-        self::assertSame(InboxCloser::Owner, $this->reload($item)->closedBy);
+        self::assertSame(['closeNote' => 'inbox.item.error.final'], $this->refusal(fn () => $this->decline($stored, 'Still no.')));
+        self::assertSame('No.', $this->reload($item)->note);
     }
 
     public function test_a_to_do_marked_done_is_resolved_by_the_owner_or_by_the_owner_through_an_agent(): void

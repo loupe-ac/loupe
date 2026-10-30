@@ -1,7 +1,7 @@
 /**
  * Browser coverage for the live inbox page: an ask that an agent opens shows in
  * the list of an open page without a reload, and an item that closes in another
- * browser keeps a typed note, and the form locks once its ask closes. The hub
+ * browser keeps a typed note, and the form locks once its item closes. The hub
  * delivers the signal, so the run needs a hub.
  */
 
@@ -81,9 +81,9 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
         { timeout: 15_000 },
     );
 
-    // The to-do still blocks the ask, and an answered question stays editable until its ask closes.
+    // The answer closed the question for good, so the typed note stays readable and its form locks at once.
     await expect(note).toHaveValue('Use CSV, the importer reads it faster');
-    await expect(note).toHaveJSProperty('readOnly', false);
+    await expect(note).toHaveJSProperty('readOnly', true);
 
     const todo = actor.locator(`#inbox-item-${first.todoNumber}`);
     await todo.getByRole('button', { name: 'Mark complete' }).click();

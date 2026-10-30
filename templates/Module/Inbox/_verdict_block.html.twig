@@ -10,7 +10,7 @@
             </div>
         {% endfor %}
     </div>
-    <div class="lp-decision__note">{{ form_widget(form.note, {attr: {class: 'lp-decision__note-field', rows: 2, placeholder: 'inbox.answer.placeholder'|trans, 'aria-label': 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'}}) }}</div>
+    <div class="lp-decision__note">{{ form_widget(form.note, {attr: {class: 'lp-decision__note-field', rows: 2, placeholder: 'inbox.answer.placeholder'|trans, 'aria-label': 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-action': 'input->form-draft#remember'}}) }}</div>
 </fieldset>
 <twig:Ds:FieldErrors :fieldView="form.verdict" />
 <twig:Ds:FieldErrors :fieldView="form.note" />

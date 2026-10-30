@@ -112,7 +112,8 @@ final class InboxActionControllersTest extends WebTestCase
         // Dismiss sits apart, after a divider.
         self::assertCount(1, $menu->filter('.lp-menu__divider'));
         $dismiss = $menu->filter('.lp-menu__divider ~ [data-inbox-action="dismiss"]');
-        self::assertSame('inbox_decline_'.$item->id, $dismiss->attr('form'));
+        self::assertSame($this->actionPath($item, 'dismiss'), parse_url((string) $dismiss->attr('formaction'), \PHP_URL_PATH));
+        self::assertNull($dismiss->attr('form'), 'Dismiss posts the reply form it sits in.');
         self::assertSame('Dismiss', trim($dismiss->filter('.lp-menu__label')->text()));
         self::assertSame('Closes this item without an action.', $dismiss->filter('.lp-menu__line')->text());
     }
@@ -225,18 +226,18 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame([InboxItemState::Declined, 'Not now'], [$stored->state, $stored->note]);
     }
 
-    public function test_the_menu_dismiss_posts_to_the_decline_route_and_ignores_the_note(): void
+    public function test_the_menu_dismiss_posts_the_reply_form_to_the_dismiss_action_with_its_note(): void
     {
         $item = $this->runItem();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
-        $form = $crawler->filter('form#inbox_decline_'.$item->id);
+        $form = $crawler->filter('form#inbox_action_'.$item->id);
         self::assertCount(1, $form);
-        self::assertSame('/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/decline', parse_url((string) $form->attr('action'), \PHP_URL_PATH));
-        // Dismiss ignores the note, so the form carries none.
-        self::assertNull($crawler->filter('textarea')->attr('data-inbox-decline-target'));
-        self::assertSame('', (string) $form->filter('input[type="hidden"][name$="[closeNote]"]')->attr('value'));
-        self::assertNull($crawler->filter('button[data-inbox-action="dismiss"]')->attr('data-action'));
+        $dismiss = $form->filter('button[data-inbox-action="dismiss"]');
+        self::assertCount(1, $dismiss);
+        self::assertSame($this->actionPath($item, 'dismiss'), parse_url((string) $dismiss->attr('formaction'), \PHP_URL_PATH));
+        self::assertCount(1, $form->filter('textarea'));
+        self::assertNull($dismiss->attr('data-action'));
     }
 
     public function test_a_note_over_the_limit_is_refused_and_keeps_the_typed_note(): void
@@ -673,7 +674,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertStringContainsString('SQLSTATE[08006] could not connect', $block->filter('[data-inbox-run-command-output]')->text());
         self::assertSame('Run again', trim($block->filter('[data-inbox-action="run-command-again"]')->text()));
         self::assertNull($block->filter('[data-inbox-action="run-command-again"]')->attr('disabled'));
-        self::assertSame('inbox_done_'.$item->id, $block->filter('[data-inbox-run-command-done]')->attr('form'));
+        self::assertSame('inbox_response_'.$item->id, $block->filter('[data-inbox-run-command-done]')->attr('form'));
         self::assertCount(1, $crawler->filter('[data-inbox-run-command-dialog]'));
     }
 

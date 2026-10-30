@@ -9,7 +9,7 @@ use App\Mcp\FlagGatedToolInterface;
 use App\Module\Inbox\Command\DeclineInboxItemCommand;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
 use App\Module\Inbox\Entity\InboxItemKind;
-use App\Module\Inbox\Form\AnswerInboxItemRequest;
+use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
@@ -56,7 +56,7 @@ final readonly class InboxDeclineTool implements FlagGatedToolInterface
      */
     public function __invoke(
         string $itemId,
-        #[Schema(maxLength: AnswerInboxItemRequest::MAX_ANSWER_LENGTH)]
+        #[Schema(maxLength: RunInboxActionRequest::MAX_RESPONSE_LENGTH)]
         ?string $note = null,
     ): array {
         $this->gate->requireEnabled();

@@ -259,23 +259,19 @@ Drafts stay in memory and do not survive a reload or a closed tab.
 If the request closes before you respond, its page shows your unsent answer separately from the recorded response.
 Copy that draft if needed, or select **Discard draft** to clear it from this tab.
 
-## Changing a response
+## A sent response is final
 
 Review results are final when submitted, even if no agent waits on the request.
 The result keeps the verdict, note, reviewer, time, and reviewed document version.
 Withdrawing a document verdict reopens document review and adds a withdrawal notice beside the original result.
 It does not reopen the completed request, change its answer, or resume the agent again.
 
-For questions and to-dos, you can change a response until an ask that holds the item closes. After that,
-the response is final, because an agent may already act on it. Send a
+A sent response is final. This holds for answers, closing notes, completed to-dos and review results.
+You cannot change it, because an agent may already act on it. Send a
 correction to the agent in some other way.
 
-Each closed item says which case applies:
-
-- "You can still change this response" shows the forms again, so you can pick
-  other options, mark the item done or close it.
-- "This response is final" shows no forms. A change sent from an older copy of
-  the page is refused with the same message.
+A closed item shows its outcome and no reply form. The text "This response is final" marks it.
+A response sent from an older copy of the page is refused, and the item keeps its first response.
 
 An agent can also close an item itself, when it withdraws the item or the work
 behind it finishes. Such an item takes no response from you.
@@ -804,9 +800,9 @@ no bridge takes within 2 minutes expires. See
 
 ## Answering through an agent
 
-You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_answer`, `inbox_decline`, `inbox_done` or `inbox_action_run`. Each tool runs the same code as the matching button on the inbox page. The same rules hold. An option must exist, a question with no free text refuses text, and a closed answer changes only while no closed ask holds the item.
+You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_answer`, `inbox_decline`, `inbox_done` or `inbox_action_run`. Each tool runs the same code as the matching button on the inbox page. The same rules hold. An option must exist, a question with no free text refuses text, and a closed item takes no second response.
 
-The item shows "Answered through an agent" beside its response. A later response from the page removes that line. `inbox_get` returns the same fact as `respondedThroughAgent`.
+The item shows "Answered through an agent" beside its response. A response is final, so the line stays. `inbox_get` returns the same fact as `respondedThroughAgent`.
 
 These limits hold:
 

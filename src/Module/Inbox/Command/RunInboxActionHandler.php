@@ -26,6 +26,8 @@ use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReviewTargetKind;
+use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
@@ -41,10 +43,10 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Runs one action that the owner chose on an inbox item. A resume asks the bridge, a retry releases
- * the pause, a hold makes the card unmanaged, send an agent, a session, a command and an added entry each open a work request,
- * and a dismiss closes the item.
- * The note stays in Loupe: no command carries its text.
- * A dismiss records no row, because the closed item holds the note as its close note.
+ * the pause, a hold makes the card unmanaged, send an agent, a session, a command and an added entry each open a work request.
+ * An answer, a complete, a verdict and a dismiss are the responses of the owner. Each runs the handler that checks it and closes the item for good.
+ * The note of an action stays in Loupe: no command carries its text.
+ * A response records no row, because the closed item holds the note as its close note.
  */
 final readonly class RunInboxActionHandler
 {
@@ -73,6 +75,11 @@ final readonly class RunInboxActionHandler
         private Auditor $auditor,
         private SessionPromptLimit $promptLimit,
         private PauseCardAgentsHandler $holdCard,
+        private AnswerInboxItemHandler $answerItem,
+        private MarkInboxItemDoneHandler $markDone,
+        private SubmitInboxDocumentReviewHandler $submitDocumentReview,
+        private SubmitInboxPullRequestReviewHandler $submitPullRequestReview,
+        private InboxReviewLookup $inboxReviews,
     ) {
     }
 
@@ -81,7 +88,8 @@ final readonly class RunInboxActionHandler
         $item = $command->item;
         $kind = $command->kind;
         $note = trim($command->note);
-        if (mb_strlen($note) > InboxAction::MAX_NOTE_LENGTH) {
+        // A response carries the words of the owner, so its length is the business of the form. The note of any other action is kept in a row.
+        if (!$kind->isResponse() && mb_strlen($note) > InboxAction::MAX_NOTE_LENGTH) {
             throw new DomainErrors(['note' => self::NOTE_TOO_LONG]);
         }
         if (InboxItemState::Open !== $item->state || !self::runsHere($kind) || (InboxActionKind::AddEntry !== $kind && !array_any($this->itemActions->forItem($item), static fn ($action): bool => $action->kind === $kind && (InboxActionKind::RunCommand === $kind || null === $action->disabledReasonKey)))) {
@@ -90,6 +98,9 @@ final readonly class RunInboxActionHandler
 
         try {
             $action = match ($kind) {
+                InboxActionKind::Answer => $this->answer($command),
+                InboxActionKind::Complete => $this->complete($command),
+                InboxActionKind::SubmitReview => $this->submitReview($command, $note),
                 InboxActionKind::ResumeRun => $this->resume($command, $note),
                 InboxActionKind::RetryCard => $this->retry($command, $note),
                 InboxActionKind::HoldCard => $this->hold($command, $note),
@@ -100,7 +111,7 @@ final readonly class RunInboxActionHandler
                 default => $this->dismiss($command, $note),
             };
         } catch (DomainErrors $e) {
-            throw new DomainErrors(['action' => array_first($e->errors)]);
+            throw $kind->isResponse() ? self::responseFields($e) : new DomainErrors(['action' => array_first($e->errors)]);
         }
 
         $context = [
@@ -124,7 +135,63 @@ final readonly class RunInboxActionHandler
     /** The kinds this handler runs. Open, review, open the pull request and approve it are links. */
     private static function runsHere(InboxActionKind $kind): bool
     {
-        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::HoldCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::AddEntry, InboxActionKind::Dismiss], true);
+        return $kind->isResponse() || \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::HoldCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::AddEntry], true);
+    }
+
+    /** Names the field of the response form for each error of a delegated handler. The form has one text field and no field for the item. */
+    private static function responseFields(DomainErrors $e): DomainErrors
+    {
+        $field = static fn (string $name): string => match ($name) {
+            'answerText', 'closeNote' => 'note',
+            'item' => 'action',
+            default => $name,
+        };
+        $errors = [];
+        $parameters = [];
+        foreach ($e->errors as $name => $translationKey) {
+            $errors[$field($name)] = $translationKey;
+            if (isset($e->parameters[$name])) {
+                $parameters[$field($name)] = $e->parameters[$name];
+            }
+        }
+
+        return new DomainErrors($errors, $parameters);
+    }
+
+    private function answer(RunInboxActionCommand $command): null
+    {
+        ($this->answerItem)(new AnswerInboxItemCommand($command->item, $command->selectedOptions, $command->note, $command->throughAgent));
+
+        return null;
+    }
+
+    private function complete(RunInboxActionCommand $command): null
+    {
+        ($this->markDone)(new MarkInboxItemDoneCommand($command->item, $command->throughAgent));
+
+        return null;
+    }
+
+    /** The review of a pull request closes the item itself. The review of a document submits the verdict, and the review listener closes the item. */
+    private function submitReview(RunInboxActionCommand $command, string $note): null
+    {
+        $review = $this->inboxReviews->forItem($command->item);
+        $verdict = $command->verdict ?? '';
+        $reviewNote = '' === $note ? null : $note;
+        if (InboxReviewTargetKind::PullRequest === $review?->targetKind) {
+            ($this->submitPullRequestReview)(new SubmitInboxPullRequestReviewCommand($command->item, $command->user, $verdict, $command->expectedUrl ?? '', $reviewNote));
+        } else {
+            ($this->submitDocumentReview)(new SubmitInboxDocumentReviewCommand(
+                $command->item,
+                $command->user,
+                $verdict,
+                $command->versionNumber ?? throw new DomainErrors(['versionNumber' => 'inbox.review.error.target_changed']),
+                $command->expectedReviewId,
+                $reviewNote,
+            ));
+        }
+
+        return null;
     }
 
     private function resume(RunInboxActionCommand $command, string $note): InboxAction

@@ -29,20 +29,25 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\PauseKind;
@@ -263,13 +268,13 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([InboxActionKind::RetryCard], $this->defaults($item));
     }
 
-    public function test_a_question_that_links_a_card_offers_no_action_the_agent_did_not_suggest(): void
+    public function test_a_question_that_links_a_card_offers_no_action_the_agent_did_not_suggest_beside_its_response(): void
     {
         $item = $this->item($this->em, $this->project);
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em->flush();
 
-        self::assertSame([], $this->actions()->forItem($item));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_a_question_offers_only_the_suggestions_that_fit_and_defaults_to_the_recommended_one(): void
@@ -280,17 +285,121 @@ final class ItemActionsTest extends KernelTestCase
         ]);
 
         self::assertSame(
-            [[InboxActionKind::Open, true, 'Read the card first.']],
+            [[InboxActionKind::Answer, false, null], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::Dismiss, false, null]],
             array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($item)),
         );
     }
 
-    public function test_a_question_without_a_recommendation_has_no_default(): void
+    public function test_a_question_without_a_recommendation_defaults_to_its_answer(): void
     {
         $item = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
 
+        self::assertSame([InboxActionKind::Answer], $this->defaults($item));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Open, InboxActionKind::Dismiss], $this->kinds($item));
+    }
+
+    public function test_an_agent_cannot_suggest_a_response_kind(): void
+    {
+        foreach ([InboxActionKind::Answer, InboxActionKind::Complete, InboxActionKind::SubmitReview] as $kind) {
+            self::assertFalse($kind->isSuggestable());
+            self::assertTrue($kind->isResponse());
+        }
+        self::assertTrue(InboxActionKind::Dismiss->isResponse());
+        self::assertFalse(InboxActionKind::Open->isResponse());
+    }
+
+    public function test_a_workflow_question_offers_its_answer_and_no_dismissal(): void
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design']);
+        $this->em->persist($item);
+        $this->em->flush();
+
+        self::assertFalse($item->dismissible);
+        self::assertSame([InboxActionKind::Answer], $this->kinds($item));
+        self::assertSame([InboxActionKind::Answer], $this->defaults($item));
+    }
+
+    public function test_a_notice_offers_no_response(): void
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: 'The repository is blocked', blocking: false, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($item);
+        $this->em->flush();
+
+        self::assertSame([], $this->kinds($item));
+    }
+
+    public function test_a_review_of_a_person_offers_its_verdict_and_a_dismissal(): void
+    {
+        $item = $this->reviewOf($this->document($this->em, $this->project))->item;
+
+        self::assertSame([InboxActionKind::SubmitReview, InboxActionKind::Dismiss], $this->kinds($item));
+        self::assertSame([InboxActionKind::SubmitReview], $this->defaults($item));
+    }
+
+    public function test_the_flag_decides_dismiss_but_a_review_whose_document_is_gone_always_offers_it(): void
+    {
+        $review = $this->reviewOf($this->document($this->em, $this->project));
+        $item = $review->item;
+        $item->dismissible = false;
+        $this->em->flush();
+        self::assertSame([InboxActionKind::SubmitReview], $this->kinds($item));
+
+        $review->document = null;
+        $this->em->flush();
+        self::assertSame([InboxActionKind::SubmitReview, InboxActionKind::Dismiss], $this->kinds($item));
+    }
+
+    public function test_a_closed_item_offers_nothing_but_a_new_session(): void
+    {
+        $this->sessionBridge();
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null]]);
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::StartSession, InboxActionKind::Dismiss], $this->kinds($item));
+
+        $item->state = InboxItemState::Resolved;
+        $item->closedBy = InboxCloser::Owner;
+        $item->selectedOptions = [0];
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
         self::assertSame([], $this->defaults($item));
-        self::assertSame([InboxActionKind::Open], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item)));
+    }
+
+    public function test_a_closed_item_with_no_session_to_start_offers_nothing(): void
+    {
+        $item = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]]);
+        $item->state = InboxItemState::Declined;
+        $item->closedBy = InboxCloser::Owner;
+        $this->em->flush();
+
+        self::assertSame([], $this->kinds($item));
+    }
+
+    public function test_a_closed_wait_item_offers_nothing_but_a_new_session(): void
+    {
+        $this->sessionBridge();
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+        $item->state = InboxItemState::Cancelled;
+        $item->closedBy = InboxCloser::Loupe;
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
+    }
+
+    /** @return list<InboxActionKind> */
+    private function kinds(InboxItem $item): array
+    {
+        return array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item));
+    }
+
+    private function reviewOf(Document $document): InboxReview
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Review, title: 'Review the design', blocking: true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $document);
+        $this->em->persist($item);
+        $this->em->persist($review);
+        $this->em->flush();
+
+        return $review;
     }
 
     public function test_start_session_is_disabled_while_no_bridge_reports_the_session_capability(): void
@@ -391,12 +500,12 @@ final class ItemActionsTest extends KernelTestCase
         return $bridge;
     }
 
-    public function test_a_question_with_no_link_offers_nothing(): void
+    public function test_a_question_with_no_link_offers_its_answer_and_a_dismissal_only(): void
     {
         $item = $this->item($this->em, $this->project);
         $this->em->flush();
 
-        self::assertSame([], $this->actions()->forItem($item));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_for_items_keys_each_item_by_its_id(): void
@@ -411,7 +520,7 @@ final class ItemActionsTest extends KernelTestCase
 
         self::assertSame([$runKey, $questionKey], array_keys($actions));
         self::assertSame(InboxActionKind::ResumeRun, $actions[$runKey][0]->kind);
-        self::assertSame([], $actions[$questionKey]);
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Dismiss], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $actions[$questionKey]));
         self::assertSame([], $this->actions()->forItems([]));
     }
 
@@ -473,21 +582,21 @@ final class ItemActionsTest extends KernelTestCase
         ]);
 
         self::assertSame(
-            [[InboxActionKind::Open, true, 'Read the card first.']],
+            [[InboxActionKind::Complete, false, null], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::Dismiss, false, 'Nothing to do.']],
             array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($todo)),
         );
     }
 
-    public function test_a_todo_with_no_suggestions_offers_no_action(): void
+    public function test_a_todo_with_no_suggestions_offers_its_completion_and_a_dismissal(): void
     {
-        self::assertSame([], $this->actions()->forItem($this->todo(null)));
+        self::assertSame([InboxActionKind::Complete, InboxActionKind::Dismiss], $this->kinds($this->todo(null)));
     }
 
-    public function test_a_todo_without_a_recommendation_has_no_default(): void
+    public function test_a_todo_without_a_recommendation_defaults_to_its_completion(): void
     {
         $todo = $this->todo([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
 
-        self::assertSame([], $this->defaults($todo));
+        self::assertSame([InboxActionKind::Complete], $this->defaults($todo));
     }
 
     /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}> $suggestions */
@@ -647,6 +756,9 @@ final class ItemActionsTest extends KernelTestCase
         $holds = self::getContainer()->get(CardHoldRepository::class);
         self::assertInstanceOf(CardHoldRepository::class, $holds);
 
+        $reviewLookup = self::getContainer()->get(InboxReviewLookup::class);
+        self::assertInstanceOf(InboxReviewLookup::class, $reviewLookup);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -660,6 +772,7 @@ final class ItemActionsTest extends KernelTestCase
             new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
             $waitText,
             $holds,
+            $reviewLookup,
         );
     }
 

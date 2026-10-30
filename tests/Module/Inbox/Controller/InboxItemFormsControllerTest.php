@@ -19,7 +19,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
-use App\Module\Inbox\Form\AnswerInboxItemRequest;
+use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\CreateDocumentCommand;
@@ -72,7 +72,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         }
         $this->em->flush();
         $ask = $this->askHolding($this->em, $this->project, [$item]);
-        $name = 'inbox_review_'.$item->id;
+        $name = 'inbox_response_'.$item->id;
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('#inbox-item-1', 'It does not post a review to the code host.');
@@ -172,7 +172,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         }
         $this->em->flush();
         $ask = $this->askHolding($this->em, $this->project, [$item]);
-        $name = 'inbox_document_review_'.$item->id;
+        $name = 'inbox_response_'.$item->id;
         $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
         // The document under review is a row of the linked items, with the version the form reviews.
@@ -236,7 +236,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         }
         $this->em->flush();
         $this->askHolding($this->em, $this->project, [$item]);
-        $name = 'inbox_document_review_'.$item->id;
+        $name = 'inbox_response_'.$item->id;
         $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         $this->client->submit($page->filter('form[name="'.$name.'"]')->form([
             $name.'[verdict]' => 'approved',
@@ -265,7 +265,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $this->em->flush();
         $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
-        self::assertSelectorNotExists('form[name="inbox_document_review_'.$item->id.'"]');
+        self::assertSelectorNotExists('form[name="inbox_response_'.$item->id.'"]');
         $this->post($item, 'review-document', ['verdict' => 'approved', 'versionNumber' => '1']);
         self::assertResponseStatusCodeSame(403);
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
@@ -275,12 +275,12 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $item = $this->question($this->em, $this->project, 4, ['JSON', 'CSV'], freeText: true);
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
-        $name = 'inbox_answer_'.$item->id;
+        $name = 'inbox_response_'.$item->id;
 
         // The form reads the pick from the hidden field, which the answer controller fills in a browser.
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([
             $name.'[selectedOptions]' => '1',
-            $name.'[answerText]' => 'CSV, because the importer reads it.',
+            $name.'[note]' => 'CSV, because the importer reads it.',
         ]));
 
         self::assertResponseRedirects($this->pageUrl());
@@ -302,7 +302,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $this->em->persist($ask);
         $this->em->flush();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
-        $name = 'inbox_answer_'.$item->id;
+        $name = 'inbox_response_'.$item->id;
 
         self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-inbox-item__buttons [form]'));
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([$name.'[selectedOptions]' => '2']));
@@ -343,14 +343,14 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-1'));
         self::assertSame('true', $crawler->filter('[data-inbox-type="question"]')->attr('aria-current'));
         // The forms of the pane post with the same view again.
-        self::assertStringContainsString('ask='.$secondAsk->id, (string) $crawler->filter('form[name="inbox_answer_'.$second->id.'"]')->attr('action'));
+        self::assertStringContainsString('ask='.$secondAsk->id, (string) $crawler->filter('form[name="inbox_response_'.$second->id.'"]')->attr('action'));
     }
 
     public function test_an_answer_past_the_length_limit_is_invalid(): void
     {
         $item = $this->question($this->em, $this->project, 1, freeText: true);
 
-        $crawler = $this->post($item, 'answer', ['answerText' => str_repeat('a', AnswerInboxItemRequest::MAX_ANSWER_LENGTH + 1)]);
+        $crawler = $this->post($item, 'answer', ['note' => str_repeat('a', RunInboxActionRequest::MAX_RESPONSE_LENGTH + 1)]);
 
         self::assertResponseStatusCodeSame(422);
         // The error of the note sits under the decision block, tied to the field.
@@ -359,16 +359,21 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 
-    public function test_a_final_answer_refuses_a_change(): void
+    public function test_a_sent_answer_is_final_even_when_no_ask_holds_it(): void
     {
         $item = $this->answered($this->em, $this->question($this->em, $this->project, 1));
-        $this->askHolding($this->em, $this->project, [$item], closedAt: new \DateTimeImmutable());
+        $this->askHolding($this->em, $this->project, [$item]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?side=closed&item=1');
+        self::assertSelectorNotExists('#inbox-item-1 form');
+        self::assertSame('no', $crawler->filter('#inbox-item-1 [data-inbox-editable]')->attr('data-inbox-editable'));
+        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-editable]', 'This response is final');
 
         $this->post($item, 'answer', ['selectedOptions' => '1']);
 
         self::assertResponseStatusCodeSame(422);
         // The page carries a static "final" line too, so the assertion targets the refusal itself.
-        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'This response is final');
+        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'no longer fits the item');
         self::assertSame([0], $this->reload($item)->selectedOptions);
     }
 
@@ -535,14 +540,14 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('#inbox-item-2 .inbox-split__main[data-inbox-action="open"]'));
         self::assertCount(0, $crawler->filter('#inbox-item-2 [data-inbox-action="send-agent"]'));
         self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
-        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-decline__form'));
         $row = $crawler->filter('#inbox-item-2 .lp-comment-composer__actions');
         self::assertCount(1, $row, 'Decline, Mark done and the split button share one reply card row.');
         self::assertCount(1, $row->filter('.inbox-split'));
-        self::assertCount(1, $row->filter('[data-action="inbox-decline#carryNote"]'));
-        self::assertCount(1, $row->filter('[data-inbox-done]'));
         $doneForm = $crawler->filter('#inbox-item-2 form.lp-inbox-done');
+        self::assertCount(1, $row->filter('button[form="'.$doneForm->attr('id').'"][formaction*="/actions/dismiss"]'));
+        self::assertCount(1, $row->filter('[data-inbox-done]'));
         self::assertSame($doneForm->attr('id'), $row->filter('[data-inbox-done]')->attr('form'));
+        self::assertStringContainsString('/actions/complete', (string) $doneForm->attr('action'));
         self::assertCount(0, $doneForm->filter('button'), 'The done form keeps no second Mark done button.');
     }
 
@@ -573,7 +578,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $item = $this->question($this->em, $this->project, 3);
 
-        $this->post($item, 'decline', ['closeNote' => 'Not sure what you mean.']);
+        $this->post($item, 'decline', ['note' => 'Not sure what you mean.']);
 
         self::assertResponseRedirects($this->pageUrl());
         $stored = $this->reload($item);
@@ -586,31 +591,31 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $item = $this->answered($this->em, $this->todo($this->em, $this->project, 3), InboxItemState::Cancelled);
         $this->askHolding($this->em, $this->project, [$item]);
 
-        $this->post($item, 'decline', ['closeNote' => '']);
+        $this->post($item, 'decline', ['note' => '']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('#inbox-item-3 [data-inbox-refusal]', 'The agent closed this item');
+        self::assertSelectorTextContains('#inbox-item-3 [data-inbox-refusal]', 'no longer fits the item');
         self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
     }
 
-    /** @return iterable<string, array{string, string, array<string, string>}> */
+    /** @return iterable<string, array{string, array<string, string>}> */
     public static function actions(): iterable
     {
-        yield 'answer' => ['answer', 'inbox_answer_', ['selectedOptions' => '0']];
-        yield 'done' => ['done', 'inbox_done_', []];
-        yield 'decline' => ['decline', 'inbox_decline_', ['closeNote' => '']];
-        yield 'review-pull-request' => ['review-pull-request', 'inbox_review_', ['verdict' => 'approved', 'expectedUrl' => 'https://github.com/example/project/pull/12']];
-        yield 'review-document' => ['review-document', 'inbox_document_review_', ['verdict' => 'approved', 'versionNumber' => '1']];
+        yield 'answer' => ['answer', ['selectedOptions' => '0']];
+        yield 'done' => ['done', []];
+        yield 'decline' => ['decline', ['note' => '']];
+        yield 'review-pull-request' => ['review-pull-request', ['verdict' => 'approved', 'expectedUrl' => 'https://github.com/example/project/pull/12']];
+        yield 'review-document' => ['review-document', ['verdict' => 'approved', 'versionNumber' => '1']];
     }
 
     /** @param array<string, string> $fields */
     #[DataProvider('actions')]
-    public function test_a_forged_token_changes_nothing(string $action, string $prefix, array $fields): void
+    public function test_a_forged_token_changes_nothing(string $action, array $fields): void
     {
         $item = 'done' === $action ? $this->todo($this->em, $this->project, 1) : $this->question($this->em, $this->project, 1);
         $url = $this->actionUrl($item, $action);
 
-        $this->client->request(Request::METHOD_POST, $url, [$prefix.$item->id => [...$fields, '_token' => 'forged']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        $this->client->request(Request::METHOD_POST, $url, ['inbox_response_'.$item->id => [...$fields, '_token' => 'forged']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
@@ -618,7 +623,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
     /** @param array<string, string> $fields */
     #[DataProvider('actions')]
-    public function test_a_stranger_cannot_respond(string $action, string $prefix, array $fields): void
+    public function test_a_stranger_cannot_respond(string $action, array $fields): void
     {
         $item = 'done' === $action ? $this->todo($this->em, $this->project, 1) : $this->question($this->em, $this->project, 1);
         $this->client->loginUser($this->signedUpUser($this->em, 'inbox-stranger'));
@@ -631,7 +636,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
     /** @param array<string, string> $fields */
     #[DataProvider('actions')]
-    public function test_a_response_answers_404_while_the_inbox_is_off(string $action, string $prefix, array $fields): void
+    public function test_a_response_answers_404_while_the_inbox_is_off(string $action, array $fields): void
     {
         $item = 'done' === $action ? $this->todo($this->em, $this->project, 1) : $this->question($this->em, $this->project, 1);
         $this->setInboxFlag(false);
@@ -647,7 +652,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $other = $this->inboxProject($this->em, $this->owner);
         $item = $this->todo($this->em, $other, 1);
 
-        $this->client->request(Request::METHOD_POST, '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/done', ['inbox_done_'.$item->id => ['_token' => 'csrf-token']]);
+        $this->client->request(Request::METHOD_POST, '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/complete', ['inbox_response_'.$item->id => ['_token' => 'csrf-token']]);
 
         self::assertResponseStatusCodeSame(404);
     }
@@ -655,7 +660,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
     /** @param array<string, string> $fields */
     private function post(InboxItem $item, string $action, array $fields, ?int $page = null, ?string $query = null, ?string $queue = null, ?string $ask = null, ?string $side = null, ?string $type = null): Crawler
     {
-        $prefix = ['answer' => 'inbox_answer_', 'done' => 'inbox_done_', 'decline' => 'inbox_decline_', 'review-pull-request' => 'inbox_review_', 'review-document' => 'inbox_document_review_'][$action];
+        $prefix = 'inbox_response_';
         $parameters = array_filter(['queue' => $queue, 'side' => $side, 'type' => $type, 'ask' => $ask, 'page' => $page, 'q' => $query], static fn (int|string|null $value): bool => null !== $value);
         $url = $this->actionUrl($item, $action).([] === $parameters ? '' : '?'.http_build_query($parameters));
 
@@ -682,9 +687,12 @@ final class InboxItemFormsControllerTest extends WebTestCase
         return false === $link ? throw new \LogicException('The ask holds no item.') : $link->item;
     }
 
+    /** $action is the name the tests of this class use for a response. The address names the kind. */
     private function actionUrl(InboxItem $item, string $action): string
     {
-        return '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/'.$action;
+        $kind = ['answer' => 'answer', 'done' => 'complete', 'decline' => 'dismiss', 'review-pull-request' => 'submit-review', 'review-document' => 'submit-review'][$action];
+
+        return '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/'.$kind;
     }
 
     private function pageUrl(): string

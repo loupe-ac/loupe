@@ -37,6 +37,7 @@ use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
@@ -847,6 +848,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $holds = self::getContainer()->get(CardHoldRepository::class);
         self::assertInstanceOf(CardHoldRepository::class, $holds);
 
+        $reviewLookup = self::getContainer()->get(InboxReviewLookup::class);
+        self::assertInstanceOf(InboxReviewLookup::class, $reviewLookup);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -860,6 +864,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
             $waitText,
             $holds,
+            $reviewLookup,
         );
     }
 

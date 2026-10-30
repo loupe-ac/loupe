@@ -5702,6 +5702,15 @@
             <trans-unit id="inbox.action.open-pull-request.effect"><source>inbox.action.open-pull-request.effect</source><target>Opens the pull request of the paused rule on the forge.</target></trans-unit>
             <trans-unit id="inbox.action.approve-pull-request.label"><source>inbox.action.approve-pull-request.label</source><target>Approve on GitHub</target></trans-unit>
             <trans-unit id="inbox.action.approve-pull-request.effect"><source>inbox.action.approve-pull-request.effect</source><target>Opens the review page of the pull request. An approval there overrides the failed agent review.</target></trans-unit>
+            <trans-unit id="inbox.form.run_inbox_action_form.verdict.label"><source>inbox.form.run_inbox_action_form.verdict.label</source><target>Your verdict</target></trans-unit>
+            <trans-unit id="inbox.form.run_inbox_action_form.verdict.approve"><source>inbox.form.run_inbox_action_form.verdict.approve</source><target>Approve</target></trans-unit>
+            <trans-unit id="inbox.form.run_inbox_action_form.verdict.changes"><source>inbox.form.run_inbox_action_form.verdict.changes</source><target>Request changes</target></trans-unit>
+            <trans-unit id="inbox.action.answer.label"><source>inbox.action.answer.label</source><target>Answer</target></trans-unit>
+            <trans-unit id="inbox.action.answer.effect"><source>inbox.action.answer.effect</source><target>Sends your answer and closes the question. The answer is final.</target></trans-unit>
+            <trans-unit id="inbox.action.complete.label"><source>inbox.action.complete.label</source><target>Mark complete</target></trans-unit>
+            <trans-unit id="inbox.action.complete.effect"><source>inbox.action.complete.effect</source><target>Closes the to-do as done. This is final.</target></trans-unit>
+            <trans-unit id="inbox.action.submit-review.label"><source>inbox.action.submit-review.label</source><target>Submit the review</target></trans-unit>
+            <trans-unit id="inbox.action.submit-review.effect"><source>inbox.action.submit-review.effect</source><target>Sends your verdict and closes the review. The verdict is final.</target></trans-unit>
             <trans-unit id="inbox.action.hold-card.label"><source>inbox.action.hold-card.label</source><target>Hold the card</target></trans-unit>
             <trans-unit id="inbox.action.hold-card.effect"><source>inbox.action.hold-card.effect</source><target>Makes the card unmanaged, so no rule and no worker acts on it until you release it.</target></trans-unit>
             <trans-unit id="inbox.action.retry-card.effect"><source>inbox.action.retry-card.effect</source><target>Releases the pause so the workflow runs the rule again.</target></trans-unit>
@@ -6044,17 +6053,13 @@
                 <source>inbox.live.closed.cancelled</source>
                 <target>%outcome%.</target>
             </trans-unit>
-            <trans-unit id="inbox.item.editable">
-                <source>inbox.item.editable</source>
-                <target>You can still change this response. It becomes final when an ask that holds this item closes.</target>
-            </trans-unit>
             <trans-unit id="inbox.item.through_agent">
                 <source>inbox.item.through_agent</source>
                 <target>An agent recorded this response for the owner.</target>
             </trans-unit>
             <trans-unit id="inbox.item.final">
                 <source>inbox.item.final</source>
-                <target>This response is final, because an ask that holds this item has closed.</target>
+                <target>This response is final. You cannot change it.</target>
             </trans-unit>
             <trans-unit id="inbox.item.respond_elsewhere">
                 <source>inbox.item.respond_elsewhere</source>
@@ -6066,15 +6071,7 @@
             </trans-unit>
             <trans-unit id="inbox.item.error.final">
                 <source>inbox.item.error.final</source>
-                <target>This response is final, because an ask that holds this item has closed.</target>
-            </trans-unit>
-            <trans-unit id="inbox.item.error.closed_by_agent">
-                <source>inbox.item.error.closed_by_agent</source>
-                <target>The agent closed this item, so it takes no response.</target>
-            </trans-unit>
-            <trans-unit id="inbox.item.error.closed_by_loupe">
-                <source>inbox.item.error.closed_by_loupe</source>
-                <target>Loupe closed this item, so it takes no response.</target>
+                <target>This item is closed, so its response is final.</target>
             </trans-unit>
             <trans-unit id="inbox.item.error.notice">
                 <source>inbox.item.error.notice</source>
@@ -6148,10 +6145,6 @@
                 <source>inbox.answer.submit</source>
                 <target>Send answer</target>
             </trans-unit>
-            <trans-unit id="inbox.answer.change">
-                <source>inbox.answer.change</source>
-                <target>Change the answer</target>
-            </trans-unit>
             <trans-unit id="inbox.answer.error.not_a_question">
                 <source>inbox.answer.error.not_a_question</source>
                 <target>Only a question takes an answer.</target>
@@ -6172,10 +6165,6 @@
                 <source>inbox.answer.error.empty</source>
                 <target>Pick an option or write an answer.</target>
             </trans-unit>
-            <trans-unit id="inbox.form.answer_inbox_item_form.answer_text.label">
-                <source>inbox.form.answer_inbox_item_form.answer_text.label</source>
-                <target>Your answer or additional context</target>
-            </trans-unit>
             <trans-unit id="inbox.done.submit">
                 <source>inbox.done.submit</source>
                 <target>Mark complete</target>
@@ -6183,14 +6172,6 @@
             <trans-unit id="inbox.done.error.not_a_todo">
                 <source>inbox.done.error.not_a_todo</source>
                 <target>Only a to-do can be marked done.</target>
-            </trans-unit>
-            <trans-unit id="inbox.done.error.already_done">
-                <source>inbox.done.error.already_done</source>
-                <target>This to-do is already done.</target>
-            </trans-unit>
-            <trans-unit id="inbox.decline.change">
-                <source>inbox.decline.change</source>
-                <target>Change the closing note</target>
             </trans-unit>
             <trans-unit id="inbox.decline.submit">
                 <source>inbox.decline.submit</source>
@@ -8689,10 +8670,6 @@
             <trans-unit id="inbox.review.local_only"><source>inbox.review.local_only</source><target>This records your review in Loupe. It does not post a review to the code host.</target></trans-unit>
             <trans-unit id="inbox.review.submit"><source>inbox.review.submit</source><target>Submit review</target></trans-unit>
             <trans-unit id="inbox.review.submitted"><source>inbox.review.submitted</source><target>Review recorded.</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.verdict.label"><source>inbox.form.submit_inbox_pull_request_review_form.verdict.label</source><target>Your verdict</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.verdict.approve"><source>inbox.form.submit_inbox_pull_request_review_form.verdict.approve</source><target>Approve</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.verdict.changes"><source>inbox.form.submit_inbox_pull_request_review_form.verdict.changes</source><target>Request changes</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.note.label"><source>inbox.form.submit_inbox_pull_request_review_form.note.label</source><target>Review note (required for changes)</target></trans-unit>
             <trans-unit id="inbox.review.withdrawn"><source>inbox.review.withdrawn</source><target>%name% withdrew this verdict at %time%. This request keeps its original answer.</target></trans-unit>
             <trans-unit id="inbox.review.error.not_a_document"><source>inbox.review.error.not_a_document</source><target>This request does not target a document.</target></trans-unit>
             <trans-unit id="inbox.review.unsent_note"><source>inbox.review.unsent_note</source><target>Your unsent review note</target></trans-unit>

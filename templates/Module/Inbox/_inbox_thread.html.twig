@@ -1,6 +1,6 @@
 {#- A wait item as a thread: what stopped, the owner's reply with its split button, and the actions the owner already took.
    Params: item, watch (InboxCardWatch), inbox, refusedForm, actionParams, responseFrame, hostCardId, cardDrawer,
-   reply (whether this page takes the owner's reply), todoButtons (optional: declineFormId, declineLabel, doneFormId of a to-do),
+   reply (whether this page takes the owner's reply), todoButtons (optional: formId of the to-do's response form, dismissLabel),
    withNote (optional, default true: whether the reply card takes a note for the action). -#}
 {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
 {% set todoButtons = todoButtons ?? null %}
@@ -83,11 +83,10 @@
     {% endfor %}
 
     {% if runCommand and runCommand.run %}
-        {% include '@Inbox/_inbox_run_command_run.html.twig' with {item: item, command: runCommand, actionParams: actionParams, responseFrame: responseFrame, refusedForm: refusedForm ?? null, rerun: commandDialog, doneFormId: todoButtons ? todoButtons.doneFormId : null} only %}
+        {% include '@Inbox/_inbox_run_command_run.html.twig' with {item: item, command: runCommand, actionParams: actionParams, responseFrame: responseFrame, refusedForm: refusedForm ?? null, rerun: commandDialog, doneFormId: todoButtons ? todoButtons.formId : null} only %}
     {% endif %}
 
     {% if reply and not answering %}
-        {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set noteLabel = 'inbox.thread.note_placeholder'|trans %}
         <div class="lp-inbox-item__actions">
             {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}|merge(sessionRow and not sessionMain ? {'data-controller': 'inbox-session-prompt'} : {})}) }}
@@ -129,12 +128,12 @@
                 <div class="lp-comment-composer__actions">
                     <twig:Ds:Hint as="span" class="inbox-split__hint">{{ actions.main and actions.main.action.runCommand ? (runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '') : (withNote ? 'inbox.thread.note_hint'|trans : '') }}</twig:Ds:Hint>
                     {% if todoButtons %}
-                        {% include '@Inbox/_decline_button.html.twig' with {formId: todoButtons.declineFormId, label: todoButtons.declineLabel} only %}
-                        <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ todoButtons.doneFormId }}" data-inbox-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
+                        {% include '@Inbox/_dismiss_button.html.twig' with {formId: todoButtons.formId, actionParams: actionParams, label: todoButtons.dismissLabel} only %}
+                        <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ todoButtons.formId }}" data-inbox-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
                     {% endif %}
                     {% if not actions.main and not actions.menu and actions.dismiss %}
                         {# Nothing else fits, so Dismiss is the one action and needs no menu. #}
-                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" form="{{ declineForm.vars.id }}" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans(actions.dismiss.action.labelParams) }}</twig:Ds:Button>
+                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans(actions.dismiss.action.labelParams) }}</twig:Ds:Button>
                     {% elseif actions.main or actions.menu %}
                     <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
                         <twig:block name="main">
@@ -150,27 +149,19 @@
                         </twig:block>
                         <twig:block name="content">
                             {% for row in actions.menu %}
-                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: row, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
+                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: row, actionParams: actionParams, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
                             {% endfor %}
                             {% if actions.menu and actions.dismiss %}
                                 <twig:Ds:MenuDivider />
                             {% endif %}
                             {% if actions.dismiss %}
-                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
+                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
                             {% endif %}
                         </twig:block>
                     </twig:Ds:SplitButton>
                     {% endif %}
                 </div>
             {{ form_end(actionForm, {render_rest: false}) }}
-
-            {# Dismiss ignores the note, so this form carries none. Its button sits in the menu above, through the form attribute. #}
-            {% if actions.dismiss %}
-            {{ form_start(declineForm, {action: path('app_inbox_item_decline', actionParams), attr: {id: declineForm.vars.id, class: 'lp-inbox-decline__form', 'data-turbo-frame': responseFrame}}) }}
-                {{ form_widget(declineForm.closeNote) }}
-                <twig:Ds:FieldErrors>{{ form_errors(declineForm) }}{{ form_errors(declineForm.closeNote) }}</twig:Ds:FieldErrors>
-            {{ form_end(declineForm) }}
-            {% endif %}
         </div>
     {% endif %}
 

@@ -181,7 +181,7 @@ final class ShowAccountInboxControllerTest extends WebTestCase
         $page = $this->client->request(Request::METHOD_GET, $path);
         self::assertResponseIsSuccessful();
         self::assertCount(1, $page->filter('[data-inbox-item="2"]'));
-        self::assertCount(1, $page->filter('form[name="inbox_done_'.$leftOpen->id.'"]'));
+        self::assertCount(1, $page->filter('form[name="inbox_response_'.$leftOpen->id.'"]'));
     }
 
     public function test_the_page_reads_every_ask_item_and_project_in_one_query(): void
