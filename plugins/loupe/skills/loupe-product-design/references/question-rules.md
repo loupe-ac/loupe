@@ -1,6 +1,6 @@
 # Question rules
 
-Each rule has a stable ID, so a comment can cite it.
+Each rule has a stable ID, so a comment can cite it. The ID Q4 is retired. Do not reuse it, so the other IDs keep their meaning.
 
 ## Rules
 
@@ -10,11 +10,10 @@ Each rule has a stable ID, so a comment can cite it.
    - When the owner corrects a fact after a question, ask that question again.
 2. Q2: Give every question a recommendation. Each question carries a recommended answer and a one-line reason why it matters. The recommendation says what the option does, in plain words, never only its label. Say when your confidence is low. Base the recommendation on the design principles D1 to D3 of `../../loupe-stage-product-design/references/design-principles.md`.
 3. Q3: Ask one question at a time. Ask one question per turn. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing. Never bundle two decisions in one question. State the context of the question in the question, because the owner can answer after a gap.
-4. Q4: Ask for disagreement. A recommended answer makes it easy to agree with everything. The owner can agree with several answers in a row. Then name the answer you are least sure of, and ask again.
-5. Q5: Send look and feel to a mockup. A question about how something looks gets a sketch or a prototype, not more questions. Follow `claude-design.md`. The first visual choice of the session gets the offer, and a later one uses the project or the sketches of the first answer.
-6. Q6: Park technical choices. An entity, a table, an API or a module goes to the "For tech design" section. Do not settle it in the session.
-7. Q7: Ask for priorities as trade-off pairs. Take each pair from this feature, such as an early first release against a complete permission model. Ask one pair per question, and recommend a side (Q2). Never ask the owner to rank goals that face no trade-off.
-8. Q8: Defer a decision only on the owner's word. A decision goes to "Open questions" as a decision fence only when the owner's answer defers it, such as "decide later". Never defer a question yourself.
+4. Q5: Send look and feel to a mockup. A question about how something looks gets a sketch or a prototype, not more questions. Follow `claude-design.md`. The first visual choice of the session gets the offer, and a later one uses the project or the sketches of the first answer.
+5. Q6: Park technical choices. An entity, a table, an API or a module goes to the "For tech design" section. Do not settle it in the session.
+6. Q7: Ask for priorities as trade-off pairs. Take each pair from this feature, such as an early first release against a complete permission model. Ask one pair per question, and recommend a side (Q2). Never ask the owner to rank goals that face no trade-off.
+7. Q8: Defer a decision only on the owner's word. A decision goes to "Open questions" as a decision fence only when the owner's answer defers it, such as "decide later". Never defer a question yourself.
 
 Write each answer in the "Decisions log" section, with the question. Write each Q7 answer in the "Priorities" section too. Write each decision that the owner defers in the "Open questions" section. Write a guess in the "Assumptions" section only when no code, doc, command or board history can check it, such as how users will act. Check every other guess, and write the result as a fact.
 
