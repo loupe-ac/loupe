@@ -10,6 +10,7 @@ use App\Module\Workflow\Action\MissingAction;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionTraits;
+use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\ChecksParameters;
 use App\Module\Workflow\Contract\ChildFacts;
 use App\Module\Workflow\Contract\DocumentStatuses;
@@ -26,6 +27,7 @@ use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\TemplateOutcome;
+use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Contract\WorkKind;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
@@ -267,6 +269,9 @@ final readonly class TemplateParser
         $repositorySettings = \array_key_exists('repositorySettings', $source)
             ? self::repositorySettings($source['repositorySettings'], $lenient, $errors)
             : [];
+        $values = \array_key_exists('values', $source)
+            ? self::valueKeys($source['values'], $lenient, $errors)
+            : [];
         if (!$lenient) {
             foreach ($rules as $rule) {
                 foreach ($rule->then as $call) {
@@ -297,7 +302,59 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values);
+    }
+
+    /**
+     * @param list<string> $errors
+     *
+     * @return list<TemplateValueKey>
+     */
+    private static function valueKeys(mixed $given, bool $lenient, array &$errors): array
+    {
+        if (!\is_array($given) || !array_is_list($given)) {
+            if (!$lenient) {
+                $errors[] = 'values: must be a list of value keys';
+            }
+
+            return [];
+        }
+        $fields = ['key', 'type', 'label', 'caption', 'help', 'history'];
+        $values = [];
+        $listed = [];
+        foreach ($given as $index => $entry) {
+            $where = \sprintf('values[%d]', $index);
+            if (!\is_array($entry) || array_is_list($entry) && [] !== $entry) {
+                $error = $where.': must be a map';
+            } elseif ([] !== ($unknown = array_diff(array_keys($entry), $fields))) {
+                $error = \sprintf('%s: unknown field "%s"', $where, reset($unknown));
+            } elseif (!\is_string($entry['key'] ?? null) || 1 !== preg_match(TemplateValueKey::KEY_PATTERN, $entry['key'])) {
+                $error = \sprintf('%s: key "%s" must be lowercase letters, digits and hyphens', $where, \is_scalar($entry['key'] ?? null) ? $entry['key'] : get_debug_type($entry['key'] ?? null));
+            } elseif (isset($listed[$entry['key']])) {
+                $error = \sprintf('%s: duplicate key "%s"', $where, $entry['key']);
+            } elseif (!\is_string($entry['type'] ?? null) || null === ($type = CardValueType::tryFrom($entry['type']))) {
+                $error = \sprintf('%s: unknown type "%s"', $where, \is_scalar($entry['type'] ?? null) ? $entry['type'] : get_debug_type($entry['type'] ?? null));
+            } else {
+                $error = null;
+                foreach (['label', 'caption', 'help', 'history'] as $field) {
+                    if (!\is_string($entry[$field] ?? null) || '' === $entry[$field]) {
+                        $error = \sprintf('%s: %s must be a non-empty string', $where, $field);
+                        break;
+                    }
+                }
+                if (null === $error) {
+                    $listed[$entry['key']] = true;
+                    $values[] = new TemplateValueKey($entry['key'], $type, $entry['label'], $entry['caption'], $entry['help'], $entry['history']);
+
+                    continue;
+                }
+            }
+            if (!$lenient) {
+                $errors[] = $error;
+            }
+        }
+
+        return $values;
     }
 
     /**

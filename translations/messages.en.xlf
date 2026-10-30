@@ -9024,6 +9024,10 @@
             <trans-unit id="github.app.flash.repositories_elsewhere"><source>github.app.flash.repositories_elsewhere</source><target>{0}No repository belongs to another project.|{1}1 repository belongs to another project, so Loupe did not connect it.|]1,Inf[%count% repositories belong to another project, so Loupe did not connect them.</target></trans-unit>
 
             <!-- Workflow conditions: what a rule waits for -->
+            <trans-unit id="workflow.value.tech_design_interactive.label"><source>workflow.value.tech_design_interactive.label</source><target>Tech design</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.caption"><source>workflow.value.tech_design_interactive.caption</source><target>Interactive session</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.help"><source>workflow.value.tech_design_interactive.help</source><target>Turn this on to write the tech design in a session with you. The workflow then asks your bridge for a terminal in place of an autonomous agent.</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.history"><source>workflow.value.tech_design_interactive.history</source><target>the interactive session for tech design</target></trans-unit>
             <trans-unit id="workflow.waiting.card_in_slot"><source>workflow.waiting.card_in_slot</source><target>Waiting: the card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_in_slot"><source>workflow.waiting.not.card_in_slot</source><target>Waiting: the card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_in_slot"><source>workflow.waiting.parent_in_slot</source><target>Waiting: the parent card is not in the %slot% slot.</target></trans-unit>
