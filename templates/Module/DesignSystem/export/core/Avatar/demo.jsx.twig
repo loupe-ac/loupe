@@ -1,0 +1,16 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+      <div className="row">
+{% for variant in entry.variants %}
+        <{{ entry.name }} tone="{{ variant }}">A</{{ entry.name }}>
+{% endfor %}
+      </div>
+      <div className="row">
+{% for size in entry.sizes %}
+        <{{ entry.name }} size="{{ size }}">A</{{ entry.name }}>
+{% endfor %}
+      </div>
+      <div className="row">
+        <{{ entry.name }} shape="round">A</{{ entry.name }}>
+        <{{ entry.name }} shape="square">A</{{ entry.name }}>
+      </div>
+{% endautoescape %}

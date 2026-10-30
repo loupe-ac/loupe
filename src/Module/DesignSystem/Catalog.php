@@ -435,6 +435,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The first letter of a name, or an icon, in a disc or a rounded square. A dot shows a connection.',
                 element: 'span',
+                export: 'Avatar',
+                modifierProp: 'tone',
                 legacyClasses: [
                     'lp-sidebar__switcher-avatar',
                     'lp-switcher__item-avatar',
