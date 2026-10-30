@@ -10,6 +10,7 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\View\InboxOutcomeLabel;
 use App\Module\Inbox\View\InboxRow;
 use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
@@ -35,7 +36,7 @@ final class InboxRowTest extends TestCase
         $row = new InboxRow($ask, [
             $this->item(1, InboxItemKind::Question, state: InboxItemState::Resolved),
             $this->item(2, InboxItemKind::Todo),
-        ], 'answered');
+        ], new InboxOutcomeLabel('inbox.outcome.owner.answered'));
 
         self::assertSame(InboxItemKind::Question, $row->kind());
         self::assertTrue($row->isClosed());

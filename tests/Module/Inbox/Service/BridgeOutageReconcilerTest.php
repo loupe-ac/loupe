@@ -220,7 +220,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $outage = $this->onlyOutage();
         $item = $outage->item;
         self::assertSame(InboxItemState::Resolved, $item->state);
-        self::assertSame('No bridge could take work from '.self::stamp('2026-10-16 11:49:00').' to '.self::stamp(self::NOW).'. 1 card waited.', $item->note);
+        self::assertNull($item->note);
         self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$item->closedBy, $item->closeCause]);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $outage->endedAt);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $item->closedAt);
@@ -409,11 +409,6 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
             "SELECT COUNT(*) FROM inbox_items WHERE project_id = :project AND search_vector @@ websearch_to_tsquery('english', :query)",
             ['project' => (string) $this->project->id, 'query' => $query],
         );
-    }
-
-    private static function stamp(string $moment): string
-    {
-        return new \DateTimeImmutable($moment)->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i').' UTC';
     }
 
     private function repository(): InboxBridgeOutageRepository

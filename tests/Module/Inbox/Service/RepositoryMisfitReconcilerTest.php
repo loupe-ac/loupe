@@ -132,7 +132,7 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
 
         $misfit = $this->onlyMisfit();
         self::assertSame(InboxItemState::Resolved, $misfit->item->state);
-        self::assertSame('A check found no blocking gap, so Loupe takes new work again.', $misfit->item->note);
+        self::assertNull($misfit->item->note);
         self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$misfit->item->closedBy, $misfit->item->closeCause]);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $misfit->endedAt);
 

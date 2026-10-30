@@ -138,21 +138,6 @@ class InboxItem implements ProjectScopedSubject
         $this->dismissible = !\in_array($kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true);
     }
 
-    /**
-     * The suffix of the translation key that names how the item ended. The
-     * state alone cannot say it: a resolved question was answered, any other
-     * resolved item is done, and a cancelled item was withdrawn or made obsolete.
-     */
-    public function stateLabelKey(): string
-    {
-        return match ($this->state) {
-            InboxItemState::Open => 'open',
-            InboxItemState::Resolved => \in_array($this->kind, [InboxItemKind::Question, InboxItemKind::Workflow], true) ? 'answered' : 'done',
-            InboxItemState::Declined => 'declined',
-            InboxItemState::Cancelled => InboxCloseCause::Withdrawn === $this->closeCause ? 'withdrawn' : 'obsolete',
-        };
-    }
-
     /** Loupe opened it for a waiting card, as opposed to an agent's ask or a notice. */
     public function isAutomatic(): bool
     {

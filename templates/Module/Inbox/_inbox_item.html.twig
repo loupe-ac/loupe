@@ -1,5 +1,6 @@
 {% set home = inbox.isHome(item, ask) %}
 {% set open = item.state.value == 'open' %}
+{% set outcome = inbox_outcome(item) %}
 {% set review = item.kind.value == 'review' and not item.isAutomatic() ? inbox_review(item) : null %}
 {% set reviewFormShown = false %}
 {% set actionParams = {projectId: item.project.id, itemId: item.id}|merge(inbox.actionQuery) %}
@@ -12,7 +13,7 @@
         <h3 class="lp-inbox-item__title">{{ item.title|reference_plain }}</h3>
         <span class="lp-inbox-item__kind">{{ ('inbox.item.kind.' ~ item.kind.value)|trans }}</span>
         {% if item.blocking and (showBlocking ?? true) %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
-        {% if not open %}{% include '@Inbox/_inbox_state_chip.html.twig' with {label: item.stateLabelKey} only %}{% endif %}
+        {% if outcome %}{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: outcome} only %}{% endif %}
     </div>
     {% endif %}
     {# The waits below say what the body of a wait item says, with links. #}
@@ -59,10 +60,8 @@
         {% if not answered and item.kind.value != 'review' and item.note is not null %}<p class="lp-inbox-item__note">{{ item.note }}</p>{% endif %}
         {% if (item.closedBy.value ?? null) == 'owner-through-agent' %}<p class="lp-inbox-item__note" data-inbox-through-agent>{{ 'inbox.item.through_agent'|trans }}</p>{% endif %}
         <p class="lp-inbox-item__editable" data-inbox-editable="{{ inbox.acceptsResponse(item) ? 'yes' : 'no' }}">
-            {%- if (item.closedBy.value ?? null) in ['loupe', 'rule'] -%}
-                {{ 'inbox.item.closed_by_loupe'|trans }}
-            {%- elseif (item.closedBy.value ?? null) == 'agent' -%}
-                {{ 'inbox.item.closed_by_agent'|trans }}
+            {%- if (item.closedBy.value ?? null) in ['loupe', 'rule', 'agent'] -%}
+                {{ outcome.key|trans(outcome.parameters) }}
             {%- elseif inbox.acceptsResponse(item) -%}
                 {{ 'inbox.item.editable'|trans }}
             {%- else -%}

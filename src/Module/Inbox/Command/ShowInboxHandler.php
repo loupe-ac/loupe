@@ -9,9 +9,9 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\InboxOutcome;
 use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ShownInboxAsk;
 use App\Module\Inbox\View\InboxPageView;
@@ -32,6 +32,7 @@ final readonly class ShowInboxHandler
         private InboxItemRepository $inboxItems,
         private BridgeLiveness $bridgeLiveness,
         private InboxReviewLookup $inboxReviews,
+        private InboxOutcome $outcome,
     ) {
     }
 
@@ -177,7 +178,7 @@ final readonly class ShowInboxHandler
         }
         $closing = $this->closingItemOf($items);
 
-        return new InboxRow($ask, $items, $this->outcomeOf($closing), $closing);
+        return new InboxRow($ask, $items, $this->outcome->forItem($closing), $closing);
     }
 
     /**
@@ -202,22 +203,7 @@ final readonly class ShowInboxHandler
 
     private function rowOfItem(InboxItem $item): InboxRow
     {
-        return new InboxRow(null, [$item], $this->outcomeOf($item), InboxItemState::Open === $item->state ? null : $item);
-    }
-
-    /** How a closed row ended, read from the item that closed it. A row that is still open has none. */
-    private function outcomeOf(InboxItem $item): ?string
-    {
-        return match ($item->state) {
-            InboxItemState::Open => null,
-            InboxItemState::Resolved => match ($this->inboxReviews->forItem($item)?->verdict) {
-                InboxReviewVerdict::Approved => 'approved',
-                InboxReviewVerdict::ChangesRequested => 'changes_requested',
-                null => $item->stateLabelKey(),
-            },
-            InboxItemState::Declined => $item->isAutomatic() ? 'dismissed' : 'declined',
-            InboxItemState::Cancelled => $item->stateLabelKey(),
-        };
+        return new InboxRow(null, [$item], $this->outcome->forItem($item), InboxItemState::Open === $item->state ? null : $item);
     }
 
     /** @return list<InboxItem> */

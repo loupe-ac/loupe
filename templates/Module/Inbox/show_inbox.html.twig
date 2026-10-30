@@ -112,14 +112,14 @@
                     {# The ask that the page showed open has closed since: say why, and point to the next open ask. Only a live refresh that names the ask asks for it. #}
                     {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
                     {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
-                        {% set closedOutcome = inbox.selected.outcome ?? 'closed' %}
+                        {% set closedOutcome = inbox.selected.outcome %}
                         {% set closedReason = inbox.selected.closing.note ?? null %}
-                        <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome }}">
+                        <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
                             <span>
-                                {%- if closedOutcome in ['withdrawn', 'obsolete'] -%}
-                                    {{ ('inbox.live.closed.' ~ closedOutcome)|trans }}
+                                {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
+                                    {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
                                 {%- else -%}
-                                    {{ 'inbox.live.closed.other'|trans({'%outcome%': (closedOutcome == 'closed' ? 'inbox.row.closed' : 'inbox.row.outcome.' ~ closedOutcome)|trans}) }}
+                                    {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
                                 {%- endif -%}
                                 {%- if closedReason %} {{ closedReason }}{% endif -%}
                             </span>

@@ -178,7 +178,7 @@ final readonly class RepositoryMisfitReconciler
             InboxItemState::Resolved,
             InboxCloser::Loupe,
             InboxCloseCause::FactEnded,
-            $this->translator->trans('inbox.repository_misfit.closed', [], null, $this->locale),
+            null,
             $now,
         );
         $misfit->endedAt = $now;
