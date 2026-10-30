@@ -45,8 +45,9 @@ final readonly class LineLayout
      * Null when no series has a bucket.
      *
      * @param list<MetricSeries> $series
+     * @param bool               $adds   true when the values add up, as MetricChartRules::valuesAdd() says
      */
-    public static function build(MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter): ?self
+    public static function build(MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds): ?self
     {
         $axis = MetricChartTimeAxis::forSeries($bucket, $series, withPrevious: true);
         if (null === $axis) {
@@ -85,8 +86,8 @@ final readonly class LineLayout
             moneyDecimals: MetricChartScale::moneyDecimals($step),
             xTicks: $axis->ticks,
             longSpan: $axis->longSpan,
-            hoverTargets: MetricChartReadout::bucketTargets($metric, $statistic, $axis, $series, $chartSeries, $formatter, false),
-            table: MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, false),
+            hoverTargets: MetricChartReadout::bucketTargets($metric, $statistic, $axis, $series, $chartSeries, $formatter, $adds),
+            table: MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, $adds),
             comparing: MetricChartReadout::comparing($series),
         );
     }
@@ -101,15 +102,16 @@ final readonly class LineLayout
     private static function path(array $points, MetricChartTimeAxis $axis, float $top): string
     {
         $parts = [];
-        $drawing = false;
+        $last = null;
         foreach ($points as $point) {
             if (null === $point->start || null === $point->value) {
-                $drawing = false;
+                $last = null;
 
                 continue;
             }
-            $parts[] = ($drawing ? 'L' : 'M').MetricChartScale::number($axis->centre($axis->index($point->start))).' '.MetricChartScale::number(MetricChartScale::y($point->value, $top));
-            $drawing = true;
+            $index = $axis->index($point->start);
+            $parts[] = (null !== $last && 1 === $index - $last ? 'L' : 'M').MetricChartScale::number($axis->centre($index)).' '.MetricChartScale::number(MetricChartScale::y($point->value, $top));
+            $last = $index;
         }
 
         return implode(' ', $parts);

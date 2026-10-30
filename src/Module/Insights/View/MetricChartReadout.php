@@ -38,7 +38,7 @@ final class MetricChartReadout
             $change = null === $comparison || null === $comparison->change || null === $comparison->changeKind
                 ? null
                 : new MetricChartChange(
-                    MetricChartDirection::of($comparison->change),
+                    $formatter->changeIsNothing($comparison->change, $comparison->changeKind) ? MetricChartDirection::Flat : MetricChartDirection::of($comparison->change),
                     $formatter->change($comparison->change, $comparison->changeKind, $metric, $statistic),
                     $comparison->changeKind,
                 );

@@ -23,9 +23,17 @@ final class MetricChartRules
     /** Null when the type is free. Otherwise the first thing the owner must change. */
     public static function lock(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, int $lines): ?MetricChartLock
     {
-        if (!self::adds($type)) {
-            return null;
-        }
+        return self::adds($type) ? self::addLock($metric, $statistic, $lines) : null;
+    }
+
+    /** True when the lines add up to a whole, so a table shows shares and a hover card a total. */
+    public static function valuesAdd(MetricShape $metric, MetricStatistic $statistic, int $lines): bool
+    {
+        return null === self::addLock($metric, $statistic, $lines);
+    }
+
+    private static function addLock(MetricShape $metric, MetricStatistic $statistic, int $lines): ?MetricChartLock
+    {
         if (MetricValueType::Ratio === $metric->valueType()) {
             return MetricChartLock::RateDoesNotAdd;
         }

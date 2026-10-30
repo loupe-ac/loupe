@@ -161,9 +161,52 @@ final class LineLayoutTest extends TestCase
         self::assertSame([1, 2, 3, 4, 5, 6, 7, 0, 0], array_map(static fn (MetricChartSeries $item): int => $item->slot, $layout->series));
     }
 
+    public function test_a_bucket_a_series_has_no_row_in_is_a_gap_in_its_line(): void
+    {
+        $layout = self::build([
+            ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => 2.0, '2026-09-28' => 3.0]),
+            ChartSeries::of('b', ['2026-09-14' => 1.0, '2026-09-28' => 1.0]),
+        ]);
+
+        self::assertNotNull($layout);
+        self::assertSame('M209.33 170.67 M790.67 170.67', $layout->lines[1]->path);
+        self::assertSame('M209.33 170.67 L500 93.33 L790.67 16', $layout->lines[0]->path);
+    }
+
+    public function test_a_series_with_no_known_value_still_draws_an_axis(): void
+    {
+        $layout = self::build([ChartSeries::of(null, ['2026-09-28' => null])]);
+
+        self::assertNotNull($layout);
+        self::assertSame('', $layout->lines[0]->path);
+        self::assertSame([], $layout->lines[0]->dots);
+        self::assertNotSame([], $layout->yTicks);
+    }
+
+    public function test_a_sum_of_several_lines_shows_shares_and_totals(): void
+    {
+        $layout = LineLayout::build(
+            new MetricShape(new MetricKey(Metric::Runs)),
+            MetricStatistic::Sum,
+            MetricBucket::Week,
+            [
+                ChartSeries::of('a', ['2026-09-28' => 3], total: 3),
+                ChartSeries::of('b', ['2026-09-28' => 1], total: 1),
+                ChartSeries::of('c', ['2026-09-28' => 4], total: 4),
+            ],
+            new MetricValueFormatter('en'),
+            true,
+        );
+
+        self::assertNotNull($layout);
+        self::assertSame(['37.5%', '12.5%', '50%'], array_map(static fn ($row): ?string => $row->share, $layout->table));
+        self::assertSame('8', $layout->hoverTargets[0]->total);
+        self::assertSame(['37.5%', '12.5%', '50%'], array_map(static fn ($row): ?string => $row->share, $layout->hoverTargets[0]->rows));
+    }
+
     /** @param list<\App\Module\Bridge\Metric\MetricSeries> $series */
     private static function build(array $series): ?LineLayout
     {
-        return LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'));
+        return LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
     }
 }

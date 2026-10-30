@@ -43,7 +43,7 @@ final class MetricChartScale
             MetricValueType::Duration => $metric->isInHours() ? 1.0 : 1000.0,
             default => (float) self::TARGET_TICKS,
         };
-        $max = max($floor, ...$values);
+        $max = max([$floor, ...$values]);
         $step = self::niceStep($max / self::TARGET_TICKS);
 
         return [ceil($max / $step - 1e-9) * $step, $step];

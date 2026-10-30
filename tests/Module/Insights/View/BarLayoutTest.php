@@ -166,9 +166,39 @@ final class BarLayoutTest extends TestCase
         self::assertSame('9', $layout->hoverTargets[0]->total);
     }
 
-    /** @param list<MetricSeries> $series */
-    private static function build(MetricChartType $type, array $series): ?BarLayout
+    public function test_side_by_side_bars_of_a_sum_show_shares_and_totals_when_the_values_add_up(): void
     {
-        return BarLayout::build($type, new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Sum, MetricBucket::Week, $series, new MetricValueFormatter('en'));
+        $series = [
+            ChartSeries::of('a', ['2026-09-28' => 3], total: 3),
+            ChartSeries::of('b', ['2026-09-28' => 1], total: 1),
+            ChartSeries::of('c', ['2026-09-28' => 4], total: 4),
+        ];
+
+        $adding = self::build(MetricChartType::Bars, $series, true);
+        $plain = self::build(MetricChartType::Bars, $series, false);
+
+        self::assertNotNull($adding);
+        self::assertNotNull($plain);
+        self::assertSame(['37.5%', '12.5%', '50%'], array_map(static fn ($row): ?string => $row->share, $adding->table));
+        self::assertSame('8', $adding->hoverTargets[0]->total);
+        self::assertSame([null, null, null], array_map(static fn ($row): ?string => $row->share, $plain->table));
+        self::assertNull($plain->hoverTargets[0]->total);
+    }
+
+    public function test_a_series_with_no_known_value_still_draws_an_axis(): void
+    {
+        foreach ([MetricChartType::Bars, MetricChartType::StackedBars] as $type) {
+            $layout = self::build($type, [ChartSeries::of(null, ['2026-09-28' => null])]);
+
+            self::assertNotNull($layout);
+            self::assertSame([], $layout->buckets[0]->bars);
+            self::assertNotSame([], $layout->yTicks);
+        }
+    }
+
+    /** @param list<MetricSeries> $series */
+    private static function build(MetricChartType $type, array $series, ?bool $adds = null): ?BarLayout
+    {
+        return BarLayout::build($type, new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Sum, MetricBucket::Week, $series, new MetricValueFormatter('en'), $adds ?? MetricChartType::Bars !== $type);
     }
 }

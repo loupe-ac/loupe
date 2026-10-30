@@ -133,6 +133,16 @@ final class MetricChartRulesTest extends TestCase
         self::assertFalse($resolution->fellBack());
     }
 
+    public function test_values_add_up_whatever_the_chart_type(): void
+    {
+        self::assertTrue(MetricChartRules::valuesAdd(self::cost(), MetricStatistic::Sum, 3));
+        self::assertTrue(MetricChartRules::valuesAdd(self::cost(), MetricStatistic::Count, 2));
+        self::assertTrue(MetricChartRules::valuesAdd(new MetricShape(new MetricKey(Metric::BucketTimeEach)), MetricStatistic::Mean, 3));
+        self::assertFalse(MetricChartRules::valuesAdd(self::cost(), MetricStatistic::Sum, 1));
+        self::assertFalse(MetricChartRules::valuesAdd(self::cost(), MetricStatistic::Median, 3));
+        self::assertFalse(MetricChartRules::valuesAdd(new MetricShape(new MetricKey(Metric::StopRate)), MetricStatistic::Count, 3));
+    }
+
     public function test_the_fallback_is_always_allowed(): void
     {
         self::assertTrue(MetricChartRules::isAllowed(MetricChartRules::fallback(), self::cost(), MetricStatistic::Median, 0));

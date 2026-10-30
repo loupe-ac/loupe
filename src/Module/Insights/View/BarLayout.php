@@ -58,8 +58,9 @@ final readonly class BarLayout
      * Null when no series has a bucket.
      *
      * @param list<MetricSeries> $series
+     * @param bool               $adds   true when the values add up, as MetricChartRules::valuesAdd() says
      */
-    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter): ?self
+    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds): ?self
     {
         if (!\in_array($type, [MetricChartType::Bars, MetricChartType::StackedBars, MetricChartType::PercentStacked], true)) {
             throw new \InvalidArgumentException(\sprintf('%s is not a bar chart.', $type->value));
@@ -113,8 +114,8 @@ final readonly class BarLayout
             longSpan: $axis->longSpan,
             axisMetric: $percent ? MetricValueType::Ratio : $metric,
             axisStatistic: $percent ? null : $statistic,
-            hoverTargets: MetricChartReadout::bucketTargets($metric, $statistic, $axis, $series, $chartSeries, $formatter, $stacked),
-            table: MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, $stacked),
+            hoverTargets: MetricChartReadout::bucketTargets($metric, $statistic, $axis, $series, $chartSeries, $formatter, $adds),
+            table: MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, $adds),
             comparing: MetricChartReadout::comparing($series),
         );
     }

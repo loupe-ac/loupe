@@ -71,6 +71,24 @@ final class NumberLayoutTest extends TestCase
         self::assertNull($flat->figures[0]->sign);
     }
 
+    public function test_a_change_that_rounds_to_nothing_is_flat(): void
+    {
+        $formatter = new MetricValueFormatter('en');
+        $rate = new MetricShape(new MetricKey(Metric::StopRate));
+
+        $relative = NumberLayout::build(self::cost(), MetricStatistic::Median, [ChartSeries::total(null, 1.0, ChartSeries::comparison(previous: 1.0, change: 0.0004))], $formatter);
+        $points = NumberLayout::build($rate, MetricStatistic::Mean, [ChartSeries::total(null, 0.25, ChartSeries::comparison(previous: 0.25, change: -0.0004, kind: MetricChangeKind::Points))], $formatter);
+        $small = NumberLayout::build(self::cost(), MetricStatistic::Median, [ChartSeries::total(null, 1.0, ChartSeries::comparison(previous: 1.0, change: 0.004))], $formatter);
+
+        self::assertNotNull($relative);
+        self::assertNotNull($points);
+        self::assertNotNull($small);
+        self::assertSame(MetricChartDirection::Flat, $relative->figures[0]->change?->direction);
+        self::assertSame(MetricChartDirection::Flat, $points->figures[0]->change?->direction);
+        self::assertSame(MetricChartDirection::Up, $small->figures[0]->change?->direction);
+        self::assertSame('0.4%', $small->figures[0]->change->amount);
+    }
+
     public function test_an_absolute_change_prints_in_the_unit_of_the_metric(): void
     {
         $layout = NumberLayout::build(

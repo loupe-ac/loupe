@@ -61,10 +61,27 @@ final readonly class MetricValueFormatter
         $size = abs($change);
 
         return match ($kind) {
-            MetricChangeKind::Relative => $this->number($size, \NumberFormatter::PERCENT, 0, $size < 0.1 ? 1 : 0),
+            MetricChangeKind::Relative => $this->number($size, \NumberFormatter::PERCENT, 0, self::relativeDecimals($size)),
             MetricChangeKind::Points => $this->number($size * 100, \NumberFormatter::DECIMAL, 0, 1),
             MetricChangeKind::Absolute => $this->format($size, $metric, $statistic) ?? '',
         };
+    }
+
+    /** True when change() would print a size of zero, so no arrow should show. */
+    public function changeIsNothing(float $change, MetricChangeKind $kind): bool
+    {
+        $size = abs($change);
+
+        return match ($kind) {
+            MetricChangeKind::Relative => 0.0 === round($size * 100, self::relativeDecimals($size)),
+            MetricChangeKind::Points => 0.0 === round($size * 100, 1),
+            MetricChangeKind::Absolute => 0.0 === $size,
+        };
+    }
+
+    private static function relativeDecimals(float $size): int
+    {
+        return $size < 0.1 ? 1 : 0;
     }
 
     /** A cost under half a cent keeps its micro-dollars, so it never reads as free. */

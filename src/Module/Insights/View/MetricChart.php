@@ -51,7 +51,7 @@ final readonly class MetricChart
      */
     public static function build(MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series): ?self
     {
-        $layout = BarLayout::build(MetricChartType::Bars, $metric, $statistic, $bucket, $series, new MetricValueFormatter(\Locale::getDefault()));
+        $layout = BarLayout::build(MetricChartType::Bars, $metric, $statistic, $bucket, $series, new MetricValueFormatter(\Locale::getDefault()), false);
         if (null === $layout) {
             return null;
         }
