@@ -28,7 +28,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 6. Run P0 to get the card into the Product design column and open the run, as `session-flow.md` says.
 7. Run the phases of the level that P2 sets. Ask each question as `question-rules.md` says. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing.
 8. Read `../loupe-stage-product-design/references/product-document.md` before P10. It is the template, and it lists the sections a Light document keeps.
-9. Run P12, P11, then P8 to P10, when the questions end. Ask for no confirmation after P11, because the document is the full readback (P9).
+9. Run P13 when it has not run, then P12, P11, then P8 to P10, when the questions end. Ask for no confirmation after P11, because the document is the full readback (P9).
 
 ## Where session output goes
 
@@ -42,6 +42,7 @@ Put each item in its section of the product document.
 - A deferred decision in "Open questions" gets the worked example of `../loupe-documents/references/design-structure.md` "Decisions", and no "How each option works" list. A question in chat gets no example.
 - The whole product document follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
 - The answer of the P7 human review question goes in "Decisions log". The session sets the switch with `card_update`.
+- The answer of the P13 tech design question goes in "Decisions log". The session sets the key with `card_update` `values`.
 - The P8 scenarios go in "Scenarios".
 - The Design canvas link and the label of each pick go in "Decisions log", and the `R` entry they shaped cites both. When a Design canvas session ran, the product document also links the recap of the picks (C6).
 

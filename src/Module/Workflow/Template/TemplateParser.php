@@ -10,8 +10,10 @@ use App\Module\Workflow\Action\MissingAction;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionTraits;
+use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\ChecksParameters;
 use App\Module\Workflow\Contract\ChildFacts;
+use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\DocumentStatuses;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\LabelTone;
@@ -26,6 +28,7 @@ use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\TemplateOutcome;
+use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Contract\WorkKind;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
@@ -250,7 +253,10 @@ final readonly class TemplateParser
 
         $slots = $this->slots(self::topLevelList($source, 'slots', $errors), $errors);
         $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $slots);
-        $facts = new NamedFacts(self::factSources($source['facts'] ?? null, $errors));
+        $values = \array_key_exists('values', $source)
+            ? self::valueKeys($source['values'], $lenient, $errors)
+            : [];
+        $facts = new NamedFacts(self::factSources($source['facts'] ?? null, $errors), $values);
         foreach (array_keys($facts->sources) as $name) {
             $this->namedFact((string) $name, $slotKeys, $types, $facts, $errors, $lenient);
         }
@@ -297,7 +303,59 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values);
+    }
+
+    /**
+     * @param list<string> $errors
+     *
+     * @return list<TemplateValueKey>
+     */
+    private static function valueKeys(mixed $given, bool $lenient, array &$errors): array
+    {
+        if (!\is_array($given) || !array_is_list($given)) {
+            if (!$lenient) {
+                $errors[] = 'values: must be a list of value keys';
+            }
+
+            return [];
+        }
+        $fields = ['key', 'type', 'label', 'caption', 'help', 'history'];
+        $values = [];
+        $listed = [];
+        foreach ($given as $index => $entry) {
+            $where = \sprintf('values[%d]', $index);
+            if (!\is_array($entry) || array_is_list($entry) && [] !== $entry) {
+                $error = $where.': must be a map';
+            } elseif ([] !== ($unknown = array_diff(array_keys($entry), $fields))) {
+                $error = \sprintf('%s: unknown field "%s"', $where, reset($unknown));
+            } elseif (!\is_string($entry['key'] ?? null) || 1 !== preg_match(TemplateValueKey::KEY_PATTERN, $entry['key'])) {
+                $error = \sprintf('%s: key "%s" must be lowercase letters, digits and hyphens', $where, \is_scalar($entry['key'] ?? null) ? $entry['key'] : get_debug_type($entry['key'] ?? null));
+            } elseif (isset($listed[$entry['key']])) {
+                $error = \sprintf('%s: duplicate key "%s"', $where, $entry['key']);
+            } elseif (!\is_string($entry['type'] ?? null) || null === ($type = CardValueType::tryFrom($entry['type']))) {
+                $error = \sprintf('%s: unknown type "%s"', $where, \is_scalar($entry['type'] ?? null) ? $entry['type'] : get_debug_type($entry['type'] ?? null));
+            } else {
+                $error = null;
+                foreach (['label', 'caption', 'help', 'history'] as $field) {
+                    if (!\is_string($entry[$field] ?? null) || '' === $entry[$field]) {
+                        $error = \sprintf('%s: %s must be a non-empty string', $where, $field);
+                        break;
+                    }
+                }
+                if (null === $error) {
+                    $listed[$entry['key']] = true;
+                    $values[] = new TemplateValueKey($entry['key'], $type, $entry['label'], $entry['caption'], $entry['help'], $entry['history']);
+
+                    continue;
+                }
+            }
+            if (!$lenient) {
+                $errors[] = $error;
+            }
+        }
+
+        return $values;
     }
 
     /**
@@ -943,7 +1001,7 @@ final readonly class TemplateParser
             return new MissingConditionLeaf($key, $value);
         }
 
-        return $this->conditionLeaf($key, $value, $where, $slotKeys, $types, $errors);
+        return $this->conditionLeaf($key, $value, $where, $slotKeys, $types, $facts, $lenient, $errors);
     }
 
     /**
@@ -999,7 +1057,7 @@ final readonly class TemplateParser
      * @param ?array<string, TemplateCardType> $types
      * @param list<string>                     $errors
      */
-    private function conditionLeaf(string $key, mixed $value, string $where, array $slotKeys, ?array $types, array &$errors): ?ConditionLeaf
+    private function conditionLeaf(string $key, mixed $value, string $where, array $slotKeys, ?array $types, NamedFacts $facts, bool $lenient, array &$errors): ?ConditionLeaf
     {
         if (!$this->conditions->has($key)) {
             $errors[] = \sprintf('%s: unknown condition "%s"', $where, $key);
@@ -1039,6 +1097,11 @@ final readonly class TemplateParser
                     !self::isColumn($param, $slotKeys, false) => \sprintf('unknown slot "%s"', $param),
                     default => null,
                 },
+                ParameterType::ValueKey => match (true) {
+                    !\is_string($param) || '' === $param => \sprintf('parameter "%s" must be a non-empty string', $parameter->name),
+                    !$lenient && null !== $facts->valueKeys && !array_any($facts->valueKeys, static fn (TemplateValueKey $declared): bool => $declared->key === $param) => self::unknownValueKey($param, $facts->valueKeys),
+                    default => null,
+                },
                 ParameterType::List => \is_array($param) && [] !== $param && array_is_list($param) && array_all($param, static fn (mixed $entry): bool => \is_string($entry) && '' !== $entry)
                     ? null
                     : \sprintf('parameter "%s" must be a non-empty list of non-empty strings', $parameter->name),
@@ -1056,6 +1119,9 @@ final readonly class TemplateParser
                     ? \sprintf('%s: unknown parameter "%s"', $where, $name)
                     : \sprintf('%s: parameter "%s" is gone, use the "%s" list', $where, $name, $current->name);
             }
+        }
+        if (\count($errors) === $errorCount && !$lenient && null !== $facts->valueKeys) {
+            array_push($errors, ...self::valueTypeErrors($condition, $params, $facts->valueKeys, $where));
         }
         if (\count($errors) === $errorCount && null !== $types && $condition instanceof ReadsCardType) {
             foreach ($condition->cardType($params) as $type) {
@@ -1179,6 +1245,33 @@ final readonly class TemplateParser
         }
 
         return \count($errors) === $errorCount ? $this->actions->call($name, $params, $expressions['until'] ?? null, $checks, $expressions['refill'] ?? null, $options, $expressions['cancelWhen'] ?? null, $lists) : null;
+    }
+
+    /** @param list<TemplateValueKey> $declared */
+    private static function unknownValueKey(string $key, array $declared): string
+    {
+        return \sprintf('unknown value key "%s"%s', $key, [] === $declared ? '; the template declares no values' : '; declared keys: '.implode(', ', array_map(static fn (TemplateValueKey $value): string => $value->key, $declared)));
+    }
+
+    /**
+     * The value a condition compares with must fit the declared type of the key it names.
+     *
+     * @param array<string, mixed>   $params
+     * @param list<TemplateValueKey> $declared
+     *
+     * @return list<string>
+     */
+    private static function valueTypeErrors(Condition $condition, array $params, array $declared, string $where): array
+    {
+        $keyParameter = array_find($condition::parameters(), static fn (Parameter $parameter): bool => ParameterType::ValueKey === $parameter->type);
+        if (null === $keyParameter || !\is_string($params[$keyParameter->name] ?? null) || !\array_key_exists('equals', $params)) {
+            return [];
+        }
+        $value = array_find($declared, static fn (TemplateValueKey $candidate): bool => $candidate->key === $params[$keyParameter->name]);
+
+        return null === $value || $value->type->accepts($params['equals'])
+            ? []
+            : [\sprintf('%s: parameter "equals" must be of the type "%s" that the value key "%s" declares', $where, $value->type->value, $value->key)];
     }
 
     /** @return ?string what is wrong with the value of a string, int or slot parameter, or null when nothing is */

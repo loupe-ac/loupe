@@ -25,6 +25,7 @@ use App\Module\Board\Service\CardMover;
 use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
 use App\Module\Board\Service\CardSearchIndexer;
+use App\Module\Board\Service\CardValueWriter;
 use App\Module\Board\Service\DocumentLinkResolver;
 use App\Module\Board\Service\HumanReviewSwitch;
 use App\Module\Board\Service\PullRequestTracking;
@@ -74,6 +75,7 @@ final readonly class UpdateCardHandler
         private CardMoveGuard $moveGuard,
         private CardPause $cardPause,
         private HumanReviewSwitch $humanReviewSwitch,
+        private CardValueWriter $cardValues,
     ) {
     }
 
@@ -138,6 +140,12 @@ final readonly class UpdateCardHandler
                 $this->cards->refreshHumanReview($card);
                 if ($card->requiresHumanReview) {
                     return new DomainErrors(['requiresHumanReview' => self::HUMAN_REVIEW_RAISE_ONLY]);
+                }
+            }
+            if (null !== $command->values) {
+                $refusal = $this->cardValues->refusal($card, $command->values);
+                if (null !== $refusal) {
+                    return $refusal;
                 }
             }
             // The columns too: one deleted or given another terminal flag since
@@ -264,6 +272,10 @@ final readonly class UpdateCardHandler
                 $this->cards->refreshHumanReview($card);
                 $humanReviewChanged = $this->humanReviewSwitch->set($card, $command->requiresHumanReview, $command->actor, $command->humanReviewCause, $command->humanReviewRuleId);
             }
+            $valuesChanged = false;
+            foreach ($command->values ?? [] as $key => $value) {
+                $valuesChanged = $this->cardValues->set($card, (string) $key, $value, $command->actor) || $valuesChanged;
+            }
             $trackedBefore = null;
             if (null !== $command->pullRequestUrls) {
                 $trackedBefore = $this->pullRequestTracking->referencesOf($card);
@@ -312,7 +324,7 @@ final readonly class UpdateCardHandler
                 $this->events->dispatch(new CardBlockersChanged($card->project, $blockersChanged, $command->actor));
             }
 
-            return new UpdateCardOutcome($move, $titleChanged, $bodyChanged, $typeChanged, $parentChanged, $laneChanged, $lanesBefore !== $lanesAfter, $contentChanged, $openedRun, $held, $humanReviewChanged);
+            return new UpdateCardOutcome($move, $titleChanged, $bodyChanged, $typeChanged, $parentChanged, $laneChanged, $lanesBefore !== $lanesAfter, $contentChanged, $openedRun, $held, $humanReviewChanged, $valuesChanged);
         });
 
         // A refusal leaves the closure as a value, for the reason in AddBoardColumnHandler.
@@ -356,6 +368,7 @@ final readonly class UpdateCardHandler
             || $outcome->parentChanged
             || $outcome->laneChanged
             || $outcome->humanReviewChanged
+            || $outcome->valuesChanged
             || null !== $command->pullRequestUrls
             || null !== $command->documentIds
             || null !== $command->artifactIds
@@ -420,6 +433,7 @@ final readonly class UpdateCardHandler
                 'parentChanged' => $outcome->parentChanged,
                 'laneChanged' => $outcome->laneChanged,
                 'humanReviewChanged' => $outcome->humanReviewChanged,
+                'valuesChanged' => $outcome->valuesChanged,
                 'pullRequestsReplaced' => null !== $command->pullRequestUrls,
                 'documentsReplaced' => null !== $command->documentIds,
                 'artifactsReplaced' => null !== $command->artifactIds,

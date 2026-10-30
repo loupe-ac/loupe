@@ -1,0 +1,27 @@
+{#- One value row of a card: its label, switch, help tooltip and who set it. Props: card (Card), value (CardValueView), error (?string: why a save was refused). -#}
+{% set valueForm = card_value_form(card, value) %}
+{% set tooltipId = 'card-value-tip-' ~ card.id ~ '-' ~ value.key %}
+{% set setBy = value.setBy %}
+<div id="card-value-{{ value.key }}" class="lp-card-value">
+    <span class="lp-card-value__label">{{ value.label|trans }}</span>
+    {{ form_start(valueForm, {action: path('app_board_card_value', {projectId: card.project.id, cardId: card.id, key: value.key}), attr: {class: 'lp-card-value__control', 'data-controller': 'submit-on-change'}}) }}
+        {{ form_widget(valueForm._token) }}
+        <twig:Ds:Switch :name="valueForm.value.vars.full_name" :id="valueForm.value.vars.id" :checked="true === value.value" :label="value.caption|trans" :disabled="not is_granted(constant('App\\Module\\Board\\Security\\CardVoter::WRITE'), card)" aria-describedby="{{ tooltipId }}" data-action="change->submit-on-change#submit" />
+        <span class="lp-card-value__help" data-controller="interactive-tooltip" data-interactive-tooltip-align-value="start" data-action="pointerenter->interactive-tooltip#open pointerleave->interactive-tooltip#scheduleClose focusin->interactive-tooltip#open focusout->interactive-tooltip#leaveFocus keydown.esc->interactive-tooltip#close">
+            <span tabindex="0" role="img" aria-label="{{ 'board.card.values.help_label'|trans }}" aria-describedby="{{ tooltipId }}" data-action="pointerdown->interactive-tooltip#pressed">
+                <twig:ux:icon name="lucide:circle-help" class="lp-icon lp-icon--sm" aria-hidden="true" />
+            </span>
+            <twig:Ds:Tooltip id="{{ tooltipId }}" :interactive="true">{{ value.help|trans }}</twig:Ds:Tooltip>
+        </span>
+    {{ form_end(valueForm, {render_rest: false}) }}
+    <span class="lp-card-value__meta">
+        {%- if setBy is not null and value.updatedAt is not null -%}
+            {{ setBy|trans }} · <twig:Ds:RelativeTime :datetime="value.updatedAt" />
+        {%- else -%}
+            {{ 'board.card.values.not_set'|trans }}
+        {%- endif -%}
+    </span>
+    {% if error is not null %}
+        <twig:Ds:Flash severity="error">{{ error }}</twig:Ds:Flash>
+    {% endif %}
+</div>

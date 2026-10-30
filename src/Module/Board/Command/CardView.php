@@ -10,6 +10,7 @@ use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\PullRequestStates;
 use App\Module\Board\Service\StoredCardMarkers;
+use App\Module\Board\View\CardValueView;
 
 /**
  * Everything one card page renders.
@@ -26,6 +27,7 @@ final readonly class CardView
      * @param array<string, AgentReviewSummary>                   $agentReviews    keyed by the id of the pull request link, with no entry for a link that has no review
      * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts       in link order
      * @param array<string, array{width: int, height: int}>       $screenshotSizes keyed by comment id, with no entry for a note that has no screenshot
+     * @param list<CardValueView>                                 $values          the keys the workflow template declares, empty when it declares none
      */
     public function __construct(
         public Card $card,
@@ -39,6 +41,7 @@ final readonly class CardView
         public array $agentReviews = [],
         public array $artifacts = [],
         public array $screenshotSizes = [],
+        public array $values = [],
     ) {
     }
 }
