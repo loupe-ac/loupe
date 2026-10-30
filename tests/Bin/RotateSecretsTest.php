@@ -728,6 +728,38 @@ final class RotateSecretsTest extends TestCase
         self::assertStringNotContainsString('old-do', $process->getOutput().$process->getErrorOutput());
     }
 
+    public function test_a_webhook_failure_after_the_apply_still_asks_to_empty_the_sessions(): void
+    {
+        $this->webhookVars();
+        $this->deliveries([[]]);
+        $this->deployments(['dep-old', 'dep-new'], [['dep-new', 'ACTIVE', '2099-01-01T00:00:00Z']]);
+        touch($this->dir.'/patch-fail');
+
+        $process = $this->rotate(['app_secret', 'github_app_webhook_secret'], '');
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertNotSame('keep-me', $this->value('app_secret'));
+        self::assertStringContainsString("bin/console dbal:run-sql 'DELETE FROM sessions'", $process->getOutput());
+    }
+
+    public function test_a_group_run_that_finishes_a_pending_webhook_switch_still_covers_its_group(): void
+    {
+        $this->webhookVars();
+        $this->deliveries([[]]);
+        $this->deployments(['dep-old', 'dep-new'], [['dep-new', 'ACTIVE', '2099-01-01T00:00:00Z']]);
+        touch($this->dir.'/patch-fail');
+        $first = $this->rotate(['github_app_webhook_secret'], '');
+        self::assertNotSame(0, $first->getExitCode());
+        unlink($this->dir.'/patch-fail');
+        file_put_contents($this->dir.'/new-app-key.pem', $this->pem());
+
+        $process = $this->rotate(['@no-relogin'], "yes\n".$this->dir."/new-app-key.pem\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
+        self::assertStringContainsString('finishing the switch', $process->getOutput());
+        self::assertStringEndsWith("\nNot rotated in full: @relogin-users @relogin-clients\n", $process->getOutput());
+    }
+
     /** @return iterable<string, array{string}> */
     public static function webhookFailures(): iterable
     {
