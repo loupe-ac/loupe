@@ -855,7 +855,8 @@ The first error puts the whole bridge in one waiting state. It writes one
 `login_expired` event to the log with the message "Your Loupe login expired.
 Run `loupe login` in another terminal. The bridge resumes by itself." On macOS
 it also shows one notice, "Loupe bridge needs a new login". The notice needs
-notifications for your terminal to be on in System Settings.
+notifications for your terminal to be on in System Settings. While the login
+stays expired, the bridge shows the notice again every hour.
 
 While it waits, the bridge sends no heartbeat, starts no new claim and spends no
 report retry. Workers that already run keep running. The bridge looks at
@@ -863,6 +864,11 @@ report retry. Workers that already run keep running. The bridge looks at
 writes a `login_resumed` event and carries on with no restart. A bridge that
 starts with an expired login still exits, and the error tells you to run
 `loupe login`.
+
+`loupe bridge status` shows whether a bridge waits for a new login, with the
+last error and the running workers. `loupe status` adds a `Bridges:` line, and
+it fails while a bridge waits for a login. See the
+[CLI reference](../reference/cli.md#loupe-bridge-status).
 
 ## Tool calls
 
