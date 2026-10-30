@@ -1052,6 +1052,22 @@ func bridgeName(set *string) (string, error) {
 	return label, nil
 }
 
+// NameOf reads the bridge name of the rule file at path, even when the rest of
+// the file is invalid. It returns the host name when the file sets no valid name.
+func NameOf(path string) string {
+	var f struct {
+		Name *string `yaml:"name"`
+	}
+	if data, err := os.ReadFile(path); err == nil && yaml.Unmarshal(data, &f) == nil {
+		if name, err := bridgeName(f.Name); err == nil {
+			return name
+		}
+	}
+	name, _ := bridgeName(nil)
+
+	return name
+}
+
 // checkPools sizes each declared pool and gives DefaultPool the rest of the
 // budget. It leaves DefaultPool out when the budget or the sizes are invalid.
 func checkPools(budget int, declared map[string]WorkerPool) (map[string]int, []error) {

@@ -17,7 +17,7 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
 
-    {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'comparison'} only %}
+    {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'comparison', archived: report.archived} only %}
 
     {% set text = experiment_headline_text() %}
     {% if headline is not null %}

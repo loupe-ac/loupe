@@ -31,6 +31,7 @@ final readonly class AuthenticatedCredential
         public array $roles,
         public ?Uuid $projectId = null,
         public bool $allProjects = false,
+        public ?string $accessTokenId = null,
     ) {
         if ($allProjects && null !== $projectId) {
             throw new \LogicException('a credential covers one project or every project of its owner, never both.');

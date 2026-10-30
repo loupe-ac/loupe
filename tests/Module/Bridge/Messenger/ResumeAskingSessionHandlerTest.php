@@ -44,6 +44,26 @@ final class ResumeAskingSessionHandlerTest extends KernelTestCase
         self::assertSame([$message], array_map(static fn ($envelope) => $envelope->getMessage(), $transport->getSent()));
     }
 
+    public function test_a_requeue_of_a_message_with_a_person_waiting_stays_on_the_interactive_queue(): void
+    {
+        self::bootKernel();
+        $message = $this->blockedRun('ask-session-fast');
+        $fast = new ResumeAskingSession($message->projectId, $message->bridgeId, $message->sessionId, $message->askClosedAt, personWaiting: true);
+        $project = $this->project($this->em(), $this->user($this->em(), 'ask-session-fast-other@example.com'), 'Other');
+        $this->em()->persist(new Document($project->owner, $project, 'Not flushed yet'));
+        $interactive = self::getContainer()->get('messenger.transport.interactive');
+        $jobs = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $interactive);
+        self::assertInstanceOf(InMemoryTransport::class, $jobs);
+        $interactive->reset();
+        $jobs->reset();
+
+        $this->handler()($fast);
+
+        self::assertSame([$fast], array_map(static fn ($envelope) => $envelope->getMessage(), $interactive->getSent()));
+        self::assertSame([], $jobs->getSent());
+    }
+
     public function test_a_deleted_project_is_skipped(): void
     {
         self::bootKernel();

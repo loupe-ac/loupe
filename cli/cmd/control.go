@@ -287,7 +287,43 @@ type controlOps struct {
 	credential func(ctx context.Context, runID string) credentialResult
 	// env runs the refresh or the reset command of the worker of a session.
 	env func(ctx context.Context, op, session string) envResult
+	// status describes the bridge. It reads state only and sends no request.
+	status func() statusResult
 }
+
+// statusResult is the answer to the status op. It carries no token.
+type statusResult struct {
+	Name            string         `json:"name,omitempty"`
+	RulesPath       string         `json:"rulesPath,omitempty"`
+	PID             int            `json:"pid,omitempty"`
+	Version         string         `json:"version,omitempty"`
+	LogFile         string         `json:"logFile,omitempty"`
+	Login           string         `json:"login,omitempty"`
+	LastHeartbeatAt *time.Time     `json:"lastHeartbeatAt,omitempty"`
+	LastError       *statusError   `json:"lastError,omitempty"`
+	Workers         []statusWorker `json:"workers"`
+	// Problems holds the refusal of a bridge that cannot answer the op.
+	Problems []string `json:"problems,omitempty"`
+}
+
+// statusError is the last record of the log at the level Warn or above.
+type statusError struct {
+	Event   string    `json:"event"`
+	Message string    `json:"message,omitempty"`
+	Time    time.Time `json:"time"`
+}
+
+// statusWorker is a worker that runs now.
+type statusWorker struct {
+	Card      int       `json:"card,omitempty"`
+	Kind      string    `json:"kind"`
+	StartedAt time.Time `json:"startedAt"`
+}
+
+const (
+	loginValid   = "valid"
+	loginExpired = "expired"
+)
 
 // serveControl answers each connection on ln with ops until ctx ends. The
 // channel closes when the listener and every connection are closed. Closing a
@@ -377,6 +413,8 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 		ops.stop()
 	case req.Op == "credential" && ops.credential != nil:
 		send(ops.credential(ctx, req.RunID))
+	case req.Op == "status" && ops.status != nil:
+		send(ops.status())
 	case (req.Op == opRefresh || req.Op == opReset) && ops.env != nil:
 		// The command of an entry runs longer than the deadline.
 		conn.SetDeadline(time.Time{})
@@ -387,7 +425,7 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 		}
 		send(ops.env(ctx, req.Op, req.SessionID))
 	default:
-		send(refused(fmt.Sprintf("unknown op %q: only reload, update, stop, credential, refresh and reset are known", req.Op)))
+		send(refused(fmt.Sprintf("unknown op %q: only reload, update, stop, status, credential, refresh and reset are known", req.Op)))
 	}
 }
 
@@ -467,6 +505,31 @@ func requestControl(sock, op string, timeout time.Duration) (reloadResult, error
 
 	if _, err := conn.Write([]byte(`{"op":"` + op + `"}` + "\n")); err != nil {
 		return res, fmt.Errorf("send the %s: %w", op, err)
+	}
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return res, fmt.Errorf("read the answer of the bridge: %w", err)
+	}
+	if err := json.Unmarshal([]byte(line), &res); err != nil {
+		return res, fmt.Errorf("read the answer of the bridge: %w", err)
+	}
+
+	return res, nil
+}
+
+// requestStatus asks the bridge on sock to describe itself.
+func requestStatus(sock string) (statusResult, error) {
+	var res statusResult
+	deadline := time.Now().Add(requestTimeout)
+	conn, err := (&net.Dialer{Deadline: deadline}).Dial("unix", sock)
+	if err != nil {
+		return res, err
+	}
+	defer conn.Close()
+	conn.SetDeadline(deadline)
+
+	if _, err := conn.Write([]byte(`{"op":"status"}` + "\n")); err != nil {
+		return res, fmt.Errorf("send the status request: %w", err)
 	}
 	line, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {

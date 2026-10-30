@@ -109,6 +109,7 @@ use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
+use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
@@ -4184,7 +4185,7 @@ final class EngineTest extends KernelTestCase
 
         $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')]);
 
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)));
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $evaluations = 0;
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
@@ -4527,6 +4528,10 @@ final class EngineTest extends KernelTestCase
             public function forCards(array $cardIds): void
             {
                 ($this->evaluate)();
+            }
+
+            public function forPersonWaiting(array $cardIds): void
+            {
             }
 
             public function isOn(): bool
@@ -5076,7 +5081,7 @@ final class EngineTest extends KernelTestCase
             new ReleasePause($boardPauses),
             $this->service(ForgeWrite::class),
             new Ask($this->asks, $this->service(TranslatorInterface::class), 'en'),
-            new EvaluateChildren($this->service(CardDirectory::class), $this->evaluations ?? new EvaluationTrigger($this->service(MessageBusInterface::class))),
+            new EvaluateChildren($this->service(CardDirectory::class), $this->evaluations ?? $this->service(EvaluationTrigger::class)),
             new MissingAction(),
             new ListedTestAction(),
         ]);
@@ -5314,7 +5319,7 @@ final class EngineTest extends KernelTestCase
         $events->addListener(CardHoldsReleased::class, new RearmCardsOnCardHoldsReleased(
             $this->service(WorkRequestRepository::class),
             $this->service(WorkflowRuleStates::class),
-            new EvaluationTrigger($this->service(MessageBusInterface::class)),
+            $this->service(EvaluationTrigger::class),
             $clock,
         ));
         $holds = new CardHolds($this->service(CardHoldRepository::class), $this->em(), $clock, $events);

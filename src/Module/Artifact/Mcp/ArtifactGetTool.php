@@ -18,7 +18,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type ArtifactPayload from DescribeArtifactHandler
  */
-#[McpTool(name: 'artifact_get', description: 'Describe one stored design artifact: its name, archive state, source link and every version with its notes on what changed, its file count and size, plus the files of one version (path, content type, size). Defaults to the latest version. Read a file\'s content with artifact_read.')]
+#[McpTool(name: 'artifact_get', description: 'Describe one stored design artifact: its name, archive state, source link and every version with its notes on what changed, its file count and size, plus the files of one version (path, content type, size) and pageLink, a full web address that opens the entry page of that version as the app serves it, valid for one hour. Defaults to the latest version. Read a file\'s content with artifact_read.')]
 final readonly class ArtifactGetTool implements FlagGatedToolInterface
 {
     public function __construct(

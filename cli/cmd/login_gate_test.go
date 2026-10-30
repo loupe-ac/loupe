@@ -34,6 +34,17 @@ func (s *flakySource) Token(context.Context) (string, error) {
 
 func (s *flakySource) Refresh(ctx context.Context, _ string) (string, error) { return s.Token(ctx) }
 
+// pollTicks gives the poll timer the ticks, and the notice timer none.
+func pollTicks(ticks <-chan time.Time) func(time.Duration) <-chan time.Time {
+	return func(d time.Duration) <-chan time.Time {
+		if d == loginNoticeRepeat {
+			return nil
+		}
+
+		return ticks
+	}
+}
+
 func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "config.json")
@@ -54,7 +65,10 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 		return err
 	})
 	g.notice = func(context.Context) { notices.Add(1) }
-	g.after = func(time.Duration) <-chan time.Time {
+	g.after = func(d time.Duration) <-chan time.Time {
+		if d != loginPollInterval {
+			return nil
+		}
 		arms.Add(1)
 
 		return ticks
@@ -171,7 +185,7 @@ func TestLoginGateIgnoresALateErrorFromThePriorLogin(t *testing.T) {
 		return nil
 	})
 	g.notice = func(context.Context) { notices.Add(1) }
-	g.after = func(time.Duration) <-chan time.Time { return ticks }
+	g.after = pollTicks(ticks)
 	gated := gatedSource{inner: src, gate: g}
 
 	late := make(chan error, 1)
@@ -237,7 +251,7 @@ func TestLoginGateFindsLoginWrittenBeforeTheWatcherStarts(t *testing.T) {
 		return err
 	})
 	g.notice = func(context.Context) {}
-	g.after = func(time.Duration) <-chan time.Time { return ticks }
+	g.after = pollTicks(ticks)
 	g.trip(0)
 	ticks <- time.Now()
 
@@ -266,7 +280,7 @@ func TestLoginGateProbesAgainAfterANetworkError(t *testing.T) {
 		return nil
 	})
 	g.notice = func(context.Context) {}
-	g.after = func(time.Duration) <-chan time.Time { return ticks }
+	g.after = pollTicks(ticks)
 	g.trip(0)
 	ticks <- time.Now()
 	ticks <- time.Now()
@@ -337,3 +351,64 @@ type errSource struct{ err error }
 
 func (s errSource) Token(context.Context) (string, error)           { return "", s.err }
 func (s errSource) Refresh(context.Context, string) (string, error) { return "", s.err }
+
+func TestLoginGateShowsTheNoticeAgainEveryHourWhileClosed(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(cfgPath, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	src := &flakySource{}
+	polls := make(chan time.Time)
+	repeats := make(chan time.Time)
+	notices := make(chan struct{}, 10)
+	g := newLoginGate(ctx, newBridgeLogger(&bytes.Buffer{}), cfgPath, func(ctx context.Context) error {
+		_, err := src.Token(ctx)
+
+		return err
+	})
+	g.notice = func(context.Context) { notices <- struct{}{} }
+	g.after = func(d time.Duration) <-chan time.Time {
+		if d == loginNoticeRepeat {
+			return repeats
+		}
+
+		return polls
+	}
+	waitNotice := func(what string) {
+		t.Helper()
+		select {
+		case <-notices:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("no notice %s", what)
+		}
+	}
+
+	g.trip(0)
+	waitNotice("at trip time")
+	for i := 1; i <= 2; i++ {
+		repeats <- time.Now()
+		waitNotice("after an hour")
+	}
+
+	// The gate opens, and the watcher stops.
+	src.fixed.Store(true)
+	if err := os.WriteFile(cfgPath, []byte(`{"login":"new"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	polls <- time.Now()
+	if err := g.wait(ctx); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case repeats <- time.Now():
+		t.Fatal("the watcher still waits for the repeat after the gate opened")
+	case <-time.After(100 * time.Millisecond):
+	}
+	if len(notices) != 0 {
+		t.Fatal("a notice came after the gate opened")
+	}
+}

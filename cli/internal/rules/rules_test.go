@@ -1066,3 +1066,31 @@ func TestIsolationDefaultsToWorktree(t *testing.T) {
 		})
 	}
 }
+
+func TestNameOfReadsTheNameOfAnInvalidFile(t *testing.T) {
+	hostname = func() (string, error) { return "host.local", nil }
+	t.Cleanup(func() { hostname = os.Hostname })
+	dir := t.TempDir()
+	write := func(body string) string {
+		path := filepath.Join(dir, "rules.yaml")
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		return path
+	}
+
+	for body, want := range map[string]string{
+		"name: mac\nwork: [not, a, map]\n": "mac",
+		"work: {}\n":                        "host",
+		"name: [a]\n":                       "host",
+		"name: \"\"\n":                      "",
+	} {
+		if got := NameOf(write(body)); got != want {
+			t.Errorf("%q: name = %q, want %q", body, got, want)
+		}
+	}
+	if got := NameOf(filepath.Join(dir, "missing.yaml")); got != "host" {
+		t.Errorf("missing file: name = %q", got)
+	}
+}

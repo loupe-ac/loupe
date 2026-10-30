@@ -57,6 +57,7 @@ A card that needs no product design does not use this skill. The owner moves it 
    - Set the key with `card_update`, passing `values` set to `{"tech-design-interactive": true}` or `false`, and no other field. Do it when the owner answers. A refused write leaves the key unchanged: tell the owner, and log the refusal.
    - The question and the answer go in "Decisions log".
 9. P12: Prototype check. Compare the answers with the prototype before the recap. Skip it when the session made or linked no prototype. A prototype is a claude.ai artifact, a Design canvas, or a library artifact. An ASCII sketch (C5) is not one.
+   - Each push of a canvas to the library, also a new version from this phase, runs the fidelity check of C8.
    - Read the current prototype as C9 of `claude-design.md` says. Compare only the option that the owner picked, by the label of the "Decisions log" entry.
    - Compare each entry of the "Decisions log" with it. A conflict is a field, an order, a label or a state that an answer and a shown screen contradict, or a state that an answer adds to a screen the prototype shows. A screen that the prototype never draws is not a conflict.
    - List the conflicts for yourself, in a numbered list. Ask one question per conflict, with the rules of `question-rules.md` (Q2, Q3).
@@ -77,7 +78,7 @@ A card that needs no product design does not use this skill. The owner moves it 
    - Stop when the owner picks "Looks right", or when the reply holds no correction.
 11. P8: Acceptance. Draft Given/When/Then scenarios that cite `R` IDs. They go in "Scenarios". Do not ask the owner to confirm them in the terminal.
 12. P9: The document is the full readback. Ask the owner nothing in the terminal after P11. The owner reviews the `R` entries and the scenarios in the review UI of the document. A correction comes back as a review comment, and `loupe-stage-fix-round` answers it.
-13. P10: Write and link. Write the product document, link it to the card, with the library link of each prototype that C8 of `claude-design.md` stores, close the run with `card_run_close`, and stop, as `SKILL.md` says. Never move the card, because the owner's approval moves it.
+13. P10: Write and link. Write the product document, link it to the card, with the library link of each prototype that C8 of `claude-design.md` stores, after the fidelity report of C8 and its failure path, close the run with `card_run_close`, and stop, as `SKILL.md` says. Never move the card, because the owner's approval moves it.
 
 ## When to stop asking
 

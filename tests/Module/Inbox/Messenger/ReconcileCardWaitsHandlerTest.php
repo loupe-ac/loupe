@@ -71,6 +71,26 @@ final class ReconcileCardWaitsHandlerTest extends KernelTestCase
         self::assertTrue($this->em->getUnitOfWork()->isScheduledForInsert($pending));
     }
 
+    public function test_a_requeue_keeps_the_queue_of_the_message(): void
+    {
+        $project = $this->project($this->em, $this->owner($this->em, 'reconcile-requeue'), 'reconcile-requeue');
+        $card = $this->card($this->em, $project);
+        $this->em->flush();
+        $this->em->persist(new Document($project->owner, $project, 'Not flushed yet'));
+        $interactive = self::getContainer()->get('messenger.transport.interactive');
+        $jobs = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $interactive);
+        self::assertInstanceOf(InMemoryTransport::class, $jobs);
+        $interactive->reset();
+        $jobs->reset();
+        $fast = new ReconcileCardWaits((string) $project->id, [(string) $card->id], personWaiting: true);
+
+        ($this->handler)($fast);
+
+        self::assertSame([$fast], array_map(static fn ($envelope) => $envelope->getMessage(), $interactive->getSent()));
+        self::assertSame([], $jobs->getSent());
+    }
+
     public function test_a_deleted_project_is_skipped(): void
     {
         $before = (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_items');

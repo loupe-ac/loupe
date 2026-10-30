@@ -21,6 +21,12 @@
 <turbo-stream data-decision-page="{{ page }}" action="update" target="review-bar-decisions-label">
     <template>{{ 'review.bar.decisions_label'|trans({'%answered%': answeredCount, '%total%': rows|length}) }}</template>
 </turbo-stream>
+<turbo-stream data-decision-page="{{ page }}" action="update" target="review-toolbar-decisions-count">
+    <template>{{ 'review.document.decisions.count'|trans({'%answered%': answeredCount, '%total%': rows|length}) }}</template>
+</turbo-stream>
+<turbo-stream data-decision-page="{{ page }}" action="update" target="review-toolbar-decisions-label">
+    <template>{{ 'review.document.panels.decisions_label'|trans({'%answered%': answeredCount, '%total%': rows|length}) }}</template>
+</turbo-stream>
 <turbo-stream data-decision-page="{{ page }}" action="update" target="review-bar-decisions-head-count">
     <template>{{ 'review.document.decisions.count'|trans({'%answered%': answeredCount, '%total%': rows|length}) }}</template>
 </turbo-stream>
