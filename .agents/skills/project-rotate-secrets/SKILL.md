@@ -42,7 +42,7 @@ When a count is not 0, or the console does not connect, stop. Show the owner the
 
 The script prints each extra resource as `<address> <actions>`, with no value. Show the owner the list, and ask whether to accept it. Name the likely cause when you know it, such as a Terraform change on `main` that was never applied.
 
-When the owner accepts, run `bin/rotate-secrets apply --allow <address>` with one `--allow` for each address. Otherwise stop. The pending values stay, and `bin/rotate-secrets discard` drops them.
+When the owner accepts, run `bin/rotate-secrets apply --allow <address>` with one `--allow` for each address. An `--allow` counts for one run only. Repeat it on a later run, such as `apply --reencrypted`, when the same address comes back. Otherwise stop. The pending values stay, and `bin/rotate-secrets discard` drops them.
 
 ## When it finishes
 
