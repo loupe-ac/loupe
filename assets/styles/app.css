@@ -8883,11 +8883,17 @@
 .lp-inbox-thread .lp-comment-composer--untargeted {
     @apply mb-0 max-w-none;
 }
+/* The field shrinks late on blur, so a press on a button below it still lands on that button. */
 .lp-inbox-thread .lp-comment-composer textarea {
     @apply h-13 min-h-0;
+    transition-property: color, background-color, border-color, height;
+    transition-duration: 150ms, 150ms, 150ms, 0s;
+    transition-delay: 0s, 0s, 0s, 400ms;
 }
-.lp-inbox-thread .lp-comment-composer textarea:focus {
+.lp-inbox-thread .lp-comment-composer textarea:focus,
+.lp-inbox-thread .lp-comment-composer textarea:not(:placeholder-shown) {
     @apply h-21;
+    transition-delay: 0s;
 }
 .inbox-split__hint {
     @apply mr-auto;
