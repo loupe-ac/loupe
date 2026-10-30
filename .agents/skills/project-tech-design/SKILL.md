@@ -9,7 +9,7 @@ A technical design settles an architecture. An implementation plan settles tasks
 
 Send every design to the Loupe app for review. **Invoke `loupe-documents` before you write.** That skill gives the format rules for the review UI. This skill gives the content rules.
 
-Follow `plugins/loupe/skills/loupe-stage-tech-design/SKILL.md` for the design sections, the recommendations and the estimate marks. This skill adds the rules that belong to this project.
+Follow `plugins/loupe/skills/loupe-stage-tech-design/references/tech-document.md` for the design sections, the recommendations and the estimate marks. This skill adds the rules that belong to this project.
 
 Write the design for a reader who knows the product, as `loupe-documents` `references/design-structure.md` "Write for a reader who knows the product" says.
 
