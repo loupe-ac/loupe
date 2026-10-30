@@ -93,7 +93,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertSame(7500, $flags[StopLadder::SIGTERM_FLAG]->value);
         self::assertSame(2500, $flags[StopLadder::SIGKILL_FLAG]->value);
         self::assertFalse($flags[HostSampling::ENABLED_FLAG]->value);
-        self::assertTrue($flags[InteractiveStaleClose::FLAG]->value);
+        self::assertSame(43200, $flags[InteractiveStaleClose::FLAG]->value);
         self::assertSame(60, $flags[HostSampling::INTERVAL_FLAG]->value);
         self::assertSame(ToolCallCollectionSettings::DEFAULT_SUBCOMMAND_PROGRAMS, $flags[ToolCallCollectionSettings::SUBCOMMAND_PROGRAMS_FLAG]->value);
         self::assertSame('sonnet', $flags[AnalysisSettings::MODEL_FLAG]->value);

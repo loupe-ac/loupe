@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Migrations;
 
-use App\Module\Bridge\Service\InteractiveStaleClose;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,6 +15,8 @@ require_once __DIR__.'/../../migrations/Version20261028201540.php';
 
 final class InteractiveStaleCloseFlagSeedMigrationTest extends KernelTestCase
 {
+    private const string FLAG = 'bridge.interactive_stale_close_enabled';
+
     private Connection $connection;
 
     protected function setUp(): void
@@ -29,7 +30,7 @@ final class InteractiveStaleCloseFlagSeedMigrationTest extends KernelTestCase
 
     public function test_an_instance_without_the_flag_gets_it_off(): void
     {
-        $this->connection->executeStatement('DELETE FROM feature_flag WHERE name = ?', [InteractiveStaleClose::FLAG]);
+        $this->connection->executeStatement('DELETE FROM feature_flag WHERE name = ?', [self::FLAG]);
 
         $this->migrate();
 
@@ -38,8 +39,8 @@ final class InteractiveStaleCloseFlagSeedMigrationTest extends KernelTestCase
 
     public function test_an_existing_row_is_left_alone(): void
     {
-        $this->connection->executeStatement('DELETE FROM feature_flag WHERE name = ?', [InteractiveStaleClose::FLAG]);
-        $this->connection->executeStatement("INSERT INTO feature_flag (name, type, value, tags, options) VALUES (?, 'bool', 'false', '[]', NULL)", [InteractiveStaleClose::FLAG]);
+        $this->connection->executeStatement('DELETE FROM feature_flag WHERE name = ?', [self::FLAG]);
+        $this->connection->executeStatement("INSERT INTO feature_flag (name, type, value, tags, options) VALUES (?, 'bool', 'false', '[]', NULL)", [self::FLAG]);
 
         $this->migrate();
 
@@ -58,6 +59,6 @@ final class InteractiveStaleCloseFlagSeedMigrationTest extends KernelTestCase
     /** @return list<array<string, mixed>> */
     private function rows(): array
     {
-        return $this->connection->fetchAllAssociative('SELECT type, value #>> \'{}\' AS value FROM feature_flag WHERE name = ?', [InteractiveStaleClose::FLAG]);
+        return $this->connection->fetchAllAssociative('SELECT type, value #>> \'{}\' AS value FROM feature_flag WHERE name = ?', [self::FLAG]);
     }
 }

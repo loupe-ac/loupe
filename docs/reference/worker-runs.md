@@ -768,7 +768,7 @@ An interactive run records why it closed, in `closeReason`:
 | `session-ended` | the session called `card_run_close`, or the exit hook closed it |
 | `person` | a person closed it from the card or the Runs page |
 | `card-moved` | the card moved to another column |
-| `stale` | no sign of life for 12 hours, while the `bridge.interactive_stale_close_enabled` flag is on |
+| `stale` | no sign of life for the time the `bridge.interactive_stale_after_seconds` flag sets, 12 hours by default; 0 switches it off |
 | `session-gone` | the bridge that launched the session found its process gone |
 
 A run that closed before the reason existed shows none.

@@ -382,8 +382,9 @@ reason in its row of the Runs list, and in the drawer under **Closed because**.
    bridge reports when its session file last changed instead, as a sign of life.
 3. **No sign of life for too long.** Loupe closes an open interactive run that
    shows no sign of life for 12 hours, with the reason **No sign of life for too
-   long**. The `bridge.interactive_stale_close_enabled` feature flag switches
-   this check on and off, and it starts on. Any Loupe tool call that the session
+   long**. The `bridge.interactive_stale_after_seconds` feature flag sets the
+   time, in seconds, and it starts at 43200. Set it to 0 to switch this check
+   off. Any Loupe tool call that the session
    makes through `loupe mcp` is a sign of life. A bridge that sees the Claude
    process running, or the transcript change, also counts. A session that
    reaches Loupe only through the claude.ai connector sends no session header,
