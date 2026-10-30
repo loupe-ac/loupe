@@ -41,11 +41,11 @@ final class ShowDecisionSummaryControllerTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
         $streams = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream');
         self::assertSame(
-            ['decision-summary-count', 'decision-summary-list', 'review-bar-decisions-count', 'review-bar-decisions-label', 'review-bar-decisions-head-count', 'review-bar-decisions-list'],
+            ['decision-summary-count', 'decision-summary-list', 'review-bar-decisions-count', 'review-bar-decisions-label', 'review-toolbar-decisions-count', 'review-toolbar-decisions-label', 'review-bar-decisions-head-count', 'review-bar-decisions-list'],
             $streams->each(static fn (Crawler $stream): ?string => $stream->attr('target')),
         );
         self::assertSame(
-            array_fill(0, 6, $document->id.'/1'),
+            array_fill(0, 8, $document->id.'/1'),
             $streams->each(static fn (Crawler $stream): ?string => $stream->attr('data-decision-page')),
         );
         self::assertStringContainsString('1 of 2 answered', $streams->eq(0)->html());
@@ -136,7 +136,7 @@ final class ShowDecisionSummaryControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $streams = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream');
-        self::assertCount(6, $streams);
+        self::assertCount(8, $streams);
         self::assertSame($document->id.'/99', $streams->attr('data-decision-page'));
     }
 

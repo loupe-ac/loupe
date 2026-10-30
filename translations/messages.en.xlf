@@ -1569,6 +1569,7 @@
             <trans-unit id="review.document.panels.comments"><source>review.document.panels.comments</source><target>Comments</target></trans-unit>
             <trans-unit id="review.document.panels.outline"><source>review.document.panels.outline</source><target>Outline</target></trans-unit>
             <trans-unit id="review.document.panels.comments_label"><source>review.document.panels.comments_label</source><target>Comments panel, %count% open</target></trans-unit>
+            <trans-unit id="review.document.panels.decisions_label"><source>review.document.panels.decisions_label</source><target>Decisions panel, %answered% of %total% answered</target></trans-unit>
             <trans-unit id="review.document.panels.outline_heading"><source>review.document.panels.outline_heading</source><target>On this page</target></trans-unit>
             <trans-unit id="review.document.group.in_text"><source>review.document.group.in_text</source><target>In the text</target></trans-unit>
             <trans-unit id="review.document.group.not_in_text"><source>review.document.group.not_in_text</source><target>No longer in the text</target></trans-unit>
