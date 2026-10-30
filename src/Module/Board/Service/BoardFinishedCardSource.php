@@ -19,11 +19,11 @@ final readonly class BoardFinishedCardSource implements FinishedCardSourceInterf
     }
 
     #[\Override]
-    public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince): array
+    public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince, ?\DateTimeImmutable $completedBefore = null): array
     {
         return array_map(
             static fn (array $row): FinishedCard => new FinishedCard($row['id'], $row['number'], $row['title'], $row['completedAt']),
-            $this->cards->findFinishedRows($project, $completedSince),
+            $this->cards->findFinishedRows($project, $completedSince, $completedBefore),
         );
     }
 }

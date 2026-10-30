@@ -44,11 +44,11 @@ class WorkerRunFactRepository extends ServiceEntityRepository
 
     /**
      * The closed runs of the project that ended, or arrived when they have no
-     * end, on or after the start.
+     * end, on or after the start and before the end.
      *
      * @return list<WorkerRunFact>
      */
-    public function findClosedSince(Project $project, ?\DateTimeImmutable $from, bool $cardsOnly): array
+    public function findClosedSince(Project $project, ?\DateTimeImmutable $from, bool $cardsOnly, ?\DateTimeImmutable $to = null): array
     {
         $query = $this->createQueryBuilder('f')
             ->andWhere('f.project = :project')
@@ -57,6 +57,9 @@ class WorkerRunFactRepository extends ServiceEntityRepository
             ->setParameter('open', array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()));
         if (null !== $from) {
             $query->andWhere('COALESCE(f.endedAt, f.receivedAt) >= :from')->setParameter('from', $from);
+        }
+        if (null !== $to) {
+            $query->andWhere('COALESCE(f.endedAt, f.receivedAt) < :to')->setParameter('to', $to);
         }
         if ($cardsOnly) {
             $query->andWhere("f.subjectType = 'card'");

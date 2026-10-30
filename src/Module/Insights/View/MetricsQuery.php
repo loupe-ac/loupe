@@ -43,13 +43,15 @@ final readonly class MetricsQuery
         $key = MetricKey::tryParse($query->getString('metric'), $templates) ?? new MetricKey(Metric::Cost);
         $metric = MetricShape::of($key, $templates) ?? new MetricShape(new MetricKey(Metric::Cost));
 
+        $range = MetricRange::tryFrom($query->getString('range')) ?? MetricRange::NinetyDays;
+
         return new self(
             unit: self::allowed(MetricUnit::tryFrom($query->getString('unit')) ?? MetricUnit::Card, $metric->units()),
             metric: $metric,
             statistic: self::allowed(MetricStatistic::tryFrom($query->getString('statistic')) ?? MetricStatistic::Median, $metric->statistics(), MetricStatistic::Median),
             group: self::allowed(MetricGroup::tryFrom($query->getString('group')) ?? MetricGroup::None, $metric->groups(), MetricGroup::None),
-            range: MetricRange::tryFrom($query->getString('range')) ?? MetricRange::NinetyDays,
-            bucket: MetricBucket::tryFrom($query->getString('bucket')) ?? MetricBucket::Week,
+            range: $range,
+            bucket: self::allowed(MetricBucket::tryFrom($query->getString('bucket')) ?? MetricBucket::Week, $range->allowedBuckets()),
         );
     }
 

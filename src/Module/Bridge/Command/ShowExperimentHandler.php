@@ -378,6 +378,7 @@ final readonly class ShowExperimentHandler
                 Metric::Cost => static fn (array $card): ?float => null === $card['coveredCostMicros'] ? null : $card['coveredCostMicros'] / 1_000_000,
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => static fn (array $card): ?int => MetricRowSource::cardSum($card['experimentFacts'], $of),
                 Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => static fn (array $card): ?int => MetricRowSource::namedCardSum($card['experimentFacts'], $named),
+                Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach => throw new \LogicException('shapeOf() leaves out a grouped bucket metric.'),
             };
         }
 
@@ -562,6 +563,7 @@ final readonly class ShowExperimentHandler
                 })),
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['allFacts'], $of))),
                 Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['experimentFacts'], $namedValues[$key] ?? []))),
+                Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach => throw new \LogicException('shapeOf() leaves out a grouped bucket metric.'),
             };
         }
 
@@ -626,7 +628,8 @@ final readonly class ShowExperimentHandler
             return new MetricShape(new MetricKey(Metric::Cost));
         }
         $parsed = MetricKey::tryParse($key, $templates);
-        if (null === $parsed) {
+        // A grouped bucket metric has one line per bucket, and an experiment compares one number per variant.
+        if (null === $parsed || true === $parsed->metric?->isBucketEach()) {
             return null;
         }
 

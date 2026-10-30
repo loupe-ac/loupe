@@ -80,6 +80,17 @@ final class MetricsQueryTest extends TestCase
         self::assertSame(['unit' => 'run'], $query->routeParams());
     }
 
+    public function test_seven_days_fall_back_to_the_bucket_day(): void
+    {
+        $query = self::from(['range' => 'seven-days', 'bucket' => 'week']);
+
+        self::assertSame(MetricRange::SevenDays, $query->range);
+        self::assertSame(MetricBucket::Day, $query->bucket);
+        self::assertSame(['range' => 'seven-days', 'bucket' => 'day'], $query->routeParams());
+        self::assertSame(MetricBucket::Day, self::from(['range' => 'seven-days'])->bucket);
+        self::assertSame(MetricBucket::Month, self::from(['range' => 'thirty-days', 'bucket' => 'month'])->bucket);
+    }
+
     public function test_bucket_time_is_no_choice_of_the_page(): void
     {
         self::assertSame('cost', self::from(['metric' => 'bucket-time'])->metric->key->key());

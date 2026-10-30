@@ -61,6 +61,17 @@ final class BoardFinishedCardSourceTest extends KernelTestCase
         self::assertSame(['On the day'], array_map(static fn (FinishedCard $card): string => $card->title, $cards));
     }
 
+    public function test_an_end_date_leaves_out_the_cards_finished_on_or_after_it(): void
+    {
+        $project = $this->makeProject('finished-cards-before');
+        $this->card($project, 1, 'Before', 'done', '2026-09-30 23:59:59');
+        $this->card($project, 2, 'On the day', 'done', '2026-10-01 00:00:00');
+
+        $cards = $this->source->finishedCards($project, new \DateTimeImmutable('2026-09-01 00:00:00'), new \DateTimeImmutable('2026-10-01 00:00:00'));
+
+        self::assertSame(['Before'], array_map(static fn (FinishedCard $card): string => $card->title, $cards));
+    }
+
     /** A stale completion date on a card that left the terminal column does not make it finished. */
     public function test_a_card_outside_a_terminal_column_is_not_finished(): void
     {

@@ -10,6 +10,7 @@ use App\Module\Bridge\Command\ListMetricsHandler;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricRange;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Insights\Command\ShowMetricsCommand;
 use App\Module\Insights\Command\ShowMetricsHandler;
 use App\Module\Insights\View\MetricChart;
@@ -60,7 +61,8 @@ class ShowMetricsController extends AppController
             'view' => $view->metrics,
             'groupLabels' => $view->groupLabels,
             'chart' => MetricChart::build($query->metric, $query->statistic, $query->bucket, $view->metrics->series),
-            'metrics' => $list->metrics,
+            // The grouped bucket metrics are for metric_query until the page draws a line per bucket.
+            'metrics' => array_values(array_filter($list->metrics, static fn (MetricShape $shape): bool => true !== $shape->key->metric?->isBucketEach())),
             'bucketNames' => $bucketNames,
             'harnessEventKinds' => $eventKinds,
             'ranges' => MetricRange::cases(),
