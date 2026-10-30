@@ -9,11 +9,11 @@ use App\Module\Bridge\Command\ListMetricsCommand;
 use App\Module\Bridge\Command\ListMetricsHandler;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricRange;
-use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Insights\Command\ShowMetricsCommand;
 use App\Module\Insights\Command\ShowMetricsHandler;
-use App\Module\Insights\View\MetricChart;
+use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
@@ -58,15 +58,14 @@ class ShowMetricsController extends AppController
         return $this->render('@Insights/show_metrics.html.twig', [
             'project' => $view->project,
             'query' => $query,
-            'view' => $view->metrics,
-            'groupLabels' => $view->groupLabels,
-            'chart' => MetricChart::build($query->metric, $query->statistic, $query->bucket, $view->metrics->series),
-            // The grouped bucket metrics are for metric_query until the page draws a line per bucket.
-            'metrics' => array_values(array_filter($list->metrics, static fn (MetricShape $shape): bool => true !== $shape->key->metric?->isBucketEach())),
+            'view' => $view,
+            'metrics' => $list->metrics,
             'bucketNames' => $bucketNames,
             'harnessEventKinds' => $eventKinds,
             'ranges' => MetricRange::cases(),
             'buckets' => MetricBucket::cases(),
+            'compares' => MetricCompare::cases(),
+            'chartTypes' => MetricChartType::cases(),
         ]);
     }
 }
