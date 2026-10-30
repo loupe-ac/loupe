@@ -199,6 +199,99 @@ final class RotateSecretsTest extends TestCase
         self::assertStringContainsString('Known: app_encryption_key app_encryption_key_previous', $process->getErrorOutput());
     }
 
+    public function test_the_impact_groups_hold_every_step_of_the_full_run_once_and_no_web_push_key(): void
+    {
+        $process = $this->lib('echo "${WALK[*]}"; for g in "${IMPACT_GROUPS[@]}"; do group_steps "$g"; done', []);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        $lines = explode("\n", trim($process->getOutput()));
+        $walk = explode(' ', array_shift($lines));
+        $grouped = explode(' ', implode(' ', $lines));
+        self::assertCount(3, $lines);
+        self::assertSame(array_unique($grouped), $grouped, 'a step is in two groups');
+        sort($walk);
+        sort($grouped);
+        self::assertSame($walk, $grouped);
+        self::assertNotContains('vapid', $grouped);
+    }
+
+    public function test_a_run_by_impact_group_runs_the_encryption_key_first_and_names_the_groups_it_left_out(): void
+    {
+        $this->vars("install_token = \"x\"\noauth_encryption_key = \"x\"\n");
+
+        $process = $this->rotate(['@no-relogin'], "yes\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(
+            ['current=old previous=new', 'current=new previous=old', 'current=new previous=none', 'current=new previous=none'],
+            file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES),
+        );
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value('install_token'));
+        self::assertSame('x', $this->value('oauth_encryption_key'));
+        self::assertSame('keep-me', $this->value('app_secret'));
+        $output = $process->getOutput();
+        self::assertLessThan(strpos($output, 'export_bucket_key:'), strpos($output, 'deploy 1 of 3'));
+        self::assertStringEndsWith("\nNot rotated in full: @relogin-users @relogin-clients\n", $output);
+    }
+
+    public function test_a_run_by_the_users_group_rotates_the_app_secret_and_asks_to_empty_the_sessions(): void
+    {
+        $process = $this->rotate(['@relogin-users'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(['current=old previous=none'], file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $this->value('app_secret'));
+        self::assertStringContainsString("bin/console dbal:run-sql 'DELETE FROM sessions'", $process->getOutput());
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-clients\n", $process->getOutput());
+    }
+
+    public function test_a_run_by_the_clients_group_rotates_the_oauth_keys_and_the_oauth_encryption_key_in_one_apply(): void
+    {
+        $this->vars('oauth_private_key = '.$this->hcl($this->pem())."\noauth_private_key_passphrase = \"\"\noauth_public_key = \"old-public\"\noauth_encryption_key = \"x\"\n");
+
+        $process = $this->rotate(['@relogin-clients'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertCount(1, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES) ?: []);
+        self::assertNotSame('old-public', $this->value('oauth_public_key'));
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value('oauth_encryption_key'));
+        self::assertSame('keep-me', $this->value('app_secret'));
+        self::assertStringNotContainsString('DELETE FROM sessions', $process->getOutput());
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-users\n", $process->getOutput());
+    }
+
+    public function test_names_that_fill_a_group_cover_it_and_a_skipped_app_secret_asks_nothing(): void
+    {
+        $this->vars("oauth_encryption_key = \"x\"\n");
+        file_put_contents($this->dir.'/secrets.vars', str_replace('app_secret = "keep-me"', 'app_secret = ""', (string) file_get_contents($this->dir.'/secrets.vars')));
+
+        $process = $this->rotate(['oauth_encryption_key', 'oauth_public_key', 'app_secret'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertStringContainsString("app_secret: not set, skipped\n", $process->getOutput());
+        self::assertStringNotContainsString('DELETE FROM sessions', $process->getOutput());
+        self::assertStringEndsWith("\nNot rotated in full: @no-relogin\n", $process->getOutput());
+    }
+
+    public function test_a_web_push_run_covers_no_impact_group(): void
+    {
+        $this->vars("vapid_private_key = \"old-private\"\nvapid_public_key = \"old-public\"\n");
+
+        $process = $this->rotate(['vapid_private_key'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertStringEndsWith("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
+    }
+
+    public function test_an_unknown_impact_group_is_refused_before_any_apply_and_the_groups_are_listed(): void
+    {
+        $process = $this->rotate(['app_secret', '@no-such-group'], '');
+
+        self::assertSame(1, $process->getExitCode());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+        self::assertStringContainsString("unknown group '@no-such-group'. Groups: @no-relogin @relogin-users @relogin-clients", $process->getErrorOutput());
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
@@ -635,6 +728,38 @@ final class RotateSecretsTest extends TestCase
         self::assertStringNotContainsString('old-do', $process->getOutput().$process->getErrorOutput());
     }
 
+    public function test_a_webhook_failure_after_the_apply_still_asks_to_empty_the_sessions(): void
+    {
+        $this->webhookVars();
+        $this->deliveries([[]]);
+        $this->deployments(['dep-old', 'dep-new'], [['dep-new', 'ACTIVE', '2099-01-01T00:00:00Z']]);
+        touch($this->dir.'/patch-fail');
+
+        $process = $this->rotate(['app_secret', 'github_app_webhook_secret'], '');
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertNotSame('keep-me', $this->value('app_secret'));
+        self::assertStringContainsString("bin/console dbal:run-sql 'DELETE FROM sessions'", $process->getOutput());
+    }
+
+    public function test_a_group_run_that_finishes_a_pending_webhook_switch_still_covers_its_group(): void
+    {
+        $this->webhookVars();
+        $this->deliveries([[]]);
+        $this->deployments(['dep-old', 'dep-new'], [['dep-new', 'ACTIVE', '2099-01-01T00:00:00Z']]);
+        touch($this->dir.'/patch-fail');
+        $first = $this->rotate(['github_app_webhook_secret'], '');
+        self::assertNotSame(0, $first->getExitCode());
+        unlink($this->dir.'/patch-fail');
+        file_put_contents($this->dir.'/new-app-key.pem', $this->pem());
+
+        $process = $this->rotate(['@no-relogin'], "yes\n".$this->dir."/new-app-key.pem\n");
+
+        self::assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
+        self::assertStringContainsString('finishing the switch', $process->getOutput());
+        self::assertStringEndsWith("\nNot rotated in full: @relogin-users @relogin-clients\n", $process->getOutput());
+    }
+
     /** @return iterable<string, array{string}> */
     public static function webhookFailures(): iterable
     {
@@ -787,6 +912,8 @@ final class RotateSecretsTest extends TestCase
         self::assertSame('old-private', $this->value('vapid_private_key'));
         self::assertStringContainsString('vapid_private_key: skipped, rotate it by name; every push subscription stops', $process->getOutput());
         self::assertNotSame('keep-me', $this->value('app_secret'));
+        self::assertStringContainsString("bin/console dbal:run-sql 'DELETE FROM sessions'", $process->getOutput());
+        self::assertStringNotContainsString('Not rotated in full', $process->getOutput());
     }
 
     public function test_a_web_push_key_command_that_prints_no_pair_stops_the_run_and_prints_nothing_of_it(): void
@@ -1005,6 +1132,30 @@ final class RotateSecretsTest extends TestCase
         self::assertSame($before, (string) file_get_contents($this->dir.'/secrets.vars'));
         self::assertFileDoesNotExist($this->dir.'/.rotate-secrets.webhook-since');
         self::assertStringNotContainsString($new, $process->getOutput().$process->getErrorOutput());
+    }
+
+    public function test_an_apply_that_changes_folder_still_finds_the_store_of_a_relative_terraform_root(): void
+    {
+        $this->useStore(['TF_VAR_install_token' => 'old']);
+        rename($this->dir.'/store.yaml', $this->dir.'/tf/secrets.enc.yaml');
+        $this->storeEnv = [];
+        $repo = \dirname(__DIR__, 2);
+        file_put_contents($this->dir.'/apply.sh', <<<SH
+            #!/usr/bin/env bash
+            cd "{$this->dir}/tf" && "{$repo}/bin/tf-secrets" exec -- sh -c 'printf %s "\${TF_VAR_install_token:-none}" > "{$this->dir}/applied"'
+            SH);
+        $relative = 'var/'.basename($this->dir);
+        symlink($this->dir, $repo.'/'.$relative);
+
+        try {
+            $process = $this->rotate(['install_token'], '', ['ROTATE_TF_ROOT' => $relative.'/tf', 'ROTATE_TFVARS' => $relative.'/secrets.vars']);
+        } finally {
+            unlink($repo.'/'.$relative);
+        }
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertStringNotContainsString('no secret store', $process->getErrorOutput());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', (string) file_get_contents($this->dir.'/applied'));
     }
 
     public function test_the_script_is_valid_bash(): void

@@ -384,20 +384,19 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('the export', $block->filter('.lp-inbox-ask__context strong')->text());
         // The byline names the kind of the leading item, never a count of the items.
         self::assertSame('Question', $block->filter('[data-inbox-kind-label]')->text());
-        self::assertCount(0, $block->filter('[data-inbox-decline-hint]'));
         // A missing translation renders its key, and the gate does not fail on that.
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
-        // Close sits in the response row, and carries the note field's text.
-        self::assertCount(1, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[form="inbox_decline_'.$question->id.'"]'));
-        // The button names the form by id, so the form must carry that id.
-        self::assertCount(1, $block->filter('form#inbox_decline_'.$question->id.'[action*="/decline"]'));
-        self::assertCount(1, $block->filter('#inbox-item-12 input[type="hidden"][name="inbox_decline_'.$question->id.'[closeNote]"]'));
+        // Dismiss sits in the response row, posts the answer form to the dismiss address, and so carries the note field's text.
+        self::assertCount(1, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[formaction*="/actions/dismiss"]'));
+        self::assertCount(0, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[form]'));
+        self::assertCount(1, $block->filter('form#inbox_response_'.$question->id.'[action*="/actions/answer"]'));
+        self::assertCount(0, $block->filter('[name$="[closeNote]"]'));
         self::assertCount(0, $block->filter('script'));
         self::assertSame('1', $block->filter('#inbox-item-12 .lp-inbox-item__number')->text());
         self::assertSame('2', $block->filter('#inbox-item-13 .lp-inbox-item__number')->text());
         self::assertCount(2, $block->filter('#inbox-item-12 input[data-form-draft-target="option"]'));
-        self::assertCount(1, $block->filter('#inbox-item-12 textarea[name="inbox_answer_'.$question->id.'[answerText]"]'));
-        self::assertCount(1, $block->filter('#inbox-item-13 form[name="inbox_done_'.$todo->id.'"]'));
+        self::assertCount(1, $block->filter('#inbox-item-12 textarea[name="inbox_response_'.$question->id.'[note]"]'));
+        self::assertCount(1, $block->filter('#inbox-item-13 form[name="inbox_response_'.$todo->id.'"]'));
         self::assertSelectorTextSame('[data-inbox-open-count]', '2');
         self::assertSelectorTextSame('a[href="/projects/'.$project->id.'/inbox"] .sr-only', '2 open items');
     }
@@ -546,7 +545,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $row);
         self::assertSame('/projects/'.$project->id.'/inbox?item=7', $row->attr('href'));
         self::assertSame('todo', $row->filter('[data-inbox-kind]')->attr('data-inbox-kind'));
-        self::assertCount(1, $crawler->filter('#inbox-item-7 form[name="inbox_done_'.$loose->id.'"]'));
+        self::assertCount(1, $crawler->filter('#inbox-item-7 form[name="inbox_response_'.$loose->id.'"]'));
     }
 
     public function test_the_open_side_lists_blocking_asks_first_then_the_others_oldest_first(): void
@@ -859,7 +858,7 @@ final class ShowInboxControllerTest extends WebTestCase
 
         // The to-do still open in a closed ask gets its forms in the closed ask that holds it.
         $item = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?item=3');
-        self::assertCount(1, $item->filter('[data-inbox-ask-id="'.$closed->id.'"] #inbox-item-3 form[name="inbox_done_'.$leftOpen->id.'"]'));
+        self::assertCount(1, $item->filter('[data-inbox-ask-id="'.$closed->id.'"] #inbox-item-3 form[name="inbox_response_'.$leftOpen->id.'"]'));
 
         $completed = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
 
@@ -870,21 +869,22 @@ final class ShowInboxControllerTest extends WebTestCase
         );
     }
 
-    public function test_the_page_says_which_answers_are_still_editable(): void
+    public function test_the_page_says_every_sent_answer_is_final(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-editable');
         $project = $this->inboxProject($this->em, $owner);
-        $editable = $this->answered($this->em, $this->question($this->em, $project, 1));
-        $final = $this->answered($this->em, $this->question($this->em, $project, 2));
-        $this->askHolding($this->em, $project, [$editable]);
-        $this->askHolding($this->em, $project, [$final], closedAt: new \DateTimeImmutable());
+        $inOpenAsk = $this->answered($this->em, $this->question($this->em, $project, 1));
+        $inClosedAsk = $this->answered($this->em, $this->question($this->em, $project, 2));
+        $this->askHolding($this->em, $project, [$inOpenAsk]);
+        $this->askHolding($this->em, $project, [$inClosedAsk], closedAt: new \DateTimeImmutable());
         $this->setInboxFlag(true);
 
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
-        self::assertSame('yes', $crawler->filter('#inbox-item-1 [data-inbox-editable]')->attr('data-inbox-editable'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 form[name="inbox_answer_'.$editable->id.'"]'));
+        self::assertSame('no', $crawler->filter('#inbox-item-1 [data-inbox-editable]')->attr('data-inbox-editable'));
+        self::assertStringContainsString('This response is final', $crawler->filter('#inbox-item-1')->text());
+        self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
 
         $completed = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?queue=completed');
 
@@ -928,7 +928,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertStringStartsWith('Your answer', $block->filter('legend')->text());
         self::assertSame('Write an answer', $block->filter('.lp-decision__kind')->text());
         self::assertCount(0, $block->filter('.lp-decision__clear, .lp-decision__option'));
-        $field = $block->filter('textarea[name="inbox_answer_'.$item->id.'[answerText]"]');
+        $field = $block->filter('textarea[name="inbox_response_'.$item->id.'[note]"]');
         self::assertCount(1, $field);
         self::assertSame('Your answer', $field->attr('aria-label'));
         self::assertSame('Write your answer for the agent', $field->attr('placeholder'));

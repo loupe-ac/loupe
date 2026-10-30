@@ -40,6 +40,7 @@ final readonly class RecordBridgeHeartbeatCommand
      * @param list<GitIdentityRow>|null    $gitIdentities       null keeps the stored rows when the capabilities name git-identities, and clears them otherwise
      * @param list<BridgeSessionReading>   $interactiveSessions what the bridge saw of the sessions the last reply asked it to watch
      * @param int                          $gitIdentitiesAge    the seconds since the bridge read $gitIdentities, which dates the rows
+     * @param string|null                  $accessTokenId       the access token that signed the heartbeat. Null keeps the stored login
      */
     public function __construct(
         public User $owner,
@@ -64,6 +65,7 @@ final readonly class RecordBridgeHeartbeatCommand
         public ?array $gitIdentities = null,
         public int $gitIdentitiesAge = 0,
         public array $interactiveSessions = [],
+        public ?string $accessTokenId = null,
     ) {
     }
 }

@@ -10,6 +10,7 @@ final readonly class ReconcileCardWaits
     public function __construct(
         public string $projectId,
         public ?array $cardIds,
+        public bool $personWaiting = false,
     ) {
     }
 }

@@ -49,9 +49,10 @@ final readonly class ArtifactContentSigner
     /**
      * The link of one file, valid for one hour. Absolute on the sub-address of
      * the artifact when the instance has a content domain, a path of the app
-     * domain otherwise. Encoded per segment, so slashes stay.
+     * domain otherwise, unless the caller asks for an absolute URL. Encoded per
+     * segment, so slashes stay.
      */
-    public function linkFor(ArtifactVersion $version, string $path): string
+    public function linkFor(ArtifactVersion $version, string $path, int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH): string
     {
         $versionId = (string) $version->id;
         $expires = $this->clock->now()->getTimestamp() + self::TIME_TO_LIVE;
@@ -70,6 +71,6 @@ final readonly class ArtifactContentSigner
             'expires' => $expires,
             'signature' => $this->sign($versionId, $expires),
             'path' => $path,
-        ]);
+        ], $referenceType);
     }
 }

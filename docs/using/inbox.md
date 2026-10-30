@@ -204,10 +204,16 @@ intervals. With the default interval of 60 seconds, that is three minutes. It
 also turns amber when no heartbeat from the bridge ever reached Loupe. A
 running bridge keeps its interval until it reconnects or you run
 `loupe bridge reload`, so the warning never waits less than three default
-intervals, even after you lower the flag. While the bridge stays quiet, no resume will come. The page cannot
-tell why the bridge is quiet. The machine may be asleep, the bridge may have
-stopped, or the network may be down. The warning reads only the heartbeat, and
+intervals, even after you lower the flag. While the bridge stays quiet, no resume will come.
+The tooltip adds "Its login expired. Run `loupe login` on that machine." when the bridge
+can no longer refresh its login. Any other quiet bridge shows no cause. The machine may be asleep, the bridge may have
+stopped, or the network may be down. The warning reads the heartbeat and the login, and
 it does not check whether the bridge still follows this project.
+
+When work waits and the quiet bridges that could take it lost their login, the
+"No bridge can take work" notice names those bridges and says to run `loupe login`
+on each of their machines. The notice follows the login: it changes its text when a login
+expires after the notice opened, and when you restore the login.
 
 An ask from an interactive session names no bridge, and its dot stays grey. A
 closed ask shows no dot. The `bridge.heartbeat_interval_seconds` flag sets the
@@ -219,16 +225,18 @@ Every item that takes a response shows its forms under its text.
 
 - **Answer a question.** The **Your answer** block lists the options, and says
   whether you pick one or any. A hovered option turns grey, and a picked option
-  turns pale lime. Pick an option, write a note for the agent, or do both, as
-  the question allows. Then select **Send answer**. Select **Clear choice** at
+  turns pale lime. Pick an option, and write an optional note for the agent
+  beside it. When the question allows a written answer, the note alone also
+  answers it. Then select **Send answer**. Select **Clear choice** at
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
-- **Mark a to-do done.** Select **Mark complete**.
-- **Decline an item.** Write an optional note for the agent in the note field,
-  then select **Decline**. Decline any item that you cannot or will not answer,
+- **Mark a to-do done.** Write an optional note for the agent in the note
+  field, then select **Mark complete**. The closed to-do shows your note.
+- **Dismiss an item.** Write an optional note for the agent in the note field,
+  then select **Dismiss**. Dismiss any item that you cannot or will not answer,
   including a question whose options do not fit. A workflow question has no
-  **Decline**, because Loupe needs one of its options.
+  **Dismiss**, because Loupe needs one of its options.
 
 The buttons sit at the right of the item, with the main button last. Only the
 project owner sees them. Another member who can see the project reads the ask
@@ -259,23 +267,19 @@ Drafts stay in memory and do not survive a reload or a closed tab.
 If the request closes before you respond, its page shows your unsent answer separately from the recorded response.
 Copy that draft if needed, or select **Discard draft** to clear it from this tab.
 
-## Changing a response
+## A sent response is final
 
 Review results are final when submitted, even if no agent waits on the request.
 The result keeps the verdict, note, reviewer, time, and reviewed document version.
 Withdrawing a document verdict reopens document review and adds a withdrawal notice beside the original result.
 It does not reopen the completed request, change its answer, or resume the agent again.
 
-For questions and to-dos, you can change a response until an ask that holds the item closes. After that,
-the response is final, because an agent may already act on it. Send a
+A sent response is final. This holds for answers, closing notes, completed to-dos and review results.
+You cannot change it, because an agent may already act on it. Send a
 correction to the agent in some other way.
 
-Each closed item says which case applies:
-
-- "You can still change this response" shows the forms again, so you can pick
-  other options, mark the item done or close it.
-- "This response is final" shows no forms. A change sent from an older copy of
-  the page is refused with the same message.
+A closed item shows its outcome and no reply form. The text "This response is final" marks it.
+A response sent from an older copy of the page is refused, and the item keeps its first response.
 
 An agent can also close an item itself, when it withdraws the item or the work
 behind it finishes. Such an item takes no response from you.
@@ -485,7 +489,7 @@ A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
 fit is dropped.
 An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
-that carries suggestions shows a reply card with a split button, beside Decline
+that carries suggestions shows a reply card with a split button, beside Dismiss
 and Mark done. The button offers the suggested actions that fit the to-do now,
 and the recommended one is the main action. A to-do with no suggestion that
 fits shows no split button. A question works the same way, with its split button
@@ -804,9 +808,9 @@ no bridge takes within 2 minutes expires. See
 
 ## Answering through an agent
 
-You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_answer`, `inbox_decline`, `inbox_done` or `inbox_action_run`. Each tool runs the same code as the matching button on the inbox page. The same rules hold. An option must exist, a question with no free text refuses text, and a closed answer changes only while no closed ask holds the item.
+You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_answer`, `inbox_decline`, `inbox_done` or `inbox_action_run`. Each tool runs the same code as the matching button on the inbox page. The same rules hold. An option must exist, a question with no free text refuses text, and a closed item takes no second response.
 
-The item shows "Answered through an agent" beside its response. A later response from the page removes that line. `inbox_get` returns the same fact as `respondedThroughAgent`.
+The item shows "Answered through an agent" beside its response. A response is final, so the line stays. `inbox_get` returns the same fact as `respondedThroughAgent`.
 
 These limits hold:
 

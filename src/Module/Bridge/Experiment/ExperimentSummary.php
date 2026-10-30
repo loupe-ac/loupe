@@ -11,6 +11,7 @@ final readonly class ExperimentSummary
         public int $cards,
         /** Null when only pins name the experiment. */
         public ?\DateTimeImmutable $lastRunAt,
+        public bool $archived = false,
     ) {
     }
 }

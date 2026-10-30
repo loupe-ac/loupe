@@ -78,10 +78,10 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertCount(1, $section->filter('[data-inbox-linked-closed] [data-inbox-item="1"]'));
         self::assertStringContainsString('export', $section->filter('#inbox-item-2')->closest('[data-inbox-linked-entry]')?->filter('[data-inbox-linked-context]')->text() ?? '');
         // The forms post back with the card as the page to return to.
-        $action = (string) $section->filter('form[name="inbox_done_'.$open->id.'"]')->attr('action');
+        $action = (string) $section->filter('form[name="inbox_response_'.$open->id.'"]')->attr('action');
         self::assertStringContainsString('returnTo=card', $action);
         self::assertStringContainsString('returnId='.$this->card->id, $action);
-        self::assertSame($frame ?? '_top', $section->filter('form[name="inbox_done_'.$open->id.'"]')->attr('data-turbo-frame'));
+        self::assertSame($frame ?? '_top', $section->filter('form[name="inbox_response_'.$open->id.'"]')->attr('data-turbo-frame'));
     }
 
     public function test_the_sections_render_nothing_while_the_inbox_is_off(): void
@@ -255,15 +255,15 @@ final class LinkedInboxSectionTest extends WebTestCase
         $this->linkCard($refused);
         $this->linkCard($other);
 
-        $crawler = $this->post($refused, 'answer', ['selectedOptions' => '0,1', 'answerText' => ''], $this->cardQuery());
+        $crawler = $this->post($refused, 'answer', ['selectedOptions' => '0,1', 'note' => ''], $this->cardQuery());
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('#inbox-item-1', 'This question takes one option only.');
         $otherItem = $crawler->filter('#inbox-item-2');
-        self::assertCount(1, $otherItem->filter('form[name="inbox_answer_'.$other->id.'"]'));
+        self::assertCount(1, $otherItem->filter('form[name="inbox_response_'.$other->id.'"]'));
         self::assertSame('', trim(implode('', $otherItem->filter('.lp-field-errors:not([hidden])')->each(static fn (Crawler $node): string => $node->text()))));
         self::assertCount(0, $otherItem->filter('[data-inbox-refusal]'));
-        self::assertSame('', (string) $otherItem->filter('input[name="inbox_answer_'.$other->id.'[selectedOptions]"]')->attr('value'));
+        self::assertSame('', (string) $otherItem->filter('input[name="inbox_response_'.$other->id.'[selectedOptions]"]')->attr('value'));
     }
 
     public function test_a_response_naming_a_version_the_document_lacks_returns_to_the_current_version(): void
@@ -286,7 +286,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         $this->post($item, 'answer', ['selectedOptions' => '1'], $this->cardQuery());
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('[data-inbox-linked="card"] [data-inbox-linked-closed] #inbox-item-1 [data-inbox-refusal]', 'This response is final');
+        self::assertSelectorTextContains('[data-inbox-linked="card"] [data-inbox-linked-closed] #inbox-item-1 [data-inbox-refusal]', 'no longer fits the item');
         self::assertSame([0], $this->reload($item)->selectedOptions);
     }
 
@@ -295,7 +295,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         $item = $this->todo($this->em, $this->project, 2);
         $this->linkDocument($item);
 
-        $this->post($item, 'decline', ['closeNote' => 'Not mine.'], ['returnTo' => 'document', 'returnId' => (string) $this->document->id]);
+        $this->post($item, 'decline', ['note' => 'Not mine.'], ['returnTo' => 'document', 'returnId' => (string) $this->document->id]);
 
         self::assertResponseRedirects($this->documentUrl());
         self::assertSame(InboxItemState::Declined, $this->reload($item)->state);
@@ -367,11 +367,11 @@ final class LinkedInboxSectionTest extends WebTestCase
      */
     private function post(InboxItem $item, string $action, array $fields, array $query): Crawler
     {
-        $prefix = ['answer' => 'inbox_answer_', 'done' => 'inbox_done_', 'decline' => 'inbox_decline_'][$action];
-        $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/'.$action.'?'.http_build_query($query);
+        $kind = ['answer' => 'answer', 'done' => 'complete', 'decline' => 'dismiss'][$action];
+        $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/'.$kind.'?'.http_build_query($query);
 
         // 'csrf-token' is the SameOriginCsrfTokenManager sentinel, which a same-origin Referer lets stand in for a signed token.
-        return $this->client->request(Request::METHOD_POST, $url, [$prefix.$item->id => [...$fields, '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        return $this->client->request(Request::METHOD_POST, $url, ['inbox_response_'.$item->id => [...$fields, '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
     }
 
     private function cardUrl(): string

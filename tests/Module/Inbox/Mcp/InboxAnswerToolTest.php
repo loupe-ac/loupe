@@ -95,7 +95,7 @@ final class InboxAnswerToolTest extends KernelTestCase
         self::assertSame('And say why', $item->note);
     }
 
-    public function test_an_earlier_answer_changes_while_no_closed_ask_holds_the_item(): void
+    public function test_a_sent_answer_is_final_while_an_ask_that_holds_the_item_is_still_open(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-answer-change');
@@ -104,9 +104,14 @@ final class InboxAnswerToolTest extends KernelTestCase
         $this->em->flush();
         ($this->tool)((string) $item->id, [0]);
 
-        ($this->tool)((string) $item->id, [1]);
+        try {
+            ($this->tool)((string) $item->id, [1]);
+            self::fail('Expected a refusal for a second answer.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString('its response is final', $e->getMessage());
+        }
 
-        self::assertSame([1], $this->stored((string) $item->id)->selectedOptions);
+        self::assertSame([0], $this->stored((string) $item->id)->selectedOptions);
     }
 
     public function test_an_answer_is_final_once_the_ask_that_held_the_item_closed(): void
@@ -117,7 +122,7 @@ final class InboxAnswerToolTest extends KernelTestCase
         ($this->tool)($asked['items'][0]['itemId'], [0]);
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('The response is final');
+        $this->expectExceptionMessage('its response is final');
         ($this->tool)($asked['items'][0]['itemId'], [1]);
     }
 
@@ -135,7 +140,7 @@ final class InboxAnswerToolTest extends KernelTestCase
 
         ($this->tool)((string) $item->id, [1]);
 
-        $transport = self::getContainer()->get('messenger.transport.jobs');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $sent = array_values(array_filter(
             array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
@@ -148,7 +153,7 @@ final class InboxAnswerToolTest extends KernelTestCase
             ($this->tool)((string) $item->id, [2]);
             self::fail('Expected a refusal for a second answer.');
         } catch (ToolCallException $e) {
-            self::assertStringContainsString('The response is final', $e->getMessage());
+            self::assertStringContainsString('its response is final', $e->getMessage());
         }
     }
 

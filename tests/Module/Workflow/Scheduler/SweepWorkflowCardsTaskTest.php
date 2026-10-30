@@ -15,7 +15,6 @@ use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\ScheduledTasks;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
@@ -131,7 +130,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         return new SweepWorkflowCardsTask(
             new SweepWorkflowCardsHandler(
                 $this->service(WorkflowBindingRepository::class),
-                new EvaluationTrigger($this->service(MessageBusInterface::class)),
+                $this->service(EvaluationTrigger::class),
                 $transport,
             ),
             $logger,

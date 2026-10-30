@@ -13,6 +13,8 @@ final readonly class MarkInboxItemDoneCommand
         public bool $throughAgent = false,
         /** A run-command the owner started from the inbox succeeded, so Loupe closes the to-do. */
         public bool $commandSucceeded = false,
+        /** The optional note the owner sends with the completion. */
+        public string $note = '',
     ) {
     }
 }

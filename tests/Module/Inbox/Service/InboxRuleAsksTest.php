@@ -57,7 +57,7 @@ final class InboxRuleAsksTest extends KernelTestCase
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
-        $transport = self::getContainer()->get('messenger.transport.jobs');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $this->transport = $transport;
         $asks = self::getContainer()->get(RuleAsks::class);

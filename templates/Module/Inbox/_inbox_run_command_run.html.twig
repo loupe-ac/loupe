@@ -1,5 +1,5 @@
 {#- The newest command run of an item, in the thread of the owner: the state, the output (live while it runs) and a link to the full log.
-   Params: item, command (RunCommandView with a run), actionParams, responseFrame, refusedForm, rerun (whether the dialog is on the page), doneFormId (the to-do's done form, or null). -#}
+   Params: item, command (RunCommandView with a run), actionParams, responseFrame, refusedForm, rerun (whether the dialog is on the page), doneFormId (the to-do's response form, or null). -#}
 {% set run = command.run %}
 {% set chips = {queued: 'pending', running: 'active', succeeded: 'ok', failed: 'failed', refused: 'failed', expired: 'failed', cancelled: 'neutral'} %}
 {% set outputText = run.outputLines|join("\n") %}
@@ -52,7 +52,7 @@
                 {{ logAnchor }}
             {% endif %}
             {% if doneFormId and run.state.value == 'failed' %}
-                <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ doneFormId }}" data-inbox-run-command-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ doneFormId }}" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'complete'}))" data-inbox-run-command-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
             {% endif %}
             <twig:Ds:Button variant="primary" size="sm" type="button" :disabled="not command.canOpenDialog" data-action="click->modal#open" data-inbox-action="run-command-again">{{ 'inbox.run_command.run_again'|trans }}</twig:Ds:Button>
         </twig:Ds:FormActions>

@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
     # scheduler_default listed first deliberately — a deep jobs backlog must
     # not delay schedule ticks. card_sweep (the workflow sweep) comes last.
-    command: php bin/console messenger:consume scheduler_default card_eval jobs card_sweep --time-limit=3600 --memory-limit=128M
+    command: php bin/console messenger:consume scheduler_default interactive card_eval jobs card_sweep --time-limit=3600 --memory-limit=128M
     volumes:
       - .:/var/www/html
     environment:

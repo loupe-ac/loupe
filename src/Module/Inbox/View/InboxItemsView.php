@@ -13,9 +13,6 @@ interface InboxItemsView
     /** Whether the item's forms render here, in $ask, or on their own when $ask is null. */
     public function isHome(InboxItem $item, ?InboxAsk $ask = null): bool;
 
-    /** Whether the owner can respond to the item, or change the response already given. */
-    public function acceptsResponse(InboxItem $item): bool;
-
     /**
      * The query string every form of the page posts with, so a response returns to this page.
      *

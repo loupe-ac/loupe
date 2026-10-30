@@ -135,11 +135,11 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSelectorTextSame('#inbox-item-1 [data-inbox-editable]', $label);
         self::assertSelectorTextNotContains('#inbox-item-1', 'The agent closed');
 
-        $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/decline';
-        $this->client->request(Request::METHOD_POST, $url, ['inbox_decline_'.$item->id => ['closeNote' => '', '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/dismiss';
+        $this->client->request(Request::METHOD_POST, $url, ['inbox_action_'.$item->id => ['note' => '', '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'Loupe closed this item');
+        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'no longer fits the item');
         self::assertSame($item->state, $this->onlyWatch()->item->state);
     }
 
@@ -180,12 +180,9 @@ final class WaitItemPageTest extends WebTestCase
         self::assertStringContainsString('waits for your review', $ended->text());
         self::assertStringContainsString('Closed', $ended->text());
 
-        self::assertCount(0, $crawler->filter('form[name="inbox_done_'.$item->id.'"]'));
-        self::assertCount(0, $crawler->filter('form[name="inbox_answer_'.$item->id.'"]'));
-        $dismiss = $crawler->filter('form[name="inbox_decline_'.$item->id.'"]');
-        self::assertCount(1, $dismiss);
+        self::assertCount(0, $crawler->filter('form[name="inbox_response_'.$item->id.'"]'));
         $row = $crawler->filter('#inbox-item-1 button[data-inbox-action="dismiss"]');
-        self::assertSame('inbox_decline_'.$item->id, $row->attr('form'));
+        self::assertSame('/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/dismiss', parse_url((string) $row->attr('formaction'), \PHP_URL_PATH));
         self::assertStringContainsString('Dismiss', $row->text());
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $crawler->filter('#inbox-item-1 a[data-inbox-action="open"]')->attr('href'));
     }

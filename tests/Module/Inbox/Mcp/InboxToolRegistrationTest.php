@@ -7,7 +7,7 @@ namespace App\Tests\Module\Inbox\Mcp;
 use App\Mcp\FlagGatedToolInterface;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Form\AnswerInboxItemRequest;
+use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Mcp\InboxActionRunTool;
@@ -173,11 +173,11 @@ final class InboxToolRegistrationTest extends KernelTestCase
         self::assertSame(['itemId'], $answer['required']);
         self::assertSame('array', $answer['properties']['selectedOptions']['type']);
         self::assertSame('integer', ((object) $answer['properties']['selectedOptions']['items'])->type);
-        self::assertSame(AnswerInboxItemRequest::MAX_ANSWER_LENGTH, $answer['properties']['answerText']['maxLength']);
+        self::assertSame(RunInboxActionRequest::MAX_RESPONSE_LENGTH, $answer['properties']['answerText']['maxLength']);
 
         $decline = $this->registry->getTool(InboxDeclineTool::NAME)->tool->inputSchema;
         self::assertSame(['itemId'], $decline['required']);
-        self::assertSame(AnswerInboxItemRequest::MAX_ANSWER_LENGTH, $decline['properties']['note']['maxLength']);
+        self::assertSame(RunInboxActionRequest::MAX_RESPONSE_LENGTH, $decline['properties']['note']['maxLength']);
 
         self::assertSame(['itemId'], $this->registry->getTool(InboxDoneTool::NAME)->tool->inputSchema['required']);
 

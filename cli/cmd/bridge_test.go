@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/logfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
 )
@@ -718,11 +719,11 @@ func TestOpenLogFileAppends(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "bridge.log")
 
 	for _, line := range []string{"first\n", "second\n"} {
-		f, err := openLogFile(path)
+		f, err := logfile.Open(path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := f.WriteString(line); err != nil {
+		if _, err := f.Write([]byte(line)); err != nil {
 			t.Fatal(err)
 		}
 		f.Close()

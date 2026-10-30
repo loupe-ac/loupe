@@ -17,17 +17,9 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxRepositoryMisfit;
 use App\Module\Inbox\Entity\InboxReview;
-use App\Module\Inbox\Form\AnswerInboxItemFormType;
-use App\Module\Inbox\Form\AnswerInboxItemRequest;
 use App\Module\Inbox\Form\CancelInboxActionFormType;
-use App\Module\Inbox\Form\DeclineInboxItemFormType;
-use App\Module\Inbox\Form\DeclineInboxItemRequest;
-use App\Module\Inbox\Form\MarkInboxItemDoneFormType;
 use App\Module\Inbox\Form\RunInboxActionFormType;
 use App\Module\Inbox\Form\RunInboxActionRequest;
-use App\Module\Inbox\Form\SubmitInboxDocumentReviewFormType;
-use App\Module\Inbox\Form\SubmitInboxPullRequestReviewFormType;
-use App\Module\Inbox\Form\SubmitInboxPullRequestReviewRequest;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
@@ -44,7 +36,6 @@ use App\Module\Inbox\View\InboxActionStatus;
 use App\Module\Inbox\View\InboxThreadActions;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Review;
-use App\Module\Review\Form\SubmitReviewRequest;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\MarkdownRenderer;
@@ -87,9 +78,7 @@ final class InboxExtension extends AbstractExtension
     public function getFunctions(): array
     {
         return [
-            new TwigFunction('inbox_answer_form', $this->answerForm(...)),
-            new TwigFunction('inbox_done_form', $this->doneForm(...)),
-            new TwigFunction('inbox_decline_form', $this->declineForm(...)),
+            new TwigFunction('inbox_response_form', $this->responseForm(...)),
             new TwigFunction('inbox_action_form', $this->actionForm(...)),
             new TwigFunction('inbox_action_cancel_form', $this->actionCancelForm(...)),
             new TwigFunction('inbox_actions', $this->actions(...)),
@@ -103,8 +92,6 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_wait_line', $this->waitLine(...)),
             new TwigFunction('inbox_review_withdrawal', $this->reviewWithdrawal(...)),
             new TwigFunction('inbox_review_version', $this->reviewVersion(...)),
-            new TwigFunction('inbox_pull_request_review_form', $this->pullRequestReviewForm(...)),
-            new TwigFunction('inbox_document_review_form', $this->documentReviewForm(...)),
             new TwigFunction('inbox_refusals', $this->refusals(...)),
             new TwigFunction('project_inbox_open_count', $this->openCount(...)),
             new TwigFunction('inbox_open_total', $this->openTotal(...)),
@@ -159,20 +146,6 @@ final class InboxExtension extends AbstractExtension
         );
 
         return trim((string) preg_replace('/\s+/u', ' ', $text));
-    }
-
-    public function answerForm(InboxItem $item, ?FormView $refused = null): FormView
-    {
-        $name = AnswerInboxItemFormType::nameFor($item);
-        if (null !== $refused && $refused->vars['name'] === $name) {
-            return $refused;
-        }
-
-        $selected = implode(',', $item->selectedOptions);
-
-        return $this->formFactory
-            ->createNamed($name, AnswerInboxItemFormType::class, new AnswerInboxItemRequest($selected, InboxItemState::Resolved === $item->state ? $item->note : null))
-            ->createView();
     }
 
     public function review(InboxItem $item): ?InboxReview
@@ -235,52 +208,28 @@ final class InboxExtension extends AbstractExtension
         return null === $review->document ? null : $this->documentVersions->findLatest($review->document)->versionNumber;
     }
 
-    public function documentReviewForm(InboxReview $review, ?FormView $refused = null): FormView
+    /**
+     * The form of the response of the owner: an answer, a verdict, a done or a dismissal. A review form carries
+     * the version or the address the owner reads, so a review of something that changed since is refused.
+     */
+    public function responseForm(InboxItem $item, ?FormView $refused = null): FormView
     {
-        $name = SubmitInboxDocumentReviewFormType::nameFor($review->item);
-        if (null !== $refused && $refused->vars['name'] === $name) {
-            return $refused;
-        }
-        $version = null === $review->document ? null : $this->documentVersions->findLatest($review->document);
-        $latestReview = null === $version ? null : $this->reviews->findNewestByVersion($version);
-
-        return $this->formFactory->createNamed($name, SubmitInboxDocumentReviewFormType::class,
-            new SubmitReviewRequest(versionNumber: $version?->versionNumber, expectedReviewId: $latestReview?->id?->toRfc4122()),
-        )->createView();
-    }
-
-    public function pullRequestReviewForm(InboxReview $review, ?FormView $refused = null): FormView
-    {
-        $name = SubmitInboxPullRequestReviewFormType::nameFor($review->item);
+        $name = RunInboxActionFormType::responseNameFor($item);
         if (null !== $refused && $refused->vars['name'] === $name) {
             return $refused;
         }
 
-        return $this->formFactory->createNamed($name, SubmitInboxPullRequestReviewFormType::class,
-            new SubmitInboxPullRequestReviewRequest(expectedUrl: $review->pullRequest?->url),
-        )->createView();
-    }
-
-    public function doneForm(InboxItem $item, ?FormView $refused = null): FormView
-    {
-        $name = MarkInboxItemDoneFormType::nameFor($item);
-        if (null !== $refused && $refused->vars['name'] === $name) {
-            return $refused;
+        $data = new RunInboxActionRequest();
+        $review = InboxItemKind::Review === $item->kind && !$item->isAutomatic() ? $this->inboxReviews->forItem($item) : null;
+        if (null !== $review?->document) {
+            $version = $this->documentVersions->findLatest($review->document);
+            $data->versionNumber = $version->versionNumber;
+            $data->expectedReviewId = $this->reviews->findNewestByVersion($version)?->id?->toRfc4122();
+        } elseif (null !== $review?->pullRequest) {
+            $data->expectedUrl = $review->pullRequest->url;
         }
 
-        return $this->formFactory->createNamed($name, MarkInboxItemDoneFormType::class)->createView();
-    }
-
-    public function declineForm(InboxItem $item, ?FormView $refused = null): FormView
-    {
-        $name = DeclineInboxItemFormType::nameFor($item);
-        if (null !== $refused && $refused->vars['name'] === $name) {
-            return $refused;
-        }
-
-        return $this->formFactory
-            ->createNamed($name, DeclineInboxItemFormType::class, new DeclineInboxItemRequest(InboxItemState::Declined === $item->state ? $item->note : null))
-            ->createView();
+        return $this->formFactory->createNamed($name, RunInboxActionFormType::class, $data)->createView();
     }
 
     public function actionForm(InboxItem $item, ?FormView $refused = null): FormView
@@ -325,7 +274,7 @@ final class InboxExtension extends AbstractExtension
      */
     public function refusals(InboxItem $item, ?FormView $refused = null): array
     {
-        $names = [AnswerInboxItemFormType::nameFor($item), MarkInboxItemDoneFormType::nameFor($item), DeclineInboxItemFormType::nameFor($item), SubmitInboxPullRequestReviewFormType::nameFor($item), SubmitInboxDocumentReviewFormType::nameFor($item), RunInboxActionFormType::nameFor($item)];
+        $names = [RunInboxActionFormType::responseNameFor($item), RunInboxActionFormType::nameFor($item)];
         if (null !== $refused && str_starts_with((string) $refused->vars['name'], 'inbox_action_cancel_')) {
             $names = [...$names, ...array_map(CancelInboxActionFormType::nameFor(...), $this->inboxActions->findByItem($item))];
         }

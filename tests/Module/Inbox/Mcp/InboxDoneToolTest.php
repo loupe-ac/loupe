@@ -68,7 +68,7 @@ final class InboxDoneToolTest extends KernelTestCase
         ($this->tool)($todo['itemId']);
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('The response is final');
+        $this->expectExceptionMessage('its response is final');
         ($this->tool)($todo['itemId']);
     }
 

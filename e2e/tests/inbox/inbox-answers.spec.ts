@@ -252,28 +252,14 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(question.locator('[data-inbox-response]')).toContainText(
         'The importer reads CSV.',
     );
-    await expect(question.locator('[data-inbox-editable="yes"]')).toBeVisible();
+    // A sent answer is final, so the question keeps no form to change it.
+    await expect(question.locator('[data-inbox-editable="no"]')).toBeVisible();
+    await expect(question.locator('form')).toHaveCount(0);
     await expect(sidebarPill).toHaveText('1');
 
-    // The to-do still blocks the ask, so the answer can still change, here to text alone.
-    await question.getByRole('button', { name: 'Clear choice' }).click();
-    await question
-        .getByLabel('Note for the agent')
-        .fill('Text alone this time.');
-    await question.getByRole('button', { name: 'Change the answer' }).click();
-    await expect(question.locator('[data-inbox-choices]')).toHaveCount(0);
-    await expect(question.locator('[data-inbox-response]')).toContainText(
-        'Text alone this time.',
-    );
-
-    await question.getByText('CSV', { exact: true }).click();
-    await question
-        .getByLabel('Note for the agent')
-        .fill('An unsent correction.');
-
-    // A to-do takes no prose, so closing it carries no note.
+    // Dismiss closes the to-do, with the note field left empty.
     const todo = page.locator(`#inbox-item-${inbox.todoNumber}`);
-    await todo.getByRole('button', { name: 'Decline' }).click();
+    await todo.getByRole('button', { name: 'Dismiss' }).click();
 
     // No other ask is open, so the page names none and the status line links to the closed one.
     await expect(page.locator('[data-inbox-status]')).toContainText(
@@ -286,21 +272,9 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(todo).toContainText('Dismissed by you');
     await expect(sidebarPill).toHaveCount(0);
 
-    const recovery = question.locator('[data-inbox-draft-kind="answer"]');
-    await expect(recovery).toBeVisible();
-    await expect(recovery).toContainText('An unsent correction.');
-    await expect(recovery.locator('li')).toHaveText(['CSV']);
-    await expect(question.locator('[data-inbox-response]')).toContainText(
-        'Text alone this time.',
-    );
-    await recovery.getByRole('button', { name: 'Discard draft' }).click();
-    await expect(recovery).toBeHidden();
-    await expect(question.getByRole('heading', { level: 3 })).toBeFocused();
-
     await page.reload();
     await expect(question.locator('[data-inbox-response]')).toContainText(
-        'Text alone this time.',
+        'The importer reads CSV.',
     );
-    // The decline closed the last blocking item, so the ask closed and the answer is final.
     await expect(question.locator('[data-inbox-editable="no"]')).toBeVisible();
 });

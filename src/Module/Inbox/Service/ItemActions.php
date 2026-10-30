@@ -17,6 +17,8 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReviewTargetKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandView;
@@ -45,6 +47,7 @@ final readonly class ItemActions
         private RunCommandRuns $runCommandRuns,
         private CardWaitText $cardWaitText,
         private CardHoldRepository $cardHolds,
+        private InboxReviewLookup $inboxReviews,
     ) {
     }
 
@@ -232,8 +235,11 @@ final readonly class ItemActions
             $story = $item->isAutomatic() ? $this->workLimitStoryOf($waits) : null;
             $holdable = null !== $story && null !== ($watchedCards[self::key($item)] ?? null) && !$this->cardHolds->existsForCard($item->project, $watchedCards[self::key($item)]);
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand, $story, $holdable);
-            if (self::offersOnlySuggestions($item)) {
-                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
+            // A sent response is final, so a closed item offers nothing but a new session, suggested or not.
+            if (InboxItemState::Open !== $item->state) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::StartSession === $kind && ($sessionOnline[(string) $item->project->id] ?? false)));
+            } elseif (self::offersOnlySuggestions($item)) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => $kind->isResponse() || isset($suggestions[$kind->value])));
             }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             // A retry alone repeats a loop whose last run stopped for a person, so it is not the default then.
@@ -271,6 +277,9 @@ final readonly class ItemActions
     private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand, ?WorkLimitStory $story, bool $holdable): array
     {
         $fits = [
+            [InboxActionKind::Answer, \in_array($item->kind, [InboxItemKind::Question, InboxItemKind::Workflow], true)],
+            [InboxActionKind::Complete, InboxItemKind::Todo === $item->kind],
+            [InboxActionKind::SubmitReview, InboxItemKind::Review === $item->kind && !$item->isAutomatic()],
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
             [InboxActionKind::OpenPullRequest, null !== $story?->pullRequestUrl],
@@ -281,7 +290,7 @@ final readonly class ItemActions
             [InboxActionKind::Open, self::fitsOpen($item)],
             [InboxActionKind::StartSession, $sessionFits],
             [InboxActionKind::RunCommand, $runCommand],
-            [InboxActionKind::Dismiss, self::fitsDismiss($item)],
+            [InboxActionKind::Dismiss, $this->fitsDismiss($item)],
         ];
 
         $fitting = [];
@@ -418,9 +427,29 @@ final readonly class ItemActions
         return $item->isAutomatic() || !$item->cards->isEmpty() || !$item->documents->isEmpty();
     }
 
-    private static function fitsDismiss(InboxItem $item): bool
+    /** The flag decides. A review whose document or pull request is gone can always be dismissed, because no verdict is possible. */
+    private function fitsDismiss(InboxItem $item): bool
     {
-        return $item->isAutomatic();
+        if ($item->dismissible) {
+            return true;
+        }
+        if (InboxItemKind::Review !== $item->kind || $item->isAutomatic()) {
+            return false;
+        }
+        $review = $this->inboxReviews->forItem($item);
+
+        return null === $review || (InboxReviewTargetKind::Document === $review->targetKind ? null === $review->document : null === $review->pullRequest);
+    }
+
+    /** The action that carries the response of the owner for the kind of the item, or null when the item takes none by itself. */
+    private static function responseKind(InboxItem $item): ?InboxActionKind
+    {
+        return match (true) {
+            \in_array($item->kind, [InboxItemKind::Question, InboxItemKind::Workflow], true) => InboxActionKind::Answer,
+            InboxItemKind::Todo === $item->kind => InboxActionKind::Complete,
+            InboxItemKind::Review === $item->kind && !$item->isAutomatic() => InboxActionKind::SubmitReview,
+            default => null,
+        };
     }
 
     /**
@@ -464,7 +493,8 @@ final readonly class ItemActions
     }
 
     /**
-     * The recommended suggestion when it fits. Otherwise the kind of the newest open wait when it fits,
+     * The recommended suggestion when it fits. Otherwise the response of a question, a to-do, a workflow question
+     * or a review of a person. Otherwise the kind of the newest open wait when it fits,
      * otherwise Open, so a wait item always has a default that fits.
      *
      * @param list<InboxCardWait>            $waits       open waits, oldest first
@@ -473,18 +503,19 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
+        $response = self::responseKind($item);
         if (!$item->isAutomatic() && !\in_array($item->kind, [InboxItemKind::Todo, InboxItemKind::Question], true)) {
-            return null;
+            return null !== $response && \in_array($response, $fitting, true) ? $response : null;
         }
 
         foreach ($fitting as $kind) {
-            if (InboxActionKind::Dismiss !== $kind && true === ($suggestions[$kind->value]->recommended ?? false)) {
+            if (InboxActionKind::Dismiss !== $kind && !$kind->isResponse() && true === ($suggestions[$kind->value]->recommended ?? false)) {
                 return $kind;
             }
         }
 
         if (self::offersOnlySuggestions($item)) {
-            return null;
+            return null !== $response && \in_array($response, $fitting, true) ? $response : null;
         }
 
         $newest = end($waits);

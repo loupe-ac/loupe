@@ -8,6 +8,7 @@ final readonly class EvaluateCard
 {
     public function __construct(
         public string $cardId,
+        public bool $personWaiting = false,
     ) {
     }
 }

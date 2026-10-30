@@ -64,7 +64,6 @@ final readonly class ShowInboxHandler
         $view = $view->withPage($page);
         $selected = $this->select($project, $view, $rows);
 
-        $selectedItems = $selected->items ?? [];
         $bridgeId = $selected?->ask?->bridgeId;
         $totalPages = max(1, (int) ceil($total / $perPage));
 
@@ -78,7 +77,6 @@ final readonly class ShowInboxHandler
             page: $page,
             totalPages: $totalPages,
             pageList: PageList::build($page, $totalPages),
-            finalItemIds: array_fill_keys($this->inboxAsks->findItemIdsHeldByClosedAsks($selectedItems), true),
             bridgeStatuses: null === $bridgeId || null !== $selected?->ask?->closedAt ? [] : $this->bridgeLiveness->forOwner($project->owner, [$bridgeId]),
             pickedNothing: $view->isPicked() && null === $selected,
         );

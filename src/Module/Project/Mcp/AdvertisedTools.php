@@ -91,6 +91,8 @@ final class AdvertisedTools
         'metric_list',
         'metric_query',
         'experiment_get',
+        'experiment_archive',
+        'experiment_unarchive',
         'analysis_get',
         'analysis_report',
         'analytics_settings_get',

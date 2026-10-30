@@ -15,7 +15,6 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Symfony\Component\Uid\Uuid;
-use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 /**
  * KernelTestCase helper for the inbox MCP tools. Requires an `$em`
@@ -28,10 +27,7 @@ trait InboxToolScenario
     /** The inbox ships off, so every test that calls a tool switches it on. */
     private function enableInbox(): void
     {
-        $flags = self::getContainer()->get(FeatureFlagRepository::class);
-        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
-        $flags->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = true;
-        $this->em->flush();
+        $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
     }
 
     private function makeProject(string $label): Project

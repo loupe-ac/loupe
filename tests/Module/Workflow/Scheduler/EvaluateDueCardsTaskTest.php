@@ -16,7 +16,6 @@ use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\ScheduledTasks;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class EvaluateDueCardsTaskTest extends KernelTestCase
@@ -102,7 +101,7 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
         return new EvaluateDueCardsTask(new EvaluateDueWorkflowCardsHandler(
             $this->service(WorkflowRuleStateRepository::class),
             $this->service(CardsDueForMarkers::class),
-            new EvaluationTrigger($this->service(MessageBusInterface::class)),
+            $this->service(EvaluationTrigger::class),
             new MockClock('2026-10-02 12:00:00'),
         ));
     }

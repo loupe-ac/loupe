@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
@@ -73,6 +74,10 @@ type heartbeater struct {
 	// sessions reads the watched interactive sessions when a heartbeat goes
 	// out. It may be nil.
 	sessions func(context.Context, []string) []api.InteractiveSessionReading
+
+	// lastOK is the time of the last heartbeat the server accepted. A status
+	// request reads it from another goroutine.
+	lastOK atomic.Pointer[time.Time]
 
 	mu   sync.Mutex
 	body api.Heartbeat
@@ -401,6 +406,8 @@ func (h *heartbeater) record(err error) {
 			h.log.Info("heartbeat_sent", "bridge_id", h.bridgeID, "interval_seconds", int(h.currentInterval()/time.Second), "failed_before", h.failed)
 		}
 		h.sent, h.failed, h.unsupported = true, 0, false
+		now := h.now()
+		h.lastOK.Store(&now)
 		if h.onSent != nil {
 			h.onSent()
 		}

@@ -1569,6 +1569,7 @@
             <trans-unit id="review.document.panels.comments"><source>review.document.panels.comments</source><target>Comments</target></trans-unit>
             <trans-unit id="review.document.panels.outline"><source>review.document.panels.outline</source><target>Outline</target></trans-unit>
             <trans-unit id="review.document.panels.comments_label"><source>review.document.panels.comments_label</source><target>Comments panel, %count% open</target></trans-unit>
+            <trans-unit id="review.document.panels.decisions_label"><source>review.document.panels.decisions_label</source><target>Decisions panel, %answered% of %total% answered</target></trans-unit>
             <trans-unit id="review.document.panels.outline_heading"><source>review.document.panels.outline_heading</source><target>On this page</target></trans-unit>
             <trans-unit id="review.document.group.in_text"><source>review.document.group.in_text</source><target>In the text</target></trans-unit>
             <trans-unit id="review.document.group.not_in_text"><source>review.document.group.not_in_text</source><target>No longer in the text</target></trans-unit>
@@ -3061,6 +3062,14 @@
             <trans-unit id="project.connect.tool.experiment_get">
                 <source>project.connect.tool.experiment_get</source>
                 <target>Read the comparison of one experiment: each variant, each metric with its likely range, and the cards it keeps or leaves out.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.experiment_archive">
+                <source>project.connect.tool.experiment_archive</source>
+                <target>Archive an experiment so it leaves the main experiments list. Its page and data stay readable.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.experiment_unarchive">
+                <source>project.connect.tool.experiment_unarchive</source>
+                <target>Put an archived experiment back in the main experiments list.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.analysis_get">
                 <source>project.connect.tool.analysis_get</source>
@@ -5689,6 +5698,7 @@
                 <source>inbox.ask.bridge.quiet</source>
                 <target>No resume will come while the bridge stays quiet.</target>
             </trans-unit>
+            <trans-unit id="inbox.ask.bridge.login_expired"><source>inbox.ask.bridge.login_expired</source><target>Its login expired. Run `loupe login` on that machine.</target></trans-unit>
             <trans-unit id="inbox.presence.no_bridge"><source>inbox.presence.no_bridge</source><target>No bridge started this session, so an answer does not resume the agent.</target></trans-unit>
             <trans-unit id="inbox.presence.label.live"><source>inbox.presence.label.live</source><target>Agent online</target></trans-unit>
             <trans-unit id="inbox.presence.label.quiet"><source>inbox.presence.label.quiet</source><target>Agent bridge quiet</target></trans-unit>
@@ -5702,6 +5712,15 @@
             <trans-unit id="inbox.action.open-pull-request.effect"><source>inbox.action.open-pull-request.effect</source><target>Opens the pull request of the paused rule on the forge.</target></trans-unit>
             <trans-unit id="inbox.action.approve-pull-request.label"><source>inbox.action.approve-pull-request.label</source><target>Approve on GitHub</target></trans-unit>
             <trans-unit id="inbox.action.approve-pull-request.effect"><source>inbox.action.approve-pull-request.effect</source><target>Opens the review page of the pull request. An approval there overrides the failed agent review.</target></trans-unit>
+            <trans-unit id="inbox.form.run_inbox_action_form.verdict.label"><source>inbox.form.run_inbox_action_form.verdict.label</source><target>Your verdict</target></trans-unit>
+            <trans-unit id="inbox.form.run_inbox_action_form.verdict.approve"><source>inbox.form.run_inbox_action_form.verdict.approve</source><target>Approve</target></trans-unit>
+            <trans-unit id="inbox.form.run_inbox_action_form.verdict.changes"><source>inbox.form.run_inbox_action_form.verdict.changes</source><target>Request changes</target></trans-unit>
+            <trans-unit id="inbox.action.answer.label"><source>inbox.action.answer.label</source><target>Answer</target></trans-unit>
+            <trans-unit id="inbox.action.answer.effect"><source>inbox.action.answer.effect</source><target>Sends your answer and closes the question. The answer is final.</target></trans-unit>
+            <trans-unit id="inbox.action.complete.label"><source>inbox.action.complete.label</source><target>Mark complete</target></trans-unit>
+            <trans-unit id="inbox.action.complete.effect"><source>inbox.action.complete.effect</source><target>Closes the to-do as done. This is final.</target></trans-unit>
+            <trans-unit id="inbox.action.submit-review.label"><source>inbox.action.submit-review.label</source><target>Submit the review</target></trans-unit>
+            <trans-unit id="inbox.action.submit-review.effect"><source>inbox.action.submit-review.effect</source><target>Sends your verdict and closes the review. The verdict is final.</target></trans-unit>
             <trans-unit id="inbox.action.hold-card.label"><source>inbox.action.hold-card.label</source><target>Hold the card</target></trans-unit>
             <trans-unit id="inbox.action.hold-card.effect"><source>inbox.action.hold-card.effect</source><target>Makes the card unmanaged, so no rule and no worker acts on it until you release it.</target></trans-unit>
             <trans-unit id="inbox.action.retry-card.effect"><source>inbox.action.retry-card.effect</source><target>Releases the pause so the workflow runs the rule again.</target></trans-unit>
@@ -6044,17 +6063,13 @@
                 <source>inbox.live.closed.cancelled</source>
                 <target>%outcome%.</target>
             </trans-unit>
-            <trans-unit id="inbox.item.editable">
-                <source>inbox.item.editable</source>
-                <target>You can still change this response. It becomes final when an ask that holds this item closes.</target>
-            </trans-unit>
             <trans-unit id="inbox.item.through_agent">
                 <source>inbox.item.through_agent</source>
                 <target>An agent recorded this response for the owner.</target>
             </trans-unit>
             <trans-unit id="inbox.item.final">
                 <source>inbox.item.final</source>
-                <target>This response is final, because an ask that holds this item has closed.</target>
+                <target>This response is final. You cannot change it.</target>
             </trans-unit>
             <trans-unit id="inbox.item.respond_elsewhere">
                 <source>inbox.item.respond_elsewhere</source>
@@ -6066,15 +6081,7 @@
             </trans-unit>
             <trans-unit id="inbox.item.error.final">
                 <source>inbox.item.error.final</source>
-                <target>This response is final, because an ask that holds this item has closed.</target>
-            </trans-unit>
-            <trans-unit id="inbox.item.error.closed_by_agent">
-                <source>inbox.item.error.closed_by_agent</source>
-                <target>The agent closed this item, so it takes no response.</target>
-            </trans-unit>
-            <trans-unit id="inbox.item.error.closed_by_loupe">
-                <source>inbox.item.error.closed_by_loupe</source>
-                <target>Loupe closed this item, so it takes no response.</target>
+                <target>This item is closed, so its response is final.</target>
             </trans-unit>
             <trans-unit id="inbox.item.error.notice">
                 <source>inbox.item.error.notice</source>
@@ -6094,7 +6101,7 @@
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.body.remedy">
                 <source>inbox.bridge_outage.body.remedy</source>
-                <target>Start a bridge, or run `loupe login`.</target>
+                <target>{0}Start a bridge, or run `loupe login`.|{1}The login of %bridges% expired. Run `loupe login` on that machine.|]1,Inf]The logins of %bridges% expired. Run `loupe login` on each of those machines.</target>
             </trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
                 <source>inbox.repository_misfit.title.one</source>
@@ -6148,10 +6155,6 @@
                 <source>inbox.answer.submit</source>
                 <target>Send answer</target>
             </trans-unit>
-            <trans-unit id="inbox.answer.change">
-                <source>inbox.answer.change</source>
-                <target>Change the answer</target>
-            </trans-unit>
             <trans-unit id="inbox.answer.error.not_a_question">
                 <source>inbox.answer.error.not_a_question</source>
                 <target>Only a question takes an answer.</target>
@@ -6172,10 +6175,6 @@
                 <source>inbox.answer.error.empty</source>
                 <target>Pick an option or write an answer.</target>
             </trans-unit>
-            <trans-unit id="inbox.form.answer_inbox_item_form.answer_text.label">
-                <source>inbox.form.answer_inbox_item_form.answer_text.label</source>
-                <target>Your answer or additional context</target>
-            </trans-unit>
             <trans-unit id="inbox.done.submit">
                 <source>inbox.done.submit</source>
                 <target>Mark complete</target>
@@ -6183,18 +6182,6 @@
             <trans-unit id="inbox.done.error.not_a_todo">
                 <source>inbox.done.error.not_a_todo</source>
                 <target>Only a to-do can be marked done.</target>
-            </trans-unit>
-            <trans-unit id="inbox.done.error.already_done">
-                <source>inbox.done.error.already_done</source>
-                <target>This to-do is already done.</target>
-            </trans-unit>
-            <trans-unit id="inbox.decline.change">
-                <source>inbox.decline.change</source>
-                <target>Change the closing note</target>
-            </trans-unit>
-            <trans-unit id="inbox.decline.submit">
-                <source>inbox.decline.submit</source>
-                <target>Decline</target>
             </trans-unit>
             <trans-unit id="inbox.flash.answered">
                 <source>inbox.flash.answered</source>
@@ -7221,6 +7208,20 @@
             <trans-unit id="bridge.experiments.empty.title"><source>bridge.experiments.empty.title</source><target>No experiments yet</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, add variants to a worker entry under work: in rules.yaml. The kind of work names the experiment.</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.docs"><source>bridge.experiments.empty.docs</source><target>Read how to set up an experiment</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived_empty.title"><source>bridge.experiments.archived_empty.title</source><target>No archived experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived_empty.description"><source>bridge.experiments.archived_empty.description</source><target>An experiment that you archive shows here.</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived_empty.back"><source>bridge.experiments.archived_empty.back</source><target>Back to the experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.all_archived.title"><source>bridge.experiments.all_archived.title</source><target>All experiments are archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.all_archived.description"><source>bridge.experiments.all_archived.description</source><target>Every experiment of this project is archived. Show the archived experiments to see them.</target></trans-unit>
+            <trans-unit id="bridge.experiments.show_archived"><source>bridge.experiments.show_archived</source><target>Show archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.count"><source>bridge.experiments.count</source><target>{0}No experiments|{1}1 experiment|]1,Inf[%count% experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived"><source>bridge.experiments.archived</source><target>Archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.column.actions"><source>bridge.experiments.column.actions</source><target>Actions</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive"><source>bridge.experiments.archive</source><target>Archive %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.unarchive"><source>bridge.experiments.unarchive</source><target>Unarchive %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive_action"><source>bridge.experiments.archive_action</source><target>Archive</target></trans-unit>
+            <trans-unit id="bridge.experiments.unarchive_action"><source>bridge.experiments.unarchive_action</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive.error.unknown"><source>bridge.experiments.archive.error.unknown</source><target>No run and no card pin names this experiment, so there is nothing to archive.</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.comparison"><source>bridge.experiments.tabs.comparison</source><target>Comparison</target></trans-unit>
@@ -8366,6 +8367,9 @@
             <trans-unit id="bridge.agents.connection"><source>bridge.agents.connection</source><target>Connection setup</target></trans-unit>
             <trans-unit id="bridge.agents.connection_label"><source>bridge.agents.connection_label</source><target>Bridge connection</target></trans-unit>
             <trans-unit id="bridge.agents.status.stale"><source>bridge.agents.status.stale</source><target>Stale</target></trans-unit>
+            <trans-unit id="bridge.agents.status.login_expired"><source>bridge.agents.status.login_expired</source><target>Login expired</target></trans-unit>
+            <trans-unit id="bridge.agents.hint.login_expired"><source>bridge.agents.hint.login_expired</source><target>Run `loupe login` on %name%.</target></trans-unit>
+            <trans-unit id="bridge.agents.hint.stale"><source>bridge.agents.hint.stale</source><target>Run `loupe bridge status` on %name% to see why.</target></trans-unit>
             <trans-unit id="bridge.agents.status.healthy"><source>bridge.agents.status.healthy</source><target>Healthy</target></trans-unit>
             <trans-unit id="bridge.agents.project_connection"><source>bridge.agents.project_connection</source><target>Receives eligible work for %project%.</target></trans-unit>
             <trans-unit id="bridge.agents.runtime"><source>bridge.agents.runtime</source><target>CLI version</target></trans-unit>
@@ -8689,10 +8693,6 @@
             <trans-unit id="inbox.review.local_only"><source>inbox.review.local_only</source><target>This records your review in Loupe. It does not post a review to the code host.</target></trans-unit>
             <trans-unit id="inbox.review.submit"><source>inbox.review.submit</source><target>Submit review</target></trans-unit>
             <trans-unit id="inbox.review.submitted"><source>inbox.review.submitted</source><target>Review recorded.</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.verdict.label"><source>inbox.form.submit_inbox_pull_request_review_form.verdict.label</source><target>Your verdict</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.verdict.approve"><source>inbox.form.submit_inbox_pull_request_review_form.verdict.approve</source><target>Approve</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.verdict.changes"><source>inbox.form.submit_inbox_pull_request_review_form.verdict.changes</source><target>Request changes</target></trans-unit>
-            <trans-unit id="inbox.form.submit_inbox_pull_request_review_form.note.label"><source>inbox.form.submit_inbox_pull_request_review_form.note.label</source><target>Review note (required for changes)</target></trans-unit>
             <trans-unit id="inbox.review.withdrawn"><source>inbox.review.withdrawn</source><target>%name% withdrew this verdict at %time%. This request keeps its original answer.</target></trans-unit>
             <trans-unit id="inbox.review.error.not_a_document"><source>inbox.review.error.not_a_document</source><target>This request does not target a document.</target></trans-unit>
             <trans-unit id="inbox.review.unsent_note"><source>inbox.review.unsent_note</source><target>Your unsent review note</target></trans-unit>

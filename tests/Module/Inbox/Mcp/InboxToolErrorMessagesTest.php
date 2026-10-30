@@ -26,11 +26,8 @@ final class InboxToolErrorMessagesTest extends TestCase
         yield 'no free text' => [AnswerInboxItemHandler::NO_FREE_TEXT, 'This question takes no free text.'];
         yield 'empty answer' => [AnswerInboxItemHandler::EMPTY, 'Pass at least one selected option or an answer text.'];
         yield 'not a todo' => [MarkInboxItemDoneHandler::NOT_A_TO_DO, 'Only a todo can be marked done.'];
-        yield 'already done' => [MarkInboxItemDoneHandler::ALREADY_DONE, 'The todo is already done.'];
         yield 'workflow not declinable' => [DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE, 'A workflow question cannot be declined. Answer it with inbox_answer.'];
-        yield 'final' => [InboxItemCloser::ERROR_FINAL, 'The response is final, because an ask that holds this item has closed.'];
-        yield 'closed by agent' => [InboxItemCloser::ERROR_CLOSED_BY_AGENT, 'An agent closed this item, so it takes no response.'];
-        yield 'closed by loupe' => [InboxItemCloser::ERROR_CLOSED_BY_LOUPE, 'Loupe closed this item, so it takes no response.'];
+        yield 'final' => [InboxItemCloser::ERROR_FINAL, 'The item is closed, so its response is final.'];
         yield 'notice' => [InboxItemCloser::ERROR_NOTICE, 'A notice takes no response.'];
         yield 'review on the page' => [InboxToolErrorMessages::REVIEW_ON_PAGE, 'A review verdict stays on the inbox page. Ask the owner to give it there, or call document_verdict_submit when the owner gave it in the chat.'];
     }
