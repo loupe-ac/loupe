@@ -10,11 +10,11 @@ use App\Module\Workflow\Template\TemplateParser;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
-use DoctrineMigrations\Version20261030121942;
+use DoctrineMigrations\Version20261030163902;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-require_once __DIR__.'/../../migrations/Version20261030121942.php';
+require_once __DIR__.'/../../migrations/Version20261030163902.php';
 
 final class LifecycleValuesMigrationTest extends KernelTestCase
 {
@@ -79,7 +79,7 @@ final class LifecycleValuesMigrationTest extends KernelTestCase
         $connection = $this->em()->getConnection();
         $this->up($connection);
 
-        $migration = new Version20261030121942($connection, new NullLogger());
+        $migration = new Version20261030163902($connection, new NullLogger());
         $migration->down(new Schema());
         foreach ($migration->getSql() as $query) {
             $connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
@@ -93,7 +93,7 @@ final class LifecycleValuesMigrationTest extends KernelTestCase
 
     private function up(Connection $connection): void
     {
-        $migration = new Version20261030121942($connection, new NullLogger());
+        $migration = new Version20261030163902($connection, new NullLogger());
         $migration->up(new Schema());
         foreach ($migration->getSql() as $query) {
             $connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
