@@ -41,6 +41,8 @@ type router struct {
 	// set holds the rule set behind a pointer, so a reload can swap it. Each
 	// handler loads one snapshot and uses only that one.
 	set atomic.Pointer[rules.Set]
+	// onRules runs after a reload swaps the set in. It can be nil.
+	onRules func(*rules.Set)
 	// assumeAutoUpdate takes a missing autoUpdate key as on, after the
 	// migration from an older image. It is fixed before subscribe.
 	assumeAutoUpdate bool
