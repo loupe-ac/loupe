@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\Controller;
 
 use App\Tests\Module\Bridge\BridgeScenario;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
@@ -233,6 +234,33 @@ final class ShowMetricsControllerChartsTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-metrics-empty]'));
         self::assertCount(0, $crawler->filter('[data-metrics-note]'));
+        self::assertCount(0, $crawler->filter('[data-metrics-chart]'));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function chartTypes(): iterable
+    {
+        foreach (['line', 'bars', 'stacked-bars', 'percent-stacked', 'donut', 'number'] as $type) {
+            yield $type => [$type];
+        }
+    }
+
+    #[DataProvider('chartTypes')]
+    public function test_a_compare_with_rows_only_in_the_previous_period_shows_the_empty_state(string $chart): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'charts-previous-only-'.$chart.'@example.com');
+        $project = $this->project($em, $owner, 'Previous only');
+        $this->seedUsage($em, $this->seedRun($em, $project, cardNumber: 1, endedAt: new \DateTimeImmutable('-40 days')), costUsd: '2.00');
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?unit=run&statistic=sum&range=thirty-days&bucket=day&compare=previous&chart='.$chart);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-metrics-empty]'));
         self::assertCount(0, $crawler->filter('[data-metrics-chart]'));
     }
 }

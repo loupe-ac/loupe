@@ -13,12 +13,16 @@ use App\Module\Bridge\Metric\MetricStatistic;
 final class MetricChartLayouts
 {
     /**
-     * Null when the series hold nothing to draw.
+     * Null when the current window holds no rows, even when the previous period holds some.
      *
      * @param list<MetricSeries> $series
      */
     public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter): LineLayout|BarLayout|DonutLayout|NumberLayout|null
     {
+        if ([] === array_filter($series, static fn (MetricSeries $line): bool => [] !== $line->rows)) {
+            return null;
+        }
+
         $adds = MetricChartRules::valuesAdd($metric, $statistic, \count($series));
 
         return match ($type) {
