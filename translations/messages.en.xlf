@@ -5689,6 +5689,7 @@
                 <source>inbox.ask.bridge.quiet</source>
                 <target>No resume will come while the bridge stays quiet.</target>
             </trans-unit>
+            <trans-unit id="inbox.ask.bridge.login_expired"><source>inbox.ask.bridge.login_expired</source><target>Its login expired. Run `loupe login` on that machine.</target></trans-unit>
             <trans-unit id="inbox.presence.no_bridge"><source>inbox.presence.no_bridge</source><target>No bridge started this session, so an answer does not resume the agent.</target></trans-unit>
             <trans-unit id="inbox.presence.label.live"><source>inbox.presence.label.live</source><target>Agent online</target></trans-unit>
             <trans-unit id="inbox.presence.label.quiet"><source>inbox.presence.label.quiet</source><target>Agent bridge quiet</target></trans-unit>
@@ -6027,6 +6028,10 @@
             <trans-unit id="inbox.bridge_outage.body.remedy">
                 <source>inbox.bridge_outage.body.remedy</source>
                 <target>Start a bridge, or run `loupe login`.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.login_expired">
+                <source>inbox.bridge_outage.body.login_expired</source>
+                <target>The login of %bridges% expired. Run `loupe login` on that machine.</target>
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.closed">
                 <source>inbox.bridge_outage.closed</source>
@@ -8316,6 +8321,9 @@
             <trans-unit id="bridge.agents.connection"><source>bridge.agents.connection</source><target>Connection setup</target></trans-unit>
             <trans-unit id="bridge.agents.connection_label"><source>bridge.agents.connection_label</source><target>Bridge connection</target></trans-unit>
             <trans-unit id="bridge.agents.status.stale"><source>bridge.agents.status.stale</source><target>Stale</target></trans-unit>
+            <trans-unit id="bridge.agents.status.login_expired"><source>bridge.agents.status.login_expired</source><target>Login expired</target></trans-unit>
+            <trans-unit id="bridge.agents.hint.login_expired"><source>bridge.agents.hint.login_expired</source><target>Run `loupe login` on %name%.</target></trans-unit>
+            <trans-unit id="bridge.agents.hint.stale"><source>bridge.agents.hint.stale</source><target>Run `loupe bridge status` on %name% to see why.</target></trans-unit>
             <trans-unit id="bridge.agents.status.healthy"><source>bridge.agents.status.healthy</source><target>Healthy</target></trans-unit>
             <trans-unit id="bridge.agents.project_connection"><source>bridge.agents.project_connection</source><target>Receives eligible work for %project%.</target></trans-unit>
             <trans-unit id="bridge.agents.runtime"><source>bridge.agents.runtime</source><target>CLI version</target></trans-unit>

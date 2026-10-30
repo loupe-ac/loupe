@@ -26,6 +26,7 @@ use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Security\LoginLivenessInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -68,6 +69,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private EventDispatcherInterface $events,
         private ClockInterface $clock,
         private HeldProjects $heldProjects,
+        private LoginLivenessInterface $logins,
     ) {
     }
 
@@ -108,6 +110,10 @@ final readonly class RecordBridgeHeartbeatHandler
             $bridge->updateState = $command->updateState;
             $bridge->updateVersion = $command->updateVersion;
             $bridge->installMethod = $command->installMethod;
+            if (null !== $command->accessTokenId && $bridge->loginAccessTokenId !== $command->accessTokenId) {
+                $bridge->loginAccessTokenId = $command->accessTokenId;
+                $bridge->loginId = $this->logins->loginOfAccessToken($command->accessTokenId) ?? $bridge->loginId;
+            }
             $poolsChanged = null !== $command->workerPools && $bridge->workerPools !== $command->workerPools;
             if (null !== $command->workerPools) {
                 $bridge->workerPools = $command->workerPools;

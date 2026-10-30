@@ -21,6 +21,12 @@ final readonly class WorkTakerReading
         public ?string $bridgeLabel = null,
         /** The last heartbeat of that bridge. */
         public ?\DateTimeImmutable $bridgeSeenAt = null,
+        /**
+         * On a none reading: the labels of the quiet bridges that could take the work and whose login expired.
+         *
+         * @var list<string>
+         */
+        public array $expiredTakers = [],
     ) {
     }
 }

@@ -20,8 +20,10 @@ use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Service\BridgeOutageReconciler;
 use App\Module\Project\Entity\Project;
+use App\Security\LoginLivenessInterface;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\QueuedPushes;
+use App\Tests\Support\StubLoginLiveness;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -40,11 +42,15 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
     private Project $project;
     private Card $card;
 
+    private StubLoginLiveness $logins;
+
     protected function setUp(): void
     {
         self::bootKernel();
         $this->clock = new MockClock(self::NOW);
         self::getContainer()->set('clock', $this->clock);
+        $this->logins = new StubLoginLiveness();
+        self::getContainer()->set(LoginLivenessInterface::class, $this->logins);
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
@@ -334,6 +340,36 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         self::assertSame([], $this->outages());
         self::assertSame(0, $this->itemCount());
+    }
+
+    public function test_a_notice_names_the_expired_login_and_follows_the_login_as_it_expires_and_returns(): void
+    {
+        $login = Uuid::v7();
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 3600);
+        $bridge->loginId = $login;
+        $bridge->name = 'macbookpro';
+        $this->em->flush();
+
+        $this->reconciler->reconcile($this->project);
+        $item = $this->onlyOutage()->item;
+        self::assertStringContainsString('Start a bridge, or run `loupe login`.', $this->bodyOf($item));
+
+        $this->logins->expired = [$login->toRfc4122()];
+        $this->clock->sleep(60);
+        $this->reconciler->reconcile($this->project);
+        self::assertStringContainsString('The login of macbookpro expired. Run `loupe login` on that machine.', $this->bodyOf($item));
+        self::assertStringNotContainsString('Start a bridge', $this->bodyOf($item));
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:01:00'), $item->updatedAt);
+
+        $this->logins->expired = [];
+        $this->reconciler->reconcile($this->project);
+        self::assertStringContainsString('Start a bridge, or run `loupe login`.', $this->bodyOf($item));
+    }
+
+    private function bodyOf(InboxItem $item): string
+    {
+        return $item->body ?? throw new \LogicException('A notice has a body.');
     }
 
     private function waitingRequest(Card $card, string $createdAt): WorkRequest
