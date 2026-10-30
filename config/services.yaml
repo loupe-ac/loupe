@@ -354,3 +354,6 @@ when@test:
 
         App\Tests\Module\Workflow\Fact\UnprovidedFactsReady:
             autoconfigure: true
+
+        App\Tests\Module\Workflow\Fact\ListsDocumentsReady:
+            autoconfigure: true

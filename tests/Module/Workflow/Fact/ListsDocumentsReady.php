@@ -12,10 +12,12 @@ use Symfony\Component\Translation\TranslatableMessage;
 /** A leaf that reads a contract interface rather than a facts class. */
 final readonly class ListsDocumentsReady implements Condition
 {
+    public const string KEY = 'test.lists_documents_ready';
+
     #[\Override]
     public static function key(): string
     {
-        return 'test.lists_documents_ready';
+        return self::KEY;
     }
 
     #[\Override]
