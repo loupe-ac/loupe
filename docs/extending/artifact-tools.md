@@ -22,7 +22,7 @@ canvas to a plain page first. See "Pushing a Design canvas" in
 | Tool | What it does |
 |---|---|
 | `artifact_list` | Lists the artifacts of the project, newest first, with the latest version number of each. It hides archived artifacts unless `includeArchived` is true. It pages with `page` and `perPage`, and returns `hasMore`. |
-| `artifact_get` | Describes one artifact. It lists every version with its notes, its file count and its size, and lists the files of one version. The version defaults to the latest. |
+| `artifact_get` | Describes one artifact. It lists every version with its notes, its file count and its size, and lists the files of one version. It also returns `pageLink`, a full web address that opens the entry page of that version. The link works for one hour and needs no sign-in. The version defaults to the latest. |
 | `artifact_read` | Reads one file by its path. The version defaults to the latest. |
 | `artifact_archive` | Archives an artifact. Nothing is deleted, and its files stay readable. |
 | `artifact_unarchive` | Restores an archived artifact. |

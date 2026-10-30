@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Messenger;
 use App\Module\Bridge\Command\ResumeAskingRunCommand;
 use App\Module\Bridge\Command\ResumeAskingRunHandler;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\Envelope;
@@ -30,7 +31,7 @@ final readonly class ResumeAskingSessionHandler
         // Handled inline in the middle of the ask close, the request would take
         // the bridge lock under the project lock. The queue runs it afterwards.
         if ($this->em->getUnitOfWork()->hasPendingInsertions()) {
-            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['jobs'])]));
+            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp([$message->personWaiting ? CardEvaluations::INTERACTIVE_TRANSPORT : 'jobs'])]));
 
             return;
         }

@@ -21,6 +21,7 @@ use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\McpTokenScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Uid\Uuid;
 
 /** A Lifecycle card that card_run_open moves into Product design, run through the real tool and the real engine. */
@@ -82,7 +83,7 @@ final class ProductDesignSessionMoveTest extends KernelTestCase
 
     private function evaluate(Card $card, string $now): void
     {
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock($now)), $this->service(WorkflowQueuedEvaluationRepository::class));
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock($now)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $handler(new EvaluateCard((string) $card->id));
         $this->em()->flush();
     }

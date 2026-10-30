@@ -8,14 +8,17 @@ use App\Exception\DomainErrors;
 use App\Module\Artifact\Entity\ArtifactFile;
 use App\Module\Artifact\Entity\ArtifactVersion;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
+use App\Module\Artifact\Service\ArtifactContentSigner;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * @phpstan-type ArtifactPayload array{artifactId: string, name: string, archived: bool, archivedAt: ?string, sourceLink: ?string, createdAt: string, path: string, versions: list<array{number: int, storedAt: string, storedInSession: bool, notes: ?string, fileCount: int, totalBytes: int}>, selectedVersion: ?int, files: list<array{path: string, contentType: string, size: int}>}
+ * @phpstan-type ArtifactPayload array{artifactId: string, name: string, archived: bool, archivedAt: ?string, sourceLink: ?string, createdAt: string, path: string, versions: list<array{number: int, storedAt: string, storedInSession: bool, notes: ?string, fileCount: int, totalBytes: int}>, selectedVersion: ?int, pageLink: ?string, files: list<array{path: string, contentType: string, size: int}>}
  */
 final readonly class DescribeArtifactHandler
 {
     public function __construct(
         private ArtifactVersionRepository $artifactVersions,
+        private ArtifactContentSigner $signer,
     ) {
     }
 
@@ -55,8 +58,19 @@ final readonly class DescribeArtifactHandler
                 $summaries,
             ),
             'selectedVersion' => $selected?->number,
+            'pageLink' => $this->pageLink($selected),
             'files' => null === $selected ? [] : $this->files($selected),
         ];
+    }
+
+    /** A one-hour full address of the entry page, or null when the version has none. */
+    private function pageLink(?ArtifactVersion $version): ?string
+    {
+        $entry = $version?->entryFile();
+
+        return null === $version || null === $entry
+            ? null
+            : $this->signer->linkFor($version, $entry->path, UrlGeneratorInterface::ABSOLUTE_URL);
     }
 
     /** @return list<array{path: string, contentType: string, size: int}> */

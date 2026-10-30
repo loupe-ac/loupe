@@ -21,6 +21,7 @@ use Doctrine\ORM\Event\PostLoadEventArgs;
 use Doctrine\ORM\Events;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
@@ -128,6 +129,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         return new EvaluateCardHandler(
             new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-30 12:00:00')),
             $this->service(WorkflowQueuedEvaluationRepository::class),
+            new EventDispatcher(),
         );
     }
 

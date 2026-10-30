@@ -41,13 +41,13 @@ final class ReportQueueDepthHandlerTest extends KernelTestCase
 
         $depths = ($this->handler(self::DSN))(new ReportQueueDepthCommand());
 
-        self::assertCount(4, $depths);
+        self::assertCount(5, $depths);
         $names = array_map(static fn (Metric $m): string => $m->getName(), $seen->metrics);
-        self::assertCount(8, $names);
-        self::assertSame(4, \count(array_keys($names, 'messenger.queue.pending', true)));
-        self::assertSame(4, \count(array_keys($names, 'messenger.queue.oldest_age', true)));
+        self::assertCount(10, $names);
+        self::assertSame(5, \count(array_keys($names, 'messenger.queue.pending', true)));
+        self::assertSame(5, \count(array_keys($names, 'messenger.queue.oldest_age', true)));
         $queues = array_values(array_unique(array_map(static fn (Metric $m): mixed => $m->getAttributes()->toSimpleArray()['queue_name'], $seen->metrics)));
-        self::assertEqualsCanonicalizing(['jobs', 'card_eval', 'card_sweep', 'failed'], $queues);
+        self::assertEqualsCanonicalizing(['interactive', 'jobs', 'card_eval', 'card_sweep', 'failed'], $queues);
     }
 
     public function test_the_gauges_carry_the_value_the_attributes_and_the_unit(): void

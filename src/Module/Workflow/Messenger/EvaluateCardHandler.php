@@ -6,7 +6,9 @@ namespace App\Module\Workflow\Messenger;
 
 use App\Module\Workflow\Command\EvaluateWorkflowCardCommand;
 use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
+use App\Module\Workflow\Contract\PersonWaitingCardEvaluated;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
 
@@ -16,6 +18,7 @@ final readonly class EvaluateCardHandler
     public function __construct(
         private EvaluateWorkflowCardHandler $evaluateWorkflowCard,
         private WorkflowQueuedEvaluationRepository $workflowQueuedEvaluations,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -26,5 +29,9 @@ final readonly class EvaluateCardHandler
         $this->workflowQueuedEvaluations->release($cardId);
 
         ($this->evaluateWorkflowCard)(new EvaluateWorkflowCardCommand($cardId));
+
+        if ($message->personWaiting) {
+            $this->events->dispatch(new PersonWaitingCardEvaluated($message->cardId));
+        }
     }
 }

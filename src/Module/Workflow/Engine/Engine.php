@@ -1014,7 +1014,7 @@ final readonly class Engine
                 continue;
             }
             foreach ([...$rule->when->reads(), ...($rule->lead->until?->reads() ?? []), ...($rule->lead->refill?->reads() ?? []), ...($rule->lead->cancelWhen?->reads() ?? [])] as $key) {
-                if (\is_string($key) && !\array_key_exists($key, $run->facts->provided)) {
+                if (\is_string($key) && null === $run->facts->keyFor($key)) {
                     $missing[$key] = true;
                 }
             }

@@ -115,7 +115,7 @@ module "app" {
   # live-review outbox never drains.
   #
   # Supervisord runs two consumers (docker/prod/worker-supervisord.conf):
-  # scheduler_default card_eval jobs, and card_sweep for the workflow sweep, so the sweep
+  # scheduler_default interactive card_eval jobs, and card_sweep for the workflow sweep, so the sweep
   # never delays a job that a person waits for. scheduler_default is first
   # deliberately — a deep jobs backlog must not delay schedule ticks.
   enable_worker  = true

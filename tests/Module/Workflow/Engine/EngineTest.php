@@ -128,6 +128,7 @@ use App\Tests\Module\Board\Workflow\FakeForgeWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Action\FakeRuleAsks;
 use App\Tests\Module\Workflow\Action\ListedTestAction;
+use App\Tests\Module\Workflow\Fact\ListsDocumentsReady;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
@@ -4184,7 +4185,7 @@ final class EngineTest extends KernelTestCase
 
         $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')]);
 
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class));
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $evaluations = 0;
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
@@ -4253,6 +4254,19 @@ final class EngineTest extends KernelTestCase
         self::assertCount(1, $errors);
         self::assertSame('workflow.fact_provider_missing', $errors[0]['message']);
         self::assertSame(\stdClass::class, $errors[0]['context']['factsClass'] ?? null);
+    }
+
+    public function test_a_rule_that_reads_a_contract_interface_fires_and_logs_no_missing_provider(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('documents', [ListsDocumentsReady::KEY => []]),
+        ]);
+        $this->document($card, 'tech-design');
+
+        $this->evaluate($card);
+
+        self::assertSame(['documents'], $this->firedRules());
+        self::assertSame([], $this->errors());
     }
 
     public function test_a_rule_with_an_unknown_action_never_fires_and_logs_one_warning_while_the_other_rules_fire(): void
@@ -4514,6 +4528,10 @@ final class EngineTest extends KernelTestCase
             public function forCards(array $cardIds): void
             {
                 ($this->evaluate)();
+            }
+
+            public function forPersonWaiting(array $cardIds): void
+            {
             }
 
             public function isOn(): bool

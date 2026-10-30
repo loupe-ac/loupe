@@ -29,7 +29,7 @@ final class QueueDepthReaderTest extends KernelTestCase
     {
         $depths = $this->reader->read($this->now);
 
-        self::assertCount(4, $depths);
+        self::assertCount(5, $depths);
         foreach ($depths as $depth) {
             self::assertSame(0, $depth->pending);
             self::assertSame(0, $depth->oldestAgeSeconds);
