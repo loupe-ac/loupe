@@ -59,12 +59,12 @@ final class RotateSecretsTest extends TestCase
             for a in "$@"; do case $a in -out=*) echo plan > "${a#-out=}" ;; esac; done
             SH);
         chmod($this->dir.'/plan.sh', 0o755);
-        file_put_contents($this->dir.'/plan-diff.sh', <<<'SH'
+        file_put_contents($this->dir.'/plan-show.sh', <<<'SH'
             #!/usr/bin/env bash
-            f="$(dirname "$0")/plan-changes"
-            if [ -f "$f" ]; then cat "$f"; else echo 'module.app.digitalocean_app.app update'; fi
+            f="$(dirname "$0")/plan.json"
+            if [ -f "$f" ]; then cat "$f"; else echo '{"resource_changes":[{"address":"module.app.digitalocean_app.app","change":{"actions":["update"],"before":{"spec":[]},"after":{"spec":[]}}}]}'; fi
             SH);
-        chmod($this->dir.'/plan-diff.sh', 0o755);
+        chmod($this->dir.'/plan-show.sh', 0o755);
         $this->writeStubs();
     }
 
@@ -1213,7 +1213,7 @@ final class RotateSecretsTest extends TestCase
     public function test_a_plan_that_changes_another_resource_applies_nothing_until_it_is_allowed(): void
     {
         $this->vars("install_token = \"x\"\n");
-        file_put_contents($this->dir.'/plan-changes', "module.app.digitalocean_app.app update\nmodule.app.digitalocean_database_cluster.db[0] update\n");
+        $this->plan([['address' => 'module.app.digitalocean_database_cluster.db[0]', 'change' => ['actions' => ['update'], 'before' => [], 'after' => []]]]);
 
         $stopped = $this->rotate(['install_token'], '');
 
@@ -1233,14 +1233,79 @@ final class RotateSecretsTest extends TestCase
     public function test_the_bucket_key_replacement_passes_the_plan_check_only_when_the_key_rotates(): void
     {
         $this->vars("install_token = \"x\"\ncreate_export_bucket = true\n");
-        file_put_contents($this->dir.'/plan-changes', "digitalocean_spaces_key.exports[0] delete,create\n");
+        $this->plan([
+            ['address' => 'digitalocean_spaces_key.exports[0]', 'change' => ['actions' => ['delete', 'create'], 'before' => [], 'after' => []]],
+            $this->appChange(['EXPORT_STORAGE_KEY' => 'old-id'], ['EXPORT_STORAGE_KEY' => null]),
+        ]);
 
         $alone = $this->rotate(['install_token'], '');
-        $this->script(['discard']);
+        $this->vars("install_token = \"x\"\ncreate_export_bucket = true\n");
+        unlink($this->dir.'/.rotate-secrets.pending');
         $withKey = $this->rotate(['install_token', 'export_bucket_key'], '');
 
         self::assertSame(11, $alone->getExitCode());
+        self::assertStringContainsString("  spec.env.EXPORT_STORAGE_KEY\n  digitalocean_spaces_key.exports[0] delete,create\n", $alone->getErrorOutput());
         self::assertSame(0, $withKey->getExitCode(), $withKey->getErrorOutput());
+    }
+
+    public function test_the_app_update_passes_when_only_the_variables_of_the_rotated_secrets_change_in_any_order(): void
+    {
+        $this->vars("install_token = \"x\"\nmercure_jwt_secret = \"m\"\n");
+        $this->plan([$this->appChange(
+            ['APP_ENV' => 'prod', 'INSTALL_TOKEN' => 'old-secret-value', 'MERCURE_JWT_SECRET' => 'old-m'],
+            ['MERCURE_JWT_SECRET' => 'new-m', 'INSTALL_TOKEN' => 'new-secret-value', 'APP_ENV' => 'prod'],
+            mercure: ['old-m', 'new-m'],
+        )]);
+
+        $process = $this->rotate(['install_token', 'mercure_jwt_secret'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertCount(1, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES) ?: []);
+    }
+
+    public function test_an_app_field_beyond_the_rotated_secrets_stops_the_apply_and_names_the_field_with_no_value(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $this->plan([$this->appChange(
+            ['INSTALL_TOKEN' => 'old-secret-value', 'ADMIN_EMAIL' => 'old-admin-value'],
+            ['INSTALL_TOKEN' => 'new-secret-value', 'ADMIN_EMAIL' => 'new-admin-value'],
+            size: ['apps-s-1vcpu-1gb', 'apps-s-2vcpu-4gb'],
+        )]);
+
+        $stopped = $this->rotate(['install_token'], '');
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertStringContainsString("  spec.env.ADMIN_EMAIL\n  spec.service.instance_size_slug\n", $stopped->getErrorOutput());
+        self::assertStringNotContainsString('INSTALL_TOKEN', $stopped->getErrorOutput());
+        self::assertStringNotContainsString('-value', $stopped->getOutput().$stopped->getErrorOutput());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+
+        $field = $this->script(['apply', '--allow', 'spec.env.ADMIN_EMAIL']);
+        $applied = $this->script(['apply', '--allow', 'spec.env.ADMIN_EMAIL', '--allow', 'spec.service.instance_size_slug']);
+
+        self::assertSame(11, $field->getExitCode());
+        self::assertStringNotContainsString('ADMIN_EMAIL', $field->getErrorOutput());
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+    }
+
+    public function test_discard_is_refused_once_apply_has_started_and_apply_still_resumes(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $this->plan([['address' => 'module.app.digitalocean_database_cluster.db[0]', 'change' => ['actions' => ['update'], 'before' => [], 'after' => []]]]);
+        $stopped = $this->rotate(['install_token'], '');
+
+        $discarded = $this->script(['discard']);
+        $collected = $this->script(['collect', 'install_token']);
+        unlink($this->dir.'/plan.json');
+        $applied = $this->script(['apply']);
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertSame(1, $discarded->getExitCode());
+        self::assertStringContainsString('apply has started', $discarded->getErrorOutput());
+        self::assertNotSame(0, $collected->getExitCode());
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value('install_token'));
+        self::assertFileDoesNotExist($this->dir.'/.rotate-secrets.pending');
     }
 
     public function test_reencrypted_does_not_skip_the_second_key_deploy_that_has_not_run(): void
@@ -1317,7 +1382,7 @@ final class RotateSecretsTest extends TestCase
             'ROTATE_TF_ROOT' => $this->dir.'/tf',
             'ROTATE_APPLY' => $this->dir.'/apply.sh',
             'ROTATE_PLAN' => $this->dir.'/plan.sh',
-            'ROTATE_PLAN_DIFF' => $this->dir.'/plan-diff.sh',
+            'ROTATE_PLAN_SHOW' => $this->dir.'/plan-show.sh',
             'ROTATE_SESSION' => '',
             'ROTATE_APP_ID' => 'app-1',
             'ROTATE_VAPID_CMD' => $this->dir.'/vapid.sh',
@@ -1493,6 +1558,46 @@ final class RotateSecretsTest extends TestCase
     {
         $required = str_contains($extra, 'mailer_dsn =') ? str_replace("mailer_dsn = \"null://null\"\n", '', self::REQUIRED) : self::REQUIRED;
         file_put_contents($this->dir.'/secrets.vars', $required."app_secret = \"keep-me\"\napp_encryption_key = \"".self::OLD_KEY."\"\n".$extra);
+    }
+
+    /**
+     * Sets what the stub plan changes, as the resource_changes of terraform show -json.
+     *
+     * @param list<array<string, mixed>> $changes
+     */
+    private function plan(array $changes): void
+    {
+        file_put_contents($this->dir.'/plan.json', json_encode(['resource_changes' => $changes], \JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * An update of the app whose spec holds the given app variables, the web size and the hub key.
+     *
+     * @param array<string, ?string>      $before
+     * @param array<string, ?string>      $after
+     * @param array{0: string, 1: string} $size
+     * @param array{0: string, 1: string} $mercure
+     *
+     * @return array<string, mixed>
+     */
+    private function appChange(array $before, array $after, array $size = ['apps-s-1vcpu-1gb', 'apps-s-1vcpu-1gb'], array $mercure = ['m', 'm']): array
+    {
+        $spec = static fn (array $env, string $size, string $hubKey): array => [[
+            'name' => 'loupe',
+            'env' => array_map(static fn (string $k, ?string $v): array => ['key' => $k, 'value' => $v, 'type' => 'SECRET', 'scope' => 'RUN_TIME'], array_keys($env), $env),
+            'service' => [
+                ['name' => 'web', 'instance_size_slug' => $size, 'env' => []],
+                ['name' => 'mercure', 'instance_size_slug' => 'apps-s-1vcpu-0.5gb', 'env' => [
+                    ['key' => 'MERCURE_PUBLISHER_JWT_KEY', 'value' => $hubKey, 'type' => 'SECRET', 'scope' => 'RUN_TIME'],
+                ]],
+            ],
+        ]];
+
+        return ['address' => 'module.app.digitalocean_app.app', 'change' => [
+            'actions' => ['update'],
+            'before' => ['id' => 'app-1', 'spec' => $spec($before, $size[0], $mercure[0])],
+            'after' => ['spec' => $spec($after, $size[1], $mercure[1])],
+        ]];
     }
 
     private function webhookVars(): void

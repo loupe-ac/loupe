@@ -112,7 +112,9 @@ With a secret store, the pending values wait in `terraform/secrets.pending.enc.y
 
 ### The plan check
 
-A plan may update the app, `module.app.digitalocean_app.app`. It may also replace `digitalocean_spaces_key.exports[0]` when the collection holds the export bucket key. When a plan changes any other resource, the apply stops with exit code 11 and lists each address with its actions, and no value. Nothing is applied. To accept the change, run `bin/rotate-secrets apply --allow <address>`, once for each address. The usual cause is a Terraform change that nobody has applied yet.
+The check reads the saved plan as JSON. A plan may update the app, `module.app.digitalocean_app.app`, but only in the environment variables of the rotated secrets, such as `INSTALL_TOKEN` for `install_token`. A rotation of `registry_credentials` may also change the registry credentials of the app images. A plan may replace `digitalocean_spaces_key.exports[0]` when the collection holds the export bucket key, together with `EXPORT_STORAGE_KEY` and `EXPORT_STORAGE_SECRET`.
+
+Any other change stops the apply with exit code 11. The script lists each other resource with its actions, and each other app field by name, such as `spec.env.ADMIN_EMAIL` or `spec.service.instance_size_slug`. It prints no value. Nothing is applied. To accept a change, run `bin/rotate-secrets apply --allow <name>`, once for each name. `--allow module.app.digitalocean_app.app` accepts every app field. The usual cause is a Terraform change that nobody has applied yet.
 
 ## The webhook switch
 
@@ -132,7 +134,7 @@ Each failure leaves the pending files in place. Fix the cause, then run `bin/rot
 - The webhook switch fails, or an event is not delivered after its resend: the pending switch file stays. Rerun within 3 days. The rerun applies again only when the first apply did not finish. It sends again each event since the first apply that has no good delivery.
 - The encryption key step stops: follow [Rotating the encryption key](rotating-encryption-key.md). The progress file `terraform/terraform.tfvars.rotating` keeps the deploy that the step reached.
 
-To give up before the apply starts, run `bin/rotate-secrets discard`. It drops the pending values, and production and the live store stay as they are.
+To give up before the apply starts, run `bin/rotate-secrets discard`. It drops the pending values, and production and the live store stay as they are. After the first `bin/rotate-secrets apply`, discard refuses. The live store can then hold new values that production lacks, and the pending files are the only record of the run. Finish the rotation with `bin/rotate-secrets apply`.
 
 ## Checks after a run
 
