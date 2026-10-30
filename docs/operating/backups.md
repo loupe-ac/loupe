@@ -34,7 +34,7 @@ the first:
    vault, or an envelope in a different account — anywhere the dumps are not.
 
    The other secrets in [Environment variables](../reference/environment.md#secrets) are replaceable. [Rotating `APP_SECRET`](rotating-secrets.md)
-   invalidates sessions and signed URLs, which is an inconvenience, not a loss.
+   invalidates remember-me cookies and signed URLs, which is an inconvenience, not a loss.
 
 **Data-export archives need no backup.** They are derived data — a user can ask
 for a new export whenever they want one — so whether they survive is a question
