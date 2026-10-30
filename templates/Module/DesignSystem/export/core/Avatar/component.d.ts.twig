@@ -1,0 +1,26 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} tone, size and shape" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The colour. Leave it out for accent. */
+    tone?:
+{% for variant in entry.variants %}
+        | '{{ variant }}'
+{% endfor %}
+        | (string & {});
+    /** The size step. Leave it out for md. */
+    size?: {% for size in entry.sizes %}'{{ size }}'{% if not loop.last %} | {% endif %}{% endfor %};
+    /** The outline. Leave it out for round. */
+    shape?: 'round' | 'square';
+    className?: string;
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

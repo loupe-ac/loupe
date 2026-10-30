@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export const {{ entry.name|upper }}_VARIANTS = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
+export const {{ entry.name|upper }}_SIZES = [{{ entry.sizes|map(v => "'" ~ v ~ "'")|join(', ') }}];
+export const {{ entry.name|upper }}_SHAPES = ['round', 'square'];
+
+export function {{ entry.name }}({ tone = 'accent', size = 'md', shape = 'round', className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}', '{{ entry.rootClass }}--' + size, '{{ entry.rootClass }}--' + shape, '{{ entry.rootClass }}--' + tone];
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return (
+        <span {...rest} className={className}>
+            {children}
+        </span>
+    );
+}
+{% endautoescape %}

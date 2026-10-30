@@ -18,6 +18,7 @@ final class SimpleComponentParityTest extends KernelTestCase
     {
         yield 'Badge' => ['Badge', '<twig:Ds:Badge status="draft">A</twig:Ds:Badge>', '<twig:Ds:Badge status="approved">A</twig:Ds:Badge>', '{ status,', "'lp-badge--' + modifier"];
         yield 'Tag' => ['Tag', '<twig:Ds:Tag>A</twig:Ds:Tag>', '<twig:Ds:Tag tone="lime" as="li">A</twig:Ds:Tag>', "{ tone, as: Element = 'span',", "'lp-tag--' + modifier"];
+        yield 'Avatar' => ['Avatar', '<twig:Ds:Avatar>A</twig:Ds:Avatar>', '<twig:Ds:Avatar tone="tint">A</twig:Ds:Avatar>', "{ tone = 'accent', size = 'md', shape = 'round',", "'lp-avatar--' + tone"];
         yield 'Dialog' => ['Dialog', '<twig:Ds:Dialog>A</twig:Ds:Dialog>', '<twig:Ds:Dialog size="search">A</twig:Ds:Dialog>', '{ size,', "'lp-dialog--' + modifier"];
         yield 'Label' => ['Label', '<twig:Ds:Label>A</twig:Ds:Label>', '<twig:Ds:Label as="legend">A</twig:Ds:Label>', "{ as: Element = 'label',", ''];
         yield 'Hint' => ['Hint', '<twig:Ds:Hint>A</twig:Ds:Hint>', '<twig:Ds:Hint as="span">A</twig:Ds:Hint>', "{ as: Element = 'p',", ''];
@@ -64,18 +65,34 @@ final class SimpleComponentParityTest extends KernelTestCase
 
     public function test_the_prop_types_name_the_twig_props(): void
     {
-        foreach (['Badge' => 'status', 'Tag' => 'tone', 'Dialog' => 'size'] as $name => $prop) {
+        foreach (['Avatar' => 'tone', 'Badge' => 'status', 'Tag' => 'tone', 'Dialog' => 'size'] as $name => $prop) {
             $types = self::componentTypes($name);
 
             self::assertStringContainsString('    '.$prop.'?:', $types);
             self::assertStringNotContainsString('variant?', $types);
         }
+        self::assertStringContainsString("shape?: 'round' | 'square';", self::componentTypes('Avatar'));
         self::assertStringContainsString('mono?: boolean;', self::componentTypes('Input'));
         self::assertStringContainsString('interactive?: boolean;', self::componentTypes('Tooltip'));
         self::assertStringContainsString('defaultValue?: string;', self::componentTypes('Textarea'));
         self::assertStringContainsString('severity?:', self::componentTypes('Flash'));
         self::assertStringNotContainsString('variant', self::componentTypes('Flash'));
         self::assertStringContainsString('hrefFor?: (page: number) => string;', self::componentTypes('Pagination'));
+    }
+
+    public function test_the_avatar_wrapper_draws_the_shape_of_the_twig_avatar(): void
+    {
+        $jsx = self::componentJsx('Avatar');
+
+        self::assertStringContainsString('lp-avatar--round', $this->render('<twig:Ds:Avatar>A</twig:Ds:Avatar>'));
+
+        $square = $this->render('<twig:Ds:Avatar shape="square">A</twig:Ds:Avatar>');
+        self::assertStringContainsString('lp-avatar--square', $square);
+        self::assertStringNotContainsString('lp-avatar--round', $square);
+
+        self::assertStringContainsString("shape = 'round'", $jsx);
+        self::assertStringContainsString("'lp-avatar--' + shape", $jsx);
+        self::assertStringContainsString("AVATAR_SHAPES = ['round', 'square'];", $jsx);
     }
 
     public function test_the_textarea_wrapper_passes_its_text_as_a_default_value(): void
