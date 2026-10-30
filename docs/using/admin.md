@@ -57,6 +57,16 @@ Discord and X links. An empty `site.link.source` makes the app use `APP_SOURCE_U
 value that is not a web address counts as empty. A change applies on the next
 page load. The docs pages take it at the next start of the web container.
 
+The **merge queued evaluations** flag, `workflow.merge_queued_evaluations`, makes
+the worker evaluate a card once for all the triggers that wait together in the
+queue. A trigger that arrives while an evaluation runs still queues one more
+evaluation. A fresh install seeds the flag on. An instance that upgrades gets it
+off, because a worker of the old build never clears the queue marker that the
+new code writes. Switch the flag on at the flags page after the web container
+and the worker container both run the new build. See
+[Post-deploy checks](../operating/post-deploy-checks.md) for how to read the
+worker build. To roll back, switch the flag off first, then deploy the old build.
+
 ## Audit log
 
 **`/admin/audit-log`** lists every recorded audit event on the instance, newest
