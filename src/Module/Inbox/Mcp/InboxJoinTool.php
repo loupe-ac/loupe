@@ -18,7 +18,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type InboxAskSummary from InboxItemPayload
  */
-#[McpTool(name: self::NAME, description: 'Add an open item that is already in the inbox to your own ask, so you wait for the same answer instead of asking again. Find the item with inbox_search or inbox_list. Pass your sessionId, the first set value of $LOUPE_SESSION_ID, $CLAUDE_CODE_SESSION_ID and $CODEX_THREAD_ID. Pass bridgeId when the bridge started you. The item goes to your session\'s open ask, or to a new ask when you have none. One answer then counts toward every ask that holds the item. A new ask whose only item does not block closes at once. A closed item is refused: read its answer with inbox_get. The response carries the askId and the item.')]
+#[McpTool(name: self::NAME, description: 'Add an open item that is already in the inbox to your own ask, so you wait for the same answer instead of asking again. Find the item with inbox_search or inbox_list. Pass your sessionId, the first set value of $LOUPE_SESSION_ID, $CLAUDE_CODE_SESSION_ID and $CODEX_THREAD_ID. Pass bridgeId when the bridge started you. The item goes to your session\'s open ask, or to a new ask when you have none. One answer then counts toward every ask that holds the item. A new ask whose only item does not block closes at once. A wait, a notice and a workflow question are refused, because Loupe opens them. A session id that is not your own is refused. A closed item is refused: read its answer with inbox_get. The response carries the askId and the item.')]
 final readonly class InboxJoinTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_join';
@@ -26,6 +26,7 @@ final readonly class InboxJoinTool implements FlagGatedToolInterface
     public function __construct(
         private InboxFlagGate $gate,
         private InboxSubjectResolver $subjects,
+        private CallerSessionGuard $caller,
         private JoinInboxAskHandler $join,
         private InboxItemPayload $payload,
         private InboxToolErrorMessages $errorMessages,
@@ -56,9 +57,11 @@ final readonly class InboxJoinTool implements FlagGatedToolInterface
         $this->gate->requireEnabled();
 
         try {
+            $session = $this->subjects->requireUuid($sessionId, 'session ID');
+            $this->caller->requireOwnSession($session);
             $view = ($this->join)(new JoinInboxAskCommand(
                 item: $this->subjects->requireItem($itemId, McpBoundProjectVoter::INBOX_ITEM_WRITE),
-                sessionId: $this->subjects->requireUuid($sessionId, 'session ID'),
+                sessionId: $session,
                 bridgeId: $this->subjects->optionalUuid($bridgeId, 'bridge ID'),
             ));
 

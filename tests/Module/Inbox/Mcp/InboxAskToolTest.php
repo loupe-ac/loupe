@@ -443,6 +443,29 @@ final class InboxAskToolTest extends KernelTestCase
         $this->askTodo(null, ['action' => 'start-session', 'reason' => 'Talk', 'prompt' => str_repeat('a', 11)]);
     }
 
+    public function test_an_item_is_dismissible_unless_the_agent_says_otherwise(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-dismissible'));
+
+        $first = $this->askQuestion('Which column?');
+        $second = $this->askQuestion('And which owner?', ['dismissible' => false]);
+
+        $this->em->clear();
+        self::assertTrue($this->em->find(InboxItem::class, Uuid::fromString($first['items'][0]['itemId']))?->dismissible);
+        self::assertFalse($this->em->find(InboxItem::class, Uuid::fromString($second['items'][0]['itemId']))?->dismissible);
+    }
+
+    public function test_a_dismissible_that_is_not_a_boolean_is_refused(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-dismissible-bad'));
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('items[0].dismissible must be true or false.');
+        $this->askQuestion('Which column?', ['dismissible' => 'no']);
+    }
+
     public function test_an_item_without_suggestions_stores_none(): void
     {
         $this->enableInbox();

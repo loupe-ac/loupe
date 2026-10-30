@@ -3159,21 +3159,9 @@
                 <source>project.connect.tool.inbox_withdraw</source>
                 <target>Withdraw an open item that is no longer needed, with a reason the owner reads.</target>
             </trans-unit>
-            <trans-unit id="project.connect.tool.inbox_answer">
-                <source>project.connect.tool.inbox_answer</source>
-                <target>Answer an inbox question for the owner, after the owner decided in chat. The item shows it was answered through an agent.</target>
-            </trans-unit>
-            <trans-unit id="project.connect.tool.inbox_decline">
-                <source>project.connect.tool.inbox_decline</source>
-                <target>Decline an inbox question or to-do, or dismiss a wait item, for the owner after the owner decided in chat. A review stays on the inbox page.</target>
-            </trans-unit>
-            <trans-unit id="project.connect.tool.inbox_done">
-                <source>project.connect.tool.inbox_done</source>
-                <target>Mark an inbox to-do done for the owner, after the owner said in chat that it is done.</target>
-            </trans-unit>
             <trans-unit id="project.connect.tool.inbox_action_run">
                 <source>project.connect.tool.inbox_action_run</source>
-                <target>Run a built-in action of an inbox item for the owner, such as resume-run, retry-card or run-command. A run-command shows a preview first.</target>
+                <target>Record the owner's answer, completion or dismissal of an inbox item, or run another built-in action such as resume-run, retry-card or run-command, after the owner decided in chat. A run-command shows a preview first.</target>
             </trans-unit>
 
             <!-- First-run wizard -->

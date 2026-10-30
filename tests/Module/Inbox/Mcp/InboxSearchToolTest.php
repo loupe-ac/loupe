@@ -74,10 +74,11 @@ final class InboxSearchToolTest extends KernelTestCase
     {
         $this->enableInbox();
         $this->actAsMcpTokenBoundTo($this->makeProject('inbox-search-closed'));
-        $asked = $this->askQuestion('Retire the mailpit sidecar?');
+        $session = (string) Uuid::v4();
+        $asked = $this->askQuestion('Retire the mailpit sidecar?', sessionId: $session);
         $withdraw = self::getContainer()->get(InboxWithdrawTool::class);
         self::assertInstanceOf(InboxWithdrawTool::class, $withdraw);
-        $withdraw($asked['items'][0]['itemId'], 'Settled in chat');
+        $withdraw($asked['items'][0]['itemId'], $session, 'Settled in chat');
 
         $result = ($this->tool)('mailpit');
 

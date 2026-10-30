@@ -67,17 +67,16 @@ Nothing resumes an interactive session. It reads its answers the same way, with 
 
 ## Withdraw what you no longer need
 
-Call `inbox_withdraw` with the `itemId` and a `reason`, which the owner reads, when your own open item stops mattering. Only an open item can be withdrawn. A withdraw closes the item for every ask that holds it, so never withdraw an item you joined.
+Call `inbox_withdraw` with the `itemId`, your `sessionId` and a `reason`, which the owner reads, when your own open item stops mattering. Only an open item can be withdrawn, and only by the session that asked it first. A withdraw closes the item for every ask that holds it, so never withdraw an item you joined.
 
 ## Record the owner's decision
 
-Use `inbox_answer`, `inbox_decline`, `inbox_done` and `inbox_action_run` only when the owner decided an item in your chat. Never use them to answer your own ask. A bridge worker session is refused.
+Use `inbox_action_run` only when the owner decided an item in your chat. Never use it to answer your own ask. A bridge worker session is refused. The tools `inbox_answer`, `inbox_decline` and `inbox_done` are gone.
 
-1. `inbox_answer` takes `selectedOptions` (zero-based indexes), `answerText`, or both.
-2. `inbox_decline` takes an optional `note`. It refuses a review. The review verdict stays on the inbox page. When the owner gave the verdict in your chat, call `document_verdict_submit`.
-3. `inbox_done` marks a to-do done.
-4. `inbox_action_run` runs one action. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
-5. For `start-session`, show the owner the `prompt` of the suggestion. Pass `sessionPrompt` with the prompt the owner confirms, or an empty string when the owner clears it. Leave it out to send the suggested prompt unchanged.
+1. `action: "answer"` answers a question. Pass `selectedOptions` (zero-based indexes), `note`, or both.
+2. `action: "complete"` marks a to-do done. `action: "dismiss"` declines an item that allows it. Both take an optional `note`. A review verdict stays on the inbox page. When the owner gave the verdict of a document in your chat, call `document_verdict_submit`.
+3. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
+4. For `start-session`, show the owner the `prompt` of the suggestion. Pass `sessionPrompt` with the prompt the owner confirms, or an empty string when the owner clears it. Leave it out to send the suggested prompt unchanged.
 
 The item shows that an agent typed the response. The answer to a workflow question is final and runs its action at once.
 

@@ -32,6 +32,7 @@ use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Component\Uid\Uuid;
 
 /** A wait item takes one response, Dismiss, and every other response path refuses it. */
 final class WaitItemResponsesTest extends KernelTestCase
@@ -129,7 +130,7 @@ final class WaitItemResponsesTest extends KernelTestCase
         $handler = self::getContainer()->get(WithdrawInboxItemHandler::class);
         self::assertInstanceOf(WithdrawInboxItemHandler::class, $handler);
 
-        self::assertSame(['itemId' => WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE], $this->refusal(static fn () => $handler(new WithdrawInboxItemCommand($item, 'Not needed'))));
+        self::assertSame(['itemId' => WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE], $this->refusal(static fn () => $handler(new WithdrawInboxItemCommand($item, 'Not needed', Uuid::v4()))));
         self::assertSame('inbox.item.error.wait_not_withdrawable', WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE);
         $watch = $this->watches()[0];
         self::assertSame(InboxItemState::Open, $watch->item->state);
