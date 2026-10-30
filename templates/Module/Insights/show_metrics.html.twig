@@ -122,7 +122,7 @@
     <twig:Ds:Panel as="section" class="lp-metric-graph" data-metrics-chart>
         {# The title holds a template label or a bucket name that a person wrote, so it is rendered escaped. Never add |raw here. #}
         <h2 class="lp-metric-table__title" data-metrics-title>{{ view.title }}</h2>
-        <twig:Ds:Chart :layout="view.layout" :labels="view.labels" :label="view.title" id="metrics-graph" />
+        <twig:Ds:Chart :layout="view.layout" :labels="view.labels" :label="view.title" :valueLabel="('analytics.metrics.statistic.' ~ query.statistic.value)|trans" :changeLabel="'analytics.metrics.table.vs_previous'|trans" id="metrics-graph" />
     </twig:Ds:Panel>
     {% endif %}
 </twig:Ds:Workspace>
