@@ -75,7 +75,7 @@ final readonly class FinishRunCommandOnWorkerRunChanged
     private function closeTodo(InboxAction $action): void
     {
         try {
-            ($this->markDone)(new MarkInboxItemDoneCommand($action->item));
+            ($this->markDone)(new MarkInboxItemDoneCommand($action->item, commandSucceeded: true));
         } catch (DomainErrors $e) {
             $this->logger->info('inbox.run_command_close_skipped', ['itemId' => (string) $action->item->id, 'actionId' => (string) $action->id, 'errors' => array_values($e->errors)]);
         }

@@ -23,6 +23,7 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -138,7 +139,7 @@ final class InboxActionRunToolTest extends KernelTestCase
         self::assertNull($result['actionId']);
         self::assertSame('declined', $result['item']['state']);
         $stored = $this->stored((string) $item->id);
-        self::assertSame(['Not now', true], [$stored->closeNote, $stored->respondedThroughAgent]);
+        self::assertSame(['Not now', true], [$stored->note, InboxCloser::OwnerThroughAgent === $stored->closedBy]);
     }
 
     public function test_a_session_sends_the_prompt_that_the_asking_agent_suggested(): void

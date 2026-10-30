@@ -8,6 +8,7 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -63,8 +64,8 @@ final class InboxDeclineToolTest extends KernelTestCase
 
         self::assertSame('declined', $result['state']);
         $item = $this->stored($asked['items'][0]['itemId']);
-        self::assertSame('Not now', $item->closeNote);
-        self::assertTrue($item->respondedThroughAgent);
+        self::assertSame('Not now', $item->note);
+        self::assertSame(InboxCloser::OwnerThroughAgent, $item->closedBy);
     }
 
     public function test_a_todo_is_declined(): void
@@ -96,7 +97,7 @@ final class InboxDeclineToolTest extends KernelTestCase
         self::assertInstanceOf(InboxCardWatchRepository::class, $watches);
         $watch = $watches->findOneForItem($this->stored((string) $item->id));
         self::assertNotNull($watch?->dismissedAt);
-        self::assertTrue($this->stored((string) $item->id)->respondedThroughAgent);
+        self::assertSame(InboxCloser::OwnerThroughAgent, $this->stored((string) $item->id)->closedBy);
     }
 
     public function test_an_automatic_review_item_is_dismissed(): void

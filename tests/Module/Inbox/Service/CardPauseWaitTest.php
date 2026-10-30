@@ -67,7 +67,7 @@ final class CardPauseWaitTest extends KernelTestCase
         $this->drain();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
+        self::assertSame(InboxItemState::Resolved, $watch->item->state);
         self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
     }
 
@@ -137,7 +137,7 @@ final class CardPauseWaitTest extends KernelTestCase
         $this->storeInbox($this->em, $card);
         $this->drain();
 
-        self::assertSame(InboxItemState::Done, $this->onlyWatch()->item->state);
+        self::assertSame(InboxItemState::Resolved, $this->onlyWatch()->item->state);
     }
 
     /** Stores the inbox set as the engine does, with one pause entry or none. */

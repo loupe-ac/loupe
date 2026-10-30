@@ -31,6 +31,8 @@ use App\Module\Inbox\Command\WithdrawInboxItemHandler;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -516,14 +518,15 @@ final class InboxAskCloserTest extends KernelTestCase
         $moved = $this->em->find(Card::class, $card->id);
         self::assertInstanceOf(Card::class, $moved);
         self::assertTrue($moved->column->terminal);
-        self::assertSame(InboxItemState::Obsolete, $this->reloadItem($first)->state);
-        self::assertSame(InboxItemState::Obsolete, $this->reloadItem($second)->state);
-        self::assertSame(InboxItemState::Obsolete, $this->reloadItem($todo)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reloadItem($first)->state);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::CardFinished], [$this->reloadItem($first)->closedBy, $this->reloadItem($first)->closeCause]);
+        self::assertSame(InboxItemState::Cancelled, $this->reloadItem($second)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reloadItem($todo)->state);
         self::assertNotNull($this->reloadAsk($ask)->closedAt);
         self::assertSame(1, $this->countEvents('board.card_moved'));
         $events = $this->askClosedEvents();
         self::assertCount(1, $events);
-        self::assertSame('agent', $events[0]['actor']);
+        self::assertSame('system', $events[0]['actor']);
         self::assertSame((string) $card->id, $events[0]['cardId']);
     }
 
@@ -541,12 +544,12 @@ final class InboxAskCloserTest extends KernelTestCase
         $project = $this->managedProject();
         $handler(new DeleteBoardColumnCommand($this->column($project, 'in-progress'), Actor::Human, $this->column($project, 'done')));
 
-        self::assertSame(InboxItemState::Obsolete, $this->reloadItem($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reloadItem($item)->state);
         self::assertNotNull($this->reloadAsk($ask)->closedAt);
         self::assertSame(1, $this->countEvents('board.column_deleted'));
         $events = $this->askClosedEvents();
         self::assertCount(1, $events);
-        self::assertSame('agent', $events[0]['actor']);
+        self::assertSame('system', $events[0]['actor']);
         self::assertSame((string) $card->id, $events[0]['cardId']);
         self::assertSame(6, $events[0]['cardNumber']);
     }
@@ -594,7 +597,7 @@ final class InboxAskCloserTest extends KernelTestCase
 
         $this->markDone($this->reloadItem($todo));
 
-        self::assertSame(InboxItemState::Done, $this->reloadItem($todo)->state);
+        self::assertSame(InboxItemState::Resolved, $this->reloadItem($todo)->state);
         self::assertEquals($closedAt, $this->reloadAsk($ask)->closedAt);
         self::assertCount(1, $this->askClosedEvents());
     }
@@ -604,7 +607,7 @@ final class InboxAskCloserTest extends KernelTestCase
         // An open ask with no open blocking item: the close of its to-do must not
         // be what closes it, because only a blocking item holds an ask back.
         $question = $this->item($this->em, $this->managedProject(), 1, 'Question 1');
-        $question->state = InboxItemState::Answered;
+        $question->state = InboxItemState::Resolved;
         $question->closedAt = new \DateTimeImmutable('-1 hour');
         $this->em->flush();
         $todo = $this->todo(2);
@@ -612,7 +615,7 @@ final class InboxAskCloserTest extends KernelTestCase
 
         $this->withdraw($todo);
 
-        self::assertSame(InboxItemState::Withdrawn, $this->reloadItem($todo)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reloadItem($todo)->state);
         self::assertNull($this->reloadAsk($ask)->closedAt);
         self::assertSame([], $this->askClosedEvents());
     }

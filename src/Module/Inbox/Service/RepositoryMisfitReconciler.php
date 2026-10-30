@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxRepositoryMisfit;
-use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
@@ -174,10 +175,11 @@ final readonly class RepositoryMisfitReconciler
     {
         $this->closer->close(
             $misfit->item,
-            InboxItemState::Done,
+            InboxItemState::Resolved,
+            InboxCloser::Loupe,
+            InboxCloseCause::FactEnded,
             $this->translator->trans('inbox.repository_misfit.closed', [], null, $this->locale),
             $now,
-            InboxEventType::ACTOR_AGENT,
         );
         $misfit->endedAt = $now;
     }

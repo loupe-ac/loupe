@@ -113,7 +113,7 @@
                     {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
                     {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
                         {% set closedOutcome = inbox.selected.outcome ?? 'closed' %}
-                        {% set closedReason = inbox.selected.closing.closeNote ?? null %}
+                        {% set closedReason = inbox.selected.closing.note ?? null %}
                         <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome }}">
                             <span>
                                 {%- if closedOutcome in ['withdrawn', 'obsolete'] -%}

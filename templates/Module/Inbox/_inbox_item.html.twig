@@ -12,7 +12,7 @@
         <h3 class="lp-inbox-item__title">{{ item.title|reference_plain }}</h3>
         <span class="lp-inbox-item__kind">{{ ('inbox.item.kind.' ~ item.kind.value)|trans }}</span>
         {% if item.blocking and (showBlocking ?? true) %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
-        {% if not open %}{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state} only %}{% endif %}
+        {% if not open %}{% include '@Inbox/_inbox_state_chip.html.twig' with {label: item.stateLabelKey} only %}{% endif %}
     </div>
     {% endif %}
     {# The waits below say what the body of a wait item says, with links. #}
@@ -36,7 +36,7 @@
             <p data-inbox-review-verdict>{{ ('inbox.review.verdict.' ~ review.verdict.value)|trans }}</p>
             {% set workflowRule = review.documentReview.workflowRule ?? null %}
             {% if workflowRule and review.verdict.value == 'approved' %}<p class="lp-inbox-item__answer-text">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
-            {% elseif review.note %}<p class="lp-inbox-item__answer-text">{{ review.note }}</p>{% endif %}
+            {% elseif item.note %}<p class="lp-inbox-item__answer-text">{{ item.note }}</p>{% endif %}
             <p class="lp-inbox-item__note">{{ review.reviewer.fullName }}{% if workflowRule %} <twig:Ds:Tag tone="neutral">{{ workflowRule }}</twig:Ds:Tag>{% endif %} · {{ review.submittedAt|date('j M Y, H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
             {% set withdrawal = inbox_review_withdrawal(review) %}
             {% if withdrawal %}
@@ -44,7 +44,7 @@
                 {% if review.document %}<a class="lp-inbox-item__jump" href="{{ path('app_document_review', {projectId: item.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top">{{ 'inbox.review.open_document'|trans }}</a>{% endif %}
             {% endif %}
         {% endif %}
-        {% if item.selectedOptions|length > 0 or item.answerText is not null %}
+        {% if item.selectedOptions|length > 0 or (item.state.value == 'resolved' and item.kind.value in ['question', 'workflow'] and item.note is not null) %}
             <h4 class="lp-inbox-item__response-title">{{ 'inbox.answer.legend'|trans }}</h4>
         {% endif %}
         {% if item.selectedOptions|length > 0 %}
@@ -54,13 +54,14 @@
                 {% endfor %}
             </ul>
         {% endif %}
-        {% if item.answerText is not null %}<p class="lp-inbox-item__answer-text">{{ item.answerText }}</p>{% endif %}
-        {% if item.closeNote is not null %}<p class="lp-inbox-item__note">{{ item.closeNote }}</p>{% endif %}
-        {% if item.respondedThroughAgent %}<p class="lp-inbox-item__note" data-inbox-through-agent>{{ 'inbox.item.through_agent'|trans }}</p>{% endif %}
+        {% set answered = item.state.value == 'resolved' and item.kind.value in ['question', 'workflow'] %}
+        {% if answered and item.note is not null %}<p class="lp-inbox-item__answer-text">{{ item.note }}</p>{% endif %}
+        {% if not answered and item.kind.value != 'review' and item.note is not null %}<p class="lp-inbox-item__note">{{ item.note }}</p>{% endif %}
+        {% if (item.closedBy.value ?? null) == 'owner-through-agent' %}<p class="lp-inbox-item__note" data-inbox-through-agent>{{ 'inbox.item.through_agent'|trans }}</p>{% endif %}
         <p class="lp-inbox-item__editable" data-inbox-editable="{{ inbox.acceptsResponse(item) ? 'yes' : 'no' }}">
-            {%- if item.origin.value == 'loupe' and item.state.value in ['done', 'obsolete'] -%}
+            {%- if (item.closedBy.value ?? null) in ['loupe', 'rule'] -%}
                 {{ 'inbox.item.closed_by_loupe'|trans }}
-            {%- elseif item.state.value in ['withdrawn', 'obsolete'] -%}
+            {%- elseif (item.closedBy.value ?? null) == 'agent' -%}
                 {{ 'inbox.item.closed_by_agent'|trans }}
             {%- elseif inbox.acceptsResponse(item) -%}
                 {{ 'inbox.item.editable'|trans }}
@@ -92,7 +93,7 @@
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
         {# A to-do with suggested actions puts Decline and Mark done beside its split button, in one reply card. #}
-        {% set todoSplit = item.kind.value == 'todo' and (open or item.state.value != 'done') and not inbox_actions(item, hostCardId ?? null).isEmpty %}
+        {% set todoSplit = item.kind.value == 'todo' and (open or item.state.value != 'resolved') and not inbox_actions(item, hostCardId ?? null).isEmpty %}
         {# A question that its agent gave suggestions offers its actions in a reply card below the answer form. The answer carries the owner's words, so the card takes no note. An action does not answer the question, so the item stays open. #}
         {% set questionSplit = item.kind.value == 'question' and open and item.suggestedActions and not inbox_actions(item, hostCardId ?? null).isEmpty %}
         {% if todoSplit %}
@@ -173,7 +174,7 @@
                 {{ form_start(doneForm, {action: path('app_inbox_item_done', actionParams), attr: {id: doneForm.vars.id, class: 'lp-inbox-done', 'data-turbo-frame': responseFrame}}) }}
                     <twig:Ds:FieldErrors :fieldView="doneForm" />
                 {{ form_end(doneForm) }}
-            {% elseif open or item.state.value != 'done' %}
+            {% elseif open or item.state.value != 'resolved' %}
                 {% set doneForm = inbox_done_form(item, refusedForm) %}
                 {{ form_start(doneForm, {action: path('app_inbox_item_done', actionParams), attr: {class: 'lp-inbox-done', 'data-turbo-frame': responseFrame}}) }}
                     <twig:Ds:FieldErrors :fieldView="doneForm" />

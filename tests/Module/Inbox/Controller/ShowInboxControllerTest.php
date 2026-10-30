@@ -13,6 +13,8 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -221,7 +223,9 @@ final class ShowInboxControllerTest extends WebTestCase
         $owner = $this->signedUpUser($this->em, 'inbox-live-closed');
         $project = $this->inboxProject($this->em, $owner);
         $item = $this->question($this->em, $project, 1);
-        $item->state = InboxItemState::Withdrawn;
+        $item->state = InboxItemState::Cancelled;
+        $item->closedBy = InboxCloser::Agent;
+        $item->closeCause = InboxCloseCause::Withdrawn;
         $ask = $this->askHolding($this->em, $project, [$item], closedAt: new \DateTimeImmutable('-1 minute'));
         $this->setInboxFlag(true);
         $uri = '/projects/'.$project->id.'/inbox?ask='.$ask->id;
@@ -245,11 +249,13 @@ final class ShowInboxControllerTest extends WebTestCase
         $owner = $this->signedUpUser($this->em, 'inbox-live-closing');
         $project = $this->inboxProject($this->em, $owner);
         $earlier = $this->answered($this->em, $this->question($this->em, $project, 1));
-        $earlier->closeNote = 'An earlier note.';
+        $earlier->note = 'An earlier note.';
         $closing = $this->question($this->em, $project, 2);
-        $closing->state = InboxItemState::Withdrawn;
+        $closing->state = InboxItemState::Cancelled;
+        $closing->closedBy = InboxCloser::Agent;
+        $closing->closeCause = InboxCloseCause::Withdrawn;
         $closing->closedAt = new \DateTimeImmutable('-1 minute');
-        $closing->closeNote = 'The plan changed.';
+        $closing->note = 'The plan changed.';
         $ask = $this->askHolding($this->em, $project, [$earlier, $closing], closedAt: new \DateTimeImmutable('-1 minute'));
         $this->setInboxFlag(true);
 
@@ -892,8 +898,9 @@ final class ShowInboxControllerTest extends WebTestCase
         $owner = $this->signedUpUser($this->em, 'inbox-zero');
         $project = $this->inboxProject($this->em, $owner);
         $item = $this->question($this->em, $project, 1, [], freeText: true);
-        $item->state = InboxItemState::Answered;
-        $item->answerText = '0';
+        $item->state = InboxItemState::Resolved;
+        $item->closedBy = InboxCloser::Owner;
+        $item->note = '0';
         $this->em->flush();
         $this->askHolding($this->em, $project, [$item]);
         $this->setInboxFlag(true);

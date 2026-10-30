@@ -244,7 +244,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $action = $this->runAction($item, InboxActionKind::Dismiss, 'Not now');
 
         self::assertNull($action);
-        self::assertSame([InboxItemState::Declined, 'Not now'], [$item->state, $item->closeNote]);
+        self::assertSame([InboxItemState::Declined, 'Not now'], [$item->state, $item->note]);
         self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
         self::assertSame(
             ['itemId' => (string) $item->id, 'projectId' => (string) $this->project->id, 'kind' => 'dismiss', 'hasNote' => true],
@@ -1098,7 +1098,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     {
         $this->commandBridge();
         $item = $this->commandTodo();
-        $item->state = InboxItemState::Done;
+        $item->state = InboxItemState::Resolved;
         $this->em()->flush();
 
         $this->assertRefused($item, InboxActionKind::RunCommand, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
@@ -1222,7 +1222,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     {
         $this->addBridge();
         $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
-        $item->state = InboxItemState::Done;
+        $item->state = InboxItemState::Resolved;
         $this->em()->flush();
 
         $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);

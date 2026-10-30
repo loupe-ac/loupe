@@ -8,6 +8,8 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxRepositoryMisfit;
@@ -129,8 +131,9 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
         $this->deliver();
 
         $misfit = $this->onlyMisfit();
-        self::assertSame(InboxItemState::Done, $misfit->item->state);
-        self::assertSame('A check found no blocking gap, so Loupe takes new work again.', $misfit->item->closeNote);
+        self::assertSame(InboxItemState::Resolved, $misfit->item->state);
+        self::assertSame('A check found no blocking gap, so Loupe takes new work again.', $misfit->item->note);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$misfit->item->closedBy, $misfit->item->closeCause]);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $misfit->endedAt);
 
         $this->deliver();
@@ -156,7 +159,7 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
         $this->deliver();
         $this->deliver();
 
-        self::assertSame(InboxItemState::Done, $this->onlyMisfit()->item->state);
+        self::assertSame(InboxItemState::Resolved, $this->onlyMisfit()->item->state);
     }
 
     public function test_a_notice_that_closed_elsewhere_ends_its_row_and_a_new_one_opens_while_the_hold_lasts(): void

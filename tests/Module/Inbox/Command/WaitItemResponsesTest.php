@@ -17,6 +17,7 @@ use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
@@ -76,7 +77,8 @@ final class WaitItemResponsesTest extends KernelTestCase
         $this->em->clear();
         $stored = $this->watches()[0];
         self::assertSame(InboxItemState::Declined, $stored->item->state);
-        self::assertNull($stored->item->closeNote);
+        self::assertNull($stored->item->note);
+        self::assertSame([InboxCloser::Owner, null], [$stored->item->closedBy, $stored->item->closeCause]);
         self::assertNotNull($stored->dismissedAt);
         self::assertNotNull($stored->closedAt);
         self::assertCount(1, $stored->waits);

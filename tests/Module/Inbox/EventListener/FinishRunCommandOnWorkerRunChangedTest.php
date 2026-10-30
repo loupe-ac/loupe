@@ -23,6 +23,8 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -74,7 +76,9 @@ final class FinishRunCommandOnWorkerRunChangedTest extends KernelTestCase
 
         $this->changed($run);
 
-        self::assertSame(InboxItemState::Done, $this->reload($todo)->state);
+        $stored = $this->reload($todo);
+        self::assertSame(InboxItemState::Resolved, $stored->state);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::CommandSucceeded], [$stored->closedBy, $stored->closeCause]);
     }
 
     public function test_a_second_event_for_the_same_succeeded_run_changes_nothing_more(): void
@@ -87,7 +91,7 @@ final class FinishRunCommandOnWorkerRunChangedTest extends KernelTestCase
         $this->changed($run);
 
         $stored = $this->reload($todo);
-        self::assertSame(InboxItemState::Done, $stored->state);
+        self::assertSame(InboxItemState::Resolved, $stored->state);
         self::assertEquals($closedAt, $stored->closedAt);
     }
 

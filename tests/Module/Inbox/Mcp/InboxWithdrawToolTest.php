@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Mcp;
 
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -58,14 +60,15 @@ final class InboxWithdrawToolTest extends KernelTestCase
 
         $result = ($this->tool)($asked['items'][0]['itemId'], '  The pull request merged  ');
 
-        self::assertSame('withdrawn', $result['state']);
+        self::assertSame('cancelled', $result['state']);
         self::assertNotNull($result['closedAt']);
 
         $this->em->clear();
         $item = $this->em->find(InboxItem::class, Uuid::fromString($asked['items'][0]['itemId']));
         self::assertInstanceOf(InboxItem::class, $item);
-        self::assertSame(InboxItemState::Withdrawn, $item->state);
-        self::assertSame('The pull request merged', $item->closeNote);
+        self::assertSame(InboxItemState::Cancelled, $item->state);
+        self::assertSame('The pull request merged', $item->note);
+        self::assertSame([InboxCloser::Agent, InboxCloseCause::Withdrawn], [$item->closedBy, $item->closeCause]);
         self::assertNotNull($item->closedAt);
     }
 

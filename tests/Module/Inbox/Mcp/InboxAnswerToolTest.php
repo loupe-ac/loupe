@@ -7,6 +7,7 @@ namespace App\Tests\Module\Inbox\Mcp;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -60,11 +61,11 @@ final class InboxAnswerToolTest extends KernelTestCase
 
         $result = ($this->tool)($asked['items'][0]['itemId'], [2, 0]);
 
-        self::assertSame('answered', $result['state']);
+        self::assertSame('resolved', $result['state']);
         $item = $this->stored($asked['items'][0]['itemId']);
         self::assertSame([0, 2], $item->selectedOptions);
-        self::assertNull($item->answerText);
-        self::assertTrue($item->respondedThroughAgent);
+        self::assertNull($item->note);
+        self::assertSame(InboxCloser::OwnerThroughAgent, $item->closedBy);
     }
 
     public function test_free_text_answers_the_question(): void
@@ -76,9 +77,9 @@ final class InboxAnswerToolTest extends KernelTestCase
         ($this->tool)($asked['items'][0]['itemId'], answerText: '  Because  ');
 
         $item = $this->stored($asked['items'][0]['itemId']);
-        self::assertSame('Because', $item->answerText);
+        self::assertSame('Because', $item->note);
         self::assertSame([], $item->selectedOptions);
-        self::assertTrue($item->respondedThroughAgent);
+        self::assertSame(InboxCloser::OwnerThroughAgent, $item->closedBy);
     }
 
     public function test_options_and_text_answer_together(): void
@@ -91,7 +92,7 @@ final class InboxAnswerToolTest extends KernelTestCase
 
         $item = $this->stored($asked['items'][0]['itemId']);
         self::assertSame([1], $item->selectedOptions);
-        self::assertSame('And say why', $item->answerText);
+        self::assertSame('And say why', $item->note);
     }
 
     public function test_an_earlier_answer_changes_while_no_closed_ask_holds_the_item(): void
@@ -141,7 +142,7 @@ final class InboxAnswerToolTest extends KernelTestCase
             static fn (object $message): bool => $message instanceof RunRuleAskAnswer,
         ));
         self::assertCount(1, $sent);
-        self::assertSame(InboxItemState::Answered, $this->stored((string) $item->id)->state);
+        self::assertSame(InboxItemState::Resolved, $this->stored((string) $item->id)->state);
 
         try {
             ($this->tool)((string) $item->id, [2]);
@@ -195,7 +196,7 @@ final class InboxAnswerToolTest extends KernelTestCase
 
         $item = $this->stored($asked['items'][0]['itemId']);
         self::assertSame(InboxItemState::Open, $item->state);
-        self::assertFalse($item->respondedThroughAgent);
+        self::assertNull($item->closedBy);
     }
 
     public function test_an_item_of_another_project_is_not_reachable(): void

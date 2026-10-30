@@ -41,9 +41,6 @@ class InboxReview
     #[ORM\Column(length: 20, nullable: true, enumType: InboxReviewVerdict::class)]
     public ?InboxReviewVerdict $verdict = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $note = null;
-
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $submittedAt = null;
 

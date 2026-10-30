@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Repository;
 
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Tests\Module\Inbox\InboxScenario;
@@ -28,37 +30,39 @@ final class InboxItemRepositoryTest extends KernelTestCase
         $this->items = $items;
     }
 
-    public function test_a_stale_managed_item_reads_the_stored_mark_after_the_reload(): void
+    public function test_a_stale_managed_item_reads_the_stored_close_record_after_the_reload(): void
     {
         $project = $this->inboxProject($this->em, $this->signedUpUser($this->em, 'inbox-repo'));
         $item = $this->question($this->em, $project, 1);
-        self::assertFalse($item->respondedThroughAgent);
+        self::assertNull($item->closedBy);
         $this->em->getConnection()->executeStatement(
-            'UPDATE inbox_items SET responded_through_agent = true WHERE id = ?',
+            "UPDATE inbox_items SET closed_by = 'owner-through-agent', close_cause = 'withdrawn', note = 'Stored note' WHERE id = ?",
             [(string) $item->id],
         );
 
         $this->items->reloadChangeableColumns([$item]);
 
-        self::assertTrue($item->respondedThroughAgent);
+        self::assertSame([InboxCloser::OwnerThroughAgent, InboxCloseCause::Withdrawn, 'Stored note'], [$item->closedBy, $item->closeCause, $item->note]);
         $this->em->flush();
         $this->em->clear();
         $stored = $this->em->find(InboxItem::class, $item->id);
         self::assertInstanceOf(InboxItem::class, $stored);
-        self::assertTrue($stored->respondedThroughAgent);
+        self::assertSame(InboxCloser::OwnerThroughAgent, $stored->closedBy);
     }
 
-    public function test_write_response_stores_the_mark_and_clears_it(): void
+    public function test_write_response_stores_the_close_record_and_clears_it(): void
     {
         $project = $this->inboxProject($this->em, $this->signedUpUser($this->em, 'inbox-repo'));
         $item = $this->question($this->em, $project, 1);
 
-        $item->respondedThroughAgent = true;
+        $item->closedBy = InboxCloser::OwnerThroughAgent;
+        $item->note = 'Because';
         $this->items->writeResponse($item);
-        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_items WHERE id = ? AND responded_through_agent', [(string) $item->id]));
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM inbox_items WHERE id = ? AND closed_by = 'owner-through-agent' AND note = 'Because'", [(string) $item->id]));
 
-        $item->respondedThroughAgent = false;
+        $item->closedBy = null;
+        $item->note = null;
         $this->items->writeResponse($item);
-        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_items WHERE id = ? AND responded_through_agent', [(string) $item->id]));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_items WHERE id = ? AND (closed_by IS NOT NULL OR note IS NOT NULL)', [(string) $item->id]));
     }
 }

@@ -37,7 +37,7 @@ final class InboxProjectStatsProviderTest extends KernelTestCase
         $this->question($this->em, $busy, 1);
         $this->todo($this->em, $busy, 2);
         $this->answered($this->em, $this->question($this->em, $busy, 3));
-        $this->answered($this->em, $this->todo($this->em, $quiet, 1), InboxItemState::Done);
+        $this->answered($this->em, $this->todo($this->em, $quiet, 1), InboxItemState::Resolved);
 
         $stats = $this->provider->statsFor([$busy, $quiet]);
 

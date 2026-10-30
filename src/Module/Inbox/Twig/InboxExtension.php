@@ -168,7 +168,7 @@ final class InboxExtension extends AbstractExtension
         $selected = implode(',', $item->selectedOptions);
 
         return $this->formFactory
-            ->createNamed($name, AnswerInboxItemFormType::class, new AnswerInboxItemRequest($selected, $item->answerText))
+            ->createNamed($name, AnswerInboxItemFormType::class, new AnswerInboxItemRequest($selected, InboxItemState::Resolved === $item->state ? $item->note : null))
             ->createView();
     }
 
@@ -276,7 +276,7 @@ final class InboxExtension extends AbstractExtension
         }
 
         return $this->formFactory
-            ->createNamed($name, DeclineInboxItemFormType::class, new DeclineInboxItemRequest($item->closeNote))
+            ->createNamed($name, DeclineInboxItemFormType::class, new DeclineInboxItemRequest(InboxItemState::Declined === $item->state ? $item->note : null))
             ->createView();
     }
 

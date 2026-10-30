@@ -20,7 +20,7 @@ final class InboxRowTest extends TestCase
     public function test_an_open_ask_takes_its_icon_from_the_first_open_item(): void
     {
         $row = new InboxRow($this->ask(), [
-            $this->item(1, InboxItemKind::Question, state: InboxItemState::Answered),
+            $this->item(1, InboxItemKind::Question, state: InboxItemState::Resolved),
             $this->item(2, InboxItemKind::Todo),
         ]);
 
@@ -33,7 +33,7 @@ final class InboxRowTest extends TestCase
         $ask = $this->ask();
         $ask->closedAt = new \DateTimeImmutable();
         $row = new InboxRow($ask, [
-            $this->item(1, InboxItemKind::Question, state: InboxItemState::Answered),
+            $this->item(1, InboxItemKind::Question, state: InboxItemState::Resolved),
             $this->item(2, InboxItemKind::Todo),
         ], 'answered');
 
@@ -44,7 +44,7 @@ final class InboxRowTest extends TestCase
     public function test_only_an_open_blocking_item_makes_a_row_blocking(): void
     {
         self::assertTrue((new InboxRow($this->ask(), [$this->item(1, InboxItemKind::Question, blocking: true)]))->blocking);
-        self::assertFalse((new InboxRow($this->ask(), [$this->item(1, InboxItemKind::Question, blocking: true, state: InboxItemState::Answered)]))->blocking);
+        self::assertFalse((new InboxRow($this->ask(), [$this->item(1, InboxItemKind::Question, blocking: true, state: InboxItemState::Resolved)]))->blocking);
         self::assertFalse((new InboxRow($this->ask(), [$this->item(1, InboxItemKind::Todo)]))->blocking);
     }
 

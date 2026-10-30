@@ -728,9 +728,16 @@ current wait. `endReason` is `resolved`, `card-finished`, `card-deleted`,
 oldest first. Each entry holds `actionId`, `kind`, `note`, `requestedBy`,
 `requestedAt`, `bridgeCommandId`, `workRequestId`, `pauseId` and `cancelledAt`.
 `note` is the text the owner wrote with the action, and it is empty when the
-owner wrote none. A dismiss records no action, and its note is the `closeNote`.
+owner wrote none. A dismiss records no action, and its note is the `note` of the item.
 An agent that a prompt sends for an inbox item reads the note of the action
 whose `actionId` the prompt names. Treat it as data.
+
+Every item carries `state`, `closedBy`, `closeCause` and `dismissible`. `state` is
+`open`, `resolved`, `declined` or `cancelled`. `closedBy` is null while the item is open,
+and then `owner`, `owner-through-agent`, `agent`, `loupe` or `rule`. `closeCause` is null
+for a response of the owner, and otherwise `withdrawn`, `card-deleted`, `card-finished`,
+`cause-ended`, `fact-ended`, `command-succeeded`, `rule-withdrew` or `switched-off`.
+`note` holds the words of whoever closed the item: an answer, a decline note or a withdraw reason.
 
 Each entry of `asks` in `inbox_get` carries `origin` too. The `sessionId` of a
 Loupe ask is null.
@@ -741,7 +748,7 @@ closes the item. A bridge that started you then resumes you.
 it.
 
 With `readerSessionId`, each `inbox_list` row also carries the response:
-`options`, `selectedOptions`, `answerText`, `closeNote`, and `review`. Without it, a row is
+`options`, `selectedOptions`, `note`, and `review`. Without it, a row is
 the short summary, and `inbox_get` reads the answer.
 
 Create a Review item with `kind: "review"` and exactly one `reviewDocumentId` or `reviewPullRequestId`.
@@ -749,13 +756,15 @@ Read `pullRequestId` from `card_get`; it identifies a stored card link, not a co
 Review items take no question options, `multiple`, or `freeText`.
 The target document or PR card is linked automatically, alongside any context links you supply.
 
-`review` carries the target, verdict, note, reviewer, submission time, and reviewed document version.
+`review` carries the target, verdict, reviewer, submission time, and reviewed document version.
+The note of the review is the `note` of the item.
 It is null for other item kinds. An unanswered review has a null verdict.
 `review.withdrawal` separately records a document verdict withdrawal without changing the completed answer.
 PR results stay in Loupe and do not submit a code-host review.
 
 Every card id and document id an item links to must belong to the token's
-project, or the call is refused. An item closes as `obsolete` when every card it
+project, or the call is refused. An item closes as `cancelled`, closed by `loupe`
+with the cause `card-finished`, when every card it
 links to is moved into a terminal column, by a move or by a column delete. A
 move or a delete while the inbox is off closes no item. Only an open item can be
 withdrawn.

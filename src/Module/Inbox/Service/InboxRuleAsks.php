@@ -8,12 +8,13 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxWorkflowAsk;
-use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
@@ -122,7 +123,7 @@ final readonly class InboxRuleAsks implements RuleAsks
             $closed = $this->em->wrapInTransaction(function () use ($item, $reason): bool {
                 $this->em->lock($item->project, LockMode::PESSIMISTIC_WRITE);
                 if (InboxItemState::Open !== $this->inboxItems->lockedState($item)
-                    || !$this->closer->close($item, InboxItemState::Withdrawn, $reason, new \DateTimeImmutable(), InboxEventType::ACTOR_AGENT)) {
+                    || !$this->closer->close($item, InboxItemState::Cancelled, InboxCloser::Rule, InboxCloseCause::RuleWithdrew, $reason, new \DateTimeImmutable())) {
                     return false;
                 }
                 $this->em->flush();

@@ -12,6 +12,7 @@ use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -99,8 +100,9 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $saved = $em->find(InboxReview::class, $review->id);
         self::assertInstanceOf(InboxReview::class, $saved);
         self::assertSame(InboxReviewVerdict::ChangesRequested, $saved->verdict);
-        self::assertSame('Add a retry limit.', $saved->note);
-        self::assertSame(InboxItemState::Done, $saved->item->state);
+        self::assertSame('Add a retry limit.', $saved->item->note);
+        self::assertSame(InboxItemState::Resolved, $saved->item->state);
+        self::assertSame(InboxCloser::Owner, $saved->item->closedBy);
     }
 
     public function test_a_completed_document_review_shows_its_original_answer_and_withdrawal(): void
@@ -214,7 +216,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertInstanceOf(InboxReview::class, $saved);
         self::assertSame('Clarify the second version.', $saved->documentReview?->note);
         self::assertSame(2, $saved->documentReview->version->versionNumber);
-        self::assertSame(InboxItemState::Done, $saved->item->state);
+        self::assertSame(InboxItemState::Resolved, $saved->item->state);
         $this->client->submit($form);
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('[data-inbox-review-draft]', 'Keep this draft feedback.');
@@ -283,9 +285,9 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         self::assertResponseRedirects($this->pageUrl());
         $stored = $this->reload($item);
-        self::assertSame(InboxItemState::Answered, $stored->state);
+        self::assertSame(InboxItemState::Resolved, $stored->state);
         self::assertSame([1], $stored->selectedOptions);
-        self::assertSame('CSV, because the importer reads it.', $stored->answerText);
+        self::assertSame('CSV, because the importer reads it.', $stored->note);
         $this->client->followRedirect();
         self::assertSelectorTextContains('[data-inbox-status]', 'Answer sent: item 4.');
         self::assertSelectorNotExists('.lp-flash');
@@ -508,7 +510,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         self::assertResponseRedirects($this->pageUrl());
         $stored = $this->reload($item);
-        self::assertSame(InboxItemState::Done, $stored->state);
+        self::assertSame(InboxItemState::Resolved, $stored->state);
         self::assertNotNull($stored->closedAt);
     }
 
@@ -576,19 +578,19 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertResponseRedirects($this->pageUrl());
         $stored = $this->reload($item);
         self::assertSame(InboxItemState::Declined, $stored->state);
-        self::assertSame('Not sure what you mean.', $stored->closeNote);
+        self::assertSame('Not sure what you mean.', $stored->note);
     }
 
     public function test_a_decline_of_an_item_the_agent_withdrew_is_refused(): void
     {
-        $item = $this->answered($this->em, $this->todo($this->em, $this->project, 3), InboxItemState::Withdrawn);
+        $item = $this->answered($this->em, $this->todo($this->em, $this->project, 3), InboxItemState::Cancelled);
         $this->askHolding($this->em, $this->project, [$item]);
 
         $this->post($item, 'decline', ['closeNote' => '']);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('#inbox-item-3 [data-inbox-refusal]', 'The agent closed this item');
-        self::assertSame(InboxItemState::Withdrawn, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
     }
 
     /** @return iterable<string, array{string, string, array<string, string>}> */

@@ -127,7 +127,7 @@ final class WaitItemPageTest extends WebTestCase
         $this->em->flush();
         $this->reconcile();
         $item = $this->onlyWatch()->item;
-        self::assertSame('approve' === $cause ? InboxItemState::Done : InboxItemState::Obsolete, $item->state);
+        self::assertSame('approve' === $cause ? InboxItemState::Resolved : InboxItemState::Cancelled, $item->state);
 
         $this->client->request(Request::METHOD_GET, $this->pageUrl().'?queue=completed');
 

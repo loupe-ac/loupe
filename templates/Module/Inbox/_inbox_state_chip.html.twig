@@ -1,2 +1,2 @@
-{% set chip = {open: 'pending', answered: 'ok', done: 'ok', declined: 'resolved', withdrawn: 'resolved', obsolete: 'resolved'}[state.value] %}
-<twig:Ds:StatusChip :modifier="chip">{{ ('inbox.item.state.' ~ state.value)|trans }}</twig:Ds:StatusChip>
+{% set chip = {open: 'pending', answered: 'ok', done: 'ok', declined: 'resolved', withdrawn: 'resolved', obsolete: 'resolved'}[label] %}
+<twig:Ds:StatusChip :modifier="chip">{{ ('inbox.item.state.' ~ label)|trans }}</twig:Ds:StatusChip>

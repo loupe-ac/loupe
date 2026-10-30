@@ -210,15 +210,13 @@ final readonly class ShowInboxHandler
     {
         return match ($item->state) {
             InboxItemState::Open => null,
-            InboxItemState::Answered => match ($this->inboxReviews->forItem($item)?->verdict) {
+            InboxItemState::Resolved => match ($this->inboxReviews->forItem($item)?->verdict) {
                 InboxReviewVerdict::Approved => 'approved',
                 InboxReviewVerdict::ChangesRequested => 'changes_requested',
-                null => 'answered',
+                null => $item->stateLabelKey(),
             },
-            InboxItemState::Done => 'done',
             InboxItemState::Declined => $item->isAutomatic() ? 'dismissed' : 'declined',
-            InboxItemState::Withdrawn => 'withdrawn',
-            InboxItemState::Obsolete => 'obsolete',
+            InboxItemState::Cancelled => $item->stateLabelKey(),
         };
     }
 

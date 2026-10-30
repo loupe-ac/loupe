@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -35,12 +37,13 @@ final readonly class MarkInboxItemDoneHandler
         }
 
         // A second done from an older page would only move updatedAt.
-        $this->closer->respond($item, InboxItemState::Done, self::ERROR_FIELD, function (InboxItem $item) use ($command): ?array {
-            if (InboxItemState::Done === $item->state) {
+        $closer = $command->commandSucceeded ? InboxCloser::Loupe : ($command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner);
+        $cause = $command->commandSucceeded ? InboxCloseCause::CommandSucceeded : null;
+        $this->closer->respond($item, InboxItemState::Resolved, $closer, $cause, self::ERROR_FIELD, function (InboxItem $item): ?array {
+            if (InboxItemState::Resolved === $item->state) {
                 return [self::ERROR_FIELD => self::ALREADY_DONE];
             }
-            $item->closeNote = null;
-            $item->respondedThroughAgent = $command->throughAgent;
+            $item->note = null;
 
             return null;
         });
