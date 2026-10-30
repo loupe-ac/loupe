@@ -6173,10 +6173,6 @@
                 <source>inbox.done.error.not_a_todo</source>
                 <target>Only a to-do can be marked done.</target>
             </trans-unit>
-            <trans-unit id="inbox.decline.submit">
-                <source>inbox.decline.submit</source>
-                <target>Decline</target>
-            </trans-unit>
             <trans-unit id="inbox.flash.answered">
                 <source>inbox.flash.answered</source>
                 <target>Item %number% is answered.</target>

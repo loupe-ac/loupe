@@ -224,11 +224,12 @@ Every item that takes a response shows its forms under its text.
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
-- **Mark a to-do done.** Select **Mark complete**.
-- **Decline an item.** Write an optional note for the agent in the note field,
-  then select **Decline**. Decline any item that you cannot or will not answer,
+- **Mark a to-do done.** Write an optional note for the agent in the note
+  field, then select **Mark complete**. The closed to-do shows your note.
+- **Dismiss an item.** Write an optional note for the agent in the note field,
+  then select **Dismiss**. Dismiss any item that you cannot or will not answer,
   including a question whose options do not fit. A workflow question has no
-  **Decline**, because Loupe needs one of its options.
+  **Dismiss**, because Loupe needs one of its options.
 
 The buttons sit at the right of the item, with the main button last. Only the
 project owner sees them. Another member who can see the project reads the ask
@@ -481,7 +482,7 @@ A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
 fit is dropped.
 An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
-that carries suggestions shows a reply card with a split button, beside Decline
+that carries suggestions shows a reply card with a split button, beside Dismiss
 and Mark done. The button offers the suggested actions that fit the to-do now,
 and the recommended one is the main action. A to-do with no suggestion that
 fits shows no split button. A question works the same way, with its split button

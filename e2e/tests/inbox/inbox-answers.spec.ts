@@ -257,9 +257,9 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(question.locator('form')).toHaveCount(0);
     await expect(sidebarPill).toHaveText('1');
 
-    // A to-do takes no prose, so closing it carries no note.
+    // Dismiss closes the to-do, with the note field left empty.
     const todo = page.locator(`#inbox-item-${inbox.todoNumber}`);
-    await todo.getByRole('button', { name: 'Decline' }).click();
+    await todo.getByRole('button', { name: 'Dismiss' }).click();
 
     // No other ask is open, so the page names none and the status line links to the closed one.
     await expect(page.locator('[data-inbox-status]')).toContainText(

@@ -519,7 +519,24 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertNotNull($stored->closedAt);
     }
 
-    public function test_a_to_do_shows_its_suggested_actions_in_the_split_button_beside_decline_and_done(): void
+    public function test_marking_a_to_do_done_keeps_the_note_and_shows_it(): void
+    {
+        $item = $this->todo($this->em, $this->project, 2);
+        $ask = $this->askHolding($this->em, $this->project, [$item]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+        self::assertCount(1, $crawler->filter('#inbox-item-2 form.lp-inbox-done textarea[name="inbox_response_'.$item->id.'[note]"]'));
+
+        $this->post($item, 'done', ['note' => '  Exported to S3.  ']);
+
+        self::assertResponseRedirects($this->pageUrl().'?ask='.$ask->id);
+        $stored = $this->reload($item);
+        self::assertSame([InboxItemState::Resolved, 'Exported to S3.'], [$stored->state, $stored->note]);
+        $crawler = $this->client->request(Request::METHOD_GET, $this->completedUrl().'&ask='.$ask->id.'&item=2');
+        self::assertStringContainsString('Exported to S3.', $crawler->filter('#inbox-item-2')->text());
+    }
+
+    public function test_a_to_do_shows_its_suggested_actions_in_the_split_button_beside_dismiss_and_done(): void
     {
         $this->seedColumns($this->project);
         $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Export card', 'Body', number: 1);
@@ -541,7 +558,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-2 [data-inbox-action="send-agent"]'));
         self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
         $row = $crawler->filter('#inbox-item-2 .lp-comment-composer__actions');
-        self::assertCount(1, $row, 'Decline, Mark done and the split button share one reply card row.');
+        self::assertCount(1, $row, 'Dismiss, Mark done and the split button share one reply card row.');
         self::assertCount(1, $row->filter('.inbox-split'));
         $doneForm = $crawler->filter('#inbox-item-2 form.lp-inbox-done');
         self::assertCount(1, $row->filter('button[form="'.$doneForm->attr('id').'"][formaction*="/actions/dismiss"]'));
@@ -549,6 +566,9 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSame($doneForm->attr('id'), $row->filter('[data-inbox-done]')->attr('form'));
         self::assertStringContainsString('/actions/complete', (string) $doneForm->attr('action'));
         self::assertCount(0, $doneForm->filter('button'), 'The done form keeps no second Mark done button.');
+        $note = $row->ancestors()->filter('form')->first()->filter('textarea[form="'.$doneForm->attr('id').'"]');
+        self::assertCount(1, $note, 'The reply card holds the note of the done form.');
+        self::assertSame('inbox_response_'.$item->id.'[note]', $note->attr('name'));
     }
 
     public function test_a_to_do_with_no_suggestion_shows_no_split_button(): void

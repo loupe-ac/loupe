@@ -1,6 +1,6 @@
 {#- A wait item as a thread: what stopped, the owner's reply with its split button, and the actions the owner already took.
    Params: item, watch (InboxCardWatch), inbox, refusedForm, actionParams, responseFrame, hostCardId, cardDrawer,
-   reply (whether this page takes the owner's reply), todoButtons (optional: formId of the to-do's response form, dismissLabel),
+   reply (whether this page takes the owner's reply), todoButtons (optional: formId, dismissLabel and note field of the to-do's response form),
    withNote (optional, default true: whether the reply card takes a note for the action). -#}
 {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
 {% set todoButtons = todoButtons ?? null %}
@@ -112,6 +112,10 @@
                 {% if withNote %}
                     {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
                     <twig:Ds:FieldErrors :fieldView="actionForm.note" />
+                {% endif %}
+                {% if todoButtons %}
+                    {{ form_widget(todoButtons.note, {attr: {form: todoButtons.formId, rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
+                    <twig:Ds:FieldErrors :fieldView="todoButtons.note" />
                 {% endif %}
                 {% if sessionMain %}
                     <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />

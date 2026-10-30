@@ -386,7 +386,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('Question', $block->filter('[data-inbox-kind-label]')->text());
         // A missing translation renders its key, and the gate does not fail on that.
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
-        // Decline sits in the response row, posts the answer form to the dismiss address, and so carries the note field's text.
+        // Dismiss sits in the response row, posts the answer form to the dismiss address, and so carries the note field's text.
         self::assertCount(1, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[formaction*="/actions/dismiss"]'));
         self::assertCount(0, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[form]'));
         self::assertCount(1, $block->filter('form#inbox_response_'.$question->id.'[action*="/actions/answer"]'));

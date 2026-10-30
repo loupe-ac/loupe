@@ -92,7 +92,8 @@ final readonly class RunInboxActionHandler
         if (!$kind->isResponse() && mb_strlen($note) > InboxAction::MAX_NOTE_LENGTH) {
             throw new DomainErrors(['note' => self::NOTE_TOO_LONG]);
         }
-        if (InboxItemState::Open !== $item->state || !self::runsHere($kind) || (InboxActionKind::AddEntry !== $kind && !array_any($this->itemActions->forItem($item), static fn ($action): bool => $action->kind === $kind && (InboxActionKind::RunCommand === $kind || null === $action->disabledReasonKey)))) {
+        // A sent response is final, but a closed item still starts a new session.
+        if ((InboxItemState::Open !== $item->state && InboxActionKind::StartSession !== $kind) || !self::runsHere($kind) || (InboxActionKind::AddEntry !== $kind && !array_any($this->itemActions->forItem($item), static fn ($action): bool => $action->kind === $kind && (InboxActionKind::RunCommand === $kind || null === $action->disabledReasonKey)))) {
             throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
         }
 
@@ -167,7 +168,7 @@ final readonly class RunInboxActionHandler
 
     private function complete(RunInboxActionCommand $command): null
     {
-        ($this->markDone)(new MarkInboxItemDoneCommand($command->item, $command->throughAgent));
+        ($this->markDone)(new MarkInboxItemDoneCommand($command->item, $command->throughAgent, note: $command->note));
 
         return null;
     }

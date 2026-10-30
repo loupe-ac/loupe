@@ -603,7 +603,7 @@ for (const surface of ['page', 'drawer']) {
         ).toBeVisible();
         await expect(question.locator('form')).toHaveCount(0);
         await expect(
-            question.getByRole('button', { name: 'Decline' }),
+            question.getByRole('button', { name: 'Dismiss' }),
         ).toHaveCount(0);
         if (surface === 'drawer') {
             await expect(drawer).toBeVisible();

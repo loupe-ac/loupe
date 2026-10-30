@@ -37,8 +37,9 @@ final readonly class MarkInboxItemDoneHandler
 
         $closer = $command->commandSucceeded ? InboxCloser::Loupe : ($command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner);
         $cause = $command->commandSucceeded ? InboxCloseCause::CommandSucceeded : null;
-        $this->closer->respond($item, InboxItemState::Resolved, $closer, $cause, self::ERROR_FIELD, static function (InboxItem $item): ?array {
-            $item->note = null;
+        $note = trim($command->note);
+        $this->closer->respond($item, InboxItemState::Resolved, $closer, $cause, self::ERROR_FIELD, static function (InboxItem $item) use ($note): ?array {
+            $item->note = '' === $note ? null : $note;
 
             return null;
         });

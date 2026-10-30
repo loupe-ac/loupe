@@ -293,6 +293,16 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame('complete', $this->audit->record('inbox.action_requested')->context['kind']);
     }
 
+    public function test_a_complete_keeps_the_note_of_the_owner(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Todo);
+
+        $this->respond($item, InboxActionKind::Complete, '  Exported.  ');
+
+        self::assertSame([InboxItemState::Resolved, 'Exported.'], [$item->state, $item->note]);
+        self::assertTrue($this->audit->record('inbox.action_requested')->context['hasNote']);
+    }
+
     public function test_a_dismiss_closes_a_question_as_declined_by_the_owner_with_its_note(): void
     {
         $item = $this->askedItem(InboxItemKind::Question, ['A']);
@@ -786,6 +796,20 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame('Pair with me', $action->note);
         self::assertSame((string) $action->id, $this->audit->record('inbox.action_requested')->context['actionId']);
         self::assertSame(1, (int) $this->em()->getConnection()->fetchOne("SELECT COUNT(*) FROM outbox_events WHERE type = 'bridge.work_request'"));
+    }
+
+    public function test_a_session_starts_from_a_closed_item(): void
+    {
+        $this->sessionBridge();
+        $item = $this->runItem();
+        $this->runAction($item, InboxActionKind::Dismiss);
+        self::assertSame(InboxItemState::Declined, $item->state);
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        self::assertSame(InboxActionKind::StartSession, $action->kind);
+        self::assertInstanceOf(WorkRequest::class, $this->em()->find(WorkRequest::class, $action->workRequestId));
+        self::assertSame(InboxItemState::Declined, $item->state);
     }
 
     public function test_a_session_without_a_prompt_sends_none_and_audits_no_prompt(): void
