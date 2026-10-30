@@ -20,6 +20,7 @@ use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Insights\Service\AnalysisSettings;
+use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Notification\Service\PushAvailability;
 use App\Module\OAuth\Install\OAuthInstallFlags;
 use App\Module\Review\Install\ReviewInstallFlags;
@@ -73,7 +74,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(40, $flags);
+        self::assertCount(41, $flags);
         self::assertTrue($flags[OAuthInstallFlags::FLAG_REFRESH_REUSE]->value);
         self::assertSame('', $flags['waitlist.notification_emails']->value);
         foreach (['site.link.discord', 'site.link.x', 'site.link.source'] as $linkFlag) {
@@ -98,6 +99,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertSame(ToolCallCollectionSettings::DEFAULT_SUBCOMMAND_PROGRAMS, $flags[ToolCallCollectionSettings::SUBCOMMAND_PROGRAMS_FLAG]->value);
         self::assertSame('sonnet', $flags[AnalysisSettings::MODEL_FLAG]->value);
         self::assertSame('medium', $flags[AnalysisSettings::EFFORT_FLAG]->value);
+        self::assertSame(SavedGraphCap::DEFAULT, $flags[SavedGraphCap::FLAG]->value);
         // Seeded off: the update check is the app's only self-initiated
         // outbound request, so an install must not start making it unasked.
         self::assertFalse($flags[UpdateCheck::FLAG]->value);

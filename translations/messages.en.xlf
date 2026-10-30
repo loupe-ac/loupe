@@ -8628,6 +8628,7 @@
             <trans-unit id="insights.bucket_rule.error.pattern_too_long"><source>insights.bucket_rule.error.pattern_too_long</source><target>A pattern is at most 120 characters.</target></trans-unit>
             <trans-unit id="insights.bucket_rule.error.bucket_invalid"><source>insights.bucket_rule.error.bucket_invalid</source><target>A bucket name is 1 to 64 characters: lower case letters, digits, underscore and hyphen.</target></trans-unit>
             <trans-unit id="insights.bucket_rule.error.limit_reached"><source>insights.bucket_rule.error.limit_reached</source><target>A project holds at most 50 rules. Delete a rule first.</target></trans-unit>
+            <trans-unit id="insights.saved_graph.error.cap_reached"><source>insights.saved_graph.error.cap_reached</source><target>The dashboard holds at most %limit% graphs. Remove a graph first.</target></trans-unit>
             <trans-unit id="insights.bucket_rules.intro"><source>insights.bucket_rules.intro</source><target>The tool time of each worker run is split into buckets. A rule sends every tool call whose signature matches its pattern to its bucket. The first rule that matches takes the call.</target></trans-unit>
             <trans-unit id="insights.bucket_rules.add.title"><source>insights.bucket_rules.add.title</source><target>Add a rule</target></trans-unit>
             <trans-unit id="insights.bucket_rules.add.submit"><source>insights.bucket_rules.add.submit</source><target>Add the rule</target></trans-unit>
