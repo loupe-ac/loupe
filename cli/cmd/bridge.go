@@ -127,7 +127,9 @@ type bridgeLog struct {
 	name *bridgeLogName
 }
 
-func openBridgeLog(cmd *cobra.Command, logFile string) (*bridgeLog, error) {
+// openBridgeLog names the bridge from the rule file before the first entry,
+// because the start can log before the rule file validates.
+func openBridgeLog(cmd *cobra.Command, logFile, rulesPath string) (*bridgeLog, error) {
 	path := logFile
 	if path == "" {
 		path = defaultLogPath()
@@ -137,6 +139,7 @@ func openBridgeLog(cmd *cobra.Command, logFile string) (*bridgeLog, error) {
 		return nil, err
 	}
 	name := &bridgeLogName{}
+	name.set(logName(rules.NameOf(rulesPath)))
 
 	return &bridgeLog{path: path, file: f, name: name, log: newNamedBridgeLogger(bridgeLogWriter(f, cmd.OutOrStdout()), name)}, nil
 }
@@ -163,7 +166,7 @@ func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
 
 	// A resumed image logs from the start, because a failure before the
 	// health hands the bridge back, and the operator reads why in the log.
-	bl, err := openBridgeLog(cmd, o.logFile)
+	bl, err := openBridgeLog(cmd, o.logFile, path)
 	if err != nil {
 		return err
 	}
@@ -198,7 +201,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if bl == nil && migration.notable() {
 		// The start can stop before its log opens, and the next start finds nothing to log.
 		var err error
-		if bl, err = openBridgeLog(cmd, o.logFile); err != nil {
+		if bl, err = openBridgeLog(cmd, o.logFile, path); err != nil {
 			return err
 		}
 		defer bl.file.Close()
@@ -214,12 +217,6 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
-	var ident *bridgeIdentity
-	if bl != nil {
-		ident = newBridgeIdentity(path, bl)
-		ident.update(set)
-	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -240,16 +237,11 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	cfg.BridgeID = bridgeID
 
 	if bl == nil {
-		if bl, err = openBridgeLog(cmd, o.logFile); err != nil {
+		if bl, err = openBridgeLog(cmd, o.logFile, path); err != nil {
 			return err
 		}
 		defer bl.file.Close()
 	}
-	if ident == nil {
-		ident = newBridgeIdentity(path, bl)
-		ident.update(set)
-	}
-
 	if b == nil {
 		sock, err := socketPath(path)
 		if err != nil {
@@ -271,6 +263,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		defer b.close()
 		b.recovered = leftoverHandover(b.file, bl.log)
 	}
+	// The state file names the log of the bridge that holds the lock, so a
+	// start that the lock refuses leaves it alone.
+	ident := newBridgeIdentity(path, bl)
+	ident.update(set)
 	cursorFile, err := cursorPath(path)
 	if err != nil {
 		return err

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/logfile"
+	"github.com/spf13/cobra"
+	"github.com/zalando/go-keyring"
 )
 
 func writeLines(t *testing.T, path string, lines ...string) {
@@ -409,5 +414,65 @@ func TestBackfillReadsTheDatedFilesOfARotatedLog(t *testing.T) {
 		if got[i].id != want[i].id || len(got[i].windows) != len(want[i].windows) {
 			t.Errorf("session %d differs: %+v vs %+v", i, got[i], want[i])
 		}
+	}
+}
+
+// Each entry carries the bridge name from the open of the log, also when the
+// rule file does not validate.
+func TestTheBridgeLogNamesTheBridgeBeforeTheRulesLoad(t *testing.T) {
+	rules := writeRuleFile(t, "name: mac\nwork: [not, a, map]\n")
+	path := filepath.Join(t.TempDir(), "bridge.log")
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	bl, err := openBridgeLog(cmd, path, rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bl.log.Warn("update_skip_failed")
+	bl.file.Close()
+
+	if data, _ := os.ReadFile(path); !strings.Contains(string(data), `"event":"update_skip_failed","bridge":"mac"`) {
+		t.Fatalf("log = %s", data)
+	}
+}
+
+// A start that the lock refuses leaves the state file of the running bridge,
+// so loupe bridge logs still reads the log of that bridge.
+func TestARefusedStartKeepsTheStateFileOfTheRunningBridge(t *testing.T) {
+	shortConfigHome(t)
+	keyring.MockInit()
+	server := httptest.NewServer(http.HandlerFunc((&fakeLoupe{}).serve))
+	t.Cleanup(server.Close)
+	if err := config.Save(testLogin(server.URL)); err != nil {
+		t.Fatal(err)
+	}
+	rules := writeRules(t, "loupe")
+	sock, err := socketPath(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := lockBridge(rules, sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { lock.Close() })
+	st, err := statePath(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	running := bridgeState{Name: "mac", RulesPath: rules, LogFile: "/running.log"}
+	if err := writeBridgeState(st, running); err != nil {
+		t.Fatal(err)
+	}
+
+	err = runBridge(t, "--rules", rules, "--log-file", filepath.Join(t.TempDir(), "second.log"))
+	if err == nil || !strings.Contains(err.Error(), "another bridge reads the same rule file") {
+		t.Fatalf("err = %v, want the refusal of the lock", err)
+	}
+
+	states, err := readBridgeStates()
+	if err != nil || len(states) != 1 || states[0].LogFile != running.LogFile {
+		t.Fatalf("states = %+v, err = %v", states, err)
 	}
 }

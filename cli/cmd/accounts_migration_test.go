@@ -85,13 +85,13 @@ func TestAReloadWarnsThatTheAgentsAreOff(t *testing.T) {
 func TestAStartThatStopsEarlyLogsTheAccountsMigration(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	path := writeRuleFile(t, "defaults:\n  model: opus\nwork:\n  plan:\n    prompt: Plan {nope}.\n")
+	path := writeRuleFile(t, "name: mac\ndefaults:\n  model: opus\nwork:\n  plan:\n    prompt: Plan {nope}.\n")
 	logPath := filepath.Join(t.TempDir(), "bridge.log")
 
 	if err := runBridge(t, "--rules", path, "--log-file", logPath); err == nil {
 		t.Fatal("the bridge started")
 	}
-	if data, _ := os.ReadFile(logPath); !strings.Contains(string(data), `"event":"accounts_migration_done"`) {
+	if data, _ := os.ReadFile(logPath); !strings.Contains(string(data), `"event":"accounts_migration_done","bridge":"mac"`) {
 		t.Fatalf("log = %s", data)
 	}
 }

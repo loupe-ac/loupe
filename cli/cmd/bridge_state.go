@@ -155,8 +155,7 @@ func newBridgeIdentity(rulesPath string, log *bridgeLog) *bridgeIdentity {
 // update takes the name of set, and rewrites the state file. A failure to
 // write it is logged and never stops the bridge.
 func (i *bridgeIdentity) update(set *rules.Set) {
-	host, _ := os.Hostname()
-	name := cmp.Or(set.Name(), host)
+	name := logName(set.Name())
 	i.log.name.set(name)
 	logPath, _ := filepath.Abs(i.log.path)
 	path, err := statePath(i.rulesPath)
@@ -166,6 +165,14 @@ func (i *bridgeIdentity) update(set *rules.Set) {
 	if err != nil {
 		i.log.log.Warn("bridge_state_failed", "error", err.Error())
 	}
+}
+
+// logName is the name a bridge carries on its log: the name of its rule file,
+// or the host name when the file opts out.
+func logName(setName string) string {
+	host, _ := os.Hostname()
+
+	return cmp.Or(setName, host)
 }
 
 // runningStates keeps the states whose bridge holds its lock now. A state file
