@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Metric\MetricChangeKind;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricValueType;
@@ -42,6 +43,27 @@ final readonly class MetricValueFormatter
                 ? $this->number($value, \NumberFormatter::DECIMAL, 0, 1).' h'
                 : self::milliseconds((int) round($value)),
             MetricValueType::Tokens, MetricValueType::Count, MetricValueType::Boolean => $this->number($value, \NumberFormatter::DECIMAL, 0, 1),
+        };
+    }
+
+    /** A fraction of a whole as a percentage, with a decimal only when it has one. */
+    public function share(float $fraction): string
+    {
+        return $this->number($fraction, \NumberFormatter::PERCENT, 0, 1);
+    }
+
+    /**
+     * The size of a change with no sign or arrow: a percentage for a relative change, points for a change of
+     * rates, and the unit of the metric for an absolute change. The caller adds the direction.
+     */
+    public function change(float $change, MetricChangeKind $kind, MetricShape $metric, ?MetricStatistic $statistic): string
+    {
+        $size = abs($change);
+
+        return match ($kind) {
+            MetricChangeKind::Relative => $this->number($size, \NumberFormatter::PERCENT, 0, $size < 0.1 ? 1 : 0),
+            MetricChangeKind::Points => $this->number($size * 100, \NumberFormatter::DECIMAL, 0, 1),
+            MetricChangeKind::Absolute => $this->format($size, $metric, $statistic) ?? '',
         };
     }
 

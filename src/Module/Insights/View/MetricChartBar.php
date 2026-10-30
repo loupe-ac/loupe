@@ -18,6 +18,9 @@ final readonly class MetricChartBar
         public float $top,
         /** Empty for a zero value, which has no height to draw. */
         public string $path,
+        public float $height = 0.0,
+        /** The part of the column that a stacked bar takes. Null for a bar beside others. */
+        public ?float $share = null,
     ) {
     }
 }
