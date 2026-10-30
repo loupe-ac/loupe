@@ -212,7 +212,7 @@ it does not check whether the bridge still follows this project.
 
 When work waits and the quiet bridges that could take it lost their login, the
 "No bridge can take work" notice names those bridges and says to run `loupe login`
-on that machine. The notice follows the login: it changes its text when a login
+on each of their machines. The notice follows the login: it changes its text when a login
 expires after the notice opened, and when you restore the login.
 
 An ask from an interactive session names no bridge, and its dot stays grey. A

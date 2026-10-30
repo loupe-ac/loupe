@@ -264,9 +264,7 @@ final readonly class BridgeOutageReconciler
 
         return $this->translator->trans('inbox.bridge_outage.body.intro', [], null, $this->locale)
             ."\n\n".implode("\n", $lines)
-            ."\n\n".([] === $expired
-                ? $this->translator->trans('inbox.bridge_outage.body.remedy', [], null, $this->locale)
-                : $this->translator->trans('inbox.bridge_outage.body.login_expired', ['%bridges%' => implode(', ', $expired)], null, $this->locale));
+            ."\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', $expired), '%count%' => \count($expired)], null, $this->locale);
     }
 
     /**

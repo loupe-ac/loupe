@@ -386,6 +386,27 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         self::assertStringNotContainsString('Start a bridge', $body);
     }
 
+    public function test_a_notice_asks_for_a_login_on_each_machine_when_several_logins_expired(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $expired = [];
+        foreach (['macbookpro', 'studio'] as $name) {
+            $login = Uuid::v7();
+            $bridge = $this->bridge(seenSecondsAgo: 3600);
+            $bridge->loginId = $login;
+            $bridge->name = $name;
+            $expired[] = $login->toRfc4122();
+        }
+        $this->em->flush();
+        $this->logins->expired = $expired;
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringContainsString('The logins of macbookpro, studio expired. Run `loupe login` on each of those machines.', $body);
+        self::assertStringNotContainsString('that machine', $body);
+    }
+
     private function bodyOf(InboxItem $item): string
     {
         return $item->body ?? throw new \LogicException('A notice has a body.');

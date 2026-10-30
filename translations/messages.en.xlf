@@ -6027,11 +6027,7 @@
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.body.remedy">
                 <source>inbox.bridge_outage.body.remedy</source>
-                <target>Start a bridge, or run `loupe login`.</target>
-            </trans-unit>
-            <trans-unit id="inbox.bridge_outage.body.login_expired">
-                <source>inbox.bridge_outage.body.login_expired</source>
-                <target>The login of %bridges% expired. Run `loupe login` on that machine.</target>
+                <target>{0}Start a bridge, or run `loupe login`.|{1}The login of %bridges% expired. Run `loupe login` on that machine.|]1,Inf]The logins of %bridges% expired. Run `loupe login` on each of those machines.</target>
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.closed">
                 <source>inbox.bridge_outage.closed</source>
