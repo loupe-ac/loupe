@@ -1318,6 +1318,48 @@ final class RotateSecretsTest extends TestCase
         self::assertSame(['current=old previous=new', 'current=new previous=old'], file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
     }
 
+    public function test_reencrypted_after_a_failed_second_key_deploy_runs_that_deploy_again_and_keeps_the_old_key(): void
+    {
+        file_put_contents($this->dir.'/fail-at', '2');
+        $this->script(['collect', 'app_encryption_key']);
+        $failed = $this->script(['apply']);
+
+        $retried = $this->script(['apply', '--reencrypted']);
+        $finished = $this->script(['apply', '--reencrypted']);
+
+        self::assertNotSame(0, $failed->getExitCode());
+        self::assertSame(10, $retried->getExitCode(), $retried->getErrorOutput());
+        self::assertSame(0, $finished->getExitCode(), $finished->getErrorOutput());
+        self::assertSame(
+            ['current=old previous=new', 'current=new previous=old', 'current=new previous=old', 'current=new previous=none'],
+            file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES),
+        );
+    }
+
+    public function test_an_app_field_that_the_plan_knows_only_after_the_apply_counts_as_changed(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $change = $this->appChange(
+            ['INSTALL_TOKEN' => 'old-secret-value', 'ADMIN_EMAIL' => null],
+            ['INSTALL_TOKEN' => 'new-secret-value', 'ADMIN_EMAIL' => null],
+        );
+        $change['change']['after_unknown'] = ['spec' => [['env' => [['value' => true], ['value' => true]], 'service' => [['instance_size_slug' => true], []]]]];
+        $this->plan([$change]);
+
+        $stopped = $this->rotate(['install_token'], '');
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertStringContainsString("  spec.env.ADMIN_EMAIL\n  spec.service.instance_size_slug\n", $stopped->getErrorOutput());
+        self::assertStringNotContainsString('INSTALL_TOKEN', $stopped->getErrorOutput());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+
+        $change['change']['after_unknown'] = ['spec' => [['env' => [['value' => true], []]]]];
+        $this->plan([$change]);
+        $applied = $this->script(['apply']);
+
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+    }
+
     public function test_collect_starts_the_session_only_when_the_operator_says_yes(): void
     {
         file_put_contents($this->dir.'/session.sh', "#!/usr/bin/env bash\nprintf '%s' \"\$*\" > \"\$(dirname \"\$0\")/session-prompt\"\n");
