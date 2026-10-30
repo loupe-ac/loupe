@@ -332,8 +332,14 @@ async function render(playwrightPath, folder, outFolder, options) {
 function findTemplateInSvgText(source) {
     const found = [];
     for (const svg of source.match(/<svg\b[\s\S]*?<\/svg>/gi) ?? []) {
-        for (const hit of svg.matchAll(/<(text|tspan|textPath)\b[^>]*>([^<]*\{\{[^<]*)/gi)) {
-            found.push({ tag: hit[1], text: hit[2].trim().slice(0, 60) });
+        const open = [];
+        for (const token of svg.split(/(<[^>]*>)/)) {
+            const tag = token.match(/^<(\/?)(text|tspan|textPath)\b/i);
+            if (tag && tag[1]) open.pop();
+            else if (tag && !token.endsWith('/>')) open.push(tag[2]);
+            else if (!token.startsWith('<') && open.length > 0 && token.includes('{{')) {
+                found.push({ tag: open.at(-1), text: token.trim().slice(0, 60) });
+            }
         }
     }
 

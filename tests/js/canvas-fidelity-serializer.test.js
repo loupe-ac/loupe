@@ -109,6 +109,17 @@ describe('findTemplateInSvgText', () => {
         ]);
     });
 
+    it('finds a value that follows a child element of an SVG text', () => {
+        const source =
+            '<sc-if value="{{isLine}}"><svg><text x="1"><tspan>prefix</tspan>{{value}}</text>' +
+            '<text><tspan>a</tspan><tspan/>b {{late}}</text><text>plain</text></svg></sc-if>';
+
+        expect(findTemplateInSvgText(source)).toEqual([
+            { tag: 'text', text: '{{value}}' },
+            { tag: 'text', text: 'b {{late}}' },
+        ]);
+    });
+
     it('ignores a value in an attribute, outside an SVG, or in a label laid over the chart', () => {
         const source =
             '<p>{{title}}</p><svg><text x="{{x}}">$1.00</text><path d="{{d}}"></path></svg>' +
