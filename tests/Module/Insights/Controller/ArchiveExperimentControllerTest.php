@@ -63,6 +63,10 @@ final class ArchiveExperimentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-experiment-archived-toggle]'));
+        self::assertCount(0, $crawler->filter('[data-experiments-empty]'));
+        $back = $crawler->filter('[data-experiments-archived-empty] [data-experiments-archived-empty-back]');
+        self::assertCount(1, $back);
+        self::assertSame('/projects/'.$projectId.'/analytics/experiments', $back->attr('href'));
     }
 
     public function test_an_unknown_experiment_flashes_an_error_and_archives_nothing(): void
