@@ -196,8 +196,32 @@ workflow opens, and runs an agent for each one. The
 - `loupe bridge run -d` starts the bridge in the background and returns once the bridge listens. The log goes to `bridge.log` in the config directory, or to `--log-file`.
 - `loupe bridge stop` stops the bridge that reads the rule file. The bridge ends its workers, sends their reports and exits. The command fails when no bridge runs.
 - `loupe bridge reload` applies a changed rule file to a running bridge.
+- `loupe bridge status` shows the running bridges. See [`loupe bridge status`](#loupe-bridge-status).
 
-All three take `--rules` to name another rule file.
+`run`, `stop` and `reload` take `--rules` to name another rule file.
+
+## `loupe bridge status`
+
+Shows every bridge that runs on this machine. The command asks each bridge over
+its control socket and makes no network call. It prints one block for each
+bridge, headed by the name of the bridge. A block shows:
+
+- the rule file, the process id, the CLI version and the log file
+- the login, which is `valid` or `expired, waiting for loupe login`
+- the time of the last heartbeat that the server accepted
+- the last warning or error of the log, with its time
+- each running worker, with its card, its kind and its start time
+
+A bridge on an older CLI cannot report its status. Its block says that the
+bridge runs on an older CLI and tells you to run `loupe update`.
+
+`--bridge <name>` shows the bridge with that name. When two running bridges
+have the same name, the command stops and asks you to set `name:` in one rule
+file. When no running bridge has the name, the command fails.
+
+The command exits with status 0 when every bridge shown runs with a valid login.
+It exits with status 1 when no bridge runs, or when a bridge shown waits for a
+new login. With `--bridge`, the status covers that bridge only.
 
 ## `loupe status`
 
@@ -217,6 +241,11 @@ It starts with two lines. `Setup:` gives the setup folder and what chose it, whi
 is `-c`, `LOUPE_CONFIG` or `the default`. `Binary:` gives the release version,
 or `a build at <commit>` for a development build. In a built setup it reads
 `a build of <checkout> at <commit>`.
+
+The `Bridges:` line counts the running bridges and gives their login state, as in
+`1 running, login valid.` or `none running.`. It reads the bridges with no
+network call. No running bridge is reported and does not fail the check. A bridge
+with an expired login fails the check, and the line points to `loupe bridge status`.
 
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.

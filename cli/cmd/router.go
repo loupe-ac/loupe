@@ -204,6 +204,10 @@ type router struct {
 	paused bool
 	frozen bool
 	live   map[string]liveRun
+	// rulesPath and logPath are the files the bridge reads and writes, and
+	// lastError tracks the last warning of its log. The status op reports them.
+	rulesPath, logPath string
+	lastError          *lastErrorTracker
 	// envBusy holds the sessions that a refresh or a reset runs for.
 	envBusy      map[string]bool
 	heldEvents   []heldEvent
