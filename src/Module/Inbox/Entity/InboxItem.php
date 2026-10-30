@@ -138,6 +138,12 @@ class InboxItem implements ProjectScopedSubject
         $this->dismissible = !\in_array($kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true);
     }
 
+    /** An agent question takes a note beside its options. A workflow question takes a note only when text alone answers it. */
+    public function takesNote(): bool
+    {
+        return InboxItemKind::Question === $this->kind || $this->freeText;
+    }
+
     /** Loupe opened it for a waiting card, as opposed to an agent's ask or a notice. */
     public function isAutomatic(): bool
     {

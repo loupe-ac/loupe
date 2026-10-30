@@ -58,7 +58,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
         yield 'an index past the options' => ['2', '', 'selectedOptions', 'inbox.answer.error.unknown_option'];
         yield 'a word for an index' => ['first', '', 'selectedOptions', 'inbox.answer.error.unknown_option'];
         yield 'two options on a single-choice question' => ['0,1', '', 'selectedOptions', 'inbox.answer.error.one_option'];
-        yield 'text on a question that takes none' => ['0', 'extra', 'answerText', 'inbox.answer.error.no_free_text'];
+        yield 'a note alone on a question that text alone does not answer' => ['', 'extra', 'selectedOptions', 'inbox.answer.error.empty'];
         yield 'nothing at all' => ['', '   ', 'selectedOptions', 'inbox.answer.error.empty'];
     }
 
@@ -88,14 +88,24 @@ final class InboxResponseHandlersTest extends KernelTestCase
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 
+    public function test_a_question_without_free_text_takes_a_note_beside_its_option(): void
+    {
+        $item = $this->question($this->em, $this->project, 1);
+
+        $this->answer($item, '1', ' Smaller files. ');
+
+        $stored = $this->reload($item);
+        self::assertSame([InboxItemState::Resolved, [1], 'Smaller files.'], [$stored->state, $stored->selectedOptions, $stored->note]);
+    }
+
     public function test_free_text_is_checked_against_the_question_as_stored_under_the_lock(): void
     {
         $item = $this->question($this->em, $this->project, 1, freeText: true);
         $this->em->getConnection()->executeStatement('UPDATE inbox_items SET free_text = false WHERE id = ?', [(string) $item->id]);
 
-        $errors = $this->refusal(fn () => $this->answer($item, '0', 'extra'));
+        $errors = $this->refusal(fn () => $this->answer($item, '', 'extra'));
 
-        self::assertSame(['answerText' => 'inbox.answer.error.no_free_text'], $errors);
+        self::assertSame(['selectedOptions' => 'inbox.answer.error.empty'], $errors);
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 

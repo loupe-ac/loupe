@@ -55,10 +55,10 @@ final readonly class AnswerInboxItemHandler
             if (!$item->multiple && \count($selected) > 1) {
                 return ['selectedOptions' => self::ONE_OPTION];
             }
-            if ('' !== $text && !$item->freeText) {
+            if ('' !== $text && !$item->takesNote()) {
                 return ['answerText' => self::NO_FREE_TEXT];
             }
-            if ([] === $selected && '' === $text) {
+            if ([] === $selected && ('' === $text || !$item->freeText)) {
                 return [$item->freeText && [] === $item->options ? 'answerText' : 'selectedOptions' => self::EMPTY];
             }
 

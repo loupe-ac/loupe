@@ -356,7 +356,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $item = $this->askedItem(InboxItemKind::Question, ['A', 'B']);
 
         $this->assertRespondRefused($item, ['selectedOptions' => 'inbox.answer.error.unknown_option'], selectedOptions: '5');
-        $this->assertRespondRefused($item, ['note' => 'inbox.answer.error.no_free_text'], note: 'extra', selectedOptions: '0');
+        $this->assertRespondRefused($item, ['selectedOptions' => 'inbox.answer.error.empty'], note: 'extra');
         $this->assertRespondRefused($item, ['selectedOptions' => 'inbox.answer.error.empty']);
     }
 

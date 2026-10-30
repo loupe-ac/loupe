@@ -125,14 +125,14 @@
                                 {% endfor %}
                             </div>
                             {% endif %}
-                            {% if item.freeText %}
+                            {% if item.takesNote() %}
                                 <div class="lp-decision__note">{{ form_widget(responseForm.note, {attr: noteAttr}) }}</div>
                             {% endif %}
                         </fieldset>
                     {% endif %}
                     {{ form_widget(responseForm.selectedOptions) }}
                     <twig:Ds:FieldErrors :fieldView="responseForm.selectedOptions" :id="selectedErrorsId" />
-                    {% if item.freeText %}
+                    {% if item.takesNote() %}
                         <twig:Ds:FieldErrors :fieldView="responseForm.note" :id="textErrorsId" />
                     {% endif %}
                     <twig:Ds:FieldErrors :fieldView="responseForm" />

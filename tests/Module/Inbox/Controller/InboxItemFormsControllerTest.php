@@ -273,10 +273,11 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
     public function test_the_page_form_answers_a_question(): void
     {
-        $item = $this->question($this->em, $this->project, 4, ['JSON', 'CSV'], freeText: true);
+        $item = $this->question($this->em, $this->project, 4, ['JSON', 'CSV']);
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         $name = 'inbox_response_'.$item->id;
 
+        self::assertCount(1, $crawler->filter('#inbox-item-4 .lp-decision__note-field'));
         // The form reads the pick from the hidden field, which the answer controller fills in a browser.
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([
             $name.'[selectedOptions]' => '1',
@@ -305,6 +306,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $name = 'inbox_response_'.$item->id;
 
         self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-inbox-item__buttons [form]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-decision__note-field'));
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([$name.'[selectedOptions]' => '2']));
 
         self::assertResponseRedirects($this->pageUrl());

@@ -225,8 +225,9 @@ Every item that takes a response shows its forms under its text.
 
 - **Answer a question.** The **Your answer** block lists the options, and says
   whether you pick one or any. A hovered option turns grey, and a picked option
-  turns pale lime. Pick an option, write a note for the agent, or do both, as
-  the question allows. Then select **Send answer**. Select **Clear choice** at
+  turns pale lime. Pick an option, and write an optional note for the agent
+  beside it. When the question allows a written answer, the note alone also
+  answers it. Then select **Send answer**. Select **Clear choice** at
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
