@@ -74,10 +74,8 @@ parameters:
     # and a run shown as running for longer than that misleads.
     app.bridge.run_timeout_schedule: '* * * * *'
     # How long an open interactive run may show no sign of life, in seconds,
-    # before the sweep closes it as stale. The `bridge.interactive_stale_close_enabled`
-    # feature flag switches the sweep on and off.
-    app.bridge.interactive_stale_after: 43200
-    app.bridge.default_interactive_stale_close_enabled: true
+    # before the sweep closes it as stale. Zero switches the sweep off.
+    app.bridge.default_interactive_stale_after_seconds: 43200
     # Every minute, so a stuck queue shows on the Sentry graph within a minute.
     app.observability.queue_depth_schedule: '* * * * *'
     # The backstop for a forge delivery that never arrived.

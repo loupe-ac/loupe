@@ -8,31 +8,33 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
 /**
- * Whether the sweep closes an open interactive run that shows no sign of life, and after how long.
- * The exit hook and the bridge liveness check close runs whatever this flag says.
+ * How long an open interactive run may show no sign of life before the sweep closes it.
+ * Zero switches the sweep off. The exit hook and the bridge liveness check close runs whatever this flag says.
  */
 final readonly class InteractiveStaleClose
 {
-    public const string FLAG = 'bridge.interactive_stale_close_enabled';
+    public const string FLAG = 'bridge.interactive_stale_after_seconds';
 
     public function __construct(
         private FeatureFlagService $featureFlags,
 
-        #[Autowire(param: 'app.bridge.default_interactive_stale_close_enabled')]
-        private bool $defaultEnabled,
-
-        #[Autowire(param: 'app.bridge.interactive_stale_after')]
-        private int $staleAfterSeconds,
+        #[Autowire(param: 'app.bridge.default_interactive_stale_after_seconds')]
+        private int $default,
     ) {
     }
 
     public function enabled(): bool
     {
-        return $this->featureFlags->isEnabled(self::FLAG, $this->defaultEnabled);
+        return $this->seconds() > 0;
     }
 
     public function quietBefore(\DateTimeImmutable $now): \DateTimeImmutable
     {
-        return $now->modify(\sprintf('-%d seconds', $this->staleAfterSeconds));
+        return $now->modify(\sprintf('-%d seconds', $this->seconds()));
+    }
+
+    private function seconds(): int
+    {
+        return $this->featureFlags->getIntValue(self::FLAG, $this->default);
     }
 }

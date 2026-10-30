@@ -92,7 +92,7 @@ final class InteractiveSessionClosingTest extends KernelTestCase
         self::assertSame(WorkerRunState::Running, $this->reload($young)->state);
     }
 
-    public function test_the_stale_sweep_does_nothing_while_its_feature_flag_is_off(): void
+    public function test_the_stale_sweep_does_nothing_while_its_threshold_is_zero(): void
     {
         [, $project] = $this->scenario('close-stale-off');
         $run = $this->runs()->open($project, Uuid::v7(), 1, Uuid::v4(), 'design');
@@ -100,13 +100,21 @@ final class InteractiveSessionClosingTest extends KernelTestCase
         $clock = self::getContainer()->get('clock');
         self::assertInstanceOf(MockClock::class, $clock);
 
-        $off = new CloseStaleInteractiveRunsHandler($this->runs(), new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => false]), true, 43200), $clock);
-        $on = new CloseStaleInteractiveRunsHandler($this->runs(), new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => true]), false, 43200), $clock);
+        $off = new CloseStaleInteractiveRunsHandler($this->runs(), new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => 0]), 43200), $clock);
+        $on = new CloseStaleInteractiveRunsHandler($this->runs(), new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => 43200]), 0), $clock);
 
         self::assertSame([], $off(new CloseStaleInteractiveRunsCommand()));
         self::assertSame(WorkerRunState::Running, $this->reload($run)->state);
         self::assertCount(1, $on(new CloseStaleInteractiveRunsCommand()));
         self::assertSame(WorkerRunState::Closed, $this->reload($run)->state);
+    }
+
+    public function test_the_stale_threshold_follows_its_flag(): void
+    {
+        $staleClose = new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => 3600]), 43200);
+
+        self::assertTrue($staleClose->enabled());
+        self::assertSame('2026-10-28 11:00:00', $staleClose->quietBefore(new \DateTimeImmutable(self::NOW))->format('Y-m-d H:i:s'));
     }
 
     public function test_the_stale_threshold_is_twelve_hours_by_default(): void

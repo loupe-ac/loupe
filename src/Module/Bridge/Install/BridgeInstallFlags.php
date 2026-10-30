@@ -47,8 +47,8 @@ final readonly class BridgeInstallFlags implements InstallFlagDefaultsInterface
         #[Autowire(param: 'app.bridge.default_host_sample_interval_seconds')]
         private int $hostSampleIntervalSeconds,
 
-        #[Autowire(param: 'app.bridge.default_interactive_stale_close_enabled')]
-        private bool $interactiveStaleCloseEnabled,
+        #[Autowire(param: 'app.bridge.default_interactive_stale_after_seconds')]
+        private int $interactiveStaleAfterSeconds,
     ) {
     }
 
@@ -63,7 +63,7 @@ final readonly class BridgeInstallFlags implements InstallFlagDefaultsInterface
         yield new InstallFlagDefault(StopLadder::SIGKILL_FLAG, FeatureFlagType::Int, $this->stopSigkillAfterMs);
         yield new InstallFlagDefault(HostSampling::ENABLED_FLAG, FeatureFlagType::Bool, $this->hostSamplingEnabled);
         yield new InstallFlagDefault(HostSampling::INTERVAL_FLAG, FeatureFlagType::Int, $this->hostSampleIntervalSeconds);
-        yield new InstallFlagDefault(InteractiveStaleClose::FLAG, FeatureFlagType::Bool, $this->interactiveStaleCloseEnabled);
+        yield new InstallFlagDefault(InteractiveStaleClose::FLAG, FeatureFlagType::Int, $this->interactiveStaleAfterSeconds);
         yield new InstallFlagDefault(ToolCallCollectionSettings::SUBCOMMAND_PROGRAMS_FLAG, FeatureFlagType::String, ToolCallCollectionSettings::DEFAULT_SUBCOMMAND_PROGRAMS);
     }
 }
