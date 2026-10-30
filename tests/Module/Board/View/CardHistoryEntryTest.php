@@ -557,6 +557,55 @@ final class CardHistoryEntryTest extends TestCase
         self::assertEquals($expected, $entry->sentence->getParameters()['%actor%']);
     }
 
+    public function test_a_value_turned_on_names_the_declared_subject(): void
+    {
+        $entry = CardHistoryEntry::of(
+            $this->event(CardEventKind::ValueChanged, Actor::Human, $this->user, ['key' => 'tech-design-interactive', 'value' => true, 'previous' => null]),
+            historyPhrases: ['tech-design-interactive' => 'workflow.value.tech_design_interactive.history'],
+        );
+
+        self::assertSame('lucide:settings', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.value_on', [
+            '%actor%' => 'Riley Chen',
+            '%subject%' => new TranslatableMessage('workflow.value.tech_design_interactive.history'),
+        ]), $entry->sentence);
+    }
+
+    public function test_a_value_turned_off_uses_the_off_sentence(): void
+    {
+        $entry = CardHistoryEntry::of(
+            $this->event(CardEventKind::ValueChanged, Actor::Human, $this->user, ['key' => 'tech-design-interactive', 'value' => false, 'previous' => true]),
+            historyPhrases: ['tech-design-interactive' => 'workflow.value.tech_design_interactive.history'],
+        );
+
+        self::assertSame('board.card.history.value_off', $entry->sentence->getMessage());
+    }
+
+    public function test_a_value_of_a_key_the_template_no_longer_declares_falls_back_to_the_raw_key(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ValueChanged, Actor::Human, $this->user, ['key' => 'gone-key', 'value' => true, 'previous' => null]));
+
+        self::assertSame('board.card.history.value_on', $entry->sentence->getMessage());
+        self::assertSame('gone-key', $entry->sentence->getParameters()['%subject%']);
+    }
+
+    /** @param array<string, mixed> $detail */
+    #[DataProvider('unreadableValueDetails')]
+    public function test_a_value_change_with_an_unreadable_detail_gives_the_changed_sentence(array $detail): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ValueChanged, Actor::Human, $this->user, $detail));
+
+        self::assertSame('board.card.history.changed', $entry->sentence->getMessage());
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function unreadableValueDetails(): iterable
+    {
+        yield 'no key' => [['value' => true]];
+        yield 'a value that is no boolean' => [['key' => 'a-key', 'value' => 'yes']];
+        yield 'no value' => [['key' => 'a-key']];
+    }
+
     /** @return array<string, mixed> */
     private function runDetail(string $state, ?int $durationSeconds): array
     {

@@ -27,12 +27,15 @@ use App\Module\Board\Form\SetCardHumanReviewFormType;
 use App\Module\Board\Form\SetCardHumanReviewRequest;
 use App\Module\Board\Form\SetCardLaneFormType;
 use App\Module\Board\Form\SetCardLaneRequest;
+use App\Module\Board\Form\SetCardValueFormType;
+use App\Module\Board\Form\SetCardValueRequest;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Service\BoardColumnTonePicker;
 use App\Module\Board\Service\CardDigest;
 use App\Module\Board\Service\StoredCardMarkers;
+use App\Module\Board\View\CardValueView;
 use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -76,6 +79,7 @@ final class BoardExtension extends AbstractExtension
             new TwigFunction('board_move_form', $this->boardMoveForm(...)),
             new TwigFunction('card_lane_form', $this->cardLaneForm(...)),
             new TwigFunction('card_human_review_form', $this->cardHumanReviewForm(...)),
+            new TwigFunction('card_value_form', $this->cardValueForm(...)),
             // The Backlog page writes this form by hand, so 25 rows build no column choices.
             new TwigFunction('backlog_move_form_name', MoveBacklogCardFormType::nameFor(...)),
             new TwigFunction('card_type', $this->cardType(...)),
@@ -141,6 +145,17 @@ final class BoardExtension extends AbstractExtension
                 SetCardHumanReviewFormType::nameFor((string) $card->id),
                 SetCardHumanReviewFormType::class,
                 new SetCardHumanReviewRequest($card->requiresHumanReview),
+            )
+            ->createView();
+    }
+
+    public function cardValueForm(Card $card, CardValueView $value): FormView
+    {
+        return $this->formFactory
+            ->createNamed(
+                SetCardValueFormType::nameFor((string) $card->id, $value->key),
+                SetCardValueFormType::class,
+                new SetCardValueRequest(true === $value->value),
             )
             ->createView();
     }

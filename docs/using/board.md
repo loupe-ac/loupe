@@ -448,6 +448,17 @@ cause: a person, an agent, a workflow rule or the rollout. The switch turns on b
 switch with `requiresHumanReview` on `card_create` and `card_update`. A bridge
 worker can turn it on and never off.
 
+The **Details** tab also shows a **Values** group when the workflow template of
+the project declares card values. The template declares each key with its type,
+its label and its help text. Each key is one row with a switch, a **?** help
+icon, and a line that says who set the value and when, or **Not set**. Turn a
+switch on or off, and the page saves the change at once. A reader who cannot
+edit the card sees the switch disabled. A project whose template declares no
+key shows no **Values** group. The card history shows each change, for example
+"Alex turned on the interactive session for tech design". A change of a value
+makes the workflow check the card again. An agent reads the declared keys in the
+`values` field of `card_get`, and writes them with `values` on `card_update`.
+
 The card page and the drawer update live, with no reload. They update when the
 card moves, when one of its pull requests changes, when the automation acts,
 and when a worker run of the project changes. The open tab stays open. A form
@@ -1006,7 +1017,7 @@ An agent drives the board through the MCP endpoint. See
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
 | `card_get_history` | Exactly one of `cardId` and `number`. `page` and `perPage` are optional. |
-| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards` and `requiresHumanReview` are optional. |
+| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards`, `requiresHumanReview` and `values` are optional. |
 | `card_run_open` | `sessionId`, `name` and exactly one of `cardId` and `number` are required. `status` is optional. |
 | `card_run_close` | `sessionId` and exactly one of `cardId` and `number` are required. |
 | `column_create` | `label` is required. |
@@ -1131,7 +1142,7 @@ carries `kind`, `occurredAt` and `actor`.
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
 `override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
-`approval-dismissed` or `human-review-changed`. `actor` carries `kind` and
+`approval-dismissed`, `human-review-changed` or `value-changed`. `actor` carries `kind` and
 `name`. Its `kind` is `human`, `agent`, `reviewer` or `system`. `name` is the
 current name of the person
 behind the event. It is null when there is no person, such as for a deleted
@@ -1173,6 +1184,10 @@ A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
 `ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
 `rule` or `rollout`. `ruleId` names the workflow rule that set the switch, and
 is null for any other cause.
+
+A `value-changed` event sets `valueChange`, with `key`, `value` and `previous`.
+`key` is the declared key of the card value that changed. `previous` is null when
+the key was unset.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.

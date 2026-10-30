@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\View;
 
+use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\CardVerdictKind;
@@ -59,8 +60,11 @@ final readonly class CardHistoryEntry
     ) {
     }
 
-    /** @param bool $runExists whether the run of a `run-finished` row is still stored, so the row can link to it */
-    public static function of(CardEvent $event, bool $runExists = false): self
+    /**
+     * @param bool                  $runExists      whether the run of a `run-finished` row is still stored, so the row can link to it
+     * @param array<string, string> $historyPhrases the history translation key of each value key the template declares
+     */
+    public static function of(CardEvent $event, bool $runExists = false, array $historyPhrases = []): self
     {
         $actor = self::actor($event);
         $detail = $event->detail;
@@ -97,6 +101,7 @@ final readonly class CardHistoryEntry
                 ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.approval_dismissed', ['%pr%' => $detail['pullRequest']]))
                 : null,
             CardEventKind::HumanReviewChanged => self::humanReview($event, $actor, $detail),
+            CardEventKind::ValueChanged => self::valueChanged($event, $actor, $detail, $historyPhrases),
             CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
                 ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
                 : null,
@@ -115,9 +120,13 @@ final readonly class CardHistoryEntry
 
     private static function actor(CardEvent $event): string|TranslatableMessage
     {
-        $user = $event->actorUser;
+        return self::actorLabel($event->actorKind, $event->actorUser);
+    }
 
-        return match ($event->actorKind) {
+    /** How the app names who made a change: a person by name, an agent by its owner, the app and a reviewer by role. */
+    public static function actorLabel(Actor $kind, ?User $user): string|TranslatableMessage
+    {
+        return match ($kind) {
             Actor::System => new TranslatableMessage('board.card.history.actor.system'),
             Actor::Reviewer => new TranslatableMessage('board.card.history.actor.reviewer'),
             Actor::Human => $user->fullName ?? new TranslatableMessage('board.card.history.actor.deleted'),
@@ -281,6 +290,30 @@ final readonly class CardHistoryEntry
                 'rollout' => new TranslatableMessage('board.card.history.cause.human_review_rollout'),
                 default => null,
             },
+        );
+    }
+
+    /**
+     * @param array<string, mixed>  $detail
+     * @param array<string, string> $historyPhrases
+     */
+    private static function valueChanged(CardEvent $event, string|TranslatableMessage $actor, array $detail, array $historyPhrases): ?self
+    {
+        $key = $detail['key'] ?? null;
+        $value = $detail['value'] ?? null;
+        if (!\is_string($key) || '' === $key || !\is_bool($value)) {
+            return null;
+        }
+        $phrase = $historyPhrases[$key] ?? null;
+
+        return new self(
+            'lucide:settings',
+            $event->occurredAt,
+            $actor,
+            new TranslatableMessage($value ? 'board.card.history.value_on' : 'board.card.history.value_off', [
+                '%actor%' => $actor,
+                '%subject%' => null === $phrase ? $key : new TranslatableMessage($phrase),
+            ]),
         );
     }
 

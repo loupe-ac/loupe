@@ -2877,11 +2877,26 @@
         @apply m-0 text-sm font-semibold text-ink whitespace-nowrap;
     }
     /* The review switch of a card, with the help mark that sits beside its label. */
-    .lp-card-review {
+    .lp-card-review,
+    .lp-card-value__control {
         @apply flex items-center gap-1.5;
     }
-    .lp-card-review__help {
+    .lp-card-review__help,
+    .lp-card-value__help {
         @apply inline-flex cursor-help text-fg-mute;
+    }
+    /* The value rows of a card, one for each key its workflow template declares. */
+    .lp-card-values {
+        @apply flex flex-col gap-3;
+    }
+    .lp-card-value {
+        @apply flex flex-col gap-1;
+    }
+    .lp-card-value__label {
+        @apply text-sm font-semibold text-ink;
+    }
+    .lp-card-value__meta {
+        @apply text-xs font-normal text-fg-mute;
     }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {

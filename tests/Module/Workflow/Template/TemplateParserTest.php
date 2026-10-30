@@ -34,12 +34,14 @@ use App\Module\Workflow\Action\ReleasePause;
 use App\Module\Workflow\Condition\CardInSlot;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Action;
+use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\LabelTone;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\SuggestionMark;
+use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Expression\AllOf;
@@ -323,6 +325,79 @@ final class TemplateParserTest extends TestCase
     {
         self::assertSame([], $this->parser->parse(self::valid())->repositorySettings);
         self::assertSame([], $this->parser->parse(self::valid() + ['repositorySettings' => []])->repositorySettings);
+    }
+
+    public function test_a_template_reads_its_value_keys_in_order(): void
+    {
+        $template = $this->parser->parse(self::valid() + ['values' => [
+            self::valueKey('tech-design-interactive'),
+            self::valueKey('review-2', 'review2'),
+        ]]);
+
+        self::assertEquals([
+            new TemplateValueKey('tech-design-interactive', CardValueType::Bool, 'workflow.value.tech-design-interactive.label', 'workflow.value.tech-design-interactive.caption', 'workflow.value.tech-design-interactive.help', 'workflow.value.tech-design-interactive.history'),
+            new TemplateValueKey('review-2', CardValueType::Bool, 'workflow.value.review2.label', 'workflow.value.review2.caption', 'workflow.value.review2.help', 'workflow.value.review2.history'),
+        ], $template->values);
+    }
+
+    public function test_a_template_with_no_values_section_has_no_value_keys(): void
+    {
+        self::assertSame([], $this->parser->parse(self::valid())->values);
+        self::assertSame([], $this->parser->parse(self::valid() + ['values' => []])->values);
+        self::assertSame([], $this->parser->parseStored(self::valid())->values);
+    }
+
+    /**
+     * @param list<string> $errors
+     * @param list<string> $kept
+     */
+    #[DataProvider('invalidValueKeys')]
+    public function test_value_keys_that_are_not_valid_are_refused_and_a_stored_copy_drops_them(mixed $value, array $errors, array $kept): void
+    {
+        $source = self::valid() + ['values' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame($errors, $e->errors);
+        }
+        self::assertSame($kept, array_map(static fn (TemplateValueKey $key): string => $key->key, $this->parser->parseStored($source)->values));
+    }
+
+    /** @return iterable<string, array{mixed, list<string>, list<string>}> */
+    public static function invalidValueKeys(): iterable
+    {
+        $good = self::valueKey('good');
+
+        yield 'an explicit null' => [null, ['values: must be a list of value keys'], []];
+        yield 'a map' => [['good' => $good], ['values: must be a list of value keys'], []];
+        yield 'an unknown type' => [[['type' => 'text'] + self::valueKey('other'), $good], ['values[0]: unknown type "text"'], ['good']];
+        yield 'a missing type' => [[array_diff_key(self::valueKey('other'), ['type' => 1]), $good], ['values[0]: unknown type "null"'], ['good']];
+        yield 'a duplicate key' => [[$good, $good], ['values[1]: duplicate key "good"'], ['good']];
+        yield 'an uppercase key' => [[['key' => 'Good'] + $good], ['values[0]: key "Good" must be lowercase letters, digits and hyphens'], []];
+        yield 'an underscore key' => [[['key' => 'tech_design'] + $good], ['values[0]: key "tech_design" must be lowercase letters, digits and hyphens'], []];
+        yield 'a key with a leading hyphen' => [[['key' => '-good'] + $good], ['values[0]: key "-good" must be lowercase letters, digits and hyphens'], []];
+        yield 'a missing key' => [[array_diff_key($good, ['key' => 1])], ['values[0]: key "null" must be lowercase letters, digits and hyphens'], []];
+        yield 'a missing caption' => [[array_diff_key($good, ['caption' => 1])], ['values[0]: caption must be a non-empty string'], []];
+        yield 'an empty history' => [[['history' => ''] + $good], ['values[0]: history must be a non-empty string'], []];
+        yield 'an extra field' => [[$good + ['note' => 'x']], ['values[0]: unknown field "note"'], []];
+        yield 'an entry that is not a map' => [['good'], ['values[0]: must be a map'], []];
+    }
+
+    /** @return array<string, string> */
+    private static function valueKey(string $key, ?string $translationName = null): array
+    {
+        $name = $translationName ?? $key;
+
+        return [
+            'key' => $key,
+            'type' => 'bool',
+            'label' => 'workflow.value.'.$name.'.label',
+            'caption' => 'workflow.value.'.$name.'.caption',
+            'help' => 'workflow.value.'.$name.'.help',
+            'history' => 'workflow.value.'.$name.'.history',
+        ];
     }
 
     /** @param list<string> $errors */
