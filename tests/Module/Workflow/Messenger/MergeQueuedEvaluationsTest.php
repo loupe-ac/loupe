@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Messenger;
 
+use App\Module\Board\Entity\Card;
 use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Install\WorkflowInstallFlags;
@@ -12,10 +13,12 @@ use App\Module\Workflow\Messenger\EvaluateCardHandler;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Module\Workflow\Service\WorkflowRowCleaner;
+use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\FeatureFlags;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Clock\ClockInterface;
+use Doctrine\ORM\Event\PostLoadEventArgs;
+use Doctrine\ORM\Events;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -24,6 +27,8 @@ use Symfony\Component\Uid\Uuid;
 
 final class MergeQueuedEvaluationsTest extends KernelTestCase
 {
+    use WorkflowProjects;
+
     public function test_triggers_that_wait_together_queue_one_evaluation_and_a_trigger_after_the_receipt_queues_another(): void
     {
         $card = Uuid::v7();
@@ -42,16 +47,13 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
 
     public function test_a_trigger_while_an_evaluation_runs_queues_one_more_evaluation(): void
     {
-        $card = Uuid::v7();
         $trigger = $this->trigger(true);
+        $card = $this->storedCard();
         $trigger->forCards([$card]);
         self::assertCount(1, $this->transport()->getSent());
 
-        $handler = new EvaluateCardHandler(
-            new EvaluateWorkflowCardHandler($this->service(Engine::class), $this->clockThatTriggers(static fn () => $trigger->forCards([$card]))),
-            $this->service(WorkflowQueuedEvaluationRepository::class),
-        );
-        $handler(new EvaluateCard($card->toRfc4122()));
+        $this->triggerWhenTheEngineLoads($card, $trigger);
+        $this->handler()(new EvaluateCard($card->toRfc4122()));
 
         self::assertCount(2, $this->transport()->getSent());
         self::assertSame(1, $this->rows($card));
@@ -157,21 +159,43 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         return $service;
     }
 
-    /** The evaluation reads the clock after the handler released the row and before the engine runs. */
-    private function clockThatTriggers(\Closure $onNow): ClockInterface
+    /** A stored card that the next read loads from the database, with no claim and no message left by its creation. */
+    private function storedCard(): Uuid
     {
-        return new readonly class($onNow) implements ClockInterface {
+        $project = $this->workflowProject('merge-queued');
+        $card = new Card($project, $this->column($project, 'next'), 'Card', '', 1);
+        $this->em()->persist($card);
+        $this->em()->flush();
+        $id = $card->id ?? throw new \LogicException('The card is persisted.');
+        $this->em()->clear();
+        $this->service(WorkflowQueuedEvaluationRepository::class)->release($id);
+        $this->transport()->reset();
+
+        return $id;
+    }
+
+    /** The engine loads the card inside its pass, after the handler released the claim, so the first load sends the trigger there. */
+    private function triggerWhenTheEngineLoads(Uuid $card, EvaluationTrigger $trigger): void
+    {
+        $listener = new class($card, $trigger) {
+            private bool $fired = false;
+
             public function __construct(
-                private \Closure $onNow,
+                private readonly Uuid $card,
+                private readonly EvaluationTrigger $trigger,
             ) {
             }
 
-            public function now(): \DateTimeImmutable
+            public function postLoad(PostLoadEventArgs $args): void
             {
-                ($this->onNow)();
-
-                return new \DateTimeImmutable('2026-10-30 12:00:00');
+                $entity = $args->getObject();
+                if ($this->fired || !$entity instanceof Card || null === $entity->id || !$entity->id->equals($this->card)) {
+                    return;
+                }
+                $this->fired = true;
+                $this->trigger->forCards([$this->card]);
             }
         };
+        $this->em()->getEventManager()->addEventListener([Events::postLoad], $listener);
     }
 }
