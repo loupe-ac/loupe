@@ -11,6 +11,7 @@ use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Service\CardExporter;
@@ -126,8 +127,32 @@ final class CardExporterTest extends KernelTestCase
             'parentCardId' => null,
             'parentNumber' => null,
             'laneEnabled' => true,
+            'values' => [],
             'history' => [],
         ], $rows[0]);
+    }
+
+    public function test_a_card_carries_its_values_without_the_writer_account(): void
+    {
+        $owner = $this->user('card-export-values');
+        $project = new Project($owner, 'export-'.uniqid());
+        $this->em->persist($project);
+        $this->seedColumns($project);
+        $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'A card', body: '', number: 1);
+        $this->em->persist($card);
+        $updatedAt = new \DateTimeImmutable('2026-03-05 14:00:00');
+        $this->em->persist(new CardValue($card, 'tech-design-interactive', false, Actor::Human, $owner, $updatedAt));
+        $this->em->flush();
+        $this->em->clear();
+
+        $rows = iterator_to_array($this->exporter->export($owner), false);
+
+        self::assertSame([[
+            'key' => 'tech-design-interactive',
+            'value' => false,
+            'writerKind' => 'human',
+            'updatedAt' => $updatedAt->format(\DateTimeInterface::ATOM),
+        ]], $rows[0]['values']);
     }
 
     /**

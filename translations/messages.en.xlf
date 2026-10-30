@@ -6489,6 +6489,18 @@
                 <source>board.card.error.column_changed</source>
                 <target>Someone moved this card to another column. Reload the page and try again.</target>
             </trans-unit>
+            <trans-unit id="board.card.error.value_type_bool">
+                <source>board.card.error.value_type_bool</source>
+                <target>This key takes true or false.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_undeclared">
+                <source>board.card.error.value_key_undeclared</source>
+                <target>The workflow template declares no key %key%. Declared keys: %declared%.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_undeclared_none">
+                <source>board.card.error.value_key_undeclared_none</source>
+                <target>The workflow template declares no key %key%. Declared keys: none.</target>
+            </trans-unit>
             <trans-unit id="board.card.error.title_blank">
                 <source>board.card.error.title_blank</source>
                 <target>Give the card a title.</target>
