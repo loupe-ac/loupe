@@ -70,7 +70,7 @@ Before: "I recommend option 1 of D1. Under D1 option 2, card 370 stays as it is.
 
 After: "I recommend taking the open time from the first check result of the card. The card history that card 370 adds records each check result, so no new field is needed."
 
-A Decisions log entry of a product document stays one line with its reason. A Decided entry of a tech design follows `../../loupe-stage-tech-design/SKILL.md`. Neither gets an example or a How list. Write both in product terms.
+A Decisions log entry of a product document stays one line with its reason. A Decided entry of a tech design follows `../../loupe-stage-tech-design/references/tech-document.md` "The design sections". Neither gets an example or a How list. Write both in product terms.
 
 The example below is a tech design decision. In a product document, leave out its How list. Keep the "Checked in the code" line only when the section states a fact from the code.
 
@@ -112,7 +112,7 @@ Checked in the code: `TagVoter.php`.
 
 ## Diagrams
 
-The Solution section of a tech design needs a diagram, as `../../loupe-stage-tech-design/SKILL.md` says. A diagram is encouraged in any other section. Choose the Mermaid type from the subject.
+The Solution section of a tech design needs a diagram, as `../../loupe-stage-tech-design/references/tech-document.md` "The design sections" says. A diagram is encouraged in any other section. Choose the Mermaid type from the subject.
 
 | Subject | Mermaid type |
 |---|---|
