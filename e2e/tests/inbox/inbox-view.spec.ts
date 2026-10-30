@@ -207,7 +207,7 @@ test('the view sits straight on a white page, with no frame or fill', async ({
     );
 
     const tint = 'rgb(247, 248, 243)';
-    for (const selector of ['.lp-decision--inbox', '.lp-inbox-item__buttons']) {
+    for (const selector of ['.lp-decision--inbox']) {
         await expect(page.locator(selector).first()).toHaveCSS(
             'background-color',
             tint,

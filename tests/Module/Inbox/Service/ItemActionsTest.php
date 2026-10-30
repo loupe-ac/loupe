@@ -539,6 +539,26 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([], $this->actions()->forItems([]));
     }
 
+    public function test_a_plain_to_do_offers_complete_by_default_and_dismiss_when_the_flag_allows(): void
+    {
+        $item = $this->todo(null);
+
+        self::assertSame([[InboxActionKind::Complete, true], [InboxActionKind::Dismiss, false]], $this->summary($item));
+
+        $item->dismissible = false;
+
+        self::assertSame([[InboxActionKind::Complete, true]], $this->summary($item));
+    }
+
+    public function test_a_to_do_with_a_suggestion_is_not_plain(): void
+    {
+        $item = $this->todo([['action' => 'open', 'reason' => 'Read it.', 'recommended' => true, 'cardId' => null]]);
+
+        self::assertFalse(ItemActions::isPlain($item));
+        self::assertTrue(ItemActions::isPlain($this->todo(null)));
+        self::assertContains([InboxActionKind::Open, true], $this->summary($item));
+    }
+
     public function test_a_recommended_suggestion_that_fits_is_the_default_and_carries_its_reason(): void
     {
         $run = $this->workerRun(WorkerRunState::Blocked, ['suggestedActions' => [

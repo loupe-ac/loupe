@@ -81,9 +81,11 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
         { timeout: 15_000 },
     );
 
-    // The answer closed the question for good, so the typed note stays readable and its form locks at once.
-    await expect(note).toHaveValue('Use CSV, the importer reads it faster');
-    await expect(note).toHaveJSProperty('readOnly', true);
+    // The answer closed the question for good, so the typed note stays readable as an unsent reply.
+    const unsent = watcher.locator(
+        `#inbox-item-${first.questionNumber} [data-inbox-reply-draft]`,
+    );
+    await expect(unsent).toContainText('Use CSV, the importer reads it faster');
 
     const todo = actor.locator(`#inbox-item-${first.todoNumber}`);
     await todo.getByRole('button', { name: 'Mark complete' }).click();
@@ -95,22 +97,21 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     await expect(watcher.locator('[data-inbox-closed-notice]')).toBeVisible({
         timeout: 15_000,
     });
-    await expect(note).toHaveValue('Use CSV, the importer reads it faster');
-    await expect(note).toHaveJSProperty('readOnly', true);
+    await expect(unsent).toContainText('Use CSV, the importer reads it faster');
     expect(
         await watcher.evaluate(
             () => (window as unknown as { stayed?: boolean }).stayed,
         ),
     ).toBe(true);
 
-    // Another ask opened by its row shows its own actions, never the locked box of the closed ask.
+    // Another ask opened by its row shows its own actions, never the unsent reply of the closed ask.
     await watcher
         .locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`)
         .click();
     await expect(
         watcher.locator(`[data-inbox-ask-id="${second.askId}"]`),
     ).toBeVisible();
-    await expect(watcher.locator('[data-inbox-locked]')).toHaveCount(0);
+    await expect(watcher.locator('[data-inbox-reply-draft]')).toHaveCount(0);
     await expect(note).toHaveCount(0);
     await expect(
         watcher.locator(

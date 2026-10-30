@@ -341,7 +341,7 @@ for (const target of ['document', 'pull-request']) {
         await form
             .getByRole('button', { name: 'Submit review', exact: true })
             .click();
-        await expect(item.locator('[data-inbox-review-verdict]')).toHaveText(
+        await expect(item.locator('[data-inbox-review-verdict]')).toContainText(
             'Changes requested',
         );
         await expect(item.locator('[data-inbox-response]')).toContainText(
@@ -364,7 +364,7 @@ for (const target of ['document', 'pull-request']) {
         await expect(recovery.locator('li')).toHaveText(['Approved']);
         await expect(
             draftItem.locator('[data-inbox-review-verdict]'),
-        ).toHaveText('Changes requested');
+        ).toContainText('Changes requested');
         await recovery.getByRole('button', { name: 'Discard draft' }).click();
         await expect(recovery).toBeHidden();
         // A one-item ask shows its title once, as the ask's heading.
@@ -381,7 +381,7 @@ for (const target of ['document', 'pull-request']) {
         const completed = page.locator(`#inbox-item-${number}`);
         await expect(
             completed.locator('[data-inbox-review-verdict]'),
-        ).toHaveText('Changes requested');
+        ).toContainText('Changes requested');
         await expect(completed.locator('[data-inbox-response]')).toContainText(
             'Explain retries before implementation.',
         );
@@ -403,7 +403,7 @@ for (const target of ['document', 'pull-request']) {
             ).toContainText('withdrew this verdict');
             await expect(
                 completed.locator('[data-inbox-review-verdict]'),
-            ).toHaveText('Changes requested');
+            ).toContainText('Changes requested');
         }
     });
 }
@@ -598,9 +598,7 @@ for (const surface of ['page', 'drawer']) {
             'The importer reads CSV.',
         );
         // A sent answer is final, so the closed question offers no form to change or decline it.
-        await expect(
-            question.locator('[data-inbox-editable="no"]'),
-        ).toBeVisible();
+        await expect(question.locator('.lp-comment-composer')).toHaveCount(0);
         await expect(question.locator('form')).toHaveCount(0);
         await expect(
             question.getByRole('button', { name: 'Dismiss' }),

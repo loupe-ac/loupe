@@ -16,7 +16,8 @@ const VIEW_FRAME = 'inbox-view';
 /**
  * Reads the view of the inbox page again when an ask of the project changes,
  * and after a reconnect, and morphs it in. A form with typed input keeps its
- * fields, and the form locks when its item closed in the meantime. An open
+ * fields. When its item closed in the meantime, the typed values stay as an
+ * unsent reply with a Discard button. An open
  * dialog holds the update until it closes.
  */
 export default class extends Controller {
@@ -156,7 +157,7 @@ export default class extends Controller {
             keepUnpicked(fresh);
         }
         keepNotices(current, fresh);
-        lockClosedForms(current, fresh);
+        keepReplyDrafts(current, fresh);
         this.morph(current, fresh);
     }
 
@@ -171,6 +172,7 @@ export default class extends Controller {
             const target = event.target;
             if (
                 target.classList?.contains('lp-flash') ||
+                target.hasAttribute?.('data-inbox-reply-draft') ||
                 (target instanceof HTMLFormElement &&
                     hasUnsavedInput(target) &&
                     holdsSameForm(target, event.detail?.newElement))
@@ -255,49 +257,57 @@ function holdsSameForm(form, newElement) {
 }
 
 /**
- * A form with typed input stays on screen when its item closed. The fresh
- * view holds no form for that item, so the locked actions go into it, and the
- * morph finds them equal. The typed note stays readable. An item that is still
- * open gets no copy, so the morph removes a form its new view dropped.
+ * A reply card with typed input goes away when its item closed. The values
+ * stay: the fresh view gets the unsent reply in the thread of that item, in
+ * place of the draft that the form memory would show. An item that is still
+ * open gets no copy, so the morph removes a card its new view dropped.
  */
-function lockClosedForms(current, fresh) {
-    const grafted = new Set();
-    current.querySelectorAll('form').forEach((form) => {
-        const actions = form.closest('.lp-inbox-item__actions');
+function keepReplyDrafts(current, fresh) {
+    current.querySelectorAll('form.lp-inbox-thread__reply').forEach((form) => {
         const article = form.closest('[data-inbox-item]');
-        if (!actions || !article || !hasUnsavedInput(form)) {
+        const template = form
+            .closest('.lp-inbox-item__actions')
+            ?.querySelector('template[data-inbox-reply-draft-template]');
+        if (!article || !template || !hasUnsavedInput(form)) {
             return;
         }
         const twin = fresh.querySelector(
             `[data-inbox-item="${CSS.escape(article.dataset.inboxItem)}"]`,
         );
+        const thread = twin?.querySelector('[data-inbox-thread]');
         if (
-            !twin ||
+            !thread ||
             twin.dataset.inboxItemOpen !== 'false' ||
-            (!grafted.has(twin) &&
-                twin.querySelector('.lp-inbox-item__actions'))
+            thread.querySelector('[data-inbox-reply-draft]')
         ) {
             return;
         }
-        lock(actions);
-        if (!grafted.has(twin)) {
-            grafted.add(twin);
-            twin.append(actions.cloneNode(true));
-        }
+        const draft = template.content.firstElementChild.cloneNode(true);
+        draft.dataset.inboxReplyDraftChoicesValue = JSON.stringify(
+            [
+                ...form.querySelectorAll(
+                    'input[type="radio"]:checked, input[type="checkbox"]:checked',
+                ),
+            ]
+                .map((field) => field.labels?.[0]?.textContent.trim())
+                .filter(Boolean),
+        );
+        draft.dataset.inboxReplyDraftNotesValue = JSON.stringify(
+            [...form.querySelectorAll('textarea')]
+                .filter(
+                    (field) =>
+                        field.value.trim() !== '' &&
+                        field.value !== field.defaultValue,
+                )
+                .map((field) => field.value),
+        );
+        draft.dataset.inboxReplyDraftKeyValue =
+            form.dataset.formDraftKeyValue ?? '';
+        twin.querySelectorAll(
+            '[data-controller="form-draft-recovery"]',
+        ).forEach((shell) => shell.remove());
+        thread.append(draft);
     });
-}
-
-function lock(actions) {
-    actions.dataset.inboxLocked = '';
-    actions
-        .querySelectorAll('button, input, select, textarea')
-        .forEach((field) => {
-            if (field instanceof HTMLTextAreaElement) {
-                field.readOnly = true;
-            } else {
-                field.disabled = true;
-            }
-        });
 }
 
 function hasUnsavedInput(form) {

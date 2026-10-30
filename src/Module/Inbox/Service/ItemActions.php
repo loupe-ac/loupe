@@ -182,6 +182,46 @@ final readonly class ItemActions
      */
     public function forItems(array $items): array
     {
+        $rest = array_values(array_filter($items, static fn (InboxItem $item): bool => !self::isPlain($item)));
+        $complex = $this->forComplexItems($rest);
+        $actions = [];
+        foreach ($items as $item) {
+            $actions[self::key($item)] = $complex[self::key($item)] ?? self::plainActions($item);
+        }
+
+        return $actions;
+    }
+
+    /**
+     * Whether an open to-do or question has no suggestion, so it offers its response and Dismiss and nothing else.
+     * Such an item needs no read of waits, cards or bridges.
+     */
+    public static function isPlain(InboxItem $item): bool
+    {
+        return InboxItemState::Open === $item->state
+            && self::offersOnlySuggestions($item)
+            && !$item->isAutomatic()
+            && [] === ($item->suggestedActions ?? []);
+    }
+
+    /** @return list<ItemAction> */
+    private static function plainActions(InboxItem $item): array
+    {
+        $response = self::responseKind($item) ?? throw new \LogicException('A plain item takes a response.');
+
+        return array_map(
+            static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $response),
+            $item->dismissible ? [$response, InboxActionKind::Dismiss] : [$response],
+        );
+    }
+
+    /**
+     * @param list<InboxItem> $items
+     *
+     * @return array<string, list<ItemAction>> keyed by the RFC 4122 item id
+     */
+    private function forComplexItems(array $items): array
+    {
         $openWaits = [];
         $cardIds = [];
         $watchedCards = [];

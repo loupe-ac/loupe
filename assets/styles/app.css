@@ -446,10 +446,6 @@
         color: var(--accent-ink);
     }
 
-    .lp-core-inbox .lp-inbox-item__actions[data-inbox-locked] {
-        @apply opacity-70;
-    }
-
     .lp-core-inbox .lp-inbox-request-detail {
         min-width: 0;
     }
@@ -693,6 +689,9 @@
     }
 
     .lp-core-inbox .lp-inbox-item__kind {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 1);
         margin-left: auto;
         padding: 0;
         background: transparent;
@@ -794,8 +793,8 @@
 
     .lp-core-inbox .lp-inbox-item + .lp-inbox-item {
         margin-top: calc(var(--spacing) * 9);
-        padding-top: calc(var(--spacing) * 7);
-        border-top: 1px solid var(--border-faint);
+        padding-top: 0;
+        border-top: 0;
     }
 
     /* The ask names the request in large type; an item title sits below it, smaller. */
@@ -7817,9 +7816,6 @@
     .lp-inbox-ask__title {
         @apply m-0 font-display text-xl font-extrabold tracking-tight text-ink;
     }
-    .lp-inbox-ask__target {
-        @apply m-0 text-sm text-fg-dim;
-    }
     /* The anchor around an agent avatar with a bridge dot. Hover or focus shows
        the tooltip. */
     .lp-presence {
@@ -7883,9 +7879,6 @@
     .lp-inbox-item__response {
         @apply flex flex-col gap-1.5 rounded-lg bg-tint py-2.5 px-3 text-sm text-ink;
     }
-    .lp-inbox-item__response-title {
-        @apply m-0 text-sm font-semibold text-fg-dim;
-    }
     /* A picked option reads as a checked line, as the closed ask of the prototype draws it. */
     .lp-inbox-item__choices {
         @apply m-0 p-0 list-none flex flex-col gap-1;
@@ -7899,9 +7892,6 @@
     .lp-inbox-item__answer-text,
     .lp-inbox-item__note {
         @apply m-0 whitespace-pre-line;
-    }
-    .lp-inbox-item__editable {
-        @apply m-0 text-xs text-fg-mute;
     }
     .lp-inbox-item__refusal {
         @apply rounded-lg bg-status-danger-bg text-status-danger-deep py-2 px-3 text-sm;
@@ -8866,7 +8856,10 @@
     @apply whitespace-pre-line;
 }
 .lp-inbox-thread__status {
-    @apply flex flex-col items-start gap-1.5 border-t border-accent-border pt-2.5;
+    @apply flex items-center justify-between gap-3 border-t border-accent-border pt-2.5;
+}
+.lp-inbox-thread__note-label {
+    @apply mt-2 mb-0;
 }
 .lp-inbox-thread .lp-comment-composer--untargeted {
     @apply mb-0 max-w-none;
