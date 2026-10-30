@@ -192,6 +192,116 @@ final class ChartComponentTest extends KernelTestCase
         self::assertStringContainsString('10 pts', $this->chart($layout, ['a'])->filter('.lp-chart__change')->text());
     }
 
+    public function test_a_compare_with_an_empty_previous_window_draws_no_previous_legend_entry(): void
+    {
+        $series = [
+            ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => 2.0], comparison: ChartSeries::comparison()),
+            ChartSeries::of('b', ['2026-09-14' => 2.0, '2026-09-21' => 1.0], comparison: ChartSeries::comparison()),
+        ];
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        self::assertNotNull($layout);
+        self::assertTrue($layout->comparing);
+
+        $crawler = $this->chart($layout, ['a', 'b']);
+
+        self::assertStringNotContainsString('Previous period', $crawler->filter('.lp-chart__legend')->text());
+        self::assertCount(0, $crawler->filter('.lp-chart__dash'));
+        self::assertCount(0, $crawler->filter('.lp-chart__line--previous'));
+    }
+
+    /** @return iterable<string, array{list<int|float|null>}> */
+    public static function emptyDonuts(): iterable
+    {
+        yield 'zero totals' => [[0, 0]];
+        yield 'unknown totals' => [[null, null]];
+    }
+
+    /** @param list<int|float|null> $totals */
+    #[DataProvider('emptyDonuts')]
+    public function test_a_donut_with_nothing_to_show_draws_an_empty_ring_and_a_note(array $totals): void
+    {
+        $series = [ChartSeries::total('a', $totals[0]), ChartSeries::total('b', $totals[1])];
+        $layout = DonutLayout::build(new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Sum, $series, new MetricValueFormatter('en'));
+        self::assertNotNull($layout);
+
+        $crawler = $this->chart($layout, ['a', 'b']);
+
+        self::assertCount(1, $crawler->filter('.lp-chart__ring-empty'));
+        self::assertCount(0, $crawler->filter('.lp-chart__slice'));
+        self::assertCount(0, $crawler->filter('.lp-chart__donut-total'));
+        self::assertCount(0, $crawler->filter('template'));
+        self::assertCount(0, $crawler->filter('[aria-describedby]'));
+        self::assertSame('No values to show', trim($crawler->filter('.lp-chart__donut-note')->text()));
+    }
+
+    public function test_a_bucket_with_no_rows_has_no_hover_target_and_no_template(): void
+    {
+        $series = [ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => null, '2026-09-28' => 3.0])];
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        self::assertNotNull($layout);
+        self::assertCount(3, $layout->hoverTargets);
+
+        $crawler = $this->chart($layout, ['a']);
+
+        self::assertCount(2, $crawler->filter('template'));
+        self::assertCount(2, $crawler->filter('[aria-describedby]'));
+    }
+
+    #[DataProvider('types')]
+    public function test_a_hover_target_has_no_browser_tooltip_and_a_label_with_no_trailing_colon(MetricChartType $type): void
+    {
+        $specimen = MetricChartSpecimen::of($type);
+        $crawler = $this->chart($specimen['layout'], $specimen['labels']);
+
+        self::assertCount(0, $crawler->filter('[aria-describedby] title'));
+        $labels = $crawler->filter('[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('aria-label'));
+        foreach ($labels as $label) {
+            self::assertNotSame('', $label);
+            self::assertStringEndsNotWith(':', $label);
+        }
+    }
+
+    public function test_bars_that_do_not_add_up_have_no_share_column(): void
+    {
+        $specimen = MetricChartSpecimen::of(MetricChartType::Bars);
+        $header = $this->chart($specimen['layout'], $specimen['labels'])->filter('.lp-data-table__header')->text();
+
+        self::assertStringNotContainsString('Share', $header);
+        self::assertStringContainsString('Value', $header);
+    }
+
+    public function test_a_chart_that_does_not_compare_has_no_change_column(): void
+    {
+        $specimen = MetricChartSpecimen::of(MetricChartType::Bars);
+        $crawler = $this->chart($specimen['layout'], $specimen['labels']);
+
+        self::assertStringNotContainsString('Change', $crawler->filter('.lp-data-table__header')->text());
+        self::assertCount(0, $crawler->filter('.lp-chart__change'));
+    }
+
+    public function test_a_null_sign_prints_no_chip(): void
+    {
+        $series = [ChartSeries::total('a', 0.5, ChartSeries::comparison(0.4, 0.25, MetricChangeKind::Relative, null))];
+        $layout = NumberLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Sum, $series, new MetricValueFormatter('en'));
+        self::assertNotNull($layout);
+
+        $crawler = $this->chart($layout, ['a']);
+
+        self::assertCount(1, $crawler->filter('.lp-chart__change'));
+        self::assertCount(0, $crawler->filter('.lp-chart__sign'));
+    }
+
+    public function test_two_charts_with_no_id_get_different_hover_ids(): void
+    {
+        $specimen = MetricChartSpecimen::of(MetricChartType::Line);
+        $html = $this->render('<twig:Ds:Chart :layout="layout" :labels="labels" /><twig:Ds:Chart :layout="layout" :labels="labels" />', $specimen);
+
+        $ids = new Crawler($html)->filter('template')->each(static fn (Crawler $template): string => (string) $template->attr('id'));
+
+        self::assertCount(8, $ids);
+        self::assertSame($ids, array_unique($ids));
+    }
+
     public function test_the_styleguide_specimen_draws_every_catalog_variant(): void
     {
         $variants = null;

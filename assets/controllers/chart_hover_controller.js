@@ -8,7 +8,7 @@ const GAP = 12;
  * that template, placed inside the plot surface, so the page needs no library.
  */
 export default class extends Controller {
-    static targets = ['surface'];
+    static targets = ['surface', 'viewport'];
 
     connect() {
         this.card = null;
@@ -44,17 +44,26 @@ export default class extends Controller {
         this.active = null;
     }
 
-    /** The card sits right of the target and flips left when it would leave the surface. */
+    /**
+     * The card sits right of the target and flips left when it would leave the
+     * visible box. On a narrow screen the surface scrolls inside the viewport,
+     * so the viewport sets the edges.
+     */
     place(card, target) {
         const surface = this.surfaceTarget.getBoundingClientRect();
+        const visible = (
+            this.hasViewportTarget ? this.viewportTarget : this.surfaceTarget
+        ).getBoundingClientRect();
         const anchor = target.getBoundingClientRect();
         const size = card.getBoundingClientRect();
+        const minimum = visible.left - surface.left;
+        const maximum = visible.right - surface.left;
         const centre = anchor.left + anchor.width / 2 - surface.left;
         let left = centre + GAP;
-        if (left + size.width > surface.width) {
+        if (left + size.width > maximum) {
             left = centre - GAP - size.width;
         }
-        left = Math.max(0, left);
+        left = Math.max(minimum, left);
         const top = Math.max(
             0,
             Math.min(anchor.top - surface.top, surface.height - size.height),

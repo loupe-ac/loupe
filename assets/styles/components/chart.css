@@ -5,7 +5,7 @@
     }
     /* Under md the plot keeps a readable width and scrolls sideways. */
     .lp-chart__scroll {
-        @apply overflow-x-auto;
+        @apply overflow-x-auto overflow-y-clip;
     }
     .lp-chart__surface {
         @apply relative;
@@ -107,6 +107,13 @@
     }
     .lp-chart__donut-total {
         @apply fill-ink font-display text-2xl font-bold;
+    }
+    .lp-chart__ring-empty {
+        @apply fill-none stroke-line-faint;
+        stroke-width: calc(var(--spacing) * 12.5);
+    }
+    .lp-chart__donut-note {
+        @apply fill-fg-dim text-sm;
     }
     .lp-chart__donut-caption {
         @apply fill-fg-dim text-xs;

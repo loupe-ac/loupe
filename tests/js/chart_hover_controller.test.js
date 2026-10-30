@@ -6,7 +6,7 @@ import ChartHoverController from '../../assets/controllers/chart_hover_controlle
 let application;
 
 const markup = `<figure data-controller="chart-hover" data-action="keydown.esc->chart-hover#hide">
-    <div data-chart-hover-target="surface">
+    <div data-chart-hover-target="viewport"><div data-chart-hover-target="surface">
         <svg>
             <g id="first" tabindex="0" aria-describedby="hover-0"
                data-action="pointerenter->chart-hover#show pointerleave->chart-hover#hide focus->chart-hover#show blur->chart-hover#hide"></g>
@@ -15,7 +15,7 @@ const markup = `<figure data-controller="chart-hover" data-action="keydown.esc->
             <g id="bare" tabindex="0" aria-describedby="missing"
                data-action="focus->chart-hover#show blur->chart-hover#hide"></g>
         </svg>
-    </div>
+    </div></div>
     <template id="hover-0"><div class="card" data-card="first">First</div></template>
     <template id="hover-1"><div class="card" data-card="second">Second</div></template>
 </figure>`;
@@ -99,6 +99,7 @@ it('draws no card when the target names no template', async () => {
 it('puts the card to the right of the target', async () => {
     await mount();
     stub('[data-chart-hover-target="surface"]', rect(0, 0, 1000, 300));
+    stub('[data-chart-hover-target="viewport"]', rect(0, 0, 1000, 300));
     stub('#first', rect(100, 20, 100, 200));
     const original = HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function () {
@@ -119,6 +120,7 @@ it('puts the card to the right of the target', async () => {
 it('flips the card to the left near the right edge', async () => {
     await mount();
     stub('[data-chart-hover-target="surface"]', rect(0, 0, 1000, 300));
+    stub('[data-chart-hover-target="viewport"]', rect(0, 0, 1000, 300));
     stub('#first', rect(850, 20, 100, 200));
     const original = HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function () {
@@ -133,4 +135,48 @@ it('flips the card to the left near the right edge', async () => {
     } finally {
         HTMLElement.prototype.getBoundingClientRect = original;
     }
+});
+
+it('flips against the visible scroll box, not the whole surface', async () => {
+    await mount();
+    stub('[data-chart-hover-target="surface"]', rect(-200, 0, 1000, 300));
+    stub('[data-chart-hover-target="viewport"]', rect(0, 0, 400, 300));
+    stub('#first', rect(250, 20, 100, 200));
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+        return this.hasAttribute('data-chart-hover-card')
+            ? rect(0, 0, 200, 80)
+            : original.call(this);
+    };
+    try {
+        document.getElementById('first').dispatchEvent(new Event('focus'));
+        const left = parseFloat(shown()[0].style.left);
+        // The visible box ends at 600 in surface coordinates, so the card stays left of it.
+        expect(left + 200).toBeLessThanOrEqual(600);
+        expect(left).toBeGreaterThanOrEqual(200);
+    } finally {
+        HTMLElement.prototype.getBoundingClientRect = original;
+    }
+});
+
+it('marks the active target and clears the mark on hide', async () => {
+    await mount();
+    const first = document.getElementById('first');
+    const second = document.getElementById('second');
+    first.dispatchEvent(new Event('focus'));
+    expect(first.hasAttribute('data-active')).toBe(true);
+    second.dispatchEvent(new Event('pointerenter'));
+    expect(first.hasAttribute('data-active')).toBe(false);
+    expect(second.hasAttribute('data-active')).toBe(true);
+    second.dispatchEvent(new Event('pointerleave'));
+    expect(second.hasAttribute('data-active')).toBe(false);
+});
+
+it('removes the card when the controller disconnects', async () => {
+    await mount();
+    document.getElementById('first').dispatchEvent(new Event('focus'));
+    expect(shown()).toHaveLength(1);
+    document.querySelector('figure').removeAttribute('data-controller');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(shown()).toHaveLength(0);
 });

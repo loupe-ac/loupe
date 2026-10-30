@@ -49,7 +49,7 @@
             {% endfor %}
         </div>
     {% elseif isDonut %}
-        <div class="lp-chart__scroll">
+        <div class="lp-chart__scroll" data-chart-hover-target="viewport">
             <div class="lp-chart__surface lp-chart__surface--donut" data-chart-hover-target="surface">
                 {# A chart drawn from data, not an icon. #}
                 {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\DonutLayout::SIZE') }} {{ constant('App\\Module\\Insights\\View\\DonutLayout::SIZE') }}" role="group" aria-label="{{ chartLabel }}">
@@ -58,11 +58,13 @@
                         {% set row = target.rows[0] %}
                         {% set summary = 'analytics.chart.target.slice'|trans({'%name%': labels[slice.series.position] ?? '', '%share%': row.share ?? '', '%value%': row.value ?? unknown}) %}
                         <g class="lp-chart__target lp-chart-slot--{{ slice.series.slot }}" tabindex="0" role="img" aria-label="{{ summary }}" aria-describedby="{{ chartId }}-{{ target.id }}" data-action="{{ hoverAction }}">
-                            <title>{{ summary }}</title>
                             <path class="lp-chart__slice" d="{{ slice.path }}" />
                         </g>
                     {% endfor %}
-                    {% if layout.total is not null %}
+                    {% if layout.slices is empty %}
+                        <circle class="lp-chart__ring-empty" cx="140" cy="140" r="105" />
+                        <text class="lp-chart__donut-note" x="140" y="140" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.donut.empty'|trans }}</text>
+                    {% elseif layout.total is not null %}
                         <text class="lp-chart__donut-total" x="140" y="140" text-anchor="middle" dominant-baseline="middle">{{ layout.total }}</text>
                         <text class="lp-chart__donut-caption" x="140" y="166" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.hover.total'|trans }}</text>
                     {% endif %}
@@ -72,7 +74,7 @@
     {% else %}
         {% set axisMetric = isBars ? layout.axisMetric : layout.metric %}
         {% set axisStatistic = isBars ? layout.axisStatistic : layout.statistic %}
-        <div class="lp-chart__scroll">
+        <div class="lp-chart__scroll" data-chart-hover-target="viewport">
             <div class="lp-chart__surface lp-chart__surface--wide" data-chart-hover-target="surface">
                 {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\MetricChartScale::WIDTH') }} {{ height }}" role="group" aria-label="{{ chartLabel }}">
                     {% for tick in layout.yTicks %}
@@ -100,7 +102,7 @@
                             {% endfor %}
                         {% endfor %}
                     {% endif %}
-                    {% for target in layout.hoverTargets %}
+                    {% for target in layout.hoverTargets|filter(target => target.rows is not empty) %}
                         {% set startText = target.start|date(dayFormat, 'UTC') %}
                         {% set endText = target.end|date(dayFormat, 'UTC') %}
                         {% set span = startText == endText ? startText : 'analytics.chart.hover.span'|trans({'%start%': startText, '%end%': endText}) %}
@@ -110,7 +112,6 @@
                         {% endfor %}
                         {% set summary = 'analytics.chart.target.bucket'|trans({'%span%': span, '%rows%': parts|join(', ')}) %}
                         <g class="lp-chart__target" tabindex="0" role="img" aria-label="{{ summary }}" aria-describedby="{{ chartId }}-{{ target.id }}" data-action="{{ hoverAction }}">
-                            <title>{{ summary }}</title>
                             <line class="lp-chart__guide" x1="{{ target.anchorX }}" x2="{{ target.anchorX }}" y1="{{ plotTop }}" y2="{{ baseline }}" />
                             <rect class="lp-chart__hit" x="{{ target.x }}" y="{{ target.y }}" width="{{ target.width }}" height="{{ target.height }}" />
                         </g>
@@ -121,7 +122,7 @@
     {% endif %}
 
     {% if not isNumber %}
-        {% set showPrevious = isLine and layout.comparing %}
+        {% set showPrevious = isLine and layout.lines|filter(line => line.previousPath != '')|length > 0 %}
         {% if layout.hasLegend or showPrevious %}
             <ul class="lp-chart__legend{{ isDonut ? ' lp-chart__legend--centred' }}">
                 {% if layout.hasLegend %}
@@ -135,7 +136,7 @@
             </ul>
         {% endif %}
 
-        {% for target in layout.hoverTargets %}
+        {% for target in layout.hoverTargets|filter(target => target.rows is not empty) %}
             <template id="{{ chartId }}-{{ target.id }}">
                 <div class="lp-chart__card">
                     {% if target.series is not null %}

@@ -8466,6 +8466,7 @@
             <trans-unit id="analytics.chart.legend.previous"><source>analytics.chart.legend.previous</source><target>Previous period</target></trans-unit>
             <trans-unit id="analytics.chart.hover.span"><source>analytics.chart.hover.span</source><target>%start% – %end%</target></trans-unit>
             <trans-unit id="analytics.chart.hover.previous"><source>analytics.chart.hover.previous</source><target>Previous period: %value%</target></trans-unit>
+            <trans-unit id="analytics.chart.donut.empty"><source>analytics.chart.donut.empty</source><target>No values to show</target></trans-unit>
             <trans-unit id="analytics.chart.hover.total"><source>analytics.chart.hover.total</source><target>Total</target></trans-unit>
             <trans-unit id="analytics.chart.target.bucket"><source>analytics.chart.target.bucket</source><target>%span%: %rows%</target></trans-unit>
             <trans-unit id="analytics.chart.target.row"><source>analytics.chart.target.row</source><target>%name% %value%</target></trans-unit>
