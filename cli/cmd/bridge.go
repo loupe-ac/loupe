@@ -21,6 +21,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/logfile"
 	"github.com/loupe-ac/loupe/cli/internal/outbound"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
@@ -52,7 +53,7 @@ func newBridgeCmd() *cobra.Command {
 		Use:   "bridge",
 		Short: "Run Loupe work requests in local workers",
 	}
-	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
+	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd(), newBridgeLogsCmd())
 
 	return cmd
 }
@@ -120,8 +121,10 @@ func newBridgeRunCmd() *cobra.Command {
 // bridgeLog is the log of a bridge and the file it appends to.
 type bridgeLog struct {
 	path string
-	file *os.File
+	file *logfile.Writer
 	log  *slog.Logger
+	// name is the bridge name that each entry carries.
+	name *bridgeLogName
 }
 
 func openBridgeLog(cmd *cobra.Command, logFile string) (*bridgeLog, error) {
@@ -129,12 +132,13 @@ func openBridgeLog(cmd *cobra.Command, logFile string) (*bridgeLog, error) {
 	if path == "" {
 		path = defaultLogPath()
 	}
-	f, err := openLogFile(path)
+	f, err := logfile.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	name := &bridgeLogName{}
 
-	return &bridgeLog{path: path, file: f, log: newBridgeLogger(bridgeLogWriter(f, cmd.OutOrStdout()))}, nil
+	return &bridgeLog{path: path, file: f, name: name, log: newNamedBridgeLogger(bridgeLogWriter(f, cmd.OutOrStdout()), name)}, nil
 }
 
 func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
@@ -210,6 +214,11 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
+	var ident *bridgeIdentity
+	if bl != nil {
+		ident = newBridgeIdentity(path, bl)
+		ident.update(set)
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -235,6 +244,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 			return err
 		}
 		defer bl.file.Close()
+	}
+	if ident == nil {
+		ident = newBridgeIdentity(path, bl)
+		ident.update(set)
 	}
 
 	if b == nil {
@@ -282,6 +295,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		cursorFile: cursorFile,
 		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
+		onRules:    ident.update,
 	}
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
@@ -386,7 +400,12 @@ func bridgeLogWriter(file, out io.Writer) io.Writer {
 // slog names the message "msg". The bridge names it "event", because a reader
 // selects lines by what happened rather than by a prose message.
 func newBridgeLogger(w io.Writer) *slog.Logger {
-	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+	return newNamedBridgeLogger(w, nil)
+}
+
+// newNamedBridgeLogger is newBridgeLogger with the bridge name on each entry.
+func newNamedBridgeLogger(w io.Writer, name *bridgeLogName) *slog.Logger {
+	var h slog.Handler = slog.NewJSONHandler(w, &slog.HandlerOptions{
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.MessageKey {
 				a.Key = "event"
@@ -394,7 +413,12 @@ func newBridgeLogger(w io.Writer) *slog.Logger {
 
 			return a
 		},
-	}))
+	})
+	if name != nil {
+		h = namedHandler{Handler: h, name: name}
+	}
+
+	return slog.New(h)
 }
 
 // defaultLogPath names the log the bridge appends to. The temp directory is the
@@ -406,21 +430,6 @@ func defaultLogPath() string {
 	}
 
 	return filepath.Join(d, "bridge.log")
-}
-
-// openLogFile appends to path and creates its directory. A supervisor's log is
-// a history, so the file is never truncated.
-func openLogFile(path string) (*os.File, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return nil, fmt.Errorf("create log directory: %w", err)
-	}
-
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("open log file: %w", err)
-	}
-
-	return f, nil
 }
 
 // subscribe blocks in the foreground until Ctrl-C or SIGTERM. Cancelling also
