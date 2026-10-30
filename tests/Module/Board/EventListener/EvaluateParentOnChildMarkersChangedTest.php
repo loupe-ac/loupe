@@ -55,6 +55,11 @@ final class EvaluateParentOnChildMarkersChangedTest extends KernelTestCase
             }
 
             #[\Override]
+            public function forPersonWaiting(array $cardIds): void
+            {
+            }
+
+            #[\Override]
             public function isOn(): bool
             {
                 return $this->test->isOn();

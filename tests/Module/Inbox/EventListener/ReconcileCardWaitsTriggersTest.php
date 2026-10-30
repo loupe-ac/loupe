@@ -28,6 +28,7 @@ use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\PersonWaitingCardEvaluated;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
@@ -68,6 +69,19 @@ final class ReconcileCardWaitsTriggersTest extends KernelTestCase
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
         $this->transport->reset();
         $this->evaluations->reset();
+    }
+
+    public function test_an_evaluated_card_that_a_person_waits_on_reconciles_on_the_interactive_queue_alone(): void
+    {
+        $interactive = self::getContainer()->get('messenger.transport.interactive');
+        self::assertInstanceOf(InMemoryTransport::class, $interactive);
+        $interactive->reset();
+
+        $this->dispatch(new PersonWaitingCardEvaluated((string) $this->card->id));
+
+        $sent = array_map(static fn ($envelope) => $envelope->getMessage(), $interactive->getSent());
+        self::assertEquals([new ReconcileCardWaits((string) $this->projectId(), [(string) $this->card->id], personWaiting: true)], $sent);
+        self::assertSame([], $this->sent());
     }
 
     public function test_every_card_change_asks_for_its_card(): void

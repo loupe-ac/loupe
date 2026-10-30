@@ -24,15 +24,19 @@ drains. Every one of those fails silently — the request that queued the work
 still returns 200.
 
 ```
-php bin/console messenger:consume scheduler_default card_eval jobs --time-limit=3600 --memory-limit=128M
+php bin/console messenger:consume scheduler_default interactive card_eval jobs --time-limit=3600 --memory-limit=128M
 php bin/console messenger:consume card_sweep --time-limit=3600 --memory-limit=128M
 ```
 
-Run both consumers. `scheduler_default` is listed **before** `card_eval` and `jobs`
-deliberately: a deep jobs backlog must not delay schedule ticks. `card_sweep`
+Run both consumers. `scheduler_default` is listed **before** `interactive`, `card_eval` and `jobs`
+deliberately: a deep jobs backlog must not delay schedule ticks. `interactive` holds
+the messages that one action of a person starts and that the person waits on, such as
+the close of an inbox ask after an approval. It is listed before `card_eval`, so a burst
+of card evaluations never delays them. A worker that never reads `interactive` leaves
+those messages never run. `card_sweep`
 holds the workflow sweep, which checks every open card every 10 minutes. It has
 its own consumer so the sweep never delays a job that a person waits for. A
-single command that reads `scheduler_default card_eval jobs card_sweep`, last, also works,
+single command that reads `scheduler_default interactive card_eval jobs card_sweep`, last, also works,
 but then the sweep waits while `jobs` stays busy. A worker that never reads
 `card_sweep` never runs the sweep, and nothing warns you. `--time-limit` recycles
 the process hourly and `--memory-limit` guards against a leak in a long-lived

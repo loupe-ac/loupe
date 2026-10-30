@@ -77,6 +77,17 @@ final class ArtifactContentSignerTest extends TestCase
         self::assertSame('/artifact-content/sealed', $signer->linkFor($this->version(), 'index.html'));
     }
 
+    public function test_it_passes_the_reference_type_to_the_router_without_a_content_host(): void
+    {
+        $urls = $this->createMock(UrlGeneratorInterface::class);
+        $urls->expects($this->once())->method('generate')
+            ->with('app_artifact_content', $this->anything(), UrlGeneratorInterface::ABSOLUTE_URL)
+            ->willReturn('https://app.example/artifact-content/sealed');
+        $signer = new ArtifactContentSigner('a-secret', new MockClock(self::NOW), $urls, new ArtifactContentHost(''));
+
+        self::assertSame('https://app.example/artifact-content/sealed', $signer->linkFor($this->version(), 'index.html', UrlGeneratorInterface::ABSOLUTE_URL));
+    }
+
     public function test_it_builds_an_absolute_link_on_the_sub_address_of_the_artifact(): void
     {
         $clock = new MockClock(self::NOW);

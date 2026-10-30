@@ -22,6 +22,7 @@ use App\Module\Workflow\Contract\CardEvaluations;
 use App\Outbox\OutboxWriter;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -171,7 +172,10 @@ final readonly class InboxAskCloser
             return;
         }
 
-        $this->bus->dispatch(new ResumeAskingSession((string) $ask->project->id, (string) $ask->bridgeId, (string) $ask->sessionId, $closedAt));
+        $this->bus->dispatch(
+            new ResumeAskingSession((string) $ask->project->id, (string) $ask->bridgeId, (string) $ask->sessionId, $closedAt, personWaiting: true),
+            [new TransportNamesStamp([CardEvaluations::INTERACTIVE_TRANSPORT])],
+        );
     }
 
     /** @param InboxEventType::ACTOR_* $actor */

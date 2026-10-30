@@ -27,6 +27,13 @@ final readonly class EvaluateCardsOnReviewSubmitted
             $event->review->version->document->id ?? throw new \LogicException('Document has no id.'),
         );
         $childIds = array_merge(...array_map(fn (string $id): array => $this->cards->findChildIds(Uuid::fromString($id)), $cardIds));
+        if (null === $event->review->workflowRule) {
+            $this->trigger->forPersonWaiting($cardIds);
+            $this->trigger->forCards(array_values(array_diff($childIds, $cardIds)));
+
+            return;
+        }
+
         $this->trigger->forCards(array_values(array_unique([...$cardIds, ...$childIds])));
     }
 }

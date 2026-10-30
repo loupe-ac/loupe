@@ -13,10 +13,10 @@ use Symfony\Component\Uid\Uuid;
 
 final class RunRuleAskAnswerTest extends KernelTestCase
 {
-    public function test_the_answer_goes_to_the_async_transport(): void
+    public function test_the_answer_goes_to_the_interactive_transport(): void
     {
         self::bootKernel();
-        $transport = self::getContainer()->get('messenger.transport.jobs');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
         $bus = self::getContainer()->get(MessageBusInterface::class);

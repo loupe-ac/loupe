@@ -130,6 +130,10 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
                 $this->cardIds = [...$this->cardIds, ...$cardIds];
             }
 
+            public function forPersonWaiting(array $cardIds): void
+            {
+            }
+
             public function isOn(): bool
             {
                 return true;

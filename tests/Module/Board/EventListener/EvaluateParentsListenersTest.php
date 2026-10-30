@@ -22,7 +22,6 @@ use App\Tests\Module\Board\CardStateFixtures;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class EvaluateParentsListenersTest extends KernelTestCase
@@ -148,7 +147,7 @@ final class EvaluateParentsListenersTest extends KernelTestCase
 
     private function listener(): EvaluateParentsOnWorkerRunChanged
     {
-        return new EvaluateParentsOnWorkerRunChanged($this->service(CardRepository::class), new EvaluationTrigger($this->service(MessageBusInterface::class)));
+        return new EvaluateParentsOnWorkerRunChanged($this->service(CardRepository::class), $this->service(EvaluationTrigger::class));
     }
 
     private function collector(): EvaluateParentsOnCardEventWritten

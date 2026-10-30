@@ -380,6 +380,36 @@ and to its log file, named by `--log-file`. Each line carries a stable `event`
 key, so `jq` selects what you want. The log file is appended, so it is a history
 across runs.
 
+Each entry carries a `bridge` key with the bridge name: the `name:` of the rule
+file, or the host name when the file sets none. Two bridges on one machine can
+share one log file, and the key tells their entries apart.
+
+### Log rotation
+
+The bridge rotates its log once a day. The first entry of a new day moves the
+file to a dated name, such as `bridge.2026-10-29.log` for `bridge.log`. The date
+is the day of the last entry in the file. A log path with no extension gets the
+date as a suffix. The bridge deletes each dated file that is more than 13 days
+old, so it keeps about two weeks of history. The files keep mode 0600.
+
+Several bridges can write one log file. Each entry takes a lock on `<log>.lock`,
+so no bridge writes into a file that another bridge renamed.
+
+Each bridge also writes `bridge-<hash>.state.json` beside its lock file. It
+holds the name, the rule file, the log path, the process id, the CLI version
+and the start time. The bridge never deletes it, so the log of a stopped bridge
+stays easy to find.
+
+### Read the log
+
+`loupe bridge logs` prints the last entries of every bridge log on the machine,
+merged by time. It reads the dated files after the live file.
+`-n <count>` sets how many entries it prints, `--bridge <name>` keeps one
+bridge, `--json` prints the lines as they are, and `-f` keeps reading. With
+`-f`, a rotation loses and repeats no entry. The command reads local files and
+needs no network. `loupe usage backfill` reads the dated files too, so a
+rotation does not drop a session.
+
 The bridge logs `connected` when the hub answers with an event stream, and
 `stream_error` when a connection fails. A hub, proxy or login page that answers
 200 with something other than `text/event-stream` is a failure. The error names

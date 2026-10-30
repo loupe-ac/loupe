@@ -6,6 +6,7 @@ namespace App\Module\Workflow\Service;
 
 use App\Module\Workflow\Contract\WorkflowRowCleanup;
 use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
+use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +21,7 @@ final readonly class WorkflowRowCleaner implements WorkflowRowCleanup
         private WorkflowRuleStateRepository $workflowRuleStates,
         private WorkflowPendingBaselineRepository $workflowPendingBaselines,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
+        private WorkflowQueuedEvaluationRepository $workflowQueuedEvaluations,
     ) {
     }
 
@@ -28,6 +30,7 @@ final readonly class WorkflowRowCleaner implements WorkflowRowCleanup
     {
         $this->workflowRuleStates->deleteForCard($cardId);
         $this->workflowPendingBaselines->consume($cardId);
+        $this->workflowQueuedEvaluations->release($cardId);
     }
 
     #[\Override]
