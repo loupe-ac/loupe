@@ -3062,6 +3062,14 @@
                 <source>project.connect.tool.experiment_get</source>
                 <target>Read the comparison of one experiment: each variant, each metric with its likely range, and the cards it keeps or leaves out.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.experiment_archive">
+                <source>project.connect.tool.experiment_archive</source>
+                <target>Archive an experiment so it leaves the main experiments list. Its page and data stay readable.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.experiment_unarchive">
+                <source>project.connect.tool.experiment_unarchive</source>
+                <target>Put an archived experiment back in the main experiments list.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.analysis_get">
                 <source>project.connect.tool.analysis_get</source>
                 <target>Read one analysis, with its state, its cost so far and the changes it proposes.</target>
@@ -7161,6 +7169,15 @@
             <trans-unit id="bridge.experiments.empty.title"><source>bridge.experiments.empty.title</source><target>No experiments yet</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, add variants to a worker entry under work: in rules.yaml. The kind of work names the experiment.</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.docs"><source>bridge.experiments.empty.docs</source><target>Read how to set up an experiment</target></trans-unit>
+            <trans-unit id="bridge.experiments.show_archived"><source>bridge.experiments.show_archived</source><target>Show archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.count"><source>bridge.experiments.count</source><target>{0}No experiments|{1}1 experiment|]1,Inf[%count% experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived"><source>bridge.experiments.archived</source><target>Archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.column.actions"><source>bridge.experiments.column.actions</source><target>Actions</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive"><source>bridge.experiments.archive</source><target>Archive %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.unarchive"><source>bridge.experiments.unarchive</source><target>Unarchive %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive_action"><source>bridge.experiments.archive_action</source><target>Archive</target></trans-unit>
+            <trans-unit id="bridge.experiments.unarchive_action"><source>bridge.experiments.unarchive_action</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive.error.unknown"><source>bridge.experiments.archive.error.unknown</source><target>No run and no card pin names this experiment, so there is nothing to archive.</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.comparison"><source>bridge.experiments.tabs.comparison</source><target>Comparison</target></trans-unit>

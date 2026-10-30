@@ -14,14 +14,24 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
 
+    {% set canManage = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
+    {% if archivedCount > 0 or includeArchived %}
+    <twig:Ds:FilterBar
+        :action="path('app_project_analytics_experiments', {id: project.id})"
+        :switch="{name: 'archived', label: 'bridge.experiments.show_archived'|trans, checked: includeArchived, attributes: {'data-experiment-archived-toggle': true}}"
+        :count="'bridge.experiments.count'|trans({'%count%': experiments|length})"
+        :countAttributes="{'data-experiment-count': true}" />
+    {% endif %}
+
     {% if experiments is not empty %}
     <twig:Ds:DataTable modifier="experiments" :label="'bridge.experiments.table.label'|trans" :columns="[
         {label: 'bridge.experiments.column.experiment'|trans},
         {label: 'bridge.experiments.column.cards'|trans, align: 'end'},
         {label: 'bridge.experiments.column.last_run'|trans},
+        {label: 'bridge.experiments.column.actions'|trans, srOnly: true},
     ]">
         {% for experiment in experiments %}
-        <div class="lp-data-table__row" role="row" data-experiment="{{ experiment.name }}">
+        <div class="lp-data-table__row{% if experiment.archived %} lp-document-row--archived{% endif %}" role="row" data-experiment="{{ experiment.name }}">
             <div class="lp-data-table__cell lp-data-table__primary" role="cell">
                 <a class="lp-data-table__target" href="{{ path('app_project_analytics_experiment', {id: project.id, experiment: experiment.name}) }}">
                     <span class="lp-data-table__title" data-experiment-name>{{ experiment.name }}</span>
@@ -35,6 +45,25 @@
                     {{ 'bridge.experiments.no_run'|trans }}
                 {% endif %}
             </span>
+            <div class="lp-data-table__cell lp-document-row__actions" role="cell">
+                {% if canManage %}
+                {# Both states are written out, because the icon importer sees only literal names. #}
+                <form method="post" class="lp-document-row__action-form"
+                      action="{{ path(experiment.archived ? 'app_project_analytics_experiment_unarchive' : 'app_project_analytics_experiment_archive', {id: project.id, experiment: experiment.name}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token(experiment.archived ? 'experiment-unarchive' : 'experiment-archive') }}">
+                    <input type="hidden" name="from" value="list">
+                    {% if includeArchived %}<input type="hidden" name="archived" value="1">{% endif %}
+                    <button type="submit" class="lp-document-row__action" data-experiment-row-archive
+                            aria-label="{{ (experiment.archived ? 'bridge.experiments.unarchive' : 'bridge.experiments.archive')|trans({'%name%': experiment.name}) }}">
+                        {% if experiment.archived %}
+                        <twig:ux:icon name="lucide:archive-restore" class="lp-icon lp-icon--md" />
+                        {% else %}
+                        <twig:ux:icon name="lucide:archive" class="lp-icon lp-icon--md" />
+                        {% endif %}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
     </twig:Ds:DataTable>

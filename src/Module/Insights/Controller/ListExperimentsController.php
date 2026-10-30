@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\ListExperimentsCommand;
 use App\Module\Bridge\Command\ListExperimentsHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -26,11 +27,16 @@ class ListExperimentsController extends AppController
     ) {
     }
 
-    public function __invoke(Project $project): Response
+    public function __invoke(Project $project, Request $request): Response
     {
+        $includeArchived = $request->query->getBoolean('archived');
+        $view = ($this->listExperiments)(new ListExperimentsCommand($project, $includeArchived));
+
         return $this->render('@Insights/list_experiments.html.twig', [
             'project' => $project,
-            'experiments' => ($this->listExperiments)(new ListExperimentsCommand($project))->experiments,
+            'experiments' => $view->experiments,
+            'archivedCount' => $view->archivedCount,
+            'includeArchived' => $includeArchived,
         ]);
     }
 }

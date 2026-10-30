@@ -593,6 +593,75 @@ class WorkerRunRepository extends ServiceEntityRepository
         }, $rows);
     }
 
+    /** Whether any worker run of the project names the experiment. */
+    public function experimentHasRun(Project $project, string $experiment): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT 1 FROM bridge_worker_runs WHERE project_id = :project AND experiment = :experiment LIMIT 1',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment],
+        );
+    }
+
+    /**
+     * The ids of every run of the project received at $from or later, whatever
+     * experiment the run names.
+     *
+     * @return list<string>
+     */
+    public function findRunIdsReceivedFrom(Project $project, \DateTimeImmutable $from): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM bridge_worker_runs WHERE project_id = :project AND received_at >= :from',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'from' => $from],
+            ['from' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids);
+    }
+
+    /**
+     * The ids of the runs that name the experiment now and were received at
+     * $from or later.
+     *
+     * @return list<string>
+     */
+    public function findExperimentRunIdsReceivedFrom(Project $project, string $experiment, \DateTimeImmutable $from): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM bridge_worker_runs WHERE project_id = :project AND experiment = :experiment AND received_at >= :from',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment, 'from' => $from],
+            ['from' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids);
+    }
+
+    /**
+     * For each archived experiment of the project, the ids of the runs that
+     * name it and were received in its archive second or later.
+     *
+     * @return array<string, list<string>> experiment => run ids
+     */
+    public function findExperimentRunIdsFromArchive(Project $project): array
+    {
+        /** @var list<array{experiment: string, id: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT r.experiment, r.id FROM bridge_worker_runs r
+            JOIN bridge_experiment_archives a ON a.project_id = r.project_id AND a.experiment = r.experiment
+            WHERE r.project_id = :project AND r.received_at >= a.archived_at',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122()],
+        );
+
+        $byExperiment = [];
+        foreach ($rows as $row) {
+            $byExperiment[$row['experiment']][] = Uuid::fromString($row['id'])->toRfc4122();
+        }
+
+        return $byExperiment;
+    }
+
     /**
      * Every worker run, of any experiment or of none, of the cards that ran in
      * the experiment, are pinned to it, or keep a fact of it. Oldest first.
