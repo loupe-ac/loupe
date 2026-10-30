@@ -4,6 +4,7 @@
 *.tfstate.*
 *.tfplan
 secrets.enc.yaml
+secrets.pending.enc.yaml
 crash.log
 crash.*.log
 

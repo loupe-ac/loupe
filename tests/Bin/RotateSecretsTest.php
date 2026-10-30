@@ -44,13 +44,27 @@ final class RotateSecretsTest extends TestCase
             label() { if [ -z "$1" ]; then echo none; elif [ "$1" = "$old" ]; then echo old; else echo new; fi; }
             log="$(dirname "$0")/applies.log"
             echo "current=$(label "$cur") previous=$(label "$prev")" >> "$log"
-            echo "$*" >> "$(dirname "$0")/apply-args.log"
             echo apply >> "$(dirname "$0")/events.log"
             [ ! -f "$(dirname "$0")/.rotate-secrets.webhook-since" ] || cp "$(dirname "$0")/.rotate-secrets.webhook-since" "$(dirname "$0")/file-at-apply-$(wc -l < "$log" | tr -d ' ')"
             fail="$(dirname "$0")/fail-at"
             [ ! -f "$fail" ] || [ "$(wc -l < "$log")" -ne "$(cat "$fail")" ] || { rm "$fail"; exit 1; }
             SH);
         chmod($this->dir.'/apply.sh', 0o755);
+        // The stub plan records its arguments, and the stub diff reads what a test wants the plan to change.
+        file_put_contents($this->dir.'/plan.sh', <<<'SH'
+            #!/usr/bin/env bash
+            d="$(dirname "$0")"; args=()
+            for a in "$@"; do case $a in -input=* | -out=*) ;; *) args+=("$a") ;; esac; done
+            [ ${#args[@]} -eq 0 ] || echo "${args[*]}" >> "$d/apply-args.log"
+            for a in "$@"; do case $a in -out=*) echo plan > "${a#-out=}" ;; esac; done
+            SH);
+        chmod($this->dir.'/plan.sh', 0o755);
+        file_put_contents($this->dir.'/plan-show.sh', <<<'SH'
+            #!/usr/bin/env bash
+            f="$(dirname "$0")/plan.json"
+            if [ -f "$f" ]; then cat "$f"; else echo '{"resource_changes":[{"address":"module.app.digitalocean_app.app","change":{"actions":["update"],"before":{"spec":[]},"after":{"spec":[]}}}]}'; fi
+            SH);
+        chmod($this->dir.'/plan-show.sh', 0o755);
         $this->writeStubs();
     }
 
@@ -61,7 +75,7 @@ final class RotateSecretsTest extends TestCase
 
     public function test_it_rotates_the_key_in_three_deploys_and_never_prints_a_key(): void
     {
-        $process = $this->rotate(['app_encryption_key'], "yes\n");
+        $process = $this->rotate(['app_encryption_key'], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertSame(
@@ -82,7 +96,7 @@ final class RotateSecretsTest extends TestCase
 
     public function test_it_stops_before_removing_the_old_key_when_the_operator_does_not_confirm(): void
     {
-        $process = $this->rotate(['app_encryption_key'], "no\n");
+        $process = $this->rotate(['app_encryption_key'], '', reencrypted: false);
 
         self::assertNotSame(0, $process->getExitCode());
         self::assertSame(
@@ -95,8 +109,8 @@ final class RotateSecretsTest extends TestCase
 
     public function test_a_rerun_after_the_operator_stops_resumes_and_keeps_the_old_key(): void
     {
-        $this->rotate(['app_encryption_key'], "no\n");
-        $process = $this->rotate(['app_encryption_key'], "yes\n");
+        $this->rotate(['app_encryption_key'], '', reencrypted: false);
+        $process = $this->resume();
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertSame(
@@ -124,10 +138,10 @@ final class RotateSecretsTest extends TestCase
     public function test_a_rerun_after_a_failed_apply_resumes_with_the_same_two_keys(int $failAt, array $applies): void
     {
         file_put_contents($this->dir.'/fail-at', (string) $failAt);
-        $first = $this->rotate(['app_encryption_key'], "yes\n");
+        $first = $this->rotate(['app_encryption_key'], '');
         self::assertNotSame(0, $first->getExitCode());
 
-        $process = $this->rotate(['app_encryption_key'], "yes\n");
+        $process = $this->resume();
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertSame($applies, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
@@ -138,7 +152,7 @@ final class RotateSecretsTest extends TestCase
     {
         file_put_contents($this->dir.'/secrets.vars', self::REQUIRED."app_secret = \"keep-me\"\napp_encryption_key = \"".self::OLD_KEY."\" # the live key\n");
 
-        $process = $this->rotate(['app_encryption_key'], "no\n");
+        $process = $this->rotate(['app_encryption_key'], '', reencrypted: false);
 
         self::assertNotSame(0, $process->getExitCode());
         self::assertStringContainsString("\napp_encryption_key_previous = \"".self::OLD_KEY."\"\n", (string) file_get_contents($this->dir.'/secrets.vars'));
@@ -153,7 +167,7 @@ final class RotateSecretsTest extends TestCase
         link($file, $this->dir.'/original-link');
         $inode = fileinode($file);
 
-        $process = $this->rotate(['app_encryption_key'], "yes\n");
+        $process = $this->rotate(['app_encryption_key'], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         clearstatcache();
@@ -168,7 +182,7 @@ final class RotateSecretsTest extends TestCase
     {
         file_put_contents($this->dir.'/secrets.vars', "app_encryption_key_previous = \"other\"\n", \FILE_APPEND);
 
-        $process = $this->rotate([], "yes\n");
+        $process = $this->rotate([], '');
 
         self::assertSame(1, $process->getExitCode());
         self::assertFileDoesNotExist($this->dir.'/applies.log');
@@ -186,7 +200,7 @@ final class RotateSecretsTest extends TestCase
 
     public function test_a_name_of_a_pair_runs_the_step_of_its_group_once(): void
     {
-        $process = $this->rotate(['app_encryption_key_previous', 'app_encryption_key'], "yes\n");
+        $process = $this->rotate(['app_encryption_key_previous', 'app_encryption_key'], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertCount(3, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES) ?: []);
@@ -219,7 +233,7 @@ final class RotateSecretsTest extends TestCase
     {
         $this->vars("install_token = \"x\"\noauth_encryption_key = \"x\"\n");
 
-        $process = $this->rotate(['@no-relogin'], "yes\n");
+        $process = $this->rotate(['@no-relogin'], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertSame(
@@ -230,8 +244,8 @@ final class RotateSecretsTest extends TestCase
         self::assertSame('x', $this->value('oauth_encryption_key'));
         self::assertSame('keep-me', $this->value('app_secret'));
         $output = $process->getOutput();
-        self::assertLessThan(strpos($output, 'export_bucket_key:'), strpos($output, 'deploy 1 of 3'));
-        self::assertStringEndsWith("\nNot rotated in full: @relogin-users @relogin-clients\n", $output);
+        self::assertLessThan(strpos($output, 'export_bucket_key:'), strpos($output, 'app_encryption_key: made a new key'));
+        self::assertStringContainsString("\nNot rotated in full: @relogin-users @relogin-clients\n", $output);
     }
 
     public function test_a_run_by_the_users_group_rotates_the_app_secret_and_asks_to_empty_the_sessions(): void
@@ -270,7 +284,7 @@ final class RotateSecretsTest extends TestCase
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertStringContainsString("app_secret: not set, skipped\n", $process->getOutput());
         self::assertStringNotContainsString('DELETE FROM sessions', $process->getOutput());
-        self::assertStringEndsWith("\nNot rotated in full: @no-relogin\n", $process->getOutput());
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin\n", $process->getOutput());
     }
 
     public function test_a_web_push_run_covers_no_impact_group(): void
@@ -280,7 +294,7 @@ final class RotateSecretsTest extends TestCase
         $process = $this->rotate(['vapid_private_key'], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
-        self::assertStringEndsWith("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
     }
 
     public function test_an_unknown_impact_group_is_refused_before_any_apply_and_the_groups_are_listed(): void
@@ -585,13 +599,13 @@ final class RotateSecretsTest extends TestCase
 
         self::assertNotSame(0, $first->getExitCode());
         self::assertSame(['applying', 'dep-old'], \array_slice(file($this->dir.'/.rotate-secrets.webhook-since', \FILE_IGNORE_NEW_LINES) ?: [], 1));
-        self::assertStringContainsString('just rotate-secrets github_app_webhook_secret', $first->getErrorOutput());
+        self::assertStringContainsString('bin/rotate-secrets apply', $first->getErrorOutput());
         self::assertStringNotContainsString('curl', (string) file_get_contents($this->dir.'/events.log'));
         $secret = $this->value('github_app_webhook_secret');
         $start = (file($this->dir.'/.rotate-secrets.webhook-since', \FILE_IGNORE_NEW_LINES) ?: [])[0];
         file_put_contents($this->dir.'/active', "dep-new\n");
 
-        $second = $this->rotate(['github_app_webhook_secret'], '');
+        $second = $this->resume();
 
         self::assertSame(0, $second->getExitCode(), $second->getOutput().$second->getErrorOutput());
         self::assertSame($secret, $this->value('github_app_webhook_secret'));
@@ -613,12 +627,12 @@ final class RotateSecretsTest extends TestCase
         self::assertNotSame(0, $first->getExitCode());
         $lines = file($this->dir.'/.rotate-secrets.webhook-since', \FILE_IGNORE_NEW_LINES) ?: [];
         self::assertSame(['applied', 'dep-old'], \array_slice($lines, 1));
-        self::assertStringContainsString('just rotate-secrets github_app_webhook_secret', $first->getErrorOutput());
+        self::assertStringContainsString('bin/rotate-secrets apply', $first->getErrorOutput());
         $secret = $this->value('github_app_webhook_secret');
         unlink($this->dir.'/patch-fail');
         unlink($this->dir.'/patch-body');
 
-        $second = $this->rotate(['github_app_webhook_secret'], '');
+        $second = $this->resume();
 
         self::assertSame(0, $second->getExitCode(), $second->getOutput().$second->getErrorOutput());
         self::assertSame($secret, $this->value('github_app_webhook_secret'));
@@ -639,7 +653,7 @@ final class RotateSecretsTest extends TestCase
         self::assertNotSame(0, $process->getExitCode());
         self::assertStringNotContainsString('curl', (string) file_get_contents($this->dir.'/events.log'));
         self::assertSame('applying', (file($this->dir.'/.rotate-secrets.webhook-since', \FILE_IGNORE_NEW_LINES) ?: [])[1] ?? null);
-        self::assertStringContainsString('just rotate-secrets github_app_webhook_secret', $process->getErrorOutput());
+        self::assertStringContainsString('bin/rotate-secrets apply', $process->getErrorOutput());
         self::assertGreaterThan(1, substr_count((string) file_get_contents($this->dir.'/doctl.log'), 'apps get'));
     }
 
@@ -665,7 +679,7 @@ final class RotateSecretsTest extends TestCase
         $this->deployments(['dep-new'], [['dep-new', 'ACTIVE', '2099-01-01T00:00:00Z']]);
         $this->deliveries([[$this->delivery(51, 'g1', 502, 'failed to connect')], [$this->delivery(52, 'g1', 200, 'OK')]]);
 
-        $process = $this->rotate([], "yes\n-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n.\n");
+        $process = $this->resume();
         $output = $process->getOutput().$process->getErrorOutput();
 
         self::assertStringContainsString('more than 3 days', $output);
@@ -695,11 +709,11 @@ final class RotateSecretsTest extends TestCase
         $lines = file($this->dir.'/.rotate-secrets.webhook-since', \FILE_IGNORE_NEW_LINES) ?: [];
         self::assertSame('applied', $lines[1] ?? null);
         self::assertStringContainsString('1 event', $first->getErrorOutput());
-        self::assertStringContainsString('just rotate-secrets github_app_webhook_secret', $first->getErrorOutput());
+        self::assertStringContainsString('bin/rotate-secrets apply', $first->getErrorOutput());
         unlink($this->dir.'/attempts.log');
         $this->deliveries([$stillFailed, [$this->delivery(23, 'g1', 200, 'OK'), ...$stillFailed]]);
 
-        $second = $this->rotate(['github_app_webhook_secret'], '');
+        $second = $this->resume();
 
         self::assertSame(0, $second->getExitCode(), $second->getOutput().$second->getErrorOutput());
         self::assertSame(['https://api.github.test/app/hook/deliveries/22/attempts'], file($this->dir.'/attempts.log', \FILE_IGNORE_NEW_LINES));
@@ -742,7 +756,7 @@ final class RotateSecretsTest extends TestCase
         self::assertStringContainsString("bin/console dbal:run-sql 'DELETE FROM sessions'", $process->getOutput());
     }
 
-    public function test_a_group_run_that_finishes_a_pending_webhook_switch_still_covers_its_group(): void
+    public function test_a_pending_webhook_switch_blocks_a_new_collect_until_apply_finishes_it(): void
     {
         $this->webhookVars();
         $this->deliveries([[]]);
@@ -753,11 +767,18 @@ final class RotateSecretsTest extends TestCase
         unlink($this->dir.'/patch-fail');
         file_put_contents($this->dir.'/new-app-key.pem', $this->pem());
 
-        $process = $this->rotate(['@no-relogin'], "yes\n".$this->dir."/new-app-key.pem\n");
+        $refused = $this->rotate(['@no-relogin'], $this->dir."/new-app-key.pem\n");
+        $resumed = $this->resume();
+        $this->deployments(['dep-new', 'dep-newer'], [['dep-newer', 'ACTIVE', '2099-01-02T00:00:00Z']]);
+        $this->deliveries([[]]);
+        $process = $this->rotate(['@no-relogin'], $this->dir."/new-app-key.pem\n");
 
+        self::assertNotSame(0, $refused->getExitCode());
+        self::assertStringContainsString('a rotation is pending', $refused->getErrorOutput());
+        self::assertSame(0, $resumed->getExitCode(), $resumed->getOutput().$resumed->getErrorOutput());
+        self::assertStringContainsString('finishing the switch', $resumed->getOutput());
         self::assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
-        self::assertStringContainsString('finishing the switch', $process->getOutput());
-        self::assertStringEndsWith("\nNot rotated in full: @relogin-users @relogin-clients\n", $process->getOutput());
+        self::assertStringContainsString("\nNot rotated in full: @relogin-users @relogin-clients\n", $process->getOutput());
     }
 
     /** @return iterable<string, array{string}> */
@@ -795,8 +816,8 @@ final class RotateSecretsTest extends TestCase
         foreach (['new-do', 'new-stripe', 'new-ghcr', 'old-do', 'old-stripe', 'old-ghcr'] as $secret) {
             self::assertStringNotContainsString($secret, $output);
         }
-        self::assertStringContainsString('https://cloud.digitalocean.com/account/api/tokens', (string) file_get_contents($this->dir.'/opens.log'));
-        self::assertStringContainsString('https://dashboard.stripe.com/apikeys', (string) file_get_contents($this->dir.'/opens.log'));
+        self::assertStringContainsString("  https://cloud.digitalocean.com/account/api/tokens\n", $output);
+        self::assertStringContainsString("  https://dashboard.stripe.com/apikeys\n", $output);
         [, $revoke] = explode('Revoke by hand:', $output) + [1 => ''];
         self::assertStringContainsString('do_token', $revoke);
         self::assertStringContainsString('stripe_secret_key', $revoke);
@@ -884,7 +905,6 @@ final class RotateSecretsTest extends TestCase
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertStringContainsString("stripe_webhook_secret: not set, skipped\n", $process->getOutput());
         self::assertStringContainsString("site_review_widget_preview_token: not set, skipped\n", $process->getOutput());
-        self::assertFileDoesNotExist($this->dir.'/opens.log');
     }
 
     public function test_a_new_web_push_pair_is_made_only_by_name_and_neither_key_is_printed(): void
@@ -906,7 +926,7 @@ final class RotateSecretsTest extends TestCase
     {
         $this->vars("vapid_private_key = \"old-private\"\nvapid_public_key = \"old-public\"\n");
 
-        $process = $this->rotate([], "yes\n");
+        $process = $this->rotate([], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
         self::assertSame('old-private', $this->value('vapid_private_key'));
@@ -1024,7 +1044,7 @@ final class RotateSecretsTest extends TestCase
         $this->useStore(['TF_VAR_app_encryption_key' => self::OLD_KEY]);
         $before = (string) file_get_contents($this->dir.'/secrets.vars');
 
-        $process = $this->rotate(['app_encryption_key'], "yes\n");
+        $process = $this->rotate(['app_encryption_key'], '');
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertSame(
@@ -1158,6 +1178,215 @@ final class RotateSecretsTest extends TestCase
         self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', (string) file_get_contents($this->dir.'/applied'));
     }
 
+    public function test_collect_saves_the_new_values_as_pending_and_changes_nothing_live(): void
+    {
+        $this->useStore(['TF_VAR_install_token' => 'old-token']);
+        $before = (string) file_get_contents($this->dir.'/secrets.vars');
+
+        $process = $this->script(['collect', 'install_token', 'do_token'], '', ['TF_SECRETS_PENDING' => $this->dir.'/pending.yaml']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('old-token', $this->stored('TF_VAR_install_token'));
+        self::assertSame($before, (string) file_get_contents($this->dir.'/secrets.vars'));
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+        self::assertMatchesRegularExpression('/^install_token: "[0-9a-f]{64}"$/m', (string) file_get_contents($this->dir.'/pending.yaml'));
+        self::assertStringContainsString("Collected, and not applied yet: install_token\n", $process->getOutput());
+        self::assertStringContainsString('claude "Use the project-rotate-secrets skill', $process->getOutput());
+    }
+
+    public function test_a_second_collect_is_refused_until_the_pending_values_are_applied_or_discarded(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        self::assertSame(0, $this->script(['collect', 'install_token'])->getExitCode());
+
+        $refused = $this->script(['collect', 'install_token']);
+        $discarded = $this->script(['discard']);
+        $again = $this->script(['collect', 'install_token']);
+
+        self::assertNotSame(0, $refused->getExitCode());
+        self::assertStringContainsString('a rotation is pending', $refused->getErrorOutput());
+        self::assertSame(0, $discarded->getExitCode(), $discarded->getErrorOutput());
+        self::assertSame('x', $this->value('install_token'));
+        self::assertSame(0, $again->getExitCode(), $again->getErrorOutput());
+    }
+
+    public function test_a_plan_that_changes_another_resource_applies_nothing_until_it_is_allowed(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $this->plan([['address' => 'module.app.digitalocean_database_cluster.db[0]', 'change' => ['actions' => ['update'], 'before' => [], 'after' => []]]]);
+
+        $stopped = $this->rotate(['install_token'], '');
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertStringContainsString('  module.app.digitalocean_database_cluster.db[0] update', $stopped->getErrorOutput());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.tmp.plan.*'));
+
+        $applied = $this->script(['apply', '--allow', 'module.app.digitalocean_database_cluster.db[0]']);
+
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+        self::assertCount(1, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES) ?: []);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value('install_token'));
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.tmp.*'));
+    }
+
+    public function test_the_bucket_key_replacement_passes_the_plan_check_only_when_the_key_rotates(): void
+    {
+        $this->vars("install_token = \"x\"\ncreate_export_bucket = true\n");
+        $this->plan([
+            ['address' => 'digitalocean_spaces_key.exports[0]', 'change' => ['actions' => ['delete', 'create'], 'before' => [], 'after' => []]],
+            $this->appChange(['EXPORT_STORAGE_KEY' => 'old-id'], ['EXPORT_STORAGE_KEY' => null]),
+        ]);
+
+        $alone = $this->rotate(['install_token'], '');
+        $this->vars("install_token = \"x\"\ncreate_export_bucket = true\n");
+        unlink($this->dir.'/.rotate-secrets.pending');
+        $withKey = $this->rotate(['install_token', 'export_bucket_key'], '');
+
+        self::assertSame(11, $alone->getExitCode());
+        self::assertStringContainsString("  spec.env.EXPORT_STORAGE_KEY\n  digitalocean_spaces_key.exports[0] delete,create\n", $alone->getErrorOutput());
+        self::assertSame(0, $withKey->getExitCode(), $withKey->getErrorOutput());
+    }
+
+    public function test_the_app_update_passes_when_only_the_variables_of_the_rotated_secrets_change_in_any_order(): void
+    {
+        $this->vars("install_token = \"x\"\nmercure_jwt_secret = \"m\"\n");
+        $this->plan([$this->appChange(
+            ['APP_ENV' => 'prod', 'INSTALL_TOKEN' => 'old-secret-value', 'MERCURE_JWT_SECRET' => 'old-m'],
+            ['MERCURE_JWT_SECRET' => 'new-m', 'INSTALL_TOKEN' => 'new-secret-value', 'APP_ENV' => 'prod'],
+            mercure: ['old-m', 'new-m'],
+        )]);
+
+        $process = $this->rotate(['install_token', 'mercure_jwt_secret'], '');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertCount(1, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES) ?: []);
+    }
+
+    public function test_an_app_field_beyond_the_rotated_secrets_stops_the_apply_and_names_the_field_with_no_value(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $this->plan([$this->appChange(
+            ['INSTALL_TOKEN' => 'old-secret-value', 'ADMIN_EMAIL' => 'old-admin-value'],
+            ['INSTALL_TOKEN' => 'new-secret-value', 'ADMIN_EMAIL' => 'new-admin-value'],
+            size: ['apps-s-1vcpu-1gb', 'apps-s-2vcpu-4gb'],
+        )]);
+
+        $stopped = $this->rotate(['install_token'], '');
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertStringContainsString("  spec.env.ADMIN_EMAIL\n  spec.service.instance_size_slug\n", $stopped->getErrorOutput());
+        self::assertStringNotContainsString('INSTALL_TOKEN', $stopped->getErrorOutput());
+        self::assertStringNotContainsString('-value', $stopped->getOutput().$stopped->getErrorOutput());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+
+        $field = $this->script(['apply', '--allow', 'spec.env.ADMIN_EMAIL']);
+        $applied = $this->script(['apply', '--allow', 'spec.env.ADMIN_EMAIL', '--allow', 'spec.service.instance_size_slug']);
+
+        self::assertSame(11, $field->getExitCode());
+        self::assertStringNotContainsString('ADMIN_EMAIL', $field->getErrorOutput());
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+    }
+
+    public function test_discard_is_refused_once_apply_has_started_and_apply_still_resumes(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $this->plan([['address' => 'module.app.digitalocean_database_cluster.db[0]', 'change' => ['actions' => ['update'], 'before' => [], 'after' => []]]]);
+        $stopped = $this->rotate(['install_token'], '');
+
+        $discarded = $this->script(['discard']);
+        $collected = $this->script(['collect', 'install_token']);
+        unlink($this->dir.'/plan.json');
+        $applied = $this->script(['apply']);
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertSame(1, $discarded->getExitCode());
+        self::assertStringContainsString('apply has started', $discarded->getErrorOutput());
+        self::assertNotSame(0, $collected->getExitCode());
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value('install_token'));
+        self::assertFileDoesNotExist($this->dir.'/.rotate-secrets.pending');
+    }
+
+    public function test_reencrypted_does_not_skip_the_second_key_deploy_that_has_not_run(): void
+    {
+        $this->script(['collect', 'app_encryption_key']);
+
+        $process = $this->script(['apply', '--reencrypted']);
+
+        self::assertSame(10, $process->getExitCode());
+        self::assertSame(['current=old previous=new', 'current=new previous=old'], file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
+    }
+
+    public function test_reencrypted_after_a_failed_second_key_deploy_runs_that_deploy_again_and_keeps_the_old_key(): void
+    {
+        file_put_contents($this->dir.'/fail-at', '2');
+        $this->script(['collect', 'app_encryption_key']);
+        $failed = $this->script(['apply']);
+
+        $retried = $this->script(['apply', '--reencrypted']);
+        $finished = $this->script(['apply', '--reencrypted']);
+
+        self::assertNotSame(0, $failed->getExitCode());
+        self::assertSame(10, $retried->getExitCode(), $retried->getErrorOutput());
+        self::assertSame(0, $finished->getExitCode(), $finished->getErrorOutput());
+        self::assertSame(
+            ['current=old previous=new', 'current=new previous=old', 'current=new previous=old', 'current=new previous=none'],
+            file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES),
+        );
+    }
+
+    public function test_an_app_field_that_the_plan_knows_only_after_the_apply_counts_as_changed(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        $change = $this->appChange(
+            ['INSTALL_TOKEN' => 'old-secret-value', 'ADMIN_EMAIL' => null],
+            ['INSTALL_TOKEN' => 'new-secret-value', 'ADMIN_EMAIL' => null],
+        );
+        $change['change']['after_unknown'] = ['spec' => [['env' => [['value' => true], ['value' => true]], 'service' => [['instance_size_slug' => true], []]]]];
+        $this->plan([$change]);
+
+        $stopped = $this->rotate(['install_token'], '');
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertStringContainsString("  spec.env.ADMIN_EMAIL\n  spec.service.instance_size_slug\n", $stopped->getErrorOutput());
+        self::assertStringNotContainsString('INSTALL_TOKEN', $stopped->getErrorOutput());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+
+        $change['change']['after_unknown'] = ['spec' => [['env' => [['value' => true], []]]]];
+        $this->plan([$change]);
+        $applied = $this->script(['apply']);
+
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+    }
+
+    public function test_collect_starts_the_session_only_when_the_operator_says_yes(): void
+    {
+        file_put_contents($this->dir.'/session.sh', "#!/usr/bin/env bash\nprintf '%s' \"\$*\" > \"\$(dirname \"\$0\")/session-prompt\"\n");
+        chmod($this->dir.'/session.sh', 0o755);
+        $this->vars("install_token = \"x\"\n");
+
+        $declined = $this->script(['collect', 'install_token'], "n\n", ['ROTATE_SESSION' => $this->dir.'/session.sh']);
+        $this->script(['discard']);
+        $started = $this->script(['collect', 'install_token'], "y\n", ['ROTATE_SESSION' => $this->dir.'/session.sh']);
+
+        self::assertSame(0, $declined->getExitCode(), $declined->getErrorOutput());
+        self::assertStringContainsString('Nothing was applied', $declined->getOutput());
+        self::assertSame(0, $started->getExitCode(), $started->getErrorOutput());
+        self::assertSame('Use the project-rotate-secrets skill to apply the pending secret rotation.', (string) file_get_contents($this->dir.'/session-prompt'));
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+    }
+
+    public function test_a_new_pending_store_encrypts_to_the_recipients_of_the_live_store(): void
+    {
+        $this->useStore(['TF_VAR_install_token' => 'old']);
+        file_put_contents($this->dir.'/store.yaml', "sops:\n    age:\n        - recipient: age1first\n          enc: x\n        - recipient: age1second\n", \FILE_APPEND);
+
+        $process = $this->lib('live_recipients', []);
+
+        self::assertSame('age1first,age1second', $process->getOutput());
+    }
+
     public function test_the_script_is_valid_bash(): void
     {
         $process = new Process(['bash', '-n', \dirname(__DIR__, 2).'/bin/rotate-secrets']);
@@ -1194,8 +1423,10 @@ final class RotateSecretsTest extends TestCase
             'ROTATE_TFVARS' => $this->dir.'/secrets.vars',
             'ROTATE_TF_ROOT' => $this->dir.'/tf',
             'ROTATE_APPLY' => $this->dir.'/apply.sh',
+            'ROTATE_PLAN' => $this->dir.'/plan.sh',
+            'ROTATE_PLAN_SHOW' => $this->dir.'/plan-show.sh',
+            'ROTATE_SESSION' => '',
             'ROTATE_APP_ID' => 'app-1',
-            'ROTATE_OPEN' => $this->dir.'/bin/open',
             'ROTATE_VAPID_CMD' => $this->dir.'/vapid.sh',
             'ROTATE_GITHUB_API' => 'https://api.github.test',
             'ROTATE_POLL_SECONDS' => '0.1',
@@ -1264,16 +1495,48 @@ final class RotateSecretsTest extends TestCase
     }
 
     /**
+     * Collects, then applies, then applies again with --reencrypted when the key rotation asks for it.
+     *
      * @param list<string>          $names
      * @param array<string, string> $extraEnv
      */
-    private function rotate(array $names, string $input, array $extraEnv = []): Process
+    private function rotate(array $names, string $input, array $extraEnv = [], bool $reencrypted = true): Process
     {
         $process = new Process(
-            [\dirname(__DIR__, 2).'/bin/rotate-secrets', ...$names],
-            env: $extraEnv + $this->env(),
+            ['bash', '-c', '"$0" collect "$@" || exit; "$0" apply; s=$?; [ "$s" = 10 ] && [ "$REENCRYPTED" = 1 ] && { "$0" apply --reencrypted; s=$?; }; exit "$s"', \dirname(__DIR__, 2).'/bin/rotate-secrets', ...$names],
+            env: ['REENCRYPTED' => $reencrypted ? '1' : '0'] + $extraEnv + $this->env(),
             input: $input,
         );
+        $process->run();
+
+        return $process;
+    }
+
+    /**
+     * Runs apply again, as the session does after a stop, with --reencrypted when the key rotation asks for it.
+     *
+     * @param array<string, string> $extraEnv
+     */
+    private function resume(array $extraEnv = []): Process
+    {
+        $process = new Process(
+            ['bash', '-c', '"$0" apply; s=$?; [ "$s" = 10 ] && { "$0" apply --reencrypted; s=$?; }; exit "$s"', \dirname(__DIR__, 2).'/bin/rotate-secrets'],
+            env: $extraEnv + $this->env(),
+        );
+        $process->run();
+
+        return $process;
+    }
+
+    /**
+     * Runs one mode of the script, such as apply or discard.
+     *
+     * @param list<string>          $args
+     * @param array<string, string> $extraEnv
+     */
+    private function script(array $args, string $input = '', array $extraEnv = []): Process
+    {
+        $process = new Process([\dirname(__DIR__, 2).'/bin/rotate-secrets', ...$args], env: $extraEnv + $this->env(), input: $input);
         $process->run();
 
         return $process;
@@ -1283,10 +1546,6 @@ final class RotateSecretsTest extends TestCase
     {
         mkdir($this->dir.'/bin');
         $stubs = [
-            'open' => <<<'SH'
-                #!/usr/bin/env bash
-                printf '%s\n' "$1" >> "$(dirname "$0")/../opens.log"
-                SH,
             'doctl' => <<<'SH'
                 #!/usr/bin/env bash
                 d="$(cd "$(dirname "$0")/.." && pwd)"
@@ -1341,6 +1600,46 @@ final class RotateSecretsTest extends TestCase
     {
         $required = str_contains($extra, 'mailer_dsn =') ? str_replace("mailer_dsn = \"null://null\"\n", '', self::REQUIRED) : self::REQUIRED;
         file_put_contents($this->dir.'/secrets.vars', $required."app_secret = \"keep-me\"\napp_encryption_key = \"".self::OLD_KEY."\"\n".$extra);
+    }
+
+    /**
+     * Sets what the stub plan changes, as the resource_changes of terraform show -json.
+     *
+     * @param list<array<string, mixed>> $changes
+     */
+    private function plan(array $changes): void
+    {
+        file_put_contents($this->dir.'/plan.json', json_encode(['resource_changes' => $changes], \JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * An update of the app whose spec holds the given app variables, the web size and the hub key.
+     *
+     * @param array<string, ?string>      $before
+     * @param array<string, ?string>      $after
+     * @param array{0: string, 1: string} $size
+     * @param array{0: string, 1: string} $mercure
+     *
+     * @return array<string, mixed>
+     */
+    private function appChange(array $before, array $after, array $size = ['apps-s-1vcpu-1gb', 'apps-s-1vcpu-1gb'], array $mercure = ['m', 'm']): array
+    {
+        $spec = static fn (array $env, string $size, string $hubKey): array => [[
+            'name' => 'loupe',
+            'env' => array_map(static fn (string $k, ?string $v): array => ['key' => $k, 'value' => $v, 'type' => 'SECRET', 'scope' => 'RUN_TIME'], array_keys($env), $env),
+            'service' => [
+                ['name' => 'web', 'instance_size_slug' => $size, 'env' => []],
+                ['name' => 'mercure', 'instance_size_slug' => 'apps-s-1vcpu-0.5gb', 'env' => [
+                    ['key' => 'MERCURE_PUBLISHER_JWT_KEY', 'value' => $hubKey, 'type' => 'SECRET', 'scope' => 'RUN_TIME'],
+                ]],
+            ],
+        ]];
+
+        return ['address' => 'module.app.digitalocean_app.app', 'change' => [
+            'actions' => ['update'],
+            'before' => ['id' => 'app-1', 'spec' => $spec($before, $size[0], $mercure[0])],
+            'after' => ['spec' => $spec($after, $size[1], $mercure[1])],
+        ]];
     }
 
     private function webhookVars(): void
