@@ -120,6 +120,28 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         self::assertSame('heard', $status->attr('data-inbox-bridge'));
     }
 
+    public function test_a_quiet_bridge_whose_login_holds_no_live_token_marks_the_expired_login(): void
+    {
+        $ask = $this->openAsk($bridgeId = Uuid::v4());
+        $bridge = new Bridge($this->owner, $bridgeId, [], 'b4e39aa7', new \DateTimeImmutable(self::NOW.' -1 hour'));
+        $bridge->loginId = Uuid::v7();
+        $this->em->persist($bridge);
+        $this->em->flush();
+
+        $expired = $this->bridgeStatusOf($this->page(), $ask)->filter('[data-inbox-login-expired]');
+
+        self::assertCount(1, $expired);
+        self::assertStringContainsString('Its login expired.', $expired->text());
+    }
+
+    public function test_a_quiet_bridge_with_no_login_shows_no_expired_login(): void
+    {
+        $ask = $this->openAsk($bridgeId = Uuid::v4());
+        $this->bridgeSeenSecondsAgo($this->owner, $bridgeId, 3600);
+
+        self::assertCount(0, $this->bridgeStatusOf($this->page(), $ask)->filter('[data-inbox-login-expired]'));
+    }
+
     public function test_a_bridge_with_no_row_warns(): void
     {
         $ask = $this->openAsk(Uuid::v4());

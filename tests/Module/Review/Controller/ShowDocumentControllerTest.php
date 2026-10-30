@@ -238,6 +238,8 @@ final class ShowDocumentControllerTest extends WebTestCase
         // Nothing to answer, so Decisions stays in the toolbar, off and disabled.
         self::assertSelectorExists('.lp-review-toolbar__button[data-review-panels-name-param="decisions"][aria-disabled="true"][aria-pressed="false"]');
         self::assertSelectorExists('#review-panel-decisions[hidden]');
+        self::assertSelectorNotExists('#review-toolbar-decisions-count');
+        self::assertSelectorNotExists('#review-toolbar-decisions-label');
         self::assertSelectorExists('.lp-review-doc__byline [aria-controls="review-page-menu"]');
         self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="approved"]');
         self::assertSelectorExists('input[name="submit_review_form[verdict]"][value="changes-requested"]');
