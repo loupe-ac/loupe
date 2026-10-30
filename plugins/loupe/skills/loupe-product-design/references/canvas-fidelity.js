@@ -3,6 +3,7 @@
 //   render   <canvas folder> <out folder> [--index <artboard>] [--runtime <dc-runtime.js>] [--boards a,b]
 //   scan     <canvas folder> [--index <artboard>] [--runtime <dc-runtime.js>] [--boards a,b]
 //   manifest <folder>
+//   verify   <expected folder> <entry page link>
 //   shoot    <canvas folder> <out folder> [<entry page link>] [--index <artboard>] [--runtime <dc-runtime.js>] [--boards a,b] [--stored-only]
 //
 // The canvas folder is the folder the session pushed, with the canvas files at
@@ -32,8 +33,8 @@ const TYPES = {
     '.ttf': 'font/ttf',
 };
 
-// Both functions below run inside the page. The page gets the source of both,
-// so serializeDocument may call findHtmlInSvg and nothing else from outside.
+// The three functions below run inside the page. The page gets the source of
+// each, so serializeDocument may call findHtmlInSvg and nothing else from outside.
 
 // Lists each element of the HTML namespace that sits inside an <svg> and
 // outside a <foreignObject>. A browser draws none of them.
@@ -68,6 +69,73 @@ function serializeDocument(doc) {
     }
     for (const el of findHtmlInSvg(doc)) {
         if (el.localName === 'span') el.replaceWith(doc.createTextNode(el.textContent));
+    }
+}
+
+// Points each relative link of a page that moves from the folder `from` to the
+// folder `to`, so it still reaches the same file. The rule of rebase.go in
+// cli/internal/claudedesign. Runs inside the page, so it uses no import.
+function rebaseDocument(doc, from, to) {
+    if (from === to) return;
+    const split = (dir) => (dir === '.' || dir === '' ? [] : dir.split('/'));
+    const join = (dir, rel) => {
+        const parts = split(dir);
+        for (const part of rel.split('/')) {
+            if (part === '' || part === '.') continue;
+            if (part === '..' && parts.length > 0 && parts[parts.length - 1] !== '..') parts.pop();
+            else parts.push(part);
+        }
+
+        return parts.join('/');
+    };
+    const relTo = (dir, target) => {
+        const a = split(dir);
+        const b = target.split('/');
+        let i = 0;
+        while (i < a.length && i < b.length && a[i] === b[i]) i++;
+
+        return [...a.slice(i).map(() => '..'), ...b.slice(i)].join('/') || '.';
+    };
+    const url = (u) => {
+        if (u === '' || u.startsWith('#') || u.startsWith('/') || u.includes('{{')) return u;
+        const cut = u.search(/[?#]/);
+        const base = cut >= 0 ? u.slice(0, cut) : u;
+        if (base === '' || base.includes(':')) return u;
+        const target = join(from, base);
+        if (target === '..' || target.startsWith('../')) return u;
+
+        return relTo(to, target) + (cut >= 0 ? u.slice(cut) : '');
+    };
+    const css = (s) => s.replace(/url\(\s*(['"]?)([^'")\s]*)(['"]?)\s*\)/g, (_, open, u, close) => `url(${open}${url(u)}${close})`);
+    const srcset = (s) => {
+        let out = '';
+        let i = 0;
+        while (i < s.length) {
+            let start = i;
+            while (i < s.length && /[\s,]/.test(s[i])) i++;
+            out += s.slice(start, i);
+            start = i;
+            while (i < s.length && !/\s/.test(s[i])) i++;
+            const u = s.slice(start, i).replace(/,+$/, '');
+            out += url(u) + s.slice(start + u.length, i);
+            if (u.length < i - start) continue;
+            start = i;
+            for (let depth = 0; i < s.length && (s[i] !== ',' || depth > 0); i++) {
+                if (s[i] === '(') depth++;
+                else if (s[i] === ')') depth--;
+            }
+            out += s.slice(start, i);
+        }
+
+        return out;
+    };
+    const attrs = { href: url, src: url, poster: url, action: url, data: url, srcset, style: css };
+    for (const el of doc.querySelectorAll('*')) {
+        for (const attr of Array.from(el.attributes)) {
+            const rebase = attrs[attr.name];
+            if (rebase) el.setAttribute(attr.name, rebase(attr.value));
+        }
+        if (el.localName === 'style') el.textContent = css(el.textContent);
     }
 }
 
@@ -165,6 +233,25 @@ function storedLink(entryLink, outPath) {
     return entryLink.slice(0, -'index.html'.length) + outPath.split('/').map(encodeURIComponent).join('/');
 }
 
+// Fetches each file of the expected folder from the stored version and compares
+// its SHA-256 hash, binary files included. Never prints the link, which is a
+// credential.
+async function verify(folder, entryLink) {
+    const problems = [];
+    for (const row of manifest(folder)) {
+        const response = await fetch(storedLink(entryLink, row.path));
+        if (!response.ok) {
+            problems.push(`${row.path}: the stored version answered ${response.status}`);
+            continue;
+        }
+        const bytes = Buffer.from(await response.arrayBuffer());
+        const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+        if (sha256 !== row.sha256) problems.push(`${row.path}: stored ${sha256} ${bytes.length}, expected ${row.sha256} ${row.size}`);
+    }
+
+    return problems;
+}
+
 function serve(folder, runtime) {
     const root = path.resolve(folder);
     const server = http.createServer((req, res) => {
@@ -227,7 +314,7 @@ async function render(playwrightPath, folder, outFolder, options) {
         for (const entry of map) {
             const page = await openLive(browser, origin, entry);
             const html = await page.evaluate(
-                `(() => { ${findHtmlInSvg.toString()}\n(${serializeDocument.toString()})(document); document.querySelectorAll('script').forEach((s) => s.remove()); return '<!doctype html>\\n' + document.documentElement.outerHTML; })()`,
+                `(() => { ${findHtmlInSvg.toString()}\n(${serializeDocument.toString()})(document); (${rebaseDocument.toString()})(document, ${JSON.stringify(path.posix.dirname(entry.board))}, ${JSON.stringify(path.posix.dirname(entry.out))}); document.querySelectorAll('script').forEach((s) => s.remove()); return '<!doctype html>\\n' + document.documentElement.outerHTML; })()`,
             );
             const target = path.join(outFolder, entry.out);
             fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -304,15 +391,22 @@ async function main(argv) {
 
         return 0;
     }
+    if (command === 'verify') {
+        const problems = await verify(positional[0], positional[1]);
+        for (const line of problems) console.log(line);
+        console.log(problems.length === 0 ? 'pass: each stored file has the expected hash' : `fail: ${problems.length} file(s) differ`);
+
+        return problems.length === 0 ? 0 : 1;
+    }
     if (command === 'render') await render(playwrightPath, positional[0], positional[1], options);
     else if (command === 'scan') return scan(playwrightPath, positional[0], options);
     else if (command === 'shoot') await shoot(playwrightPath, positional[0], positional[1], positional[2], options);
-    else throw new Error('Commands: render, scan, manifest, shoot');
+    else throw new Error('Commands: render, scan, manifest, verify, shoot');
 
     return 0;
 }
 
-module.exports = { findHtmlInSvg, serializeDocument, manifest, pageMap, pagePath, storedLink };
+module.exports = { findHtmlInSvg, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
 
 if (require.main === module) {
     main(process.argv.slice(2)).then(

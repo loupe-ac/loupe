@@ -11,8 +11,11 @@ const {
     findHtmlInSvg,
     manifest,
     pageMap,
+    rebaseDocument,
     serializeDocument,
+    serve,
     storedLink,
+    verify,
 } = require('../../plugins/loupe/skills/loupe-product-design/references/canvas-fidelity.js');
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -93,6 +96,77 @@ describe('serializeDocument', () => {
     });
 });
 
+describe('rebaseDocument', () => {
+    const nested = () =>
+        new JSDOM(
+            '<head><link rel="stylesheet" href="ds/tokens.css">' +
+                '<style>body { background: url("img/bg.png"); }</style></head>' +
+                '<body><img src="./img/a.png" srcset="img/a.png 1x, img/b.png 2x">' +
+                '<div style="background: url(img/c.png)"></div>' +
+                '<a href="#top">t</a><a href="/root.css">r</a>' +
+                '<a href="https://x.example/a">x</a><a href="img/d.png?v=1#f">d</a>' +
+                '<a href="../../above.css">u</a></body>',
+        ).window.document;
+
+    it('keeps each link of a nested index artboard on its file when the page moves to the root', () => {
+        const map = pageMap(
+            canvas({ 'project/Main.dc.html': '', 'project/ds/tokens.css': '' }),
+            {},
+        );
+        expect(map).toMatchObject([
+            { board: 'project/Main.dc.html', out: 'index.html' },
+        ]);
+        const document = nested();
+
+        rebaseDocument(document, 'project', '.');
+
+        expect(document.querySelector('link').getAttribute('href')).toBe(
+            'project/ds/tokens.css',
+        );
+        expect(document.querySelector('style').textContent).toBe(
+            'body { background: url("project/img/bg.png"); }',
+        );
+        const img = document.querySelector('img');
+        expect(img.getAttribute('src')).toBe('project/img/a.png');
+        expect(img.getAttribute('srcset')).toBe(
+            'project/img/a.png 1x, project/img/b.png 2x',
+        );
+        expect(document.querySelector('div').getAttribute('style')).toBe(
+            'background: url(project/img/c.png)',
+        );
+        expect(
+            Array.from(document.querySelectorAll('a')).map((a) =>
+                a.getAttribute('href'),
+            ),
+        ).toEqual([
+            '#top',
+            '/root.css',
+            'https://x.example/a',
+            'project/img/d.png?v=1#f',
+            '../../above.css',
+        ]);
+    });
+
+    it('climbs out of a folder when the page moves down into it', () => {
+        const document = nested();
+
+        rebaseDocument(document, '.', 'site');
+
+        expect(document.querySelector('link').getAttribute('href')).toBe(
+            '../ds/tokens.css',
+        );
+    });
+
+    it('changes nothing when the page stays in its folder', () => {
+        const document = nested();
+        const before = document.documentElement.outerHTML;
+
+        rebaseDocument(document, 'site', 'site');
+
+        expect(document.documentElement.outerHTML).toBe(before);
+    });
+});
+
 describe('manifest', () => {
     it('lists the path, size and hash of each file, sorted by path', () => {
         const folder = canvas({ 'b/two.css': 'bb', 'a.html': 'a' });
@@ -109,6 +183,56 @@ describe('manifest', () => {
                 sha256: createHash('sha256').update('bb').digest('hex'),
             },
         ]);
+    });
+});
+
+describe('verify', () => {
+    const served = [];
+
+    afterEach(() => {
+        while (served.length > 0) served.pop().close();
+    });
+
+    const store = async (files) => {
+        const { server, origin } = await serve(canvas(files));
+        served.push(server);
+
+        return `${origin}/index.html`;
+    };
+
+    it('passes when each stored file, binary included, has the expected hash', async () => {
+        const font = Buffer.from([0, 1, 2, 255]);
+        const link = await store({ 'index.html': 'a', 'ds/font.woff2': font });
+
+        expect(
+            await verify(
+                canvas({ 'index.html': 'a', 'ds/font.woff2': font }),
+                link,
+            ),
+        ).toEqual([]);
+    });
+
+    it('names a binary file of the same size and another hash, and a missing file', async () => {
+        const link = await store({
+            'index.html': 'a',
+            'img/x.png': Buffer.from([1, 2, 3]),
+        });
+
+        const problems = await verify(
+            canvas({
+                'index.html': 'a',
+                'img/x.png': Buffer.from([1, 2, 4]),
+                'img/y.png': Buffer.from([9]),
+            }),
+            link,
+        );
+
+        expect(problems).toHaveLength(2);
+        expect(problems[0]).toMatch(
+            /^img\/x\.png: stored [0-9a-f]{64} 3, expected [0-9a-f]{64} 3$/,
+        );
+        expect(problems[1]).toBe('img/y.png: the stored version answered 404');
+        expect(problems.join()).not.toContain(link);
     });
 });
 
