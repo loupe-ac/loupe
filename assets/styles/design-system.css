@@ -42,6 +42,7 @@
 @import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
+@import './components/chart.css';
 
 @source "../../templates/components/Ds";
 

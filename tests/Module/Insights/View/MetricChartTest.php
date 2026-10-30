@@ -31,8 +31,8 @@ final class MetricChartTest extends TestCase
         $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Day, [self::series(null, [
             '2026-10-01' => 1.0,
             '2026-10-02' => 3.0,
-            '2026-10-04' => 2.0,
-            '2026-10-05' => 0.5,
+            '2026-10-03' => 2.0,
+            '2026-10-04' => 0.5,
         ])]);
 
         self::assertNotNull($chart);
@@ -50,7 +50,7 @@ final class MetricChartTest extends TestCase
             new MetricChartTick(16.0, 3.0),
         ], $chart->yTicks);
         self::assertSame(0, $chart->moneyDecimals);
-        self::assertSame(['2026-10-01', '2026-10-02', '2026-10-04', '2026-10-05'], array_map(static fn (MetricChartTick $tick): string => $tick->start?->format('Y-m-d') ?? '', $chart->xTicks));
+        self::assertSame(['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'], array_map(static fn (MetricChartTick $tick): string => $tick->start?->format('Y-m-d') ?? '', $chart->xTicks));
         self::assertFalse($chart->longSpan);
         self::assertCount(1, $chart->series);
         self::assertFalse($chart->hasLegend());

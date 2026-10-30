@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Metric\MetricChangeKind;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricValueType;
@@ -43,6 +44,44 @@ final readonly class MetricValueFormatter
                 : self::milliseconds((int) round($value)),
             MetricValueType::Tokens, MetricValueType::Count, MetricValueType::Boolean => $this->number($value, \NumberFormatter::DECIMAL, 0, 1),
         };
+    }
+
+    /** A fraction of a whole as a percentage, with a decimal only when it has one. */
+    public function share(float $fraction): string
+    {
+        return $this->number($fraction, \NumberFormatter::PERCENT, 0, 1);
+    }
+
+    /**
+     * The size of a change with no sign or arrow: a percentage for a relative change, points for a change of
+     * rates, and the unit of the metric for an absolute change. The caller adds the direction.
+     */
+    public function change(float $change, MetricChangeKind $kind, MetricShape $metric, ?MetricStatistic $statistic): string
+    {
+        $size = abs($change);
+
+        return match ($kind) {
+            MetricChangeKind::Relative => $this->number($size, \NumberFormatter::PERCENT, 0, self::relativeDecimals($size)),
+            MetricChangeKind::Points => $this->number($size * 100, \NumberFormatter::DECIMAL, 0, 1),
+            MetricChangeKind::Absolute => $this->format($size, $metric, $statistic) ?? '',
+        };
+    }
+
+    /** True when change() would print a size of zero, so no arrow should show. */
+    public function changeIsNothing(float $change, MetricChangeKind $kind): bool
+    {
+        $size = abs($change);
+
+        return match ($kind) {
+            MetricChangeKind::Relative => 0.0 === round($size * 100, self::relativeDecimals($size)),
+            MetricChangeKind::Points => 0.0 === round($size * 100, 1),
+            MetricChangeKind::Absolute => 0.0 === $size,
+        };
+    }
+
+    private static function relativeDecimals(float $size): int
+    {
+        return $size < 0.1 ? 1 : 0;
     }
 
     /** A cost under half a cent keeps its micro-dollars, so it never reads as free. */

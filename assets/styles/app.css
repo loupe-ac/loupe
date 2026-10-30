@@ -44,6 +44,7 @@
 @import './components/sheet.css';
 @import './components/switch.css';
 @import './components/stepper.css';
+@import './components/chart.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's

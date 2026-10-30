@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\View;
 
 use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricChangeKind;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
@@ -75,6 +76,29 @@ final class MetricValueFormatterTest extends TestCase
     public function test_a_bare_value_type_stands_for_a_built_in_metric(): void
     {
         self::assertSame('12 s', new MetricValueFormatter('en')->format(12_400, MetricValueType::Duration));
+    }
+
+    public function test_a_share_keeps_a_decimal_only_when_it_has_one(): void
+    {
+        $formatter = new MetricValueFormatter('en');
+
+        self::assertSame('37.5%', $formatter->share(0.375));
+        self::assertSame('40%', $formatter->share(0.4));
+        self::assertSame('100%', $formatter->share(1.0));
+        self::assertSame('0%', $formatter->share(0.0));
+    }
+
+    public function test_a_change_prints_its_size_with_no_sign(): void
+    {
+        $formatter = new MetricValueFormatter('en');
+        $cost = self::built(Metric::Cost);
+
+        self::assertSame('14%', $formatter->change(-0.14, MetricChangeKind::Relative, $cost, MetricStatistic::Median));
+        self::assertSame('1.2%', $formatter->change(0.0124, MetricChangeKind::Relative, $cost, MetricStatistic::Median));
+        self::assertSame('3', $formatter->change(0.03, MetricChangeKind::Points, self::built(Metric::StopRate), MetricStatistic::Mean));
+        self::assertSame('2.5', $formatter->change(-0.025, MetricChangeKind::Points, self::built(Metric::StopRate), MetricStatistic::Mean));
+        self::assertSame('$1.20', $formatter->change(-1.2, MetricChangeKind::Absolute, $cost, MetricStatistic::Sum));
+        self::assertSame('3', $formatter->change(3, MetricChangeKind::Absolute, self::built(Metric::Runs), MetricStatistic::Count));
     }
 
     private static function built(Metric $metric): MetricShape
