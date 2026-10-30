@@ -116,6 +116,29 @@ final class ArtifactToolsTest extends KernelTestCase
         self::assertSame(['app.css', 'index.html'], array_column($first['files'], 'path'));
     }
 
+    public function test_get_returns_a_full_address_of_the_entry_page(): void
+    {
+        $project = $this->switchedOnProject('pagelink@example.com');
+        $artifact = $this->artifact($project, 'Widget', [['index.html', 'hello', 'text/html']]);
+
+        $result = ($this->tool(ArtifactGetTool::class))((string) $artifact->id);
+
+        self::assertIsString($result['pageLink']);
+        self::assertMatchesRegularExpression('#^https?://[^/]+/.+index\.html$#', $result['pageLink']);
+    }
+
+    public function test_get_returns_no_page_link_for_a_version_with_no_files(): void
+    {
+        $project = $this->switchedOnProject('nopagelink@example.com');
+        $artifact = $this->artifact($project, 'Widget', [['index.html', 'a', 'text/html']]);
+        $artifact->addVersion();
+        $this->em()->flush();
+
+        $result = ($this->tool(ArtifactGetTool::class))((string) $artifact->id);
+
+        self::assertNull($result['pageLink']);
+    }
+
     public function test_get_refuses_an_unknown_version(): void
     {
         $project = $this->switchedOnProject('noversion@example.com');
