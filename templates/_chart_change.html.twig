@@ -1,0 +1,15 @@
+{#
+  Props:  @comment-budget-ignore
+    row   MetricChartTableRow   The change figure and the sign chip of one chart line. Each is drawn only when the row has it.
+#}
+{% set signLabels = {'clear': 'bridge.experiments.goal.state.clear', 'not-clear-yet': 'bridge.experiments.goal.state.not_clear', 'not-enough-data': 'analytics.chart.sign.not_enough'} %}
+{% if row.change is not null %}
+    <span class="lp-chart__change">
+        <span aria-hidden="true">{{ row.change.direction.arrow }}</span>
+        <span class="sr-only">{{ ('analytics.chart.change.' ~ row.change.direction.value)|trans }}</span>
+        {{ row.change.kind.value == 'points' ? 'analytics.chart.change.points'|trans({'%amount%': row.change.amount}) : row.change.amount }}
+    </span>
+{% endif %}
+{% if row.sign is not null %}
+    <span class="lp-chart__sign lp-chart__sign--{{ row.sign.value }}">{{ signLabels[row.sign.value]|trans }}</span>
+{% endif %}

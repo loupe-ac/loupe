@@ -354,6 +354,18 @@ readonly class Catalog
                 legacyEnforced: true,
             ),
             new ComponentEntry(
+                name: 'Chart',
+                rootClass: 'lp-chart',
+                template: 'components/Ds/Chart.html.twig',
+                variants: ['line', 'bars', 'stacked-bars', 'percent-stacked', 'donut', 'number'],
+                states: ['hover', 'focus'],
+                enforced: true,
+                group: 'core',
+                summary: 'A metric drawn as a line, bars, stacked bars, 100% stacked bars, a donut or a number. It has a legend, a hover card on each time bucket or slice, and a table under every type except the number.',
+                element: 'figure',
+                viewport: '900x700',
+            ),
+            new ComponentEntry(
                 name: 'SectionHeading',
                 rootClass: 'lp-section-heading',
                 template: 'components/Ds/SectionHeading.html.twig',

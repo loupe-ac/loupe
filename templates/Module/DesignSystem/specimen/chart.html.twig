@@ -1,0 +1,4 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the Chart for the styleguide, so it is intentionally untranslated. #}
+{% set specimen = metric_chart_specimen(variant ?? 'line') %}
+<twig:Ds:Chart :layout="specimen.layout" :labels="specimen.labels" :id="'specimen-' ~ (variant ?? 'line')" />
