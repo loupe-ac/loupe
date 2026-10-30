@@ -8443,6 +8443,7 @@
             <trans-unit id="analytics.metrics.group.harness-version"><source>analytics.metrics.group.harness-version</source><target>By harness version</target></trans-unit>
             <trans-unit id="analytics.metrics.group.cli-version"><source>analytics.metrics.group.cli-version</source><target>By CLI version</target></trans-unit>
             <trans-unit id="analytics.metrics.group.skill-version"><source>analytics.metrics.group.skill-version</source><target>By plugin version</target></trans-unit>
+            <trans-unit id="analytics.metrics.range.seven-days"><source>analytics.metrics.range.seven-days</source><target>7 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.thirty-days"><source>analytics.metrics.range.thirty-days</source><target>30 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.ninety-days"><source>analytics.metrics.range.ninety-days</source><target>90 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.all"><source>analytics.metrics.range.all</source><target>All time</target></trans-unit>

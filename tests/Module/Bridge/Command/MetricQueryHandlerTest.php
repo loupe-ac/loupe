@@ -15,6 +15,8 @@ use App\Module\Bridge\Metric\CardMilestone;
 use App\Module\Bridge\Metric\CardMilestoneSourceInterface;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricChangeKind;
+use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricPoint;
@@ -25,6 +27,7 @@ use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Bridge\Metric\MetricWindow;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
@@ -490,7 +493,125 @@ final class MetricQueryHandlerTest extends KernelTestCase
         }
     }
 
-    private function query(MetricUnit $unit, Metric|MetricShape $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None): MetricQueryView
+    public function test_a_compare_moves_the_previous_rows_onto_the_dates_of_the_current_ones(): void
+    {
+        // The window of 30 days ends at NOW, so the previous window runs from 2026-08-06 12:00 to 2026-09-05 12:00.
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000, cardNumber: 1);
+        $this->fact(Uuid::v7(), endedAt: '2026-08-11 09:00:00', cost: 1_000_000, cardNumber: 2);
+        $this->fact(Uuid::v7(), endedAt: '2026-08-01 09:00:00', cost: 9_000_000, cardNumber: 3);
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, compare: MetricCompare::Previous);
+
+        $series = $view->series[0];
+        self::assertEquals([new MetricPoint(new \DateTimeImmutable('2026-09-10 00:00:00 UTC'), 2.0, 1)], $series->points);
+        // 2026-08-11 plus 30 days is 2026-09-10, the same day as the current row.
+        self::assertEquals([new MetricPoint(new \DateTimeImmutable('2026-09-10 00:00:00 UTC'), 1.0, 1)], $series->previousPoints);
+        self::assertNotNull($series->comparison);
+        self::assertEquals(new MetricPoint(null, 1.0, 1), $series->comparison->previous);
+        self::assertSame(1.0, $series->comparison->change);
+        self::assertSame(MetricChangeKind::Relative, $series->comparison->changeKind);
+        self::assertNull($series->comparison->sign);
+        self::assertEquals(new MetricWindow(new \DateTimeImmutable('2026-09-05 12:00:00'), new \DateTimeImmutable(self::NOW)), $view->current);
+        self::assertEquals(new MetricWindow(new \DateTimeImmutable('2026-08-06 12:00:00'), new \DateTimeImmutable('2026-09-05 12:00:00')), $view->previous);
+    }
+
+    public function test_no_compare_leaves_the_comparison_out(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000);
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum);
+
+        self::assertNull($view->series[0]->comparison);
+        self::assertSame([], $view->series[0]->previousPoints);
+        self::assertNull($view->previous);
+    }
+
+    public function test_a_compare_keeps_a_line_that_only_the_previous_period_holds(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000, workKind: 'implement');
+        $this->fact(Uuid::v7(), endedAt: '2026-08-11 09:00:00', cost: 1_000_000, workKind: 'review');
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::Stage, MetricCompare::Previous);
+
+        self::assertSame(['implement', 'review'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        self::assertSame([], $view->series[1]->points);
+        self::assertSame(1.0, $view->series[1]->comparison?->previous->value);
+        self::assertNull($view->series[1]->comparison->change);
+    }
+
+    public function test_a_compare_of_all_time_is_refused(): void
+    {
+        try {
+            $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, compare: MetricCompare::Previous, range: MetricRange::All);
+            self::fail('The query was not refused.');
+        } catch (DomainErrors $errors) {
+            self::assertSame(['compare' => MetricQueryHandler::COMPARE_NOT_ALLOWED], $errors->errors);
+        }
+    }
+
+    public function test_seven_days_take_the_bucket_day_alone(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-03 09:00:00', cost: 1_000_000);
+
+        self::assertCount(1, $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, range: MetricRange::SevenDays)->series);
+        try {
+            $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, range: MetricRange::SevenDays, bucket: MetricBucket::Week);
+            self::fail('The query was not refused.');
+        } catch (DomainErrors $errors) {
+            self::assertSame(['bucket' => MetricQueryHandler::BUCKET_NOT_ALLOWED], $errors->errors);
+        }
+    }
+
+    public function test_the_seven_day_window_leaves_out_an_older_run(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-03 09:00:00', cost: 1_000_000);
+        $this->fact(Uuid::v7(), endedAt: '2026-09-27 09:00:00', cost: 4_000_000);
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, compare: MetricCompare::Previous, range: MetricRange::SevenDays);
+
+        self::assertEquals(new MetricPoint(null, 1.0, 1), $view->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 4.0, 1), $view->series[0]->comparison?->previous);
+    }
+
+    public function test_a_bucket_time_each_query_gives_one_line_per_bucket_with_zero_for_an_untouched_one(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00', cardNumber: 1, runId: $this->runWithBuckets(['tests' => 1500, 'edits' => 500]));
+        $this->fact(Uuid::v7(), endedAt: '2026-10-02 09:00:00', cardNumber: 2, runId: $this->runWithBuckets(['tests' => 2500]));
+        $this->fact(Uuid::v7(), endedAt: '2026-10-02 10:00:00', cardNumber: 3);
+
+        $view = $this->query(MetricUnit::Run, Metric::BucketTimeEach, MetricStatistic::Mean);
+
+        self::assertSame(['edits', 'tests'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        self::assertEquals(new MetricPoint(null, 250.0, 2), $view->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 2000.0, 2), $view->series[1]->total);
+        // The means of the lines add up to the mean of the whole: (1500 + 500 + 2500 + 0) / 2 = 2250.
+        self::assertEquals(2250, $view->series[0]->total->value + $view->series[1]->total->value);
+    }
+
+    public function test_a_bucket_time_each_query_by_card_adds_the_runs_of_a_card_per_bucket(): void
+    {
+        $card = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', runId: $this->runWithBuckets(['tests' => 1500], true));
+        $this->fact($card, endedAt: '2026-10-02 09:00:00', runId: $this->runWithBuckets(['edits' => 500], true));
+        $this->fact($card, endedAt: '2026-10-02 09:30:00');
+
+        $time = $this->query(MetricUnit::Card, Metric::BucketTimeEach, MetricStatistic::Sum);
+        $withSubagents = $this->query(MetricUnit::Card, Metric::BucketTimeAllEach, MetricStatistic::Sum);
+        $calls = $this->query(MetricUnit::Card, Metric::BucketCallsEach, MetricStatistic::Sum);
+
+        self::assertSame([500, 1500], array_map(static fn (MetricSeries $series): int|float|null => $series->total->value, $time->series));
+        self::assertSame([1000, 3000], array_map(static fn (MetricSeries $series): int|float|null => $series->total->value, $withSubagents->series));
+        self::assertSame([3, 3], array_map(static fn (MetricSeries $series): int|float|null => $series->total->value, $calls->series));
+    }
+
+    public function test_a_bucket_time_each_query_leaves_a_run_with_no_bucket_data_out(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00');
+
+        self::assertSame([], $this->query(MetricUnit::Run, Metric::BucketTimeEach, MetricStatistic::Mean)->series);
+    }
+
+    private function query(MetricUnit $unit, Metric|MetricShape $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None, MetricCompare $compare = MetricCompare::Off, MetricRange $range = MetricRange::ThirtyDays, MetricBucket $bucket = MetricBucket::Day): MetricQueryView
     {
         $shape = $metric instanceof MetricShape ? $metric : new MetricShape(new MetricKey($metric));
         $finished = new readonly class($this->finished) implements FinishedCardSourceInterface {
@@ -501,9 +622,9 @@ final class MetricQueryHandlerTest extends KernelTestCase
             }
 
             #[\Override]
-            public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince): array
+            public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince, ?\DateTimeImmutable $completedBefore = null): array
             {
-                return array_values(array_filter($this->cards, static fn (FinishedCard $card): bool => null === $completedSince || $card->completedAt >= $completedSince));
+                return array_values(array_filter($this->cards, static fn (FinishedCard $card): bool => (null === $completedSince || $card->completedAt >= $completedSince) && (null === $completedBefore || $card->completedAt < $completedBefore)));
             }
         };
         $reports = new readonly class($this->types, $this->outcomes) implements CardReportSourceInterface {
@@ -567,7 +688,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         $values = new TemplateMetricValues($workRequests, $reports, $templates, [$milestones]);
         $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $workerRuns, $values), new MockClock(self::NOW.' UTC'));
 
-        return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, MetricRange::ThirtyDays, MetricBucket::Day));
+        return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, $range, $bucket, $compare));
     }
 
     private function finishedCard(int $number, string $completedAt): Uuid

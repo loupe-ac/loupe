@@ -29,17 +29,97 @@ final readonly class MetricRowSource
     ) {
     }
 
-    /** @return list<MetricRow> */
-    public function rows(Project $project, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from): array
+    /**
+     * The window runs from the start, inclusive, to the end, exclusive. A null end leaves it open.
+     *
+     * @return list<MetricRow>
+     */
+    public function rows(Project $project, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to = null): array
     {
         if (null !== $shape->template) {
-            return MetricUnit::Card === $unit ? $this->templateRows($project, $shape->template, $group, $from) : [];
+            return MetricUnit::Card === $unit ? $this->templateRows($project, $shape->template, $group, $from, $to) : [];
         }
         $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
+        if ($metric->isBucketEach()) {
+            return $this->bucketEachRows($project, $unit, $metric, $from, $to);
+        }
 
         return MetricUnit::Run === $unit
-            ? $this->runRows($project, $metric, $group, $from, $shape->key->name)
-            : $this->cardRows($project, $metric, $group, $from, $shape->key->name);
+            ? $this->runRows($project, $metric, $group, $from, $to, $shape->key->name)
+            : $this->cardRows($project, $metric, $group, $from, $to, $shape->key->name);
+    }
+
+    /**
+     * One row per bucket name of the window for each run with bucket data, with 0 for a bucket the run did not touch,
+     * so the means of the lines add up to the mean of the whole. A run with no bucket data stays out. A card row sums
+     * its runs per bucket.
+     *
+     * @return list<MetricRow>
+     */
+    private function bucketEachRows(Project $project, MetricUnit $unit, Metric $metric, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    {
+        if (MetricUnit::Run === $unit) {
+            $facts = $this->workerRunFacts->findClosedSince($project, $from, false, $to);
+            $cards = [];
+        } else {
+            $cards = $this->finishedCards->finishedCards($project, $from, $to);
+            $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
+            $facts = [] === $ids ? [] : $this->workerRunFacts->findOfCards($project, $ids);
+        }
+        if ([] === $facts) {
+            return [];
+        }
+
+        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts);
+        $figures = $this->workerRunBucketTimes->findAllSubagentFiguresOfRuns($runIds);
+        $times = $this->workerRunBucketTimes->findAllMillisecondsOfRuns($runIds);
+        $figureOf = static fn (string $runId, string $bucket): ?int => match ($metric) {
+            Metric::BucketTimeEach => $times[$runId][$bucket] ?? 0,
+            Metric::BucketTimeAllEach => isset($times[$runId][$bucket]) ? $figures[$runId][$bucket]['msWithSubagents'] ?? null : 0,
+            Metric::BucketCallsEach => isset($times[$runId][$bucket]) ? $figures[$runId][$bucket]['calls'] ?? null : 0,
+            default => throw new \LogicException(\sprintf('The metric %s is not a grouped bucket metric.', $metric->value)),
+        };
+
+        $names = [];
+        foreach ($times as $perRun) {
+            foreach (array_keys($perRun) as $name) {
+                $names[(string) $name] = true;
+            }
+        }
+        $names = array_map(strval(...), array_keys($names));
+        sort($names, \SORT_STRING);
+
+        $rows = [];
+        if (MetricUnit::Run === $unit) {
+            foreach ($facts as $fact) {
+                $runId = (string) $fact->runId;
+                if (!isset($times[$runId])) {
+                    continue;
+                }
+                foreach ($names as $name) {
+                    $rows[] = new MetricRow($fact->runId, $fact->cardNumber, $name, $fact->endedAt ?? $fact->receivedAt, $figureOf($runId, $name));
+                }
+            }
+
+            return $rows;
+        }
+
+        $factsByCard = [];
+        foreach ($facts as $fact) {
+            $factsByCard[(string) $fact->subjectId][] = $fact;
+        }
+        foreach ($cards as $card) {
+            $withData = array_filter($factsByCard[(string) $card->id] ?? [], static fn (WorkerRunFact $fact): bool => isset($times[(string) $fact->runId]));
+            if ([] === $withData) {
+                continue;
+            }
+            foreach ($names as $name) {
+                $known = array_filter(array_map(static fn (WorkerRunFact $fact): ?int => $figureOf((string) $fact->runId, $name), $withData), static fn (?int $value): bool => null !== $value);
+                $rows[] = new MetricRow($card->id, $card->number, $name, $card->completedAt, [] === $known ? null : array_sum($known));
+            }
+        }
+
+        return $rows;
     }
 
     /** Reads the same runs as a run query with no stage grouping. */
@@ -57,10 +137,10 @@ final readonly class MetricRowSource
     }
 
     /** @return list<MetricRow> */
-    private function runRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $name): array
+    private function runRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, ?string $name): array
     {
         // A stage belongs to the card workflow, so a stage grouping reads card runs alone.
-        $facts = $this->workerRunFacts->findClosedSince($project, $from, MetricGroup::Stage === $group);
+        $facts = $this->workerRunFacts->findClosedSince($project, $from, MetricGroup::Stage === $group, $to);
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, self::cardIdsOf($facts)) : [];
         $times = $this->namedRunValues($facts, $metric, $name);
 
@@ -82,9 +162,9 @@ final readonly class MetricRowSource
      *
      * @return list<MetricRow>
      */
-    private function templateRows(Project $project, TemplateMetric $template, MetricGroup $group, ?\DateTimeImmutable $from): array
+    private function templateRows(Project $project, TemplateMetric $template, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
-        $cards = $this->finishedCards->finishedCards($project, $from);
+        $cards = $this->finishedCards->finishedCards($project, $from, $to);
         if ([] === $cards) {
             return [];
         }
@@ -122,9 +202,9 @@ final readonly class MetricRowSource
     }
 
     /** @return list<MetricRow> */
-    private function cardRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?string $name): array
+    private function cardRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, ?string $name): array
     {
-        $cards = $this->finishedCards->finishedCards($project, $from);
+        $cards = $this->finishedCards->finishedCards($project, $from, $to);
         if ([] === $cards) {
             return [];
         }
@@ -240,7 +320,7 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
-            Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
+            Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach, Metric::HarnessEvents => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }
 
