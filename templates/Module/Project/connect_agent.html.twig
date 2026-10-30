@@ -19,8 +19,9 @@
             <span class="lp-connect-machine__text">
                 <strong data-bridge-label>{{ machine.label }}</strong>
                 <small>{{ 'project.connect.machines.version'|trans({'%version%': machine.cliVersion|short_sha}) }}</small>
+                {%- if machine.quiet %}<small data-connect-machine-hint>{{ (machine.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': machine.label}) }}</small>{% endif -%}
             </span>
-            <twig:Ds:StatusChip :modifier="machine.quiet ? 'pending' : 'ok'" :label="(machine.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy')|trans" />
+            <twig:Ds:StatusChip :modifier="machine.loginExpired ? 'failed' : (machine.quiet ? 'pending' : 'ok')" :label="(machine.loginExpired ? 'bridge.agents.status.login_expired' : (machine.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy'))|trans" />
         </a>
         {% endfor %}
         <twig:Ds:SectionHeading :level="3">{{ 'project.connect.machines.add.title'|trans }}</twig:Ds:SectionHeading>

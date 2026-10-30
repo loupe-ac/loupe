@@ -11,6 +11,7 @@ use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Outbox\AgentPush;
+use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,6 +19,7 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
@@ -42,6 +44,7 @@ final class RecordBridgeHeartbeatController extends AppController
     public function __construct(
         private readonly RecordBridgeHeartbeatHandler $recordHeartbeat,
         public readonly CredentialRateLimitKey $rateLimitKey,
+        private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -75,6 +78,7 @@ final class RecordBridgeHeartbeatController extends AppController
             gitIdentities: $payload->gitIdentities(),
             gitIdentitiesAge: $payload->gitIdentitiesAge ?? 0,
             interactiveSessions: $payload->interactiveSessions(),
+            accessTokenId: AuthenticatedCredential::of($this->tokenStorage->getToken())?->accessTokenId,
         ));
 
         return new JsonResponse([

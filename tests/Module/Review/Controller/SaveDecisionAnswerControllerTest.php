@@ -224,7 +224,10 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
         $this->answer($client, $document, ['clear' => '1'], self::TURBO);
 
         self::assertResponseIsSuccessful();
-        self::assertSame('Cleared.', self::statusMessage((string) $client->getResponse()->getContent()));
+        $body = (string) $client->getResponse()->getContent();
+        self::assertSame('Cleared.', self::statusMessage($body));
+        self::assertMatchesRegularExpression('~target="review-toolbar-decisions-count">\s*<template>0/1</template>~', $body);
+        self::assertMatchesRegularExpression('~target="review-toolbar-decisions-label">\s*<template>Decisions panel, 0 of 1 answered</template>~', $body);
         self::assertSame([], $this->selections()->findByDocumentAndDecisionId($document, 'deploy-target'));
         self::assertNull($this->answerRow($document));
     }
@@ -345,7 +348,7 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
         self::assertStringContainsString(' action="update" target="decision-summary-list">', $body);
         self::assertStringNotContainsString('lp-review-doc__prose', $body);
         self::assertStringNotContainsString('data-comment-anchor-target', $body);
-        self::assertSame(7, substr_count($body, '<turbo-stream'), 'the status line, the running total and list, and the count, label, head count and list of the bar');
+        self::assertSame(9, substr_count($body, '<turbo-stream'), 'the status line, the running total and list, the toolbar count and label, and the count, label, head count and list of the bar');
     }
 
     /** A save can answer after a visit, so the client renders a stream only on the page that sent it. */
@@ -367,8 +370,8 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
 
         $this->answer($client, $document, ['versionNumber' => '2', 'optionIndexes' => [0]], self::TURBO);
         $body = (string) $client->getResponse()->getContent();
-        self::assertSame(7, substr_count($body, '<turbo-stream '));
-        self::assertSame(7, preg_match_all('~<turbo-stream data-decision-page="'.preg_quote($page, '~').'" ~', $body));
+        self::assertSame(9, substr_count($body, '<turbo-stream '));
+        self::assertSame(9, preg_match_all('~<turbo-stream data-decision-page="'.preg_quote($page, '~').'" ~', $body));
     }
 
     public function test_a_note_with_no_option_counts_as_answered_in_the_stream_and_on_reload(): void
@@ -382,17 +385,32 @@ final class SaveDecisionAnswerControllerTest extends WebTestCase
         $body = (string) $client->getResponse()->getContent();
         self::assertMatchesRegularExpression('~target="decision-summary-count">\s*<template>1 of 1 answered</template>~', $body);
         self::assertMatchesRegularExpression('~target="review-bar-decisions-count">\s*<template>1/1</template>~', $body);
+        self::assertMatchesRegularExpression('~target="review-toolbar-decisions-count">\s*<template>1/1</template>~', $body);
+        self::assertMatchesRegularExpression('~target="review-toolbar-decisions-label">\s*<template>Decisions panel, 1 of 1 answered</template>~', $body);
         self::assertStringContainsString('Note: Neither target yet.', $body);
         self::assertStringNotContainsString('Not chosen yet', $body);
 
         $client->request(Request::METHOD_GET, $this->reviewPath($document));
         self::assertSelectorTextSame('#decision-summary-count', '1 of 1 answered');
         self::assertSelectorTextSame('#review-bar-decisions-count', '1/1');
+        self::assertSelectorTextSame('#review-toolbar-decisions-count', '1/1');
         self::assertSelectorTextSame('#decision-summary-list .lp-decision-summary__note', 'Note: Neither target yet.');
         self::assertSelectorExists('#decision-summary-list .lp-decision-summary__tag--answered');
         self::assertSelectorNotExists('#decision-summary-list .lp-decision-summary__answer');
         self::assertSelectorNotExists('#decision-summary-list .lp-decision-summary__pending');
         self::assertSelectorExists('#review-bar-decisions-list .lp-review-sheet__mark--approved');
+    }
+
+    public function test_the_toolbar_button_shows_the_count_before_any_answer(): void
+    {
+        $client = static::createClient();
+        [$owner, $document] = $this->seed($client);
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $this->reviewPath($document));
+
+        self::assertSelectorTextSame('#review-toolbar-decisions-count', '0/1');
+        self::assertSelectorTextSame('#review-toolbar-decisions-label', 'Decisions panel, 0 of 1 answered');
     }
 
     /** The count is what tells the reviewer how much is left, so it must follow the write. */

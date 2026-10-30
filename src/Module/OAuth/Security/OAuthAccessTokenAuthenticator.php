@@ -130,6 +130,7 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
             $granted->roles(),
             $granted->projectId,
             $granted->allProjects,
+            \is_string($tokenId) ? $tokenId : null,
         ));
 
         return $passport;

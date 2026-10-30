@@ -4,6 +4,14 @@ framework:
 
         transports:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
+            # Messages that one action of a person starts and that the person waits on, read right after the schedule. Same DSN, own queue name.
+            interactive:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: interactive
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
             # Email, notifier messages, pull request refreshes and every other background job. Same DSN, own queue name.
             jobs:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
@@ -12,7 +20,7 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
-            # Card checks that an event starts, read before `jobs`: a backlog of mail or refreshes must not delay a marker. Same DSN, own queue name.
+            # Card checks that an event starts, read after `interactive` and before `jobs`. A burst of them delays `jobs`. Same DSN, own queue name.
             card_eval:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
@@ -56,7 +64,7 @@ framework:
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
             App\Module\Notification\Messenger\DeliverWebPush: jobs
             App\Module\Workflow\Messenger\EvaluateCard: card_eval
-            App\Module\Workflow\Messenger\RunRuleAskAnswer: jobs
+            App\Module\Workflow\Messenger\RunRuleAskAnswer: interactive
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': jobs
@@ -81,6 +89,12 @@ when@test:
     framework:
         messenger:
             transports:
+                interactive:
+                    dsn: 'in-memory://'
+                    retry_strategy:
+                        max_retries: 3
+                        multiplier: 2
+                        delay: 0
                 jobs:
                     dsn: 'in-memory://'
                     retry_strategy:

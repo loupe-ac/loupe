@@ -140,7 +140,7 @@ final class InboxAnswerToolTest extends KernelTestCase
 
         ($this->tool)((string) $item->id, [1]);
 
-        $transport = self::getContainer()->get('messenger.transport.jobs');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $sent = array_values(array_filter(
             array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),

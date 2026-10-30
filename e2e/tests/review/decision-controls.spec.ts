@@ -5,6 +5,7 @@ import {
     suppressWidget,
 } from '../fixtures';
 import { coverageScaled } from '../timeouts';
+import { panelButton } from './panels';
 
 // Guest by default, and self-registering through the dev endpoints — the same
 // shape as review-loop.spec.ts. The shared worker fixture expects to land on
@@ -245,6 +246,9 @@ test('the Decisions panel reports the saved answer', async ({ page }) => {
     await expect(page.locator('#decision-summary-count')).toHaveText(
         '0 of 1 answered',
     );
+    await expect(page.locator('#review-toolbar-decisions-count')).toHaveText(
+        '0/1',
+    );
     const row = page.locator('#decision-summary-list li');
     await expect(row).toHaveCount(1);
     // The block declared a question, so the row is titled with it rather than
@@ -263,6 +267,9 @@ test('the Decisions panel reports the saved answer', async ({ page }) => {
     // Streamed with `update`, so the panel the reviewer opened is still open.
     await expect(page.locator('#decision-summary-count')).toHaveText(
         '1 of 1 answered',
+    );
+    await expect(page.locator('#review-toolbar-decisions-count')).toHaveText(
+        '1/1',
     );
     await expect(row).toContainText(OPTION_TWO);
     await expect(page.locator('#decision-summary-list')).toBeVisible();
@@ -300,9 +307,10 @@ ${SECOND_PROMPT}
     );
     await page.goto(reviewUrl);
 
-    await expect(
-        page.getByRole('button', { name: 'Decisions', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(panelButton(page, 'Decisions')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+    );
     await expect(page.locator('#review-panel-decisions')).toBeVisible();
     await expect(page.locator('#review-panel-comments')).toBeHidden();
     await expect(page.locator('#review-panel-outline')).toBeHidden();

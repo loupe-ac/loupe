@@ -95,6 +95,9 @@ final readonly class BridgeOutageReconciler
                 return null;
             }
 
+            $expired = array_values(array_unique(array_merge(...array_map(static fn (array $row): array => $row['reading']->expiredTakers, array_values($withoutTaker)))));
+            sort($expired);
+
             if (null === $outage) {
                 $cutoff = $now->modify(\sprintf('-%d minutes', $this->afterMinutes));
                 $due = array_filter($withoutTaker, static fn (array $row): bool => $row['reading']->noTakerSince <= $cutoff
@@ -103,14 +106,14 @@ final readonly class BridgeOutageReconciler
                     return null;
                 }
 
-                $outage = $this->open($project, $cards, self::earliest($due), $now);
+                $outage = $this->open($project, $cards, self::earliest($due), $now, $expired);
                 $this->em->flush();
                 $this->searchIndexer->index($outage->item);
 
                 return true;
             }
 
-            if (!$this->extend($outage->item, $cards, $now)) {
+            if (!$this->extend($outage->item, $cards, $now, $expired)) {
                 return null;
             }
             $this->em->flush();
@@ -188,8 +191,11 @@ final readonly class BridgeOutageReconciler
         return $earliest ?? throw new \LogicException('A notice opens for at least one waiting request.');
     }
 
-    /** @param array<string, Card> $cards */
-    private function open(Project $project, array $cards, \DateTimeImmutable $startedAt, \DateTimeImmutable $now): InboxBridgeOutage
+    /**
+     * @param array<string, Card> $cards
+     * @param list<string>        $expired
+     */
+    private function open(Project $project, array $cards, \DateTimeImmutable $startedAt, \DateTimeImmutable $now, array $expired): InboxBridgeOutage
     {
         $item = new InboxItem(
             project: $project,
@@ -204,7 +210,7 @@ final readonly class BridgeOutageReconciler
         foreach ($cards as $card) {
             $item->cards->add(new InboxItemCard($item, $card, $now));
         }
-        $item->body = $this->body($item);
+        $item->body = $this->body($item, $expired);
         $outage = new InboxBridgeOutage($project, $item, $startedAt);
         $this->em->persist($item);
         $this->em->persist($outage);
@@ -215,11 +221,13 @@ final readonly class BridgeOutageReconciler
     }
 
     /**
-     * Links the cards the item does not hold yet and writes its body again.
+     * Links the cards the item does not hold yet and writes its body again
+     * when a card joined or the text changed.
      *
      * @param array<string, Card> $cards
+     * @param list<string>        $expired
      */
-    private function extend(InboxItem $item, array $cards, \DateTimeImmutable $now): bool
+    private function extend(InboxItem $item, array $cards, \DateTimeImmutable $now, array $expired): bool
     {
         $linked = [];
         foreach ($item->cards as $link) {
@@ -233,17 +241,19 @@ final readonly class BridgeOutageReconciler
                 $added = true;
             }
         }
-        if (!$added) {
+        $body = $this->body($item, $expired);
+        if (!$added && $body === $item->body) {
             return false;
         }
 
-        $item->body = $this->body($item);
+        $item->body = $body;
         $item->updatedAt = $now;
 
         return true;
     }
 
-    private function body(InboxItem $item): string
+    /** @param list<string> $expired */
+    private function body(InboxItem $item, array $expired): string
     {
         $cards = array_map(static fn (InboxItemCard $link): Card => $link->card, $item->cards->toArray());
         usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
@@ -255,7 +265,7 @@ final readonly class BridgeOutageReconciler
 
         return $this->translator->trans('inbox.bridge_outage.body.intro', [], null, $this->locale)
             ."\n\n".implode("\n", $lines)
-            ."\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', [], null, $this->locale);
+            ."\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', $expired), '%count%' => \count($expired)], null, $this->locale);
     }
 
     /**

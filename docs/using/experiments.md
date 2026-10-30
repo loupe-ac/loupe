@@ -42,6 +42,21 @@ The bridge refuses a file whose experiment has no `baseline`, or whose
 `baseline` names no variant of that experiment. The
 [bridge reference](../extending/cli-bridge.md#experiments) lists every refusal.
 
+## Archive an experiment
+
+An owner can archive a finished experiment. The experiment then leaves the main
+list. Select **Archive** on the page of the experiment, or the archive button on
+its row in the list. When the project has an archived experiment, the list shows
+a **Show archived** switch. Turn it on to see the archived experiments, and
+select **Unarchive** to put one back.
+
+Archiving only hides the experiment. Its page and its data stay readable, and
+the bridge keeps its pins and its variant assignment. A worker run that Loupe
+records for the first time after the archive brings the experiment back to the
+main list. A run that was already working when you archived does not. The
+`experiment_archive` and `experiment_unarchive` tools do the same from an agent,
+and `experiment_get` reports the `archived` state.
+
 ## The comparison
 
 The Comparison tab compares every variant against the baseline. The baseline is

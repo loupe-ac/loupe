@@ -16,6 +16,7 @@ final readonly class QueueDepthReader
 {
     /** Queue name in `messenger_messages` to the transport that owns it. Each transport sets its queue name to its own name. */
     public const array TRANSPORT_BY_QUEUE = [
+        'interactive' => 'interactive',
         'jobs' => 'jobs',
         'card_eval' => 'card_eval',
         'card_sweep' => 'card_sweep',

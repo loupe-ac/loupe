@@ -50,6 +50,16 @@ final readonly class BridgeSubjectResolver
             : throw new ToolCallException('This credential cannot read the worker runs of this project.');
     }
 
+    /** The bound project, when the token may write its worker runs. */
+    public function requireWritableProject(): Project
+    {
+        $project = $this->requireBoundProject($this->projectResolver);
+
+        return $this->security->isGranted(McpBoundProjectVoter::WORKER_RUN_WRITE, $project)
+            ? $project
+            : throw new ToolCallException('This credential cannot write the worker runs of this project.');
+    }
+
     /** The person the token acts for, who requests a command. */
     public function requireUser(): User
     {

@@ -20,9 +20,11 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /** Drives the real column handlers, then runs the evaluations they queued through the engine of a Lifecycle board. */
@@ -138,6 +140,8 @@ final class ColumnEventsReachRelatedCardsTest extends KernelTestCase
 
         $handler = new EvaluateCardHandler(
             new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-02 12:00:00')),
+            $this->service(WorkflowQueuedEvaluationRepository::class),
+            new EventDispatcher(),
         );
         foreach ($cardIds as $cardId) {
             $handler(new EvaluateCard($cardId));

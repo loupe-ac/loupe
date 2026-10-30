@@ -204,10 +204,16 @@ intervals. With the default interval of 60 seconds, that is three minutes. It
 also turns amber when no heartbeat from the bridge ever reached Loupe. A
 running bridge keeps its interval until it reconnects or you run
 `loupe bridge reload`, so the warning never waits less than three default
-intervals, even after you lower the flag. While the bridge stays quiet, no resume will come. The page cannot
-tell why the bridge is quiet. The machine may be asleep, the bridge may have
-stopped, or the network may be down. The warning reads only the heartbeat, and
+intervals, even after you lower the flag. While the bridge stays quiet, no resume will come.
+The tooltip adds "Its login expired. Run `loupe login` on that machine." when the bridge
+can no longer refresh its login. Any other quiet bridge shows no cause. The machine may be asleep, the bridge may have
+stopped, or the network may be down. The warning reads the heartbeat and the login, and
 it does not check whether the bridge still follows this project.
+
+When work waits and the quiet bridges that could take it lost their login, the
+"No bridge can take work" notice names those bridges and says to run `loupe login`
+on each of their machines. The notice follows the login: it changes its text when a login
+expires after the notice opened, and when you restore the login.
 
 An ask from an interactive session names no bridge, and its dot stays grey. A
 closed ask shows no dot. The `bridge.heartbeat_interval_seconds` flag sets the

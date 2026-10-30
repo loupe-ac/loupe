@@ -22,8 +22,10 @@ use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Service\BridgeOutageReconciler;
 use App\Module\Project\Entity\Project;
+use App\Security\LoginLivenessInterface;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\QueuedPushes;
+use App\Tests\Support\StubLoginLiveness;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -42,11 +44,15 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
     private Project $project;
     private Card $card;
 
+    private StubLoginLiveness $logins;
+
     protected function setUp(): void
     {
         self::bootKernel();
         $this->clock = new MockClock(self::NOW);
         self::getContainer()->set('clock', $this->clock);
+        $this->logins = new StubLoginLiveness();
+        self::getContainer()->set(LoginLivenessInterface::class, $this->logins);
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
@@ -338,6 +344,76 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         self::assertSame([], $this->outages());
         self::assertSame(0, $this->itemCount());
+    }
+
+    public function test_a_notice_names_the_expired_login_and_follows_the_login_as_it_expires_and_returns(): void
+    {
+        $login = Uuid::v7();
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 3600);
+        $bridge->loginId = $login;
+        $bridge->name = 'macbookpro';
+        $this->em->flush();
+
+        $this->reconciler->reconcile($this->project);
+        $item = $this->onlyOutage()->item;
+        self::assertStringContainsString('Start a bridge, or run `loupe login`.', $this->bodyOf($item));
+
+        $this->logins->expired = [$login->toRfc4122()];
+        $this->clock->sleep(60);
+        $this->reconciler->reconcile($this->project);
+        self::assertStringContainsString('The login of macbookpro expired. Run `loupe login` on that machine.', $this->bodyOf($item));
+        self::assertStringNotContainsString('Start a bridge', $this->bodyOf($item));
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:01:00'), $item->updatedAt);
+
+        $this->logins->expired = [];
+        $this->reconciler->reconcile($this->project);
+        self::assertStringContainsString('Start a bridge, or run `loupe login`.', $this->bodyOf($item));
+    }
+
+    public function test_a_notice_names_the_expired_login_while_another_online_bridge_cannot_take_the_work(): void
+    {
+        $login = Uuid::v7();
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $quiet = $this->bridge(seenSecondsAgo: 3600);
+        $quiet->loginId = $login;
+        $quiet->name = 'macbookpro';
+        $online = $this->bridge(seenSecondsAgo: 10);
+        $online->workKinds = ['review'];
+        $this->em->flush();
+        $this->logins->expired = [$login->toRfc4122()];
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringContainsString('The login of macbookpro expired. Run `loupe login` on that machine.', $body);
+        self::assertStringNotContainsString('Start a bridge', $body);
+    }
+
+    public function test_a_notice_asks_for_a_login_on_each_machine_when_several_logins_expired(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $expired = [];
+        foreach (['macbookpro', 'studio'] as $name) {
+            $login = Uuid::v7();
+            $bridge = $this->bridge(seenSecondsAgo: 3600);
+            $bridge->loginId = $login;
+            $bridge->name = $name;
+            $expired[] = $login->toRfc4122();
+        }
+        $this->em->flush();
+        $this->logins->expired = $expired;
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringContainsString('The logins of macbookpro, studio expired. Run `loupe login` on each of those machines.', $body);
+        self::assertStringNotContainsString('that machine', $body);
+    }
+
+    private function bodyOf(InboxItem $item): string
+    {
+        return $item->body ?? throw new \LogicException('A notice has a body.');
     }
 
     private function waitingRequest(Card $card, string $createdAt): WorkRequest

@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Messenger;
 
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\Envelope;
@@ -28,7 +29,7 @@ final readonly class ReconcileCardWaitsHandler
         // Handled inline in the middle of another write, the reconcile would
         // flush that write before it is complete. The queue runs it afterwards.
         if ($this->em->getUnitOfWork()->hasPendingInsertions()) {
-            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['jobs'])]));
+            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp([$message->personWaiting ? CardEvaluations::INTERACTIVE_TRANSPORT : 'jobs'])]));
 
             return;
         }

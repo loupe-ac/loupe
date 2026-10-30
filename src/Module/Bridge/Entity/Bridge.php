@@ -194,6 +194,14 @@ class Bridge
     #[ORM\Column(name: 'paused_reported', nullable: true)]
     public ?bool $pausedReported = null;
 
+    /** The access token that the last heartbeat used, so the login is looked up once per refresh. */
+    #[ORM\Column(name: 'login_access_token_id', length: 80, nullable: true)]
+    public ?string $loginAccessTokenId = null;
+
+    /** The CLI login that the access token of the last heartbeat belongs to. Null while no tagged refresh token backs it. */
+    #[ORM\Column(name: 'login_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $loginId = null;
+
     /**
      * The features the bridge said it supports. Null from a bridge that reports none.
      *

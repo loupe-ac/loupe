@@ -21,6 +21,8 @@ final readonly class WorkshopConnection
         public ?string $repositoryRemoteUrl = null,
         /** Whether the CLI of the bridge reports git identities. An older CLI does not, and keeps the git setup of its machine. */
         public bool $reportsGitIdentities = false,
+        /** Whether the bridge is quiet because its login can no longer refresh. */
+        public bool $loginExpired = false,
     ) {
     }
 }

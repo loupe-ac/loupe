@@ -18,6 +18,8 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 /** Flushed fixtures for the inbox page and its forms, with users that pass the sign-in gates. */
@@ -29,6 +31,10 @@ trait InboxScenario
         self::assertInstanceOf(FeatureFlagRepository::class, $flags);
         $flags->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = $enabled;
         self::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $reader = self::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
     }
 
     private function signedUpUser(EntityManagerInterface $em, string $slug): User

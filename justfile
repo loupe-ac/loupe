@@ -36,7 +36,7 @@ shell: (exec "bash")
 # Foreground messenger worker and scheduler for the current checkout (Ctrl-C to
 # stop). scheduler_default comes first: a deep jobs backlog must not delay ticks.
 worker:
-    bin/worktrees/compose-exec.sh bin/console messenger:consume scheduler_default card_eval jobs card_sweep -vv
+    bin/worktrees/compose-exec.sh bin/console messenger:consume scheduler_default interactive card_eval jobs card_sweep -vv
 
 # Never run composer on the host: the container's PHP version and extension set
 # are what the lockfile is resolved against, and vendor/ is bind-mounted

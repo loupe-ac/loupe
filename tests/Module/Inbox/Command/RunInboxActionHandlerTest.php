@@ -97,6 +97,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class RunInboxActionHandlerTest extends KernelTestCase
@@ -878,6 +880,9 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $flags = $this->service(FeatureFlagRepository::class);
         $flags->findAllIndexed()[SessionPromptLimit::FLAG]->value = 5;
         $this->em()->flush();
+        $reader = $this->service(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
 
         try {
             $this->runAction($item, InboxActionKind::StartSession, '', 'abcdef');

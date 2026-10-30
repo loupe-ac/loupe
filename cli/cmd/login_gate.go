@@ -18,6 +18,9 @@ import (
 // loginPollInterval is how often a tripped gate looks at config.json.
 const loginPollInterval = 5 * time.Second
 
+// loginNoticeRepeat is how often a closed gate shows the notice again.
+const loginNoticeRepeat = time.Hour
+
 const (
 	loginExpiredMessage = "Your Loupe login expired. Run `loupe login` in another terminal. The bridge resumes by itself."
 	loginResumedMessage = "Login found. Bridge resumed."
@@ -83,6 +86,14 @@ func (g *loginGate) trip(seen uint64) {
 	go g.watch(open)
 }
 
+// expired says whether the gate is closed.
+func (g *loginGate) expired() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.tripped
+}
+
 // wait blocks while the gate is closed, and returns the error of ctx when it
 // ends first.
 func (g *loginGate) wait(ctx context.Context) error {
@@ -108,13 +119,21 @@ func (g *loginGate) wait(ctx context.Context) error {
 // probe, and a probe that gives a token opens the gate. The first tick always
 // probes, because a login can land before the watcher reads the file. Only an
 // expired login marks the file as seen, so a network error probes again.
+// While the gate stays closed, the notice shows again every loginNoticeRepeat.
 func (g *loginGate) watch(open chan struct{}) {
 	var seen os.FileInfo
+	poll, repeat := g.after(loginPollInterval), g.after(loginNoticeRepeat)
 	for {
 		select {
 		case <-g.ctx.Done():
 			return
-		case <-g.after(loginPollInterval):
+		case <-repeat:
+			repeat = g.after(loginNoticeRepeat)
+			go g.notice(g.ctx)
+
+			continue
+		case <-poll:
+			poll = g.after(loginPollInterval)
 		}
 		now, err := os.Stat(g.configPath)
 		if err != nil || unchanged(seen, now) {

@@ -41,6 +41,8 @@ type router struct {
 	// set holds the rule set behind a pointer, so a reload can swap it. Each
 	// handler loads one snapshot and uses only that one.
 	set atomic.Pointer[rules.Set]
+	// onRules runs after a reload swaps the set in. It can be nil.
+	onRules func(*rules.Set)
 	// assumeAutoUpdate takes a missing autoUpdate key as on, after the
 	// migration from an older image. It is fixed before subscribe.
 	assumeAutoUpdate bool
@@ -204,6 +206,10 @@ type router struct {
 	paused bool
 	frozen bool
 	live   map[string]liveRun
+	// rulesPath and logPath are the files the bridge reads and writes, and
+	// lastError tracks the last warning of its log. The status op reports them.
+	rulesPath, logPath string
+	lastError          *lastErrorTracker
 	// envBusy holds the sessions that a refresh or a reset runs for.
 	envBusy      map[string]bool
 	heldEvents   []heldEvent

@@ -6,12 +6,15 @@ namespace App\Tests\Module\Bridge\Command;
 
 use App\Module\Bridge\Command\PurgeExpiredWorkerRunsCommand;
 use App\Module\Bridge\Command\PurgeExpiredWorkerRunsHandler;
+use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
+use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
+use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -105,6 +108,112 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
         self::assertNotNull($em->find(ExperimentPin::class, $fresh->id));
     }
 
+    public function test_an_unarchive_by_a_new_run_outlives_that_run(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'archive-sweep-back@example.com'), 'Swept Archive Back');
+        $this->namedRun($project, 'trial', '2026-01-02 00:00:00', 1);
+        $em->persist(new ExperimentPin($project, Uuid::v7(), 'trial', 'a', updatedAt: new \DateTimeImmutable('2026-09-01 00:00:00')));
+        $em->persist(new ExperimentArchive($project, 'trial', new \DateTimeImmutable('2026-01-01 00:00:00'), []));
+        $em->flush();
+
+        ($this->handler())(new PurgeExpiredWorkerRunsCommand());
+
+        $em->clear();
+        self::assertSame([], $this->archiveRows());
+    }
+
+    public function test_it_keeps_an_archive_row_whose_runs_are_all_covered(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'archive-sweep-keep@example.com'), 'Swept Archive Keep');
+        $run = $this->namedRun($project, 'trial', '2026-09-01 00:00:00', 1);
+        $em->persist(new ExperimentArchive($project, 'trial', new \DateTimeImmutable('2026-09-01 00:00:00'), [(string) $run->id]));
+        $em->flush();
+
+        ($this->handler())(new PurgeExpiredWorkerRunsCommand());
+
+        $em->clear();
+        self::assertCount(1, $this->archiveRows());
+    }
+
+    public function test_it_deletes_an_archive_row_when_the_last_run_and_pin_are_gone(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'archive-sweep-gone@example.com'), 'Swept Archive Gone');
+        $run = $this->namedRun($project, 'trial', '2026-01-02 00:00:00', 1);
+        $em->persist(new ExperimentArchive($project, 'trial', new \DateTimeImmutable('2026-01-03 00:00:00'), [(string) $run->id]));
+        $em->flush();
+
+        ($this->handler())(new PurgeExpiredWorkerRunsCommand());
+
+        $em->clear();
+        self::assertSame([], $this->archiveRows());
+    }
+
+    /** An Archive action between the unlocked read and the locked delete keeps its row. */
+    public function test_an_archive_between_the_read_and_the_delete_stays(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'archive-sweep-race@example.com'), 'Swept Archive Race');
+        $run = $this->namedRun($project, 'trial', '2026-09-01 00:00:00', 1);
+        $em->persist(new ExperimentArchive($project, 'trial', new \DateTimeImmutable('2026-09-01 00:00:00'), []));
+        $em->persist(new ExperimentPin($project, Uuid::v7(), 'trial', 'a', updatedAt: new \DateTimeImmutable('2026-09-01 00:00:00')));
+        $em->flush();
+
+        $registry = self::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $registry);
+        $runId = (string) $run->id;
+        $archives = new class($registry, $runId) extends ExperimentArchiveRepository {
+            public function __construct(
+                ManagerRegistry $registry,
+                private readonly string $runId,
+            ) {
+                parent::__construct($registry);
+            }
+
+            #[\Override]
+            public function findOneByName(Project $project, string $experiment): ?ExperimentArchive
+            {
+                // The Archive action that lands after the sweep read its candidates.
+                $this->getEntityManager()->getConnection()->executeStatement(
+                    'UPDATE bridge_experiment_archives SET covered_run_ids = :ids',
+                    ['ids' => json_encode([$this->runId], \JSON_THROW_ON_ERROR)],
+                );
+
+                return parent::findOneByName($project, $experiment);
+            }
+        };
+
+        ($this->handler($archives))(new PurgeExpiredWorkerRunsCommand());
+
+        $em->clear();
+        self::assertCount(1, $this->archiveRows());
+    }
+
+    /** @return list<ExperimentArchive> */
+    private function archiveRows(): array
+    {
+        $archives = self::getContainer()->get(ExperimentArchiveRepository::class);
+        self::assertInstanceOf(ExperimentArchiveRepository::class, $archives);
+
+        return $archives->findAllRows();
+    }
+
+    private function namedRun(Project $project, string $experiment, string $receivedAt, int $cardNumber): WorkerRun
+    {
+        $run = $this->seedRun($this->em(), $project, new \DateTimeImmutable($receivedAt), cardNumber: $cardNumber);
+        $run->experiment = $experiment;
+        $run->variant = 'a';
+        $this->em()->flush();
+
+        return $run;
+    }
+
     /** The spend of a card outlives the retention window of its runs. */
     public function test_it_keeps_the_usage_of_a_deleted_run_unlinked(): void
     {
@@ -173,7 +282,7 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
         $reader->reset();
     }
 
-    private function handler(): PurgeExpiredWorkerRunsHandler
+    private function handler(?ExperimentArchiveRepository $archives = null): PurgeExpiredWorkerRunsHandler
     {
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
@@ -183,9 +292,11 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
         return new PurgeExpiredWorkerRunsHandler(
             new WorkerRunRepository($registry),
             new ExperimentPinRepository($registry),
+            $archives ?? new ExperimentArchiveRepository($registry),
             new BridgeHostSampleRepository($registry),
             new WorkerRunRetentionPolicy($flags, 180),
             new MockClock(new \DateTimeImmutable(self::NOW)),
+            $this->em(),
         );
     }
 }
