@@ -10,12 +10,15 @@ use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
+use App\Module\Board\Workflow\CardValueFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\HumanReviewFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\Workflow\SessionFacts;
+use App\Module\Bridge\Workflow\WorkerRunFacts;
+use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Inbox\Workflow\WaitingAskFacts;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
@@ -236,7 +239,87 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertSame(['tech-design-write'], $this->firingRuleIds($facts));
         $requests = array_values(array_filter($this->actions($facts), static fn (ActionCall $action): bool => 'request' === $action->key));
-        self::assertSame([['kind' => 'tech-design']], array_map(static fn (ActionCall $action): array => $action->params, $requests));
+        self::assertSame([['kind' => 'tech-design', 'cancelOnly' => 'open']], array_map(static fn (ActionCall $action): array => $action->params, $requests));
+    }
+
+    public function test_with_the_switch_on_and_no_design_the_workflow_asks_for_a_session_and_not_for_the_agent(): void
+    {
+        $facts = self::withSwitch(true);
+
+        self::assertSame(['tech-design-session'], $this->firingRuleIds($facts));
+        $requests = array_values(array_filter($this->actions($facts), static fn (ActionCall $action): bool => 'request' === $action->key));
+        self::assertSame('tech-design-session', $requests[0]->params['kind']);
+        self::assertSame('interactive', $requests[0]->params['capability']);
+        self::assertSame('open', $requests[0]->params['cancelOnly']);
+    }
+
+    public function test_with_the_switch_off_the_workflow_asks_for_the_agent_and_not_for_a_session(): void
+    {
+        self::assertSame(['tech-design-write'], $this->firingRuleIds(self::withSwitch(false)));
+        self::assertSame(['tech-design-write'], $this->firingRuleIds(self::withSwitch(null)));
+    }
+
+    public function test_the_switch_turning_on_while_a_rule_started_agent_works_stops_the_work_and_asks_for_no_session_yet(): void
+    {
+        foreach ([FactsMother::run(activeWorkKinds: ['tech-design']), FactsMother::run(activeWorkerKinds: ['tech-design'])] as $run) {
+            $facts = self::withSwitch(true, run: $run);
+
+            self::assertSame(['tech-design-handover'], $this->firingRuleIds($facts));
+            self::assertSame(['stop-work'], array_map(static fn (ActionCall $action): string => $action->key, $this->actions($facts)));
+        }
+    }
+
+    public function test_an_agent_that_a_person_sent_is_not_stopped_while_the_switch_is_on(): void
+    {
+        $facts = self::withSwitch(true, run: FactsMother::run(activeWorkKinds: ['tech-design'], activeWorkerKinds: ['tech-design']), provided: [
+            WorkRequestFacts::class => new WorkRequestFacts(['tech-design'], [], [], []),
+            WorkerRunFacts::class => new WorkerRunFacts(['tech-design'], [], [], []),
+        ]);
+
+        self::assertSame([], $this->firingRuleIds($facts));
+    }
+
+    public function test_an_open_session_stops_the_session_request_and_the_agent_request_and_withdraws_only_a_waiting_one(): void
+    {
+        $open = new SessionFacts(new \DateTimeImmutable('2026-10-01 11:00:00'), null);
+
+        self::assertSame([], $this->firingRuleIds(self::withSwitch(true, provided: [SessionFacts::class => $open])));
+        self::assertSame([], $this->firingRuleIds(self::withSwitch(false, provided: [SessionFacts::class => $open])));
+        foreach (['tech-design-session', 'tech-design-write'] as $id) {
+            $rule = $this->ruleOf('tech-design', $id);
+            self::assertSame('open', $rule->lead->params['cancelOnly'] ?? null, $id);
+            self::assertNotNull($rule->lead->cancelWhen, $id);
+            self::assertTrue($rule->lead->cancelWhen->evaluate(self::withSwitch(true, provided: [SessionFacts::class => $open])), $id);
+        }
+    }
+
+    public function test_turning_the_switch_off_withdraws_the_session_request(): void
+    {
+        $cancelWhen = $this->ruleOf('tech-design', 'tech-design-session')->lead->cancelWhen;
+
+        self::assertNotNull($cancelWhen);
+        self::assertFalse($cancelWhen->evaluate(self::withSwitch(true)));
+        self::assertTrue($cancelWhen->evaluate(self::withSwitch(false)));
+    }
+
+    public function test_a_draft_design_with_the_switch_on_asks_for_neither_a_session_nor_the_agent(): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'tech-design', documents: [new DocumentFacts(['tech-design'], 'draft', 'doc')]),
+            provided: [CardValueFacts::class => new CardValueFacts(['tech-design-interactive' => true])],
+        );
+
+        self::assertSame([], $this->firingRuleIds($facts));
+    }
+
+    /** @param array<class-string, object> $provided */
+    private static function withSwitch(?bool $on, ?RunInputs $run = null, array $provided = []): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: 'tech-design'),
+            run: $run,
+            provided: [CardValueFacts::class => new CardValueFacts(null === $on ? [] : ['tech-design-interactive' => $on]), ...$provided],
+        );
     }
 
     public function test_an_approved_tech_design_next_to_an_approved_product_design_moves_to_implementation(): void
@@ -329,7 +412,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     public static function reviewWaits(): iterable
     {
         yield 'product design, session open' => ['product-design', 'product-design', ['session'], false];
-        yield 'tech design, session open' => ['tech-design', 'tech-design', ['session'], true];
+        yield 'tech design, session open' => ['tech-design', 'tech-design', ['session'], false];
         yield 'design work runs' => ['tech-design', 'tech-design', ['tech-design'], false];
         yield 'revise work runs' => ['tech-design', 'tech-design', ['tech-design-revise'], false];
         yield 'revise worker runs' => ['product-design', 'product-design', ['worker:product-design-revise'], false];

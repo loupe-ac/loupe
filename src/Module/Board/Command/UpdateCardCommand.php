@@ -50,19 +50,23 @@ use App\Module\Workflow\Contract\CardEventCause;
  *
  * $onlyRaiseHumanReview refuses a command that lowers a switch the database holds on, read under the lock.
  *
+ * $values maps a key of the workflow template to the value to set. A value the card already holds changes
+ * nothing. One key the template does not declare, or one value of the wrong type, refuses the whole update.
+ *
  * $unmanageBy holds the card in the same transaction, for a caller that
  * checked the person may manage the project. A refused update holds nothing.
  */
 final readonly class UpdateCardCommand
 {
     /**
-     * @param list<string>|null        $pullRequestUrls
-     * @param list<string>|null        $documentIds
-     * @param list<string>|null        $artifactIds
-     * @param ?int                     $position        the rank the card takes inside its column, counting
-     *                                                  from 0; null leaves the rank alone, and a rank past
-     *                                                  the end of the column is clamped to it
-     * @param list<CardLinkInput>|null $relatedCards
+     * @param list<string>|null         $pullRequestUrls
+     * @param list<string>|null         $documentIds
+     * @param list<string>|null         $artifactIds
+     * @param ?int                      $position        the rank the card takes inside its column, counting
+     *                                                   from 0; null leaves the rank alone, and a rank past
+     *                                                   the end of the column is clamped to it
+     * @param list<CardLinkInput>|null  $relatedCards
+     * @param array<string, mixed>|null $values
      */
     public function __construct(
         public Card $card,
@@ -92,6 +96,7 @@ final readonly class UpdateCardCommand
         public ?HumanReviewCause $humanReviewCause = null,
         public ?string $humanReviewRuleId = null,
         public bool $onlyRaiseHumanReview = false,
+        public ?array $values = null,
     ) {
     }
 }

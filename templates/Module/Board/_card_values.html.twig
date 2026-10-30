@@ -1,0 +1,11 @@
+{#- The Values group of the Details tab, drawn inside the card field list. Props: card (Card), values (list of CardValueView). Nothing is drawn for an empty list. -#}
+{% if values is not empty %}
+    <div class="lp-card-field lp-card-field--wide" data-card-values>
+        <dt data-card-values-heading>{{ 'board.card.values.title'|trans }}</dt>
+        <dd class="lp-card-values">
+            {% for value in values %}
+                {% include '@Board/_card_value.html.twig' with {card: card, value: value, error: null} only %}
+            {% endfor %}
+        </dd>
+    </div>
+{% endif %}

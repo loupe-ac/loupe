@@ -111,10 +111,11 @@ final class InboxListToolTest extends KernelTestCase
         $sessionId = (string) Uuid::v4();
 
         $linked = $this->askQuestion('Linked', ['cardIds' => [(string) $card->id], 'documentIds' => [(string) $document->id]], $sessionId);
-        $withdrawn = $this->askQuestion('Withdrawn');
+        $withdrawnSession = (string) Uuid::v4();
+        $withdrawn = $this->askQuestion('Withdrawn', sessionId: $withdrawnSession);
         $withdraw = self::getContainer()->get(InboxWithdrawTool::class);
         self::assertInstanceOf(InboxWithdrawTool::class, $withdraw);
-        $withdraw($withdrawn['items'][0]['itemId'], 'Settled');
+        $withdraw($withdrawn['items'][0]['itemId'], $withdrawnSession, 'Settled');
 
         self::assertSame(['Withdrawn'], array_column(($this->tool)(state: 'cancelled')['items'], 'title'));
         self::assertSame(['Linked'], array_column(($this->tool)(state: 'open')['items'], 'title'));

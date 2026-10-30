@@ -82,6 +82,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.site_review.check_stale' => 'workflow.source.board',
         'card.site_review.verdict_unsent' => 'workflow.source.board',
         'card.type' => 'workflow.source.board',
+        'card.value' => 'workflow.source.board',
         'design_review.due' => 'workflow.source.agent_review',
         'design_review.finished' => 'workflow.source.agent_review',
         'design_review.fix_due' => 'workflow.source.agent_review',

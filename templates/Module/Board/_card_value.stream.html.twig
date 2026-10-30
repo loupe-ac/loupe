@@ -1,0 +1,4 @@
+{#- The answer to a change of a value switch. Props: card (Card), value (CardValueView), error (?string). -#}
+<turbo-stream action="replace" target="card-value-{{ value.key }}">
+    <template>{% include '@Board/_card_value.html.twig' with {card: card, value: value, error: error} only %}</template>
+</turbo-stream>

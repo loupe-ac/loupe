@@ -170,7 +170,7 @@ final class InboxRuleAsksTest extends KernelTestCase
 
         $withdraw = self::getContainer()->get(WithdrawInboxItemHandler::class);
         self::assertInstanceOf(WithdrawInboxItemHandler::class, $withdraw);
-        self::assertSame(['itemId' => WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE], $this->refused(fn () => $withdraw(new WithdrawInboxItemCommand($item, 'No'))));
+        self::assertSame(['itemId' => WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE], $this->refused(fn () => $withdraw(new WithdrawInboxItemCommand($item, 'No', Uuid::v4()))));
 
         self::assertSame(InboxItemState::Open, $item->state);
     }

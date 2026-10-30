@@ -30,6 +30,7 @@ final readonly class AskInboxDraft
         public array $documents,
         public Document|CardPullRequest|null $reviewTarget,
         public array $suggestedActions = [],
+        public bool $dismissible = true,
     ) {
     }
 }

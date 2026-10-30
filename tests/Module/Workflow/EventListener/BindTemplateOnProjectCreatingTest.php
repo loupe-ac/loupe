@@ -63,7 +63,7 @@ final class BindTemplateOnProjectCreatingTest extends KernelTestCase
         $binding = $this->bindings()->findOneByProjectId($project->id ?? throw new \LogicException());
         self::assertNotNull($binding);
         self::assertSame('lifecycle', $binding->templateKey);
-        self::assertSame(30, $binding->templateVersion);
+        self::assertSame(32, $binding->templateVersion);
         self::assertEquals($this->shipped()->source('lifecycle'), $binding->definition);
     }
 

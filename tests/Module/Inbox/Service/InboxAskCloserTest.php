@@ -39,6 +39,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
@@ -680,7 +681,9 @@ final class InboxAskCloserTest extends KernelTestCase
     {
         $handler = self::getContainer()->get(WithdrawInboxItemHandler::class);
         self::assertInstanceOf(WithdrawInboxItemHandler::class, $handler);
-        $handler(new WithdrawInboxItemCommand($item, 'No longer needed'));
+        $asks = self::getContainer()->get(InboxAskRepository::class);
+        self::assertInstanceOf(InboxAskRepository::class, $asks);
+        $handler(new WithdrawInboxItemCommand($item, 'No longer needed', $asks->findHolding($item)[0]->sessionId ?? throw new \LogicException('An ask of a session.')));
     }
 
     /** Puts an open blocking item into an ask already closed, then withdraws it. */

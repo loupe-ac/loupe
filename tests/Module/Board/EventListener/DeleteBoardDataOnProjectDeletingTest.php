@@ -10,6 +10,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Entity\PullRequestComment;
 use App\Module\Board\Entity\PullRequestNotice;
@@ -18,6 +19,7 @@ use App\Module\Board\Service\BoardColumnSeeder;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectDeleting;
 use App\Module\Project\Service\ProjectDeleter;
+use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -101,6 +103,39 @@ final class DeleteBoardDataOnProjectDeletingTest extends KernelTestCase
 
         self::assertSame(0, (int) $conn->fetchOne('SELECT COUNT(*) FROM board_cards WHERE project_id = :id', ['id' => $projectId]));
         self::assertSame(0, (int) $conn->fetchOne('SELECT COUNT(*) FROM projects WHERE id = :id', ['id' => $projectId]));
+    }
+
+    public function test_the_listener_deletes_the_card_values_of_its_project_only(): void
+    {
+        self::bootKernel();
+
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $listener = self::getContainer()->get(DeleteBoardDataOnProjectDeleting::class);
+        self::assertInstanceOf(DeleteBoardDataOnProjectDeleting::class, $listener);
+
+        $owner = new User(fullName: 'Riley', email: 'board-delete-values-'.uniqid().'@example.com', password: 'hashed');
+        $em->persist($owner);
+        $doomed = $this->seedBoard($em, $owner, 'doomed');
+        $spared = $this->seedBoard($em, $owner, 'spared');
+        $em->flush();
+        foreach ([$doomed, $spared] as $project) {
+            $cardId = $em->getConnection()->fetchOne('SELECT id FROM board_cards WHERE project_id = :id AND number = 1', ['id' => (string) $project->id]);
+            self::assertIsString($cardId);
+            $card = $em->find(Card::class, $cardId);
+            self::assertInstanceOf(Card::class, $card);
+            $em->persist(new CardValue($card, 'tech-design-interactive', true, Actor::Human));
+        }
+        $em->flush();
+
+        $conn = $em->getConnection();
+        $count = static fn (Project $project): int => (int) $conn->fetchOne('SELECT COUNT(*) FROM board_card_values v JOIN board_cards c ON c.id = v.card_id WHERE c.project_id = :id', ['id' => (string) $project->id]);
+        self::assertSame(1, $count($doomed));
+
+        $listener(new ProjectDeleting($doomed));
+
+        self::assertSame(0, $count($doomed));
+        self::assertSame(1, $count($spared));
     }
 
     public function test_the_listener_deletes_the_pull_request_comments_of_its_project_only(): void

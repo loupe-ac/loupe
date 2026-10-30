@@ -142,6 +142,63 @@ final class InboxActionRunToolTest extends KernelTestCase
         self::assertSame(['Not now', true], [$stored->note, InboxCloser::OwnerThroughAgent === $stored->closedBy]);
     }
 
+    public function test_an_answer_closes_the_question_through_an_agent_with_the_note(): void
+    {
+        $this->readyTool();
+        $asked = $this->askQuestion('Which column?', ['options' => ['next', 'done'], 'freeText' => true]);
+
+        $result = $this->runOf(($this->tool)($asked['items'][0]['itemId'], 'answer', 'Done is right', selectedOptions: [1]));
+
+        self::assertNull($result['actionId']);
+        self::assertSame('resolved', $result['item']['state']);
+        $stored = $this->stored($asked['items'][0]['itemId']);
+        self::assertSame([InboxCloser::OwnerThroughAgent, 'Done is right', [1]], [$stored->closedBy, $stored->note, $stored->selectedOptions]);
+    }
+
+    public function test_a_second_answer_is_refused_because_a_response_is_final(): void
+    {
+        $this->readyTool();
+        $asked = $this->askQuestion('Which column?', ['options' => ['next', 'done']]);
+        ($this->tool)($asked['items'][0]['itemId'], 'answer', selectedOptions: [0]);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('action: This action does not fit the item now.');
+        ($this->tool)($asked['items'][0]['itemId'], 'answer', selectedOptions: [1]);
+    }
+
+    public function test_an_answer_to_a_todo_is_refused(): void
+    {
+        $this->readyTool();
+        $item = $this->askTodo();
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('action: This action does not fit the item now.');
+        ($this->tool)($item['itemId'], 'answer', selectedOptions: [0]);
+    }
+
+    public function test_a_complete_marks_the_todo_done_through_an_agent(): void
+    {
+        $this->readyTool();
+        $item = $this->askTodo();
+
+        $result = $this->runOf(($this->tool)($item['itemId'], 'complete', 'Published'));
+
+        self::assertSame('resolved', $result['item']['state']);
+        $stored = $this->stored($item['itemId']);
+        self::assertSame([InboxCloser::OwnerThroughAgent, 'Published'], [$stored->closedBy, $stored->note]);
+    }
+
+    public function test_a_worker_session_cannot_answer(): void
+    {
+        $this->readyTool();
+        $asked = $this->askQuestion('Which column?', ['options' => ['next', 'done']]);
+        $this->asWorkerSession($this->project);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('A bridge worker cannot answer an inbox item.');
+        ($this->tool)($asked['items'][0]['itemId'], 'answer', selectedOptions: [0]);
+    }
+
     public function test_a_session_sends_the_prompt_that_the_asking_agent_suggested(): void
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
