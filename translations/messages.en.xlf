@@ -7172,6 +7172,8 @@
             <trans-unit id="bridge.experiments.archived_empty.title"><source>bridge.experiments.archived_empty.title</source><target>No archived experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.archived_empty.description"><source>bridge.experiments.archived_empty.description</source><target>An experiment that you archive shows here.</target></trans-unit>
             <trans-unit id="bridge.experiments.archived_empty.back"><source>bridge.experiments.archived_empty.back</source><target>Back to the experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.all_archived.title"><source>bridge.experiments.all_archived.title</source><target>All experiments are archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.all_archived.description"><source>bridge.experiments.all_archived.description</source><target>Every experiment of this project is archived. Show the archived experiments to see them.</target></trans-unit>
             <trans-unit id="bridge.experiments.show_archived"><source>bridge.experiments.show_archived</source><target>Show archived</target></trans-unit>
             <trans-unit id="bridge.experiments.count"><source>bridge.experiments.count</source><target>{0}No experiments|{1}1 experiment|]1,Inf[%count% experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.archived"><source>bridge.experiments.archived</source><target>Archived</target></trans-unit>

@@ -32,6 +32,10 @@ final class ArchiveExperimentControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, $base);
         self::assertCount(0, $crawler->filter('[data-experiment]'));
         self::assertCount(1, $crawler->filter('[data-experiment-archived-toggle]'));
+        self::assertCount(0, $crawler->filter('[data-experiments-empty]'));
+        $show = $crawler->filter('[data-experiments-all-archived] [data-experiments-all-archived-show]');
+        self::assertCount(1, $show);
+        self::assertSame($base.'?archived=1', $show->attr('href'));
 
         $crawler = $client->request(Request::METHOD_GET, $base.'?archived=1');
         self::assertCount(1, $crawler->filter('[data-experiment="model-test"]'));

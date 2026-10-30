@@ -71,6 +71,10 @@
     <twig:Ds:EmptyState icon="lucide:archive" :title="'bridge.experiments.archived_empty.title'|trans" :body="'bridge.experiments.archived_empty.description'|trans" data-experiments-archived-empty>
         <twig:Ds:Button href="{{ path('app_project_analytics_experiments', {id: project.id}) }}" data-experiments-archived-empty-back>{{ 'bridge.experiments.archived_empty.back'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
+    {% elseif archivedCount > 0 %}
+    <twig:Ds:EmptyState icon="lucide:archive" :title="'bridge.experiments.all_archived.title'|trans" :body="'bridge.experiments.all_archived.description'|trans" data-experiments-all-archived>
+        <twig:Ds:Button href="{{ path('app_project_analytics_experiments', {id: project.id, archived: 1}) }}" data-experiments-all-archived-show>{{ 'bridge.experiments.show_archived'|trans }}</twig:Ds:Button>
+    </twig:Ds:EmptyState>
     {% else %}
     <twig:Ds:EmptyState icon="lucide:chart-column" :title="'bridge.experiments.empty.title'|trans" :body="'bridge.experiments.empty.description'|trans" linkHref="{{ app_docs_url }}/extending/cli-bridge/#experiments" :linkLabel="'bridge.experiments.empty.docs'|trans" data-experiments-empty />
     {% endif %}
