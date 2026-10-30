@@ -374,6 +374,21 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([], $this->kinds($item));
     }
 
+    public function test_a_closed_question_or_todo_offers_a_new_session_that_no_agent_suggested(): void
+    {
+        $this->sessionBridge();
+        $question = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]], 100);
+        $todo = $this->todo(null);
+        foreach ([$question, $todo] as $item) {
+            $item->state = InboxItemState::Resolved;
+            $item->closedBy = InboxCloser::Owner;
+        }
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($question));
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($todo));
+    }
+
     public function test_a_closed_wait_item_offers_nothing_but_a_new_session(): void
     {
         $this->sessionBridge();

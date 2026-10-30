@@ -235,12 +235,11 @@ final readonly class ItemActions
             $story = $item->isAutomatic() ? $this->workLimitStoryOf($waits) : null;
             $holdable = null !== $story && null !== ($watchedCards[self::key($item)] ?? null) && !$this->cardHolds->existsForCard($item->project, $watchedCards[self::key($item)]);
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand, $story, $holdable);
-            if (self::offersOnlySuggestions($item)) {
-                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => $kind->isResponse() || isset($suggestions[$kind->value])));
-            }
-            // A sent response is final, so a closed item offers nothing but a new session.
+            // A sent response is final, so a closed item offers nothing but a new session, suggested or not.
             if (InboxItemState::Open !== $item->state) {
-                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::StartSession === $kind));
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::StartSession === $kind && ($sessionOnline[(string) $item->project->id] ?? false)));
+            } elseif (self::offersOnlySuggestions($item)) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => $kind->isResponse() || isset($suggestions[$kind->value])));
             }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             // A retry alone repeats a loop whose last run stopped for a person, so it is not the default then.
