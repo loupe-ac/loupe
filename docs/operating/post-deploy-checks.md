@@ -28,6 +28,14 @@ description: "What to verify after a deploy, and what each check can and cannot 
    is indirect, silently wrong when a page is cached, and needs a fresh guess
    at what changed on every deploy.
 
+   `/healthz` reports the web build only. The worker runs from its own
+   container, so read its build from the file the image wrote. Run
+   `cat var/build-version` in the worker container: through
+   `doctl apps console <app> worker` on App Platform, or
+   `docker compose exec worker cat var/build-version` on a single host. Both
+   values must equal the commit of the release before you switch on a flag that
+   needs the new worker, such as `workflow.merge_queued_evaluations`.
+
    Unset, the field never appears — the default a self-hosted instance
    inherits, since an instance must not advertise its build to anyone who asks.
    The token goes in the header, never a query parameter: those are recorded in

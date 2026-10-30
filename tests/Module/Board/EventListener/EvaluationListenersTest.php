@@ -507,7 +507,7 @@ final class EvaluationListenersTest extends KernelTestCase
 
     private function trigger(): EvaluationTrigger
     {
-        return new EvaluationTrigger($this->service(MessageBusInterface::class));
+        return $this->service(EvaluationTrigger::class);
     }
 
     private function transport(): InMemoryTransport

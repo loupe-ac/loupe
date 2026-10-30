@@ -16,6 +16,7 @@ use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\McpTokenScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -82,7 +83,7 @@ final class ProductDesignSessionMoveTest extends KernelTestCase
 
     private function evaluate(Card $card, string $now): void
     {
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock($now)), new EventDispatcher());
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock($now)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $handler(new EvaluateCard((string) $card->id));
         $this->em()->flush();
     }
