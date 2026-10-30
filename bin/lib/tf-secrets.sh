@@ -35,9 +35,9 @@ store_file() {
 # encrypts to the same keys. Empty when there is no live store.
 live_recipients() {
     local live
-    live=$(TF_SECRETS_STORE=${TF_SECRETS_LIVE_STORE:-} store_file) || return 0
+    live=$(TF_SECRETS_STORE=${TF_SECRETS_LIVE_STORE-${TF_SECRETS_STORE:-}} store_file) || return 0
     [ -n "$live" ] || return 0
-    awk '$1 == "recipient:" { printf "%s%s", sep, $2; sep = "," }' "$live"
+    awk '{ for (i = 1; i < NF; i++) if ($i == "recipient:") { printf "%s%s", sep, $(i + 1); sep = "," } }' "$live"
 }
 
 # Where a new store file goes.

@@ -1178,6 +1178,108 @@ final class RotateSecretsTest extends TestCase
         self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', (string) file_get_contents($this->dir.'/applied'));
     }
 
+    public function test_collect_saves_the_new_values_as_pending_and_changes_nothing_live(): void
+    {
+        $this->useStore(['TF_VAR_install_token' => 'old-token']);
+        $before = (string) file_get_contents($this->dir.'/secrets.vars');
+
+        $process = $this->script(['collect', 'install_token', 'do_token'], '', ['TF_SECRETS_PENDING' => $this->dir.'/pending.yaml']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('old-token', $this->stored('TF_VAR_install_token'));
+        self::assertSame($before, (string) file_get_contents($this->dir.'/secrets.vars'));
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+        self::assertMatchesRegularExpression('/^install_token: "[0-9a-f]{64}"$/m', (string) file_get_contents($this->dir.'/pending.yaml'));
+        self::assertStringContainsString("Collected, and not applied yet: install_token\n", $process->getOutput());
+        self::assertStringContainsString('claude "Use the project-rotate-secrets skill', $process->getOutput());
+    }
+
+    public function test_a_second_collect_is_refused_until_the_pending_values_are_applied_or_discarded(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        self::assertSame(0, $this->script(['collect', 'install_token'])->getExitCode());
+
+        $refused = $this->script(['collect', 'install_token']);
+        $discarded = $this->script(['discard']);
+        $again = $this->script(['collect', 'install_token']);
+
+        self::assertNotSame(0, $refused->getExitCode());
+        self::assertStringContainsString('a rotation is pending', $refused->getErrorOutput());
+        self::assertSame(0, $discarded->getExitCode(), $discarded->getErrorOutput());
+        self::assertSame('x', $this->value('install_token'));
+        self::assertSame(0, $again->getExitCode(), $again->getErrorOutput());
+    }
+
+    public function test_a_plan_that_changes_another_resource_applies_nothing_until_it_is_allowed(): void
+    {
+        $this->vars("install_token = \"x\"\n");
+        file_put_contents($this->dir.'/plan-changes', "module.app.digitalocean_app.app update\nmodule.app.digitalocean_database_cluster.db[0] update\n");
+
+        $stopped = $this->rotate(['install_token'], '');
+
+        self::assertSame(11, $stopped->getExitCode());
+        self::assertStringContainsString('  module.app.digitalocean_database_cluster.db[0] update', $stopped->getErrorOutput());
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.tmp.plan.*'));
+
+        $applied = $this->script(['apply', '--allow', 'module.app.digitalocean_database_cluster.db[0]']);
+
+        self::assertSame(0, $applied->getExitCode(), $applied->getErrorOutput());
+        self::assertCount(1, file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES) ?: []);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $this->value('install_token'));
+        self::assertSame([], glob($this->dir.'/.rotate-secrets.tmp.*'));
+    }
+
+    public function test_the_bucket_key_replacement_passes_the_plan_check_only_when_the_key_rotates(): void
+    {
+        $this->vars("install_token = \"x\"\ncreate_export_bucket = true\n");
+        file_put_contents($this->dir.'/plan-changes', "digitalocean_spaces_key.exports[0] delete,create\n");
+
+        $alone = $this->rotate(['install_token'], '');
+        $this->script(['discard']);
+        $withKey = $this->rotate(['install_token', 'export_bucket_key'], '');
+
+        self::assertSame(11, $alone->getExitCode());
+        self::assertSame(0, $withKey->getExitCode(), $withKey->getErrorOutput());
+    }
+
+    public function test_reencrypted_does_not_skip_the_second_key_deploy_that_has_not_run(): void
+    {
+        $this->script(['collect', 'app_encryption_key']);
+
+        $process = $this->script(['apply', '--reencrypted']);
+
+        self::assertSame(10, $process->getExitCode());
+        self::assertSame(['current=old previous=new', 'current=new previous=old'], file($this->dir.'/applies.log', \FILE_IGNORE_NEW_LINES));
+    }
+
+    public function test_collect_starts_the_session_only_when_the_operator_says_yes(): void
+    {
+        file_put_contents($this->dir.'/session.sh', "#!/usr/bin/env bash\nprintf '%s' \"\$*\" > \"\$(dirname \"\$0\")/session-prompt\"\n");
+        chmod($this->dir.'/session.sh', 0o755);
+        $this->vars("install_token = \"x\"\n");
+
+        $declined = $this->script(['collect', 'install_token'], "n\n", ['ROTATE_SESSION' => $this->dir.'/session.sh']);
+        $this->script(['discard']);
+        $started = $this->script(['collect', 'install_token'], "y\n", ['ROTATE_SESSION' => $this->dir.'/session.sh']);
+
+        self::assertSame(0, $declined->getExitCode(), $declined->getErrorOutput());
+        self::assertStringContainsString('Nothing was applied', $declined->getOutput());
+        self::assertSame(0, $started->getExitCode(), $started->getErrorOutput());
+        self::assertSame('Use the project-rotate-secrets skill to apply the pending secret rotation.', (string) file_get_contents($this->dir.'/session-prompt'));
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+    }
+
+    public function test_a_new_pending_store_encrypts_to_the_recipients_of_the_live_store(): void
+    {
+        $this->useStore(['TF_VAR_install_token' => 'old']);
+        file_put_contents($this->dir.'/store.yaml', "sops:\n    age:\n        - recipient: age1first\n          enc: x\n        - recipient: age1second\n", \FILE_APPEND);
+
+        $process = $this->lib('live_recipients', []);
+
+        self::assertSame('age1first,age1second', $process->getOutput());
+    }
+
     public function test_the_script_is_valid_bash(): void
     {
         $process = new Process(['bash', '-n', \dirname(__DIR__, 2).'/bin/rotate-secrets']);
