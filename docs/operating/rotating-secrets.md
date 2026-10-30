@@ -7,13 +7,14 @@ Rotate the deploy secrets when one leaks, or on a schedule. The command `just ro
 
 The recipe covers an App Platform deployment that you manage with the Terraform files in `terraform/`. It writes the new values into the secret store, or into `terraform/terraform.tfvars` when you have no store, and never prints a secret value.
 
-## The groups
+## The kinds of secret
 
-Each secret belongs to one group. The group sets how the recipe gets the new value and what the rotation breaks.
+Each secret belongs to one kind. The kind sets how the recipe gets the new value and what the rotation breaks.
 
-| Group                          | Secrets                                                                                                                                                                                                                                     | How the recipe gets the new value                                                  | Side effect                                                    |
+| Kind                           | Secrets                                                                                                                                                                                                                                     | How the recipe gets the new value                                                  | Side effect                                                    |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Generated locally              | `app_secret`, `install_token`, `health_probe_token`, `mercure_jwt_secret`                                                                                                                                                                   | Makes a random value                                                               | Sessions and signed URLs end                                   |
+| Generated locally              | `app_secret`                                                                                                                                                                                                                                | Makes a random value                                                               | Remember-me cookies and signed links end                       |
+| Generated locally              | `install_token`, `health_probe_token`, `mercure_jwt_secret`                                                                                                                                                                                 | Makes a random value                                                               | None                                                           |
 | Generated locally              | `oauth_private_key`, `oauth_private_key_passphrase`, `oauth_encryption_key`, `oauth_public_key`                                                                                                                                             | Makes a new RSA key pair and a new key                                             | Every MCP client and bridge signs in again                     |
 | Rotated through Terraform      | The export bucket key, `digitalocean_spaces_key.exports`                                                                                                                                                                                    | Replaces the key resource                                                          | None                                                           |
 | Rotated through the GitHub API | `github_app_webhook_secret`                                                                                                                                                                                                                 | Makes a value, then sets it on the GitHub App                                      | Events in a short window fail, and the recipe sends them again |
@@ -34,7 +35,7 @@ The vendor pages are:
 | `oauth_github_secret`, `github_app_client_secret`, `github_app_private_key` | The developer settings of GitHub                                          |
 | `site_review_widget_preview_token`                                          | Issued by the `loupe` CLI for a preview instance                          |
 
-Four rules apply to the table.
+Four rules apply to the kinds.
 
 - The account Spaces key pair (`spaces_access_id`, `spaces_secret_key`) belongs to no Terraform resource. Only the vendor page can replace it.
 - `export_storage_key` and `export_storage_secret` stay empty while `create_export_bucket` is true. They matter only for a bucket that you bring.
@@ -55,9 +56,34 @@ Rotate only the secrets that you name:
 just rotate-secrets app_secret mercure_jwt_secret
 ```
 
-A name of one secret in a pair runs the step of its group. For example, `oauth_private_key` rotates the whole OAuth key set.
+A name of one secret in a pair runs the step of its kind. For example, `oauth_private_key` rotates the whole OAuth key set.
 
 For a vendor secret, the recipe prints the page to open and reads the new value with hidden input. It checks the shape of the value before it writes anything. For a multi-line value, such as the GitHub App private key, type a line that holds only a period to end the input, or type the path of a file.
+
+### Impact groups
+
+An impact group names the secrets whose rotation has the same effect on the people who use the app. Give a group in place of names, or next to them:
+
+```bash
+just rotate-secrets @no-relogin
+just rotate-secrets @relogin-users mercure_jwt_secret
+```
+
+| Impact group       | Secrets                                                                                                                                                                              | Effect                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| `@no-relogin`      | The encryption key step, `install_token`, `health_probe_token`, `mercure_jwt_secret`, the export bucket key, `github_app_webhook_secret`, and every vendor secret of the kinds table | Nobody signs in again                                     |
+| `@relogin-users`   | `app_secret`                                                                                                                                                                         | People sign in again after you empty the `sessions` table |
+| `@relogin-clients` | The OAuth key set and `oauth_encryption_key`                                                                                                                                         | Every MCP client and bridge signs in again                |
+
+The three groups together hold every secret of a full run. The web push key is in no group.
+
+A run by group keeps the order of a full run, so the encryption key step still runs first. At the end, a run by group or by names prints the groups that it did not rotate in full, for example `Not rotated in full: @relogin-users @relogin-clients`. A full run prints no such line. An unknown group stops the run before it changes anything, and the error lists the groups.
+
+Sessions live in the database, and a new `APP_SECRET` does not end them. `APP_SECRET` signs only the remember-me cookies and the signed links. So when a run rotates `app_secret`, it prints the command that ends every session. Run it on production:
+
+```bash
+bin/console dbal:run-sql 'DELETE FROM sessions'
+```
 
 ## The order of one run
 
