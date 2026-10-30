@@ -9053,6 +9053,10 @@
             <trans-unit id="workflow.waiting.not.parent_in_slot"><source>workflow.waiting.not.parent_in_slot</source><target>Waiting: the parent card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_type"><source>workflow.waiting.card_type</source><target>Waiting: the card type is not %type%.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_type"><source>workflow.waiting.not.card_type</source><target>Waiting: the card type is %type%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value"><source>workflow.waiting.card_value</source><target>Waiting: the card value "%key%" is not %value%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value"><source>workflow.waiting.not.card_value</source><target>Waiting: the card value "%key%" is %value%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value_set"><source>workflow.waiting.card_value_set</source><target>Waiting: the card holds no value for "%key%".</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value_set"><source>workflow.waiting.not.card_value_set</source><target>Waiting: the card holds a value for "%key%".</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_open_blocker"><source>workflow.waiting.card_has_open_blocker</source><target>Waiting: the card has no open blocker.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_has_open_blocker"><source>workflow.waiting.not.card_has_open_blocker</source><target>Waiting: a blocking card is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_parent_epic_branch_synced"><source>workflow.waiting.card_parent_epic_branch_synced</source><target>Waiting: the default branch is not yet merged into the epic branch.</target></trans-unit>

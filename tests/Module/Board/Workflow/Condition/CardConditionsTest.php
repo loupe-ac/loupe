@@ -7,6 +7,7 @@ namespace App\Tests\Module\Board\Workflow\Condition;
 use App\Module\Board\Workflow\ArtifactReachFacts;
 use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardTypeFacts;
+use App\Module\Board\Workflow\CardValueFacts;
 use App\Module\Board\Workflow\ChildMark;
 use App\Module\Board\Workflow\ChildrenFactProvider;
 use App\Module\Board\Workflow\ChildrenFacts;
@@ -25,6 +26,7 @@ use App\Module\Board\Workflow\Condition\CardParentEpicBranchSynced;
 use App\Module\Board\Workflow\Condition\CardParentExists;
 use App\Module\Board\Workflow\Condition\CardReviewNeedsPerson;
 use App\Module\Board\Workflow\Condition\CardUnseenArtifact;
+use App\Module\Board\Workflow\Condition\CardValue;
 use App\Module\Board\Workflow\Condition\ParentDocumentApproved;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
@@ -73,6 +75,13 @@ final class CardConditionsTest extends TestCase
         yield 'unseen artifact' => [new CardUnseenArtifact(), [], FactsMother::facts(provided: [ArtifactReachFacts::class => new ArtifactReachFacts(['a'])]), true];
         yield 'no unseen artifact' => [new CardUnseenArtifact(), [], FactsMother::facts(provided: [ArtifactReachFacts::class => new ArtifactReachFacts([])]), false];
 
+        yield 'value equals true, held true' => [new CardValue(), ['key' => 'k', 'equals' => true], FactsMother::facts(provided: [CardValueFacts::class => new CardValueFacts(['k' => true])]), true];
+        yield 'value equals true, held false' => [new CardValue(), ['key' => 'k', 'equals' => true], FactsMother::facts(provided: [CardValueFacts::class => new CardValueFacts(['k' => false])]), false];
+        yield 'value equals false, held false' => [new CardValue(), ['key' => 'k', 'equals' => false], FactsMother::facts(provided: [CardValueFacts::class => new CardValueFacts(['k' => false])]), true];
+        yield 'value equals true, unset' => [new CardValue(), ['key' => 'k', 'equals' => true], FactsMother::facts(), false];
+        yield 'value equals false, unset' => [new CardValue(), ['key' => 'k', 'equals' => false], FactsMother::facts(), false];
+        yield 'value held, no equals' => [new CardValue(), ['key' => 'k'], FactsMother::facts(provided: [CardValueFacts::class => new CardValueFacts(['k' => false])]), true];
+        yield 'value unset, no equals' => [new CardValue(), ['key' => 'k'], FactsMother::facts(provided: [CardValueFacts::class => new CardValueFacts(['other' => true])]), false];
         yield 'a person must review' => [new CardReviewNeedsPerson(), [], FactsMother::facts(provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]), true];
         yield 'no person must review' => [new CardReviewNeedsPerson(), [], FactsMother::facts(provided: [HumanReviewFacts::class => new HumanReviewFacts(false)]), false];
 
@@ -145,6 +154,8 @@ final class CardConditionsTest extends TestCase
     {
         yield 'card.type' => [new CardHasType(), ['types' => ['epic']], 'workflow.waiting.card_type', ['%type%' => 'epic']];
         yield 'card.type, two types' => [new CardHasType(), ['types' => ['bug', 'epic']], 'workflow.waiting.card_type', ['%type%' => 'bug or epic']];
+        yield 'card.value, equals' => [new CardValue(), ['key' => 'k', 'equals' => true], 'workflow.waiting.card_value', ['%key%' => 'k', '%value%' => 'true']];
+        yield 'card.value, held' => [new CardValue(), ['key' => 'k'], 'workflow.waiting.card_value_set', ['%key%' => 'k']];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], 'workflow.waiting.card_has_open_blocker', []];
         yield 'card.parent.epic_branch.synced' => [new CardParentEpicBranchSynced(), [], 'workflow.waiting.card_parent_epic_branch_synced', []];
         yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], 'workflow.waiting.card_has_closed_blocker', []];

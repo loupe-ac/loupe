@@ -205,6 +205,7 @@ label, the kind, the slots and the condition. The page is read-only.
 A marker reads the same conditions as a rule. These conditions suit markers:
 
 - `card.paused`: the card has an active pause.
+- `card.value`: the card holds a value for the value key in `key`. With `equals`, the held value must equal it. A key with no valid value is unset, so `equals: true` is false. The template must declare the key in its `values` list, or it fails to load.
 - `card.document.in_review` with a `tag`: a linked document with that tag is in
   review.
 - `card.quiet_for`: nothing happened on the card for the `delay`, in minutes.

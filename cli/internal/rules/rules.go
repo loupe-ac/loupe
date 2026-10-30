@@ -105,6 +105,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 `
 
 // PermissionModes are the values claude 2.1.270 takes for --permission-mode.
