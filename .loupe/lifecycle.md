@@ -62,7 +62,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 ## Preview
 
-1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it.
+1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it. A change under `templates/Module/DesignSystem/export/` does not count either, because only `app:design-system:export` reads those files.
 2. Section: `## Preview`, at the top of the pull request body.
 3. Line: one Markdown list item per state, exactly `` - [<label>](<signed link>), marker `<marker>` ``. A signed-out page, as item 7 says, takes `` - [<label>](<plain link>), marker `<marker>`. Signed out. `` instead. The label says what state the link shows. A child of an epic appends `. State: <text>`, and a signed-out line of a child ends `` Signed out. State: <text> ``, as `working-with-prs` "A child of an epic targets the epic branch" says. The merge stage seeds the epic preview from that text alone. A line with no `State:` text is unproven. The signed link goes into the body only through the temporary body file of `preview.md`.
 4. Seed: seed each state into the database of the worker folder, as `working-with-prs` "Make the branch testable, not just reviewable" says. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
@@ -72,7 +72,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 ## Visual check
 
-1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`.
+1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change under `templates/Module/DesignSystem/export/` does not count, because no page shows those files.
 2. App: `https://card-<number>.loupe.dev.localhost`, the app of the worker folder.
 3. Worker folder: `<main checkout>/.worktrees/card-<number>`. The main checkout is the first `worktree` line of `git worktree list --porcelain`. The review stage reads it.
 4. Sign-in: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link. It signs in `dev@loupe.test`. Never write the link of a visual check to a file, a log or the pull request. A preview link follows the `Preview` section.

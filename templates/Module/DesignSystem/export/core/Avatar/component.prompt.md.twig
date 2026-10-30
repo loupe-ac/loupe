@@ -1,0 +1,12 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's avatar. {{ entry.summary }}
+
+```jsx
+<{{ name }}>L</{{ name }}>
+<{{ name }} shape="square" size="lg">L</{{ name }}>
+<{{ name }} tone="tint" size="sm">L</{{ name }}>
+```
+
+A bare {{ name }} is round, medium and accent, as in the app. Pass `shape="square"` for a rounded square. The colour prop is `tone`, not `variant`. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}
