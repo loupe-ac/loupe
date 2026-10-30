@@ -21,6 +21,7 @@ use App\Module\Inbox\Service\InboxItemCloser;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 /** Loupe closes a notice when its fact ends, so no person and no agent responds to it. */
 final class NoticeItemResponsesTest extends KernelTestCase
@@ -73,7 +74,7 @@ final class NoticeItemResponsesTest extends KernelTestCase
         $handler = self::getContainer()->get(WithdrawInboxItemHandler::class);
         self::assertInstanceOf(WithdrawInboxItemHandler::class, $handler);
 
-        self::assertSame(['itemId' => WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE], $this->refusal(fn () => $handler(new WithdrawInboxItemCommand($this->notice, 'Not needed'))));
+        self::assertSame(['itemId' => WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE], $this->refusal(fn () => $handler(new WithdrawInboxItemCommand($this->notice, 'Not needed', Uuid::v4()))));
         self::assertSame(InboxItemState::Open, $this->notice->state);
     }
 

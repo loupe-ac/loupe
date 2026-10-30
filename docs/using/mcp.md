@@ -334,15 +334,12 @@ Roughly in the order an agent uses them:
 | `automation_settings_update` | Change the board's Automation settings |
 | `inbox_ask` | Hand questions and to-dos to the project owner (off by default, see below) |
 | `inbox_search` | Search every inbox item's title and body by words, closed ones included |
-| `inbox_join` | Add an open item that is already in the inbox to the session's own ask |
+| `inbox_join` | Add an open item that an agent or a person asked to the session's own ask. A wait, a notice and a workflow question are refused |
 | `inbox_list` | Read a page of inbox items, filtered by state, ask, session, card or document |
 | `inbox_actions` | List the built-in actions an ask can suggest, and with a `cardId` the ones that fit that card now |
 | `inbox_get` | Read one inbox item, with its answer and its links |
-| `inbox_withdraw` | Withdraw an open item that is no longer needed, with a reason |
-| `inbox_answer` | Answer an inbox question for the owner, after the owner decided in chat. A bridge worker session is refused |
-| `inbox_decline` | Decline an inbox question or to-do, or dismiss an automatic item, for the owner. An agent's review ask stays on the inbox page |
-| `inbox_done` | Mark an inbox to-do done for the owner |
-| `inbox_action_run` | Run a built-in action of an inbox item for the owner. A `run-command` shows a preview first, and runs only with the `runDigest` of that preview. A `start-session` takes `sessionPrompt`, the prompt the owner confirmed |
+| `inbox_withdraw` | Withdraw an open item that is no longer needed, with a reason. Pass your `sessionId`: only the session that asked first can withdraw the item |
+| `inbox_action_run` | Record the owner's `answer`, `complete` or `dismiss` of an inbox item after the owner decided in chat, or run another built-in action of it for the owner. A bridge worker session is refused for every action. A `run-command` shows a preview first, and runs only with the `runDigest` of that preview. A `start-session` takes `sessionPrompt`, the prompt the owner confirmed |
 | `worker_run_list` | Read a page of the worker runs, newest first, filtered by state, card, work kind, bridge, harness, account, model, words or the time a run ended. Each row gives the reason the run ended, its harness and account, its usage per model, its model, its experiment and variant, and its metrics. The metrics hold the sums of the run and its timing: the tool time, the model time, the idle gaps, the subagent time, and the count, failures and longest duration of its tool calls. They also hold the host of the run: the mean CPU use, the peak memory and swap, the count of runs that overlapped it on its bridge, and whether its machine ran on battery |
 | `worker_run_get` | Read one worker run in full, with every run of its series, its state changes, its output, its metrics and the commands sent to its bridge |
 | `worker_run_tool_calls` | Read a page of the tool calls of one worker run, in the order the worker made them. Each call gives its tool, its start, its duration, its error flag, whether a subagent made it, and its signatures. `perPage` defaults to 20, with a maximum of 100 |
@@ -743,10 +740,17 @@ for a response of the owner, and otherwise `withdrawn`, `card-deleted`, `card-fi
 Each entry of `asks` in `inbox_get` carries `origin` too. The `sessionId` of a
 Loupe ask is null.
 
-`inbox_join` accepts an open `wait` item. Your ask then closes when Loupe
-closes the item. A bridge that started you then resumes you.
-`inbox_withdraw` refuses a `wait` item or a `notice`, because only Loupe closes
-it.
+`inbox_join` refuses a `wait` item, a `notice` and a workflow question, because
+Loupe opens and closes them. `inbox_withdraw` refuses them too. Both tools take
+a `sessionId`, and a call that carries the session header of an agent session
+refuses a `sessionId` that differs from that session. This holds for a bridge
+worker and for an interactive session alike. A bridge worker may call both tools
+as its own session. A client that sends no session header cannot be checked, so
+the server trusts its `sessionId`. `inbox_withdraw` also refuses a session that
+did not ask the item first.
+
+`inbox_ask` takes an optional `dismissible` on each item. It defaults to true.
+Set it to false when the owner may only answer the item.
 
 With `readerSessionId`, each `inbox_list` row also carries the response:
 `options`, `selectedOptions`, `note`, and `review`. Without it, a row is

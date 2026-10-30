@@ -27,6 +27,7 @@ use App\Module\Inbox\Command\MarkInboxItemDoneCommand;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
+use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
@@ -150,9 +151,11 @@ final class InboxChangedPublisherTest extends KernelTestCase
     public function test_a_withdraw_publishes(): void
     {
         $item = $this->item($this->em, $this->project, 1);
+        $ask = $this->ask($this->em, $this->project);
+        $ask->items->add(new InboxAskItem($ask, $item));
         $this->em->flush();
 
-        $this->service(WithdrawInboxItemHandler::class)(new WithdrawInboxItemCommand($item, 'Settled in chat'));
+        $this->service(WithdrawInboxItemHandler::class)(new WithdrawInboxItemCommand($item, 'Settled in chat', $ask->sessionId ?? throw new \LogicException('An ask of a session.')));
 
         $this->assertPublishedAtTerminate(1);
         $this->assertSignalsTheProject($this->published[0]);

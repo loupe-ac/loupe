@@ -808,14 +808,14 @@ no bridge takes within 2 minutes expires. See
 
 ## Answering through an agent
 
-You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_answer`, `inbox_decline`, `inbox_done` or `inbox_action_run`. Each tool runs the same code as the matching button on the inbox page. The same rules hold. An option must exist, a question with no free text refuses text, and a closed item takes no second response.
+You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_action_run` with the action `answer`, `complete` or `dismiss`. The tool runs the same code as the matching button on the inbox page. The old tools `inbox_answer`, `inbox_done` and `inbox_decline` are gone, and a call to one returns an error that names `inbox_action_run`. The same rules hold. An option must exist, a question with no free text refuses text, and a closed item takes no second response.
 
-The item shows "Answered through an agent" beside its response. A response is final, so the line stays. `inbox_get` returns the same fact as `respondedThroughAgent`.
+The item shows "Answered through an agent" beside its response. A response is final, so the line stays. `inbox_get` returns the same fact as `closedBy`, with the value `owner-through-agent`.
 
 These limits hold:
 
 1. A session that a bridge started as a worker cannot use these tools. A worker has no person beside it, so it cannot carry your decision. Answer on the page when you resume a worker session by hand.
-2. A review stays on the inbox page. `inbox_decline` refuses a review, and no tool records a review verdict.
+2. A review stays on the inbox page. `inbox_action_run` refuses a review, and only `document_verdict_submit` records the verdict of a document review.
 3. The answer to a workflow question is final. It runs its action at once.
 4. `inbox_action_run` runs every action that fits the item, except the links **Open** and **Review**. A `run-command` call without a `runDigest` runs nothing. It returns the command, the branch, the values and a `runDigest`. The agent shows them to you. The command runs after you confirm in chat and the agent calls again with the same branch, values and `runDigest`. A `start-session` sends the prompt that you confirm in chat. The agent shows you the suggested prompt, and you can change it or clear it, as in the field on the page. When you change nothing, the agent sends the suggested prompt unchanged.
 5. The tools follow the `inbox.enabled` flag. They need no second setting.

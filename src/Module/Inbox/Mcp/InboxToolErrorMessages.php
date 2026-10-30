@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
+use App\Module\Inbox\Command\JoinInboxAskHandler;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Command\SearchInboxHandler;
@@ -95,14 +96,18 @@ final readonly class InboxToolErrorMessages
             WithdrawInboxItemHandler::REASON_TOO_LONG => \sprintf('A withdraw reason must be at most %d characters.', InboxLimits::MAX_WITHDRAW_REASON_LENGTH),
             WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE => 'Loupe opened this item for a card that waits for a person, so no agent can withdraw it. It closes when the card no longer waits.',
             WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE => 'Loupe opened this notice for a fact about the project, so no agent can withdraw it. It closes when the fact ends.',
+            WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE => 'A rule asked this workflow question, so no agent can withdraw it. It closes when the rule no longer asks.',
+            WithdrawInboxItemHandler::NOT_ASKING_SESSION => 'Only the session that asked first can withdraw this item. Pass your own session id.',
+            JoinInboxAskHandler::NOT_AGENT_ITEM => 'Loupe opened this item for a card wait, a fact or a rule, so no agent can join it. Only an item that an agent or a person asked is joinable.',
+            CallerSessionGuard::NOT_CALLER => 'Pass your own session id. This call comes from another session.',
             SearchInboxHandler::QUERY_BLANK => 'Pass a query to search for. To read the inbox page by page instead, call inbox_list.',
             AnswerInboxItemHandler::NOT_A_QUESTION => 'Only a question takes an answer.',
             AnswerInboxItemHandler::UNKNOWN_OPTION => 'Each selected option must be an index into the options of the item, counting from 0.',
             AnswerInboxItemHandler::ONE_OPTION => 'This question takes one option.',
-            AnswerInboxItemHandler::NO_FREE_TEXT => 'This question takes no free text.',
-            AnswerInboxItemHandler::EMPTY => 'Pass at least one selected option or an answer text.',
+            AnswerInboxItemHandler::NO_FREE_TEXT => 'This question takes no free text. Pass selectedOptions alone.',
+            AnswerInboxItemHandler::EMPTY => 'Pass at least one selected option or a note.',
             MarkInboxItemDoneHandler::NOT_A_TO_DO => 'Only a todo can be marked done.',
-            DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE => 'A workflow question cannot be declined. Answer it with inbox_answer.',
+            DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE => 'A workflow question cannot be declined. Answer it with inbox_action_run.',
             InboxItemCloser::ERROR_FINAL => 'The item is closed, so its response is final.',
             InboxItemCloser::ERROR_NOTICE => 'A notice takes no response.',
             RunInboxActionHandler::NOT_AVAILABLE => 'This action does not fit the item now. The item may be closed, or the state it waits on changed. Read the item with inbox_get.',
