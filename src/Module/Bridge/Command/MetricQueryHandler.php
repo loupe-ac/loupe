@@ -63,7 +63,7 @@ final readonly class MetricQueryHandler
         // Both periods count back from one clock reading.
         $now = $command->now ?? $this->clock->now();
         $from = $command->range->startFrom($now);
-        $rows = $this->rows->rows($command->project, $command->unit, $metric, $command->group, $from);
+        $rows = $this->rows->rows($command->project, $command->unit, $metric, $command->group, $from, $now);
 
         $previousWindow = null;
         $previousRows = [];

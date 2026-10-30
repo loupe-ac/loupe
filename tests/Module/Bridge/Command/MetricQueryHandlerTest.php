@@ -515,6 +515,16 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertEquals(new MetricWindow(new \DateTimeImmutable('2026-08-06 12:00:00'), new \DateTimeImmutable('2026-09-05 12:00:00')), $view->previous);
     }
 
+    public function test_a_compare_leaves_out_a_run_after_the_clock_reading(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-05 13:00:00', cost: 9_000_000);
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, compare: MetricCompare::Previous);
+
+        self::assertEquals(new MetricPoint(null, 2.0, 1), $view->series[0]->total);
+    }
+
     public function test_no_compare_leaves_the_comparison_out(): void
     {
         $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000);

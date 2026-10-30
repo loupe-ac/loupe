@@ -95,6 +95,26 @@ final class MetricComparerTest extends TestCase
         self::assertSame(MetricSign::NotEnoughCards, $comparison->sign);
     }
 
+    public function test_a_count_of_an_empty_period_has_no_change(): void
+    {
+        $emptyBefore = $this->comparer->compare(MetricStatistic::Count, MetricValueType::Money, MetricUnit::Card, self::cards([1, 2]), [], Confidence::forComparisons(1), 'seed');
+        $emptyNow = $this->comparer->compare(MetricStatistic::Count, MetricValueType::Money, MetricUnit::Card, self::unknownCards(3, 1), self::cards([1, 2]), Confidence::forComparisons(1), 'seed');
+
+        foreach ([$emptyBefore, $emptyNow] as $comparison) {
+            self::assertNull($comparison->change);
+            self::assertNull($comparison->changeKind);
+        }
+        self::assertSame(0, $emptyBefore->previous->value);
+    }
+
+    public function test_a_count_of_a_rate_changes_relative_to_the_previous_count(): void
+    {
+        $comparison = $this->comparer->compare(MetricStatistic::Count, MetricValueType::Ratio, MetricUnit::Run, self::cards([1, 0, 1, 0, 1, 0]), self::cards([1, 0, 1, 0]), Confidence::forComparisons(1), 'seed');
+
+        self::assertSame(MetricChangeKind::Relative, $comparison->changeKind);
+        self::assertEqualsWithDelta(0.5, (float) $comparison->change, 1e-9);
+    }
+
     public function test_a_sum_and_a_count_have_a_change_and_no_sign(): void
     {
         foreach ([MetricStatistic::Sum, MetricStatistic::Count] as $statistic) {

@@ -28,7 +28,7 @@ final readonly class MetricComparer
         $nowValue = $statistic->of(self::values($now));
         $beforeValue = $statistic->of(self::values($before));
         $previousPoint = new MetricPoint(null, $beforeValue, \count($before));
-        [$change, $kind] = self::change($type, $nowValue, $beforeValue);
+        [$change, $kind] = [] === $now || [] === $before ? [null, null] : self::change($statistic, $type, $nowValue, $beforeValue);
         $cards = [self::distinctCards($now), self::distinctCards($before)];
 
         if (!self::hasSign($statistic)) {
@@ -121,12 +121,13 @@ final readonly class MetricComparer
     }
 
     /** @return array{?float, ?MetricChangeKind} */
-    private static function change(MetricValueType $type, int|float|null $now, int|float|null $before): array
+    private static function change(MetricStatistic $statistic, MetricValueType $type, int|float|null $now, int|float|null $before): array
     {
         if (null === $now || null === $before) {
             return [null, null];
         }
-        if (MetricValueType::Ratio === $type) {
+        // A count of a rate counts rows, so only the rate itself changes in points.
+        if (MetricValueType::Ratio === $type && MetricStatistic::Count !== $statistic) {
             return [(float) ($now - $before), MetricChangeKind::Points];
         }
         if (0.0 === (float) $before) {
