@@ -28,7 +28,8 @@ The setup folder holds these files and folders:
 
 - `config.json`, the login
 - `rules.yaml`, the rule file
-- `bridge.log`, the log of the bridge
+- `bridge.log`, the log of the bridge, and its dated files such as `bridge.2026-10-29.log`
+- `bridge-<hash>.state.json`, one file for each bridge, which names its log
 - `runs` and `worktrees`, the files of the workers
 - `projects.json`, the project links of the setup
 - `tmp`, the temporary files of the setup, with mode 0700
@@ -198,6 +199,22 @@ workflow opens, and runs an agent for each one. The
 - `loupe bridge reload` applies a changed rule file to a running bridge.
 
 All three take `--rules` to name another rule file.
+
+## `loupe bridge logs`
+
+`loupe bridge logs` prints the last entries of the bridge log. It reads files on this
+machine, so it needs no network and no running bridge. It finds the log of each bridge
+that ran here, also a stopped one, because every bridge leaves a state file that names
+its log. It reads the dated files of a rotated log too, and merges the entries of all
+bridges by time.
+
+- `-n <count>` prints the last `count` entries. The default is 50.
+- `-f` keeps reading and prints new entries until you stop it. It follows the log across the daily rotation.
+- `--bridge <name>` keeps the last entries of one bridge. An entry that an older CLI wrote has no name, so it shows only without this flag. When two running bridges share the name, the command stops and asks you to set `name:` in one rule file.
+- `--json` prints each entry as the bridge wrote it. Without it, the output is logfmt: the `time`, the `level` and the `event`, then the other keys of the entry.
+- `--log-file <path>` reads that log in place of the logs of the bridges on this machine.
+
+When it finds no log, the command names each path it checked.
 
 ## `loupe status`
 

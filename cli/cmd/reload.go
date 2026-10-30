@@ -245,6 +245,9 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	r.logDropped(dropped, "reason", "reload")
 	r.logDropped(shutDropped)
 	r.identities.refreshAsync(set)
+	if r.onRules != nil {
+		r.onRules(set)
+	}
 	if r.heartbeat != nil {
 		r.heartbeat.setBody(heartbeatBody(set))
 	}
