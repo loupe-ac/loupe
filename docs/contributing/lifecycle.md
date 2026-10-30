@@ -22,7 +22,7 @@ The workflow also makes the moves that follow a pull request.
 |---|---|---|---|
 | Backlog | `backlog` | backlog | none |
 | Product design | `product-design` | | `product-design`, `product-design-revise`, `design-review` |
-| Tech design | `tech-design` | | `tech-design`, `tech-design-revise`, `tech-design-recheck`, `design-review` |
+| Tech design | `tech-design` | | `tech-design`, `tech-design-session`, `tech-design-revise`, `tech-design-recheck`, `design-review` |
 | Implementation | `implementation` | | `implement`, `breakdown`, `review`, `fix` |
 | In review | `in-review` | | `review`, `fix`, `merge`, `sync`, `rebase-stacked` |
 | Done | `done` | terminal | `teardown` |

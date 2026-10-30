@@ -1,5 +1,5 @@
 key: lifecycle
-version: 31
+version: 32
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -214,12 +214,54 @@ rules:
               - not: { card.document.changes_requested: { tag: product-design } }
       then: { move: { to: tech-design } }
 
+    - id: tech-design-handover
+      slot: tech-design
+      when:
+          all:
+              - card.value: { key: tech-design-interactive, equals: true }
+              - not: { card.document.linked: { tag: tech-design } }
+              - any:
+                    - card.run.work_active: { kind: tech-design, origin: rule }
+                    - card.run.worker_active: { kind: tech-design, origin: rule }
+      then: { stop-work: {} }
+
+    - id: tech-design-session
+      slot: tech-design
+      when:
+          all:
+              - card.value: { key: tech-design-interactive, equals: true }
+              - not: { card.document.linked: { tag: tech-design } }
+              - not: { card.run.session_open: {} }
+              - not: { card.run.work_active: { kind: tech-design } }
+              - not: { card.run.worker_active: { kind: tech-design } }
+      then:
+          request:
+              kind: tech-design-session
+              capability: interactive
+              cancelOnly: open
+              cancelWhen:
+                  any:
+                      - card.run.session_open: {}
+                      - not: { card.value: { key: tech-design-interactive, equals: true } }
+              checks:
+                  - A bridge work entry for the tech-design-session kind
+                  - An interactive session that the owner can join
+                  - The agent can read the whole repository
+                  - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
+                  - The Loupe plugin skills are installed for the agent
+
     - id: tech-design-write
       slot: tech-design
-      when: { not: { card.document.linked: { tag: tech-design } } }
+      when:
+          all:
+              - not: { card.document.linked: { tag: tech-design } }
+              - not: { card.value: { key: tech-design-interactive, equals: true } }
+              - not: { card.run.session_open: {} }
       then:
           request:
               kind: tech-design
+              cancelWhen: { card.run.session_open: {} }
+              cancelOnly: open
               checks:
                   - The agent can read the whole repository
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
@@ -247,6 +289,7 @@ rules:
               - not: { card.run.work_active: { kind: tech-design-revise } }
               - not: { card.run.worker_active: { kind: tech-design } }
               - not: { card.run.worker_active: { kind: tech-design-revise } }
+              - not: { card.run.session_open: {} }
       then:
           request:
               kind: design-review

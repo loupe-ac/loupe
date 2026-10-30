@@ -656,9 +656,23 @@ When you withdraw the approval of a design, the card goes back to that design. S
 | Slot | The workflow |
 |---|---|
 | Product design | Asks for an interactive product design session when the card has no product document and no interactive session is open. A session that opens withdraws a waiting request that no bridge has taken. It also asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
-| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
+| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it. When the card value `tech-design-interactive` is on, the workflow asks for an interactive tech design session in place of the agent. See [Interactive tech design](#interactive-tech-design) |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
+
+### Interactive tech design
+
+The card value `tech-design-interactive` is the switch "Interactive session" under Tech design. It starts off.
+With the switch on, a card in Tech design with no design document gets three rules:
+
+| Rule | Does |
+|---|---|
+| `tech-design-session` | Asks for work of kind `tech-design-session` when no interactive session is open and no tech design work or worker is active. The request needs a bridge that can open an interactive session. It leaves a request that a bridge took, and withdraws a waiting request when a session opens or the switch turns off |
+| `tech-design-handover` | Runs `stop-work` when the switch turns on while an agent that a rule started writes the design. It spares an agent that you sent from an inbox item |
+| `tech-design-write` | Asks for the agent only when the switch is off and no session is open. A session that opens withdraws a waiting agent request |
+
+The rule `tech-design-review` waits while an interactive session is open, as the Product design rule does.
+When a session closes with no design, the workflow asks for a session again if the switch is on, and for the agent if it is off.
 
 ### Recheck of a design
 
@@ -1011,7 +1025,7 @@ design. Each name starts with the slot key, `product-design` or `tech-design`:
 
 | Rule | Does |
 |---|---|
-| `<slot>-review` | When `design_review.due` holds, asks for work of kind `design-review` on the draft. It waits while work or a worker of the design kind or its revise kind is active. In Product design it also waits while an interactive session is open. A failed run that ends with no review is tried again |
+| `<slot>-review` | When `design_review.due` holds, asks for work of kind `design-review` on the draft. It waits while work or a worker of the design kind or its revise kind is active. It also waits while an interactive session is open. A failed run that ends with no review is tried again |
 | `<slot>-review-fix` | When `design_review.fix_due` holds, asks for the revise kind with the reason `agent-review`. The limit is 6 rounds |
 | `<slot>-review-publish` | When `design_review.finished` holds and no work or worker is active on the card, runs `publish-documents`. Product design publishes the documents with the tag `product-design`. Tech design publishes the tag `tech-design` and the tag `deploy-notes` |
 
@@ -1259,7 +1273,7 @@ sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
 Every work request of the Lifecycle template also carries the prompt that Loupe
-ships for its kind. This covers all 17 kinds, such as `tech-design`, `implement`,
+ships for its kind. This covers all 18 kinds, such as `tech-design`, `implement`,
 `fix`, `merge` and `repair`. A `work:` entry of the bridge rule file still wins
 over the shipped prompt.
 
@@ -1326,6 +1340,7 @@ A rule that asks for work names its kind. A bridge runs a kind only when its
 | `product-design` | A product design session. It needs a bridge that can open an interactive session |
 | `product-design-revise` | A revision of the product document |
 | `tech-design` | The tech design |
+| `tech-design-session` | An interactive tech design session. It needs a bridge that can open an interactive session |
 | `tech-design-revise` | A revision of the tech design |
 | `design-review` | An agent review of a draft product document or tech design |
 | `tech-design-recheck` | A check of an approved tech design against the code, after a card that blocked it is done |

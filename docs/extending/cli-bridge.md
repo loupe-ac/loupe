@@ -1889,6 +1889,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
   review:
     model: opus
     prompt: Run the loupe-stage-review skill for card {cardNumber} in project {project}.
@@ -2229,9 +2232,9 @@ and allows 60 calls per minute per token. An older server answers `404`.
 ## Interactive action
 
 An entry with `action: interactive` opens an interactive Claude Code or Codex
-session in a terminal window, on the bridge's machine, as its account says. It is for Product design, so the
-owner does not type `/loupe:product-design` by hand. An entry without `action`
-is a worker entry.
+session in a terminal window, on the bridge's machine, as its account says. It is for Product design and for Tech design, so the
+owner does not type `/loupe:product-design` or `/loupe:tech-design` by hand.
+An entry without `action` is a worker entry.
 
 ```yaml
 launch:
@@ -2241,7 +2244,18 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 ```
+
+The kind `tech-design-session` is asked for when the card has its "Interactive
+session" switch on under Tech design. A request with the capability
+`interactive` never runs as a headless worker. When the file has no
+interactive entry for the kind, the bridge skips the request, even with
+`appPrompts: true`. The request waits, and after the work timeout the card
+pauses with "no bridge took the work". Run `loupe update` to get this
+behaviour, and add the entry by hand when your file is older than this entry.
 
 An interactive entry takes `prompt`, `account`, `model` and `permissions`. The check
 refuses `before` and `workerPool` on it. It also refuses the action
