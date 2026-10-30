@@ -10,25 +10,15 @@
 
 {% block body %}
 {% set metric = query.metric %}
-{% if metric.template is not null %}
-    {% set metricName = metric.template.label %}
-{% elseif metric.key.name is null %}
-    {% set metricName = ('analytics.metrics.metric.' ~ metric.key.key)|trans %}
-{% elseif metric.key.metric.value == 'harness-events' %}
-    {% set metricName = 'analytics.metrics.metric.harness_events_named'|trans({'%kind%': metric.key.name}) %}
-{% else %}
-    {% set metricName = ('analytics.metrics.metric.' ~ metric.key.metric.value|replace({'-': '_'}) ~ '_named')|trans({'%bucket%': metric.key.name}) %}
-{% endif %}
-{% set rowsKey = 'analytics.metrics.rows.' ~ query.unit.value %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'metrics'} only %}
 
     {# A GET form, so the controls land in the URL. A control lists only the values its metric allows. #}
-    <twig:Ds:FilterBar :action="path('app_project_analytics_metrics', {id: project.id})" :formAttributes="{'data-metrics-form': true}">
-        <twig:block name="secondary">
-            <label class="sr-only" for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</label>
+    <form method="get" action="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-controller="autosearch" class="lp-metric-controls" data-metrics-form>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</twig:Ds:Label>
             <twig:Ds:Select id="metrics-metric" name="metric" data-action="change->autosearch#search">
                 {% for option in metrics %}
                     {# A template label and description are text that a person wrote, so they are rendered escaped. Never add |raw here. #}
@@ -54,98 +44,86 @@
                 </optgroup>
                 {% endif %}
             </twig:Ds:Select>
-            <label class="sr-only" for="metrics-unit">{{ 'analytics.metrics.form.unit'|trans }}</label>
-            <twig:Ds:Select id="metrics-unit" name="unit" data-action="change->autosearch#search">
-                {% for option in metric.units() %}
-                    <option value="{{ option.value }}"{{ option == query.unit ? ' selected' : '' }}>{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-            <label class="sr-only" for="metrics-statistic">{{ 'analytics.metrics.form.statistic'|trans }}</label>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-statistic">{{ 'analytics.metrics.form.statistic'|trans }}</twig:Ds:Label>
             <twig:Ds:Select id="metrics-statistic" name="statistic" data-action="change->autosearch#search">
                 {% for option in metric.statistics() %}
                     <option value="{{ option.value }}"{{ option == query.statistic ? ' selected' : '' }}>{{ ('analytics.metrics.statistic.' ~ option.value)|trans }}</option>
                 {% endfor %}
             </twig:Ds:Select>
-            <label class="sr-only" for="metrics-group">{{ 'analytics.metrics.form.group'|trans }}</label>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-unit">{{ 'analytics.metrics.form.unit'|trans }}</twig:Ds:Label>
+            <twig:Ds:Select id="metrics-unit" name="unit" data-action="change->autosearch#search">
+                {% for option in metric.units() %}
+                    <option value="{{ option.value }}"{{ option == query.unit ? ' selected' : '' }}>{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>
+                {% endfor %}
+            </twig:Ds:Select>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-group">{{ 'analytics.metrics.form.group'|trans }}</twig:Ds:Label>
             <twig:Ds:Select id="metrics-group" name="group" data-action="change->autosearch#search">
                 {% for option in metric.groups() %}
                     <option value="{{ option.value }}"{{ option == query.group ? ' selected' : '' }}>{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>
                 {% endfor %}
             </twig:Ds:Select>
-            <label class="sr-only" for="metrics-range">{{ 'analytics.metrics.form.range'|trans }}</label>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-range">{{ 'analytics.metrics.form.range'|trans }}</twig:Ds:Label>
             <twig:Ds:Select id="metrics-range" name="range" data-action="change->autosearch#search">
                 {% for option in ranges %}
                     <option value="{{ option.value }}"{{ option == query.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
                 {% endfor %}
             </twig:Ds:Select>
-            <label class="sr-only" for="metrics-bucket">{{ 'analytics.metrics.form.bucket'|trans }}</label>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-bucket">{{ 'analytics.metrics.form.bucket'|trans }}</twig:Ds:Label>
             <twig:Ds:Select id="metrics-bucket" name="bucket" data-action="change->autosearch#search">
                 {% for option in buckets %}
-                    <option value="{{ option.value }}"{{ option == query.bucket ? ' selected' : '' }}>{{ ('analytics.metrics.bucket.' ~ option.value)|trans }}</option>
+                    <option value="{{ option.value }}"{{ option == query.bucket ? ' selected' : '' }}{{ option in query.range.allowedBuckets() ? '' : ' disabled' }}>{{ ('analytics.metrics.bucket.' ~ option.value)|trans }}</option>
                 {% endfor %}
             </twig:Ds:Select>
-            <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
-        </twig:block>
-    </twig:Ds:FilterBar>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-compare">{{ 'analytics.metrics.form.compare'|trans }}</twig:Ds:Label>
+            <twig:Ds:Select id="metrics-compare" name="compare" data-action="change->autosearch#search">
+                {% for option in compares %}
+                    <option value="{{ option.value }}"{{ option == query.compare ? ' selected' : '' }}{{ option.value == 'previous' and query.range.length() is null ? ' disabled' : '' }}>{{ ('analytics.metrics.compare.' ~ option.value)|trans }}</option>
+                {% endfor %}
+            </twig:Ds:Select>
+        </div>
+        <div class="lp-metric-controls__field">
+            <twig:Ds:Label for="metrics-chart">{{ 'analytics.metrics.form.chart'|trans }}</twig:Ds:Label>
+            <twig:Ds:Select id="metrics-chart" name="chart" data-action="change->autosearch#search">
+                {% for option in chartTypes %}
+                    <option value="{{ option.value }}"{{ option == view.chart.type ? ' selected' : '' }}{{ view.locks[option.value] is null ? '' : ' disabled' }}>{{ ('analytics.metrics.chart_type.' ~ option.value|replace({'-': '_'}))|trans }}</option>
+                {% endfor %}
+            </twig:Ds:Select>
+        </div>
+        <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
+    </form>
 
-    {% if chart is null %}
+    {% if view.layout is null %}
     <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.metrics.empty.title'|trans" data-metrics-empty>
         <p>{{ 'analytics.metrics.empty.description'|trans }}</p>
     </twig:Ds:EmptyState>
     {% else %}
-    {% set labels = [] %}
-    {% for series in view.series %}
-        {% set labels = labels|merge([series.group is null ? (view.series|length > 1 ? 'analytics.metrics.series.none'|trans : metricName) : groupLabels[series.group] ?? series.group]) %}
-    {% endfor %}
+    {% set barsLock = view.locks['stacked-bars'] %}
+    {% if view.chart.fellBack %}
+    <twig:Ds:Flash severity="info" data-metrics-note="switched">{{ ('analytics.metrics.note.switched.' ~ view.chart.reason.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
+    {% elseif barsLock is not null %}
+    <twig:Ds:Flash severity="info" data-metrics-note="locked">{{ ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
+    {% endif %}
+    {% if query.compare.value == 'previous' and view.chart.type.value in ['bars', 'stacked-bars', 'percent-stacked', 'donut'] %}
+    <twig:Ds:Flash severity="info" data-metrics-note="previous-in-table">{{ 'analytics.metrics.note.previous_in_table'|trans }}</twig:Ds:Flash>
+    {% endif %}
 
-    <dl class="lp-metric-summary" data-metrics-summary>
-        {% for series in view.series %}
-        <div class="lp-metric-summary__figure" data-metrics-series="{{ series.group ?? 'none' }}">
-            {# A group name comes from the bridge, so it is rendered as text. Never add |raw here. #}
-            <dt class="lp-metric-summary__label">{{ labels[loop.index0] }}</dt>
-            <dd class="lp-metric-summary__value">{{ series.total.value|metric_value(metric, query.statistic) }}</dd>
-            <dd class="lp-metric-summary__rows">{{ rowsKey|trans({'%count%': series.rows|length}) }}</dd>
-        </div>
-        {% endfor %}
-    </dl>
-
-    {% set dayFormat = chart.longSpan ? 'M j, Y' : 'M j' %}
-    {% set plotLeft = constant('App\\Module\\Insights\\View\\MetricChart::PLOT_LEFT') %}
-    {% set plotRight = constant('App\\Module\\Insights\\View\\MetricChart::PLOT_RIGHT') %}
-    {% set plotTop = constant('App\\Module\\Insights\\View\\MetricChart::PLOT_TOP') %}
-    {% set baseline = constant('App\\Module\\Insights\\View\\MetricChart::BASELINE') %}
-    {% set height = constant('App\\Module\\Insights\\View\\MetricChart::HEIGHT') %}
-    <figure class="lp-metric-chart" data-metrics-chart>
-        {% if chart.hasLegend %}
-        <ul class="lp-metric-legend" data-metrics-legend>
-            {% for series in chart.series %}
-                <li class="lp-metric-legend__item"><span class="lp-metric-legend__swatch lp-metric-legend__swatch--{{ series.slot }}"></span>{{ labels[loop.index0] }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {# A chart drawn from data, not an icon. #}
-        {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-metric-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\MetricChart::WIDTH') }} {{ height }}" role="group" aria-label="{{ 'analytics.metrics.chart.label'|trans({'%statistic%': ('analytics.metrics.statistic.' ~ query.statistic.value)|trans, '%metric%': metricName, '%bucket%': ('analytics.metrics.bucket.' ~ query.bucket.value)|trans}) }}">
-            {% for tick in chart.yTicks %}
-                <line class="lp-metric-chart__grid" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
-                <text class="lp-metric-chart__tick" x="{{ plotLeft - 8 }}" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.value|metric_value(metric, query.statistic, chart.moneyDecimals) }}</text>
-            {% endfor %}
-            {% for tick in chart.xTicks %}
-                <text class="lp-metric-chart__tick" x="{{ tick.position }}" y="{{ height - 6 }}" text-anchor="middle">{{ tick.start|date(chart.bucket.value == 'month' ? (chart.longSpan ? 'M Y' : 'M') : dayFormat, 'UTC') }}</text>
-            {% endfor %}
-            {% for bucket in chart.buckets %}
-                {% set bucketLabel = chart.bucket.value == 'week' ? 'analytics.metrics.chart.week'|trans({'%date%': bucket.start|date(dayFormat, 'UTC')}) : bucket.start|date(chart.bucket.value == 'month' ? 'F Y' : dayFormat, 'UTC') %}
-                {% for bar in bucket.bars %}
-                    {% set barLabel = 'analytics.metrics.chart.bar'|trans({'%bucket%': bucketLabel, '%series%': labels[bar.series.position], '%value%': bar.point.value|metric_value(metric, query.statistic), '%rows%': rowsKey|trans({'%count%': bar.point.rows})}) %}
-                    <g class="lp-metric-chart__bar" role="img" tabindex="0" aria-label="{{ barLabel }}" data-metrics-bar="{{ bucket.start|date('Y-m-d', 'UTC') }}">
-                        <title>{{ barLabel }}</title>
-                        <rect class="lp-metric-chart__hit" x="{{ bar.x }}" y="{{ plotTop }}" width="{{ bar.width }}" height="{{ baseline - plotTop }}" />
-                        {% if bar.path %}<path class="lp-metric-chart__bar-shape lp-metric-chart__bar-shape--{{ bar.series.slot }}" d="{{ bar.path }}" />{% endif %}
-                    </g>
-                {% endfor %}
-            {% endfor %}
-            <line class="lp-metric-chart__baseline" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ baseline }}" y2="{{ baseline }}" />
-        </svg>
-    </figure>
+    <twig:Ds:Panel as="section" class="lp-metric-graph" data-metrics-chart>
+        {# The title holds a template label or a bucket name that a person wrote, so it is rendered escaped. Never add |raw here. #}
+        <h2 class="lp-metric-table__title" data-metrics-title>{{ view.title }}</h2>
+        <twig:Ds:Chart :layout="view.layout" :labels="view.labels" :label="view.title" :valueLabel="('analytics.metrics.statistic.' ~ query.statistic.value)|trans" :changeLabel="'analytics.metrics.table.vs_previous'|trans" id="metrics-graph" />
+    </twig:Ds:Panel>
     {% endif %}
 </twig:Ds:Workspace>
 {% endblock %}

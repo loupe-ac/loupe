@@ -7578,95 +7578,15 @@
     .lp-reports-proposal__dismiss {
         @apply flex flex-wrap items-center gap-2;
     }
-    .lp-metric-summary {
-        @apply grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 mb-0;
+    /* The controls of the Metrics page: a labelled field each, in one grid. */
+    .lp-metric-controls {
+        @apply mt-6 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4;
     }
-    .lp-metric-summary__figure {
-        @apply rounded-xl bg-surface-2 py-3 px-4;
+    .lp-metric-controls__field {
+        @apply flex min-w-0 flex-col gap-1;
     }
-    .lp-metric-summary__label {
-        @apply text-xs text-fg-label truncate;
-    }
-    .lp-metric-summary__value {
-        @apply m-0 mt-1 font-display text-2xl font-bold text-ink;
-    }
-    .lp-metric-summary__rows {
-        @apply m-0 mt-0.5 text-xs text-fg-dim;
-    }
-    .lp-metric-chart {
-        @apply m-0 mt-4 rounded-xl border border-line bg-surface-1 p-4;
-    }
-    .lp-metric-legend {
-        @apply flex flex-wrap items-center gap-x-4 gap-y-1 m-0 mb-3 p-0 list-none text-xs text-fg-mute;
-    }
-    .lp-metric-legend__item {
-        @apply inline-flex items-center gap-1.5;
-    }
-    .lp-metric-legend__swatch {
-        @apply inline-block w-3 h-3 rounded-sm;
-    }
-    .lp-metric-chart__svg {
-        @apply block w-full h-auto overflow-visible;
-    }
-    .lp-metric-chart__grid {
-        @apply stroke-line-faint stroke-1;
-    }
-    .lp-metric-chart__baseline {
-        @apply stroke-line-strong stroke-1;
-    }
-    .lp-metric-chart__tick {
-        @apply fill-fg-dim text-xs tabular-nums;
-    }
-    /* Each bar takes the keyboard focus, so its label reads without a pointer. */
-    .lp-metric-chart__bar {
-        @apply outline-none;
-    }
-    /* As tall as the plot, so a short or zero bar still shows its focus ring. */
-    .lp-metric-chart__hit {
-        @apply fill-transparent;
-    }
-    .lp-metric-chart__bar:focus-visible .lp-metric-chart__hit {
-        @apply stroke-accent-ink stroke-2;
-    }
-    .lp-metric-chart__bar:hover .lp-metric-chart__bar-shape,
-    .lp-metric-chart__bar:focus-visible .lp-metric-chart__bar-shape {
-        @apply opacity-80;
-    }
-    .lp-metric-chart__bar-shape--0,
-    .lp-metric-legend__swatch--0 {
-        @apply fill-chart-other bg-chart-other;
-    }
-    .lp-metric-chart__bar-shape--1,
-    .lp-metric-legend__swatch--1 {
-        @apply fill-chart-1 bg-chart-1;
-    }
-    .lp-metric-chart__bar-shape--2,
-    .lp-metric-legend__swatch--2 {
-        @apply fill-chart-2 bg-chart-2;
-    }
-    .lp-metric-chart__bar-shape--3,
-    .lp-metric-legend__swatch--3 {
-        @apply fill-chart-3 bg-chart-3;
-    }
-    .lp-metric-chart__bar-shape--4,
-    .lp-metric-legend__swatch--4 {
-        @apply fill-chart-4 bg-chart-4;
-    }
-    .lp-metric-chart__bar-shape--5,
-    .lp-metric-legend__swatch--5 {
-        @apply fill-chart-5 bg-chart-5;
-    }
-    .lp-metric-chart__bar-shape--6,
-    .lp-metric-legend__swatch--6 {
-        @apply fill-chart-6 bg-chart-6;
-    }
-    .lp-metric-chart__bar-shape--7,
-    .lp-metric-legend__swatch--7 {
-        @apply fill-chart-7 bg-chart-7;
-    }
-    .lp-metric-chart__bar-shape--8,
-    .lp-metric-legend__swatch--8 {
-        @apply fill-chart-8 bg-chart-8;
+    .lp-metric-graph {
+        @apply mt-4 flex flex-col gap-4;
     }
     .lp-metric-table {
         @apply mt-4 flex flex-col gap-4;
