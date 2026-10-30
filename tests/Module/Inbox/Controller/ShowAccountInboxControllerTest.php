@@ -161,7 +161,7 @@ final class ShowAccountInboxControllerTest extends WebTestCase
     {
         $owner = $this->signedUpUser($this->em, 'account-inbox-loose');
         $project = $this->inboxProject($this->em, $owner);
-        $done = $this->answered($this->em, $this->question($this->em, $project, 1), InboxItemState::Done);
+        $done = $this->answered($this->em, $this->question($this->em, $project, 1), InboxItemState::Resolved);
         $leftOpen = $this->todo($this->em, $project, 2, 'Review pull request 482');
         $this->askHolding($this->em, $project, [$done, $leftOpen], closedAt: new \DateTimeImmutable('-1 hour'));
         $this->setInboxFlag(true);

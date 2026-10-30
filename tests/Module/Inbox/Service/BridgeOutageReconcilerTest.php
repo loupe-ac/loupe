@@ -10,6 +10,8 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxBridgeOutage;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -217,8 +219,9 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         $outage = $this->onlyOutage();
         $item = $outage->item;
-        self::assertSame(InboxItemState::Done, $item->state);
-        self::assertSame('No bridge could take work from '.self::stamp('2026-10-16 11:49:00').' to '.self::stamp(self::NOW).'. 1 card waited.', $item->closeNote);
+        self::assertSame(InboxItemState::Resolved, $item->state);
+        self::assertNull($item->note);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$item->closedBy, $item->closeCause]);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $outage->endedAt);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $item->closedAt);
         self::assertSame([], $this->openOutages());
@@ -233,7 +236,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(InboxItemState::Done, $this->onlyOutage()->item->state);
+        self::assertSame(InboxItemState::Resolved, $this->onlyOutage()->item->state);
     }
 
     public function test_the_notice_closes_done_when_the_only_bridge_that_can_take_the_work_is_paused(): void
@@ -245,7 +248,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(InboxItemState::Done, $this->onlyOutage()->item->state);
+        self::assertSame(InboxItemState::Resolved, $this->onlyOutage()->item->state);
     }
 
     public function test_the_notice_closes_obsolete_when_the_waiting_work_ended_with_no_bridge_back(): void
@@ -258,8 +261,9 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $outage = $this->onlyOutage();
-        self::assertSame(InboxItemState::Obsolete, $outage->item->state);
-        self::assertNull($outage->item->closeNote);
+        self::assertSame(InboxItemState::Cancelled, $outage->item->state);
+        self::assertNull($outage->item->note);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$outage->item->closedBy, $outage->item->closeCause]);
         self::assertEquals(new \DateTimeImmutable(self::NOW), $outage->endedAt);
     }
 
@@ -271,7 +275,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(InboxItemState::Obsolete, $this->onlyOutage()->item->state);
+        self::assertSame(InboxItemState::Cancelled, $this->onlyOutage()->item->state);
         self::assertSame(1, $this->itemCount());
     }
 
@@ -312,7 +316,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $this->waitingRequest($this->card, '2026-10-16 11:49:00');
         $this->reconciler->reconcile($this->project);
         $first = $this->onlyOutage();
-        $first->item->state = InboxItemState::Obsolete;
+        $first->item->state = InboxItemState::Cancelled;
         $this->em->flush();
 
         $this->reconciler->reconcile($this->project);
@@ -405,11 +409,6 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
             "SELECT COUNT(*) FROM inbox_items WHERE project_id = :project AND search_vector @@ websearch_to_tsquery('english', :query)",
             ['project' => (string) $this->project->id, 'query' => $query],
         );
-    }
-
-    private static function stamp(string $moment): string
-    {
-        return new \DateTimeImmutable($moment)->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i').' UTC';
     }
 
     private function repository(): InboxBridgeOutageRepository

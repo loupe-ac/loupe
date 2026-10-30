@@ -13,6 +13,8 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -221,7 +223,9 @@ final class ShowInboxControllerTest extends WebTestCase
         $owner = $this->signedUpUser($this->em, 'inbox-live-closed');
         $project = $this->inboxProject($this->em, $owner);
         $item = $this->question($this->em, $project, 1);
-        $item->state = InboxItemState::Withdrawn;
+        $item->state = InboxItemState::Cancelled;
+        $item->closedBy = InboxCloser::Agent;
+        $item->closeCause = InboxCloseCause::Withdrawn;
         $ask = $this->askHolding($this->em, $project, [$item], closedAt: new \DateTimeImmutable('-1 minute'));
         $this->setInboxFlag(true);
         $uri = '/projects/'.$project->id.'/inbox?ask='.$ask->id;
@@ -245,11 +249,13 @@ final class ShowInboxControllerTest extends WebTestCase
         $owner = $this->signedUpUser($this->em, 'inbox-live-closing');
         $project = $this->inboxProject($this->em, $owner);
         $earlier = $this->answered($this->em, $this->question($this->em, $project, 1));
-        $earlier->closeNote = 'An earlier note.';
+        $earlier->note = 'An earlier note.';
         $closing = $this->question($this->em, $project, 2);
-        $closing->state = InboxItemState::Withdrawn;
+        $closing->state = InboxItemState::Cancelled;
+        $closing->closedBy = InboxCloser::Agent;
+        $closing->closeCause = InboxCloseCause::Withdrawn;
         $closing->closedAt = new \DateTimeImmutable('-1 minute');
-        $closing->closeNote = 'The plan changed.';
+        $closing->note = 'The plan changed.';
         $ask = $this->askHolding($this->em, $project, [$earlier, $closing], closedAt: new \DateTimeImmutable('-1 minute'));
         $this->setInboxFlag(true);
 
@@ -684,7 +690,7 @@ final class ShowInboxControllerTest extends WebTestCase
 
         $closed = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
         self::assertSame('question', $closed->filter('a.lp-list-row[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-kind]')->attr('data-inbox-kind'));
-        self::assertSame('Answered', $closed->filter('a.lp-list-row[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
+        self::assertSame('Answered by you', $closed->filter('a.lp-list-row[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
     }
 
     public function test_a_closed_ask_reads_its_outcome_from_the_blocking_item_that_closed_it(): void
@@ -703,7 +709,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
 
-        self::assertSame('Declined', $crawler->filter('a.lp-list-row[data-inbox-request="'.$ask->id.'"] [data-inbox-outcome]')->text());
+        self::assertSame('Dismissed by you', $crawler->filter('a.lp-list-row[data-inbox-request="'.$ask->id.'"] [data-inbox-outcome]')->text());
     }
 
     public function test_the_type_filter_keeps_an_ask_when_any_item_has_the_kind(): void
@@ -892,8 +898,9 @@ final class ShowInboxControllerTest extends WebTestCase
         $owner = $this->signedUpUser($this->em, 'inbox-zero');
         $project = $this->inboxProject($this->em, $owner);
         $item = $this->question($this->em, $project, 1, [], freeText: true);
-        $item->state = InboxItemState::Answered;
-        $item->answerText = '0';
+        $item->state = InboxItemState::Resolved;
+        $item->closedBy = InboxCloser::Owner;
+        $item->note = '0';
         $this->em->flush();
         $this->askHolding($this->em, $project, [$item]);
         $this->setInboxFlag(true);
@@ -975,7 +982,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('2 asks match', $crawler->filter('.lp-filter-count')->text());
         // The open item no ask holds is a row of its own, and the closed ask shows how it ended.
         self::assertCount(1, $rows->filter('[href$="item='.$open->number.'"]'));
-        self::assertSame('Answered', $rows->filter('[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
+        self::assertSame('Answered by you', $rows->filter('[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
         self::assertCount(0, $crawler->filter('[data-inbox-request="item-3"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-section="open-asks"], [data-inbox-section="closed-asks"]'));
         self::assertCount(0, $crawler->filter('.lp-tabs__tab[aria-current]'));

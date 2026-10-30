@@ -283,7 +283,7 @@ test('the owner answers a question and declines a to-do', async ({
         page.locator('[data-inbox-queue-empty="open-asks"]'),
     ).toBeVisible();
     await page.getByRole('link', { name: 'View it' }).click();
-    await expect(todo).toContainText('Closed');
+    await expect(todo).toContainText('Dismissed by you');
     await expect(sidebarPill).toHaveCount(0);
 
     const recovery = question.locator('[data-inbox-draft-kind="answer"]');

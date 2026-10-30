@@ -19,6 +19,8 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -186,7 +188,8 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconcile();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Done, $watch->item->state);
+        self::assertSame(InboxItemState::Resolved, $watch->item->state);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::CauseEnded], [$watch->item->closedBy, $watch->item->closeCause]);
         self::assertNotNull($watch->closedAt);
         self::assertSame([], $this->openWaits($watch));
         foreach ($watch->waits as $wait) {
@@ -241,8 +244,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconcile();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
+        self::assertSame(InboxItemState::Cancelled, $watch->item->state);
         self::assertSame(InboxCardWaitEndReason::CardFinished, $this->onlyWait($watch)->endReason);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::CardFinished], [$watch->item->closedBy, $watch->item->closeCause]);
     }
 
     public function test_an_empty_set_closes_the_open_waits(): void
@@ -254,7 +258,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         $this->reconcile();
 
-        self::assertSame(InboxItemState::Done, $this->onlyWatch()->item->state);
+        self::assertSame(InboxItemState::Resolved, $this->onlyWatch()->item->state);
     }
 
     public function test_a_card_in_a_terminal_column_closes_the_item_obsolete(): void
@@ -267,7 +271,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconcile();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
+        self::assertSame(InboxItemState::Cancelled, $watch->item->state);
         self::assertNotNull($watch->closedAt);
         self::assertSame(InboxCardWaitEndReason::CardFinished, $this->onlyWait($watch)->endReason);
         self::assertNotNull($this->onlyAskHolding($watch->item)->closedAt);
@@ -289,9 +293,10 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($project, [(string) $cardId]);
 
         $watch = $this->onlyWatch($cardId);
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
+        self::assertSame(InboxItemState::Cancelled, $watch->item->state);
         self::assertNotNull($watch->closedAt);
         self::assertSame(InboxCardWaitEndReason::CardDeleted, $this->onlyWait($watch)->endReason);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::CardDeleted], [$watch->item->closedBy, $watch->item->closeCause]);
     }
 
     public function test_switching_the_inbox_off_closes_the_item_obsolete(): void
@@ -303,8 +308,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconcile();
 
         $watch = $this->onlyWatch();
-        self::assertSame(InboxItemState::Obsolete, $watch->item->state);
+        self::assertSame(InboxItemState::Cancelled, $watch->item->state);
         self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($watch)->endReason);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::SwitchedOff], [$watch->item->closedBy, $watch->item->closeCause]);
     }
 
     public function test_a_dismissed_key_never_reopens_and_a_new_head_opens_a_new_item(): void
@@ -340,7 +346,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->storeInbox($this->em, $this->card, $this->pullRequestEntry($this->pullRequest(5), self::HEAD_A));
         $this->reconcile();
         $closed = $this->onlyWatch();
-        $closed->item->state = InboxItemState::Obsolete;
+        $closed->item->state = InboxItemState::Cancelled;
         $closed->item->closedAt = new \DateTimeImmutable();
         $this->em->flush();
 
@@ -498,7 +504,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->reconcile();
 
         $item = $this->onlyWatch()->item;
-        self::assertSame(InboxItemState::Done, $item->state);
+        self::assertSame(InboxItemState::Resolved, $item->state);
         self::assertSame(InboxItemKind::Review, $item->kind);
     }
 
@@ -570,7 +576,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         $this->reconciler->reconcile($this->project, null);
 
-        self::assertSame(InboxItemState::Done, $this->onlyWatch()->item->state);
+        self::assertSame(InboxItemState::Resolved, $this->onlyWatch()->item->state);
         self::assertSame(InboxItemState::Open, $this->onlyWatch($second->id)->item->state);
     }
 

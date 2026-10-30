@@ -20,7 +20,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type InboxItemListSummary from InboxItemPayload
  */
-#[McpTool(name: self::NAME, description: 'Withdraw an open inbox item you no longer need answered, for example because the pull request of a review to-do merged. Pass the reason: the owner reads it in the item\'s closeNote. The item closes with the state withdrawn. Only an open item can be withdrawn, and a closed item is refused. The response is the item\'s summary.')]
+#[McpTool(name: self::NAME, description: 'Withdraw an open inbox item you no longer need answered, for example because the pull request of a review to-do merged. Pass the reason: the owner reads it in the item\'s note. The item closes with the state cancelled, closed by the agent with the cause withdrawn. Only an open item can be withdrawn, and a closed item is refused. The response is the item\'s summary.')]
 final readonly class InboxWithdrawTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_withdraw';

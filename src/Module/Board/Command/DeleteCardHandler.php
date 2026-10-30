@@ -9,6 +9,7 @@ use App\Module\Board\Event\BoardColumnsChanged;
 use App\Module\Board\Event\CardBlockersChanged;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Event\CardDeleted;
+use App\Module\Board\Event\CardDeleting;
 use App\Module\Board\Event\CardParentChanged;
 use App\Module\Board\Event\CardPullRequestsChanged;
 use App\Module\Board\Repository\CardRepository;
@@ -104,6 +105,7 @@ final readonly class DeleteCardHandler
             $trackedBefore = $this->pullRequestTracking->referencesOf($card);
             $deletedCardId = $card->id ?? throw new \LogicException('A persisted card has an id.');
             $deletedProjectId = $card->project->id ?? throw new \LogicException('A persisted project has an id.');
+            $this->events->dispatch(new CardDeleting($card));
             $this->em->remove($card);
             $this->em->flush();
             $this->events->dispatch(new CardDeleted($deletedProjectId, $deletedCardId));

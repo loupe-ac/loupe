@@ -82,7 +82,7 @@ final class InboxSearchToolTest extends KernelTestCase
         $result = ($this->tool)('mailpit');
 
         self::assertSame(1, $result['total']);
-        self::assertSame('withdrawn', $result['items'][0]['state']);
+        self::assertSame('cancelled', $result['items'][0]['state']);
     }
 
     public function test_each_row_names_the_cards_its_item_links(): void

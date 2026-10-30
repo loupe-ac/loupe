@@ -33,7 +33,6 @@ final readonly class InboxReviewExporter implements UserDataExporterInterface
                 'documentId' => $review->document?->id?->toRfc4122(),
                 'pullRequestId' => $review->pullRequest?->id?->toRfc4122(),
                 'verdict' => $review->verdict?->value,
-                'note' => $review->note,
                 'submittedAt' => $review->submittedAt?->format(\DateTimeInterface::ATOM),
                 'reviewerId' => $review->reviewer?->id?->toRfc4122(),
                 'reviewedVersionNumber' => $review->reviewedVersionNumber,

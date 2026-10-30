@@ -45,15 +45,20 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: Types::JSON)]
     public array $selectedOptions = [];
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $answerText = null;
+    #[ORM\Column(length: 30, nullable: true, enumType: InboxCloser::class)]
+    public ?InboxCloser $closedBy = null;
 
-    /** A withdraw reason or a decline note. */
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $closeNote = null;
+    /** Null for a response of the owner, because the response says how the item ended. */
+    #[ORM\Column(length: 30, nullable: true, enumType: InboxCloseCause::class)]
+    public ?InboxCloseCause $closeCause = null;
 
-    #[ORM\Column(options: ['default' => false])]
-    public bool $respondedThroughAgent = false;
+    /** The words of whoever closed the item: the note of the owner, or the reason of an agent. */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $note = null;
+
+    /** Whether the owner may dismiss the item. Loupe never offers it on a notice or a workflow question. */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $dismissible;
 
     /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}>|null what the asking agent suggests, in the order it sent. A row stored before run-command lacks the command keys, and one stored before the prompt lacks prompt. */
     #[ORM\Column(type: Types::JSON, nullable: true)]
@@ -130,6 +135,7 @@ class InboxItem implements ProjectScopedSubject
         $this->cards = new ArrayCollection();
         $this->documents = new ArrayCollection();
         $this->updatedAt = $this->createdAt;
+        $this->dismissible = !\in_array($kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true);
     }
 
     /** Loupe opened it for a waiting card, as opposed to an agent's ask or a notice. */

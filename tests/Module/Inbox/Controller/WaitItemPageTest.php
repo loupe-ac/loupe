@@ -108,15 +108,15 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-inbox-linked-menu] [data-linked-card="'.$this->card->id.'"]'));
     }
 
-    /** @return iterable<string, array{string}> */
+    /** @return iterable<string, array{string, string}> */
     public static function loupeCloses(): iterable
     {
-        yield 'done, after a verdict' => ['approve'];
-        yield 'obsolete, after the card finished' => ['finish'];
+        yield 'done, after a verdict' => ['approve', 'Resolved by Loupe'];
+        yield 'obsolete, after the card finished' => ['finish', 'Cancelled by Loupe: the card finished'];
     }
 
     #[DataProvider('loupeCloses')]
-    public function test_an_item_loupe_closed_says_so_and_refuses_a_dismissal(string $cause): void
+    public function test_an_item_loupe_closed_says_so_and_refuses_a_dismissal(string $cause, string $label): void
     {
         $this->reconcile();
         if ('approve' === $cause) {
@@ -127,12 +127,12 @@ final class WaitItemPageTest extends WebTestCase
         $this->em->flush();
         $this->reconcile();
         $item = $this->onlyWatch()->item;
-        self::assertSame('approve' === $cause ? InboxItemState::Done : InboxItemState::Obsolete, $item->state);
+        self::assertSame('approve' === $cause ? InboxItemState::Resolved : InboxItemState::Cancelled, $item->state);
 
         $this->client->request(Request::METHOD_GET, $this->pageUrl().'?queue=completed');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-editable]', 'Loupe closed this item, so it takes no response.');
+        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-editable]', $label);
         self::assertSelectorTextNotContains('#inbox-item-1', 'The agent closed');
 
         $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/decline';

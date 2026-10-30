@@ -26,7 +26,7 @@ final class InboxWorkshopAttentionProviderTest extends KernelTestCase
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $project = $this->project($em, $this->owner($em, 'workshop-attention'), 'workshop-attention');
-        $this->item($em, $project, 1, 'Closed')->state = InboxItemState::Done;
+        $this->item($em, $project, 1, 'Closed')->state = InboxItemState::Resolved;
         $wait = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: 'Waits for your review', blocking: true, origin: InboxAskOrigin::Loupe);
         $em->persist($wait);
         $em->persist(new InboxItemCard($wait, $this->card($em, $project, 4)));

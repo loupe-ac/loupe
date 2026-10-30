@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -46,7 +47,7 @@ final readonly class AnswerInboxItemHandler
 
         // Checked inside the lock, against the options as stored: an agent may
         // change the question after the page loaded it.
-        $this->closer->respond($item, InboxItemState::Answered, 'selectedOptions', function (InboxItem $item) use ($command, $text): ?array {
+        $this->closer->respond($item, InboxItemState::Resolved, $command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner, null, 'selectedOptions', function (InboxItem $item) use ($command, $text): ?array {
             $selected = self::parseIndexes($command->selectedOptions, \count($item->options));
             if (null === $selected) {
                 return ['selectedOptions' => self::UNKNOWN_OPTION];
@@ -62,9 +63,7 @@ final readonly class AnswerInboxItemHandler
             }
 
             $item->selectedOptions = $selected;
-            $item->answerText = '' === $text ? null : $text;
-            $item->closeNote = null;
-            $item->respondedThroughAgent = $command->throughAgent;
+            $item->note = '' === $text ? null : $text;
             if (InboxItemKind::Workflow === $item->kind) {
                 $this->bus->dispatch(new RunRuleAskAnswer((string) $item->id, $selected[0]));
             }
@@ -79,7 +78,7 @@ final readonly class AnswerInboxItemHandler
                 'itemId' => (string) $item->id,
                 'projectId' => (string) $item->project->id,
                 'optionCount' => \count($item->selectedOptions),
-                'hasText' => null !== $item->answerText,
+                'hasText' => null !== $item->note,
             ],
             new AuditSubject('inbox_item', (string) $item->id),
         );

@@ -222,7 +222,7 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseRedirects();
         $stored = $this->reload($item);
-        self::assertSame([InboxItemState::Declined, 'Not now'], [$stored->state, $stored->closeNote]);
+        self::assertSame([InboxItemState::Declined, 'Not now'], [$stored->state, $stored->note]);
     }
 
     public function test_the_menu_dismiss_posts_to_the_decline_route_and_ignores_the_note(): void

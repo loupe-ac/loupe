@@ -230,7 +230,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         $this->post($item, 'answer', ['selectedOptions' => '1'], $this->cardQuery());
 
         self::assertResponseRedirects($this->cardUrl().'?tab=conversation');
-        self::assertSame(InboxItemState::Answered, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Resolved, $this->reload($item)->state);
         $this->client->followRedirect();
         self::assertSelectorTextContains('.lp-flash', 'Item 4 is answered.');
     }
@@ -274,7 +274,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         $this->post($item, 'answer', ['selectedOptions' => '0'], ['returnTo' => 'document', 'returnId' => (string) $this->document->id, 'returnVersion' => '99']);
 
         self::assertResponseRedirects($this->documentUrl());
-        self::assertSame(InboxItemState::Answered, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Resolved, $this->reload($item)->state);
     }
 
     public function test_a_refused_change_to_a_final_answer_shows_on_the_card_page(): void

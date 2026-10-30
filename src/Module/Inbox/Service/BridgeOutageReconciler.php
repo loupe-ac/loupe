@@ -13,11 +13,12 @@ use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxBridgeOutage;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
@@ -267,19 +268,8 @@ final readonly class BridgeOutageReconciler
         $cardIds = array_values(array_map(static fn (InboxItemCard $link): string => ($link->card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122(), $item->cards->toArray()));
         $recovered = $enabled && [] !== $this->workRequests->findLiveRowsForCards($cardIds);
 
-        $note = $recovered ? $this->translator->trans('inbox.bridge_outage.closed', [
-            '%start%' => self::stamp($outage->startedAt),
-            '%end%' => self::stamp($now),
-            '%count%' => \count($cardIds),
-        ], null, $this->locale) : null;
-
-        $this->closer->close($item, $recovered ? InboxItemState::Done : InboxItemState::Obsolete, $note, $now, InboxEventType::ACTOR_AGENT);
+        $this->closer->close($item, $recovered ? InboxItemState::Resolved : InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded, null, $now);
         $outage->endedAt = $now;
-    }
-
-    private static function stamp(\DateTimeImmutable $moment): string
-    {
-        return $moment->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i').' UTC';
     }
 
     /** Whole seconds, like the stored columns. */

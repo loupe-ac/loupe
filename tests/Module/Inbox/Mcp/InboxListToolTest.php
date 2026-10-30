@@ -116,7 +116,7 @@ final class InboxListToolTest extends KernelTestCase
         self::assertInstanceOf(InboxWithdrawTool::class, $withdraw);
         $withdraw($withdrawn['items'][0]['itemId'], 'Settled');
 
-        self::assertSame(['Withdrawn'], array_column(($this->tool)(state: 'withdrawn')['items'], 'title'));
+        self::assertSame(['Withdrawn'], array_column(($this->tool)(state: 'cancelled')['items'], 'title'));
         self::assertSame(['Linked'], array_column(($this->tool)(state: 'open')['items'], 'title'));
         self::assertSame(['Linked'], array_column(($this->tool)(askId: $linked['askId'])['items'], 'title'));
         self::assertSame(['Linked'], array_column(($this->tool)(sessionId: $sessionId)['items'], 'title'));
@@ -149,7 +149,7 @@ final class InboxListToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('inbox-list-state'));
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Unknown state "closed". Use one of: open, answered, done, declined, withdrawn, obsolete.');
+        $this->expectExceptionMessage('Unknown state "closed". Use one of: open, resolved, declined, cancelled.');
         ($this->tool)(state: 'closed');
     }
 }

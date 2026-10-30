@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Mcp\InboxDoneTool;
 use App\Tests\Support\McpTokenScenario;
@@ -53,10 +54,10 @@ final class InboxDoneToolTest extends KernelTestCase
 
         $result = ($this->tool)($todo['itemId']);
 
-        self::assertSame('done', $result['state']);
+        self::assertSame('resolved', $result['state']);
         $item = $this->stored($todo['itemId']);
-        self::assertSame(InboxItemState::Done, $item->state);
-        self::assertTrue($item->respondedThroughAgent);
+        self::assertSame(InboxItemState::Resolved, $item->state);
+        self::assertSame([InboxCloser::OwnerThroughAgent, null], [$item->closedBy, $item->closeCause]);
     }
 
     public function test_a_second_done_is_refused_once_the_ask_closed(): void

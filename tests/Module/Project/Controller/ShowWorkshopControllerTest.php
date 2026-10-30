@@ -283,7 +283,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
             $em->persist(new InboxItem($project, $number, InboxItemKind::Question, 'Request '.$number, 1 === $number, origin: InboxAskOrigin::Agent));
         }
         $closed = new InboxItem($project, 9, InboxItemKind::Todo, 'Closed request', false, origin: InboxAskOrigin::Agent);
-        $closed->state = InboxItemState::Done;
+        $closed->state = InboxItemState::Resolved;
         $em->persist($closed);
         $em->persist(new InboxItem($foreign, 10, InboxItemKind::Question, 'Foreign request', true, origin: InboxAskOrigin::Agent));
         $em->flush();

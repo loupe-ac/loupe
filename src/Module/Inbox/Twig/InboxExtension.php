@@ -34,6 +34,7 @@ use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxRepositoryMisfitRepository;
 use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\InboxActionStatuses;
+use App\Module\Inbox\Service\InboxOutcome;
 use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\InboxReviewTarget;
 use App\Module\Inbox\Service\InboxThreadActionBuilder;
@@ -78,6 +79,7 @@ final class InboxExtension extends AbstractExtension
         private readonly InboxActionRepository $inboxActions,
         private readonly ShowInboxOpenTotalHandler $openTotal,
         private readonly InboxRepositoryMisfitRepository $inboxRepositoryMisfits,
+        private readonly InboxOutcome $outcome,
     ) {
     }
 
@@ -93,6 +95,7 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_actions', $this->actions(...)),
             new TwigFunction('inbox_action_statuses', $this->actionStatusLines(...)),
             new TwigFunction('inbox_review', $this->review(...)),
+            new TwigFunction('inbox_outcome', $this->outcome->forItem(...)),
             new TwigFunction('inbox_review_target', $this->reviewTargetLine(...)),
             new TwigFunction('inbox_card_watch', $this->cardWatch(...)),
             new TwigFunction('inbox_repository_misfit', $this->repositoryMisfit(...)),
@@ -168,7 +171,7 @@ final class InboxExtension extends AbstractExtension
         $selected = implode(',', $item->selectedOptions);
 
         return $this->formFactory
-            ->createNamed($name, AnswerInboxItemFormType::class, new AnswerInboxItemRequest($selected, $item->answerText))
+            ->createNamed($name, AnswerInboxItemFormType::class, new AnswerInboxItemRequest($selected, InboxItemState::Resolved === $item->state ? $item->note : null))
             ->createView();
     }
 
@@ -276,7 +279,7 @@ final class InboxExtension extends AbstractExtension
         }
 
         return $this->formFactory
-            ->createNamed($name, DeclineInboxItemFormType::class, new DeclineInboxItemRequest($item->closeNote))
+            ->createNamed($name, DeclineInboxItemFormType::class, new DeclineInboxItemRequest(InboxItemState::Declined === $item->state ? $item->note : null))
             ->createView();
     }
 

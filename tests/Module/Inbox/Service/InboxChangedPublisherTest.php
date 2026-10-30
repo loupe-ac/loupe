@@ -207,7 +207,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
 
         $this->move($card, 'done');
 
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
         $this->assertPublishedAtTerminate(1);
         $this->assertSignalsTheProject($this->published[0]);
     }
@@ -221,7 +221,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
 
         $this->service(DeleteBoardColumnHandler::class)(new DeleteBoardColumnCommand($this->column($this->project, 'in-progress'), Actor::Human, $this->column($this->project, 'done')));
 
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
         $this->assertPublishedAtTerminate(1);
     }
 

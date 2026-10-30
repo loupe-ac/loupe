@@ -71,7 +71,7 @@ final class WaitingAskFactProviderTest extends KernelTestCase
         $closed->closedAt = new \DateTimeImmutable('2026-10-18 15:00:00');
         $answered = $this->askOfStoppedSession(WorkerRunState::Blocked);
         $link = $answered->items->first() ?: throw new \LogicException('The ask holds an item.');
-        $link->item->state = InboxItemState::Answered;
+        $link->item->state = InboxItemState::Resolved;
         $this->askOfStoppedSession(WorkerRunState::Blocked, blocking: false);
         $this->em()->flush();
 
