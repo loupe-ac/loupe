@@ -15,6 +15,7 @@ use App\Module\Workflow\Service\WorkflowRowCleaner;
 use App\Tests\Support\FeatureFlags;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -36,6 +37,25 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         $this->handler()(new EvaluateCard($card->toRfc4122()));
         $trigger->forCards([$card]);
 
+        self::assertCount(2, $this->transport()->getSent());
+    }
+
+    public function test_a_trigger_while_an_evaluation_runs_queues_one_more_evaluation(): void
+    {
+        $card = Uuid::v7();
+        $trigger = $this->trigger(true);
+        $trigger->forCards([$card]);
+        self::assertCount(1, $this->transport()->getSent());
+
+        $handler = new EvaluateCardHandler(
+            new EvaluateWorkflowCardHandler($this->service(Engine::class), $this->clockThatTriggers(static fn () => $trigger->forCards([$card]))),
+            $this->service(WorkflowQueuedEvaluationRepository::class),
+        );
+        $handler(new EvaluateCard($card->toRfc4122()));
+
+        self::assertCount(2, $this->transport()->getSent());
+        self::assertSame(1, $this->rows($card));
+        $trigger->forCards([$card]);
         self::assertCount(2, $this->transport()->getSent());
     }
 
@@ -135,5 +155,23 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         self::assertInstanceOf($class, $service);
 
         return $service;
+    }
+
+    /** The evaluation reads the clock after the handler released the row and before the engine runs. */
+    private function clockThatTriggers(\Closure $onNow): ClockInterface
+    {
+        return new readonly class($onNow) implements ClockInterface {
+            public function __construct(
+                private \Closure $onNow,
+            ) {
+            }
+
+            public function now(): \DateTimeImmutable
+            {
+                ($this->onNow)();
+
+                return new \DateTimeImmutable('2026-10-30 12:00:00');
+            }
+        };
     }
 }
