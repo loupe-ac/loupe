@@ -155,7 +155,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         $bus = self::getContainer()->get(MessageBusInterface::class);
         self::assertInstanceOf(MessageBusInterface::class, $bus);
         $transports = [];
-        foreach (['card_eval', 'jobs'] as $name) {
+        foreach (['interactive', 'card_eval', 'jobs'] as $name) {
             $transport = self::getContainer()->get('messenger.transport.'.$name);
             self::assertInstanceOf(InMemoryTransport::class, $transport);
             $transports[$name] = $transport;

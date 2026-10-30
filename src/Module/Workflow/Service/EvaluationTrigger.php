@@ -29,6 +29,15 @@ final readonly class EvaluationTrigger implements CardEvaluations
         }
     }
 
+    /** @param list<string|Uuid> $cardIds */
+    #[\Override]
+    public function forPersonWaiting(array $cardIds): void
+    {
+        foreach ($this->unique($cardIds) as $cardId) {
+            $this->bus->dispatch(new EvaluateCard($cardId, personWaiting: true), [new TransportNamesStamp([self::INTERACTIVE_TRANSPORT])]);
+        }
+    }
+
     /**
      * Queues each evaluation on the low-priority transport, which the worker reads only when the other transports are empty.
      *

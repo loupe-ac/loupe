@@ -210,10 +210,36 @@ final class EvaluationListenersTest extends KernelTestCase
         new EvaluateCardsOnDocumentStatusChanged($this->service(CardDocumentRepository::class), $this->service(CardRepository::class), $this->trigger())(new DocumentStatusChanged($this->projectId(), $documentId));
         $statusSent = $this->sent();
         $this->transport()->reset();
-        new EvaluateCardsOnReviewSubmitted($this->service(CardDocumentRepository::class), $this->service(CardRepository::class), $this->trigger())(new ReviewSubmitted(new Review($version, Verdict::Approved, $this->project->owner)));
+        new EvaluateCardsOnReviewSubmitted($this->service(CardDocumentRepository::class), $this->service(CardRepository::class), $this->trigger())(new ReviewSubmitted(new Review($version, Verdict::Approved, $this->project->owner, workflowRule: 'a-rule')));
 
         self::assertEqualsCanonicalizing($this->ids($one, $two, $child), $statusSent);
         self::assertEqualsCanonicalizing($this->ids($one, $two, $child), $this->sent());
+        self::assertSame([], $this->sent('interactive'));
+    }
+
+    public function test_a_verdict_of_a_person_evaluates_the_cards_of_the_document_on_the_interactive_queue_and_their_children_on_the_other(): void
+    {
+        [$one, $two] = [$this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        $document = new Document($this->project->owner, $this->project, 'Design');
+        $version = $document->addVersion('# One', '<h1>One</h1>');
+        $this->em()->persist($document);
+        $this->em()->persist(new CardDocument($one, $document));
+        $this->em()->persist(new CardDocument($two, $document));
+        $child = $this->card($this->project, 'next');
+        $child->parent = $one;
+        $this->em()->flush();
+        $this->transport()->reset();
+        $this->interactiveTransport()->reset();
+
+        new EvaluateCardsOnReviewSubmitted($this->service(CardDocumentRepository::class), $this->service(CardRepository::class), $this->trigger())(new ReviewSubmitted(new Review($version, Verdict::Approved, $this->project->owner)));
+
+        self::assertEqualsCanonicalizing($this->ids($one, $two), $this->sent('interactive'));
+        self::assertSame($this->ids($child), $this->sent());
+        foreach ($this->interactiveTransport()->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            self::assertInstanceOf(EvaluateCard::class, $message);
+            self::assertTrue($message->personWaiting);
+        }
     }
 
     public function test_a_pull_request_change_asks_for_every_card_that_links_it_on_any_known_forge(): void
@@ -492,11 +518,20 @@ final class EvaluationListenersTest extends KernelTestCase
         return $transport;
     }
 
+    private function interactiveTransport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.interactive');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
+    }
+
     /** @return list<string> the card ids of the queued evaluations, in order */
-    private function sent(): array
+    private function sent(string $queue = 'card_eval'): array
     {
         $ids = [];
-        foreach ($this->transport()->getSent() as $envelope) {
+        $transport = 'interactive' === $queue ? $this->interactiveTransport() : $this->transport();
+        foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
             if ($message instanceof EvaluateCard) {
                 $ids[] = $message->cardId;

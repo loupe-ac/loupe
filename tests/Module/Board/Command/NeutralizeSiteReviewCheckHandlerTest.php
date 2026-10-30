@@ -73,6 +73,10 @@ final class NeutralizeSiteReviewCheckHandlerTest extends KernelTestCase
                 array_push($this->asked, ...$cardIds);
             }
 
+            public function forPersonWaiting(array $cardIds): void
+            {
+            }
+
             public function isOn(): bool
             {
                 return true;
@@ -124,6 +128,10 @@ final class NeutralizeSiteReviewCheckHandlerTest extends KernelTestCase
             public function forCards(array $cardIds): void
             {
                 array_push($this->asked, ...$cardIds);
+            }
+
+            public function forPersonWaiting(array $cardIds): void
+            {
             }
 
             public function isOn(): bool
@@ -197,6 +205,10 @@ final class NeutralizeSiteReviewCheckHandlerTest extends KernelTestCase
             ),
             $evaluations ?? new class implements CardEvaluations {
                 public function forCards(array $cardIds): void
+                {
+                }
+
+                public function forPersonWaiting(array $cardIds): void
                 {
                 }
 

@@ -819,7 +819,7 @@ final class InboxAskCloserTest extends KernelTestCase
 
     private function asyncTransport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.jobs');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;
