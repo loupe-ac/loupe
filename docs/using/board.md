@@ -448,6 +448,17 @@ cause: a person, an agent, a workflow rule or the rollout. The switch turns on b
 switch with `requiresHumanReview` on `card_create` and `card_update`. A bridge
 worker can turn it on and never off.
 
+The **Details** tab also shows a **Values** group when the workflow template of
+the project declares card values. The template declares each key with its type,
+its label and its help text. Each key is one row with a switch, a **?** help
+icon, and a line that says who set the value and when, or **Not set**. Turn a
+switch on or off, and the page saves the change at once. A reader who cannot
+edit the card sees the switch disabled. A project whose template declares no
+key shows no **Values** group. The card history shows each change, for example
+"Alex turned on the interactive session for tech design". A change of a value
+makes the workflow check the card again. An agent reads the declared keys in the
+`values` field of `card_get`, and writes them with `values` on `card_update`.
+
 The card page and the drawer update live, with no reload. They update when the
 card moves, when one of its pull requests changes, when the automation acts,
 and when a worker run of the project changes. The open tab stays open. A form
