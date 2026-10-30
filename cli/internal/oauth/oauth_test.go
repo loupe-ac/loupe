@@ -238,6 +238,21 @@ func TestSourceRefreshesBeforeTheTokenExpires(t *testing.T) {
 	}
 }
 
+// TestSourceRefreshSurvivesACancelledCaller pins that a caller deadline cannot
+// cancel a refresh: the server may finish the rotation after the caller gave
+// up, and a cancelled request would leave the stored login behind.
+func TestSourceRefreshSurvivesACancelledCaller(t *testing.T) {
+	server, calls := refreshServer(t, "")
+	source := NewSource(server.URL, storeLogin(t, server.URL, time.Now().Add(30*time.Second)), server.Client())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	got, err := source.Token(ctx)
+	if err != nil || got != "access-2" || *calls != 1 {
+		t.Fatalf("Token = %q, %v after %d refreshes, want access-2 after 1", got, err, *calls)
+	}
+}
+
 func TestSourceKeepsAValidToken(t *testing.T) {
 	server, calls := refreshServer(t, "")
 	source := NewSource(server.URL, storeLogin(t, server.URL, time.Now().Add(time.Hour)), server.Client())

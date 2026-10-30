@@ -57,4 +57,15 @@ class CardPullRequest
         public readonly \DateTimeImmutable $addedAt = new \DateTimeImmutable(),
     ) {
     }
+
+    /**
+     * Whether this link's time of linking cannot be trusted.
+     *
+     * The PHP default is false, so every link this code creates is trusted. The
+     * database default is true, so a row inserted by code that does not know the
+     * column, such as an older container during a rolling deploy, reads as
+     * untrusted. That is the safe side.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $predatesLinkTimes = false;
 }

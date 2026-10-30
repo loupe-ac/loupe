@@ -196,6 +196,72 @@ func TestRotateKeepsTheFileWhenTheRefreshFails(t *testing.T) {
 	}
 }
 
+func TestRotateRetriesATransportFailureWithTheSameRefreshToken(t *testing.T) {
+	keyring.MockInit()
+	useTempConfigHome(t)
+	refreshRetryDelays = []time.Duration{time.Millisecond, time.Millisecond}
+	t.Cleanup(func() { refreshRetryDelays = []time.Duration{2 * time.Second, 5 * time.Second} })
+	if err := Save(oauthLogin("access-1", "refresh-1", time.Now().Add(time.Hour))); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	var sent []string
+	got, err := RotateOAuth(oauthBase, "access-1", time.Now().Add(time.Minute), func(refreshToken string) (OAuthTokens, error) {
+		sent = append(sent, refreshToken)
+		if len(sent) < 3 {
+			return OAuthTokens{}, Transient(errors.New("timeout"))
+		}
+
+		return OAuthTokens{AccessToken: "access-2", RefreshToken: "refresh-2", ExpiresAt: time.Now().Add(time.Hour)}, nil
+	})
+	if err != nil {
+		t.Fatalf("RotateOAuth: %v", err)
+	}
+	if got.AccessToken != "access-2" || strings.Join(sent, ",") != "refresh-1,refresh-1,refresh-1" {
+		t.Fatalf("got %q after sending %v, want access-2 after three sends of refresh-1", got.AccessToken, sent)
+	}
+}
+
+func TestRotateGivesUpAfterTwoRetries(t *testing.T) {
+	keyring.MockInit()
+	useTempConfigHome(t)
+	refreshRetryDelays = []time.Duration{time.Millisecond, time.Millisecond}
+	t.Cleanup(func() { refreshRetryDelays = []time.Duration{2 * time.Second, 5 * time.Second} })
+	if err := Save(oauthLogin("access-1", "refresh-1", time.Now().Add(time.Hour))); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	calls := 0
+	_, err := RotateOAuth(oauthBase, "access-1", time.Now().Add(time.Minute), func(string) (OAuthTokens, error) {
+		calls++
+
+		return OAuthTokens{}, Transient(errors.New("timeout"))
+	})
+	if err == nil || calls != 3 {
+		t.Fatalf("err = %v after %d calls, want an error after 3", err, calls)
+	}
+}
+
+func TestRotateNeverRetriesAnHTTPAnswer(t *testing.T) {
+	keyring.MockInit()
+	useTempConfigHome(t)
+	refreshRetryDelays = []time.Duration{time.Millisecond, time.Millisecond}
+	t.Cleanup(func() { refreshRetryDelays = []time.Duration{2 * time.Second, 5 * time.Second} })
+	if err := Save(oauthLogin("access-1", "refresh-1", time.Now().Add(time.Hour))); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	calls := 0
+	_, err := RotateOAuth(oauthBase, "access-1", time.Now().Add(time.Minute), func(string) (OAuthTokens, error) {
+		calls++
+
+		return OAuthTokens{}, errors.New("HTTP 400: invalid_grant")
+	})
+	if err == nil || calls != 1 {
+		t.Fatalf("err = %v after %d calls, want an error after 1", err, calls)
+	}
+}
+
 // rotatingServer is a token endpoint that rotates its refresh token on every
 // use and refuses a used one, as Loupe does. The pause widens the window in
 // which two unlocked refreshers would both send the same refresh token.

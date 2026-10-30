@@ -222,13 +222,13 @@ func (f Flow) post(ctx context.Context, path string, form url.Values) (int, []by
 
 	resp, err := f.HTTP.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, config.Transient(err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, config.Transient(err)
 	}
 
 	return resp.StatusCode, body, nil
@@ -304,9 +304,14 @@ func (s *Source) Refresh(ctx context.Context, rejected string) (string, error) {
 	return s.rotate(ctx, rejected)
 }
 
+// rotate refreshes under a context that the caller's deadline cannot cancel.
+// The server may finish a rotation after the caller gave up, and an abandoned
+// request would then leave the stored login behind. The client timeout of the
+// http.Client still bounds each request.
 func (s *Source) rotate(ctx context.Context, stale string) (string, error) {
+	detached := context.WithoutCancel(ctx)
 	tokens, err := config.RotateOAuth(s.baseURL, stale, s.flow.Now().Add(expirySkew), func(refreshToken string) (config.OAuthTokens, error) {
-		return s.flow.Refresh(ctx, refreshToken)
+		return s.flow.Refresh(detached, refreshToken)
 	})
 	if errors.Is(err, config.ErrNotLoggedIn) {
 		return "", ErrLoginExpired

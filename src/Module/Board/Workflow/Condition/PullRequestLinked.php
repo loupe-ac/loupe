@@ -9,7 +9,7 @@ use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PullRequestList;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** At least one pull request is linked to the card, whatever its state. */
+/** At least one work link, whatever its state. A link to a pull request that finished before the link does not count. */
 final readonly class PullRequestLinked implements Condition
 {
     #[\Override]

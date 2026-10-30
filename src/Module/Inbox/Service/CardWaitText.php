@@ -123,6 +123,25 @@ final readonly class CardWaitText
     }
 
     /**
+     * The waits the page shows, in page order. A main pause with no more to say than the title is left out.
+     *
+     * @param iterable<InboxCardWait> $waits
+     *
+     * @return list<InboxCardWait>
+     */
+    public function pageWaits(iterable $waits): array
+    {
+        $ordered = $this->inOrder($waits);
+        $main = $ordered[0] ?? null;
+        if (null === $main || null !== $main->endedAt || InboxCardWaitType::CardPause !== $main->type) {
+            return $ordered;
+        }
+        $line = $this->line($main, false);
+
+        return self::PAUSE_LABEL.'.reason' === $line->key && null === $line->detail ? \array_slice($ordered, 1) : $ordered;
+    }
+
+    /**
      * The first open wait about a document or a pull request.
      *
      * @param list<InboxCardWait> $open

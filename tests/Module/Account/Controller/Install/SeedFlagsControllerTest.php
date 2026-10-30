@@ -21,6 +21,7 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Insights\Service\AnalysisSettings;
 use App\Module\Notification\Service\PushAvailability;
+use App\Module\OAuth\Install\OAuthInstallFlags;
 use App\Module\Review\Install\ReviewInstallFlags;
 use App\Module\Review\Mcp\DocumentHighlightTool;
 use App\Module\SiteReview\SiteReviewDrawing;
@@ -72,7 +73,8 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(38, $flags);
+        self::assertCount(39, $flags);
+        self::assertTrue($flags[OAuthInstallFlags::FLAG_REFRESH_REUSE]->value);
         self::assertSame('', $flags['waitlist.notification_emails']->value);
         foreach (['site.link.discord', 'site.link.x', 'site.link.source'] as $linkFlag) {
             self::assertSame('', $flags[$linkFlag]->value);
