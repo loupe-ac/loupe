@@ -12,6 +12,7 @@ use App\Module\Board\Workflow\Condition\CardDocumentApproved;
 use App\Module\Board\Workflow\Condition\CardHasOpenBlocker;
 use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardPaused;
+use App\Module\Board\Workflow\Condition\CardValue;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Detach;
@@ -90,6 +91,7 @@ final class TemplateParserTest extends TestCase
             new CardHasType(),
             new CardInSlot(),
             new CardPaused(),
+            new CardValue(),
             new DesignReviewFinished(),
             new PullRequestApprovalCoversHead(),
             new PullRequestOpen(),
@@ -325,6 +327,62 @@ final class TemplateParserTest extends TestCase
     {
         self::assertSame([], $this->parser->parse(self::valid())->repositorySettings);
         self::assertSame([], $this->parser->parse(self::valid() + ['repositorySettings' => []])->repositorySettings);
+    }
+
+    /**
+     * @param array<string, mixed>       $when
+     * @param list<array<string, mixed>> $values
+     *
+     * @return array<string, mixed>
+     */
+    private static function withValueRule(array $when, array $values = [], string $id = 'value-rule'): array
+    {
+        $source = self::valid();
+        $source['rules'][] = ['id' => $id, 'slot' => 'build', 'when' => $when, 'then' => ['move' => ['to' => 'review']]];
+
+        return $source + ['values' => $values];
+    }
+
+    public function test_a_rule_may_test_a_declared_value_key(): void
+    {
+        $template = $this->parser->parse(self::withValueRule(['card.value' => ['key' => 'good', 'equals' => true]], [self::valueKey('good')]));
+
+        self::assertEquals(new ConditionLeaf(new CardValue(), ['key' => 'good', 'equals' => true]), array_last($template->rules)?->when);
+        $held = $this->parser->parse(self::withValueRule(['card.value' => ['key' => 'good']], [self::valueKey('good')]));
+        self::assertEquals(new ConditionLeaf(new CardValue(), ['key' => 'good']), array_last($held->rules)?->when);
+    }
+
+    public function test_a_rule_that_names_an_undeclared_value_key_is_refused_and_a_stored_copy_loads(): void
+    {
+        $source = self::withValueRule(['card.value' => ['key' => 'ghost']], [self::valueKey('good')]);
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertCount(1, $e->errors);
+            self::assertStringContainsString('unknown value key "ghost"; declared keys: good', $e->errors[0]);
+        }
+        self::assertSame('value-rule', array_last($this->parser->parseStored($source)->rules)?->id);
+
+        try {
+            $this->parser->parse(self::withValueRule(['card.value' => ['key' => 'ghost']]));
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertStringContainsString('the template declares no values', $e->errors[0]);
+        }
+    }
+
+    public function test_a_value_condition_with_a_wrong_equals_or_no_key_is_refused(): void
+    {
+        foreach ([['key' => 'good', 'equals' => 'yes'], ['equals' => true], ['key' => 'good', 'extra' => 1]] as $params) {
+            try {
+                $this->parser->parse(self::withValueRule(['card.value' => $params], [self::valueKey('good')]));
+                self::fail('The template should be refused.');
+            } catch (InvalidTemplate $e) {
+                self::assertNotSame([], $e->errors);
+            }
+        }
     }
 
     public function test_a_template_reads_its_value_keys_in_order(): void
@@ -1235,6 +1293,16 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) when: pr.approval_covers_head: parameter "min" must be a positive integer'];
+        yield 'work active with an origin that is not rule' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['card.run.work_active' => ['origin' => 'person']];
+
+            return $t;
+        }, 'rules[2] (merge) when: card.run.work_active: parameter "origin" must be one of: rule'];
+        yield 'work active with an origin that is not a string' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['card.run.work_active' => ['origin' => 3]];
+
+            return $t;
+        }, 'rules[2] (merge) when: card.run.work_active: parameter "origin" must be a non-empty string'];
         yield 'wrongly typed boolean parameter' => [static function (array $t): array {
             $t['rules'][2]['when'] = ['card.inbox.open_question' => ['blocking' => 'yes']];
 

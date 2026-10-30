@@ -45,6 +45,16 @@ final class RunConditionsTest extends TestCase
         yield 'work active, that kind' => [new RunWorkActive(), ['kind' => 'fix'], self::withRun(activeWorkKinds: ['implement', 'fix']), true];
         yield 'work active, other kind' => [new RunWorkActive(), ['kind' => 'fix'], self::withRun(activeWorkKinds: ['implement']), false];
 
+        yield 'work active, origin rule, only a person started it' => [new RunWorkActive(), ['origin' => 'rule'], self::withOrigins(requests: new WorkRequestFacts(['resume'], [], [], [])), false];
+        yield 'work active, origin rule, a rule started it' => [new RunWorkActive(), ['origin' => 'rule'], self::withOrigins(requests: new WorkRequestFacts(['resume', 'fix'], [], ['fix'], [])), true];
+        yield 'work active, origin rule, that kind by a person' => [new RunWorkActive(), ['origin' => 'rule', 'kind' => 'resume'], self::withOrigins(requests: new WorkRequestFacts(['resume', 'fix'], [], ['fix'], [])), false];
+        yield 'work active, no origin, only a person started it' => [new RunWorkActive(), [], self::withOrigins(requests: new WorkRequestFacts(['resume'], [], [], [])), true];
+
+        yield 'worker active, origin rule, only a person started it' => [new RunWorkerActive(), ['origin' => 'rule'], self::withOrigins(workers: new WorkerRunFacts(['product-design'], [], [], [])), false];
+        yield 'worker active, origin rule, a rule started it' => [new RunWorkerActive(), ['origin' => 'rule', 'kind' => 'fix'], self::withOrigins(workers: new WorkerRunFacts(['fix', 'resume'], [], ['fix'], [])), true];
+        yield 'worker active, origin rule, that kind by a person' => [new RunWorkerActive(), ['origin' => 'rule', 'kind' => 'resume'], self::withOrigins(workers: new WorkerRunFacts(['fix', 'resume'], [], ['fix'], [])), false];
+        yield 'worker active, no origin, only a person started it' => [new RunWorkerActive(), [], self::withOrigins(workers: new WorkerRunFacts(['product-design'], [], [], [])), true];
+
         yield 'work open, an open request' => [new RunWorkOpen(), [], self::withReadings(['implement' => WorkTakerState::Available]), true];
         yield 'work open, an open request nobody can take' => [new RunWorkOpen(), [], self::withReadings(['implement' => WorkTakerState::None]), true];
         yield 'work open, only a claimed request' => [new RunWorkOpen(), [], FactsMother::facts(run: FactsMother::run(activeWorkKinds: ['implement'])), false];
@@ -106,6 +116,11 @@ final class RunConditionsTest extends TestCase
         yield 'card.parent.run.active' => [new ParentWorkActive(), ['kind' => 'breakdown'], 'parent_work_active', [], [ParentWorkFacts::class]];
         yield 'card.run.last_refusal' => [new RunLastRefusal(), ['code' => 'no-worker'], 'run_last_refusal', ['%code%' => 'no-worker'], [RefusalFacts::class]];
         yield 'card.run.finished_with' => [new RunFinishedWith(), self::NOTHING_TO_BUILD, 'run_finished_with', ['%kind%' => 'implement', '%reason%' => 'nothing-to-build'], [LatestWorkFacts::class]];
+    }
+
+    private static function withOrigins(?WorkRequestFacts $requests = null, ?WorkerRunFacts $workers = null): Facts
+    {
+        return FactsMother::facts(provided: array_filter([WorkRequestFacts::class => $requests, WorkerRunFacts::class => $workers]));
     }
 
     /** @param list<string> $activeWorkKinds */

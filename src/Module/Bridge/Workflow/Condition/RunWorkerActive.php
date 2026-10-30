@@ -14,7 +14,10 @@ use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A worker run of the card is open, of the given work kind, or of any kind when no kind is given. */
+/**
+ * A worker run of the card is open, of the given work kind, or of any kind when no kind is given.
+ * With `origin: rule`, a run that a person started does not count.
+ */
 final readonly class RunWorkerActive implements Condition, MarkerEvidence
 {
     #[\Override]
@@ -32,7 +35,10 @@ final readonly class RunWorkerActive implements Condition, MarkerEvidence
     #[\Override]
     public static function parameters(): array
     {
-        return [new Parameter('kind', ParameterType::String, required: false)];
+        return [
+            new Parameter('kind', ParameterType::String, required: false),
+            new Parameter('origin', ParameterType::String, required: false, choices: [ActiveKindEvidence::ORIGIN_RULE]),
+        ];
     }
 
     #[\Override]
@@ -45,7 +51,8 @@ final readonly class RunWorkerActive implements Condition, MarkerEvidence
     public function evaluate(Facts $facts, array $params): bool
     {
         $kind = ParameterValue::optionalString($params, 'kind');
-        $active = $facts->get(WorkerRunFacts::class)->activeKinds;
+        $runs = $facts->get(WorkerRunFacts::class);
+        $active = ActiveKindEvidence::isRuleOnly($params) ? $runs->activeRuleKinds : $runs->activeKinds;
 
         return null === $kind ? [] !== $active : \in_array($kind, $active, true);
     }
@@ -59,6 +66,8 @@ final readonly class RunWorkerActive implements Condition, MarkerEvidence
     #[\Override]
     public function evidence(Facts $facts, array $params): ?Evidence
     {
-        return ActiveKindEvidence::of($facts->get(WorkerRunFacts::class)->since, ParameterValue::optionalString($params, 'kind'));
+        $runs = $facts->get(WorkerRunFacts::class);
+
+        return ActiveKindEvidence::of(ActiveKindEvidence::isRuleOnly($params) ? $runs->ruleSince : $runs->since, ParameterValue::optionalString($params, 'kind'));
     }
 }

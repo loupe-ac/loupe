@@ -21,6 +21,8 @@ use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\CardTypeFactProvider;
 use App\Module\Board\Workflow\CardTypeFacts;
+use App\Module\Board\Workflow\CardValueFactProvider;
+use App\Module\Board\Workflow\CardValueFacts;
 use App\Module\Board\Workflow\ChildActivityFacts;
 use App\Module\Board\Workflow\ChildrenFactProvider;
 use App\Module\Board\Workflow\ChildrenFacts;
@@ -83,6 +85,7 @@ final class FactsMother
 {
     private const array PROVIDERS = [
         CardTypeFactProvider::class,
+        CardValueFactProvider::class,
         ArtifactReachFactProvider::class,
         HumanReviewFactProvider::class,
         BlockerFactProvider::class,
@@ -117,13 +120,13 @@ final class FactsMother
         $card ??= self::card();
         $run ??= self::run();
         $given = [
-            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new ArtifactReachFacts([]), new HumanReviewFacts(false)),
+            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new ArtifactReachFacts([]), new HumanReviewFacts(false), new CardValueFacts([])),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests))),
             ...self::byClass(new AgentReviewPostingFacts(unposted: false, uncommented: [])),
             ...self::byClass(new DocumentReviewFacts([]), new DocumentReviewConclusionFacts([], [])),
-            ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
+            ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, [], $run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, [], $run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
             ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null), new WorkHoldFacts(null), new ScheduledRetryFacts([])),
             ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WaitingAskFacts([]), new WorkTakerFacts([])),

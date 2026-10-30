@@ -61,7 +61,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(31, $template->version);
+        self::assertSame(32, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -90,7 +90,8 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             new WorkflowConditionGroupView('workflow.source.bridge', [new WorkflowConditionView('card.run.session_open', true, '')]),
         ], $rules['product-design-session']->whenGroups);
         self::assertEquals([
-            new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.linked', true, 'tag: tech-design')]),
+            new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.linked', true, 'tag: tech-design'), new WorkflowConditionView('card.value', true, 'key: tech-design-interactive, equals: true')]),
+            new WorkflowConditionGroupView('workflow.source.bridge', [new WorkflowConditionView('card.run.session_open', true, '')]),
         ], $rules['tech-design-write']->whenGroups);
         self::assertEquals([
             new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.in_slot', true, 'slot: @terminal'), new WorkflowConditionView('card.children.finished', false, ''), new WorkflowConditionView('card.type', true, 'types: ["epic"]')]),

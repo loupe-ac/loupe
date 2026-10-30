@@ -1064,3 +1064,32 @@ func TestParseRefusesTooManyControls(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestMatchWorkSkipsAnInteractiveRequestWithoutAnInteractiveEntry(t *testing.T) {
+	interactiveRequest := func(kind string) api.WorkRequest {
+		w := workRequest(kind)
+		w.Capability = CapabilityInteractive
+		w.Prompt = "Design {cardNumber}."
+
+		return w
+	}
+	plain := workRequest("review")
+	plain.Prompt = "Review {cardNumber}."
+	for name, tc := range map[string]struct {
+		body string
+		w    api.WorkRequest
+		skip Skip
+	}{
+		"no entry, app prompts on":      {"appPrompts: true\n" + workFile, interactiveRequest("review"), NoRule},
+		"a non-interactive entry":       {"appPrompts: true\n" + workFile, interactiveRequest("implement"), NoRule},
+		"an interactive entry":          {"appPrompts: true\n" + workFile, interactiveRequest("pair"), Run},
+		"a plain request with no entry": {"appPrompts: true\n" + workFile, plain, Run},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := checked(t, tc.body)
+			if m := s.MatchWork(tc.w); m.Skip != tc.skip {
+				t.Fatalf("match = %+v", m)
+			}
+		})
+	}
+}

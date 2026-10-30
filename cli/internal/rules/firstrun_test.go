@@ -140,6 +140,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 `
 	if string(data) != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", data, want)
@@ -205,7 +208,7 @@ func TestMergeAddsOnlyWhatIsMissingAndKeepsComments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"appPrompts", "defaults.permissions", "projects.my-app", "launch", "work.product-design"}
+	want := []string{"appPrompts", "defaults.permissions", "projects.my-app", "launch", "work.product-design", "work.tech-design-session"}
 	if !slices.Equal(added, want) {
 		t.Fatalf("added = %v, want %v", added, want)
 	}
@@ -273,6 +276,9 @@ work:
   product-design:
     action: interactive
     prompt: my own prompt
+  tech-design-session:
+    action: interactive
+    prompt: my own tech prompt
 `
 	out, added, err := Merge([]byte(existing), o)
 	if err != nil {
