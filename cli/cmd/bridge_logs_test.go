@@ -47,6 +47,7 @@ func TestLogfmtPutsTimeLevelAndEventFirst(t *testing.T) {
 }
 
 func TestBridgeLogsMergesTheDatedFilesAndTheLiveFile(t *testing.T) {
+	shortConfigHome(t)
 	path := filepath.Join(t.TempDir(), "bridge.log")
 	writeLines(t, logfile.DatedPath(path, time.Date(2026, 10, 29, 0, 0, 0, 0, time.Local)),
 		`{"time":"2026-10-29T10:00:00Z","level":"INFO","event":"one","bridge":"a"}`,
@@ -99,10 +100,112 @@ func TestBridgeLogsFindsTheLogOfAStoppedBridge(t *testing.T) {
 	}
 }
 
-func TestBridgeLogsFailsWithoutALog(t *testing.T) {
+func TestBridgeLogsFailsWithoutALogAndNamesEachPathItChecked(t *testing.T) {
 	shortConfigHome(t)
-	if _, err := runLogs(t); err == nil {
-		t.Fatal("want an error when no log exists")
+	_, err := runLogs(t)
+	if err == nil || !strings.Contains(err.Error(), defaultLogPath()) {
+		t.Fatalf("err = %v, want it to name %s", err, defaultLogPath())
+	}
+
+	gone := filepath.Join(t.TempDir(), "gone.log")
+	statePath, err := statePath("rules.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeBridgeState(statePath, bridgeState{Name: "mac", LogFile: gone}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = runLogs(t)
+	if err == nil || !strings.Contains(err.Error(), gone) || !strings.Contains(err.Error(), defaultLogPath()) {
+		t.Fatalf("err = %v, want it to name %s and %s", err, gone, defaultLogPath())
+	}
+
+	_, err = runLogs(t, "--log-file", gone)
+	if err == nil || !strings.Contains(err.Error(), gone) {
+		t.Fatalf("--log-file err = %v, want it to name %s", err, gone)
+	}
+}
+
+// --bridge must find the entries of a bridge behind many newer entries of another.
+func TestBridgeLogsFiltersBeforeItTakesTheLastEntries(t *testing.T) {
+	shortConfigHome(t)
+	path := filepath.Join(t.TempDir(), "bridge.log")
+	lines := []string{`{"time":"2026-10-30T08:00:00Z","event":"mine","bridge":"a"}`}
+	for range 3000 {
+		lines = append(lines, `{"time":"2026-10-30T09:00:00Z","event":"other","bridge":"b","pad":"`+strings.Repeat("x", 60)+`"}`)
+	}
+	writeLines(t, path, lines...)
+
+	out, err := runLogs(t, "--log-file", path, "--bridge", "a", "-n", "5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "time=2026-10-30T08:00:00Z event=mine bridge=a\n" {
+		t.Fatalf("output = %q", out)
+	}
+}
+
+func TestBridgeLogsRefusesANameThatTwoRunningBridgesShare(t *testing.T) {
+	shortConfigHome(t)
+	path := filepath.Join(t.TempDir(), "bridge.log")
+	writeLines(t, path, `{"time":"2026-10-30T08:00:00Z","event":"one","bridge":"mac"}`)
+	dir := t.TempDir()
+	hold := func(rules string, running bool) {
+		t.Helper()
+		rules = filepath.Join(dir, rules)
+		st, err := statePath(rules)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := writeBridgeState(st, bridgeState{Name: "mac", RulesPath: rules, LogFile: path}); err != nil {
+			t.Fatal(err)
+		}
+		if !running {
+			return
+		}
+		lock, err := lockBridge(rules, "/tmp/"+filepath.Base(rules)+".sock")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { lock.Close() })
+	}
+
+	hold("one.yaml", true)
+	hold("stopped.yaml", false)
+	if _, err := runLogs(t, "--bridge", "mac"); err != nil {
+		t.Fatalf("one running bridge and one stopped bridge share the name: %v", err)
+	}
+
+	hold("two.yaml", true)
+	_, err := runLogs(t, "--bridge", "mac")
+	want := "Two running bridges are named \"mac\". Set `name:` in one rule file to tell them apart."
+	if err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+}
+
+// A rotation between the open of the follower and the tail must not print the
+// entries of the new live file twice.
+func TestTailLeavesANewLiveFileToTheFollower(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bridge.log")
+	writeLines(t, path, `{"event":"old"}`)
+	f := openFollower(path)
+	if err := os.Rename(path, logfile.DatedPath(path, time.Now().AddDate(0, 0, -1))); err != nil {
+		t.Fatal(err)
+	}
+	writeLines(t, path, `{"event":"new"}`)
+
+	tail, err := tailFamily(path, 50, "", f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := append(tail, f.poll()...)
+	var got []string
+	for _, e := range all {
+		got = append(got, string(e.line))
+	}
+	if strings.Join(got, ",") != `{"event":"old"},{"event":"new"}` {
+		t.Fatalf("entries = %q", got)
 	}
 }
 
@@ -113,14 +216,14 @@ func TestLastLinesReadsBackwardAcrossBlocks(t *testing.T) {
 		b.WriteString(string(rune('a' + i%26)))
 		b.WriteByte('\n')
 	}
-	got, err := lastLines(bytes.NewReader(b.Bytes()), int64(b.Len()), 3)
+	got, err := lastLines(bytes.NewReader(b.Bytes()), int64(b.Len()), 3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 3 || string(got[2]) != strings.Repeat("x", 40)+string(rune('a'+4999%26)) {
 		t.Fatalf("lines = %q", got)
 	}
-	all, _ := lastLines(bytes.NewReader([]byte("a\nb\n")), 4, 10)
+	all, _ := lastLines(bytes.NewReader([]byte("a\nb\n")), 4, 10, nil)
 	if len(all) != 2 || string(all[0]) != "a" {
 		t.Fatalf("short file lines = %q", all)
 	}
@@ -262,6 +365,7 @@ func TestBridgeStateFileSurvivesAndNamesTheLog(t *testing.T) {
 	if err := writeBridgeState(path, want); err != nil {
 		t.Fatal(err)
 	}
+	want.file = path
 	got, err := readBridgeStates()
 	if err != nil || len(got) != 1 || got[0] != want {
 		t.Fatalf("states = %v, %v", got, err)

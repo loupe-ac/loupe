@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -70,6 +72,8 @@ type bridgeState struct {
 	PID       int       `json:"pid"`
 	Version   string    `json:"version"`
 	StartedAt time.Time `json:"startedAt"`
+	// file is the path of the state file itself.
+	file string
 }
 
 // statePath names the state file of the bridge that reads rulesPath. It shares
@@ -129,6 +133,7 @@ func readBridgeStates() ([]bridgeState, error) {
 		}
 		var st bridgeState
 		if json.Unmarshal(data, &st) == nil {
+			st.file = p
 			states = append(states, st)
 		}
 	}
@@ -161,4 +166,22 @@ func (i *bridgeIdentity) update(set *rules.Set) {
 	if err != nil {
 		i.log.log.Warn("bridge_state_failed", "error", err.Error())
 	}
+}
+
+// runningStates keeps the states whose bridge holds its lock now. A state file
+// and the lock file of one bridge share their hash.
+func runningStates(states []bridgeState) ([]bridgeState, error) {
+	held, err := heldBridges()
+	if err != nil {
+		return nil, err
+	}
+	var running []bridgeState
+	for _, st := range states {
+		lock := strings.TrimSuffix(st.file, ".state.json") + ".lock"
+		if slices.ContainsFunc(held, func(b heldBridge) bool { return slices.Contains(b.locks, lock) }) {
+			running = append(running, st)
+		}
+	}
+
+	return running, nil
 }

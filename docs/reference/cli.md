@@ -210,9 +210,11 @@ bridges by time.
 
 - `-n <count>` prints the last `count` entries. The default is 50.
 - `-f` keeps reading and prints new entries until you stop it. It follows the log across the daily rotation.
-- `--bridge <name>` keeps the entries of one bridge. An entry that an older CLI wrote has no name, so it shows only without this flag.
+- `--bridge <name>` keeps the last entries of one bridge. An entry that an older CLI wrote has no name, so it shows only without this flag. When two running bridges share the name, the command stops and asks you to set `name:` in one rule file.
 - `--json` prints each entry as the bridge wrote it. Without it, the output is logfmt: the `time`, the `level` and the `event`, then the other keys of the entry.
 - `--log-file <path>` reads that log in place of the logs of the bridges on this machine.
+
+When it finds no log, the command names each path it checked.
 
 ## `loupe status`
 

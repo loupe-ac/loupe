@@ -38,7 +38,8 @@ func newBridgeLogsCmd() *cobra.Command {
 			"It needs no network and no running bridge.\n\n" +
 			"The output is logfmt: the time, the level and the event, then the other keys of the entry. " +
 			"--json prints each entry as the bridge wrote it. --bridge keeps the entries of one bridge name; " +
-			"an entry written before the bridge named itself shows only without --bridge. " +
+			"an entry written before the bridge named itself shows only without --bridge. A name that two " +
+			"running bridges share is refused. " +
 			"-f keeps reading, and follows the log across a daily rotation.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -76,39 +77,71 @@ func parseLogEntry(line []byte) logEntry {
 	return e
 }
 
-// logPaths names the live file of each log to read.
-func logPaths(logFile string) ([]string, error) {
-	if logFile != "" {
-		return []string{logFile}, nil
-	}
-	states, err := readBridgeStates()
-	if err != nil {
-		return nil, err
-	}
-	var paths []string
-	for _, st := range states {
-		if st.LogFile != "" && !slices.Contains(paths, st.LogFile) {
-			paths = append(paths, st.LogFile)
+// logPaths names the live file of each log to read, and each path it checked.
+// A path counts when a file of its log exists. -f also waits for a --log-file
+// path that has no file yet.
+func logPaths(o bridgeLogsOptions, states []bridgeState) (paths, checked []string) {
+	if o.logFile != "" {
+		checked = []string{o.logFile}
+	} else {
+		for _, st := range states {
+			if st.LogFile != "" && !slices.Contains(checked, st.LogFile) {
+				checked = append(checked, st.LogFile)
+			}
+		}
+		// A bridge on an older CLI leaves no state file, and logs to the default path.
+		if def := defaultLogPath(); !slices.Contains(checked, def) {
+			checked = append(checked, def)
 		}
 	}
-	// A bridge on an older CLI leaves no state file, and logs to the default path.
-	if def := defaultLogPath(); !slices.Contains(paths, def) && len(logfile.Family(def)) > 0 {
-		paths = append(paths, def)
+	for _, p := range checked {
+		if len(logfile.Family(p)) > 0 || (o.follow && p == o.logFile) {
+			paths = append(paths, p)
+		}
 	}
 
-	return paths, nil
+	return paths, checked
+}
+
+// checkSharedName refuses a name that two running bridges share, because
+// their entries cannot be told apart.
+func checkSharedName(states []bridgeState, name string) error {
+	running, err := runningStates(states)
+	if err != nil {
+		return err
+	}
+	same := 0
+	for _, st := range running {
+		if st.Name == name {
+			same++
+		}
+	}
+	if same > 1 {
+		return fmt.Errorf("Two running bridges are named %q. Set `name:` in one rule file to tell them apart.", name)
+	}
+
+	return nil
 }
 
 func runBridgeLogs(cmd *cobra.Command, o bridgeLogsOptions) error {
 	if o.lines < 0 {
 		return errors.New("-n must not be negative")
 	}
-	paths, err := logPaths(o.logFile)
-	if err != nil {
-		return err
+	var states []bridgeState
+	if o.logFile == "" || o.bridge != "" {
+		var err error
+		if states, err = readBridgeStates(); err != nil {
+			return err
+		}
 	}
+	if o.bridge != "" {
+		if err := checkSharedName(states, o.bridge); err != nil {
+			return err
+		}
+	}
+	paths, checked := logPaths(o, states)
 	if len(paths) == 0 {
-		return errors.New("no bridge log found; start a bridge, or pass --log-file")
+		return fmt.Errorf("no bridge log found; checked %s. Start a bridge, or pass --log-file", strings.Join(checked, ", "))
 	}
 	out := cmd.OutOrStdout()
 
@@ -121,13 +154,12 @@ func runBridgeLogs(cmd *cobra.Command, o bridgeLogsOptions) error {
 			f = openFollower(path)
 			follows = append(follows, f)
 		}
-		got, err := tailFamily(path, o.lines, f)
+		got, err := tailFamily(path, o.lines, o.bridge, f)
 		if err != nil {
 			return err
 		}
 		entries = append(entries, got...)
 	}
-	entries = filterBridge(entries, o.bridge)
 	slices.SortStableFunc(entries, func(a, b logEntry) int { return a.at.Compare(b.at) })
 	if len(entries) > o.lines {
 		entries = entries[len(entries)-o.lines:]
@@ -165,10 +197,20 @@ func filterBridge(entries []logEntry, bridge string) []logEntry {
 	return slices.DeleteFunc(entries, func(e logEntry) bool { return e.bridge != bridge })
 }
 
-// tailFamily reads the last n entries of the log at path, newest file first,
-// and goes on into the dated files until it has n. When follow is set, the
-// live file is read only up to the point where the follower starts.
-func tailFamily(path string, n int, follow *logFollower) ([]logEntry, error) {
+// tailFamily reads the last n entries of the log at path that name bridge, or
+// of every bridge when bridge is empty. It reads the newest file first, and
+// goes on into the dated files until it has n. With follow set, it reads the
+// file that the follower holds only up to where the follower starts, and
+// leaves a newer live file to the follower.
+func tailFamily(path string, n int, bridge string, follow *logFollower) ([]logEntry, error) {
+	var keep func([]byte) bool
+	if bridge != "" {
+		keep = func(line []byte) bool { return parseLogEntry(line).bridge == bridge }
+	}
+	var followed os.FileInfo
+	if follow != nil && follow.f != nil {
+		followed, _ = follow.f.Stat()
+	}
 	files := logfile.Family(path)
 	var entries []logEntry
 	for i := len(files) - 1; i >= 0 && len(entries) < n; i-- {
@@ -180,16 +222,23 @@ func tailFamily(path string, n int, follow *logFollower) ([]logEntry, error) {
 
 			return nil, fmt.Errorf("read %s: %w", files[i], err)
 		}
-		size, err := fileSize(f)
+		info, err := f.Stat()
 		if err != nil {
 			f.Close()
 
 			return nil, err
 		}
-		if files[i] == path && follow != nil && follow.f != nil {
-			size = min(size, follow.offset)
+		size := info.Size()
+		if follow != nil {
+			if followed != nil && os.SameFile(info, followed) {
+				size = min(size, follow.offset)
+			} else if files[i] == path {
+				f.Close()
+
+				continue
+			}
 		}
-		lines, err := lastLines(f, size, n-len(entries))
+		lines, err := lastLines(f, size, n-len(entries), keep)
 		f.Close()
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", files[i], err)
@@ -204,46 +253,41 @@ func tailFamily(path string, n int, follow *logFollower) ([]logEntry, error) {
 	return entries, nil
 }
 
-func fileSize(f *os.File) (int64, error) {
-	info, err := f.Stat()
-	if err != nil {
-		return 0, err
-	}
-
-	return info.Size(), nil
-}
-
 // lastLines returns the last n non-empty lines among the first size bytes of
-// r, oldest first. It reads backward in blocks, so a large file costs only the
-// blocks that hold the lines.
-func lastLines(r io.ReaderAt, size int64, n int) ([][]byte, error) {
+// r that keep accepts, oldest first. A nil keep accepts every line. It reads
+// backward in blocks, so a large file costs only the blocks that hold the lines.
+func lastLines(r io.ReaderAt, size int64, n int, keep func([]byte) bool) ([][]byte, error) {
 	const block = 64 * 1024
-	var tail []byte
+	var lines [][]byte
+	// cut holds the start of a line that the edge of the last block cut.
+	var cut []byte
 	end := size
-	for end > 0 && bytes.Count(tail, []byte("\n")) <= n {
+	for end > 0 && len(lines) < n {
 		start := max(end-block, 0)
 		buf := make([]byte, end-start)
 		if _, err := r.ReadAt(buf, start); err != nil && !errors.Is(err, io.EOF) {
 			return nil, err
 		}
-		tail = append(buf, tail...)
+		data := append(buf, cut...)
 		end = start
-	}
-	if end > 0 {
-		// The first line of the buffer is cut, so drop it.
-		if i := bytes.IndexByte(tail, '\n'); i >= 0 {
-			tail = tail[i+1:]
+		cut = nil
+		if end > 0 {
+			i := bytes.IndexByte(data, '\n')
+			if i < 0 {
+				cut = data
+
+				continue
+			}
+			cut, data = data[:i], data[i+1:]
+		}
+		split := bytes.Split(data, []byte("\n"))
+		for j := len(split) - 1; j >= 0 && len(lines) < n; j-- {
+			if l := split[j]; len(bytes.TrimSpace(l)) > 0 && (keep == nil || keep(l)) {
+				lines = append(lines, l)
+			}
 		}
 	}
-	var lines [][]byte
-	for _, l := range bytes.Split(tail, []byte("\n")) {
-		if len(bytes.TrimSpace(l)) > 0 {
-			lines = append(lines, l)
-		}
-	}
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
+	slices.Reverse(lines)
 
 	return lines, nil
 }
