@@ -96,6 +96,23 @@ final class WorkerRunAccountPurgerTest extends KernelTestCase
         self::assertSame((string) $keptUsageId, $em->getConnection()->fetchOne('SELECT id FROM bridge_worker_run_usage'));
     }
 
+    /** A billed cost row outlives its run, like a usage row. */
+    public function test_it_takes_the_billed_costs_of_the_departing_account_alone(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $leaving = $this->user($em, 'billed-purge-leaving@example.com');
+        $staying = $this->user($em, 'billed-purge-staying@example.com');
+        $orphan = $this->seedRun($em, $this->project($em, $leaving, 'Leaving Billed'));
+        $this->seedBilledCost($em, $orphan);
+        $kept = $this->seedBilledCost($em, $this->seedRun($em, $this->project($em, $staying, 'Staying Billed')));
+        $em->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE id = ?', [(string) $orphan->id]);
+
+        $this->purge($leaving);
+
+        self::assertSame([(string) $kept->runId], $em->getConnection()->fetchFirstColumn('SELECT run_id FROM bridge_worker_run_billed_costs'));
+    }
+
     /** A fact row outlives its run, like a usage row. */
     public function test_it_takes_the_facts_of_the_departing_account_alone(): void
     {

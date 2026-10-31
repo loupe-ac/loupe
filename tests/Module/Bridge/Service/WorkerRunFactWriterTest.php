@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge\Service;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
+use App\Module\Bridge\ValueObject\BilledCostState;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -54,6 +55,33 @@ final class WorkerRunFactWriterTest extends KernelTestCase
         self::assertEquals(
             [(string) $known->id => 3_000_000_000, (string) $unknown->id => null],
             $connection->fetchAllKeyValue('SELECT run_id, peak_context_tokens FROM bridge_worker_run_facts'),
+        );
+    }
+
+    public function test_a_billed_run_takes_its_cost_from_the_billed_cost_row(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'facts-writer-billed@example.com'), 'Facts Writer Billed');
+        $billed = $this->seedRun($em, $project, runKey: Uuid::v4());
+        $this->seedUsage($em, $billed, 'deepseek', costUsd: null, billedCost: true);
+        $this->seedBilledCost($em, $billed, costUsd: '0.123457');
+        $pending = $this->seedRun($em, $project, cardNumber: 2, runKey: Uuid::v4());
+        $this->seedUsage($em, $pending, 'deepseek', costUsd: null, billedCost: true);
+        $this->seedBilledCost($em, $pending, BilledCostState::Pending, null);
+        $plain = $this->seedRun($em, $project, cardNumber: 3);
+        $this->seedUsage($em, $plain, costUsd: '0.200000');
+        $unpriced = $this->seedRun($em, $project, cardNumber: 4);
+        $this->seedUsage($em, $unpriced, costUsd: null);
+        $connection = $em->getConnection();
+        $connection->executeStatement('DELETE FROM bridge_worker_run_facts');
+        $ids = array_map(static fn (WorkerRun $run): Uuid => $run->id ?? throw new \LogicException('The run has no id.'), [$billed, $pending, $plain, $unpriced]);
+
+        $this->writer()->upsert($ids);
+
+        self::assertEquals(
+            [(string) $billed->id => 123_457, (string) $pending->id => null, (string) $plain->id => 200_000, (string) $unpriced->id => null],
+            $connection->fetchAllKeyValue('SELECT run_id, cost_micro_usd FROM bridge_worker_run_facts'),
         );
     }
 
