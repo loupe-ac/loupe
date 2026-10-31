@@ -32,6 +32,8 @@ final class MetricValueFormatterTest extends TestCase
         yield 'seconds' => [self::built(Metric::Duration), 12_400, '12 s'];
         yield 'minutes and seconds' => [self::built(Metric::Duration), 192_000, '3 min 12 s'];
         yield 'hours and minutes' => [self::built(Metric::Duration), 7_500_000, '2 h 5 min'];
+        yield 'whole minutes drop the zero seconds' => [self::built(Metric::Duration), 600_000, '10 min'];
+        yield 'whole hours drop the zero minutes' => [self::built(Metric::Duration), 3_600_000, '1 h'];
         yield 'a fraction of a millisecond rounds' => [self::built(Metric::Duration), 1.6, '2 ms'];
         yield 'a template duration is in hours' => [self::template(TemplateMetricSets::duration()), 5.24, '5.2 h'];
         yield 'a template rate' => [self::template(TemplateMetricSets::rate()), 0.125, '12.5%'];

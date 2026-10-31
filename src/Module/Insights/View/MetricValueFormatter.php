@@ -119,9 +119,14 @@ final readonly class MetricValueFormatter
             return $seconds.' s';
         }
         if ($seconds < 3600) {
-            return intdiv($seconds, 60).' min '.($seconds % 60).' s';
+            return self::twoParts(intdiv($seconds, 60), 'min', $seconds % 60, 's');
         }
 
-        return intdiv($seconds, 3600).' h '.intdiv($seconds % 3600, 60).' min';
+        return self::twoParts(intdiv($seconds, 3600), 'h', intdiv($seconds % 3600, 60), 'min');
+    }
+
+    private static function twoParts(int $whole, string $wholeUnit, int $rest, string $restUnit): string
+    {
+        return 0 === $rest ? $whole.' '.$wholeUnit : $whole.' '.$wholeUnit.' '.$rest.' '.$restUnit;
     }
 }

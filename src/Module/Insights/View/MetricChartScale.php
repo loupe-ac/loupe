@@ -23,6 +23,14 @@ final class MetricChartScale
 
     private const int TARGET_TICKS = 4;
 
+    /** Axis steps of a duration in milliseconds that read as whole units. */
+    private const array DURATION_STEPS = [
+        1, 2, 5, 10, 20, 50, 100, 200, 500,
+        1_000, 2_000, 5_000, 10_000, 15_000, 30_000,
+        60_000, 120_000, 300_000, 600_000, 900_000, 1_800_000,
+        3_600_000, 7_200_000, 10_800_000, 21_600_000, 43_200_000, 86_400_000,
+    ];
+
     /**
      * The top of the value axis and its step. A count scales as a count. A ratio
      * tops at 100%. Another metric tops at a floor of its own, so tiny values still read.
@@ -44,7 +52,9 @@ final class MetricChartScale
             default => (float) self::TARGET_TICKS,
         };
         $max = max([$floor, ...$values]);
-        $step = self::niceStep($max / self::TARGET_TICKS);
+        $step = MetricValueType::Duration === $type && !$metric->isInHours()
+            ? self::durationStep($max / self::TARGET_TICKS)
+            : self::niceStep($max / self::TARGET_TICKS);
 
         return [ceil($max / $step - 1e-9) * $step, $step];
     }
@@ -109,6 +119,17 @@ final class MetricChartScale
     public static function number(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
+    }
+
+    private static function durationStep(float $raw): float
+    {
+        foreach (self::DURATION_STEPS as $step) {
+            if ($step >= $raw - 1e-9) {
+                return (float) $step;
+            }
+        }
+
+        return self::niceStep($raw / 86_400_000) * 86_400_000;
     }
 
     /** A step of 1, 2 or 5 times a power of ten. */

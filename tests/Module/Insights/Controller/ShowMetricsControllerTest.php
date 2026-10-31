@@ -139,7 +139,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame(['plan', 'review'], $crawler->filter('[data-metrics-chart] .lp-chart__legend li')->each(static fn (Crawler $item): string => trim($item->text())));
         $rows = $crawler->filter('[data-metrics-chart] .lp-data-table__row');
         self::assertSame(['plan', 'review'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell')->first()->text())));
-        self::assertSame(['5 min 0 s', '5 min 0 s'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell--end')->first()->text())));
+        self::assertSame(['5 min', '5 min'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell--end')->first()->text())));
         self::assertCount(2, $crawler->filter('[data-metrics-chart] path.lp-chart__line'));
     }
 
