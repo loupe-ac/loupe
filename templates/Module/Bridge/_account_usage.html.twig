@@ -1,15 +1,15 @@
 {#
   Props:  @comment-budget-ignore
-    limit      AccountLimit  The usage windows of one account, from the latest readings.
+    bars       list          AgentConnection::usageBars of one account: a window name and its WindowLimit, or null with no reading.
     tooltipKey string        A prefix that makes the tooltip ids of this account unique on the page.
-  Draws one bar for each window. A window with no use value draws an empty bar.
+  Draws one bar for each window. A window with no use value, or with no reading yet, draws an empty bar.
 #}
 <div class="lp-usage" data-agent-usage-bars>
-    {% for window in limit.orderedWindows %}
-    {% set reading = window.reading %}
-    {% set state = window.state.value %}
-    {% set percent = reading.usedPercent %}
-    {% set windowName = reading.window in ['session', 'week'] ? ('bridge.agents.usage.window.' ~ reading.window)|trans : reading.window %}
+    {% for bar in bars %}
+    {% set reading = bar.limit ? bar.limit.reading : null %}
+    {% set state = bar.limit ? bar.limit.state.value : 'unknown' %}
+    {% set percent = reading ? reading.usedPercent : null %}
+    {% set windowName = bar.window in ['session', 'week'] ? ('bridge.agents.usage.window.' ~ bar.window)|trans : bar.window %}
     {% set tooltipId = 'usage-tip-' ~ tooltipKey ~ '-' ~ loop.index %}
     {% if state == 'unknown' %}
         {% set valueLabel = 'bridge.agents.usage.unknown'|trans %}
@@ -20,7 +20,7 @@
     {% endif %}
     {% set fill = state != 'unknown' and percent is not null ? min(percent, 100) : 0 %}
     {% set tone = state == 'at-limit' ? 'limit' : (state == 'at-stop' ? 'stop' : (state == 'unknown' ? 'unknown' : 'open')) %}
-    <div class="lp-usage-bar lp-usage-bar--{{ tone }}" tabindex="0" aria-describedby="{{ tooltipId }}" data-agent-usage="{{ reading.window }}" data-agent-usage-state="{{ state }}">
+    <div class="lp-usage-bar lp-usage-bar--{{ tone }}"{% if reading %} tabindex="0" aria-describedby="{{ tooltipId }}"{% endif %} data-agent-usage="{{ bar.window }}" data-agent-usage-state="{{ state }}">
         <p class="lp-usage-bar__line">
             <span class="lp-usage-bar__name">{{ windowName }}</span>
             <strong class="lp-usage-bar__value" data-agent-usage-value>{{ valueLabel }}</strong>
@@ -32,7 +32,9 @@
             {% endif %}
         </p>
         <progress class="lp-usage-bar__track" max="100" value="{{ fill }}" aria-label="{{ windowName }}" aria-valuetext="{{ valueLabel }}"></progress>
+        {% if reading %}
         <twig:Ds:Tooltip id="{{ tooltipId }}" data-agent-usage-age>{{ 'bridge.agents.usage.read'|trans({'%age%': reading.readAt|relative_time}) }}{# @design-system-ignore #}</twig:Ds:Tooltip>
+        {% endif %}
     </div>
     {% endfor %}
 </div>

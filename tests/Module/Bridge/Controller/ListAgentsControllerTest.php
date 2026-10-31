@@ -271,7 +271,7 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertStringNotContainsString('16:09', $accounts->text());
         $ready = $accounts->filter('[data-agent-account="work"]');
         self::assertSame('ready', $ready->attr('data-agent-account-state'));
-        self::assertSame('work claude-code Ready', preg_replace('/\s+/', ' ', trim($ready->text())));
+        self::assertSame('work claude-code Ready', preg_replace('/\s+/', ' ', trim($ready->filter('.lp-agent-card__account-line')->text())));
         $failing = $accounts->filter('[data-agent-account="personal"]');
         self::assertSame('failing', $failing->attr('data-agent-account-state'));
         self::assertStringContainsString('Failing', $failing->text());
@@ -386,6 +386,55 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertStringContainsString('Read 3h ago', $bar->filter('[data-agent-usage-age]')->text());
     }
 
+    public function test_an_account_with_no_reading_yet_shows_an_unknown_session_and_week_bar(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-none@example.com');
+        $project = $this->project($em, $owner, 'Usage none');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'fresh', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+            ['name' => 'half', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $bridge, '-1 minute', account: 'half', window: 'week', usedPercent: 40.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $bars = $crawler->filter('[data-agent-account="fresh"] [data-agent-usage]');
+        self::assertSame(['session', 'week'], $bars->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage')));
+        self::assertSame(['unknown', 'unknown'], $bars->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage-state')));
+        self::assertSame(['Unknown', 'Unknown'], $bars->each(static fn (Crawler $bar): string => trim($bar->filter('[data-agent-usage-value]')->text())));
+        self::assertSame('0', $bars->eq(0)->filter('progress')->attr('value'));
+        self::assertCount(0, $bars->filter('[data-agent-usage-age]'));
+        $half = $crawler->filter('[data-agent-account="half"] [data-agent-usage]');
+        self::assertSame(['session', 'week'], $half->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage')));
+        self::assertSame(['unknown', 'open'], $half->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage-state')));
+    }
+
+    public function test_each_section_keeps_its_choice_under_its_own_stimulus_key(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-section-keys@example.com');
+        $project = $this->project($em, $owner, 'Section keys');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], workerPools: [
+            ['name' => 'default', 'size' => 1, 'inUse' => 0, 'queued' => 0],
+        ], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $keys = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-controller="details-memory"]')
+            ->each(static fn (Crawler $section): ?string => $section->attr('data-details-memory-key-value'));
+        self::assertSame(['pools-'.$bridge->id, 'accounts-'.$bridge->id], $keys);
+    }
+
     public function test_the_pools_and_accounts_sections_open_only_when_they_hold_a_problem(): void
     {
         $client = static::createClient();
@@ -442,7 +491,7 @@ final class ListAgentsControllerTest extends WebTestCase
         $accounts = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-accounts]');
         self::assertCount(4, $accounts->filter('[data-agent-account]'));
         $spare = $accounts->filter('[data-agent-account="spare"]');
-        self::assertSame('spare codex Ready Unused', preg_replace('/\s+/', ' ', trim($spare->text())));
+        self::assertSame('spare codex Ready Unused', preg_replace('/\s+/', ' ', trim($spare->filter('.lp-agent-card__account-line')->text())));
         $idle = $accounts->filter('[data-agent-account="idle"]');
         self::assertSame('failing', $idle->attr('data-agent-account-state'));
         self::assertStringContainsString('Unused', $idle->text());

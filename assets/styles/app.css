@@ -982,11 +982,11 @@
         @apply font-semibold text-fg;
     }
     .lp-agent-section__text {
-        @apply ml-1 text-fg-mute;
+        @apply ml-1 text-right text-fg-mute;
     }
-    /* The state of a section at a glance, so a closed one still tells. */
+    /* The state of a section at a glance, so a closed one still tells. It leads the summary on the right. */
     .lp-agent-section__dot {
-        @apply size-2 shrink-0 rounded-full bg-status-ok;
+        @apply ml-auto size-2 shrink-0 rounded-full bg-status-ok;
     }
     .lp-agent-section__dot--pending {
         @apply bg-status-pending;

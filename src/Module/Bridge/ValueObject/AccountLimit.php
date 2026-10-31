@@ -14,28 +14,6 @@ final readonly class AccountLimit
     ) {
     }
 
-    /**
-     * The windows in the order the Agents page draws them: session, week, then the others by name.
-     *
-     * @return list<WindowLimit>
-     */
-    public function orderedWindows(): array
-    {
-        $windows = $this->windows;
-        usort($windows, static fn (WindowLimit $a, WindowLimit $b): int => [self::rank($a->reading->window), $a->reading->window] <=> [self::rank($b->reading->window), $b->reading->window]);
-
-        return $windows;
-    }
-
-    private static function rank(string $window): int
-    {
-        return match ($window) {
-            'session' => 0,
-            'week' => 1,
-            default => 2,
-        };
-    }
-
     public function blocked(): bool
     {
         return null !== $this->cause();

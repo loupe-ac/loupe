@@ -12,6 +12,9 @@ use App\Module\Bridge\ValueObject\WindowLimitState;
 
 final readonly class AgentConnection
 {
+    /** The windows every account draws a bar for, with or without a reading. */
+    private const array USAGE_WINDOWS = ['session', 'week'];
+
     /** @param array<string, AccountLimit> $limits keyed by account name, for each account with a reading */
     public function __construct(
         public Bridge $bridge,
@@ -82,6 +85,27 @@ final readonly class AgentConnection
         }
 
         return $statuses;
+    }
+
+    /**
+     * The bars of one account: the session and the week always, then the other windows by name.
+     * A window with no reading yet has a null limit, and draws as Unknown.
+     *
+     * @return list<array{window: string, limit: ?WindowLimit}>
+     */
+    public function usageBars(string $account): array
+    {
+        $byWindow = [];
+        foreach ($this->limits[$account]->windows ?? [] as $window) {
+            $byWindow[$window->reading->window] = $window;
+        }
+        $others = array_values(array_diff(array_map(strval(...), array_keys($byWindow)), self::USAGE_WINDOWS));
+        sort($others);
+
+        return array_map(
+            static fn (string $name): array => ['window' => $name, 'limit' => $byWindow[$name] ?? null],
+            [...self::USAGE_WINDOWS, ...$others],
+        );
     }
 
     /** @return 'failing'|'at-limit'|'near-limit'|'no-reading'|'ok' */
