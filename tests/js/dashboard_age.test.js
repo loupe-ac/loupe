@@ -63,3 +63,9 @@ it('ages the line as the page stays open', async () => {
 
     expect(line().textContent).toBe('Updated 5 min ago');
 });
+
+it('skips a tile that holds no result', async () => {
+    await mount(tile(120) + '<div data-computed-at=""></div>');
+
+    expect(line().textContent).toBe('Updated 2 min ago');
+});

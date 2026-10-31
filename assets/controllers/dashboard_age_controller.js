@@ -31,6 +31,7 @@ export default class extends Controller {
             return;
         }
         const stamps = [...this.element.querySelectorAll('[data-computed-at]')]
+            .filter((tile) => tile.dataset.computedAt !== '')
             .map((tile) => Number(tile.dataset.computedAt))
             .filter(Number.isFinite);
         if (stamps.length === 0) {

@@ -8,7 +8,7 @@
     ('analytics.metrics.bucket.' ~ graph.bucket.value)|trans,
     ('analytics.metrics.chart_type.' ~ graph.chartType.value|replace({'-': '_'}))|trans,
 ]|join(' · ') %}
-<turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ graph.width.value }}" data-graph-id="{{ graph.id }}" data-dashboard-tile="{{ tile.broken ? 'broken' : 'ready' }}"{% if tile.broken %} data-dashboard-broken="{{ tile.broken.reason.value }}"{% endif %}{% if tile.result %} data-computed-at="{{ tile.result.computedAt.timestamp }}"{% endif %}>
+<turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ graph.width.value }}" data-graph-id="{{ graph.id }}" data-dashboard-tile="{{ tile.broken ? 'broken' : 'ready' }}"{% if tile.broken %} data-dashboard-broken="{{ tile.broken.reason.value }}"{% endif %}>
     {# The name is text that a person wrote, so the component prints it escaped. Never add |raw here. #}
     <twig:Ds:GraphTile
         :name="graph.name"
@@ -19,6 +19,7 @@
         :brokenBody="tile.broken ? ('analytics.dashboard.broken.' ~ tile.broken.reason.value|replace({'-': '_'}))|trans({'%name%': tile.broken.name}) : null"
         data-controller="modal graph-tile"
         data-graph-tile
+        :data-computed-at="tile.result ? tile.result.computedAt.timestamp : ''"
     >
         <twig:block name="rename">
             {{ form_start(forms.rename, {attr: {class: 'lp-graph-tile__rename', hidden: 'hidden', 'data-graph-tile-target': 'renameForm', 'data-action': 'keydown.esc->graph-tile#cancelRename'}}) }}
