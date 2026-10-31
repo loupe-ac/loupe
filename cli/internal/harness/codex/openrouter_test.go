@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
@@ -116,4 +117,35 @@ func containsRun(args, run []string) bool {
 	}
 
 	return false
+}
+
+// A run that misses a subagent leaves its usage to RunUsage, which keeps the
+// tokens of an OpenRouter run and prices none. SessionUsage reads an
+// interactive session, which keeps its list price.
+func TestRunUsageOfAnOpenRouterRunPricesNone(t *testing.T) {
+	withFetched(t, map[string]transcript.FetchedPrice{"gpt-6-astra": {Rates: transcript.Rates{Input: 1e6, Output: 1e6}}})
+	since := time.Date(2026, 10, 8, 12, 15, 50, 0, time.UTC)
+	for profile, wantCost := range map[string]bool{"openrouter": false, "": true} {
+		home := t.TempDir()
+		dir := filepath.Join(home, "sessions", "2026", "10", "08")
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		main := "rollout-2026-10-08T08-15-36-" + probeThread + ".jsonl"
+		copyFile(t, filepath.Join("testdata", "probe", "sessions", "2026", "10", "08", main), filepath.Join(dir, main))
+		copyFile(t, filepath.Join("testdata", "openrouter.config.toml"), filepath.Join(home, "openrouter.config.toml"))
+		h := New(home, profile, filepath.Join(t.TempDir(), "threads"))
+		if err := h.remember(runID, probeThread); err != nil {
+			t.Fatal(err)
+		}
+
+		run, err := h.RunUsage(runID, since, time.Time{})
+		if m := run["gpt-6-astra"]; err != nil || m.OutputTokens == 0 || (m.CostUSD != nil) != wantCost {
+			t.Fatalf("profile %q: RunUsage = %+v, %v, want a cost %v", profile, run, err, wantCost)
+		}
+		session, err := h.SessionUsage(runID, since, time.Time{})
+		if err != nil || session["gpt-6-astra"].CostUSD == nil {
+			t.Fatalf("profile %q: SessionUsage = %+v, %v, want a cost", profile, session, err)
+		}
+	}
 }

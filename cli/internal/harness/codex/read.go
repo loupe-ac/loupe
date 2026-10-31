@@ -567,6 +567,16 @@ func document(text string) json.RawMessage {
 // SessionUsage is what the thread and its subagents spent at or after from,
 // and before to when to is set.
 func (h Harness) SessionUsage(runID string, from, to time.Time) (transcript.Usage, error) {
+	return h.usage(runID, from, to, true)
+}
+
+// RunUsage is SessionUsage for a worker run. A run on OpenRouter keeps its
+// token counts with no list price, because Loupe reads its billed cost.
+func (h Harness) RunUsage(runID string, from, to time.Time) (transcript.Usage, error) {
+	return h.usage(runID, from, to, !h.onOpenRouter())
+}
+
+func (h Harness) usage(runID string, from, to time.Time, priced bool) (transcript.Usage, error) {
 	t, err := h.tree(runID, from, to)
 	if err != nil {
 		return nil, err
@@ -575,16 +585,17 @@ func (h Harness) SessionUsage(runID string, from, to time.Time) (transcript.Usag
 		return nil, errNoUsage
 	}
 
-	return toUsage(t.between(from, to, true)), nil
+	return toUsage(t.between(from, to, priced)), nil
 }
 
 // errNoUsage says the session file holds no token count, so the spend is
 // unknown and not zero.
 var errNoUsage = errors.New("the Codex session holds no token count")
 
-// SessionTotal is what the whole thread and its subagents spent.
+// SessionTotal is what the whole thread and its subagents spent, read as
+// RunUsage because only a resume of a worker run reads it.
 func (h Harness) SessionTotal(runID string) (transcript.Usage, error) {
-	return h.SessionUsage(runID, time.Time{}, time.Time{})
+	return h.RunUsage(runID, time.Time{}, time.Time{})
 }
 
 func (h Harness) StartDir(runID string) (string, error) {

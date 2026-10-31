@@ -194,6 +194,12 @@ func (h Harness) SessionUsage(sessionID string, from, to time.Time) (transcript.
 	return transcript.Between(path, from, to)
 }
 
+// RunUsage is SessionUsage, because Loupe reads no billed cost of a claude
+// run.
+func (h Harness) RunUsage(sessionID string, from, to time.Time) (transcript.Usage, error) {
+	return h.SessionUsage(sessionID, from, to)
+}
+
 // SessionTotal reads the last cost-state line of the transcript. A session
 // with no such line spent zero.
 func (h Harness) SessionTotal(sessionID string) (transcript.Usage, error) {

@@ -28,7 +28,11 @@ type Harness interface {
 	// SessionUsage is what the session spent at or after from, and before to
 	// when to is set.
 	SessionUsage(sessionID string, from, to time.Time) (transcript.Usage, error)
-	// SessionTotal is what the whole session spent before a resume.
+	// RunUsage is SessionUsage for a worker run, with no list price when
+	// Loupe reads the billed cost of the run.
+	RunUsage(sessionID string, from, to time.Time) (transcript.Usage, error)
+	// SessionTotal is what the whole session spent before a resume, with no
+	// list price when Loupe reads the billed cost of the run.
 	SessionTotal(sessionID string) (transcript.Usage, error)
 	// StartDir is the folder the session started in, and "" with no error
 	// when this machine holds no record of the session.
