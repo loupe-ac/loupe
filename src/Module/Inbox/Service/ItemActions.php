@@ -264,10 +264,10 @@ final readonly class ItemActions
             $waits = $openWaits[self::key($item)] ?? [];
             $sessionCard = $sessionCards[self::key($item)];
             $bridges = $liveBridges[(string) $item->project->id] ?? [];
-            $sessionOffered = null !== $sessionCard || [] !== $bridges;
             if (null === $sessionCard) {
                 $bridges = array_values(array_filter($bridges, SessionBridges::opensItemSessions(...)));
             }
+            $sessionOffered = null !== $sessionCard || [] !== $bridges;
             $sessionOnline = [] !== $bridges;
             $sessionLive = isset($liveItemSessions[self::key($item)]) || (null !== $sessionCard && isset($liveCardSessions[$sessionCard->toRfc4122()]));
             $suggestions = $suggested[self::key($item)];

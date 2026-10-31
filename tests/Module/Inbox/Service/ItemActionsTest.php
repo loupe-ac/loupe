@@ -533,15 +533,11 @@ final class ItemActionsTest extends KernelTestCase
         self::assertStringContainsString('The repository is blocked', (string) $action->sessionPrompt);
     }
 
-    public function test_a_bridge_without_the_item_work_kind_leaves_the_item_session_off(): void
+    public function test_a_bridge_without_the_item_work_kind_hides_the_item_session(): void
     {
         $this->sessionBridge();
-        $item = $this->notice();
 
-        $action = $this->startSession($item);
-
-        self::assertSame('inbox.action.start-session.disabled', $action->disabledReasonKey);
-        self::assertNull($action->bridgeName);
+        self::assertSame([], $this->kinds($this->notice()));
     }
 
     public function test_an_item_with_no_card_and_no_bridge_that_opens_sessions_offers_no_session(): void
