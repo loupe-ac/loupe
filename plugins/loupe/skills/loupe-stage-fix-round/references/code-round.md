@@ -16,7 +16,7 @@ The round ends at the push. It never waits for CI, because the app reads the new
 5. Read `../../loupe-stage-implementation/references/commands.md`. Load the profile `Instruction files` and `loupe-recommendations`.
 6. Check the worker folder, and sync it with the pull request branch, per the reference. Keep every existing commit, except a sync of the base that the sync procedure resets.
 7. When the branch differs from the pull request branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
-8. When the pull request conflicts, resolve it first, as `conflict.md` says.
+8. When the pull request conflicts, resolve it first, as `conflict.md` says. It merges `origin/<base>` into the branch, and never rebases.
 9. Write down the head commit as the start of the fix, with `git rev-parse HEAD`. A merge of the base in step 8 then stays out of the self-review.
 
    Fix every open item, every pending note, every failing check and every finding of the agent review of the head. Read the log of each failed check, and fix the cause. Fix a gap that the conflict resolution shows in this round too, never in a card (implementation contract rule 12). Follow the implementation skill for sub-agents, the gate and the code review. In this round, `<base>` is the base branch of the pull request, such as the epic branch of an epic child. Before the gate, run implementation step 11 on the diff of the pull request, so the deploy notes stay true.

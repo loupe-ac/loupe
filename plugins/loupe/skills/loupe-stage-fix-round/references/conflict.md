@@ -1,6 +1,6 @@
 # Resolve a conflict with the base
 
-Read this file when the mergeability of the pull request reads `conflicting`, or the reason of the request is `conflict`. "Sync with the pull request branch" in `../../loupe-stage-implementation/references/commands.md` also sends a conflict here.
+Read this file when the mergeability of the pull request reads `conflicting`, or the reason of the request is `conflict`.
 
 `<base>` is the base branch of the pull request, from the forge adapter. For a stacked pull request, it is the parent's branch. Run these in the worker folder:
 
