@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
@@ -159,7 +160,7 @@ final readonly class MetricChart
 
     /**
      * The top of the value axis and its step. A count scales as a count. A ratio
-     * tops at 100%. A usage percent tops at 100 or above. Another metric tops at a floor of its own, so tiny values still read.
+     * tops at 100%. The account usage tops at 100 or above, and a run usage delta scales to its points. Another metric tops at a floor of its own, so tiny values still read.
      *
      * @param list<float> $values
      *
@@ -172,10 +173,10 @@ final readonly class MetricChart
             return [1.0, 0.25];
         }
 
-        $floor = match ($type) {
-            MetricValueType::Money => 0.04,
-            MetricValueType::Percent => 100.0,
-            MetricValueType::Duration => $metric->isInHours() ? 1.0 : 1000.0,
+        $floor = match (true) {
+            MetricValueType::Percent === $type && Metric::AccountUsage === $metric->key->metric => 100.0,
+            MetricValueType::Money === $type => 0.04,
+            MetricValueType::Duration === $type => $metric->isInHours() ? 1.0 : 1000.0,
             default => (float) self::TARGET_TICKS,
         };
         $max = max($floor, ...$values);

@@ -168,6 +168,24 @@ final class MetricChartTest extends TestCase
         self::assertSame(150.0, $ticks($over)[\count($ticks($over)) - 1]);
     }
 
+    public function test_a_run_usage_delta_scales_to_its_points_where_the_account_usage_tops_at_one_hundred(): void
+    {
+        $ticks = static fn (MetricChart $chart): array => array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks);
+
+        foreach ([Metric::SessionUsage, Metric::WeekUsage] as $metric) {
+            $chart = MetricChart::build(new MetricShape(new MetricKey($metric)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 1.0])]);
+
+            self::assertNotNull($chart);
+            self::assertSame([0.0, 1.0, 2.0, 3.0, 4.0], $ticks($chart), $metric->value);
+            $bar = $chart->buckets[0]->bars[0];
+            self::assertGreaterThan(50.0, MetricChart::BASELINE - $bar->top, $metric->value);
+        }
+
+        $account = MetricChart::build(new MetricShape(new MetricKey(Metric::AccountUsage)), MetricStatistic::Max, MetricBucket::Week, [self::series(null, ['2026-09-28' => 1.0])]);
+        self::assertNotNull($account);
+        self::assertSame(100.0, $ticks($account)[\count($ticks($account)) - 1]);
+    }
+
     public function test_a_small_money_step_takes_more_decimals(): void
     {
         $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.018])]);
