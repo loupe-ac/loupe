@@ -29,7 +29,12 @@ Find why the work of one workflow rule failed on a card, and fix the cause. The 
 6. Find the cause. Read the `failureReason` and the `output` of the run. Then read the worker folder, its branch and its remote branches, with commands that change nothing.
 7. Check the cause against the profile `Repair` section. When no allowed action fixes it, take step 10.
 8. Fix the cause with the allowed action, and run its checks. Commit nothing. When a step of the action fails, or a guard of the action stops it, take step 10.
-9. Record the repair on the card: read it with `card_get`, and send its whole `body` back with `card_update`. Add one final paragraph that starts `Repair:`. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>`. Name the rule, the failed run id, the cause and what you did. When the action removes the worker folder, run `loupe env reset` after this step, as your last command. The `reset` command of the work entry removes the folder. The repair succeeds only when the reset exits 0. Exit 1 means the reset failed. Exit 2, or a CLI with no `env` command, means the bridge cannot run it. In each of these cases the folder stays broken, so take step 10. Otherwise stop with `STAGE RESULT: repaired <what>`.
+9. Record the repair on the card. Read it with `card_get`, and send its whole `body` back with `card_update`.
+   1. Add one final paragraph that starts `Repair:`. Name the rule, the failed run id, the cause and what you did.
+   2. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>`.
+   3. When the action removes the worker folder, run `loupe env reset` after this step, as your last command. The `reset` command of the work entry removes the folder.
+   4. The repair succeeds only when the reset exits 0. Exit 1 means the reset failed. Exit 2, or a CLI with no `env` command, means the bridge cannot run it. In each of these cases the folder stays broken, so take step 10.
+   5. Otherwise stop with `STAGE RESULT: repaired <what>`.
 10. When you cannot fix the cause, record it on the card as step 9 says. The paragraph also starts `Repair:`, and names the cause and what a person must do. Stop with `STAGE RESULT: blocked: <reason>`.
 
 ## Find the failed run
@@ -37,7 +42,7 @@ Find why the work of one workflow rule failed on a card, and fix the cause. The 
 The repair request names the rule, and never the run. Find the run yourself.
 
 1. Call `worker_run_list` with `cardNumber`, and `states` set to `failed`, `not-started`, `no-result`, `timed-out`, `unfinished`, `blocked`, `gave-up` and `lost`. Each of these states can settle a work request as refused. The tool has no rule filter.
-2. The rows come newest first. Take the first row whose `ruleId` is the rule of the prompt and whose `workKind` is not `repair`. A repair run carries the rule id of the rule it repaired. Read every page while `hasMore` is true and no row matches.
+2. The rows come newest first. Take the first row whose `ruleId` is the rule of the prompt and whose `workKind` is not `repair`. Skip the repair runs, because a repair run carries the rule id of the rule it repaired. Read every page while `hasMore` is true and no row matches.
 3. Read that run with `worker_run_get`. The `output` holds up to 4000 characters. A failed `before` command puts its reason first.
 4. Ignore the runs of other rules. Their failures are not the cause you repair.
 
