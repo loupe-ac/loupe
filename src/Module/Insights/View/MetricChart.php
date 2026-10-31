@@ -83,8 +83,10 @@ final readonly class MetricChart
         $starts = array_values($starts);
         $index = array_flip(array_map(static fn (\DateTimeImmutable $start): int => $start->getTimestamp(), $starts));
 
-        [$top, $step] = self::axis($metric, $statistic, $values);
+        [$top, $step, $bottom] = self::axis($metric, $statistic, $values);
         $plotHeight = self::BASELINE - self::PLOT_TOP;
+        $span = $top - $bottom;
+        $zero = self::BASELINE + $bottom / $span * $plotHeight;
         $bucketWidth = (self::PLOT_RIGHT - self::PLOT_LEFT) / \count($starts);
         $seriesCount = \count($series);
         $slotWidth = $bucketWidth * self::BAR_SHARE / $seriesCount;
@@ -106,14 +108,20 @@ final readonly class MetricChart
                 }
                 $bucketIndex = $index[$point->start->getTimestamp()];
                 $x = self::PLOT_LEFT + $bucketIndex * $bucketWidth + $groupOffset + $position * ($barWidth + $gap);
-                $height = $point->value > 0 ? min($plotHeight, max(self::MIN_BAR_HEIGHT, $point->value / $top * $plotHeight)) : 0.0;
+                $value = (float) $point->value;
+                $height = 0.0 === $value ? 0.0 : min($plotHeight, max(self::MIN_BAR_HEIGHT, abs($value) / $span * $plotHeight));
+                $barTop = $value > 0 ? $zero - $height : $zero;
                 $bars[$bucketIndex][] = new MetricChartBar(
                     series: $chartSeries[$position],
                     point: $point,
                     x: round($x, 2),
                     width: round($barWidth, 2),
-                    top: round(self::BASELINE - $height, 2),
-                    path: $height > 0 ? self::path($x, self::BASELINE - $height, $barWidth, $height) : '',
+                    top: round($barTop, 2),
+                    path: match (true) {
+                        $value > 0 => self::path($x, $barTop, $barWidth, $height),
+                        $value < 0 => self::pathDown($x, $barTop, $barWidth, $height),
+                        default => '',
+                    },
                 );
             }
         }
@@ -125,10 +133,10 @@ final readonly class MetricChart
         }
 
         $yTicks = [];
-        $tickCount = (int) round($top / $step);
+        $tickCount = (int) round($span / $step);
         for ($tick = 0; $tick <= $tickCount; ++$tick) {
-            $value = round($tick * $step, 10);
-            $yTicks[] = new MetricChartTick(round(self::BASELINE - $value / $top * $plotHeight, 2), $value);
+            $value = round($bottom + $tick * $step, 10);
+            $yTicks[] = new MetricChartTick(round(self::BASELINE - ($value - $bottom) / $span * $plotHeight, 2), $value);
         }
 
         $tickStep = self::tickStep($bucket, \count($buckets));
@@ -159,18 +167,19 @@ final readonly class MetricChart
     }
 
     /**
-     * The top of the value axis and its step. A count scales as a count. A ratio
+     * The top of the value axis, its step and its bottom. A count scales as a count. A ratio
      * tops at 100%. The account usage tops at 100 or above, and a run usage delta scales to its points. Another metric tops at a floor of its own, so tiny values still read.
+     * The axis starts at zero, or below zero when a value is negative, such as a run usage delta that fell.
      *
      * @param list<float> $values
      *
-     * @return array{float, float}
+     * @return array{float, float, float}
      */
     private static function axis(MetricShape $metric, MetricStatistic $statistic, array $values): array
     {
         $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : $metric->valueType();
         if (MetricValueType::Ratio === $type) {
-            return [1.0, 0.25];
+            return [1.0, 0.25, 0.0];
         }
 
         $floor = match (true) {
@@ -179,10 +188,11 @@ final readonly class MetricChart
             MetricValueType::Duration === $type => $metric->isInHours() ? 1.0 : 1000.0,
             default => (float) self::TARGET_TICKS,
         };
-        $max = max($floor, ...$values);
-        $step = self::niceStep($max / self::TARGET_TICKS);
+        $max = max([$floor, ...$values]);
+        $min = min([0.0, ...$values]);
+        $step = self::niceStep(($max - $min) / self::TARGET_TICKS);
 
-        return [ceil($max / $step - 1e-9) * $step, $step];
+        return [ceil($max / $step - 1e-9) * $step, $step, $min < 0 ? floor($min / $step + 1e-9) * $step : 0.0];
     }
 
     /** A step of 1, 2 or 5 times a power of ten. */
@@ -239,6 +249,31 @@ final readonly class MetricChart
             self::number($right),
             self::number($top + $radius),
             self::number($bottom),
+        );
+    }
+
+    /** A rectangle that hangs from the zero line, with its bottom corners rounded. */
+    private static function pathDown(float $x, float $top, float $width, float $height): string
+    {
+        $radius = min(self::RADIUS, $width / 2, $height);
+        $right = $x + $width;
+        $bottom = $top + $height;
+
+        return \sprintf(
+            'M%s %sV%sQ%s %s %s %sH%sQ%s %s %s %sV%sZ',
+            self::number($x),
+            self::number($top),
+            self::number($bottom - $radius),
+            self::number($x),
+            self::number($bottom),
+            self::number($x + $radius),
+            self::number($bottom),
+            self::number($right - $radius),
+            self::number($right),
+            self::number($bottom),
+            self::number($right),
+            self::number($bottom - $radius),
+            self::number($top),
         );
     }
 
