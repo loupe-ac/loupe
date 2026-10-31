@@ -63,6 +63,15 @@ A name of one secret in a pair runs the step of its kind. For example, `oauth_pr
 
 For a vendor secret, the recipe prints the page to open, and the token scopes when a token needs them. It opens no browser. It reads the new value with hidden input, and checks its shape before it saves anything. For a multi-line value, such as the GitHub App private key, type a line that holds only a period to end the input, or type the path of a file.
 
+In a terminal, the recipe asks for each vendor secret in turn, and then shows a numbered menu of them. The menu marks each secret `entered` or `skipped`, and never shows a value.
+
+1. Press Enter at a prompt to skip that secret. A skipped secret is not rotated, and it is not on the revoke list.
+2. Type a number in the menu to enter that secret again, for example after a wrong paste.
+3. Type `s` to save every entered value as pending.
+4. Type `q` to quit. Nothing is saved.
+
+A value with the wrong shape is asked again. Without a terminal, the recipe reads the values in turn with no menu, and stops on an empty or wrong value. `ROTATE_MENU=1` shows the menu without a terminal.
+
 When every value is collected, the recipe lists the secret names and asks `Start a Claude session that applies them now? [y/N]`. Answer `y` to start `claude` with the prompt that names the skill. Any other answer leaves the values pending. Start the session later with the command that the recipe prints, or drop the values with `bin/rotate-secrets discard`.
 
 A second collection is refused while values are pending, and while a webhook switch is pending.
