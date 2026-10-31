@@ -17,6 +17,10 @@ const path = require('node:path');
 const CANVAS_SUFFIX = '.dc.html';
 const NOT_PAGE_FILES = new Set(['support.js', 'canvas.json']);
 const DEFAULT_SIZE = { w: 1280, h: 800 };
+const BLOB_DIR = '_blob';
+// The rule of blobRe in cli/internal/claudedesign/blob.go. An id also stops at
+// `&`, because a serialized style attribute writes a quote as &quot;.
+const BLOB_LINK = /(^|[^.\w])\/_blob\/([^\s"'()<>,;\\?#&]*)/g;
 const TYPES = {
     '.html': 'text/html; charset=utf-8',
     '.css': 'text/css',
@@ -150,6 +154,52 @@ function walk(folder, prefix = '') {
     return out.sort();
 }
 
+// Maps each blob id, and each blob file name, to the one file under _blob/ that
+// it names. A file with an extension wins over a bare file of the same id. An
+// id that two typed files share maps to neither.
+function blobFiles(files) {
+    const typed = new Map();
+    const bare = new Set();
+    for (const file of files) {
+        if (path.posix.dirname(file) !== BLOB_DIR) continue;
+        const name = path.posix.basename(file);
+        const ext = path.posix.extname(name);
+        if (ext === '') {
+            bare.add(name);
+            continue;
+        }
+        const id = name.slice(0, -ext.length);
+        typed.set(id, [...(typed.get(id) ?? []), file]);
+    }
+    const out = new Map();
+    for (const [id, list] of typed) {
+        if (list.length === 1) out.set(id, list[0]);
+        for (const file of list) out.set(path.posix.basename(file), file);
+    }
+    for (const id of bare) if (!typed.has(id)) out.set(id, `${BLOB_DIR}/${id}`);
+
+    return out;
+}
+
+// Points each /_blob/<id> of text at its file, relative to the folder dir. A
+// path with no file stays as it is.
+function rewriteBlobLinks(text, blobs, dir) {
+    return text.replace(BLOB_LINK, (match, lead, ref) => (blobs.has(ref) ? lead + path.posix.relative(dir, blobs.get(ref)) : match));
+}
+
+// Copies each file that is not a canvas file to outFolder. Leaves out a bare
+// _blob/<id> that has a typed copy, which is the one the pages link to.
+function copyCompanions(folder, outFolder, blobs) {
+    for (const file of walk(folder)) {
+        if (file.endsWith(CANVAS_SUFFIX) || NOT_PAGE_FILES.has(path.posix.basename(file))) continue;
+        if (path.posix.dirname(file) === BLOB_DIR && path.posix.extname(file) === '' && blobs.get(path.posix.basename(file)) !== file) continue;
+        const target = path.join(outFolder, file);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        if (file.endsWith('.css')) fs.writeFileSync(target, rewriteBlobLinks(fs.readFileSync(path.join(folder, file), 'utf8'), blobs, path.posix.dirname(file)));
+        else fs.copyFileSync(path.join(folder, file), target);
+    }
+}
+
 function manifest(folder) {
     return walk(folder).map((rel) => {
         const bytes = fs.readFileSync(path.join(folder, rel));
@@ -254,8 +304,10 @@ async function verify(folder, entryLink) {
 
 function serve(folder, runtime) {
     const root = path.resolve(folder);
+    const blobs = blobFiles(walk(root));
     const server = http.createServer((req, res) => {
-        const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
+        let rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
+        if (path.posix.dirname(rel) === BLOB_DIR && blobs.has(path.posix.basename(rel))) rel = blobs.get(path.posix.basename(rel));
         let file = path.resolve(root, rel);
         if (runtime && path.posix.basename(rel) === 'support.js') file = path.resolve(runtime);
         else if (file !== root && !file.startsWith(root + path.sep)) {
@@ -306,11 +358,8 @@ function nameOf(entry) {
 
 async function render(playwrightPath, folder, outFolder, options) {
     await withLive(playwrightPath, folder, options, async ({ browser, origin, map }) => {
-        for (const file of walk(folder)) {
-            if (file.endsWith(CANVAS_SUFFIX) || NOT_PAGE_FILES.has(path.posix.basename(file))) continue;
-            fs.mkdirSync(path.join(outFolder, path.dirname(file)), { recursive: true });
-            fs.copyFileSync(path.join(folder, file), path.join(outFolder, file));
-        }
+        const blobs = blobFiles(walk(folder));
+        copyCompanions(folder, outFolder, blobs);
         for (const entry of map) {
             const page = await openLive(browser, origin, entry);
             const html = await page.evaluate(
@@ -318,7 +367,7 @@ async function render(playwrightPath, folder, outFolder, options) {
             );
             const target = path.join(outFolder, entry.out);
             fs.mkdirSync(path.dirname(target), { recursive: true });
-            fs.writeFileSync(target, html);
+            fs.writeFileSync(target, rewriteBlobLinks(html, blobs, path.posix.dirname(entry.out)));
             await page.close();
             console.log(`${entry.board} -> ${entry.out}`);
         }
@@ -433,7 +482,7 @@ async function main(argv) {
     return 0;
 }
 
-module.exports = { findHtmlInSvg, findTemplateInSvgText, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
+module.exports = { blobFiles, copyCompanions, rewriteBlobLinks, walk, findHtmlInSvg, findTemplateInSvgText, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
 
 if (require.main === module) {
     main(process.argv.slice(2)).then(

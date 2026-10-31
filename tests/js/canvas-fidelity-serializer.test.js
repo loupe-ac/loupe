@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -8,15 +14,19 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {
+    blobFiles,
+    copyCompanions,
     findHtmlInSvg,
     findTemplateInSvgText,
     manifest,
     pageMap,
     rebaseDocument,
+    rewriteBlobLinks,
     serializeDocument,
     serve,
     storedLink,
     verify,
+    walk,
 } = require('../../plugins/loupe/skills/loupe-product-design/references/canvas-fidelity.js');
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -197,6 +207,106 @@ describe('rebaseDocument', () => {
         rebaseDocument(document, 'site', 'site');
 
         expect(document.documentElement.outerHTML).toBe(before);
+    });
+});
+
+describe('blob links', () => {
+    const blobs = () =>
+        blobFiles([
+            '_blob/style',
+            '_blob/style.css',
+            '_blob/font.woff2',
+            '_blob/bare',
+            '_blob/twice.png',
+            '_blob/twice.jpg',
+            'project/Main.dc.html',
+        ]);
+
+    it('maps each id to its file with an extension, and a bare file only when it is the one file', () => {
+        expect(Object.fromEntries(blobs())).toEqual({
+            style: '_blob/style.css',
+            'style.css': '_blob/style.css',
+            font: '_blob/font.woff2',
+            'font.woff2': '_blob/font.woff2',
+            bare: '_blob/bare',
+            'twice.png': '_blob/twice.png',
+            'twice.jpg': '_blob/twice.jpg',
+        });
+    });
+
+    it('points each /_blob/ link of a page at its file, relative to the folder of the page', () => {
+        const html =
+            '<link href="/_blob/style"><img src="/_blob/bare" srcset="/_blob/style 1x, /_blob/font 2x">' +
+            '<div style="background: url(&quot;/_blob/font&quot;)"></div>';
+
+        expect(rewriteBlobLinks(html, blobs(), '.')).toBe(
+            '<link href="_blob/style.css"><img src="_blob/bare" srcset="_blob/style.css 1x, _blob/font.woff2 2x">' +
+                '<div style="background: url(&quot;_blob/font.woff2&quot;)"></div>',
+        );
+        expect(
+            rewriteBlobLinks('<link href="/_blob/style">', blobs(), 'project'),
+        ).toBe('<link href="../_blob/style.css">');
+    });
+
+    it('rewrites a url() of a stylesheet in each quote style', () => {
+        const css = `a{src:url('/_blob/font')} b{src:url("/_blob/font")} c{src:url(/_blob/font)}`;
+
+        expect(rewriteBlobLinks(css, blobs(), '_blob')).toBe(
+            `a{src:url('font.woff2')} b{src:url("font.woff2")} c{src:url(font.woff2)}`,
+        );
+    });
+
+    it('keeps a link with no file, an ambiguous id, a relative link and another host', () => {
+        const html =
+            '<a href="/_blob/gone"></a><a href="/_blob/twice"></a>' +
+            '<a href="../_blob/style"></a><a href="https://claude.ai/_blob/style"></a>';
+
+        expect(rewriteBlobLinks(html, blobs(), '.')).toBe(html);
+    });
+});
+
+describe('copyCompanions', () => {
+    it('copies the companion files, drops a bare blob that has a typed copy, and rewrites the blob links of each stylesheet', () => {
+        const folder = canvas({
+            'project/Main.dc.html': '',
+            'project/support.js': '',
+            '_blob/style': 'bare',
+            '_blob/style.css': `@font-face{src:url('/_blob/font')}`,
+            '_blob/font.woff2': Buffer.from([0, 1, 255]),
+            '_blob/only': 'kept',
+        });
+        const out = canvas({});
+
+        copyCompanions(folder, out, blobFiles(walk(folder)));
+
+        expect(walk(out)).toEqual([
+            '_blob/font.woff2',
+            '_blob/only',
+            '_blob/style.css',
+        ]);
+        expect(readFileSync(join(out, '_blob/style.css'), 'utf8')).toBe(
+            `@font-face{src:url('font.woff2')}`,
+        );
+        expect(readFileSync(join(out, '_blob/font.woff2'))).toEqual(
+            Buffer.from([0, 1, 255]),
+        );
+    });
+});
+
+describe('serve', () => {
+    it('answers /_blob/<id> with the typed file when the folder holds no bare copy', async () => {
+        const { server, origin } = await serve(
+            canvas({ '_blob/style.css': 'a{}' }),
+        );
+        try {
+            const response = await fetch(`${origin}/_blob/style`);
+
+            expect(response.status).toBe(200);
+            expect(response.headers.get('content-type')).toBe('text/css');
+            expect(await response.text()).toBe('a{}');
+        } finally {
+            server.close();
+        }
     });
 });
 
