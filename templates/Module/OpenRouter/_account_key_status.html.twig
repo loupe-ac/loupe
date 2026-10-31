@@ -2,7 +2,7 @@
 <turbo-frame id="openrouter-key" data-live-pill-target="frame">
     {% if view.key is not null %}
     {% set key = view.key %}
-    <div class="lp-identity-row" data-testid="openrouter-key-row">
+    <div class="lp-identity-row lp-identity-row--key" data-testid="openrouter-key-row">
         {% include '@OpenRouter/_key_chip.html.twig' with {key: key} only %}
         <span class="lp-identity-row__text">
             <code class="lp-identity-row__name lp-identity-row__name--mono" data-testid="openrouter-key-mask">{{ key.masked }}</code>

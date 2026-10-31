@@ -2,7 +2,7 @@
 <turbo-frame id="openrouter-key" data-live-pill-target="frame">
     {% set key = view.inUse %}
     {% if key is not null %}
-    <div class="lp-identity-row" data-testid="openrouter-key-row">
+    <div class="lp-identity-row lp-identity-row--key" data-testid="openrouter-key-row">
         <span class="lp-identity-row__text">
             <span class="lp-identity-row__name" data-testid="openrouter-key-in-use">{{ 'openrouter.project.key_in_use'|trans }}: {{ (key.forProject ? 'openrouter.project.own_key' : 'openrouter.project.account_key')|trans }}</span>
             <code class="lp-identity-row__meta" data-testid="openrouter-key-mask">{{ key.masked }}</code>
