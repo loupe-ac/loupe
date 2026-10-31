@@ -46,14 +46,14 @@ final class LifecycleCommentRulesMigrationTest extends KernelTestCase
         $projectId = $this->lifecycleProject('migration-comment-rules-custom');
         $this->dropRules($connection, $projectId, self::COMMENT_RULES);
         $connection->executeStatement(
-            "UPDATE workflow_bindings SET definition = jsonb_set(definition, '{workTimeoutMinutes}', '17') WHERE project_id = ?",
+            "UPDATE workflow_bindings SET definition = jsonb_set(definition, '{backoffMinutes}', '[7, 8, 9]') WHERE project_id = ?",
             [$projectId],
         );
 
         $this->migrate($connection);
 
         $definition = $this->definition($connection, $projectId);
-        self::assertSame(17, $definition['workTimeoutMinutes']);
+        self::assertSame([7, 8, 9], $definition['backoffMinutes']);
         $ids = $this->ruleIds($definition);
         $fix = array_search('fix-in-review', $ids, true);
         self::assertIsInt($fix);

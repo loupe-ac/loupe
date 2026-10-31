@@ -42,6 +42,8 @@ use Ubermuda\AuditBundle\AuditSubject;
 /**
  * Creates or replaces the owner's row for one bridge. Another account's row
  * under the same bridge id is a different row and stays as it is.
+ *
+ * @phpstan-import-type RepositoryRow from Bridge
  */
 final readonly class RecordBridgeHeartbeatHandler
 {
@@ -99,6 +101,7 @@ final readonly class RecordBridgeHeartbeatHandler
             $pausedBefore = true === $bridge?->pausedReported;
             $capabilitiesBefore = $bridge?->capabilities;
             $kindsBefore = $bridge->workKinds ?? [];
+            $repositoriesBefore = $bridge->repositories ?? [];
             if (null === $bridge) {
                 $bridge = new Bridge($command->owner, $command->bridgeId, $projects, $command->cliVersion, $now);
                 $bridge->hooks = $command->hooks ?? [];
@@ -157,12 +160,13 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->gitIdentities = null;
                 $bridge->gitIdentitiesReportedAt = null;
             }
-            // A new bridge and a bridge back from quiet change what the waiting cards can expect.
+            // A new bridge, a bridge back from quiet and a bridge that reports other repositories change what the waiting cards can expect.
             $availabilityChanged = $created
                 || $wasQuiet
                 || $pausedBefore !== (true === $bridge->pausedReported)
                 || (null !== $command->capabilities && self::sorted($capabilitiesBefore ?? []) !== self::sorted($command->capabilities))
                 || self::sorted($kindsBefore) !== self::sorted($bridge->workKinds)
+                || (null !== $command->repositories && self::repositoriesChanged($repositoriesBefore, $command->repositories))
                 || [] !== array_diff($followed, $projects)
                 || [] !== array_diff($projects, $followed);
             // An online bridge that drops what it takes starts the no-taker wait of the work it leaves.
@@ -362,6 +366,17 @@ final readonly class RecordBridgeHeartbeatHandler
         sort($items);
 
         return $items;
+    }
+
+    /**
+     * @param list<RepositoryRow> $before
+     * @param list<RepositoryRow> $after
+     */
+    private static function repositoriesChanged(array $before, array $after): bool
+    {
+        $rows = static fn (array $list): array => self::sorted(array_values(array_map(static fn (array $row): string => json_encode([$row['projectId'], $row['path'], $row['remoteUrl']], \JSON_THROW_ON_ERROR), $list)));
+
+        return $rows($before) !== $rows($after);
     }
 
     /**

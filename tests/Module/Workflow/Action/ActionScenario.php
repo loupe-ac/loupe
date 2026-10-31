@@ -29,6 +29,7 @@ use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionOutcomeKind;
 use App\Module\Workflow\Contract\BoardColumns;
 use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\RetryNotes;
@@ -103,7 +104,7 @@ trait ActionScenario
         return new WorkRequestOpener(
             $this->openWorkRequestHandler(),
             $this->service(CardRepository::class),
-            new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
+            new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class), $this->service(EpicBranches::class)),
             $this->service(RetryNotes::class),
             $this->service(KindPrompts::class),
         );

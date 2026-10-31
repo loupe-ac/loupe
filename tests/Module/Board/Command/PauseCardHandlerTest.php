@@ -89,7 +89,7 @@ final class PauseCardHandlerTest extends KernelTestCase
         $audit = $this->recordingAuditor();
         $changes = DispatchedEvents::of(self::getContainer(), CardChanged::class);
 
-        $second = $this->pauseHandler($audit->auditor)(new PauseCardCommand($card, 'work-timed-out', 'implement-on-entry', PauseKind::WorkTimeout));
+        $second = $this->pauseHandler($audit->auditor)(new PauseCardCommand($card, 'work-timed-out', 'implement-on-entry', PauseKind::WorkStopped));
 
         self::assertNull($second);
         self::assertTrue($this->em->isOpen());

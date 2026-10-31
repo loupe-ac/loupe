@@ -4,13 +4,14 @@ Each rule has a stable ID, so a comment can cite it. The ID Q4 is retired. Do no
 
 ## Rules
 
-1. Q1: Find facts yourself. Code, existing behaviour, docs and board history are facts. Look them up, with a subagent when that helps. A subagent only reads. It asks the owner nothing, and it changes no card and no document. Never ask the owner for a fact. Ask the owner only for decisions.
+1. Q1: Find facts yourself. Code, existing behaviour, docs and board history are facts. Look them up, with a subagent when that helps. Never ask the owner for a fact. Ask the owner only for decisions.
+   - A subagent only reads. It asks the owner nothing, and it changes no card and no document.
    - Check each fact before you use it in a question, a recommendation or the document. Read the code to the end of the path, or run the command that shows the fact. A file or a field name that looks right is not a check.
    - Never put an unchecked fact in the premise of a question. The owner answers the premise, so a wrong premise makes a wrong decision.
    - When the owner corrects a fact after a question, ask that question again.
 2. Q2: Give every question a recommendation. Each question carries a recommended answer and a one-line reason why it matters. The recommendation says what the option does, in plain words, never only its label. Say when your confidence is low. Base the recommendation on the design principles D1 to D3 of `../../loupe-stage-product-design/references/design-principles.md`.
 3. Q3: Ask one question at a time. Ask one question per turn. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing. Never bundle two decisions in one question. State the context of the question in the question, because the owner can answer after a gap.
-4. Q5: Send look and feel to a mockup. A question about how something looks gets a sketch or a prototype, not more questions. Follow `claude-design.md`. The first visual choice of the session gets the offer, and a later one uses the project or the sketches of the first answer.
+4. Q5: Send look and feel to a mockup. A question about how something looks gets a sketch or a prototype. Do not answer it with more questions. Follow `claude-design.md`. The first visual choice of the session gets the offer, and a later one uses the project or the sketches of the first answer.
 5. Q6: Park technical choices. An entity, a table, an API or a module goes to the "For tech design" section. Do not settle it in the session.
 6. Q7: Ask for priorities as trade-off pairs. Take each pair from this feature, such as an early first release against a complete permission model. Ask one pair per question, and recommend a side (Q2). Never ask the owner to rank goals that face no trade-off.
 7. Q8: Defer a decision only on the owner's word. A decision goes to "Open questions" as a decision fence only when the owner's answer defers it, such as "decide later". Never defer a question yourself.
@@ -34,4 +35,4 @@ P6 works through this checklist. Mark each area Clear, Partial or Missing for yo
 11. Terminology. The names a user sees, and whether they match the names the product already uses.
 12. Completion signals. How a user knows that the action worked.
 13. Docs and landing page. The pages the change alters, when the profile is missing.
-14. Design system. For a change that touches the user interface, when the profile names a design system: the components the change reuses, and the components it must change. Settle each component change with the owner.
+14. Design system. This area applies to a change that touches the user interface, when the profile names a design system. It covers the components the change reuses, and the components it must change. Settle each component change with the owner.

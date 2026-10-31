@@ -50,6 +50,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.in_slot' => 'workflow.source.board',
         'card.inbox.open_question' => 'workflow.source.inbox',
         'card.parent.document.approved' => 'workflow.source.board',
+        'card.parent.epic_branch.exists' => 'workflow.source.board',
         'card.parent.epic_branch.synced' => 'workflow.source.board',
         'card.parent.exists' => 'workflow.source.board',
         'card.parent.in_slot' => 'workflow.source.board',

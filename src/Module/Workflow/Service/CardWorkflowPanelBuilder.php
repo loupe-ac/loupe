@@ -90,7 +90,7 @@ final readonly class CardWorkflowPanelBuilder
             PauseKind::Rule => $this->ruleRelease($pause, $template, $facts),
             PauseKind::WorkLimit => $this->translator->trans('workflow.panel.release.left_slot'),
             PauseKind::WorkStopped => $this->translator->trans(Engine::NEEDS_PERSON === $pause->reason ? 'workflow.panel.release.needs_person' : 'workflow.panel.release.facts_changed'),
-            PauseKind::Retries, PauseKind::WorkTimeout => $this->translator->trans('workflow.panel.release.facts_changed'),
+            PauseKind::Retries => $this->translator->trans('workflow.panel.release.facts_changed'),
         };
 
         return new CardWorkflowPause(

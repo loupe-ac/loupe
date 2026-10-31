@@ -29,6 +29,7 @@ use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\ColumnArrivalFacts;
 use App\Module\Board\Workflow\DocumentsFactProvider;
 use App\Module\Board\Workflow\DocumentsFacts;
+use App\Module\Board\Workflow\EpicBranchExistsFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFactProvider;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
@@ -120,7 +121,7 @@ final class FactsMother
         $card ??= self::card();
         $run ??= self::run();
         $given = [
-            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new ArtifactReachFacts([]), new HumanReviewFacts(false), new CardValueFacts([])),
+            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true), new EpicBranchExistsFacts(true), new ArtifactReachFacts([]), new HumanReviewFacts(false), new CardValueFacts([])),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests))),

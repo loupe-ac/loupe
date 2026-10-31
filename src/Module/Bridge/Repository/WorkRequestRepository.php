@@ -284,28 +284,6 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * The open requests about a card whose rule id starts with the prefix and that no work hold marked, oldest first.
-     * The workflow engine leaves such a request alone, so the caller expires it.
-     *
-     * @return list<WorkRequest>
-     */
-    public function findOpenOfCardsByRulePrefix(string $prefix): array
-    {
-        return array_values($this->createQueryBuilder('w')
-            ->andWhere('w.state = :open')
-            ->andWhere('w.subjectType = :card')
-            ->andWhere('w.ruleId LIKE :prefix')
-            ->andWhere('w.workHoldSince IS NULL')
-            ->setParameter('open', WorkRequestState::Open->value)
-            ->setParameter('card', WorkSubject::CARD)
-            ->setParameter('prefix', addcslashes($prefix, '%_\\').'%')
-            ->orderBy('w.createdAt', 'ASC')
-            ->addOrderBy('w.id', 'ASC')
-            ->getQuery()
-            ->getResult());
-    }
-
-    /**
      * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
      * since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *

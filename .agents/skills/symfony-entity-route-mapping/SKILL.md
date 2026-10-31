@@ -21,7 +21,7 @@ public function __invoke(Organization $org): Response
 ```
 
 The snippets here put `#[Route]` next to `__invoke()` for brevity. In a real
-controller it goes on the **class**. Gamache's `ControllerRouteAttributeRule`
+controller it goes on the class. Gamache's `ControllerRouteAttributeRule`
 fails a controller whose only `#[Route]` is method-level.
 
 When the names differ, add `#[MapEntity]` to declare the field mapping. When the
@@ -41,26 +41,26 @@ mapping exists for that.
 ## Pitfall 1: `{param:alias}` renames the request attribute
 
 `{projectSlug:project}` stores the URL value under the alias `project`. The
-original name `projectSlug` **disappears** as a top-level request attribute. It
+original name `projectSlug` disappears as a top-level request attribute. It
 is not available in `#[MapEntity(expr:)]` expressions, or to anything that reads
 `$request->attributes` directly. It survives only inside the `_route_params`
 attribute.
 
 When you need the raw slug in an `expr`, or in a Twig component that reads
-request attributes, use a **plain** route parameter with no alias. Resolve the
+request attributes, use a plain route parameter with no alias. Resolve the
 entity with `#[MapEntity]` on the controller argument. Project routes therefore
 look like `/{slug:org}/{projectSlug}/...`. Auto-resolution is enough for the org,
 so `slug` is aliased. The project lookup needs the raw value in an expression, so
 `projectSlug` stays plain.
 
-## Pitfall 2: `expr` variables are raw strings, not resolved entities
+## Pitfall 2: `expr` variables are raw strings
 
 `EntityValueResolver` passes the resolved entity to the controller argument.
-It **does not write it back to request attributes**. Every variable inside an
+It does not write the entity back to the request attributes. Every variable inside an
 `#[MapEntity(expr: ...)]` expression is the raw string the router stored, even
 when another controller argument resolves that same parameter to an entity.
 
-Repository methods used in `expr` must not expect **entity objects**. Scalar
+A repository method used in `expr` must not expect an entity object. Scalar
 parameters are fine. The ExpressionLanguage call site is not strict-typed, so
 `'42'` coerces into an `int $seq` parameter.
 
@@ -78,10 +78,10 @@ argument class.
 ## Pitfall 3: scope a multi-entity lookup to its parent
 
 A bare `#[MapEntity(mapping: ['projectSlug' => 'slug'])]` looks the project
-up **globally**. Another org's project with the same slug then matches, which
-is a cross-tenant access hole. An entity whose uniqueness is scoped to a parent must
-resolve through a repository method that JOINs the parent chain. Project slug per
-org and issue seq per project are both such entities.
+up globally. Another org's project with the same slug then matches, which
+is a cross-tenant access hole. An entity whose uniqueness is scoped to a parent
+must resolve through a repository method that JOINs the parent chain. The project
+slug per org and the issue seq per project are both such cases.
 
 ```php
 #[Route(
@@ -117,19 +117,19 @@ the parent's slug. That is intentional. Each argument resolves independently
 
 ## Project conventions
 
-- Use `{slug:org}` for the org parameter, not `{organizationSlug}`. When the
+- Use `{slug:org}` for the org parameter, and never `{organizationSlug}`. When the
   route already carries another `slug` parameter, keep the full descriptive name
   for the second entity.
 - Write parameter names in camelCase. Gamache's PHPStan
   `route.paramNotCamelCase` rule enforces this.
-- Spell parameter names out in full: `{projectSlug}`, not `{project_slug}` or
-  `{projSlug}`. This matches the camelCase controller argument, or `expr`
-  variable, that reads the parameter.
+- Spell parameter names out in full: `{projectSlug}`, never `{project_slug}` or
+  `{projSlug}`. The name then matches the camelCase controller argument, or the
+  `expr` variable, that reads the parameter.
 - Always add `requirements:` regexes for slug and seq parameters.
 
-The controllers and repository above are illustrative examples. They are not
-files that ship in this skeleton.
+The controllers and repository above are illustrative examples. This skeleton
+ships no such files.
 
-For the surrounding controller conventions see `project-backend`. For access
-control on resolved entities see `symfony-authorization` and `project-authz`.
+For the surrounding controller conventions, see `project-backend`. For access
+control on resolved entities, see `symfony-authorization` and `project-authz`.
 `#[IsGranted]` subjects resolve through this mechanism.

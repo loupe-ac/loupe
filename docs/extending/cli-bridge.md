@@ -118,8 +118,12 @@ The bridge reads the columns by the slug in `rules.yaml`.
 A prompt holds validated identifiers, slugs and pull request values only, and
 the bridge adds a fixed line that tells the agent to treat the card as data. A
 work request also carries the context of its card: the number, the link and the
-head commit of its pull request, the reason for a fix or a repair, and the
-document that a revision works on. The bridge checks the shape of each value before it fills a
+head commit of its pull request, the reason for a fix or a repair, the
+document that a revision works on, and the epic branch of the parent of the
+card. The epic branch, such as `epic/852`, fills `{epicBranch}`. It is empty
+when the card has no parent, or when the parent has no epic branch. The
+workflow holds an epic child until its epic branch exists, so a set value names
+a branch that exists. The bridge checks the shape of each value before it fills a
 prompt or a command with it. [The work map](../../cli/README.md#the-work-map)
 lists the placeholders.
 
@@ -1768,11 +1772,15 @@ work:
 The command follows this contract:
 
 - The bridge runs it as an argv list, with no shell, in the project `dir`.
-- Its elements can use `{cardNumber}` and `{cardId}`.
+- Its elements can use `{cardNumber}` and `{cardId}`, and the context placeholders such as `{epicBranch}`.
 - The last line of standard output that is not empty must be the folder path. A relative path resolves against the project `dir`.
 - An exit code that is not 0 fails the run, and no agent starts.
 - It runs again before each resume, so it must work when the folder already exists.
 - The timeout is `15m` by default and `60m` at most.
+
+Pass `{epicBranch}` to cut the folder of an epic child from its epic branch,
+such as `--epic-branch={epicBranch}`. The value is empty for any other card, so
+the command must then cut the folder from the default branch.
 
 A resumed session still starts in the folder where it began. A session that
 began in the project folder stays there, and new workers use the new folders.
@@ -2048,7 +2056,7 @@ effort.
 
 Both shipped workflow templates
 request `teardown` each time a card reaches a terminal column. A `teardown`
-request that no bridge takes expires after the work timeout, and the card does
+request that no bridge takes waits until a bridge takes it, and the card does
 not pause. With [worker isolation](#worker-isolation) on, the bridge removes
 the worktree of the card without an agent. It does so after a `teardown`
 command entry, or alone when the work map has no `teardown` entry.
@@ -2070,9 +2078,9 @@ document, the code and the prototype, and sends its findings with the
 `document_review_submit` tool. It changes no file and no document. Give the
 entry its own `model`, and a `workerPool` apart from the design entries, as for
 `review`. The entry needs no worktree, so it has no `before` command. A bridge
-with no `design-review` entry takes no design review: after the work timeout
-the card pauses with "no bridge took the work", and the draft stays hidden
-until the owner publishes it.
+with no `design-review` entry takes no design review: the request waits, the
+card shows that no bridge can run it, and the draft stays hidden until the
+owner publishes it.
 
 ```yaml
 work:
@@ -2108,7 +2116,7 @@ A rule that Loupe ships can send a prompt with its request. Set
 the `defaults` of the file. A model or an effort in the request replaces the
 default model and sets the effort. An entry under `work:` always wins, unless
 it names another subject type than the request. A bridge without
-the key skips such a request, and the request expires after the work timeout.
+the key skips such a request, and the request waits until a bridge that maps the kind takes it.
 
 The bridge finds the project of a request in `projects` through the project
 id. A project rename marks the work of that project dead until you fix the file
@@ -2360,8 +2368,8 @@ The kind `tech-design-session` is asked for when the card has its "Interactive
 session" switch on under Tech design. A request with the capability
 `interactive` never runs as a headless worker. When the file has no
 interactive entry for the kind, the bridge skips the request, even with
-`appPrompts: true`. The request waits, and after the work timeout the card
-pauses with "no bridge took the work". Run `loupe update` to get this
+`appPrompts: true`. The request waits, and the card shows that no bridge can
+run it. Run `loupe update` to get this
 behaviour, and add the entry by hand when your file is older than this entry.
 
 An interactive entry takes `prompt`, `account`, `model` and `permissions`. The check

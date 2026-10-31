@@ -665,6 +665,34 @@ class CardRepository extends ServiceEntityRepository
         ))));
     }
 
+    /**
+     * The children in these projects that sit in a column that is not terminal.
+     *
+     * @param list<string> $projectIds RFC 4122 ids
+     *
+     * @return list<array{id: string, projectId: string, parentNumber: int}>
+     */
+    public function findOpenChildren(array $projectIds): array
+    {
+        if ([] === $projectIds) {
+            return [];
+        }
+
+        /** @var list<array{id: string, projectId: string, parentNumber: int}> $rows */
+        $rows = array_map(static fn (array $row): array => ['id' => (string) $row['id'], 'projectId' => (string) $row['project_id'], 'parentNumber' => (int) $row['parent_number']], $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT c.id, c.project_id, p.number AS parent_number
+             FROM board_cards c
+             JOIN board_cards p ON p.id = c.parent_card_id
+             JOIN board_columns k ON k.id = c.column_id
+             WHERE c.project_id IN (:projects) AND k.terminal = false
+             ORDER BY c.number',
+            ['projects' => $projectIds],
+            ['projects' => ArrayParameterType::STRING],
+        ));
+
+        return $rows;
+    }
+
     public function countChildren(Card $card): int
     {
         return (int) $this->getEntityManager()->getConnection()->fetchOne(

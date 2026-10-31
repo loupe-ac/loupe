@@ -52,7 +52,6 @@ final class TemplateMetricParserTest extends TestCase
             'slots' => [['key' => 'build', 'label' => 'workflow.slot.build']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'outcomes' => ['merged', ['key' => 'dropped']],
             'rules' => [
                 ['id' => 'review', 'slot' => 'build', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['request' => ['kind' => 'review']]],

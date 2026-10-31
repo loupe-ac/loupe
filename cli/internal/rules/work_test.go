@@ -602,6 +602,47 @@ func TestMatchWorkFillsAnAbsentContextAsEmpty(t *testing.T) {
 	}
 }
 
+const epicBranchFile = claudeAccount + claudeDefaults + `
+projects:
+  loupe:
+    dir: {dir}
+work:
+  implement:
+    prompt: |
+      Card {cardNumber}.
+      Epic branch: {epicBranch}.
+    before:
+      run: [prep, '--epic-branch={epicBranch}', '{cardNumber}', '{cardId}']
+`
+
+func TestMatchWorkFillsTheEpicBranch(t *testing.T) {
+	s := checked(t, epicBranchFile)
+	w := workRequest("implement")
+	w.Context.EpicBranch = "epic/852"
+
+	m := s.MatchWork(w)
+	if m.Skip != Run || m.Prompt != directive.Render("Card 87.\nEpic branch: epic/852.\n", nil) {
+		t.Fatalf("prompt = %q", m.Prompt)
+	}
+	if m.Before == nil || !slices.Equal(m.Before.Argv, []string{"prep", "--epic-branch=epic/852", "87", cardID}) {
+		t.Fatalf("before = %+v", m.Before)
+	}
+}
+
+// An older server, or a card with no epic branch, sends no value. The
+// placeholder fills as empty, so the option reads as unset.
+func TestMatchWorkFillsAnAbsentEpicBranchAsEmpty(t *testing.T) {
+	s := checked(t, epicBranchFile)
+
+	m := s.MatchWork(workRequest("implement"))
+	if m.Skip != Run || m.Prompt != directive.Render("Card 87.\nEpic branch: .\n", nil) {
+		t.Fatalf("prompt = %q", m.Prompt)
+	}
+	if m.Before == nil || !slices.Equal(m.Before.Argv, []string{"prep", "--epic-branch=", "87", cardID}) {
+		t.Fatalf("before = %+v", m.Before)
+	}
+}
+
 // An empty context value is a real state, such as a card with no pull
 // request, so a rerun never lacks one.
 func TestWorkGapsLeavesOutTheContextPlaceholders(t *testing.T) {

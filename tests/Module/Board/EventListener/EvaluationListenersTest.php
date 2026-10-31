@@ -30,6 +30,8 @@ use App\Module\Board\EventListener\EvaluateCardsOnCardParentChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnDocumentStatusChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnPullRequestStateChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnReviewSubmitted;
+use App\Module\Board\EventListener\EvaluateChildrenOnBridgeRepositoriesChanged;
+use App\Module\Board\EventListener\EvaluateChildrenOnForgeBranchPushed;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -49,6 +51,7 @@ use App\Module\Forge\Command\ReadPullRequestStateCommand;
 use App\Module\Forge\Command\ReadPullRequestStateHandler;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\Forge\Event\ForgeBranchPushed;
 use App\Module\Forge\Event\PullRequestStateChanged;
 use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
@@ -64,6 +67,7 @@ use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEvaluations;
+use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -427,6 +431,48 @@ final class EvaluationListenersTest extends KernelTestCase
 
         $this->transport()->reset();
         $listener(new BridgeAccountReadingsStored([]));
+        self::assertSame([], $this->sent());
+    }
+
+    public function test_a_change_of_bridge_repositories_asks_for_the_open_children_in_the_projects(): void
+    {
+        $epic = $this->card($this->project, 'in-progress');
+        [$waiting, $working, $finished] = [$this->card($this->project, 'next'), $this->card($this->project, 'in-progress'), $this->card($this->project, 'done')];
+        $this->card($this->project, 'next');
+        foreach ([$waiting, $working, $finished] as $child) {
+            $child->parent = $epic;
+        }
+        $other = $this->workflowProject('listeners-other-children');
+        $elsewhere = $this->card($other, 'next');
+        $elsewhere->parent = $this->card($other, 'in-progress');
+        $this->em()->flush();
+        $listener = new EvaluateChildrenOnBridgeRepositoriesChanged($this->service(CardRepository::class), $this->trigger());
+
+        $listener(new BridgeAvailabilityChanged([$this->projectId()->toRfc4122()]));
+        self::assertEqualsCanonicalizing($this->ids($waiting, $working), $this->sent());
+
+        $this->transport()->reset();
+        $listener(new BridgeAvailabilityChanged([]));
+        self::assertSame([], $this->sent());
+    }
+
+    public function test_a_push_of_an_epic_branch_asks_for_the_open_children_of_that_epic_only(): void
+    {
+        $epic = $this->card($this->project, 'in-progress');
+        $otherEpic = $this->card($this->project, 'in-progress');
+        [$waiting, $finished, $sibling] = [$this->card($this->project, 'next'), $this->card($this->project, 'done'), $this->card($this->project, 'next')];
+        $waiting->parent = $epic;
+        $finished->parent = $epic;
+        $sibling->parent = $otherEpic;
+        $this->card($this->project, 'next');
+        $this->em()->flush();
+        $listener = new EvaluateChildrenOnForgeBranchPushed($this->service(CardRepository::class), $this->service(EpicBranches::class), $this->trigger());
+
+        $listener(new ForgeBranchPushed($this->projectId(), 'github', 'acme/loupe', 'epic/'.$epic->number));
+        self::assertSame($this->ids($waiting), $this->sent());
+
+        $this->transport()->reset();
+        $listener(new ForgeBranchPushed($this->projectId(), 'github', 'acme/loupe', 'main'));
         self::assertSame([], $this->sent());
     }
 

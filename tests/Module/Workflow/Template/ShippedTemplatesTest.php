@@ -11,6 +11,7 @@ use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Workflow\CardValueFacts;
+use App\Module\Board\Workflow\EpicBranchExistsFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\HumanReviewFacts;
@@ -927,7 +928,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame('@terminal', $rules[0]->slot);
         self::assertTrue($rules[0]->when->evaluate(FactsMother::facts(card: FactsMother::card(slot: '@terminal'))));
         self::assertSame('request', $rules[0]->lead->key);
-        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $rules[0]->lead->params);
+        self::assertSame(['kind' => 'teardown'], $rules[0]->lead->params);
     }
 
     #[DataProvider('shippedKeys')]
@@ -1280,6 +1281,17 @@ final class ShippedTemplatesTest extends KernelTestCase
             ['rebase-stacked', 'merged'],
             'merged',
         ];
+    }
+
+    public function test_a_child_waits_in_next_until_the_epic_branch_exists_where_the_worker_clones(): void
+    {
+        $child = FactsMother::card(slot: 'next', isChild: true, documents: [new DocumentFacts(tags: ['tech-design'], status: 'approved', id: '01a10beb-ba65-736b-8626-a6e3fa59dfc5')], parentSlot: 'implementation');
+
+        $missing = $this->firingRuleIds(FactsMother::facts(card: $child, provided: [EpicBranchExistsFacts::class => new EpicBranchExistsFacts(false)]));
+        self::assertNotContains('child-unblocked', $missing);
+
+        $present = $this->firingRuleIds(FactsMother::facts(card: $child, provided: [EpicBranchExistsFacts::class => new EpicBranchExistsFacts(true)]));
+        self::assertContains('child-unblocked', $present);
     }
 
     public function test_a_child_waits_in_next_for_the_epic_branch_to_take_the_default_branch(): void

@@ -318,6 +318,30 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertCount(3, self::announcedProjects($announced), 'Other work kinds announce.');
     }
 
+    public function test_a_change_of_the_reported_repositories_announces_a_change_of_availability(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-availability-repositories@example.com');
+        $projects = [(string) $this->project($em, $owner, 'Availability Repositories')->id];
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $first = ['projectId' => $projects[0], 'path' => '/work/main', 'remoteUrl' => 'git@github.com:acme/loupe.git'];
+        $moved = ['projectId' => $projects[0], 'path' => '/work/other', 'remoteUrl' => 'git@github.com:acme/other.git'];
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', repositories: [$first]));
+        $announced = $this->recordAvailability();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', repositories: [$first]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7'));
+        self::assertSame([], self::announcedProjects($announced), 'The same repositories and a beat with no report announce nothing.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', repositories: [$moved]));
+        self::assertSame([$projects], self::announcedProjects($announced), 'Another folder announces.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', repositories: []));
+        self::assertCount(2, self::announcedProjects($announced), 'A bridge that reports no folder announces.');
+    }
+
     public function test_a_change_of_the_followed_projects_announces_a_change_of_availability_for_both_sets(): void
     {
         self::bootKernel();

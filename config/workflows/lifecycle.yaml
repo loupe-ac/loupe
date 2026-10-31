@@ -1,5 +1,5 @@
 key: lifecycle
-version: 32
+version: 34
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -72,7 +72,6 @@ childChoices:
     inherit: [{ link-document: { from: parent, tag: tech-design } }]
     own: [{ move: { to: tech-design } }]
 backoffMinutes: [10, 60, 360]
-workTimeoutMinutes: 120
 onWorkFailed:
     retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
@@ -766,7 +765,6 @@ rules:
       then:
           request:
               kind: teardown
-              onTimeout: expire
 
     - id: epic-preview
       slot: in-review
@@ -781,7 +779,6 @@ rules:
       then:
           request:
               kind: epic-preview
-              onTimeout: expire
               limit: 3
               refill: { card.run.done_at_head: { kind: epic-preview } }
               checks:
@@ -805,6 +802,7 @@ rules:
               - card.parent.in_slot: { slot: implementation }
               - not: { card.blocker.open: {} }
               - card.parent.epic_branch.synced: {}
+              - card.parent.epic_branch.exists: {}
               - not: { card.pr.linked: {} }
               - not: { card.parent.run.active: {} }
       then: { move: { to: implementation } }
@@ -1049,13 +1047,13 @@ markers:
       remedy: marker.run_open.remedy
       when: { card.run.worker_active: {} }
     - key: no-capable-bridge
-      kind: stuck
+      kind: needs-you
       label: marker.no_capable_bridge
       remedy: marker.no_capable_bridge.remedy
       link: agents
       when: { card.run.work_no_capable_taker: {} }
     - key: no-bridge-online
-      kind: stuck
+      kind: waiting
       label: marker.no_bridge_online
       remedy: marker.no_bridge_online.remedy
       link: agents
