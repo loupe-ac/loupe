@@ -10,6 +10,7 @@ use App\Module\Insights\Service\DashboardChangedPublisher;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\Service\SavedGraphLocker;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -28,12 +29,13 @@ final readonly class RestoreSavedGraphHandler
         private SavedGraphCap $cap,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
+        private ClockInterface $clock,
     ) {
     }
 
     /**
      * @throws DomainErrors          on the field `name` when the Dashboard holds as many graphs as the cap allows
-     * @throws NotFoundHttpException when the graph is gone
+     * @throws NotFoundHttpException when the graph is gone, or was removed longer ago than the Undo window
      */
     public function __invoke(RestoreSavedGraphCommand $command): void
     {
@@ -41,13 +43,17 @@ final readonly class RestoreSavedGraphHandler
         $project = $graph->project;
         $projectId = (string) $project->requireId();
         $graphId = $graph->id ?? throw new \LogicException('A stored graph has an id.');
+        $now = \DateTimeImmutable::createFromInterface($this->clock->now());
 
-        $outcome = $this->em->wrapInTransaction(function () use ($graph, $project): bool|DomainErrors|null {
+        $outcome = $this->em->wrapInTransaction(function () use ($graph, $project, $now): bool|DomainErrors|null {
             if (!$this->locker->lock($graph)) {
                 return null;
             }
             if (null === $graph->removedAt) {
                 return false;
+            }
+            if (!$graph->isUndoable($now)) {
+                return null;
             }
             try {
                 $this->cap->assertRoom($project);

@@ -252,8 +252,9 @@ final class DashboardControllersTest extends WebTestCase
         $removed = $this->seedSavedGraph($project, 'Cost <b>trend</b>', 0, new \DateTimeImmutable('-1 hour'));
         $active = $this->seedSavedGraph($project, 'Active', 1);
         $theirs = $this->seedSavedGraph($this->scenarioProject('notice-theirs'), 'Theirs', 0, new \DateTimeImmutable('-1 hour'));
+        $expired = $this->seedSavedGraph($project, 'Expired', 2, new \DateTimeImmutable('-25 hours'));
         $base = '/projects/'.$project->id.self::BASE;
-        $ids = [(string) $removed->id, (string) $active->id, (string) $theirs->id, 'junk'];
+        $ids = [(string) $removed->id, (string) $active->id, (string) $theirs->id, (string) $expired->id, 'junk'];
         $this->em()->clear();
 
         $client->loginUser($project->owner);

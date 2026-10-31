@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Command;
 
+use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
@@ -21,8 +22,6 @@ use Ubermuda\AuditBundle\AuditSubject;
  */
 final readonly class RemoveSavedGraphHandler
 {
-    public const string UNDO_WINDOW = '-1 day';
-
     public function __construct(
         private EntityManagerInterface $em,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
@@ -46,7 +45,7 @@ final readonly class RemoveSavedGraphHandler
             if (!$this->locker->lockActive($graph)) {
                 return false;
             }
-            $this->insightsSavedGraphs->deleteRemovedBefore($project, $now->modify(self::UNDO_WINDOW));
+            $this->insightsSavedGraphs->deleteRemovedBefore($project, $now->modify(InsightsSavedGraph::UNDO_WINDOW));
             $graph->removedAt = $now;
 
             return true;

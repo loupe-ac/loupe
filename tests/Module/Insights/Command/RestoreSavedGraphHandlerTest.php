@@ -79,6 +79,22 @@ final class RestoreSavedGraphHandlerTest extends KernelTestCase
         self::assertSame(12, $this->service(InsightsSavedGraphRepository::class)->countActive($this->em()->find($project::class, $project->id) ?? throw new \LogicException()));
     }
 
+    public function test_an_undo_after_the_undo_window_is_a_not_found_and_the_graph_stays_removed(): void
+    {
+        $project = $this->scenarioProject('undo-expired');
+        $graph = $this->seedSavedGraph($project, 'A', 0, new \DateTimeImmutable('-25 hours'));
+        $graphId = $graph->id;
+
+        try {
+            $this->service(RestoreSavedGraphHandler::class)(new RestoreSavedGraphCommand($graph));
+            self::fail('Expected a not found.');
+        } catch (NotFoundHttpException) {
+        }
+
+        $this->em()->clear();
+        self::assertNotNull($this->em()->find(InsightsSavedGraph::class, $graphId)?->removedAt);
+    }
+
     public function test_an_undo_of_a_deleted_graph_is_a_not_found(): void
     {
         $project = $this->scenarioProject('undo-deleted');
