@@ -252,7 +252,7 @@ try {
     if (!\in_array('brainstorm.error.no_inference_key', $e->errors, true)) {
         throw $e;
     }
-    $this->logger->info('project.issue.brainstorm_open_skipped', [...]);
+    $this->logger->info('project.brainstorm_open_skipped', [...]);
 }
 ```
 

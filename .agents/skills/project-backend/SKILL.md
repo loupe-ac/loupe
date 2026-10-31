@@ -288,6 +288,7 @@ Read the file before you work on the topic.
 - `references/http-and-concurrency.md` before you call an external service through `HttpClientInterface`, or write a read-check-write handler that a concurrent request could race.
 - `references/workflow-facts.md` before a module feeds facts, a condition or a re-evaluation listener to the workflow engine. Import only `App\Module\Workflow\Contract`.
 - `references/env-vars.md` before you add an environment variable. Never put JSON in one. A new key reaches seven places, and `DeploymentConfigParityCheck` reports one that `docs/reference/environment.md` lacks.
+- `references/gamache.md` before you conclude that gamache has no rule for something, or before you change a rule's configuration. `just gamache` runs only one of its five layers.
 
 ## Migration names, bundle pins and entity mapping
 
