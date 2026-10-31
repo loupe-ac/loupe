@@ -25,6 +25,7 @@
 @import './components/form-actions.css';
 @import './components/avatar.css';
 @import './components/relative-time.css';
+@import './components/usage-bar.css';
 @import './components/data-table.css';
 @import './components/menu.css';
 @import './components/split-button.css';
@@ -970,6 +971,40 @@
     }
     .lp-agent-card__account-hint {
         @apply m-0;
+    }
+    /* A collapsing section of the agent card. It opens on its own when it holds a problem. */
+    .lp-agent-section__summary {
+        @apply flex cursor-pointer list-none items-center gap-1 text-xs text-fg-mute;
+    }
+    .lp-agent-section__summary::-webkit-details-marker {
+        display: none;
+    }
+    .lp-agent-section__title {
+        @apply font-semibold text-fg;
+    }
+    .lp-agent-section__text {
+        @apply ml-1 text-fg-mute;
+    }
+    /* The state of a section at a glance, so a closed one still tells. */
+    .lp-agent-section__dot {
+        @apply size-2 shrink-0 rounded-full bg-status-ok;
+    }
+    .lp-agent-section__dot--pending {
+        @apply bg-status-pending;
+    }
+    .lp-agent-section__dot--danger {
+        @apply bg-status-danger;
+    }
+    .lp-agent-section__caret {
+        @apply shrink-0 transition-transform duration-100;
+    }
+    .lp-agent-section[open]
+        > .lp-agent-section__summary
+        .lp-agent-section__caret {
+        @apply rotate-90;
+    }
+    .lp-agent-section[open] > .lp-agent-section__summary {
+        @apply mb-1;
     }
     /* A narrow card at a large text size wraps the menu under the label. */
     .lp-redesign-agents .lp-agent-card__heading {

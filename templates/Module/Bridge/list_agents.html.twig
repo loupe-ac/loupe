@@ -103,20 +103,43 @@
                 </div>
                 {% endif %}
                 {% if connection.bridge.workerPools is not empty %}
-                <div class="lp-agent-card__current lp-agent-card__pools" data-agent-worker-pools>
-                    <span>{{ 'bridge.agents.worker_pools.heading'|trans }}{% if connection.bridge.workerPoolsReportedAt %} · {{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('j M Y, H:i')}) }}{% endif %}</span>
+                <details class="lp-agent-card__current lp-agent-card__pools lp-agent-section" data-controller="details-memory" data-details-memory-key="pools-{{ bridge.id }}" data-agent-worker-pools{% if connection.poolsNeedAttention %} open{% endif %}>
+                    <summary class="lp-agent-section__summary">
+                        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-section__caret" aria-hidden="true" />
+                        <span class="lp-agent-section__dot lp-agent-section__dot--{{ connection.poolsTone }}" aria-hidden="true"></span>
+                        <span class="lp-agent-section__title">{{ 'bridge.agents.worker_pools.heading'|trans }}</span>
+                        {% set totals = connection.poolTotals %}
+                        <span class="lp-agent-section__text" data-agent-section-summary>{{ 'bridge.agents.worker_pools.summary'|trans({'%inUse%': totals.inUse, '%size%': totals.size, '%queued%': totals.queued}) }}</span>
+                    </summary>
+                    {% if connection.bridge.workerPoolsReportedAt %}
+                    <span>{{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('j M Y, H:i')}) }}</span>
+                    {% endif %}
                     {% for pool in connection.bridge.workerPools %}
                     <p class="lp-agent-card__pool" data-agent-worker-pool>
                         <strong>{{ pool.name }}</strong>
                         <span>{{ 'bridge.agents.worker_pools.in_use'|trans({'%inUse%': pool.inUse, '%size%': pool.size}) }} · {{ 'bridge.agents.worker_pools.queued'|trans({'%queued%': pool.queued}) }}</span>
                     </p>
                     {% endfor %}
-                </div>
+                </details>
                 {% endif %}
                 {% if connection.bridge.accounts is not empty %}
-                <div class="lp-agent-card__current lp-agent-card__accounts" data-agent-accounts>
-                    <span>{{ 'bridge.agents.accounts.heading'|trans }}{% if connection.bridge.accountsReportedAt %} · {{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('j M Y, H:i')}) }}{% endif %}</span>
+                <details class="lp-agent-card__current lp-agent-card__accounts lp-agent-section" data-controller="details-memory" data-details-memory-key="accounts-{{ bridge.id }}" data-agent-accounts{% if connection.accountsNeedAttention %} open{% endif %}>
+                    <summary class="lp-agent-section__summary">
+                        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-section__caret" aria-hidden="true" />
+                        <span class="lp-agent-section__dot lp-agent-section__dot--{{ connection.accountsTone }}" aria-hidden="true"></span>
+                        <span class="lp-agent-section__title">{{ 'bridge.agents.accounts.heading'|trans }}</span>
+                        <span class="lp-agent-section__text" data-agent-section-summary>
+                            {%- for status in connection.accountStatuses -%}
+                                {%- if not loop.first %} · {% endif -%}
+                                {{ status.name }} {{ ('bridge.agents.accounts.summary.' ~ status.status)|trans -}}
+                            {%- endfor -%}
+                        </span>
+                    </summary>
+                    {% if connection.bridge.accountsReportedAt %}
+                    <span>{{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('j M Y, H:i')}) }}</span>
+                    {% endif %}
                     {% for account in connection.bridge.accounts %}
+                    {% set limit = connection.limits[account.name] ?? null %}
                     <div class="lp-agent-card__account{% if account.state == 'failing' %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
                         <p class="lp-agent-card__account-line">
                             <strong>{{ account.name }}</strong>
@@ -124,6 +147,9 @@
                             <span>{{ (account.state == 'failing' ? 'bridge.agents.accounts.state.failing' : 'bridge.agents.accounts.state.ready')|trans }}</span>
                             {% if account.used ?? true %}{% else %}<span data-agent-account-unused>{{ 'bridge.agents.accounts.state.unused'|trans }}</span>{% endif %}
                         </p>
+                        {% if limit %}
+                        {% include '@Bridge/_account_usage.html.twig' with {limit: limit, tooltipKey: bridge.id ~ '-' ~ loop.index} only %}
+                        {% endif %}
                         {% if account.state == 'failing' %}
                         {% if account.reason %}
                         <p class="lp-agent-card__account-hint" data-agent-account-reason>{{ account.reason }}</p>
@@ -132,7 +158,7 @@
                         {% endif %}
                     </div>
                     {% endfor %}
-                </div>
+                </details>
                 {% endif %}
                 <footer>
                     <span>{{ connection.bridge.cliVersion|short_sha }}</span>
