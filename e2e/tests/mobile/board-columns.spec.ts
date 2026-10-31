@@ -11,32 +11,13 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
+import { addBoardColumn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2ePhoneBoard1!';
 
 const COLUMN = 'section.lp-board__column';
 const EXTRA_COLUMNS = ['Review', 'QA', 'Shipped'];
-
-async function addColumn(
-    page: Page,
-    projectId: string,
-    label: string,
-): Promise<void> {
-    await page.goto(`/projects/${projectId}/settings/columns`);
-    const settings = page.locator('[data-board-column-settings]');
-    await settings
-        .getByRole('button', { name: 'Add a column', exact: true })
-        .click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox').fill(label);
-    await dialog
-        .getByRole('button', { name: 'Add column', exact: true })
-        .click();
-    await expect(
-        settings.getByRole('heading', { name: label, exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
-}
 
 /** Creates cards through the MCP card_create tool, which sets the type and the parent in one call. */
 async function createCards(
@@ -126,7 +107,7 @@ const test = base.extend<{ boardUrl: string }>({
             const projectId = (await seeded.json()).projectId as string;
 
             for (const label of EXTRA_COLUMNS) {
-                await addColumn(page, projectId, label);
+                await addBoardColumn(page, projectId, label);
             }
 
             await use(`/projects/${projectId}/board`);
