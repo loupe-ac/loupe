@@ -203,8 +203,8 @@ wait for the review of the owner to un-draft it.
 A draft that stays a draft after a passed review and green checks is a fault of
 the setup. The usual cause is a workflow with no agent review rules, or a
 bridge with no `review` work entry. Say so in the body. Ready does not mean
-merged. `main` still needs one approving review, and you never approve your own
-work.
+merged. `main` still needs the check `Loupe / Approval`, and you never approve
+your own work.
 
 ## Keep the body brief
 
@@ -337,8 +337,7 @@ the code under review after the branch moves.
 
 Put the card URL on its own line under the Preview section, when a card exists.
 `loupe-board` says how to build that URL and how to add the pull request to the
-card. Keep the card line when you strip the Preview section, because a card URL
-stays valid after the merge.
+card.
 
 Every such URL must be clickable. That means one whole absolute URL in plain
 text. A body with several pages to point at tends to give a bare host followed
@@ -353,14 +352,14 @@ that the seeding was for. So follow these rules:
   destination, even when that repeats the host five times.
 - Paste one into a browser before you open the pull request.
 
-Strip the `## Preview` section out of the body before you merge. `main`
-squashes, so the body becomes the permanent commit message. A signed
-`*.dev.localhost` link points at a worktree that is torn down within hours.
-Name the commit that the preview was built from, so a later reader knows which
-code the links showed. Never write "this branch's head". The phrase is true of
-every branch at every moment, so no reader can check it. An epic child keeps its
-`## Preview` section, because the merge stage copies its links to the epic pull
-request after the merge.
+Leave the `## Preview` section in the body. The squash message is the commit
+messages of the branch, and the merge sends no body, so the links never reach
+`git log`. A signed `*.dev.localhost` link points at a worktree that is torn
+down within hours. Name the commit that the preview was built from, so a later
+reader knows which code the links showed. Never write "this branch's head". The
+phrase is true of every branch at every moment, so no reader can check it. The
+merge stage copies the links of an epic child to the epic pull request after the
+merge.
 
 The same rule covers a branch with no worktree of its own. Link the page on
 whatever instance does serve it. Do not describe the route and leave the reader
@@ -668,21 +667,18 @@ id=$(gh api repos/loupe-ac/loupe/rulesets -q '.[]|select(.name=="main")|.id')
 gh api repos/loupe-ac/loupe/rulesets/$id -q '.rules[]|select(.type=="pull_request")|.parameters'
 ```
 
-That prints one approving review. It also sets `require_code_owner_review`,
-which is inert while the repository has no `CODEOWNERS` file. Read the required
-checks from the same ruleset, named `main`:
+That prints `required_approving_review_count` 0, so GitHub needs no approving
+review. Read the required checks from the same ruleset, named `main`:
 
 ```bash
 gh api repos/loupe-ac/loupe/rulesets/$id \
   -q '.rules[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
 ```
 
-On 2026-10-06 it printed twelve contexts: `lint`, `cs-check`, `phpstan`,
-`arkitect`, `gamache`, `audit`, `phpunit`, `js-test`, `cli-test`,
-`e2e-chromium`, `e2e-rest` and `e2e-chromium-2`. Run the command, and do not
-trust that snapshot. It read ten before the e2e shard jobs arrived, and
-thirteen while a fan-in `e2e` job also ran. Nothing in the repository fails
-when it goes stale.
+On 2026-10-31 it printed 18 contexts. One of them is `Loupe / Approval`, the
+check that Loupe posts as its GitHub App. `docs/using/workflows.md` "Approval
+of a pull request" says when Loupe posts it. Run the command, and do not trust
+that count. Nothing in the repository fails when it goes stale.
 
 No ruleset covers `refs/heads/epic/*` since 2026-10-02. Loupe gives a pull
 request into `epic/<n>` the required checks of `main`, and the merge stage
@@ -698,21 +694,22 @@ Each name must have a check in the `pass` bucket. A direct push to `epic/<n>`
 works, so the epic branch syncs by a merge of `main`, and a fix round pushes
 to it. Never force-push it.
 
-An approval in chat is not a GitHub approval. Check it before you conclude that
-something else blocks a merge:
+An approval in chat is not an approval. Check `Loupe / Approval` on the head
+before you conclude that something else blocks a merge:
 
 ```bash
-gh pr view <n> --json reviewDecision,mergeStateStatus
+gh pr checks <n> --json name,bucket -q '.[]|select(.name=="Loupe / Approval")'
+gh pr view <n> --json mergeStateStatus
 ```
 
 A job that runs in CI but is not in that list cannot block anything. To add one
 is a repository setting, so a branch cannot do it. If you add a CI job, say in
 the PR body that requiring it is still owed. Otherwise the job is decoration.
 
-Never approve your own work. The review itself stays with a human.
+Never approve your own work on GitHub.
 
-Merging does not stay with a human. A PR that is *approved* with *all required
-checks green* is good to merge. Merge it without asking, when no workflow rule
+Merging does not stay with a human. A PR with *all required checks green*,
+`Loupe / Approval` included, is good to merge. Merge it without asking, when no workflow rule
 will merge it. A PR linked to a card belongs to the `merge-ready` rule, so leave
 it to that rule. Hand-merge only a PR that no rule reaches. The approval already
 carried the decision, and a wait for a second confirmation parks finished work

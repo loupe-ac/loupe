@@ -30,8 +30,8 @@ final readonly class SearchBoardHandler
     {
         $query = trim($command->query);
         if ('' === $query) {
-            // websearch_to_tsquery('') matches nothing and raises nothing, so a
-            // blank query would read as an empty board rather than as a mistake.
+            // A query with no term matches no card, so a blank one would read as
+            // an empty board rather than as a mistake.
             throw new DomainErrors(['query' => 'board.card.error.search_query_blank']);
         }
 

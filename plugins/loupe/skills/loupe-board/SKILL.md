@@ -65,12 +65,11 @@ An interactive session, such as `/loupe:product-design`, calls `card_run_open` w
 
 Call `card_search` with the words you would use to describe the work, before you call `card_create`. A read of the whole board answers the same question at far more cost, and it is the step a session skips.
 
-`query` is required. A blank one is refused, not read as an empty board. Matching is by word, not by substring, and words are stemmed, so `paging` finds `pages`.
+`query` is required. A blank one is refused, not read as an empty board. Matching is by substring, ignoring case, so `pag` finds `page` and `paging`. Every word must match, and a number such as `12` also finds card 12.
 
 - Quote a phrase to require it.
 - Put `-` in front of a word to exclude it.
 - Write `or` between two words to accept either.
-- A stop word on its own, such as `the`, matches nothing.
 
 The search covers done cards. "Yes, and it is already done" is a true answer to "is there a card about this?", and a list of open cards hides that answer.
 
@@ -172,8 +171,6 @@ Only the owner parks a card. Write that line yourself only when the owner parks 
 
 `card_create` refuses `reviewer`. The live-review widget writes that value, and it says the app could not name who raised the card.
 
-The field was called `origin`. `card_create` still accepts that name for one release, and `reporter` wins when you send both. Write `reporter`.
-
 `reporter` never changes after the card exists. `card_update` has no `reporter` field, so choose the value when you create the card.
 
 `card_list` takes `reporter` as a filter, and the filter reads all three values. Pass `reviewer` to read the cards the widget raised.
@@ -264,7 +261,7 @@ You make the link by hand, in three steps. Nothing automates any of them.
 2. Put the card's URL in the pull request body. A card page is at `<instance>/projects/<projectId>/board/cards/<cardId>`. The last segment is the UUID, never the number.
 3. Call `card_update` as soon as you open the pull request, draft included, with its URL in `pullRequestUrls`.
 
-No board tool reports the project id, so take it from a project URL you already hold. Every project URL carries it, including the Connect page at `/projects/<projectId>/connect`.
+No board tool reports the project id. Call `project_current`, which returns it, or take it from a project URL you already hold.
 
 `pullRequestUrls` replaces the whole set, so send every URL the card carries. A call that sends the new URL alone drops the links that were already there. Read the card with `card_get` first, and send the URLs it already holds with the new one. Omit the field to keep the current links. Send an empty list to remove them all.
 
@@ -297,11 +294,9 @@ For any other link, an agent or a person moves the card.
 | Linking card B back to card A after linking A to B | One link serves both cards, and card B already shows it. Writing it again from B restates it, or changes its kind. |
 | Passing a card number as `cardId` | `cardId` is a UUID. Pass the number as `number` instead. |
 | Writing a card without checking for one | Call `card_search` first. A duplicate card costs someone a triage pass. |
-| Expecting `card_search` to match a substring | It matches whole stemmed words. `pag` finds neither `page` nor `paging`. |
 | Reading one `card_list` call as the whole board | It answers one page. Walk the pages while `hasMore` is true. |
 | Expecting a body from `card_list` | A row is a summary. Pass `full`, or call `card_get`. |
 | Fixing a wrong `reporter` with `card_update` | `reporter` is set once, when the card is created. |
-| Passing `origin` to `card_create` | It still works for one release. Write `reporter`. |
 | Passing `reporter: reviewer` to `card_create` | Only the live-review widget writes that value. Filtering on it is fine. |
 | Expecting a merged pull request to move its card | Only a GitHub App repository with the automation on moves it. Otherwise move the card yourself. |
 | Linking a pull request only when it is ready for review | A draft has a URL. Link it when you open it. |

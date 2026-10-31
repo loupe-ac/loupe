@@ -113,7 +113,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 4. `working-with-prs` "Merging" and "What the ruleset actually requires" hold the checks and the approval.
 5. The merge stage skips the `just cs` on `main` after the merge, and the person who holds the merge queue runs it. The `teardown` rule removes the card worktree when the card reaches `done`.
 6. An update of a branch keeps its approval, because the ruleset does not dismiss a stale review. The ruleset has no merge queue, so `gh pr merge` never turns on auto-merge here.
-7. The approver is `ubermuda`. The merge stage counts that reviewer's approval only, and reads it by time. A sync after the approval keeps it. Whether a conflict resolution keeps it is the template value `approvalCoversConflictResolution`, which `workflow_get` returns. This project keeps the default, `true`, so the approval covers a conflict resolution. Any other commit after the approval needs a new approval.
+7. The `main` ruleset requires no approving review. It requires the check `Loupe / Approval`, which Loupe posts on the head commit when the agent review passes, or when a person approves that head on GitHub. A sync after the approval keeps it. Whether a conflict resolution keeps it is the template value `approvalCoversConflictResolution`, which `workflow_get` returns. This project keeps the default, `true`, so the approval covers a conflict resolution. Any other commit after the approval needs a new approval.
 
 ## Repair
 
