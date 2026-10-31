@@ -117,6 +117,28 @@ Each row of `accounts` holds these fields:
 | `state` | required. `ready` when the last check of the account passed, and `failing` when it did not |
 | `reason` | optional. Why the check failed, at most 200 characters after trimming. The server keeps it for a `failing` row only, and stores a blank value as no value |
 | `used` | optional. `false` when no rule uses the account, so a failing check turns off nothing. The CLI always sends it. A missing value reads as `true` |
+| `kinds` | optional. The work kinds that can run on the account, with the same rule as `workKinds`, at most 50. The server keeps each kind once. A missing value stores no `kinds` for the row |
+| `stopAt` | optional. The percentage of use at which the account takes no new work, an integer from 1 to 100. A missing value stores no `stopAt` for the row, and the server reads 95 |
+| `readings` | optional. A list of at most 8 rows, the latest reading of each usage window of the account. A missing or `null` value stores no reading |
+
+Each row of `readings` holds these fields:
+
+| Field | Rule |
+|---|---|
+| `window` | required. The name of the usage window, such as `session` or `week`. It holds 1 to 16 lower-case letters and digits |
+| `usedPercent` | optional. The use of the window as a percentage, from 0 to 200. A value above 100 is use past the limit. It is `null` or missing when the source gives no use |
+| `resetsAt` | required. When the window resets, as an RFC 3339 date. It may be at most 31 days ahead of the server clock |
+| `limited` | required. `true` when the tool says the account is at its limit |
+| `source` | required. Where the bridge read the value, 1 to 40 characters after trimming |
+| `readAt` | required. When the bridge read the value, as an RFC 3339 date |
+
+The server stores a reading only when its `usedPercent`, `resetsAt` or
+`limited` value differs from the latest reading it holds for the same bridge,
+account and window. A window whose reset time has passed, with no newer
+reading, counts as unknown and blocks nothing. The server deletes old
+readings with the worker runs, and keeps the latest reading of each window of
+each account. The account data export lists the readings in
+`bridge_account_readings.json`.
 
 The [agents page](../using/worker-runs.md#bridge-health) shows the accounts on
 the card of the bridge, with the time of the heartbeat that carried them. The

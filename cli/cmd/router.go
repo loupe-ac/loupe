@@ -30,6 +30,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 	"github.com/loupe-ac/loupe/cli/internal/transport"
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
 // router turns each event a rule matches into a worker process and reports
@@ -69,6 +70,9 @@ type router struct {
 	runs    *runReports
 	// heartbeat tells Loupe the bridge runs. A nil one sends nothing.
 	heartbeat *heartbeater
+	// accountUsage reads the usage of the account of each live run. A nil
+	// one reads nothing.
+	accountUsage *usage.Collector
 	// hostSampling and hostInterval are the host sampling flags, under mu.
 	hostSampling bool
 	hostInterval time.Duration
@@ -1085,6 +1089,7 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.trackLocked(liveRun{p: p, began: began, proc: proc})
+		r.followUsage(p, proc.dir, began)
 		r.emitLocked(p, api.RunStateReport{State: api.RunRunning, SessionID: p.spec.sessionID, StartedAt: began})
 		// A stop that came while the worker spawned starts its ladder now.
 		if r.stops[p.runID] {
@@ -1342,6 +1347,7 @@ func (r *router) trackLocked(run liveRun) {
 func (r *router) settle(p pending, e endedRun) {
 	r.quiesce.RLock()
 	defer r.quiesce.RUnlock()
+	r.accountUsage.Finish(p.runID, time.Now())
 	done := func() {
 		r.end(p, e)
 		r.sendToolCalls(p, e.res)

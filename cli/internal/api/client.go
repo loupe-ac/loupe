@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
 // Site is one entry of GET /api/projects. A project with no slug yet sends a
@@ -676,6 +678,14 @@ type AccountReport struct {
 	Reason  string `json:"reason,omitempty"`
 	// Used is false for an account no rule runs on.
 	Used bool `json:"used"`
+	// Kinds are the work kinds that can run on the account, through a work
+	// entry or an experiment variant. StopAt is the use, in percent, at which
+	// Loupe stops new work on the account. Readings are the latest reading of
+	// each window since the last heartbeat. A Loupe that does not know a key
+	// ignores it.
+	Kinds    []string        `json:"kinds,omitempty"`
+	StopAt   int             `json:"stopAt,omitempty"`
+	Readings []usage.Reading `json:"readings,omitempty"`
 }
 
 // MaxHostSamples caps the samples the bridge keeps. HostSamplesPerHeartbeat

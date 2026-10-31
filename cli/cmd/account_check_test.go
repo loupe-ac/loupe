@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -107,11 +108,11 @@ func TestTheHeartbeatReportsEachAccountWithNoPath(t *testing.T) {
 	set.SetAccountProblems(accountsOff(checkAccounts(context.Background(), set)))
 	hb := heartbeatBody(set)
 	want := []api.AccountReport{
-		{Name: "broken", Harness: "claude-code", State: api.AccountFailing, Reason: "env file does not read", Used: true},
-		{Name: "in", Harness: "claude-code", State: api.AccountReady, Used: true},
-		{Name: "out", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", Used: true},
+		{Name: "broken", Harness: "claude-code", State: api.AccountFailing, Reason: "env file does not read", Used: true, Kinds: []string{"fix"}, StopAt: 95},
+		{Name: "in", Harness: "claude-code", State: api.AccountReady, Used: true, Kinds: []string{"plan"}, StopAt: 95},
+		{Name: "out", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", Used: true, Kinds: []string{"review"}, StopAt: 95},
 	}
-	if !slices.Equal(hb.Accounts, want) {
+	if !reflect.DeepEqual(hb.Accounts, want) {
 		t.Fatalf("Accounts = %+v, want %+v", hb.Accounts, want)
 	}
 	b, err := json.Marshal(hb.Accounts)
@@ -121,7 +122,7 @@ func TestTheHeartbeatReportsEachAccountWithNoPath(t *testing.T) {
 	if strings.Contains(string(b), "/") {
 		t.Fatalf("the account rows name a path: %s", b)
 	}
-	if !strings.Contains(string(b), `{"name":"in","harness":"claude-code","state":"ready","used":true}`) {
+	if !strings.Contains(string(b), `{"name":"in","harness":"claude-code","state":"ready","used":true,"kinds":["plan"],"stopAt":95}`) {
 		t.Fatalf("a ready row = %s", b)
 	}
 }
@@ -140,7 +141,7 @@ func TestACheckedSetOfCommandsSendsUnusedAccountRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), `"accounts":[{"name":"claude","harness":"claude-code",`) || !strings.Contains(string(b), `"used":false}]`) {
+	if !strings.Contains(string(b), `"accounts":[{"name":"claude","harness":"claude-code",`) || !strings.Contains(string(b), `"used":false,"stopAt":95}]`) {
 		t.Fatalf("heartbeat body = %s", b)
 	}
 }
@@ -188,7 +189,7 @@ func TestAReloadTurnsOffAFailingAccount(t *testing.T) {
 	if rows := sent(1); rows != nil {
 		t.Fatalf("the heartbeat before the reload has account rows %+v", rows)
 	}
-	if rows, want := sent(2), []api.AccountReport{{Name: "claude", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", Used: true}}; !slices.Equal(rows, want) {
+	if rows, want := sent(2), []api.AccountReport{{Name: "claude", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", Used: true, Kinds: []string{"plan"}, StopAt: 95}}; !reflect.DeepEqual(rows, want) {
 		t.Fatalf("the heartbeat of the swap has rows %+v, want %+v", rows, want)
 	}
 
@@ -199,7 +200,7 @@ func TestAReloadTurnsOffAFailingAccount(t *testing.T) {
 	if res := h.router.reload(context.Background(), src); !res.OK || res.AccountsOff != nil {
 		t.Fatalf("result = %+v", res)
 	}
-	if rows, want := sent(3), []api.AccountReport{{Name: "claude", Harness: "claude-code", State: api.AccountReady, Used: true}}; !slices.Equal(rows, want) {
+	if rows, want := sent(3), []api.AccountReport{{Name: "claude", Harness: "claude-code", State: api.AccountReady, Used: true, Kinds: []string{"plan"}, StopAt: 95}}; !reflect.DeepEqual(rows, want) {
 		t.Fatalf("the heartbeat of the second swap has rows %+v, want %+v", rows, want)
 	}
 }
@@ -240,10 +241,24 @@ func TestAFailingUnusedAccountIsReportedAndTurnsNothingOff(t *testing.T) {
 		t.Fatalf("the used account is off: %+v", m)
 	}
 	want := []api.AccountReport{
-		{Name: "in", Harness: "claude-code", State: api.AccountReady, Used: true},
-		{Name: "spare", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in"},
+		{Name: "in", Harness: "claude-code", State: api.AccountReady, Used: true, Kinds: []string{"plan"}, StopAt: 95},
+		{Name: "spare", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", StopAt: 95},
 	}
-	if rows := accountReports(set); !slices.Equal(rows, want) {
+	if rows := accountReports(set); !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows = %+v, want %+v", rows, want)
+	}
+}
+
+func TestTheHeartbeatReportsTheStopValueOfAnAccount(t *testing.T) {
+	body := "accounts:\n  claude:\n    harness: claude-code\n    stopAt: 80\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() +
+		"\nwork:\n  plan:\n    prompt: go\n"
+	set, err := rules.Parse([]byte(body), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.SetAccountProblems(map[string]string{})
+	rows := accountReports(set)
+	if len(rows) != 1 || rows[0].StopAt != 80 || !slices.Equal(rows[0].Kinds, []string{"plan"}) {
+		t.Fatalf("rows = %+v", rows)
 	}
 }

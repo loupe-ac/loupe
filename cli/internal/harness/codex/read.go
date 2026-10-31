@@ -519,6 +519,18 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 	return out
 }
 
+// UsageFile is the session file of the run in dir. It says false while Codex
+// has not named the thread of the run, or has not written its file.
+func (h Harness) UsageFile(dir string) (string, bool) {
+	thread := readStdout(filepath.Join(dir, "stdout")).thread
+	if thread == "" {
+		return "", false
+	}
+	path, err := h.find(thread)
+
+	return path, err == nil
+}
+
 // runEnd bounds the lines of the run in dir, so a later resume of the session
 // adds nothing to an adopted run read after it. The worker shell writes its
 // exit file when Codex exits. A killed run has none, and its window has no

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Controller\Api;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
 use Symfony\Component\Uid\Uuid;
@@ -295,14 +296,39 @@ final class RecordBridgeHeartbeatRequest
             $failing = BridgeAccountInput::STATE_FAILING === $account->state;
             $reason = trim($account->reason ?? '');
 
-            return [
+            $row = [
                 'name' => $account->name ?? '',
                 'harness' => $account->harness ?? '',
                 'state' => $failing ? BridgeAccountInput::STATE_FAILING : BridgeAccountInput::STATE_READY,
                 'reason' => $failing && '' !== $reason ? $reason : null,
                 'used' => $account->used ?? true,
             ];
+            if (null !== $account->kinds) {
+                $row['kinds'] = array_values(array_unique($account->kinds));
+            }
+            if (null !== $account->stopAt) {
+                $row['stopAt'] = $account->stopAt;
+            }
+
+            return $row;
         }, array_values($this->accounts));
+    }
+
+    /**
+     * The readings of every account, each with the name of its account.
+     *
+     * @return list<AccountReadingReport>
+     */
+    public function accountReadings(): array
+    {
+        $reports = [];
+        foreach ($this->accounts ?? [] as $account) {
+            foreach ($account->readings ?? [] as $reading) {
+                $reports[] = $reading->report($account->name ?? '');
+            }
+        }
+
+        return $reports;
     }
 
     /**

@@ -705,6 +705,29 @@ func (s *Set) WorkKindsOn() []string {
 	return out
 }
 
+// AccountKinds lists the kinds of the work map that can run on the named
+// account, through a work entry or a variant of an experiment, in name order.
+// A kind of another subject than card reads <subject>:<kind>. A set with its
+// agents off gives none.
+func (s *Set) AccountKinds(name string) []string {
+	var out []string
+	if s.agentsOff != "" {
+		return out
+	}
+	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
+		entry := s.work[kind]
+		if !slices.ContainsFunc(entry.runs(), func(r RunSettings) bool { return r.Account == name }) {
+			continue
+		}
+		if entry.Subject != api.SubjectCard {
+			kind = entry.Subject + ":" + kind
+		}
+		out = append(out, kind)
+	}
+
+	return out
+}
+
 // WorkEntry is the entry of a kind, with its defaults filled.
 func (s *Set) WorkEntry(kind string) (WorkEntry, bool) {
 	w, ok := s.work[kind]

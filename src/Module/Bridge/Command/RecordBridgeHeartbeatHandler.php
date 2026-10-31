@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Event\BridgeReported;
+use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
@@ -22,6 +24,7 @@ use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Bridge\Service\WorkRequestLease;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
@@ -55,6 +58,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private BridgeCommandRepository $bridgeCommands,
         private WorkRequestRepository $workRequests,
         private BridgeHostSampleRepository $bridgeHostSamples,
+        private BridgeAccountReadingRepository $bridgeAccountReadings,
         private HostSampling $hostSampling,
         private WorkerRunRepository $workerRuns,
         private WorkerRunFactWriter $factWriter,
@@ -123,6 +127,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
             }
+            $this->recordAccountReadings($bridge, $command->accountReadings);
             if (null !== $command->commandEntries) {
                 $bridge->commandEntries = $command->commandEntries;
                 $bridge->commandEntriesReportedAt = $now;
@@ -295,6 +300,34 @@ final readonly class RecordBridgeHeartbeatHandler
         }
 
         return $this->workerRuns->findOpenInteractiveSessionIdsOfBridge($command->bridgeId, $command->owner);
+    }
+
+    /**
+     * Stores each reading that differs from the latest one of its account and window.
+     *
+     * @param list<AccountReadingReport> $reports
+     */
+    private function recordAccountReadings(Bridge $bridge, array $reports): void
+    {
+        if ([] === $reports) {
+            return;
+        }
+
+        $latest = [];
+        foreach ($this->bridgeAccountReadings->latestOfBridge($bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.'), $bridge->id) as $stored) {
+            $latest[$stored->account."\0".$stored->window] = $stored;
+        }
+
+        usort($reports, static fn (AccountReadingReport $a, AccountReadingReport $b): int => $a->readAt <=> $b->readAt);
+        foreach ($reports as $report) {
+            $key = $report->account."\0".$report->window;
+            if (isset($latest[$key]) && $latest[$key]->says($report)) {
+                continue;
+            }
+
+            $latest[$key] = $report;
+            $this->em->persist(new BridgeAccountReading(Uuid::v7(), $bridge, $report->account, $report->window, $report->usedPercent, $report->resetsAt, $report->limited, $report->source, $report->readAt));
+        }
     }
 
     /** A live process is a sign of life now. Otherwise the transcript time counts, never later than now. */

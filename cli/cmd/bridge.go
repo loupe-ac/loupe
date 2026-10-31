@@ -28,6 +28,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
 	"github.com/loupe-ac/loupe/cli/internal/transport"
 	"github.com/loupe-ac/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 	"github.com/spf13/cobra"
 )
 
@@ -285,20 +286,21 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	set.SetAccountProblems(accountsOff(accounts))
 
 	r := &router{
-		log:        bl.log,
-		worker:     defaultWorkerOps(),
-		bridgeID:   bridgeID,
-		control:    control,
-		source:     newReloadSource(path, defaults, cfg, b.lock),
-		update:     b,
-		hookRunner: newHookRunner(hookList, bridgeID, bl.log),
-		cursorFile: cursorFile,
-		outboxDir:  outboxDir,
-		agent:      cfg.AgentAccount,
-		rulesPath:  path,
-		logPath:    bl.path,
-		lastError:  bl.last,
-		onRules:    ident.update,
+		log:          bl.log,
+		accountUsage: usage.NewCollector(),
+		worker:       defaultWorkerOps(),
+		bridgeID:     bridgeID,
+		control:      control,
+		source:       newReloadSource(path, defaults, cfg, b.lock),
+		update:       b,
+		hookRunner:   newHookRunner(hookList, bridgeID, bl.log),
+		cursorFile:   cursorFile,
+		outboxDir:    outboxDir,
+		agent:        cfg.AgentAccount,
+		rulesPath:    path,
+		logPath:      bl.path,
+		lastError:    bl.last,
+		onRules:      ident.update,
 	}
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
@@ -616,6 +618,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.mu.Lock()
 		hb.paused = r.personPaused
 		r.heartbeat = hb
+		hb.usage = r.accountUsage
 		r.notePoolsLocked()
 		r.noteClaimsLocked()
 		r.mu.Unlock()

@@ -940,6 +940,85 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame('[12.5, 40.0]', $samples[0]['cpu_pct']);
     }
 
+    public function test_the_kinds_the_stop_value_and_the_readings_are_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-account-usage@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['kinds' => ['fix', 'fix', 'analysis:cost-report'], 'stopAt' => 90, 'readings' => [
+                self::accountReading(),
+                self::accountReading(['window' => 'week', 'usedPercent' => null, 'limited' => true]),
+            ]]),
+            self::account(['name' => 'spare']),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true, 'kinds' => ['fix', 'analysis:cost-report'], 'stopAt' => 90],
+            ['name' => 'spare', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true],
+        ], $this->bridge($owner, $bridgeId)->accounts);
+        $rows = $em->getConnection()->fetchAllAssociative('SELECT account, window_key, used_percent, limited, source FROM bridge_account_readings ORDER BY window_key');
+        self::assertSame([['work', 'session', 29.5, false, 'stream'], ['work', 'week', null, true, 'stream']], array_map(
+            static fn (array $row): array => [$row['account'], $row['window_key'], null === $row['used_percent'] ? null : (float) $row['used_percent'], $row['limited'], $row['source']],
+            $rows,
+        ));
+    }
+
+    public function test_a_reading_time_with_an_offset_is_stored_in_utc(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-reading-offset@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $reset = new \DateTimeImmutable('+2 hours', new \DateTimeZone('UTC'));
+
+        $this->put($client, (string) Uuid::v4(), $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['readings' => [self::accountReading(['resetsAt' => $reset->setTimezone(new \DateTimeZone('+02:00'))->format(\DateTimeInterface::RFC3339)])]]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($reset->format('Y-m-d H:i:s'), $this->em()->getConnection()->fetchOne('SELECT resets_at FROM bridge_account_readings'));
+    }
+
+    public function test_the_edge_values_of_a_reading_are_accepted(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-reading-edges@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $readings = array_map(
+            static fn (int $index): array => self::accountReading(['window' => 'w'.$index, 'usedPercent' => 0 === $index ? 0 : 200]),
+            range(0, BridgeAccountInput::MAX_READINGS - 1),
+        );
+
+        $this->put($client, (string) Uuid::v4(), $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['stopAt' => 1, 'readings' => $readings]),
+            self::account(['name' => 'spare', 'stopAt' => 100, 'readings' => [self::accountReading(['window' => str_repeat('a', 16)])]]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(BridgeAccountInput::MAX_READINGS + 1, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_account_readings'));
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private static function accountReading(array $overrides = []): array
+    {
+        return array_merge([
+            'window' => 'session',
+            'usedPercent' => 29.5,
+            'resetsAt' => new \DateTimeImmutable('+2 hours', new \DateTimeZone('UTC'))->format(\DateTimeInterface::RFC3339),
+            'limited' => false,
+            'source' => 'stream',
+            'readAt' => new \DateTimeImmutable('now', new \DateTimeZone('UTC'))->format(\DateTimeInterface::RFC3339),
+        ], $overrides);
+    }
+
     /**
      * @param array<string, mixed> $overrides
      *
@@ -1078,6 +1157,29 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'an account with a bad name' => [['accounts' => [self::account(['name' => 'Work Account'])]]];
         yield 'an account with no name' => [['accounts' => [self::account(['name' => null])]]];
         yield 'an account name with a trailing newline' => [['accounts' => [self::account(['name' => "work\n"])]]];
+        yield 'a kind list that is not a list' => [['accounts' => [self::account(['kinds' => 'fix'])]]];
+        yield 'a kind with a bad name' => [['accounts' => [self::account(['kinds' => ['Fix Card']])]]];
+        yield 'too many kinds' => [['accounts' => [self::account(['kinds' => array_map(static fn (int $i): string => 'kind'.$i, range(0, RecordBridgeHeartbeatRequest::MAX_WORK_KINDS))])]]];
+        yield 'a stop value of zero' => [['accounts' => [self::account(['stopAt' => 0])]]];
+        yield 'a stop value above 100' => [['accounts' => [self::account(['stopAt' => 101])]]];
+        yield 'a stop value that is not a number' => [['accounts' => [self::account(['stopAt' => 'high'])]]];
+        yield 'readings that are not a list' => [['accounts' => [self::account(['readings' => self::accountReading()])]]];
+        yield 'too many windows for one account' => [['accounts' => [self::account(['readings' => array_map(static fn (int $i): array => self::accountReading(['window' => 'w'.$i]), range(0, BridgeAccountInput::MAX_READINGS))])]]];
+        yield 'a use below zero' => [['accounts' => [self::account(['readings' => [self::accountReading(['usedPercent' => -0.1])]])]]];
+        yield 'a use above 200' => [['accounts' => [self::account(['readings' => [self::accountReading(['usedPercent' => 200.1])]])]]];
+        yield 'a use that is not a number' => [['accounts' => [self::account(['readings' => [self::accountReading(['usedPercent' => 'full'])]])]]];
+        yield 'a window in upper case' => [['accounts' => [self::account(['readings' => [self::accountReading(['window' => 'Session'])]])]]];
+        yield 'a window with a hyphen' => [['accounts' => [self::account(['readings' => [self::accountReading(['window' => 'five-hour'])]])]]];
+        yield 'a window that is too long' => [['accounts' => [self::account(['readings' => [self::accountReading(['window' => str_repeat('a', 17)])]])]]];
+        yield 'a window with a trailing newline' => [['accounts' => [self::account(['readings' => [self::accountReading(['window' => "week\n"])]])]]];
+        yield 'a blank window' => [['accounts' => [self::account(['readings' => [self::accountReading(['window' => ''])]])]]];
+        yield 'a reset more than 31 days ahead' => [['accounts' => [self::account(['readings' => [self::accountReading(['resetsAt' => new \DateTimeImmutable('+32 days', new \DateTimeZone('UTC'))->format(\DateTimeInterface::RFC3339)])]])]]];
+        yield 'a reset that is not a date' => [['accounts' => [self::account(['readings' => [self::accountReading(['resetsAt' => 'soon'])]])]]];
+        yield 'a reading with no reset' => [['accounts' => [self::account(['readings' => [self::accountReading(['resetsAt' => null])]])]]];
+        yield 'a reading with no limited value' => [['accounts' => [self::account(['readings' => [self::accountReading(['limited' => null])]])]]];
+        yield 'a reading with no read time' => [['accounts' => [self::account(['readings' => [self::accountReading(['readAt' => null])]])]]];
+        yield 'a reading with a blank source' => [['accounts' => [self::account(['readings' => [self::accountReading(['source' => ' '])]])]]];
+        yield 'a reading source that is too long' => [['accounts' => [self::account(['readings' => [self::accountReading(['source' => str_repeat('a', 41)])]])]]];
         yield 'an account name that is too long' => [['accounts' => [self::account(['name' => str_repeat('a', 41)])]]];
         yield 'an account with a bad harness' => [['accounts' => [self::account(['harness' => 'Claude Code'])]]];
         yield 'an account with no harness' => [['accounts' => [self::account(['harness' => null])]]];
