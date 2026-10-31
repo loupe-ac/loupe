@@ -5,7 +5,7 @@ description: "Use when the owner runs an interactive tech design session for a L
 
 # Interactive tech design
 
-Run a tech design session with the owner, write the tech design, link it to the card, and stop. The owner's approval of the design moves the card on.
+Run a tech design session with the owner. Write the tech design, link it to the card, and stop. The owner's approval of the design moves the card on.
 
 This skill is not a stage skill. It loads no `stage-contract.md` and no harness adapter, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1 of `../loupe-product-design/references/question-rules.md`).
 
@@ -19,9 +19,9 @@ Never move the card. The workflow asked for this session, and the owner's approv
 2. Read `.loupe/lifecycle.md` for the writing style and the `Documents` tags. When the file is missing, write plainly.
 3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md` and `../loupe-product-design/references/question-rules.md`. Follow them for the whole session.
 4. Call `card_get`. Read the tags of each linked document with `document_get`, as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
-   - An approved tech design: stop, and tell the owner.
-   - An unapproved tech design: it is the existing document that T6 revises.
-   - No linked tech design: search `document_list` for the title `Tech design: <card title>`. Keep only a row whose title is exactly that title. Show each such row to the owner, and ask whether it belongs to this card. When the owner says yes, link it with `card_update` (the field replaces the whole set), and apply the two rules above.
+   - With an approved tech design, stop and tell the owner.
+   - An unapproved tech design is the existing document that T6 revises.
+   - With no linked tech design, search `document_list` for the title `Tech design: <card title>`. Keep only a row whose title is exactly that title. Show each such row to the owner, and ask whether it belongs to this card. When the owner says yes, link it with `card_update` (the field replaces the whole set), and apply the two rules above.
 5. Run T0 to open the run. Then run the phases in order.
 
 ## Where session output goes
@@ -29,7 +29,7 @@ Never move the card. The workflow asked for this session, and the owner's approv
 Put each item in its section of the tech design, as "The design sections" of `tech-document.md` lists them.
 
 - Each question and its answer go in "Decided", with the reason, the option that lost and the cost that the choice accepts.
-- A decision that the owner defers becomes an open decision section with a decision fence (Q8), with the worked example and the "How each option works" list of `../loupe-documents/references/design-structure.md` "Decisions". A question in chat gets no example.
+- A decision that the owner defers becomes an open decision section with a decision fence (Q8). The section has the worked example and the "How each option works" list of `../loupe-documents/references/design-structure.md` "Decisions". A question in chat gets no example.
 - A fact you checked in the code goes in the "Checked in the code" line of its section. Never state an unchecked fact (Q1).
 - The whole design follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
 

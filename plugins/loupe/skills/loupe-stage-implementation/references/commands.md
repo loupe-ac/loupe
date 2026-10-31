@@ -8,11 +8,44 @@
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`.
 3. Pick the forge adapter as the next section says.
 
-The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold an optional `Forge` section with one value, the forge name, such as `github`, an optional `Decision records` section that `loupe-recommendations` reads, and an optional `Visual check` section that `visual-check.md` reads, and an optional `Preview` section that `preview.md` reads. A missing optional section blocks nothing. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write the build notes, and run the build notes task by task.
+The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold these optional sections:
+
+- A `Forge` section with one value, the forge name, such as `github`.
+- A `Decision records` section that `loupe-recommendations` reads.
+- A `Visual check` section that `visual-check.md` reads.
+- A `Preview` section that `preview.md` reads.
+
+A missing optional section blocks nothing. The harness adapter covers these steps:
+
+- Connect to the Loupe tools.
+- Load an instruction.
+- Run a long command.
+- Dispatch a sub-agent.
+- Write the build notes.
+- Run the build notes task by task.
 
 ## Pick the forge adapter
 
-The stage skills name forge operations. An adapter file maps them to commands for one forge. The operations are these: find and validate a pull request, list feedback items, reply to a thread, post a top-level comment, and post a refusal comment. Also read checks and failed logs, create a pull request, and check mergeability. The merge stage adds seven more: read the merge state, check the approval covers the head, compare with the base, update the branch, merge, change the base, and merge a branch into the epic branch.
+The stage skills name forge operations. An adapter file maps them to commands for one forge. The operations are these:
+
+- Find and validate a pull request.
+- List feedback items.
+- Reply to a thread.
+- Post a top-level comment.
+- Post a refusal comment.
+- Read checks and failed logs.
+- Create a pull request.
+- Check mergeability.
+
+The merge stage adds these operations:
+
+- Read the merge state.
+- Check the approval covers the head.
+- Compare with the base.
+- Update the branch.
+- Merge.
+- Change the base.
+- Merge a branch into the epic branch.
 
 1. When the profile has a `Forge` section, its value is the forge. Take no other source.
 2. Otherwise read the forge from `pullRequests[].forge` in `card_get`: `github`, `gitlab`, `bitbucket` or `other`. The app stores `other` for every link it cannot parse, so `other` names no forge. Go on to item 3.
@@ -77,7 +110,9 @@ git branch --show-current
 ## Reruns
 
 1. A linked document tagged `build-notes` whose `references` hold the tech design id is the build notes. Reuse it, and create no second one.
-2. An open pull request on a branch that starts `<prefix>` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request. Run `git branch --show-current`. When HEAD is detached, or on another `<prefix>` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+2. An open pull request on a branch that starts `<prefix>` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request.
+
+   Run `git branch --show-current`. When HEAD is detached, or on another `<prefix>` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`. Run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.
 
@@ -98,9 +133,16 @@ The implementation stage and the fix round sync the worker folder with this proc
 1. Run `git fetch origin <head> <base>`. When the fetch fails, run it once more after 2 seconds. When it fails again, stop with `STAGE RESULT: blocked: local branch diverged from origin`. Then run `git merge --ff-only origin/<head>`. When the merge succeeds, go on at item 7.
 2. The branches diverged. When `git status --porcelain` prints a line, stop with `STAGE RESULT: blocked: local branch diverged from origin`. An earlier run left that work half done, and a person must judge it.
 3. The commits that `git rev-list HEAD ^origin/<head> ^origin/<base>` lists are local work. Treat them as your own work. They go out with your next push, unless item 5 resets them. The list leaves out the base commits that a sync brought in.
-4. Test each of these commits with the script below. A commit is a sync when it has two parents, one of them is an ancestor of `origin/<base>`, and git can make the same merge again with no conflict. `git merge-tree` needs git 2.38 or later. A merge that holds a conflict resolution or a hand edit is not a sync, so the procedure keeps it. The script prints one `content` line for each commit that is not a sync. On a push retry, skip this item and item 5, and merge.
+4. Test each of these commits with the script below. A commit is a sync when it passes these tests:
+   - It has two parents.
+   - One of them is an ancestor of `origin/<base>`.
+   - Git can make the same merge again with no conflict.
+
+   `git merge-tree` needs git 2.38 or later. A merge that holds a conflict resolution or a hand edit is not a sync, so the procedure keeps it. The script prints one `content` line for each commit that is not a sync. On a push retry, skip this item and item 5, and merge.
 5. When the script prints nothing, every local commit is a sync of the base. Run `git reset --hard origin/<head>`. The gate merges the base again, and the approval of the pull request still covers the head.
-6. Otherwise run `git merge origin/<head>`. The fix round resolves a conflict with the method of "Resolve a conflict with the base" in `../../loupe-stage-fix-round/references/pull-request-feedback.md`. Use `origin/<head>` in place of `origin/<base>`, start at its third command, and stop at its commit. Skip its refresh, because item 7 refreshes once. The implementation stage resolves only a mechanical conflict, as the gate does. When a conflict cannot be resolved, run `git merge --abort`, and stop with `STAGE RESULT: blocked: local branch diverged from origin`. This stop form replaces the stop form of that section.
+6. Otherwise run `git merge origin/<head>`. The fix round resolves a conflict with the method of "Resolve a conflict with the base" in `../../loupe-stage-fix-round/references/pull-request-feedback.md`. Use `origin/<head>` in place of `origin/<base>`, start at its third command, and stop at its commit. Skip its refresh, because item 7 refreshes once.
+
+   The implementation stage resolves only a mechanical conflict, as the gate does. When a conflict cannot be resolved, run `git merge --abort`, and stop with `STAGE RESULT: blocked: local branch diverged from origin`. This stop form replaces the stop form of that section.
 7. When the branch switch before the sync or the sync itself moved HEAD, refresh the environment once, as "Refresh the environment" says.
 
 ```bash
@@ -116,7 +158,7 @@ Never rebase, and never force-push. The reset changes only the local branch, and
 ## Push without force
 
 1. Push with the command of the stage. Never pass `--force`, `--force-with-lease` or `--no-verify`.
-2. When the forge rejects the push because the remote branch holds commits that HEAD does not, run "Sync with the pull request branch" again as a push retry. Then run the gate again, and push again.
+2. The forge rejects a push when the remote branch holds commits that HEAD does not. When it does, run "Sync with the pull request branch" again as a push retry. Then run the gate again, and push again.
 3. Push three times at most. When the third push is rejected for that reason, stop with `STAGE RESULT: blocked: local branch diverged from origin`.
 4. A push that a hook or a branch protection rejects is not a divergence. Never route around it.
 
@@ -155,7 +197,7 @@ The stage ends at the push. The app reads the pull request again after each push
 
 ## Finish without code
 
-A card can end its implementation with no pull request. The worker reports the finish, and a workflow rule moves the card to the terminal column. The worker never moves the card itself. Three cases exist, and each has its own form:
+A card can end its implementation with no pull request. The worker reports the finish, and a workflow rule moves the card to the terminal column. The worker never moves the card itself. Each case below has its own form:
 
 1. Nothing to build. An answered decision of the tech design removes all the work of the card, or of the Breakdown entry of a child. An example is a note such as "no detector" on the only decision of the card.
 2. Delivered without code. The card asks only for a document, such as a measurement or a report, and no code change.
@@ -184,7 +226,7 @@ All forms create no branch, no commit and no pull request. A card with a work li
 
 ## Record a block
 
-Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final paragraph that starts `Blocked:`. The paragraph names the reason, the branch, and the pull request URL when one exists. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>` in the `Blocked:` paragraph and in the "Nothing to build" and "Delivered without code" lines.
+Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final paragraph that starts `Blocked:`. The paragraph names the reason, the branch, and the pull request URL when one exists. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>`. This applies to the `Blocked:` paragraph, and to the "Nothing to build" and "Delivered without code" lines.
 
 ## Post a refusal comment
 

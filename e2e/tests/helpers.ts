@@ -442,6 +442,13 @@ export async function addBoardColumn(
         .getByRole('button', { name: 'Add a column', exact: true })
         .click();
     const dialog = page.getByRole('dialog');
+    await dialog.evaluate((element) =>
+        Promise.all(
+            element
+                .getAnimations()
+                .map((animation) => animation.finished.catch(() => {})),
+        ),
+    );
     await dialog.getByRole('textbox').fill(label);
     await dialog
         .getByRole('button', { name: 'Add column', exact: true })

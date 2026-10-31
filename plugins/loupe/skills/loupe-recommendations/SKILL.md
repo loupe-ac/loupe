@@ -37,7 +37,7 @@ This skill says how effort weighs against correctness. It holds the whole rule. 
 1. Recommend the correct fix, also when it is expensive.
 2. Give the severity of the defect and the cost of the fix.
 3. Say that the owner can choose the patch, and what the patch leaves behind.
-4. A patch that you offer as a stopgap comes after the correct fix, and you name the date or the event that ends it.
+4. Put a patch that you offer as a stopgap after the correct fix. Name the date or the event that ends it.
 5. The owner sets the bar. State your recommendation as a recommendation.
 
 ## A real risk of the larger fix
