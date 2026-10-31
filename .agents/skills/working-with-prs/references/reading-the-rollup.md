@@ -1,7 +1,7 @@
 # Reading the raw check rollup
 
 Read this file when you parse `gh pr view --json statusCheckRollup` instead of
-`gh pr checks`. `SKILL.md` "Merging", item 8, says why `gh pr checks` comes
+`gh pr checks`. `merging.md` "Item 8" says why `gh pr checks` comes
 first.
 
 The raw rollup needs care. A GitHub Actions entry is a `CheckRun`. Its progress

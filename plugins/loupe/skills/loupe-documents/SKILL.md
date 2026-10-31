@@ -19,7 +19,7 @@ Reviewers cite entries in comments, such as "point 3 is wrong". Numbers permit t
 
 ### 3. Give cross-referenced entries stable IDs
 
-Markdown starts a new ordered list after each `##`, so list numbering restarts at every heading. Source entries numbered 1–33 show as 1–2 under the first heading, then 1–5 under the next. A "see finding 6" then points at nothing the reviewer can see. An audit once shipped with every cross-reference broken in this way.
+Markdown starts a new ordered list after each `##`, so list numbering restarts at every heading. Source entries numbered 1–33 show as 1–2 under the first heading, then 1–5 under the next. A "see finding 6" then points at nothing the reviewer can see.
 
 When entries refer to one another, give each a short ID that does not depend on rendering. Use `C1`, `H4`, `M5` for findings in severity bands, or any scheme where the prefix names the section. Lead the entry with it:
 
@@ -43,8 +43,6 @@ When the document offers more than one way to do something, the format must show
 
 Never fold alternatives into a flat sentence such as "do X or do Y." The reader takes it as an instruction and misses the choice.
 
-When the alternatives are a clean either/or, also wrap them in a decision fence (rule 12). The reviewer then clicks an option, and does not type "option 2" into a comment for you to parse.
-
 ### 6. Revise the document after you address review comments
 
 Send a new version with `document_revise`, so that the document shows the resolved state. An outcome recorded only in an issue tracker, the chat or a commit message leaves the returning reviewer on a stale proposal.
@@ -53,18 +51,11 @@ Send a new version with `document_revise`, so that the document shows the resolv
 2. Add no revision note, changelog or "updated on <date>" header. Loupe tracks versions itself and shows them in the UI.
 3. Skip the revision only when the comments changed nothing in the content. Examples are pure acknowledgements, or questions answered in chat that have no effect on the document.
 
-A revision re-anchors open comments onto the new version. A comment whose quoted text no longer appears comes back **orphaned**, so a rewrite of a passage that a comment asked about orphans that comment. That is normal, and it is no reason to avoid a revision. Keep the reviewer's quoted phrases intact where you can, and expect the orphan count in the tool's response.
+An orphaned comment is no reason to avoid a revision. Keep the reviewer's quoted phrases intact where you can.
 
 ### 7. Reply to comments before you revise, or read the review again after
 
-`document_reply_to_comment` and `document_mark_comment_addressed` take the comment ids from `document_get_review`. **`document_revise` invalidates every one of those ids.** The re-anchor copies each comment onto the new version and leaves the original behind. The old ids still exist and still look pending. So the natural order of read the review, revise, then reply writes into rows that nobody reads. Both tools reject a stale id, with a `superseded` skip or an error that names both version numbers. By then, you must write the reply again.
-
-Two orders work:
-
-1. Reply to each comment and mark it addressed **first**, then call `document_revise` once at the end.
-2. Revise first, then call `document_get_review` again and use the fresh ids.
-
-The first order is usually better. Your replies describe changes that the reviewer is about to see, and the status of each thread is already correct when the new version arrives.
+`document_revise` invalidates every comment id from `document_get_review`. Reply to each comment and mark it addressed **first**, then call `document_revise` once at the end. The other order works only when you call `document_get_review` again after the revision. The first order is usually better. Your replies describe changes that the reviewer is about to see, and the status of each thread is already correct when the new version arrives.
 
 ### 8. Keep a reply to two or three sentences
 
@@ -95,17 +86,15 @@ On `document_create`, the description answers a different question: what this do
 
 ### 10. Rename with `document_rename`, not with a revision
 
-To fix a typo in a title, or to make a batch of related documents consistent, call `document_rename`. It changes the title and nothing else. Unchanged markdown sent through `document_revise` makes a version whose description can only say "renamed". Every such version is one more entry that a reviewer must skip. `document_revise` takes a `title` only when the content and the title change together.
+A title-only `document_revise` makes a version that a reviewer must skip. Pass `title` to it only when the content changes too.
 
 ### 11. Point at the important passages with `document_highlight`, where the instance offers it
 
-Highlighting is off by default, and an instance with it off does not advertise the tool. **If `document_highlight` is not among your tools, skip this rule.** Nothing else in it applies, and there is no fallback. Say in prose what you would have marked, or say nothing.
-
-Where it is on, use it. On a long document, the place where the reviewer starts to read is most of what you control. Quotes match the **rendered prose**, not your Markdown source. Every call replaces the whole set, and `document_revise` drops them. Read `references/highlights.md` before you call it.
+If `document_highlight` is among your tools, read `references/highlights.md` before you call it. If it is not, skip this rule. There is no fallback.
 
 ### 12. Use a decision fence to make a choice clickable
 
-A pair of `<!-- decision: some-id -->` and `<!-- /decision -->` comments around the alternatives shows them as radio buttons. The answer comes back in `document_get_review` under `decisions`.
+Use a fence when the alternatives of rule 5 are a clean either/or. A pair of `<!-- decision: some-id -->` and `<!-- /decision -->` comments around the alternatives shows them as radio buttons. The answer comes back in `document_get_review` under `decisions`.
 
 1. Mark every option `- [ ]` instead to let the reviewer pick several.
 2. End the one option you recommend with `(recommended: high)`, `moderate` or `low` to show three stars on it.
@@ -121,14 +110,7 @@ On its own line, the comment shows as a block note. Inside a paragraph, it shows
 
 ### 14. Find a document with `document_list`, not with `document_get` on every row
 
-Each row carries the description of the document's current version, so the list alone usually tells you which document you want. These arguments narrow it, and they combine:
-
-1. `search` matches each word as a substring of the title or the current content, ignoring case. Quotes, a leading `-` and `or` work as in `card_search`. The documents with every word in the title come first, newest first in each group.
-2. `status` keeps one state: `in-review`, `approved`, `changes-requested` or `draft`. An unknown value is refused.
-3. `tag` keeps the documents that carry one tag, matched ignoring case. Read `tag_list` for the project's vocabulary.
-4. `series` keeps the documents in one series, matched ignoring case, and orders them by their position in it. Read `series_list` for the names.
-
-Archived documents stay out until you pass `includeArchived`. Keep paging while `hasMore` is true, with a search or without one.
+Each row carries the description of the document's current version, so the list alone usually tells you which document you want. Narrow it with `search`, `status`, `tag` or `series` before you page through it.
 
 ### 15. Follow `references/design-structure.md` for a product design or a tech design
 
@@ -167,7 +149,7 @@ The owner often answers a decision outside its document, or after a long gap. A 
 
 ### 19. Name a card or a pull request with a token
 
-Write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request. Loupe shows each token as a link with a title tooltip. The stored text of the document reads "card #1116", so comment anchors keep their place. Prose such as "card 1116" also links, but a token is exact. A token inside code, a link or square brackets stays as written. A document title shows a token as plain text.
+Write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request. Loupe links each token. Prose such as "card 1116" also links, but a token is exact. The stored text of the document reads "card #1116", so comment anchors keep their place. A document title shows a token as plain text.
 
 ## Example
 
@@ -203,12 +185,4 @@ Do not write "Drop `x-forwarded-host` or generate these links from a pinned `def
 
 - Pasting a report written for the terminal into `document_create` unchanged. These rules exist to undo terminal habits: dense bullets, fragments separated by `·`, and H1 headers.
 - Numbering only the top level. Nested lists that reviewers discuss also get numbers.
-- Cross-referencing by list number across headings. The rendered numbering restarts in each section, so the reference lands on the wrong entry or on none. Use stable IDs (rule 3).
-- Holding comment ids across a `document_revise` call. They do not survive it (rule 7). Read the review again, or reply before you revise.
-- Paging the whole document list to find one document. Pass `search`, or a `status`, `tag` or `series` filter, and read the version description of each row (rule 14).
-- Quoting your own Markdown to `document_highlight`. It matches the rendered prose, so inline markup in the quote finds nothing (rule 11).
-- Answering a one-line comment with a structured essay, with bold lead-ins, sub-points and the whole argument behind the answer. Give the answer (rule 8). If it does not fit in a short paragraph, it belongs in the document.
-- Writing a table and then the same content again in prose. The table replaces the text it covers (rule 15).
 - Writing a decision in the terms of the code, with class names, fields, and "(checked, File.php)" on each sentence. The owner decides with no file open. Write the question and the options in product terms. A tech design puts the code in the How list (rule 15).
-- Citing a rule ID of a skill, such as C2, with no meaning and no source. The reviewer does not have the skill open (rule 16).
-- Writing "I recommend option 2", "under D1 option 1" or "as in card 412" in a decision. The owner answers from the decisions panel or the inbox with no other section open. Say what the option does, and state the fact inline (rule 18).
