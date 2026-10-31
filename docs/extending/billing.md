@@ -14,6 +14,10 @@ never constructed.
 
 `/admin/status` reports whether both are set once the flag is on.
 
+An empty `STRIPE_WEBHOOK_SECRET` makes `/webhooks/stripe` refuse every delivery
+with 503. The endpoint also answers 429 after 120 requests a minute from one
+client address. Stripe retries both answers.
+
 ## What it adds
 
 The *Billing* tab of the account settings, at `/account/billing`, offers the
