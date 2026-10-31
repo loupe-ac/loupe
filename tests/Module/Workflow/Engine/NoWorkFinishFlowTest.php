@@ -19,10 +19,12 @@ use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
 use App\Outbox\OutboxWriter;
@@ -192,6 +194,8 @@ final class NoWorkFinishFlowTest extends KernelTestCase
             $this->service(BridgeRepository::class),
             $this->service(BridgeWorkMatchRepository::class),
             $this->service(AccountReadingRecorder::class),
+            $this->service(ProjectRepository::class),
+            $this->service(WorkerRunChangedPublisher::class),
         );
 
         $result = $handler(new SettleWorkRequestCommand(

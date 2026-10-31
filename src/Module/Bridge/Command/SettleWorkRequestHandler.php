@@ -10,12 +10,14 @@ use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\AccountReadingRecorder;
+use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -42,6 +44,8 @@ final readonly class SettleWorkRequestHandler
         private BridgeRepository $bridges,
         private BridgeWorkMatchRepository $bridgeWorkMatches,
         private AccountReadingRecorder $readings,
+        private ProjectRepository $projects,
+        private WorkerRunChangedPublisher $runsChanged,
     ) {
     }
 
@@ -97,6 +101,10 @@ final readonly class SettleWorkRequestHandler
             );
             $this->announcer->announce($settled);
         }
+        // The Agents page draws the usage bars, and a later heartbeat with the same reading stores nothing new.
+        foreach ($this->projects->findOwnedBy($command->owner, $result->usageFollowers) as $project) {
+            $this->runsChanged->runsChanged($project);
+        }
         if ($result->settled && null !== $settled) {
             $this->auditor->record(
                 'bridge.work_request_settled',
@@ -133,15 +141,18 @@ final readonly class SettleWorkRequestHandler
 
         // The claim proved the bridge exists. A bridge row goes only with its account, and then the match has no use.
         $bridge = $this->bridges->findOneByOwnerAndId($command->owner, $command->bridgeId);
+        $usageFollowers = [];
         if (null !== $bridge) {
-            $this->readings->record($bridge, [$handBack->report($now)]);
+            if ($this->readings->record($bridge, [$handBack->report($now)])) {
+                $usageFollowers = $bridge->projects;
+            }
             $this->em->flush();
             $this->bridgeWorkMatches->put($bridge->owner->id ?? throw new \LogicException('A stored owner always has an id.'), $bridge->id, $command->workRequestId, $handBack->account);
         }
         $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));
         $this->em->flush();
 
-        return new SettleWorkRequestResult($request, handedBack: true);
+        return new SettleWorkRequestResult($request, handedBack: true, usageFollowers: $usageFollowers);
     }
 
     /** Settle keeps the bridge and the token, so a repeat after the settlement still matches. */

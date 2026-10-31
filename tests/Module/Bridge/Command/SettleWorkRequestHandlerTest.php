@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Command;
 
+use App\Mercure\LiveUpdatePublisher;
+use App\Mercure\LiveUpdates;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\SettleWorkRequestCommand;
 use App\Module\Bridge\Command\SettleWorkRequestHandler;
@@ -15,6 +17,7 @@ use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\AccountLimits;
 use App\Module\Bridge\Service\AccountReadingRecorder;
+use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
@@ -22,20 +25,30 @@ use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
+use Symfony\Component\Mercure\MockHub;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 use Ubermuda\AuditBundle\Auditor;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class SettleWorkRequestHandlerTest extends KernelTestCase
 {
     use BridgeScenario;
 
     private const string NOW = '2026-10-01T12:30:00+00:00';
+
+    /** @var list<Update> */
+    private array $runsChanged = [];
 
     public function test_a_settlement_is_announced_once(): void
     {
@@ -183,6 +196,29 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         self::assertSame('2026-10-04T17:00:00+00:00', $limits['work']->releaseAt()?->format(\DateTimeInterface::ATOM));
     }
 
+    public function test_a_hand_back_with_a_new_reading_tells_every_project_the_bridge_follows_to_reload(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-reload', recordRunsChanged: true);
+        $other = $this->alsoFollowed($owner, $request, 'settle-hand-back-reload');
+
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
+
+        self::assertSame(self::sorted([(string) $request->project->id, $other]), $this->publishedProjects(), 'The Agents page of each followed project draws the new reading.');
+    }
+
+    public function test_a_hand_back_with_a_known_reading_reloads_only_the_project_of_the_request(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-known', recordRunsChanged: true);
+        $this->alsoFollowed($owner, $request, 'settle-hand-back-known');
+        $bridge = $this->service(BridgeRepository::class)->findOneByOwnerAndId($owner, $request->bridgeId ?? throw new \LogicException('A claimed request has a bridge.')) ?? throw new \LogicException('The bridge exists.');
+        $this->service(AccountReadingRecorder::class)->record($bridge, [self::handBack()->report(new \DateTimeImmutable(self::NOW))]);
+        $this->em()->flush();
+
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
+
+        self::assertSame([(string) $request->project->id], $this->publishedProjects());
+    }
+
     public function test_a_second_hand_back_from_the_same_claim_loses(): void
     {
         [$owner, $request] = $this->claimed('settle-hand-back-twice');
@@ -238,10 +274,13 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
     }
 
     /** @return array{User, WorkRequest} */
-    private function claimed(string $name, ?WorkSubject $subject = null): array
+    private function claimed(string $name, ?WorkSubject $subject = null, bool $recordRunsChanged = false): array
     {
         self::bootKernel();
         self::getContainer()->set('clock', new MockClock(self::NOW));
+        if ($recordRunsChanged) {
+            $this->recordRunsChanged();
+        }
         $em = $this->em();
         $owner = $this->user($em, $name.'@example.com');
         $project = $this->project($em, $owner, 'Project '.$name);
@@ -268,6 +307,8 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
             $this->service(BridgeRepository::class),
             $this->service(BridgeWorkMatchRepository::class),
             $this->service(AccountReadingRecorder::class),
+            $this->service(ProjectRepository::class),
+            $this->service(WorkerRunChangedPublisher::class),
         );
 
         return $handler(new SettleWorkRequestCommand(
@@ -279,6 +320,68 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
             reason: null,
             handBack: $handBack,
         ));
+    }
+
+    /** Before anything builds the hub: the container hands the replacement only to what it builds afterwards. */
+    private function recordRunsChanged(): void
+    {
+        self::getContainer()->set('mercure.hub.default', new MockHub(
+            'http://mercure/.well-known/mercure',
+            new StaticTokenProvider('token'),
+            function (Update $update): string {
+                if (str_contains($update->getData(), WorkerRunChangedPublisher::TYPE)) {
+                    $this->runsChanged[] = $update;
+                }
+
+                return 'id';
+            },
+        ));
+
+        $flags = $this->service(FeatureFlagRepository::class);
+        $flags->findAllIndexed()[LiveUpdates::FLAG]->value = true;
+        $this->em()->flush();
+        $reader = self::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
+    }
+
+    /** @return list<string> the sorted project ids that the runs-changed updates name */
+    private function publishedProjects(): array
+    {
+        $this->service(LiveUpdatePublisher::class)->publish();
+        $ids = [];
+        foreach ($this->runsChanged as $update) {
+            if (1 !== preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', $update->getTopics()[0], $match)) {
+                self::fail('A runs-changed topic names its project.');
+            }
+            $ids[] = $match[0];
+        }
+        $this->runsChanged = [];
+
+        return self::sorted(array_values(array_unique($ids)));
+    }
+
+    /** @return string the id of a second project that the bridge of the request follows */
+    private function alsoFollowed(User $owner, WorkRequest $request, string $name): string
+    {
+        $bridge = $this->service(BridgeRepository::class)->findOneByOwnerAndId($owner, $request->bridgeId ?? throw new \LogicException('A claimed request has a bridge.')) ?? throw new \LogicException('The bridge exists.');
+        $other = (string) $this->project($this->em(), $owner, 'Other '.$name)->id;
+        $bridge->projects = [...$bridge->projects, $other];
+        $this->em()->flush();
+
+        return $other;
+    }
+
+    /**
+     * @param list<string> $ids
+     *
+     * @return list<string>
+     */
+    private static function sorted(array $ids): array
+    {
+        sort($ids);
+
+        return $ids;
     }
 
     /**
