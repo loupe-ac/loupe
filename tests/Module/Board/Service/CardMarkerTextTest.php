@@ -33,11 +33,32 @@ final class CardMarkerTextTest extends TestCase
         self::assertSame('marker.work_requested(-)', $this->text()->label($this->marker('marker.work_requested', [])));
     }
 
-    public function test_a_usage_limit_marker_names_the_hard_limit_with_its_use_and_reads_the_reset_in_the_time_zone_of_the_reader(): void
+    public function test_a_usage_limit_marker_as_text_names_the_hard_limit_with_its_use_and_reads_the_reset_in_utc_whatever_the_server_zone(): void
     {
         $label = $this->inTimeZone('Europe/Paris', fn (): string => $this->text()->label($this->marker('marker.usage_limit', $this->usageParams('limit', 100))));
 
-        self::assertSame('marker.usage_limit.limit(claude,marker.usage_limit.window.week(-),marker.usage_limit.cadence.week(-),100,95,Sun 1 Nov,18:00)', $label);
+        self::assertSame('marker.usage_limit.limit(claude,marker.usage_limit.window.week(-),marker.usage_limit.cadence.week(-),100,95,Sun 1 Nov,17:00 UTC)', $label);
+    }
+
+    public function test_a_usage_limit_marker_as_html_marks_the_reset_for_the_browser_to_read_in_the_zone_of_the_reader(): void
+    {
+        $html = $this->inTimeZone('Europe/Paris', fn (): string => $this->text()->html($this->marker('marker.usage_limit', $this->usageParams('limit', 100))));
+
+        self::assertStringContainsString('<time datetime="2026-11-01T17:00:00+00:00" data-controller="local-time" data-local-time-part-value="date">Sun 1 Nov</time>', $html);
+        self::assertStringContainsString('<time datetime="2026-11-01T17:00:00+00:00" data-controller="local-time" data-local-time-part-value="time">17:00 UTC</time>', $html);
+    }
+
+    public function test_the_html_of_a_usage_limit_marker_escapes_the_account_name(): void
+    {
+        $html = $this->text()->html($this->marker('marker.usage_limit', [...$this->usageParams('limit', 100), '%account%' => '<b>x</b>']));
+
+        self::assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);
+        self::assertStringNotContainsString('<b>', $html);
+    }
+
+    public function test_the_html_of_any_other_marker_is_its_escaped_text(): void
+    {
+        self::assertSame('marker.paused.code(&lt;x&gt;)', $this->text()->html($this->marker('marker.paused', ['%reason%' => '<x>'])));
     }
 
     public function test_a_usage_limit_marker_without_a_use_reads_the_unmeasured_wording(): void

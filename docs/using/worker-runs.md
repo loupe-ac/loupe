@@ -147,7 +147,9 @@ back to Loupe. The work request opens again, and Loupe spends no retry on it.
 
 The card shows **Waiting**. The marker names the account, the window, the use
 and the time of the reset, such as "claude · Week · 100 % · resets Sat 1 Nov at
-17:00". See [the usage-limit marker](workflows.md#markers).
+17:00". A page shows the reset time in the time zone of your browser. The API
+and the link tooltips show it in UTC, and name the zone. See
+[the usage-limit marker](workflows.md#markers).
 
 Loupe offers no work to an account that is at its hard limit. It also offers no
 new work to an account at or above its stop value. The stop value is 95 % of a
