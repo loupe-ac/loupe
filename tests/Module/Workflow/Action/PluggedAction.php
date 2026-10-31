@@ -34,6 +34,7 @@ final readonly class PluggedAction implements Action, ChecksParameters
         return [
             new Parameter('from', ParameterType::Slot),
             new Parameter('times', ParameterType::Int, min: 2),
+            new Parameter('cap', ParameterType::Int, required: false, min: 2, max: 9),
             new Parameter('mode', ParameterType::String, required: false, choices: ['fast', 'safe']),
         ];
     }

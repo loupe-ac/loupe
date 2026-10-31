@@ -37,6 +37,12 @@ const (
 	// RunPreparing is a run whose rule's before command runs. The agent has
 	// not started.
 	RunPreparing = "preparing"
+	// RunUsageLimit is a run that a usage limit stopped. The bridge gives its
+	// work request back, so the work starts again when the account has room.
+	RunUsageLimit = "usage-limit"
+	// RunNetwork is a run that a network outage stopped. The bridge gives its
+	// work request back, as for a usage limit.
+	RunNetwork = "network"
 )
 
 // RunKindCommand is the kind of the run of a command rule. It runs no agent,
@@ -64,7 +70,7 @@ func IsClosing(state string) bool {
 // IsOutcome reports whether state is how a worker ended.
 func IsOutcome(state string) bool {
 	switch state {
-	case RunSucceeded, RunNoResult, RunFailed, RunNotStarted, RunUnfinished, RunBlocked, RunWaitingOnForge:
+	case RunSucceeded, RunNoResult, RunFailed, RunNotStarted, RunUnfinished, RunBlocked, RunWaitingOnForge, RunUsageLimit, RunNetwork:
 		return true
 	}
 

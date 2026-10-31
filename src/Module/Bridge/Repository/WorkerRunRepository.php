@@ -96,7 +96,7 @@ class WorkerRunRepository extends ServiceEntityRepository
     /** The newest worker run of the card that ended at or before the time, for the rule when one is given. A run that never started work does not count. */
     public function findLatestEndedOfCard(Project $project, Uuid $cardId, \DateTimeImmutable $before, ?string $ruleId = null): ?WorkerRun
     {
-        $notEnded = [...WorkerRunState::openStates(), WorkerRunState::Replaced, WorkerRunState::Skipped, WorkerRunState::Dropped];
+        $notEnded = [...WorkerRunState::openStates(), WorkerRunState::Replaced, WorkerRunState::Skipped, WorkerRunState::Dropped, WorkerRunState::UsageLimit, WorkerRunState::Network];
         $qb = $this->createQueryBuilder('r')
             ->andWhere('r.project = :project')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')

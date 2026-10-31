@@ -91,10 +91,13 @@ class BridgeCommand
         #[ORM\ManyToOne(targetEntity: Project::class)]
         public Project $project,
 
-        /** The run retention sweep deletes a run in bulk, so the database removes its commands. */
-        #[ORM\JoinColumn(name: 'worker_run_id', nullable: false, onDelete: 'CASCADE')]
+        /**
+         * The run retention sweep deletes a run in bulk, so the database removes its commands.
+         * A command about an account, such as Try now, names no run.
+         */
+        #[ORM\JoinColumn(name: 'worker_run_id', nullable: true, onDelete: 'CASCADE')]
         #[ORM\ManyToOne(targetEntity: WorkerRun::class)]
-        public WorkerRun $workerRun,
+        public ?WorkerRun $workerRun,
 
         #[ORM\Column(name: 'kind', length: 32, enumType: BridgeCommandKind::class)]
         public BridgeCommandKind $kind,
@@ -115,6 +118,10 @@ class BridgeCommand
 
         #[ORM\Column(name: 'cause', length: 20, enumType: BridgeCommandCause::class, options: ['default' => 'person'])]
         public BridgeCommandCause $cause = BridgeCommandCause::Person,
+
+        /** The account of a command about an account. Null for a command about a run. */
+        #[ORM\Column(name: 'account', length: 40, nullable: true)]
+        public ?string $account = null,
     ) {
     }
 

@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\SettleWorkRequestCommand;
 use App\Module\Bridge\Command\SettleWorkRequestHandler;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Outbox\AgentPush;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
@@ -20,7 +21,8 @@ use Symfony\Component\Uid\Uuid;
 use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 /**
- * Records the result of a bridge for a work request it claimed. The firewall
+ * Records the result of a bridge for a work request it claimed, or takes the
+ * request back when the bridge gives it back with the state open. The firewall
  * admits agent-scoped tokens alone.
  *
  * The bridge reads a 404 with no error code as a server with no such endpoint,
@@ -67,6 +69,18 @@ final class SettleWorkRequestController extends AppController
             return $this->json(['error' => 'invalid_reason'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $handBack = null;
+        if (WorkRequestState::Open === $state) {
+            if (!$payload->hasValidCause()) {
+                return $this->json(['error' => 'invalid_cause'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $handBack = $payload->handBack();
+            if (null === $handBack) {
+                return $this->json(['error' => 'invalid_hand_back'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
         $result = ($this->settleWorkRequest)(new SettleWorkRequestCommand(
             owner: $user,
             bridgeId: Uuid::fromString($bridgeId),
@@ -74,6 +88,7 @@ final class SettleWorkRequestController extends AppController
             claimToken: $claimToken,
             state: $state,
             reason: $payload->reason(),
+            handBack: $handBack,
         ));
 
         $request = $result->request;

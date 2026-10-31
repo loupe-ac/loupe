@@ -47,7 +47,7 @@ final readonly class WorkerRunGetTool
 
             $pending = [];
             foreach ($view->commands as $command) {
-                if (BridgeCommandState::Pending === $command->state) {
+                if (BridgeCommandState::Pending === $command->state && null !== $command->workerRun) {
                     $pending[(string) $command->workerRun->id] = $command;
                 }
             }

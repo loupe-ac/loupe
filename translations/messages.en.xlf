@@ -5391,6 +5391,10 @@
                 <source>landing.requirements.need.machine.text</source>
                 <target>The bridge starts the workers, so it must be running while work happens.</target>
             </trans-unit>
+            <trans-unit id="landing.requirements.need.usage_limit">
+                <source>landing.requirements.need.usage_limit</source>
+                <target>Work waits through a usage limit and resumes at the reset, with each account's usage on the Agents page.</target>
+            </trans-unit>
             <trans-unit id="landing.requirements.need.action">
                 <source>landing.requirements.need.action</source>
                 <target>I'm all set, I want in!</target>
@@ -6041,6 +6045,62 @@
             <trans-unit id="inbox.bridge_outage.closed">
                 <source>inbox.bridge_outage.closed</source>
                 <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.title">
+                <source>inbox.account_limit.title</source>
+                <target>{0}%account% is at its %window% limit · no cards wait · resets %resets%|{1}%account% is at its %window% limit · 1 card waits · resets %resets%|]1,Inf[%account% is at its %window% limit · %count% cards wait · resets %resets%</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window.session">
+                <source>inbox.account_limit.window.session</source>
+                <target>session</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window.week">
+                <source>inbox.account_limit.window.week</source>
+                <target>weekly</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window_label.session">
+                <source>inbox.account_limit.window_label.session</source>
+                <target>Session</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window_label.week">
+                <source>inbox.account_limit.window_label.week</source>
+                <target>Week</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.intro">
+                <source>inbox.account_limit.body.intro</source>
+                <target>%account% reached its usage limit. These windows are at their limit:</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.window">
+                <source>inbox.account_limit.body.window</source>
+                <target>%window%: resets %resets%</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.cards">
+                <source>inbox.account_limit.body.cards</source>
+                <target>The work of these cards waits for the account:</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.card">
+                <source>inbox.account_limit.body.card</source>
+                <target>Card %number%: %title%</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.remedy">
+                <source>inbox.account_limit.body.remedy</source>
+                <target>The work starts again by itself when the account can take work. To start it sooner, press Try now on the Agents page.</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.closed">
+                <source>inbox.account_limit.closed</source>
+                <target>%account% could take work again at %end%. It was at its limit from %start%.</target>
+            </trans-unit>
+            <trans-unit id="bridge.try_now.error.unknown_bridge">
+                <source>bridge.try_now.error.unknown_bridge</source>
+                <target>This bridge is not connected to your account.</target>
+            </trans-unit>
+            <trans-unit id="bridge.try_now.error.unknown_account">
+                <source>bridge.try_now.error.unknown_account</source>
+                <target>This bridge does not run that account.</target>
+            </trans-unit>
+            <trans-unit id="bridge.try_now.error.bridge_outdated">
+                <source>bridge.try_now.error.bridge_outdated</source>
+                <target>Update the bridge to use Try now.</target>
             </trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
                 <source>inbox.repository_misfit.title.one</source>
@@ -7508,6 +7568,14 @@
                 <source>bridge.worker_runs.state.blocked</source>
                 <target>Blocked</target>
             </trans-unit>
+            <trans-unit id="bridge.worker_runs.state.usage_limit">
+                <source>bridge.worker_runs.state.usage_limit</source>
+                <target>Stopped at a usage limit</target>
+            </trans-unit>
+            <trans-unit id="bridge.worker_runs.state.network">
+                <source>bridge.worker_runs.state.network</source>
+                <target>Stopped by a network outage</target>
+            </trans-unit>
             <trans-unit id="bridge.worker_runs.state.waiting_on_forge">
                 <source>bridge.worker_runs.state.waiting_on_forge</source>
                 <target>Waiting on the forge</target>
@@ -7709,6 +7777,7 @@
             <trans-unit id="board.card.history.release_reason.rule_removed"><source>board.card.history.release_reason.rule_removed</source><target>the rule left the workflow</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.run_resumed"><source>board.card.history.release_reason.run_resumed</source><target>a worker run resumed</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.released_by_rule"><source>board.card.history.release_reason.released_by_rule</source><target>a workflow rule released it</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.work_timeout_removed"><source>board.card.history.release_reason.work_timeout_removed</source><target>Loupe removed the work timeout</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.released_by_person"><source>board.card.history.release_reason.released_by_person</source><target>a person released it</target></trans-unit>
             <trans-unit id="board.card.history.changed"><source>board.card.history.changed</source><target>%actor% changed the card.</target></trans-unit>
             <trans-unit id="board.card.history.reason"><source>board.card.history.reason</source><target>Because %reason%.</target></trans-unit>
@@ -7781,6 +7850,7 @@
             <trans-unit id="board.card.link.review.approval_outdated"><source>board.card.link.review.approval_outdated</source><target>Approval outdated</target></trans-unit>
             <trans-unit id="board.card.link.review.changes_requested"><source>board.card.link.review.changes_requested</source><target>Changes requested</target></trans-unit>
             <trans-unit id="board.card.link.review.required"><source>board.card.link.review.required</source><target>Review required</target></trans-unit>
+            <trans-unit id="board.card_state.try_now"><source>board.card_state.try_now</source><target>Try now</target></trans-unit>
             <trans-unit id="board.card_state.status"><source>board.card_state.status</source><target>Status</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.stuck"><source>board.card_state.remedy_label.stuck</source><target>To unstick it</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.needs_you"><source>board.card_state.remedy_label.needs_you</source><target>What to do</target></trans-unit>
@@ -8376,7 +8446,24 @@
             <trans-unit id="bridge.agents.accounts.state.failing"><source>bridge.agents.accounts.state.failing</source><target>Failing</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.unused"><source>bridge.agents.accounts.state.unused</source><target>Unused</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.unused_hint"><source>bridge.agents.accounts.unused_hint</source><target>No rule uses this account, so nothing is turned off.</target></trans-unit>
+            <trans-unit id="bridge.agents.worker_pools.summary"><source>bridge.agents.worker_pools.summary</source><target>%inUse% of %size% in use · %queued% queued</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.ok"><source>bridge.agents.accounts.summary.ok</source><target>ok</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.near-limit"><source>bridge.agents.accounts.summary.near-limit</source><target>near its limit</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.at-limit"><source>bridge.agents.accounts.summary.at-limit</source><target>at its limit</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.failing"><source>bridge.agents.accounts.summary.failing</source><target>failing</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.no-reading"><source>bridge.agents.accounts.summary.no-reading</source><target>no reading</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.unknown"><source>bridge.agents.accounts.summary.unknown</source><target>Unknown</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.window.session"><source>bridge.agents.usage.window.session</source><target>Session</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.window.week"><source>bridge.agents.usage.window.week</source><target>Week</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.percent"><source>bridge.agents.usage.percent</source><target>%percent% %</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.at_limit"><source>bridge.agents.usage.at_limit</source><target>At its limit</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.not_reported"><source>bridge.agents.usage.not_reported</source><target>Use not reported</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.unknown"><source>bridge.agents.usage.unknown</source><target>Unknown</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.read"><source>bridge.agents.usage.read</source><target>Read %age%</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.failing_hint"><source>bridge.agents.accounts.failing_hint</source><target>The rules that use this account stay off until the account passes its check and the bridge reloads.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.try_now.action"><source>bridge.agents.accounts.try_now.action</source><target>Try now</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.try_now.trying"><source>bridge.agents.accounts.try_now.trying</source><target>Trying now</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.try_now.still_limited"><source>bridge.agents.accounts.try_now.still_limited</source><target>Still at its limit, checked %time%</target></trans-unit>
             <trans-unit id="bridge.agents.never"><source>bridge.agents.never</source><target>Not reported</target></trans-unit>
             <trans-unit id="bridge.agents.empty.title"><source>bridge.agents.empty.title</source><target>No crew connection yet</target></trans-unit>
             <trans-unit id="bridge.agents.empty.description"><source>bridge.agents.empty.description</source><target>Connect the bridge to make this project available to your local crew.</target></trans-unit>
@@ -8463,6 +8550,9 @@
             <trans-unit id="analytics.metrics.metric.duration"><source>analytics.metrics.metric.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.runs"><source>analytics.metrics.metric.runs</source><target>Runs</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.stop-rate"><source>analytics.metrics.metric.stop-rate</source><target>Stop rate</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.account-usage"><source>analytics.metrics.metric.account-usage</source><target>Account usage</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.session-usage"><source>analytics.metrics.metric.session-usage</source><target>Session usage of a run</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.week-usage"><source>analytics.metrics.metric.week-usage</source><target>Week usage of a run</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>
@@ -8473,6 +8563,9 @@
             <trans-unit id="analytics.metrics.metric_group.bucket_calls"><source>analytics.metrics.metric_group.bucket_calls</source><target>Calls in time buckets</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.run"><source>analytics.metrics.unit.run</source><target>Per run</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.card"><source>analytics.metrics.unit.card</source><target>Per finished card</target></trans-unit>
+            <trans-unit id="analytics.metrics.unit.reading"><source>analytics.metrics.unit.reading</source><target>Per reading</target></trans-unit>
+            <trans-unit id="analytics.metrics.statistic.max"><source>analytics.metrics.statistic.max</source><target>Maximum</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.account-window"><source>analytics.metrics.group.account-window</source><target>By account window</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.median"><source>analytics.metrics.statistic.median</source><target>Median</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.mean"><source>analytics.metrics.statistic.mean</source><target>Mean</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.sum"><source>analytics.metrics.statistic.sum</source><target>Sum</target></trans-unit>
@@ -8498,6 +8591,7 @@
             <trans-unit id="analytics.metrics.unknown"><source>analytics.metrics.unknown</source><target>unknown</target></trans-unit>
             <trans-unit id="analytics.metrics.series.none"><source>analytics.metrics.series.none</source><target>No group</target></trans-unit>
             <trans-unit id="analytics.metrics.rows.run"><source>analytics.metrics.rows.run</source><target>{0}No runs|{1}1 run|]1,Inf[%count% runs</target></trans-unit>
+            <trans-unit id="analytics.metrics.rows.reading"><source>analytics.metrics.rows.reading</source><target>{0}No readings|{1}1 reading|]1,Inf[%count% readings</target></trans-unit>
             <trans-unit id="analytics.metrics.rows.card"><source>analytics.metrics.rows.card</source><target>{0}No cards|{1}1 card|]1,Inf[%count% cards</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.label"><source>analytics.metrics.chart.label</source><target>%metric%, %statistic%, %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.week"><source>analytics.metrics.chart.week</source><target>Week of %date%</target></trans-unit>
@@ -9268,10 +9362,16 @@
             <trans-unit id="workflow.waiting.not.run_work_no_taker"><source>workflow.waiting.not.run_work_no_taker</source><target>Waiting: an open work request has no online bridge that could take it.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_no_capable_taker"><source>workflow.waiting.run_work_no_capable_taker</source><target>Waiting: no online bridge is unable to run an open work request.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_no_capable_taker"><source>workflow.waiting.not.run_work_no_capable_taker</source><target>Waiting: an online bridge cannot run an open work request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_taker_limited"><source>workflow.waiting.run_work_taker_limited</source><target>Waiting: the accounts that could take the open work are not all at a usage limit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_taker_limited"><source>workflow.waiting.not.run_work_taker_limited</source><target>Waiting: the only accounts that could take the open work are at a usage limit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_taker_disconnected"><source>workflow.waiting.run_work_taker_disconnected</source><target>Waiting: no bridge lost its network while it held or waited on the open work.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_taker_disconnected"><source>workflow.waiting.not.run_work_taker_disconnected</source><target>Waiting: a bridge lost its network while it held or waited on the open work.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_taker_paused"><source>workflow.waiting.run_work_taker_paused</source><target>Waiting: the bridges that could take the open work are not all paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.bridge_account_usage"><source>workflow.waiting.bridge_account_usage</source><target>Waiting: the %window% window of %account% is not above %above% percent.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.bridge_account_usage"><source>workflow.waiting.not.bridge_account_usage</source><target>Waiting: the %window% window of %account% is above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.parent_document_approved"><source>workflow.waiting.not.parent_document_approved</source><target>Waiting: every %tag% document of the parent card is approved.</target></trans-unit>
             <trans-unit id="workflow.ask.unplanned_child"><source>workflow.ask.unplanned_child</source><target>Card #%child% is a child of epic #%epic%, and it links no approved tech design. What must happen to it?</target></trans-unit>
@@ -9401,7 +9501,7 @@
             <trans-unit id="workflow.settings.timings.heading"><source>workflow.settings.timings.heading</source><target>Retry timings</target></trans-unit>
             <trans-unit id="workflow.settings.timings.backoff"><source>workflow.settings.timings.backoff</source><target>Retry delays: %minutes% minutes</target></trans-unit>
             <trans-unit id="workflow.settings.timings.work_failed_backoff"><source>workflow.settings.timings.work_failed_backoff</source><target>Retries after failed work: %minutes% minutes</target></trans-unit>
-            <trans-unit id="workflow.settings.timings.work_timeout"><source>workflow.settings.timings.work_timeout</source><target>Work timeout: %minutes% minutes</target></trans-unit>
+            <trans-unit id="workflow.settings.timings.no_timeout"><source>workflow.settings.timings.no_timeout</source><target>Work that a rule asks for waits for a bridge with no time limit.</target></trans-unit>
             <trans-unit id="workflow.bind.error.already_bound"><source>workflow.bind.error.already_bound</source><target>This project already runs a workflow template.</target></trans-unit>
             <trans-unit id="workflow.bind.error.unknown_template"><source>workflow.bind.error.unknown_template</source><target>No workflow template has this key.</target></trans-unit>
             <trans-unit id="workflow.bind.error.slot_unlinked"><source>workflow.bind.error.slot_unlinked</source><target>Choose a column for this slot.</target></trans-unit>
@@ -9414,7 +9514,6 @@
             <trans-unit id="workflow.panel.pause_kind.rule"><source>workflow.panel.pause_kind.rule</source><target>a rule of the template paused the card</target></trans-unit>
             <trans-unit id="workflow.panel.pause_kind.retries"><source>workflow.panel.pause_kind.retries</source><target>too many attempts were refused</target></trans-unit>
             <trans-unit id="workflow.panel.pause_kind.work_limit"><source>workflow.panel.pause_kind.work_limit</source><target>the rule reached its work limit</target></trans-unit>
-            <trans-unit id="workflow.panel.pause_kind.work_timeout"><source>workflow.panel.pause_kind.work_timeout</source><target>no bridge took the work in time</target></trans-unit>
             <trans-unit id="workflow.panel.pause_kind.work_stopped"><source>workflow.panel.pause_kind.work_stopped</source><target>the worker stopped and needs a person</target></trans-unit>
             <trans-unit id="workflow.panel.release.left_slot"><source>workflow.panel.release.left_slot</source><target>The pause ends when the card leaves its slot.</target></trans-unit>
             <trans-unit id="workflow.panel.release.facts_changed"><source>workflow.panel.release.facts_changed</source><target>The pause ends when the facts that the rule reads change.</target></trans-unit>
@@ -9531,6 +9630,7 @@
             <trans-unit id="readiness.row.bridge.not_capable_app_prompts_on"><source>readiness.row.bridge.not_capable_app_prompts_on</source><target>%machine% is online, but it does not run the prompts Loupe sends. Run `loupe init` again</target></trans-unit>
             <trans-unit id="readiness.row.bridge.seen"><source>readiness.row.bridge.seen</source><target>seen</target></trans-unit>
             <trans-unit id="readiness.row.bridge.paused"><source>readiness.row.bridge.paused</source><target>Paused, so it takes no new work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.limited"><source>readiness.row.bridge.limited</source><target>At a usage limit, so it takes no new work</target></trans-unit>
             <trans-unit id="readiness.row.bridge.resume"><source>readiness.row.bridge.resume</source><target>Resume</target></trans-unit>
             <trans-unit id="readiness.row.bridge.action"><source>readiness.row.bridge.action</source><target>Start</target></trans-unit>
             <trans-unit id="readiness.row.github.label"><source>readiness.row.github.label</source><target>Install the GitHub App</target></trans-unit>
@@ -9771,6 +9871,18 @@
             <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
+            <trans-unit id="marker.usage_limit"><source>marker.usage_limit</source><target>Work waits for the usage of an account to reset.</target></trans-unit>
+            <trans-unit id="marker.usage_limit.limit"><source>marker.usage_limit.limit</source><target>Work waits: %account% is at its %cadence% limit · %window% · %use% % · resets %date% at %time%</target></trans-unit>
+            <trans-unit id="marker.usage_limit.limit_unmeasured"><source>marker.usage_limit.limit_unmeasured</source><target>Work waits: %account% is at its %cadence% limit · %window% · resets %date% at %time%</target></trans-unit>
+            <trans-unit id="marker.usage_limit.stop"><source>marker.usage_limit.stop</source><target>Work waits: %account% is at %use% % of its %cadence% window, new work stops at %stopAt% % · resets %date% at %time%</target></trans-unit>
+            <trans-unit id="marker.usage_limit.window.session"><source>marker.usage_limit.window.session</source><target>Session</target></trans-unit>
+            <trans-unit id="marker.usage_limit.window.week"><source>marker.usage_limit.window.week</source><target>Week</target></trans-unit>
+            <trans-unit id="marker.usage_limit.cadence.session"><source>marker.usage_limit.cadence.session</source><target>session</target></trans-unit>
+            <trans-unit id="marker.usage_limit.cadence.week"><source>marker.usage_limit.cadence.week</source><target>weekly</target></trans-unit>
+            <trans-unit id="marker.usage_limit.remedy"><source>marker.usage_limit.remedy</source><target>Nothing. The work starts again when the usage resets. Check the account on the Agents page.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected"><source>marker.bridge_disconnected</source><target>Work waits: %machine% lost its network.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected.unnamed"><source>marker.bridge_disconnected.unnamed</source><target>Work waits: the bridge lost its network.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected.remedy"><source>marker.bridge_disconnected.remedy</source><target>Nothing. When the network is back, the work starts again. A run that did work resumes its session on the same bridge. Check the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
             <trans-unit id="marker.repository_misfit">
                 <source>marker.repository_misfit</source>

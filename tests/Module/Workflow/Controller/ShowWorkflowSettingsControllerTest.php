@@ -43,6 +43,8 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-workflow-template]', 'Lifecycle');
+        self::assertSelectorTextContains('[data-workflow-timings] [data-workflow-no-timeout]', 'no time limit');
+        self::assertSelectorTextNotContains('[data-workflow-timings]', 'Work timeout');
         self::assertSame(['next', 'product-design', 'tech-design', 'implementation', 'in-review'], $crawler->filter('[data-slot-key]')->extract(['data-slot-key']));
         self::assertSelectorTextContains('[data-slot-key="tech-design"]', 'Tech design');
         self::assertSelectorTextContains('[data-slot-key="implementation"] [data-slot-column]', 'In progress');
@@ -71,7 +73,8 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertSelectorTextSame('[data-workflow-types] [data-card-type="bug"] [data-card-type-capabilities]', 'None');
         self::assertSelectorTextSame('[data-workflow-types] [data-card-type="epic"] [data-card-type-capabilities]', 'Can have children, Gets a lane');
         self::assertSelectorTextContains('[data-workflow-timings]', '10, 60, 360');
-        self::assertSelectorTextContains('[data-workflow-timings]', '120');
+        self::assertSelectorTextContains('[data-workflow-timings]', '360');
+        self::assertSelectorTextNotContains('[data-workflow-timings]', 'timeout');
         self::assertSelectorTextContains('[data-workflow-timings]', 'Retries after failed work: 2, 3, 5 minutes');
         self::assertCount(1, $crawler->filter('main [data-workflow-template]'));
         self::assertCount(0, $crawler->filter('main form, main button:not(.lp-overflow-cue__arrow)'));
@@ -203,7 +206,6 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
             'slots' => [],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'rules' => [
                 ['id' => 'gone', 'when' => ['all' => [['card.gone' => []], ['card.parent.exists' => []]]], 'then' => ['request' => ['kind' => 'gone']]],
                 ['id' => 'later', 'when' => ['card.parent.exists' => []], 'then' => ['jump' => []]],

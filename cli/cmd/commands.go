@@ -48,6 +48,10 @@ func (r *router) onHeartbeatReply(reply api.HeartbeatReply) {
 	if reply.Paused != nil {
 		r.setPersonPause(*reply.Paused)
 	}
+	// The offers of this reply read the list first.
+	if reply.BlockedAccounts != nil {
+		r.blocked.set(reply.BlockedAccounts)
+	}
 	for _, raw := range reply.Commands {
 		c, err := event.CheckCommand(raw)
 		if err != nil {
@@ -151,6 +155,8 @@ func (r *router) handleCommand(c api.Command) (string, string) {
 		return r.rerunCommand(c)
 	case api.CommandCollectSessionUsage:
 		return r.collectSessionUsage(c)
+	case api.CommandTryNow:
+		return r.tryNow(c)
 	}
 
 	return api.CommandRefused, unknownCommandKind

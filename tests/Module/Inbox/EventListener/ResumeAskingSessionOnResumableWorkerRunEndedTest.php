@@ -49,7 +49,7 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
         $commands = $this->commands();
         self::assertCount(1, $commands);
         self::assertSame(BridgeCommandKind::ResumeRun, $commands[0]->kind);
-        self::assertSame((string) $run->id, (string) $commands[0]->workerRun->id);
+        self::assertSame((string) $run->id, (string) $commands[0]->workerRun?->id);
     }
 
     public function test_the_end_sends_no_second_resume_when_the_close_already_resumed_the_run(): void

@@ -17,8 +17,8 @@ final readonly class FailDiscoveryOnRunEnded
 {
     public const string WORKER_ENDED = 'worker-ended';
 
-    /** The work goes on in another run: a newer event took the place, or the bridge dropped its claim so the request opens again. */
-    private const array CONTINUING = [WorkerRunState::Replaced, WorkerRunState::Skipped, WorkerRunState::Dropped];
+    /** The work goes on in another run: a newer event took the place, or the bridge gave its claim back so the request opens again. */
+    private const array CONTINUING = [WorkerRunState::Replaced, WorkerRunState::Skipped, WorkerRunState::Dropped, WorkerRunState::UsageLimit, WorkerRunState::Network];
 
     public function __construct(
         private WorkerRunRepository $workerRuns,

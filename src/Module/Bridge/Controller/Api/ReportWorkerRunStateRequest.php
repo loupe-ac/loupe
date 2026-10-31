@@ -295,7 +295,8 @@ final class ReportWorkerRunStateRequest
      * An outcome has an exit code or a failure reason, never both, and its
      * state must be the one its exit code, result flag and status imply. So a
      * clean exit with no result is no-result, never succeeded. Gave-up stands
-     * in for any outcome that the bridge would resume.
+     * in for any outcome that the bridge would resume, and usage-limit or network for a
+     * run that a limit or an outage stopped before a good result.
      */
     #[Assert\Callback]
     public function validateOutcome(ExecutionContextInterface $context): void
@@ -334,9 +335,11 @@ final class ReportWorkerRunStateRequest
         }
 
         $implied = WorkerRunState::fromOutcome($this->exitCode, $this->hasResult(), $this->resultStatus);
-        $matches = WorkerRunState::GaveUp === $state
-            ? \in_array($implied, [WorkerRunState::Failed, WorkerRunState::NoResult, WorkerRunState::Unfinished], true)
-            : $implied === $state;
+        $matches = match ($state) {
+            WorkerRunState::GaveUp => \in_array($implied, [WorkerRunState::Failed, WorkerRunState::NoResult, WorkerRunState::Unfinished], true),
+            WorkerRunState::UsageLimit, WorkerRunState::Network => \in_array($implied, [WorkerRunState::Failed, WorkerRunState::NoResult], true),
+            default => $implied === $state,
+        };
         if (!$matches) {
             $context->buildViolation('The exit code, the result flag and the status do not match the state.')->atPath('exitCode')->addViolation();
         }

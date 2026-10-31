@@ -15,7 +15,7 @@ final readonly class ReleaseWorkflowPauseCommand
     public const string REASON = 'released-by-person';
 
     /** A rule pause ends only on its own until, so a person cannot release it. */
-    public const array RELEASABLE_KINDS = [PauseKind::Retries, PauseKind::WorkTimeout, PauseKind::WorkStopped, PauseKind::WorkLimit];
+    public const array RELEASABLE_KINDS = [PauseKind::Retries, PauseKind::WorkStopped, PauseKind::WorkLimit];
 
     public function __construct(
         public CardSnapshot $card,

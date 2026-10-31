@@ -70,6 +70,12 @@ type Output struct {
 	// PeakContextTokens is the largest input context of one main-session
 	// assistant line, and nil when no line gives all three token counts.
 	PeakContextTokens *int64
+	// AssistantTurns counts the main-session assistant lines, not counting a
+	// usage limit message.
+	AssistantTurns int
+	// LastRetryNoStatus says the last retry line of the run had no HTTP
+	// status, and no assistant line followed it. The request got no answer.
+	LastRetryNoStatus bool
 	// HarnessVersion and SkillVersion come from the start line of the run,
 	// and are empty when it has none.
 	HarnessVersion string

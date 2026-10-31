@@ -676,6 +676,13 @@ also closes when you remove the last blocking repository. With the inbox off,
 Loupe opens no notice and the pause still applies. Each card that waits for the
 pause also shows the `repository-misfit` marker.
 
+Loupe opens one notice for each agent account that is at its hard limit while
+cards wait for it. An account belongs to one bridge, so two bridges with an
+account of the same name get one notice each. The title names the account, the
+window, the number of cards and the reset time. An account at its stop value gets no notice. Loupe closes
+the notice when the account can take work again. A person who manages the
+project can press [Try now](board.md#try-now) before the reset.
+
 Loupe once opened a notice while a bridge rule raced the sync of the project.
 Bridge rules are gone, so Loupe closed each such notice as **obsolete**, and
 opens no new one.

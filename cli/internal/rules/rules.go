@@ -229,7 +229,13 @@ type Account struct {
 	// PermissionMode is a mode of the harness, and a rule's level beats it.
 	PermissionMode string `yaml:"permissionMode"`
 	EnvFile        string `yaml:"envFile"`
+	// StopAt is the use, in percent, at which Loupe stops new work on the
+	// account. Nil means DefaultStopAt.
+	StopAt *int `yaml:"stopAt"`
 }
+
+// DefaultStopAt is the StopAt of an account that sets none.
+const DefaultStopAt = 95
 
 // RunSettings are what an agent run takes from its account, its entry and the
 // defaults. EnvFiles lists the global file before the account's.
@@ -568,6 +574,9 @@ func checkAccounts(accounts map[string]Account, root *yaml.Node) (map[string]Acc
 		if a.Harness == HarnessCodex && a.PermissionMode != "" && !slices.Contains(CodexModes, a.PermissionMode) {
 			errs = append(errs, fmt.Errorf("%saccounts.%s.permissionMode %q is not %s", at("permissionMode"), name, a.PermissionMode, strings.Join(CodexModes, ", ")))
 		}
+		if a.StopAt != nil && (*a.StopAt < 1 || *a.StopAt > 100) {
+			errs = append(errs, fmt.Errorf("%saccounts.%s.stopAt %d is not a whole number from 1 to 100", at("stopAt"), name, *a.StopAt))
+		}
 		out[name] = a
 	}
 
@@ -760,6 +769,17 @@ func (s *Set) UsedAccounts() []string {
 	slices.Sort(out)
 
 	return out
+}
+
+// StopAt is the use, in percent, at which Loupe stops new work on the named
+// account. An account that sets none, or that the set does not declare, gets
+// DefaultStopAt.
+func (s *Set) StopAt(name string) int {
+	if a := s.accounts[name]; a.StopAt != nil {
+		return *a.StopAt
+	}
+
+	return DefaultStopAt
 }
 
 // DeclaredAccounts names, in order, each account the rule file declares,

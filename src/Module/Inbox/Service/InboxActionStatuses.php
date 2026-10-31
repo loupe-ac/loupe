@@ -287,7 +287,7 @@ final readonly class InboxActionStatuses
     {
         // A run that reported before the click belongs to an earlier resume of the same run.
         $run = array_find(
-            $continuations[(string) $command->workerRun->id] ?? [],
+            $continuations[(string) $command->workerRun?->id] ?? [],
             static fn (WorkerRun $continuation): bool => $continuation->receivedAt >= $command->requestedAt,
         );
         if (null === $run) {
@@ -337,7 +337,7 @@ final readonly class InboxActionStatuses
     {
         $stopped = [];
         foreach ($commands as $command) {
-            if (BridgeCommandState::Done === $command->state) {
+            if (BridgeCommandState::Done === $command->state && null !== $command->workerRun) {
                 $stopped[(string) $command->workerRun->id] = $command->workerRun;
             }
         }

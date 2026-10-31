@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Inbox\Repository\InboxAccountLimitRepository;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Service\BridgeOutageReconciler;
 use App\Module\Inbox\Service\InboxAvailability;
@@ -12,8 +13,8 @@ use App\Module\Project\Repository\ProjectRepository;
 
 /**
  * Visits each project with an open work request about a card, and each project
- * with an open outage. While the inbox is off, only an open outage has work,
- * because its notice must close.
+ * with an open outage or an open account limit. While the inbox is off, only
+ * an open notice has work, because it must close.
  */
 final readonly class ReconcileBridgeOutagesHandler
 {
@@ -22,6 +23,7 @@ final readonly class ReconcileBridgeOutagesHandler
         private ProjectRepository $projects,
         private WorkRequestRepository $workRequests,
         private InboxBridgeOutageRepository $inboxBridgeOutages,
+        private InboxAccountLimitRepository $inboxAccountLimits,
         private BridgeOutageReconciler $reconciler,
     ) {
     }
@@ -29,7 +31,10 @@ final readonly class ReconcileBridgeOutagesHandler
     /** @return int how many projects it reconciled */
     public function __invoke(ReconcileBridgeOutagesCommand $command): int
     {
-        $projectIds = $this->inboxBridgeOutages->findProjectIdsWithOpenOutage();
+        $projectIds = array_values(array_unique([
+            ...$this->inboxBridgeOutages->findProjectIdsWithOpenOutage(),
+            ...$this->inboxAccountLimits->findProjectIdsWithOpenEpisode(),
+        ]));
         if ($this->inbox->isEnabled()) {
             $projectIds = array_values(array_unique([...$projectIds, ...$this->workRequests->findProjectIdsWithOpenCardRequest()]));
         }

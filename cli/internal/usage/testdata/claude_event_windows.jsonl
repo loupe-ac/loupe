@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"s"}
+{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","resetsAt":1793420400,"rateLimitType":"five_hour","unifiedWindows":{"five_hour":{"utilization":0.29,"resetsAt":1793420400,"status":"allowed"},"seven_day":{"utilization":0.26,"resetsAt":1793912400,"status":"allowed"}}}}

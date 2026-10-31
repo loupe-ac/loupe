@@ -20,8 +20,8 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
  * Makes the open work of a project match its current hold, whatever the event says: two events can arrive
- * in the opposite order of their commits. A held project loses its open card requests, so the work timeout
- * pauses no card. A project whose hold ended gets a new timeout on each open request that the hold found, and each held rule asks again.
+ * in the opposite order of their commits. A held project loses its open card requests, so none is left
+ * stale. A project whose hold ended gets a new timeout on each open request that the hold found, and each held rule asks again.
  * Claimed work goes on. The card evaluation runs after the lock is gone.
  */
 #[AsEventListener]

@@ -485,6 +485,7 @@ work:
 | `model` | no | The model of the account's runs, when the entry or the variant names none |
 | `permissionMode` | no | A permission mode of the harness, when the entry or the variant names no level. For `codex` it is `read-only`, `workspace-write` or `danger-full-access` |
 | `envFile` | no | An [environment file](#environment-files) that each run of the account reads |
+| `stopAt` | no | The use of a window, in percent, at which Loupe stops new work on the account. A whole number from 1 to 100. The default is 95 |
 
 An account name is 1 to 40 lowercase letters, digits and hyphens, and starts
 with a letter. A file declares at most 50 accounts. `configDir`, `codexHome` and `envFile` are absolute paths or start with `~/`. A `profile` is 1 to 64 letters, digits, dots, underscores and hyphens, and starts with a letter or a digit.
@@ -842,6 +843,87 @@ same checks.
 The Agents page and `loupe status` mark an account that no rule uses as unused.
 A failing unused account turns off no rule. Only a failing account that a rule
 uses makes `loupe status` exit with a non-zero code.
+
+### Account usage
+
+The bridge reads how much of its limits each account has used, and sends the
+readings to Loupe with the account rows of the heartbeat. Each row can carry
+these keys. A Loupe that does not know a key ignores it.
+
+| Key | Content |
+|---|---|
+| `kinds` | The work kinds that can run on the account, through a work entry or a variant of an experiment. A kind of another subject reads `<subject>:<kind>` |
+| `stopAt` | The `stopAt` of the account, 95 when the file sets none |
+| `readings` | The latest reading of each window since the last heartbeat |
+
+A reading has these keys:
+
+| Key | Content |
+|---|---|
+| `window` | `session` for a 5-hour window, `week` for a 7-day window, and `<n>h`, `<n>d` or `<n>m` for any other length |
+| `usedPercent` | The use of the window in percent, from 0 to 200. It is `null` when the source gives no use |
+| `resetsAt` | The reset time in UTC |
+| `limited` | `true` when the window is at its limit |
+| `source` | Where the reading came from: `claude-event`, `claude-status`, `claude-message` or `codex` |
+| `readAt` | The time of the reading in UTC |
+
+The bridge reads the usage while a run goes. On each heartbeat it reads the new
+lines of the output file of each live run, from the place where it stopped. It
+reads the rest after the run ends. The bridge keeps one reading for each window
+of each account. It drops a reading that Loupe refuses: a reading with no reset
+time, a reset time more than 31 days ahead, or a window name out of the pattern
+of the heartbeat. A heartbeat that Loupe does not accept leaves the readings for
+the next one.
+
+A Claude Code account has three sources, in this order:
+
+1. The `rate_limit_event` lines of the output carry `unifiedWindows`, with the
+   `five_hour` and `seven_day` windows. This part of the output is not
+   documented, so a Claude Code update can remove it. The source is
+   `claude-event`. Claude Code gives `utilization` as a fraction, and the bridge
+   multiplies it by 100. A window with no `resetsAt` takes the top-level
+   `resetsAt` and `utilization` when `rateLimitType` names that window.
+   Otherwise the bridge skips the window.
+2. A `rate_limit_event` line also carries one window at its top level, with
+   `status`, `resetsAt` and sometimes `utilization`. A `rejected` status means
+   the window is limited. The window comes from `rateLimitType`. When the line
+   has none, the window is `session` if the reset is at most 5 hours ahead, and
+   `week` otherwise. The bridge sends this window when `unifiedWindows` gives
+   no complete reading for it. The source is `claude-status`. This window often
+   has no `utilization`, and `usedPercent` is then `null`.
+3. The message "You've hit your session limit · resets 3:45pm" and the same
+   forms for the weekly, Opus and Sonnet limits. The `session` limit reads the
+   window `session`, and the others read `week`. The bridge reads the reset
+   time in its own time zone, as the next time after now. A message whose
+   reset time the bridge cannot read gives no reading. `usedPercent` is
+   `null` and `limited` is `true`. The source is `claude-message`.
+
+A Codex account has one source, the session file of the run. The bridge reads
+`rate_limits.primary` and `rate_limits.secondary` of each token count line, and
+keeps `used_percent` as it is. The window comes from `window_minutes`. A
+non-null `rate_limit_reached_type` marks the window that it names as limited.
+The source is `codex`.
+
+### Usage on the Agents page
+
+The Agents page draws two bars for each account, named **Session** and
+**Week**, also before the first reading. A window of another length reads its length, such as
+`3d`. Each bar shows the use in percent and the reset time. The bar stops at
+100 %, and its label keeps the real value, such as 104 %. A window at its stop
+value is amber, and a window at its limit is red. A tooltip on the bar gives the
+age of the reading.
+
+A window with no use value has an empty bar. Its label reads **At its limit**
+when the reading is `limited`, and **Use not reported** otherwise. A window
+whose reset time passed with no newer reading reads **Unknown**, with an empty
+bar and no reset time. A window with no reading yet also reads **Unknown**.
+
+The Worker pools and Accounts sections of each connection collapse. A section
+opens on its own when it holds a problem: a pool with queued work, or an account
+that fails or takes no new work. A section that you open or close keeps that
+state while the page reloads during your visit. The summary line of a closed
+Accounts section names each account with its worst state, such as
+`claude near its limit · codex Unknown`.
 
 ### Migration and rollback
 
@@ -1995,7 +2077,7 @@ effort.
 
 Both shipped workflow templates
 request `teardown` each time a card reaches a terminal column. A `teardown`
-request that no bridge takes expires after the work timeout, and the card does
+request that no bridge takes waits until a bridge takes it, and the card does
 not pause. With [worker isolation](#worker-isolation) on, the bridge removes
 the worktree of the card without an agent. It does so after a `teardown`
 command entry, or alone when the work map has no `teardown` entry.
@@ -2017,9 +2099,9 @@ document, the code and the prototype, and sends its findings with the
 `document_review_submit` tool. It changes no file and no document. Give the
 entry its own `model`, and a `workerPool` apart from the design entries, as for
 `review`. The entry needs no worktree, so it has no `before` command. A bridge
-with no `design-review` entry takes no design review: after the work timeout
-the card pauses with "no bridge took the work", and the draft stays hidden
-until the owner publishes it.
+with no `design-review` entry takes no design review: the request waits, the
+card shows that no bridge can run it, and the draft stays hidden until the
+owner publishes it.
 
 ```yaml
 work:
@@ -2055,7 +2137,7 @@ A rule that Loupe ships can send a prompt with its request. Set
 the `defaults` of the file. A model or an effort in the request replaces the
 default model and sets the effort. An entry under `work:` always wins, unless
 it names another subject type than the request. A bridge without
-the key skips such a request, and the request expires after the work timeout.
+the key skips such a request, and the request waits until a bridge that maps the kind takes it.
 
 The bridge finds the project of a request in `projects` through the project
 id. A project rename marks the work of that project dead until you fix the file
@@ -2307,8 +2389,8 @@ The kind `tech-design-session` is asked for when the card has its "Interactive
 session" switch on under Tech design. A request with the capability
 `interactive` never runs as a headless worker. When the file has no
 interactive entry for the kind, the bridge skips the request, even with
-`appPrompts: true`. The request waits, and after the work timeout the card
-pauses with "no bridge took the work". Run `loupe update` to get this
+`appPrompts: true`. The request waits, and the card shows that no bridge can
+run it. Run `loupe update` to get this
 behaviour, and add the entry by hand when your file is older than this entry.
 
 An interactive entry takes `prompt`, `account`, `model` and `permissions`. The check

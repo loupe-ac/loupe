@@ -928,7 +928,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame('@terminal', $rules[0]->slot);
         self::assertTrue($rules[0]->when->evaluate(FactsMother::facts(card: FactsMother::card(slot: '@terminal'))));
         self::assertSame('request', $rules[0]->lead->key);
-        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $rules[0]->lead->params);
+        self::assertSame(['kind' => 'teardown'], $rules[0]->lead->params);
     }
 
     #[DataProvider('shippedKeys')]
