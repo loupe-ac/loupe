@@ -10,6 +10,7 @@ use App\Module\Artifact\Service\Dev\DevArtifactSeeder;
 use App\Module\Inbox\Service\Dev\DevCodexRunSeeder;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Module\Insights\Service\Dev\DevAnalysesSeeder;
+use App\Module\Insights\Service\Dev\DevMetricsSeeder;
 use App\Module\Project\Command\EnsureHarnessProjectCommand;
 use App\Module\Project\Command\EnsureHarnessProjectHandler;
 use Doctrine\ORM\EntityManagerInterface;
@@ -54,6 +55,7 @@ final class SeedDevDataCommand extends Command
         private readonly DevExperimentSeeder $experiment,
         private readonly DevCodexRunSeeder $codexRuns,
         private readonly DevAnalysesSeeder $analyses,
+        private readonly DevMetricsSeeder $metrics,
         private readonly DevArtifactSeeder $artifacts,
 
         #[Autowire(param: 'app.terms.version')]
@@ -91,6 +93,8 @@ final class SeedDevDataCommand extends Command
         $this->experiment->seed($project, 'implement-template-metrics', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], ['cost', 'merge-rate', 'hours-to-merge']);
         $this->codexRuns->seed($project);
         $this->analyses->seed($project, DevExperimentSeeder::EXPERIMENT);
+        // After the analyses, whose bucket rules sort the tool time of the demo runs.
+        $this->metrics->seed($project);
         $this->artifacts->seed($project);
 
         // Printed for a human to copy into SITE_REVIEW_WIDGET_PROJECT. No
