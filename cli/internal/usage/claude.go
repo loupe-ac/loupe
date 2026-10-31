@@ -156,6 +156,18 @@ var weekdays = map[string]time.Weekday{
 	"thu": time.Thursday, "fri": time.Friday, "sat": time.Saturday,
 }
 
+// ParseLimitMessage reads a text that is a usage limit message, such as the
+// output of a run that stopped at its limit. now gives the time zone of a
+// reset time that the message writes as a clock time.
+func ParseLimitMessage(text string, now time.Time) []Reading {
+	return claudeMessage(text, now)
+}
+
+// IsLimitMessage reports whether the whole text is a usage limit message.
+func IsLimitMessage(text string) bool {
+	return limitMessage.MatchString(strings.TrimSpace(text))
+}
+
 // claudeMessage reads the whole text of a usage limit message. A text that
 // only holds such a message in a longer one, such as a quote, gives nothing.
 func claudeMessage(text string, now time.Time) []Reading {

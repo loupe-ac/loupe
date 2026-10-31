@@ -33,6 +33,53 @@ final class CardMarkerTextTest extends TestCase
         self::assertSame('marker.work_requested(-)', $this->text()->label($this->marker('marker.work_requested', [])));
     }
 
+    public function test_a_usage_limit_marker_names_the_hard_limit_with_its_use_and_reads_the_reset_in_the_time_zone_of_the_reader(): void
+    {
+        $label = $this->inTimeZone('Europe/Paris', fn (): string => $this->text()->label($this->marker('marker.usage_limit', $this->usageParams('limit', 100))));
+
+        self::assertSame('marker.usage_limit.limit(claude,marker.usage_limit.window.week(-),marker.usage_limit.cadence.week(-),100,95,Sun 1 Nov,18:00)', $label);
+    }
+
+    public function test_a_usage_limit_marker_without_a_use_reads_the_unmeasured_wording(): void
+    {
+        $label = $this->text()->label($this->marker('marker.usage_limit', $this->usageParams('limit', '')));
+
+        self::assertStringStartsWith('marker.usage_limit.limit_unmeasured(claude,', $label);
+    }
+
+    public function test_a_usage_limit_marker_at_the_stop_value_reads_the_stop_wording_with_the_stop_value(): void
+    {
+        $label = $this->text()->label($this->marker('marker.usage_limit', $this->usageParams('stop', 96)));
+
+        self::assertStringStartsWith('marker.usage_limit.stop(claude,', $label);
+        self::assertStringContainsString(',96,95,', $label);
+    }
+
+    public function test_a_window_of_another_length_reads_by_its_key(): void
+    {
+        $label = $this->text()->label($this->marker('marker.usage_limit', [...$this->usageParams('limit', 100), '%window%' => '3d']));
+
+        self::assertStringStartsWith('marker.usage_limit.limit(claude,3d,3d,100,', $label);
+    }
+
+    /** @return array<string, string|int> */
+    private function usageParams(string $cause, string|int $use): array
+    {
+        return ['%cause%' => $cause, '%account%' => 'claude', '%window%' => 'week', '%use%' => $use, '%stopAt%' => 95, '%resetsAt%' => new \DateTimeImmutable('2026-11-01 17:00:00 UTC')->getTimestamp()];
+    }
+
+    /** @param \Closure(): string $run */
+    private function inTimeZone(string $zone, \Closure $run): string
+    {
+        $before = date_default_timezone_get();
+        date_default_timezone_set($zone);
+        try {
+            return $run();
+        } finally {
+            date_default_timezone_set($before);
+        }
+    }
+
     private function text(): CardMarkerText
     {
         $translator = $this->createStub(TranslatorInterface::class);

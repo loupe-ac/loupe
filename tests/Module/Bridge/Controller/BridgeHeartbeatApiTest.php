@@ -25,6 +25,7 @@ use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -62,7 +63,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertJsonStringEqualsJsonString('{"cliRange":"^1.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[],"watchSessions":[]}', (string) $client->getResponse()->getContent());
+        self::assertJsonStringEqualsJsonString('{"cliRange":"^1.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[],"watchSessions":[],"blockedAccounts":[]}', (string) $client->getResponse()->getContent());
         $bridge = $this->bridge($owner, $bridgeId);
         self::assertSame([(string) $project->id], $bridge->projects);
         self::assertNull($bridge->pausedReported);
@@ -1002,6 +1003,185 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame(BridgeAccountInput::MAX_READINGS + 1, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_account_readings'));
     }
 
+    public function test_the_reply_names_the_accounts_that_take_no_new_work_with_their_release_time(): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-blocked@example.com');
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, [
+            self::account(['name' => 'full', 'kinds' => ['implement'], 'readings' => [
+                self::accountReading(['window' => 'session', 'usedPercent' => null, 'limited' => true, 'resetsAt' => '2026-10-01T15:00:00Z']),
+                self::accountReading(['window' => 'week', 'usedPercent' => 99, 'resetsAt' => '2026-10-04T17:00:00Z']),
+            ]]),
+            self::account(['name' => 'stopping', 'kinds' => ['implement'], 'stopAt' => 90, 'readings' => [self::accountReading(['usedPercent' => 91, 'resetsAt' => '2026-10-01T16:00:00Z'])]]),
+            self::account(['name' => 'open', 'kinds' => ['implement'], 'readings' => [self::accountReading(['usedPercent' => 10, 'resetsAt' => '2026-10-01T16:00:00Z'])]]),
+            self::account(['name' => 'old', 'kinds' => ['implement'], 'readings' => [self::accountReading(['usedPercent' => null, 'limited' => true, 'resetsAt' => '2026-10-01T12:00:00Z'])]]),
+        ]));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertEqualsCanonicalizing([
+            ['account' => 'full', 'until' => '2026-10-04T17:00:00+00:00'],
+            ['account' => 'stopping', 'until' => '2026-10-01T16:00:00+00:00'],
+        ], $this->reply($client)['blockedAccounts']);
+    }
+
+    public function test_a_skipped_request_is_matched_and_held_back_from_this_bridge_only(): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-skipped@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project);
+        $accounts = [self::account(['kinds' => ['implement'], 'readings' => [self::accountReading(['usedPercent' => null, 'limited' => true, 'resetsAt' => '2026-10-01T17:00:00Z'])]])];
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $accounts));
+        self::assertSame([(string) $request->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $accounts, [['workRequestId' => (string) $request->id, 'account' => 'work']]));
+        self::assertSame([], $this->reply($client)['workRequests']);
+        self::assertSame(['work'], $this->matchedAccounts($request));
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $accounts));
+        self::assertSame([], $this->reply($client)['workRequests'], 'A heartbeat that omits the request keeps its match.');
+        self::assertSame(['work'], $this->matchedAccounts($request));
+
+        $this->put($client, (string) Uuid::v4(), $raw, $this->limitBody($project, [self::account(['kinds' => ['implement']])]));
+        self::assertSame([(string) $request->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+    }
+
+    public function test_the_request_comes_back_when_the_account_is_open_again(): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-skipped-open@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project);
+        $limited = [self::account(['kinds' => ['implement'], 'readings' => [self::accountReading(['usedPercent' => null, 'limited' => true, 'resetsAt' => '2026-10-01T17:00:00Z', 'readAt' => '2026-10-01T12:20:00Z'])]])];
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $limited, [['workRequestId' => (string) $request->id, 'account' => 'work']]));
+        self::assertSame([], $this->reply($client)['workRequests']);
+
+        $open = [self::account(['kinds' => ['implement'], 'readings' => [self::accountReading(['usedPercent' => 20, 'limited' => false, 'resetsAt' => '2026-10-01T17:00:00Z', 'readAt' => '2026-10-01T12:29:00Z'])]])];
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $open));
+
+        self::assertSame([(string) $request->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function accountsThatDoNotRunTheKind(): iterable
+    {
+        yield 'an account the heartbeat does not list' => ['other'];
+        yield 'an account that does not run the kind' => ['spare'];
+    }
+
+    #[DataProvider('accountsThatDoNotRunTheKind')]
+    public function test_a_skipped_entry_for_an_account_the_bridge_does_not_run_for_the_kind_is_dropped(string $account): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-skipped-account-'.$account.'@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project);
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, [
+            self::account(['kinds' => ['implement']]),
+            self::account(['name' => 'spare', 'kinds' => ['fix']]),
+        ], [['workRequestId' => (string) $request->id, 'account' => $account]]));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->matchedAccounts($request));
+    }
+
+    public function test_a_skipped_entry_for_a_request_that_is_not_offered_to_the_bridge_is_dropped(): void
+    {
+        [$client, $owner, $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-skipped-foreign@example.com');
+        $em = $this->em();
+        $stranger = $this->user($em, 'heartbeat-skipped-foreign-stranger@example.com');
+        $unfollowed = $this->project($em, $owner, 'Skipped Unfollowed');
+        $closed = $this->seedWorkRequest($em, $project, state: WorkRequestState::Done);
+        $targeted = $this->seedWorkRequest($em, $project, targetBridgeId: Uuid::v4());
+        $elsewhere = $this->seedWorkRequest($em, $unfollowed);
+        $foreign = $this->seedWorkRequest($em, $this->project($em, $stranger, 'Skipped Foreign'));
+        $needsGpu = $this->seedWorkRequest($em, $project, capability: 'gpu');
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, [self::account(['kinds' => ['implement']])], [
+            ...array_map(
+                static fn (WorkRequest $request): array => ['workRequestId' => (string) $request->id, 'account' => 'work'],
+                [$closed, $targeted, $elsewhere, $foreign, $needsGpu],
+            ),
+            ['workRequestId' => (string) Uuid::v7(), 'account' => 'work'],
+        ]));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('0', (string) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_work_matches'));
+    }
+
+    public function test_a_match_goes_when_the_bridge_no_longer_lists_its_account_for_the_kind_or_the_request_closes(): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-match-ends@example.com');
+        $em = $this->em();
+        $unlisted = $this->seedWorkRequest($em, $project);
+        $closing = $this->seedWorkRequest($em, $project, kind: 'fix');
+        $entries = [['workRequestId' => (string) $unlisted->id, 'account' => 'work'], ['workRequestId' => (string) $closing->id, 'account' => 'work']];
+        $accounts = [self::account(['kinds' => ['implement', 'fix']])];
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $accounts, $entries));
+        self::assertSame(['work'], $this->matchedAccounts($unlisted));
+        self::assertSame(['work'], $this->matchedAccounts($closing));
+
+        $em->getConnection()->executeStatement("UPDATE work_requests SET state = 'cancelled' WHERE id = ?", [(string) $closing->id]);
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, $accounts));
+        self::assertSame(['work'], $this->matchedAccounts($unlisted));
+        self::assertSame([], $this->matchedAccounts($closing));
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, [self::account(['kinds' => ['fix']])]));
+        self::assertSame([], $this->matchedAccounts($unlisted));
+    }
+
+    public function test_a_request_that_waits_for_a_time_is_offered_once_the_time_has_passed(): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-wait-until@example.com');
+        $waiting = $this->seedWorkRequest($this->em(), $project);
+        $due = $this->seedWorkRequest($this->em(), $project, kind: 'fix');
+        $waiting->waitUntil = new \DateTimeImmutable('2026-10-01 12:31:00');
+        $due->waitUntil = new \DateTimeImmutable('2026-10-01 12:30:00');
+        $this->em()->flush();
+
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, [self::account(['kinds' => ['implement', 'fix']])]));
+
+        self::assertSame([(string) $due->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+    }
+
+    /**
+     * @param non-empty-string $email
+     *
+     * @return array{KernelBrowser, User, Project, string, string}
+     */
+    private function limitScenario(string $email): array
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set('clock', new MockClock(self::WORK_NOW));
+        $owner = $this->user($this->em(), $email);
+        $project = $this->project($this->em(), $owner, 'Limit Project');
+
+        return [$client, $owner, $project, $this->agentToken($client, $owner), (string) Uuid::v4()];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $accounts
+     * @param list<array<string, mixed>> $skipped
+     *
+     * @return array<string, mixed>
+     */
+    private function limitBody(Project $project, array $accounts, array $skipped = []): array
+    {
+        return [
+            'projects' => [(string) $project->id],
+            'cliVersion' => 'b4e39aa7',
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'accounts' => $accounts,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /** @return list<string> */
+    private function matchedAccounts(WorkRequest $request): array
+    {
+        /** @var list<string> $accounts */
+        $accounts = $this->em()->getConnection()->fetchFirstColumn('SELECT account FROM bridge_work_matches WHERE work_request_id = ? ORDER BY account', [(string) $request->id]);
+
+        return $accounts;
+    }
+
     /**
      * @param array<string, mixed> $overrides
      *
@@ -1179,6 +1359,11 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a reading with no limited value' => [['accounts' => [self::account(['readings' => [self::accountReading(['limited' => null])]])]]];
         yield 'a reading with no read time' => [['accounts' => [self::account(['readings' => [self::accountReading(['readAt' => null])]])]]];
         yield 'a reading with a blank source' => [['accounts' => [self::account(['readings' => [self::accountReading(['source' => ' '])]])]]];
+        yield 'skipped that is not a list' => [['skipped' => ['workRequestId' => '0d6c7d55-5b2c-4a54-9a5b-7b1b0e7f5e21', 'account' => 'work']]];
+        yield 'a skipped request that is not a uuid' => [['skipped' => [['workRequestId' => 'abc', 'account' => 'work']]]];
+        yield 'a skipped request with no account' => [['skipped' => [['workRequestId' => '0d6c7d55-5b2c-4a54-9a5b-7b1b0e7f5e21']]]];
+        yield 'a skipped request with a malformed account' => [['skipped' => [['workRequestId' => '0d6c7d55-5b2c-4a54-9a5b-7b1b0e7f5e21', 'account' => 'Not An Account']]]];
+        yield 'too many skipped requests' => [['skipped' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_SKIPPED + 1, ['workRequestId' => '0d6c7d55-5b2c-4a54-9a5b-7b1b0e7f5e21', 'account' => 'work'])]];
         yield 'a reading source that is too long' => [['accounts' => [self::account(['readings' => [self::accountReading(['source' => str_repeat('a', 41)])]])]]];
         yield 'an account name that is too long' => [['accounts' => [self::account(['name' => str_repeat('a', 41)])]]];
         yield 'an account with a bad harness' => [['accounts' => [self::account(['harness' => 'Claude Code'])]]];

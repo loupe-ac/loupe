@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Repository;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeWorkMatch;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -48,7 +49,8 @@ class WorkRequestRepository extends ServiceEntityRepository
     {
         $sql = <<<'SQL'
             UPDATE work_requests
-            SET state = :claimed, bridge_id = :bridge, claim_token = :token, lease_until = :leaseUntil, claims = claims + 1
+            SET state = :claimed, bridge_id = :bridge, claim_token = :token, lease_until = :leaseUntil, claims = claims + 1,
+                wait_cause = NULL, wait_account = NULL, wait_until = NULL
             WHERE id = :id AND state = :open
             RETURNING id
             SQL;
@@ -137,15 +139,19 @@ class WorkRequestRepository extends ServiceEntityRepository
      * The open requests of the projects that a bridge with these capabilities
      * can run, oldest first.
      *
-     * A request that names a target bridge is offered to that bridge alone.
+     * A request that names a target bridge is offered to that bridge alone. A
+     * request that waits for a time is left out until the time comes, and so is
+     * one that the bridge matched to a blocked account. The conditions run
+     * before the limit, so work that cannot start never crowds out work that can.
      *
-     * @param list<string> $projectIds     RFC 4122 ids, as Bridge::$projects holds them
+     * @param list<string> $projectIds      RFC 4122 ids, as Bridge::$projects holds them
      * @param list<string> $capabilities
-     * @param list<string> $heldProjectIds RFC 4122 ids of the projects that hold their new work. Their requests are left out.
+     * @param list<string> $heldProjectIds  RFC 4122 ids of the projects that hold their new work. Their requests are left out.
+     * @param list<string> $blockedAccounts the accounts of the bridge that take no new work
      *
      * @return list<WorkRequest>
      */
-    public function findOpenOffers(Uuid $bridgeId, array $projectIds, array $capabilities, int $limit, array $heldProjectIds): array
+    public function findOpenOffers(Uuid $bridgeId, array $projectIds, array $capabilities, int $limit, array $heldProjectIds, \DateTimeImmutable $now = new \DateTimeImmutable(), array $blockedAccounts = []): array
     {
         if ([] === $projectIds) {
             return [];
@@ -155,7 +161,9 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->andWhere('w.project IN (:projects)')
             ->andWhere('w.state = :open')
             ->andWhere('w.targetBridgeId IS NULL OR w.targetBridgeId = :bridge')
+            ->andWhere('w.waitUntil IS NULL OR w.waitUntil <= :now')
             ->andWhere('NOT (w.subjectType = :card AND EXISTS (SELECT 1 FROM '.CardHold::class.' h WHERE h.project = w.project AND h.cardId = w.subjectId))')
+            ->setParameter('now', $now, Types::DATETIME_IMMUTABLE)
             ->setParameter('bridge', $bridgeId, UuidType::NAME)
             ->setParameter('projects', $projectIds)
             ->setParameter('open', WorkRequestState::Open->value)
@@ -166,6 +174,10 @@ class WorkRequestRepository extends ServiceEntityRepository
         if ([] !== $heldProjectIds) {
             $qb->andWhere('w.project NOT IN (:heldProjects)')
                 ->setParameter('heldProjects', $heldProjectIds);
+        }
+        if ([] !== $blockedAccounts) {
+            $qb->andWhere('NOT EXISTS (SELECT 1 FROM '.BridgeWorkMatch::class.' m JOIN m.bridge mb WHERE m.workRequest = w AND mb.id = :bridge AND m.account IN (:blockedAccounts))')
+                ->setParameter('blockedAccounts', $blockedAccounts);
         }
         if ([] === $capabilities) {
             $qb->andWhere('w.capability IS NULL');

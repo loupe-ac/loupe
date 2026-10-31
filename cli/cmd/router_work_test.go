@@ -70,7 +70,10 @@ type fakeWork struct {
 	requests map[string]api.WorkRequest
 	errs     map[string]error
 	claims   []string
+	accounts []string
 	settles  []string
+	// backs holds each hand-back the router sent.
+	backs []api.HandBack
 	// settleErr answers each result, and gate holds each claim until the test
 	// closes it.
 	settleErr error
@@ -79,9 +82,10 @@ type fakeWork struct {
 	mangle bool
 }
 
-func (f *fakeWork) ClaimWorkRequest(_ context.Context, _, id string) (api.Claim, error) {
+func (f *fakeWork) ClaimWorkRequest(_ context.Context, _, id, account string) (api.Claim, error) {
 	f.mu.Lock()
 	f.claims = append(f.claims, id)
+	f.accounts = append(f.accounts, account)
 	err, w, gate := f.errs[id], f.requests[id], f.gate
 	if _, known := f.requests[id]; !known {
 		w, _ = offeredRequest(id)
@@ -107,6 +111,15 @@ func (f *fakeWork) SettleWorkRequest(_ context.Context, _, id, token, state, rea
 	f.settles = append(f.settles, strings.TrimSpace(fmt.Sprintf("%s %s %s %s", id, token, state, reason)))
 
 	return state, f.settleErr
+}
+
+func (f *fakeWork) HandBackWorkRequest(_ context.Context, _, id, token string, h api.HandBack) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.backs = append(f.backs, h)
+	f.settles = append(f.settles, fmt.Sprintf("%s %s open %s", id, token, h.Cause))
+
+	return api.WorkRequestOpen, f.settleErr
 }
 
 func (f *fakeWork) claimed() []string {

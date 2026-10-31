@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\ValueObject;
 
+use App\Module\Bridge\Controller\Api\ReportWorkerRunStateRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -20,7 +21,7 @@ final class WorkerRunStateTest extends TestCase
     public function test_every_state_has_its_backing_value(): void
     {
         self::assertSame(
-            ['queued', 'replaced', 'resumed', 'skipped', 'preparing', 'running', 'stopping', 'stopped', 'waiting-for-person', 'dropped', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up', 'timed-out', 'lost', 'closed'],
+            ['queued', 'replaced', 'resumed', 'skipped', 'preparing', 'running', 'stopping', 'stopped', 'waiting-for-person', 'dropped', 'usage-limit', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up', 'timed-out', 'lost', 'closed'],
             array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::cases()),
         );
     }
@@ -65,6 +66,22 @@ final class WorkerRunStateTest extends TestCase
     {
         self::assertSame('bridge.worker_runs.state.waiting_on_forge', WorkerRunState::WaitingOnForge->translationKey());
         self::assertSame('pending', WorkerRunState::WaitingOnForge->chipModifier());
+    }
+
+    public function test_a_run_that_a_usage_limit_stopped_is_waiting_and_no_failure(): void
+    {
+        $state = WorkerRunState::UsageLimit;
+
+        self::assertSame('usage-limit', $state->value);
+        self::assertSame('bridge.worker_runs.state.usage_limit', $state->translationKey());
+        self::assertSame('pending', $state->chipModifier());
+        self::assertFalse($state->isOpen());
+        self::assertFalse($state->isOutcome());
+        self::assertFalse($state->isFailure());
+        self::assertFalse($state->isStop());
+        self::assertFalse($state->isWarning());
+        self::assertFalse($state->isResumable());
+        self::assertContains('usage-limit', ReportWorkerRunStateRequest::bridgeStates());
     }
 
     public function test_no_result_reads_as_a_failure_on_the_page(): void

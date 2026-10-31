@@ -77,6 +77,9 @@ type heartbeater struct {
 	sessions func(context.Context, []string) []api.InteractiveSessionReading
 	// usage holds the account readings of the live runs. It may be nil.
 	usage *usage.Collector
+	// skips holds the offers the bridge skipped for a blocked account. It may
+	// be nil.
+	skips *skipLog
 
 	// lastOK is the time of the last heartbeat the server accepted. A status
 	// request reads it from another goroutine.
@@ -382,9 +385,11 @@ func (h *heartbeater) send() {
 			h.usage.Poll(h.now())
 			body.Accounts, carried = withReadings(body.Accounts, h.usage.Pending())
 		}
+		body.Skipped = h.skips.Pending()
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {
 			h.usage.Drop(carried)
+			h.skips.Drop(body.Skipped)
 			h.dropHostSamples(upto)
 			h.mu.Lock()
 			h.watch = reply.WatchSessions

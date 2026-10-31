@@ -11,6 +11,7 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -165,6 +166,50 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $stored = $em->find(WorkRequest::class, $targeted->id);
         self::assertInstanceOf(WorkRequest::class, $stored);
         self::assertSame([(string) $target, 'main', ['out' => 'var/x']], [(string) $stored->targetBridgeId, $stored->branch, $stored->params]);
+    }
+
+    public function test_offers_leave_out_a_request_that_waits_for_a_time_that_has_not_come(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'offers-wait-until@example.com'), 'Offers Wait Until');
+        $now = new \DateTimeImmutable('2026-10-01 12:30:00');
+        $free = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $due = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 12:01:00'));
+        $waiting = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 12:02:00'));
+        $due->waitUntil = $now;
+        $waiting->waitUntil = $now->modify('+1 second');
+        $em->flush();
+
+        self::assertSame([$free, $due], $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, [], $now));
+    }
+
+    public function test_offers_leave_out_a_request_matched_to_a_blocked_account_of_this_bridge_before_the_limit(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'offers-blocked-match@example.com');
+        $project = $this->project($em, $owner, 'Offers Blocked Match');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
+        $other = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-10-01 '.$time);
+        $blocked = $this->seedWorkRequest($em, $project, createdAt: $at('12:00:00'));
+        $spare = $this->seedWorkRequest($em, $project, createdAt: $at('12:01:00'));
+        $unmatched = $this->seedWorkRequest($em, $project, createdAt: $at('12:02:00'));
+        $matches = self::getContainer()->get(BridgeWorkMatchRepository::class);
+        self::assertInstanceOf(BridgeWorkMatchRepository::class, $matches);
+        $ownerId = $owner->id ?? throw new \LogicException('A flushed owner has an id.');
+        $matches->put($ownerId, $bridge->id, $this->idOf($blocked), 'work');
+        $matches->put($ownerId, $bridge->id, $this->idOf($spare), 'spare');
+        $matches->put($ownerId, $other->id, $this->idOf($unmatched), 'work');
+        $projects = [(string) $project->id];
+        $now = $at('12:30:00');
+
+        self::assertSame([$blocked, $spare, $unmatched], $this->repository()->findOpenOffers($bridge->id, $projects, [], 10, [], $now));
+        self::assertSame([$spare, $unmatched], $this->repository()->findOpenOffers($bridge->id, $projects, [], 10, [], $now, ['work']));
+        self::assertSame([$unmatched], $this->repository()->findOpenOffers($bridge->id, $projects, [], 10, [], $now, ['work', 'spare']));
+        self::assertSame([$spare], $this->repository()->findOpenOffers($bridge->id, $projects, [], 1, [], $now, ['work']), 'The limit counts the requests that stay, so blocked work never crowds them out.');
+        self::assertSame([$blocked, $spare], $this->repository()->findOpenOffers($other->id, $projects, [], 10, [], $now, ['work']), 'A match holds back the offer from its own bridge only.');
     }
 
     public function test_offers_leave_out_the_requests_of_held_cards(): void

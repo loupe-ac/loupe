@@ -18,8 +18,9 @@ import (
 
 // workClient claims and settles work requests. *api.Client is one.
 type workClient interface {
-	ClaimWorkRequest(ctx context.Context, bridgeID, id string) (api.Claim, error)
+	ClaimWorkRequest(ctx context.Context, bridgeID, id, account string) (api.Claim, error)
 	SettleWorkRequest(ctx context.Context, bridgeID, id, token, state, reason string) (string, error)
+	HandBackWorkRequest(ctx context.Context, bridgeID, id, token string, h api.HandBack) (string, error)
 }
 
 // The channels a work request arrives on, as its log lines name them.
@@ -226,6 +227,12 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 		return
 	}
 	p := pending{key: w.SubjectID, event: workEvent(w), work: w, set: set}
+	p.account = matchedAccount(m, p)
+	if p.account != "" && r.blocked.has(p.account) {
+		r.skipBlocked(w, p.account, source)
+
+		return
+	}
 	// A session that is not on this machine cannot resume, so the work starts fresh.
 	if w.ResumeSessionID != "" && m.Action == "" && slices.ContainsFunc(resumeRuns(m), func(run rules.RunSettings) bool {
 		return r.hasTranscript(w.ResumeSessionID, run)
@@ -292,7 +299,7 @@ func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, r
 		r.noteClaimsLocked()
 		r.mu.Unlock()
 		state, reason, after := act(p)
-		r.settleWork(p, state, reason)
+		r.settleWork(p, settlement{state: state, reason: reason})
 		if after != nil {
 			after()
 		}
@@ -447,7 +454,7 @@ func (r *router) claimThenLocked(p pending, run func(pending), release func()) {
 		r.mu.Unlock()
 		r.logDropped(dropped)
 		if verdict == claimRefuse {
-			r.settleWork(p, api.WorkRequestRefused, workFailed)
+			r.settleWork(p, settlement{state: api.WorkRequestRefused, reason: workFailed})
 		}
 	}()
 }
@@ -495,7 +502,7 @@ func (r *router) requestClaim(p pending) (api.Claim, error) {
 	ctx, cancel := context.WithTimeout(r.workerContext(), timeout)
 	defer cancel()
 
-	return r.workAPI.ClaimWorkRequest(ctx, r.bridgeID, id)
+	return r.workAPI.ClaimWorkRequest(ctx, r.bridgeID, id, p.account)
 }
 
 // takeClaimLocked reads the answer to a claim. On a claim it keeps the token
@@ -695,42 +702,44 @@ func (r *router) dropClaimLocked(id, token string) {
 // workResultLocked decides the result of a work run that ended, and marks its
 // claim as settling. It answers false when the run posts none: the claim is
 // gone, or the bridge stopped the run. The caller holds mu.
-func (r *router) workResultLocked(p pending, res workerResult, shut bool) (string, string, bool) {
+func (r *router) workResultLocked(p pending, res workerResult, shut bool) (settlement, bool) {
 	if !p.isWork() || p.claimToken == "" {
-		return "", "", false
+		return settlement{}, false
 	}
 	id := p.work.WorkRequestID
 	c := r.claims[id]
 	if c == nil || c.token != p.claimToken {
-		return "", "", false
+		return settlement{}, false
 	}
 	if shut || res.killed {
 		r.dropClaimLocked(id, p.claimToken)
 
-		return "", "", false
+		return settlement{}, false
 	}
 	c.running = false
-	state, reason := workOutcome(res)
 
-	return state, reason, true
+	return backOf(p, workOutcome(res)), true
 }
 
 // workOutcome maps how a run ended to the result of its work request. A done
 // result carries the reason of the structured result too, because a workflow
-// rule can match on it.
-func workOutcome(res workerResult) (string, string) {
-	refused := func(fallback string) (string, string) {
+// rule can match on it. A run that a usage limit stopped gives the request back.
+func workOutcome(res workerResult) settlement {
+	refused := func(fallback string) settlement {
 		if res.hasResult {
-			return api.WorkRequestRefused, cmp.Or(resultReason(res.reason), fallback)
+			return settlement{state: api.WorkRequestRefused, reason: cmp.Or(resultReason(res.reason), fallback)}
 		}
 
-		return api.WorkRequestRefused, fallback
+		return settlement{state: api.WorkRequestRefused, reason: fallback}
+	}
+	if back := limitHandBack(res); back != nil {
+		return settlement{state: api.WorkRequestOpen, back: back}
 	}
 	switch {
 	case res.timedOut:
-		return api.WorkRequestRefused, workTimeout
+		return settlement{state: api.WorkRequestRefused, reason: workTimeout}
 	case res.command && res.exitCode == 0:
-		return api.WorkRequestDone, ""
+		return settlement{state: api.WorkRequestDone}
 	case res.command, res.before, res.resumeGone, res.err != nil, res.exitCode != 0, !res.hasResult:
 		return refused(workFailed)
 	case res.status == "blocked":
@@ -739,16 +748,19 @@ func workOutcome(res workerResult) (string, string) {
 		return refused(workUnfinished)
 	}
 
-	return api.WorkRequestDone, resultReason(res.reason)
+	return settlement{state: api.WorkRequestDone, reason: resultReason(res.reason)}
 }
 
 // settleWork posts the result of a work request through the report queue,
 // which retries a network failure. The claim stays renewed until the post
 // settles, so a slow post never loses its lease. A post the queue gives up
 // or drops ends the claim too.
-func (r *router) settleWork(p pending, state, reason string) {
+func (r *router) settleWork(p pending, st settlement) {
 	id, token := p.work.WorkRequestID, p.claimToken
-	attrs := append(about(p.event, p.rule), "state", state, "reason", reason)
+	attrs := append(about(p.event, p.rule), "state", st.state, "reason", st.reason)
+	if st.back != nil {
+		attrs = append(attrs, "cause", st.back.Cause, "account", st.back.Account, "session_id", st.back.SessionID)
+	}
 	if r.reports == nil || r.bridgeID == "" {
 		r.mu.Lock()
 		r.dropClaimLocked(id, token)
@@ -761,7 +773,13 @@ func (r *router) settleWork(p pending, state, reason string) {
 		Card: number,
 		Rule: p.rule,
 		Send: func(ctx context.Context) (bool, error) {
-			stored, err := r.workAPI.SettleWorkRequest(ctx, r.bridgeID, id, token, state, reason)
+			var stored string
+			var err error
+			if st.back != nil {
+				stored, err = r.workAPI.HandBackWorkRequest(ctx, r.bridgeID, id, token, *st.back)
+			} else {
+				stored, err = r.workAPI.SettleWorkRequest(ctx, r.bridgeID, id, token, st.state, st.reason)
+			}
 			var refusal *api.WorkRequestRefusal
 			switch {
 			case err == nil:

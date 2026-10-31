@@ -211,6 +211,94 @@ final class WorkRequestResultApiTest extends WebTestCase
         self::assertSame(WorkRequestState::Claimed, $this->reload($request)->state);
     }
 
+    public function test_a_hand_back_opens_the_request_again_and_keeps_its_match(): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('result-hand-back@example.com');
+        $raw = $this->token($owner);
+        $audit = RecordingAuditor::installedIn(static::getContainer());
+        [$request, $token] = $this->claimed($client, $raw, $project, $bridge);
+        $session = '6d5f2c52-6e0a-4d3a-9d09-0e3b2f4c1a77';
+
+        $this->put($client, $raw, $this->path($bridge, $request), self::handBack($token, ['sessionId' => $session]));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['workRequestId' => (string) $request->id, 'state' => 'open'], $this->json($client));
+        $stored = $this->reload($request);
+        self::assertSame(WorkRequestState::Open, $stored->state);
+        self::assertNull($stored->bridgeId);
+        self::assertNull($stored->claimToken);
+        self::assertNull($stored->waitUntil);
+        self::assertSame(['usage-limit', 'work', $session], [$stored->waitCause, $stored->waitAccount, $stored->resumeSessionId?->toRfc4122()]);
+        self::assertTrue($bridge->id->equals($stored->targetBridgeId));
+        self::assertSame(1, $stored->claims);
+        self::assertSame('open', $this->outboxPayloads()[1]['state']);
+        self::assertSame($session, $this->outboxPayloads()[1]['resumeSessionId']);
+        self::assertSame('work', $this->em()->getConnection()->fetchOne('SELECT account FROM bridge_work_matches WHERE work_request_id = ?', [(string) $request->id]));
+        self::assertSame('usage-limit', $audit->record('bridge.work_request_handed_back')->context['cause']);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function invalidHandBacks(): iterable
+    {
+        yield 'no cause' => [['cause' => null], 'invalid_cause'];
+        yield 'another cause' => [['cause' => 'network'], 'invalid_cause'];
+        yield 'no account' => [['account' => null], 'invalid_hand_back'];
+        yield 'a malformed account' => [['account' => 'Not An Account'], 'invalid_hand_back'];
+        yield 'no reading' => [['reading' => null], 'invalid_hand_back'];
+        yield 'a reading with a malformed window' => [['reading' => ['window' => 'A week', 'usedPercent' => 100, 'resetsAt' => '2026-10-04T17:00:00Z', 'limited' => true, 'source' => 'stream']], 'invalid_hand_back'];
+        yield 'a reading with a use above 200' => [['reading' => ['window' => 'week', 'usedPercent' => 201, 'resetsAt' => '2026-10-04T17:00:00Z', 'limited' => true, 'source' => 'stream']], 'invalid_hand_back'];
+        yield 'a reading with a relative reset' => [['reading' => ['window' => 'week', 'usedPercent' => 100, 'resetsAt' => 'tomorrow', 'limited' => true, 'source' => 'stream']], 'invalid_hand_back'];
+        yield 'a reading that resets in a year' => [['reading' => ['window' => 'week', 'usedPercent' => 100, 'resetsAt' => '2027-10-04T17:00:00Z', 'limited' => true, 'source' => 'stream']], 'invalid_hand_back'];
+        yield 'a reading with no limited flag' => [['reading' => ['window' => 'week', 'usedPercent' => 100, 'resetsAt' => '2026-10-04T17:00:00Z', 'source' => 'stream']], 'invalid_hand_back'];
+        yield 'a session that is not a uuid' => [['sessionId' => 'abc'], 'invalid_hand_back'];
+        yield 'no turn flag' => [['hasAssistantTurn' => null], 'invalid_hand_back'];
+    }
+
+    /** @param array<string, mixed> $changes */
+    #[DataProvider('invalidHandBacks')]
+    public function test_an_invalid_hand_back_is_refused_with_a_code(array $changes, string $code): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('result-hand-back-invalid@example.com');
+        $raw = $this->token($owner);
+        [$request, $token] = $this->claimed($client, $raw, $project, $bridge);
+
+        $this->put($client, $raw, $this->path($bridge, $request), self::handBack($token, $changes));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame(WorkRequestState::Claimed, $this->reload($request)->state);
+    }
+
+    public function test_a_hand_back_with_a_stale_token_loses(): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('result-hand-back-stale@example.com');
+        $raw = $this->token($owner);
+        [$request] = $this->claimed($client, $raw, $project, $bridge);
+
+        $this->put($client, $raw, $this->path($bridge, $request), self::handBack('0d6c7d55-5b2c-4a54-9a5b-7b1b0e7f5e21'));
+
+        $this->assertRefused($client, 409, 'claim_lost');
+        self::assertSame(WorkRequestState::Claimed, $this->reload($request)->state);
+    }
+
+    /**
+     * @param array<string, mixed> $changes
+     *
+     * @return array<string, mixed>
+     */
+    private static function handBack(string $token, array $changes = []): array
+    {
+        return array_replace([
+            'claimToken' => $token,
+            'state' => 'open',
+            'cause' => 'usage-limit',
+            'account' => 'work',
+            'reading' => ['window' => 'week', 'usedPercent' => 100, 'resetsAt' => '2026-10-04T17:00:00Z', 'limited' => true, 'source' => 'stream'],
+            'sessionId' => null,
+            'hasAssistantTurn' => true,
+        ], $changes);
+    }
+
     public function test_a_blank_reason_is_stored_as_none(): void
     {
         [$client, $owner, $project, $bridge] = $this->scenario('result-blank@example.com');
@@ -302,6 +390,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $projectId = ($project->id ?? throw new \LogicException('A flushed project has an id.'))->toRfc4122();
         $bridge = $this->seedBridge($this->em(), $owner, projects: [$projectId]);
         $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement']]];
         $this->em()->flush();
 
         return $bridge;
@@ -327,7 +416,12 @@ final class WorkRequestResultApiTest extends WebTestCase
 
     private function post(KernelBrowser $client, string $raw, string $path): void
     {
-        $client->request(Request::METHOD_POST, $path, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'HTTP_ACCEPT' => 'application/json']);
+        $client->request(
+            Request::METHOD_POST,
+            $path,
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'],
+            content: '{"account":"work"}',
+        );
     }
 
     /** @param array<string, mixed> $body */

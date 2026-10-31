@@ -618,7 +618,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.mu.Lock()
 		hb.paused = r.personPaused
 		r.heartbeat = hb
-		hb.usage = r.accountUsage
+		hb.usage, hb.skips = r.accountUsage, &r.skips
 		r.notePoolsLocked()
 		r.noteClaimsLocked()
 		r.mu.Unlock()

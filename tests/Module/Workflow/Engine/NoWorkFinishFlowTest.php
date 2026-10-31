@@ -14,7 +14,10 @@ use App\Module\Bridge\Command\SettleWorkRequestHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -186,6 +189,9 @@ final class NoWorkFinishFlowTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers([]),
+            $this->service(BridgeRepository::class),
+            $this->service(BridgeWorkMatchRepository::class),
+            $this->service(AccountReadingRecorder::class),
         );
 
         $result = $handler(new SettleWorkRequestCommand(

@@ -10,8 +10,14 @@ use App\Module\Bridge\Command\SettleWorkRequestHandler;
 use App\Module\Bridge\Command\SettleWorkRequestResult;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\AccountLimits;
+use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
+use App\Module\Bridge\ValueObject\AccountLimitCause;
+use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -109,6 +115,128 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         self::assertSame([], $subjects->settled);
     }
 
+    public function test_a_hand_back_opens_the_request_again_with_the_wait_and_the_session(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back');
+        $bridgeId = $request->bridgeId;
+        $session = Uuid::v4();
+        $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
+        $subjects = new RecordingWorkSubjectHandler();
+
+        $result = $this->settle($owner, $request, WorkRequestState::Open, $subjects, self::handBack(sessionId: $session));
+
+        self::assertTrue($result->handedBack);
+        self::assertFalse($result->settled);
+        self::assertNull($result->refusal);
+        $this->em()->clear();
+        $stored = $this->em()->find(WorkRequest::class, $request->id) ?? throw new \LogicException('The request exists.');
+        self::assertSame(WorkRequestState::Open, $stored->state);
+        self::assertNull($stored->bridgeId);
+        self::assertNull($stored->claimToken);
+        self::assertNull($stored->leaseUntil);
+        self::assertNull($stored->settledAt);
+        self::assertNull($stored->waitUntil);
+        self::assertSame(self::NOW, $stored->reopenedAt?->format(\DateTimeInterface::ATOM));
+        self::assertSame(['usage-limit', 'work', $session->toRfc4122()], [$stored->waitCause, $stored->waitAccount, $stored->resumeSessionId?->toRfc4122()]);
+        self::assertSame($bridgeId?->toRfc4122(), $stored->targetBridgeId?->toRfc4122());
+        self::assertCount(1, $changes->events());
+        self::assertSame(WorkRequestState::Open, $changes->events()[0]->state);
+        self::assertSame([], $subjects->settled);
+        self::assertSame([($bridgeId ?? throw new \LogicException('A claimed request has a bridge.'))->toRfc4122() => 'work'], $this->matchedAccounts($request));
+    }
+
+    public function test_a_run_with_no_assistant_turn_binds_the_request_to_no_bridge(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-no-turn');
+
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack(hasAssistantTurn: false));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(WorkRequest::class, $request->id) ?? throw new \LogicException('The request exists.');
+        self::assertNull($stored->targetBridgeId);
+        self::assertNull($stored->resumeSessionId);
+        self::assertSame('usage-limit', $stored->waitCause);
+    }
+
+    public function test_a_hand_back_keeps_the_target_a_request_already_had_when_the_run_did_no_work(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-target');
+        $target = Uuid::v4();
+        $request->targetBridgeId = $target;
+        $this->em()->flush();
+
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack(hasAssistantTurn: false));
+
+        $this->em()->clear();
+        self::assertSame($target->toRfc4122(), $this->em()->find(WorkRequest::class, $request->id)?->targetBridgeId?->toRfc4122());
+    }
+
+    public function test_a_hand_back_stores_the_reading_that_showed_the_limit(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-reading');
+        $bridge = $this->service(BridgeRepository::class)->findOneByOwnerAndId($owner, $request->bridgeId ?? throw new \LogicException('A claimed request has a bridge.')) ?? throw new \LogicException('The bridge exists.');
+
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
+
+        $limits = $this->service(AccountLimits::class)->forBridge($bridge);
+        self::assertSame(AccountLimitCause::Limit, $limits['work']->cause());
+        self::assertSame('2026-10-04T17:00:00+00:00', $limits['work']->releaseAt()?->format(\DateTimeInterface::ATOM));
+    }
+
+    public function test_a_second_hand_back_from_the_same_claim_loses(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-twice');
+        [$bridgeId, $token] = [$request->bridgeId, $request->claimToken];
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
+        $request->bridgeId = $bridgeId;
+        $request->claimToken = $token;
+
+        $result = $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
+
+        self::assertSame(WorkRequestRefusal::ClaimLost, $result->refusal);
+        self::assertSame(1, $this->matchCount($request));
+    }
+
+    public function test_a_hand_back_cannot_take_back_a_request_that_was_withdrawn(): void
+    {
+        [$owner, $request] = $this->claimed('settle-hand-back-withdrawn');
+        $request->withdraw(WorkRequestState::Cancelled, new \DateTimeImmutable(self::NOW));
+        $this->em()->flush();
+
+        $result = $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
+
+        self::assertSame(WorkRequestRefusal::ClaimLost, $result->refusal);
+        self::assertSame(0, $this->matchCount($request));
+    }
+
+    public function test_the_state_open_needs_a_hand_back(): void
+    {
+        [$owner, $request] = $this->claimed('settle-open-bare');
+
+        $this->expectException(\LogicException::class);
+
+        $this->settle($owner, $request, WorkRequestState::Open);
+    }
+
+    private static function handBack(?Uuid $sessionId = null, bool $hasAssistantTurn = true): UsageLimitHandBack
+    {
+        return new UsageLimitHandBack('work', 'week', null, new \DateTimeImmutable('2026-10-04 17:00:00', new \DateTimeZone('UTC')), true, 'stream', $sessionId, $hasAssistantTurn);
+    }
+
+    /** @return array<string, string> account by bridge id */
+    private function matchedAccounts(WorkRequest $request): array
+    {
+        /** @var list<array{bridge_id: string, account: string}> $rows */
+        $rows = $this->em()->getConnection()->fetchAllAssociative('SELECT bridge_id, account FROM bridge_work_matches WHERE work_request_id = ?', [(string) $request->id]);
+
+        return array_column($rows, 'account', 'bridge_id');
+    }
+
+    private function matchCount(WorkRequest $request): int
+    {
+        return \count($this->matchedAccounts($request));
+    }
+
     /** @return array{User, WorkRequest} */
     private function claimed(string $name, ?WorkSubject $subject = null): array
     {
@@ -116,8 +244,10 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         self::getContainer()->set('clock', new MockClock(self::NOW));
         $em = $this->em();
         $owner = $this->user($em, $name.'@example.com');
-        $request = $this->seedWorkRequest($em, $this->project($em, $owner, 'Project '.$name), state: WorkRequestState::Claimed, subject: $subject);
-        $request->bridgeId = Uuid::v4();
+        $project = $this->project($em, $owner, 'Project '.$name);
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
+        $request = $this->seedWorkRequest($em, $project, state: WorkRequestState::Claimed, subject: $subject);
+        $request->bridgeId = $bridge->id;
         $request->claimToken = Uuid::v4();
         $request->leaseUntil = new \DateTimeImmutable('2026-10-01 12:32:00');
         $em->flush();
@@ -125,7 +255,7 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         return [$owner, $request];
     }
 
-    private function settle(User $owner, WorkRequest $request, WorkRequestState $state, ?RecordingWorkSubjectHandler $subjects = null): SettleWorkRequestResult
+    private function settle(User $owner, WorkRequest $request, WorkRequestState $state, ?RecordingWorkSubjectHandler $subjects = null, ?UsageLimitHandBack $handBack = null): SettleWorkRequestResult
     {
         $handler = new SettleWorkRequestHandler(
             $this->service(WorkRequestRepository::class),
@@ -135,6 +265,9 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers(null === $subjects ? [] : [$subjects]),
+            $this->service(BridgeRepository::class),
+            $this->service(BridgeWorkMatchRepository::class),
+            $this->service(AccountReadingRecorder::class),
         );
 
         return $handler(new SettleWorkRequestCommand(
@@ -144,6 +277,7 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
             claimToken: $request->claimToken ?? throw new \LogicException('A claimed request has a token.'),
             state: $state,
             reason: null,
+            handBack: $handBack,
         ));
     }
 

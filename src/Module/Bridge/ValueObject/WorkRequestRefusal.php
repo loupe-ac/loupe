@@ -21,6 +21,15 @@ enum WorkRequestRefusal
 
     case ProjectHeld;
 
+    /** The request waits for a time that has not come. */
+    case Waiting;
+
+    /** The account the bridge named is at its limit or at its stop value. */
+    case AccountBlocked;
+
+    /** The claim names no account, or an account the bridge does not list for the kind of the request. */
+    case AccountUnknown;
+
     /** The error code the bridge reads. */
     public function code(): string
     {
@@ -32,6 +41,9 @@ enum WorkRequestRefusal
             self::ClaimLost => 'claim_lost',
             self::CardHeld => 'card_held',
             self::ProjectHeld => 'project_held',
+            self::Waiting => 'waiting',
+            self::AccountBlocked => 'account_blocked',
+            self::AccountUnknown => 'account_unknown',
         };
     }
 
@@ -39,8 +51,8 @@ enum WorkRequestRefusal
     {
         return match ($this) {
             self::NotFound => 404,
-            self::AlreadyClaimed, self::ClaimLost, self::CardHeld, self::ProjectHeld => 409,
-            self::UnknownBridge, self::CapabilityMissing => 422,
+            self::AlreadyClaimed, self::ClaimLost, self::CardHeld, self::ProjectHeld, self::Waiting, self::AccountBlocked => 409,
+            self::UnknownBridge, self::CapabilityMissing, self::AccountUnknown => 422,
         };
     }
 }

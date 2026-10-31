@@ -164,6 +164,7 @@ The shipped markers are:
 | `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 6 |
 | `run-open` | Working | A worker runs on the card |
 | `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
+| `usage-limit` | Waiting | Work waits because every agent account that could take it is at its usage limit or at its stop value. The label names the account, the window, the use and the reset time. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
@@ -255,6 +256,14 @@ A marker reads the same conditions as a rule. These conditions suit markers:
 - `card.run.work_taker_paused`: a work request of the card waits, and every
   online bridge that could take it is paused. A bridge counts as paused while
   you paused it, or while its last heartbeat said so.
+- `card.run.work_taker_limited`: a work request of the card waits, and each
+  online bridge that could take it has no account with room. An account has no
+  room at its hard limit, and also at or above its stop value, which is 95 % by
+  default. The marker `usage-limit` reads it. It shows the account that comes
+  free first, with its window, its use and its reset time. A hard limit reads
+  "is at its weekly limit". A stop value reads "is at 96 % of its weekly window,
+  new work stops at 95 %". The condition turns false when an account has room,
+  at the reset or when a reading shows the limit lifted.
 - `card.inbox.open_question`: an open inbox question names the card. The
   optional `blocking` is `true` to match only a blocking ask, or `false` to
   match only a non-blocking one, such as a to-do. With no `blocking`, any open

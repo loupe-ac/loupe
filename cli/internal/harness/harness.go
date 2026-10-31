@@ -115,6 +115,9 @@ type Output struct {
 	Calls             []stream.Call
 	Timing            stream.Timing
 	PeakContextTokens *int64
+	// AssistantTurns counts the turns of the agent in the run. It is 0 when
+	// the harness does not count them.
+	AssistantTurns int
 	// HarnessVersion is the version of the harness binary that ran, and
 	// SkillVersion the version of the Loupe plugin it loaded. Either is empty
 	// when the run did not say.

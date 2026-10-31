@@ -93,6 +93,7 @@ runs to a page.
 | **Skipped** | the session already read its answers, so the bridge did not resume it |
 | **Preparing** | the bridge runs the `before` command of the rule, and the worker has not started |
 | **Running** | the worker runs |
+| **Stopped at a usage limit** | the agent account reached its usage limit, and the bridge gave the work back to Loupe. The work request is open again |
 | **Stopping** | a person asked the bridge to stop the run, and the worker is still ending |
 | **Stopped** | a person stopped the run, and the bridge does not resume it |
 | **Waiting for a person** | a bridge from before the workflow engine capped the run. The bridge no longer sends this state |
@@ -108,7 +109,7 @@ runs to a page.
 | **Lost** | the bridge reconnected, and it no longer holds the run |
 | **Closed** | the interactive session ended, a person closed it, its card moved to another column, or Loupe found no sign of life from it. The drawer shows the reason |
 
-Queued, Resumed, Preparing, Running and Stopping are open states. A bridge that dies cannot close
+Queued, Resumed, Preparing, Running, Stopping and Stopped at a usage limit are open states. A bridge that dies cannot close
 its runs, so Loupe closes them. **Timed out** is a guess: a bridge can go quiet
 and come back, and a later report from it replaces the guess. **Lost** is a
 fact: the bridge came back without the run, so the run can no longer end. See
@@ -136,6 +137,33 @@ A resume that a person or a closed ask sends runs on the agent account that the
 run started on. The bridge refuses it when that account is gone from its rule
 file, or names another agent tool. A retry of an **Unfinished** run uses the
 account that the rule names now.
+
+## Usage limits
+
+A usage limit of an agent account does not fail a run. The bridge reads the
+usage of the account while the run goes. When the run stops at a limit, the run
+ends in the state **Stopped at a usage limit**. The bridge then hands the work
+back to Loupe. The work request opens again, and Loupe spends no retry on it.
+
+The card shows **Waiting**. The marker names the account, the window, the use
+and the time of the reset, such as "claude · Week · 100 % · resets Sat 1 Nov at
+17:00". See [the usage-limit marker](workflows.md#markers).
+
+Loupe offers no work to an account that is at its hard limit. It also offers no
+new work to an account at or above its stop value. The stop value is 95 % of a
+window by default. Set `stopAt` on the account in `rules.yaml` to change it.
+Runs that already go continue at the stop value.
+
+The work starts again by itself in one of these cases:
+
+- The reset time of the account passes.
+- A new reading shows that the limit lifted early.
+- Another bridge has an account with room for the work. That bridge takes the
+  work at once.
+
+A run that did at least one assistant turn before the limit continues on its own
+bridge. The bridge resumes the same session, so the agent keeps its context. A
+run that did no work yet can start on any bridge with room.
 
 ## Stop, resume and cancel
 

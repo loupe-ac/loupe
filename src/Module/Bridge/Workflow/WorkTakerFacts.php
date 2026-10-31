@@ -34,6 +34,12 @@ final readonly class WorkTakerFacts
         return null === $this->withoutTaker() ? $this->earliest(WorkTakerState::Paused) : null;
     }
 
+    /** The reading of a request that waits for a usage limit, or null while another request has no taker at all. */
+    public function limited(): ?WorkTakerReading
+    {
+        return null === $this->withoutTaker() ? $this->earliest(WorkTakerState::Limited) : null;
+    }
+
     /** The time the first reading changes because its online bridge turns quiet. */
     public function changesAt(): ?\DateTimeImmutable
     {

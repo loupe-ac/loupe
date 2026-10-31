@@ -48,6 +48,7 @@ final class CardPauseTest extends KernelTestCase
         $request = $this->seedWorkRequest($em, $project, $cardId, 'tech-design');
         $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
         $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['tech-design']]];
         $em->flush();
 
         $this->pause($project, $cardId, $owner);
@@ -57,7 +58,7 @@ final class CardPauseTest extends KernelTestCase
         self::assertSame([], $repository->findOpenOffers(Uuid::v4(), [(string) $project->id], [Bridge::CAPABILITY_WORK_REQUESTS], 10, []));
         $claim = self::getContainer()->get(ClaimWorkRequestHandler::class);
         self::assertInstanceOf(ClaimWorkRequestHandler::class, $claim);
-        self::assertNull($claim(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.')))->request);
+        self::assertNull($claim(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.'), 'work'))->request);
         $em->clear();
         self::assertSame(WorkRequestState::Cancelled, $em->find(WorkRequest::class, $request->id)?->state);
     }

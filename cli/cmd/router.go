@@ -73,6 +73,10 @@ type router struct {
 	// accountUsage reads the usage of the account of each live run. A nil
 	// one reads nothing.
 	accountUsage *usage.Collector
+	// blocked is the accounts Loupe blocks. skips holds the offers the bridge
+	// skipped for them, until a heartbeat carries them.
+	blocked blockedSet
+	skips   skipLog
 	// hostSampling and hostInterval are the host sampling flags, under mu.
 	hostSampling bool
 	hostInterval time.Duration
@@ -315,6 +319,9 @@ type pending struct {
 	// none, and reports nothing.
 	work       api.WorkRequest
 	claimToken string
+	// account is the account the bridge matched for the work request, and the
+	// claim names it.
+	account string
 	// origin is the work of the run that a person's resume or rerun
 	// continues. Such a run claims nothing and settles no request.
 	origin api.WorkRequest
@@ -1347,7 +1354,9 @@ func (r *router) trackLocked(run liveRun) {
 func (r *router) settle(p pending, e endedRun) {
 	r.quiesce.RLock()
 	defer r.quiesce.RUnlock()
-	r.accountUsage.Finish(p.runID, time.Now())
+	if limited := limitedOf(r.accountUsage.Finish(p.runID, time.Now())); limited != nil {
+		e.res.limit = limited
+	}
 	done := func() {
 		r.end(p, e)
 		r.sendToolCalls(p, e.res)
@@ -1451,13 +1460,13 @@ func (r *router) end(p pending, e endedRun) {
 	r.emitLocked(p, r.outcome(p, e))
 	delete(r.running, p.key)
 	r.freeLocked(p)
-	state, why, post := r.workResultLocked(p, e.res, shut || r.shut())
+	st, post := r.workResultLocked(p, e.res, shut || r.shut())
 	dropped := r.dispatchLocked()
 	r.mu.Unlock()
 
 	r.logDropped(dropped)
 	if post {
-		r.settleWork(p, state, why)
+		r.settleWork(p, st)
 	}
 }
 

@@ -9,7 +9,8 @@ use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 
 /**
  * The settled request, or the reason the bridge cannot settle it. $settled is
- * false when the same result came again and changed nothing.
+ * false when the same result came again and changed nothing. $handedBack is
+ * true when the bridge gave the request back and it opened again.
  */
 final readonly class SettleWorkRequestResult
 {
@@ -17,6 +18,7 @@ final readonly class SettleWorkRequestResult
         public ?WorkRequest $request,
         public bool $settled = false,
         public ?WorkRequestRefusal $refusal = null,
+        public bool $handedBack = false,
     ) {
     }
 }
