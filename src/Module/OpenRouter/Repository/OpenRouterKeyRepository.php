@@ -8,6 +8,8 @@ use App\Module\OpenRouter\Entity\OpenRouterKey;
 use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\OpenRouter\View\OpenRouterKeySummary;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -80,6 +82,31 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
     public function deleteReturningIdForProject(Uuid $projectId): ?Uuid
     {
         return $this->deleteReturningId('project_id', $projectId);
+    }
+
+    /**
+     * Records one health reading of the key under a row lock, so concurrent reads
+     * change the key in turn. Returns the state before the reading, or null when the key is gone.
+     */
+    public function recordHealth(Uuid $keyId, bool $refused, \DateTimeImmutable $now): ?OpenRouterKeyState
+    {
+        return $this->getEntityManager()->getConnection()->transactional(static function (Connection $connection) use ($keyId, $refused, $now): ?OpenRouterKeyState {
+            $id = $keyId->toRfc4122();
+            $before = $connection->fetchOne('SELECT state FROM openrouter_keys WHERE id = :id FOR UPDATE', ['id' => $id]);
+            if (false === $before) {
+                return null;
+            }
+
+            $connection->executeStatement(
+                $refused
+                    ? "UPDATE openrouter_keys SET state = 'refused', refused_since = :now WHERE id = :id AND state = 'working'"
+                    : "UPDATE openrouter_keys SET state = 'working', refused_since = NULL, last_read_at = :now WHERE id = :id",
+                ['id' => $id, 'now' => $now],
+                ['now' => Types::DATETIME_IMMUTABLE],
+            );
+
+            return OpenRouterKeyState::from((string) $before);
+        });
     }
 
     /**

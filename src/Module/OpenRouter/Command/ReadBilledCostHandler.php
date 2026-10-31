@@ -22,7 +22,6 @@ use App\Module\OpenRouter\Service\OpenRouterCostOutcome;
 use App\Module\OpenRouter\Service\OpenRouterCostReading;
 use App\Module\OpenRouter\Service\OpenRouterKeyChangedPublisher;
 use App\Module\OpenRouter\Service\OpenRouterKeyResolver;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -44,7 +43,6 @@ final readonly class ReadBilledCostHandler
         private OpenRouterAnalytics $analytics,
         private RecordBilledCostHandler $recordBilledCost,
         private OpenRouterKeyChangedPublisher $keyChanged,
-        private EntityManagerInterface $em,
         private MessageBusInterface $bus,
         private EventDispatcherInterface $events,
         private ClockInterface $clock,
@@ -120,31 +118,23 @@ final readonly class ReadBilledCostHandler
         $keyId = $key->id ?? throw new \LogicException('A stored key has an id.');
         $projectId = $row->project->requireId();
         $forProject = null !== $key->project;
-
-        if (OpenRouterCostOutcome::Refused === $reading->outcome) {
-            if (OpenRouterKeyState::Working === $key->state) {
-                $key->state = OpenRouterKeyState::Refused;
-                $key->refusedSince = $this->clock->now();
-            }
-            $this->em->flush();
-            $this->keyChanged->changed($key->project ?? $row->project->owner);
-            $this->events->dispatch(new OpenRouterKeyRefused($keyId, $forProject, $projectId));
-
+        $refused = OpenRouterCostOutcome::Refused === $reading->outcome;
+        if (!$refused && !$reading->outcome->keyWorked()) {
             return;
         }
 
-        if (!$reading->outcome->keyWorked()) {
-            return;
-        }
+        // The stored state, never the loaded entity, decides the change, because a concurrent read may have changed it.
+        $before = $this->openRouterKeys->recordHealth($keyId, $refused, $this->clock->now());
+        $event = match (true) {
+            null === $before => null,
+            $refused => new OpenRouterKeyRefused($keyId, $forProject, $projectId),
+            OpenRouterKeyState::Refused === $before => new OpenRouterKeyWorks($keyId, $forProject, $projectId),
+            default => null,
+        };
 
-        $changed = OpenRouterKeyState::Refused === $key->state;
-        $key->state = OpenRouterKeyState::Working;
-        $key->refusedSince = null;
-        $key->lastReadAt = $this->clock->now();
-        $this->em->flush();
-        if ($changed) {
+        if (null !== $event) {
             $this->keyChanged->changed($key->project ?? $row->project->owner);
-            $this->events->dispatch(new OpenRouterKeyWorks($keyId, $forProject, $projectId));
+            $this->events->dispatch($event);
         }
     }
 }
