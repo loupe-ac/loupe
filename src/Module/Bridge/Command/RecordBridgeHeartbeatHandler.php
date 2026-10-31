@@ -90,7 +90,7 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $usageChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
@@ -127,11 +127,13 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->workerPools = $command->workerPools;
                 $bridge->workerPoolsReportedAt = $now;
             }
+            $usageChanged = null !== $command->accounts && $bridge->accounts !== $command->accounts;
             if (null !== $command->accounts) {
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
             }
             $readingsStored = $this->recordAccountReadings($bridge, $command->accountReadings);
+            $usageChanged = $readingsStored || $usageChanged;
             if (null !== $command->commandEntries) {
                 $bridge->commandEntries = $command->commandEntries;
                 $bridge->commandEntriesReportedAt = $now;
@@ -219,6 +221,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $followed,
                 $wasQuiet,
                 $availabilityChanged,
+                $usageChanged,
                 $readingsStored,
             ];
         });
@@ -240,9 +243,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // The Agents pill of the sidebar sums the pools of the live bridges that follow a project, so it reloads
         // when the pools change, the bridge follows another set or comes back from quiet, on the projects it left as well.
+        // The Agents page also draws the usage bars, so it reloads when the accounts or their readings change.
         $followedChanged = [] !== array_diff($followedBefore, $projects) || [] !== array_diff($projects, $followedBefore);
         $cameBack = $wasQuiet && null !== $bridge->workerPools;
-        if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack) {
+        if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack || $usageChanged) {
             foreach ($this->projects->findOwnedBy($command->owner, array_values(array_unique([...$followedBefore, ...$projects]))) as $project) {
                 $this->runsChanged->runsChanged($project);
             }
@@ -320,14 +324,14 @@ final readonly class RecordBridgeHeartbeatHandler
      *
      * @param list<AccountReadingReport> $reports
      *
-     * @return bool whether it stored at least one reading
+     * @return bool whether a reading was stored
      */
     private function recordAccountReadings(Bridge $bridge, array $reports): bool
     {
         if ([] === $reports) {
             return false;
         }
-        $persisted = false;
+        $changed = false;
 
         $latest = [];
         foreach ($this->bridgeAccountReadings->latestOfBridge($bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.'), $bridge->id) as $stored) {
@@ -343,10 +347,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
             $latest[$key] = $report;
             $this->em->persist(new BridgeAccountReading(Uuid::v7(), $bridge, $report->account, $report->window, $report->usedPercent, $report->resetsAt, $report->limited, $report->source, $report->readAt));
-            $persisted = true;
+            $changed = true;
         }
 
-        return $persisted;
+        return $changed;
     }
 
     /** A live process is a sign of life now. Otherwise the transcript time counts, never later than now. */
