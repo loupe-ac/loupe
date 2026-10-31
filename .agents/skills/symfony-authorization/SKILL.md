@@ -7,9 +7,9 @@ description: "Use when writing or changing Symfony access control: Voter classes
 
 Voter classes hold the policy. Controllers and templates express intent through action-semantic attributes. Project hard rules sit on top of this layer in `project-authz`. Read both skills when you touch access control in this repo.
 
-## Attributes are actions, not properties
+## Attributes name actions
 
-An attribute names what the caller tries to do. It never names a property of the user: write `'project.create'`, not `IS_ORG_OWNER`. The policy ("only the org owner may do this") lives inside the voter, and can change without touching a call site.
+An attribute names what the caller tries to do. It never names a property of the user. Write `'project.create'`, and never `IS_ORG_OWNER`. The policy ("only the org owner may do this") lives inside the voter, and can change without touching a call site.
 
 Name every attribute `{resource}.{action}` in lower-case, dot-separated form. Write the resource noun singular, then the action verb: `'project.create'`, `'project.manage'`, `'issue.view'`, `'workspace.manage'`, `'organization.configure'`. Mirror it in the PHP constant as `{RESOURCE}_{ACTION}`: `PROJECT_CREATE`, `ISSUE_VIEW`, `WORKSPACE_MANAGE`. The action half is a verb for what the caller does: `create`, `list`, `view`, `manage`, `configure`.
 
@@ -19,7 +19,7 @@ Name every attribute `{resource}.{action}` in lower-case, dot-separated form. Wr
 
 Separate READ from WRITE actions per resource. Define separate constants even when today's policy grants both to the same role. Use `ISSUE_VIEW` for read-only GET endpoints, and `ISSUE_MANAGE` for state-changing POST/PUT/DELETE endpoints.
 
-A write permission on a read endpoint is harmless. A read permission on a write endpoint is a security gap. Rule of thumb: GET takes `*_VIEW` or `*_LIST`, POST/PUT/DELETE takes `*_MANAGE`. `configure` is an accepted write-side action for settings-style resources, such as `ORGANIZATION_CONFIGURE`.
+A write permission on a read endpoint is harmless. A read permission on a write endpoint is a security gap. As a rule of thumb, GET takes `*_VIEW` or `*_LIST`, and POST/PUT/DELETE takes `*_MANAGE`. `configure` is an accepted write-side action for settings-style resources, such as `ORGANIZATION_CONFIGURE`.
 
 ## The shape of a Voter
 
@@ -47,13 +47,13 @@ final class OrganizationVoter extends Voter
 }
 ```
 
-- `supports()` must check both the attribute and the subject type. A voter that returns `true` for a subject it does not understand votes on checks it knows nothing about. At best you get a spurious deny. At worst `voteOnAttribute()` hits a type error on an unexpected subject.
+- `supports()` must check both the attribute and the subject type. A voter that returns `true` for a subject it does not understand votes on checks it knows nothing about. The result is a spurious deny, or a type error in `voteOnAttribute()` on an unexpected subject.
 - The `@extends Voter<attribute-union, subject-union>` PHPDoc is load-bearing. PHPStan uses it to narrow `$attribute` and `$subject` inside `voteOnAttribute()`. When you add a constant, add its string to the union.
 - Deny by returning `false`. Log denials with a reason so 403s are debuggable.
 
 ## `#[IsGranted]` placement and subject
 
-Controllers declare access with the attribute. Never call `denyAccessUnlessGranted()` in the controller body; `project-authz` documents the one exception. On a single-`__invoke()` controller, put the attribute on the class, next to `#[Route]`. gamache's `controller.isGrantedNotClassLevel` rule fails a method-level `#[IsGranted]`. The `subject:` still resolves from the controller arguments either way.
+Controllers declare access with the attribute. Never call `denyAccessUnlessGranted()` in the controller body. `project-authz` documents the one exception. On a single-`__invoke()` controller, put the attribute on the class, next to `#[Route]`. gamache's `controller.isGrantedNotClassLevel` rule fails a method-level `#[IsGranted]`. The `subject:` still resolves from the controller arguments either way.
 
 ```php
 // On the class, next to #[Route]
@@ -65,33 +65,33 @@ class SyncWorkspaceController extends AppController
 class CreateProjectController extends AppController
 ```
 
-`subject: 'org'` references the controller method parameter by name. The EntityValueResolver resolves that parameter to an entity first, then hands it to the voter as `$subject` (see `symfony-entity-route-mapping`). That ordering has these effects:
+`subject: 'org'` references the controller method parameter by name. The EntityValueResolver resolves that parameter to an entity first, then hands it to the voter as `$subject` (see `symfony-entity-route-mapping`). That order has these effects:
 
 - A non-existent entity returns 404 before the voter runs. A denied vote returns 403 (`AccessDeniedException`).
 - `subject:` by name can only reference a resolved controller argument. This project resolves entities from route parameters, so a subject that exists only as a *query* parameter has no argument to reference. That is why the `project-authz` exception exists.
 
 ## Voter scope, or which voter owns an action
 
-The `{resource}` half of the attribute names the thing acted on, which is not always the voter's subject type. `OrganizationVoter::PROJECT_CREATE` guards creating projects inside an org, so its subject is the `Organization`. Issue-level and workspace-level actions live in `ProjectVoter`. That voter accepts the most-specific entity available in the route (`Project|Workspace|Repository|Issue`), then walks up to the owning project to apply the policy.
+The `{resource}` half of the attribute names the thing acted on. That thing is not always the voter's subject type. `OrganizationVoter::PROJECT_CREATE` guards creating projects inside an org, so its subject is the `Organization`. Issue-level and workspace-level actions live in `ProjectVoter`. That voter accepts the most-specific entity available in the route (`Project|Workspace|Repository|Issue`). It then walks up to the owning project to apply the policy.
 
-Rule: the `#[IsGranted]` `subject:` must reference the most-specific resource in the route. Never check a project-scoped action against an org subject. That skips the project-level ownership chain.
+The `#[IsGranted]` `subject:` must reference the most-specific resource in the route. Never check a project-scoped action against an org subject, because that skips the project-level ownership chain.
 
 ## Keep the attribute-to-class pairing through a merge
 
 An agent can keep every attribute string and still change which class each attribute votes on. The pairing is the security property, and only `supports()` records it.
 
-The MCP scoping voters in this repo show two shapes. One pairs each attribute with a single concrete class through a `match`. `document.mcp_read` and `document.mcp_write` vote on `Document` only. `comment.mcp_read` and `comment.mcp_write` vote on `Comment` only. `series.mcp_write` votes on `Series` only. Another tests the attribute with `in_array` and the subject with `instanceof` against `Project` and `SiteReviewComment`, so both of its attributes vote on both classes.
+The MCP scoping voters in this repo show both shapes. One pairs each attribute with a single concrete class through a `match`. `document.mcp_read` and `document.mcp_write` vote on `Document` only. `comment.mcp_read` and `comment.mcp_write` vote on `Comment` only. `series.mcp_write` votes on `Series` only. Another tests the attribute with `in_array` and the subject with `instanceof` against `Project` and `SiteReviewComment`, so both of its attributes vote on both classes.
 
 Use `in_array` when every attribute votes on every listed class. Use a `match` when the attributes accept different classes.
 
 A merge that produces one voter accepting any `.mcp_read` attribute, on any subject with a marker interface, keeps every attribute string. That voter also supports `document.mcp_read` on a `Series`. Today `supports()` returns `false` for that pair, the voter abstains, and the decision manager denies. The merged voter grants it whenever the `Series` belongs to the bound project.
 
 - A subject that implements the marker interface is not grounds to vote. Keep an explicit map from each attribute to the classes it may vote on. Reproduce that map exactly when you merge voters.
-- Test the denials, not only the grants. A widening leaves every grant test green, so a suite that asserts grants alone cannot see it. Write one denial test for each attribute-and-class pair that must stay refused.
+- Test the denials as well as the grants. A widening leaves every grant test green, so a suite that asserts grants alone cannot see it. Write one denial test for each attribute-and-class pair that must stay refused.
 
 The `@extends Voter<...>` PHPDoc lists the attributes and the subjects as two independent unions, so PHPStan cannot check the pairing.
 
-A missing or misspelled attribute fails closed, and the 403 is loud. The dangerous direction is widening, which is why the review effort belongs on `supports()`.
+A missing or misspelled attribute fails closed, and the 403 is loud. The dangerous direction is widening, so put the review effort on `supports()`.
 
 ## `is_granted()` in Twig
 
@@ -103,16 +103,16 @@ Templates run the same check with the same constants. Use `constant()` so the at
 
 ## Renaming an attribute
 
-Update all four places, then grep.
+Update each of these places, then grep.
 
 1. The constant name.
 2. Its string value.
 3. The `@extends Voter<...|'old-value'|..., Subject>` PHPDoc union.
 4. Every `#[IsGranted(Voter::OLD_CONSTANT, ...)]` reference.
 
-PHPStan catches a stale constant-name reference. It does not catch a stale string literal in the docblock union, nor an `is_granted('old-value')` call written as a literal. After the rename, run `grep -rn "'old-string-value'" .` across all file types to confirm no literal survived. Check templates, YAML and JS, not just PHP.
+PHPStan catches a stale constant-name reference. It does not catch a stale string literal in the docblock union, nor an `is_granted('old-value')` call written as a literal. After the rename, run `grep -rn "'old-string-value'" .` across all file types to confirm no literal survived. Check templates, YAML and JS as well as PHP.
 
 ## Cross-references
 
-- `project-authz`: project hard rules, the `IS_AUTHENTICATED_FULLY` ban, the documented `denyAccessUnlessGranted()` exception, Mercure SSE cookie authorization.
-- `symfony-entity-route-mapping`: how the `subject:` parameter resolves from the URL (`{param:variable}`, `#[MapEntity]`, parent-scoped lookups).
+- `project-authz` carries the project hard rules, the `IS_AUTHENTICATED_FULLY` ban, the documented `denyAccessUnlessGranted()` exception and Mercure SSE cookie authorization.
+- `symfony-entity-route-mapping` says how the `subject:` parameter resolves from the URL (`{param:variable}`, `#[MapEntity]`, parent-scoped lookups).
