@@ -151,7 +151,7 @@ final readonly class ItemActions
     public function runCommandCardId(InboxItem $item): ?Uuid
     {
         if ($item->isAutomatic()) {
-            return ($this->watchOf($item))?->cardId;
+            return $this->watchOf($item)?->cardId;
         }
 
         return self::onlyCardOf($item);

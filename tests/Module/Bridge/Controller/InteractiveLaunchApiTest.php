@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Controller;
 
 use App\Module\Bridge\Entity\WorkerRun;
-use App\Module\Inbox\Entity\InboxAskOrigin;
-use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
