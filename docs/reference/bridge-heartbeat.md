@@ -627,8 +627,8 @@ A second task runs each minute and expires each open request about a subject
 other than a card that no bridge claimed within 2 hours. A reopen starts the
 wait again. `app.bridge.subject_work_timeout_minutes` in the same file sets the
 wait, and `app:expire-subject-work-requests` runs the same sweep once by hand.
-The workflow expires the open requests of a card by the work timeout of its
-template.
+An open request of a card has no time limit. It waits until a bridge claims it
+or its rule cancels it.
 
 The claim stays with its holder after `leaseUntil` passes, until that task
 opens the request again. Until then, the holder can still renew or settle the

@@ -126,7 +126,6 @@ final class TemplateParserTest extends TestCase
                 ['from' => '@backlog', 'to' => 'review', 'by' => 'parent-run'],
             ],
             'backoffMinutes' => [10, 60],
-            'workTimeoutMinutes' => 120,
             'rules' => [
                 [
                     'id' => 'start',
@@ -206,7 +205,6 @@ final class TemplateParserTest extends TestCase
         self::assertSame('workflow.slot.review', $template->slot('review')?->label);
         self::assertNull($template->slot('nowhere'));
         self::assertSame([10, 60], $template->backoffMinutes);
-        self::assertSame(120, $template->workTimeoutMinutes);
         self::assertSame('@backlog', $template->manualMoves[0]->from);
         self::assertSame('build', $template->manualMoves[0]->to);
         self::assertNull($template->manualMoves[0]->by);
@@ -708,14 +706,6 @@ final class TemplateParserTest extends TestCase
         self::assertSame('groom-card', $this->parser->parseStored($template)->rules[0]->lead->params['prompt']);
     }
 
-    public function test_a_request_can_expire_with_no_pause(): void
-    {
-        $template = self::valid();
-        $template['rules'][0]['then'] = ['request' => ['kind' => 'teardown', 'onTimeout' => 'expire']];
-
-        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $this->parser->parse($template)->rulesFor('build')[0]->lead->params);
-    }
-
     public function test_a_request_can_name_a_document_by_tag(): void
     {
         $template = self::valid();
@@ -963,10 +953,10 @@ final class TemplateParserTest extends TestCase
     public static function refusals(): iterable
     {
         yield 'missing top-level key' => [static function (array $t): array {
-            unset($t['workTimeoutMinutes']);
+            unset($t['backoffMinutes']);
 
             return $t;
-        }, 'workTimeoutMinutes: is missing'];
+        }, 'backoffMinutes: is missing'];
         yield 'wrongly typed version' => [static fn (array $t): array => ['version' => '1'] + $t, 'version: must be an integer'];
         yield 'wrongly typed key' => [static fn (array $t): array => ['key' => ''] + $t, 'key: must be a non-empty string'];
         yield 'slots not a list' => [static fn (array $t): array => ['slots' => 'build', 'manualMoves' => [], 'rules' => []] + $t, 'slots: must be a list'];
@@ -984,7 +974,6 @@ final class TemplateParserTest extends TestCase
         yield 'retry policy with no delays' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1]] + $t, 'onWorkFailed.backoffMinutes: must be a list of positive integers'];
         yield 'retry policy with a zero delay' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [0]]] + $t, 'onWorkFailed.backoffMinutes: must be a list of positive integers'];
         yield 'retry policy with a text delay' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => 'x']] + $t, 'onWorkFailed.backoffMinutes: must be a list of positive integers'];
-        yield 'wrongly typed work timeout' => [static fn (array $t): array => ['workTimeoutMinutes' => 0] + $t, 'workTimeoutMinutes: must be a positive integer'];
 
         yield 'missing types' => [static function (array $t): array {
             unset($t['types']);
@@ -1386,11 +1375,11 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) then.forge-write: parameter "methods" must be a non-empty list of non-empty strings'];
-        yield 'unknown work timeout behaviour' => [static function (array $t): array {
-            $t['rules'][0]['then']['request']['onTimeout'] = 'drop';
+        yield 'the removed work timeout behaviour' => [static function (array $t): array {
+            $t['rules'][0]['then']['request']['onTimeout'] = 'expire';
 
             return $t;
-        }, 'rules[0] (start) then.request: parameter "onTimeout" must be one of pause, expire'];
+        }, 'rules[0] (start) then.request: unknown parameter "onTimeout"'];
         yield 'a document that is not a map' => [static function (array $t): array {
             $t['rules'][0]['then']['request']['document'] = 'design';
 

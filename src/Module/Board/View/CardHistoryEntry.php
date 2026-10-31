@@ -203,7 +203,6 @@ final readonly class CardHistoryEntry
                 PauseKind::Rule => 'board.card.history.pause_kind.rule',
                 PauseKind::Retries => 'board.card.history.pause_kind.retries',
                 PauseKind::WorkLimit => 'board.card.history.pause_kind.work_limit',
-                PauseKind::WorkTimeout => 'board.card.history.pause_kind.work_timeout',
                 PauseKind::WorkStopped => 'board.card.history.pause_kind.work_stopped',
             })]),
             match (true) {

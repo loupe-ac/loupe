@@ -16,7 +16,6 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\WorkHolds;
-use App\Module\Workflow\Contract\WorkTimeouts;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -175,7 +174,6 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
             $this->service(WorkRequestRepository::class),
             $this->withdraw($subjects),
             new MockClock(self::NOW),
-            $this->service(WorkTimeouts::class),
             120,
         );
     }

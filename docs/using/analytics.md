@@ -269,7 +269,7 @@ time it started.
 | **Running** | A bridge claimed the work, and the agent runs |
 | **Done** | The agent sent its report |
 | **Failed** | The work ended with no report. The reason follows the state |
-| **Paused** | No bridge took the work before the work timeout. Nothing runs it again |
+| **Paused** | No bridge took the work within 2 hours. Nothing runs it again |
 
 A failed analysis shows one of these reasons:
 
