@@ -1,16 +1,20 @@
 ---
 title: "Analytics: Metrics and Reports"
-description: "The Metrics tab of the Analytics page, which charts how the agents of a project perform over time, the Time buckets tab, and the Reports tab, where an agent explains the cost and the time."
+description: "The Dashboard and Metrics tabs of the Analytics page, which chart how the agents of a project perform over time and compare a period with the one before, the Time buckets tab, and the Reports tab, where an agent explains the cost and the time."
 ---
 
 The **Metrics** tab of the project's **Analytics** page charts one metric of the
 agents over time. It reads the [worker runs](worker-runs.md) that a bridge
-reports, and the cards that they finish. The **Experiments** tab compares the
-variants of each [experiment](experiments.md). On the [Reports](#reports) tab,
-an agent analyses the runs and proposes changes.
+reports, and the cards that they finish. You can compare the chart with the
+previous period, and save it as a tile of the [Dashboard](#the-dashboard). The
+**Experiments** tab compares the variants of each [experiment](experiments.md).
+On the [Reports](#reports) tab, an agent analyses the runs and proposes changes.
 
-Open **Analytics** in the project sidebar, or go to
-`/projects/{project}/analytics/metrics`. Only the project owner can open it.
+The tabs are **Dashboard**, **Metrics**, **Experiments**, **Reports** and **Time
+buckets**. Open **Analytics** in the project sidebar. It opens the Dashboard
+when the project has a saved graph, and the Metrics tab when it has none. The
+Metrics tab is at `/projects/{project}/analytics/metrics`. Only the project
+owner can open Analytics.
 
 ## The controls
 
@@ -23,8 +27,13 @@ again when you change a control. Without JavaScript, press **Apply**.
 | Unit | **Per run** or **Per finished card** | **Per finished card** |
 | Statistic | **Median**, **Mean**, **Sum**, **90th percentile** or **Count** | **Median** |
 | Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version**, **By plugin version** or **No grouping** | **No grouping** |
-| Range | **30 days**, **90 days** or **All time** | **90 days** |
+| Range | **7 days**, **30 days**, **90 days** or **All time** | **90 days** |
 | Bucket | **Per day**, **Per week** or **Per month** | **Per week** |
+| Compare to | **Off** or **Previous period** | **Off** |
+| Chart | **Line**, **Bars**, **Stacked bars**, **100% stacked**, **Donut** or **Number** | **Line** |
+
+The title above the chart names the graph in words, such as "Cost per finished
+card, median, last 90 days, per week".
 
 A control lists only the values that its metric allows. An unknown value in the
 address takes the default. A value that the metric does not allow takes the
@@ -72,6 +81,9 @@ not counted.
 | **Time in &lt;bucket&gt;** | the tool time of a run in one [time bucket](#time-buckets), such as **Time in git** | run, card |
 | **Time in &lt;bucket&gt;, subagents included** | the tool time of a run in one time bucket, with the calls of subagents | run, card |
 | **Calls in &lt;bucket&gt;** | the number of tool calls of a run in one time bucket, subagent calls included | run, card |
+| **Time in each bucket** | the tool time of the main session, with one line for each time bucket | run, card |
+| **Time in each bucket, subagents included** | the tool time with the calls of subagents, with one line for each time bucket | run, card |
+| **Calls in each bucket** | the number of tool calls, subagent calls included, with one line for each time bucket | run, card |
 | **Harness events: &lt;kind&gt;** | the number of [harness events](#harness-events) of one kind in a run, such as **Harness events: diagnostics** | run, card |
 
 The workflow template of the project can declare more metrics. They appear
@@ -101,6 +113,12 @@ call that has no duration. Their keys are `bucket-time-all:<name>` and
 `bucket-calls:<name>`. A run that Loupe has not computed since these metrics
 came has no value for them. Run `php bin/console app:bridge:recompute-bucket-times`
 once to fill them for past runs. It queues one computation for each project.
+
+The three **in each bucket** metrics take no group. Each time bucket of the
+project is one line of the chart. A run that did not touch a bucket counts 0 in
+it, so the mean values of the lines add up to the mean value of the whole. Use
+them with **Stacked bars** to see the absolute time of each bucket, and with
+**100% stacked** or **Donut** to see the share of each bucket.
 
 ### Harness events
 
@@ -164,9 +182,13 @@ versions.
 The rows with no value for the group form the series **No group**, which comes
 last.
 
-The range is **30 days**, **90 days** or **All time**, back from now. A bucket
-starts at midnight UTC. A week starts on the ISO Monday, and a month starts on
-the first day of the month.
+The range is **7 days**, **30 days**, **90 days** or **All time**, back from
+now. A bucket starts at midnight UTC. A week starts on the ISO Monday, and a
+month starts on the first day of the month.
+
+The range **7 days** takes the bucket **Per day** alone. A range always counts
+back from now, so its first and last bucket are partial. Thus **7 days** per day
+can show up to 8 points. The other ranges take every bucket.
 
 ## The summary and the chart
 
@@ -174,14 +196,39 @@ The summary shows one figure for each series: the statistic over all the rows
 of the series in the range. Below the figure, it shows the number of rows in
 the series.
 
-The chart shows one bar for each bucket of each series. The bars of the series
-in a bucket stand side by side. The time axis shows only the buckets with rows.
-A legend names the series when there is more than one. With more than eight
-series, the first seven keep their colours, and the rest share one grey. The
-value axis of a rate stops at 100%, except with **Count**.
+The **Chart** control sets how the page draws the series. A legend under the
+chart names the series when there is more than one. With more than eight series,
+the first seven keep their colours, and the rest share one grey. The value axis
+of a rate stops at 100%, except with **Count**.
 
-Point at a bar, or move to it with the Tab key, to see its bucket, its series,
-its value and its number of rows with a known value.
+| Chart | What it shows |
+|---|---|
+| **Line** | one line for each series, with a point for each bucket |
+| **Bars** | one bar for each bucket of each series. The bars of the series in a bucket stand side by side |
+| **Stacked bars** | the series of a bucket stacked on each other, so the height is the total |
+| **100% stacked** | the same stack, scaled to 100%, so each band is a share |
+| **Donut** | one slice for each series over the whole range |
+| **Number** | the figure of the statistic, and its change when you compare |
+
+The time axis shows only the buckets with rows. **Stacked bars**, **100% stacked**
+and **Donut** add the series together. They need more than one series, from a
+group or from one of the **in each bucket** metrics. They also need a statistic
+that adds up: **Sum**, **Count**, or **Mean** of an **in each bucket** metric.
+A median, a 90th percentile and a rate never add up. The **Chart** control greys
+out a type that the graph cannot use, and a note under the controls says what
+unlocks it. A shared address with a locked type shows **Bars**, and the note
+reads **Switched to bars**.
+
+Point at a bucket, or move to it with the Tab key, to see its hover card. On a
+**Line**, **Bars** or stacked chart, the card shows the dates of the bucket, the
+value of each series, the value of the previous period when you compare, and the
+total when the values add up. On a **Donut**, the card shows the share and the
+value of one slice. **Number** has no hover card.
+
+Under every chart except **Number**, a table lists each series with its value,
+its share when the values add up, and its change when you compare. The table
+holds every number of the chart, so a page with no JavaScript loses only the
+hover card.
 
 ## Unknown values
 
@@ -194,6 +241,111 @@ shows **unknown** as its figure. With **Count**, it shows 0.
 When no row falls in the range, the page shows **No runs are recorded yet**. The
 chart fills when a bridge reports worker runs. Connect a bridge on the Agents
 page, or pick a longer range.
+
+## Compare with the previous period
+
+Set **Compare to** to **Previous period** to read the range against the period
+of the same length just before it. Both periods count back from the moment the
+page loads. With **30 days** at noon on 29 October, the current period starts at
+noon on 29 September, and the previous period starts at noon on 30 August.
+**All time** has no previous period, so **Compare to** stays **Off** for it.
+
+The **Line** chart draws the previous period as a faded, dashed copy of each line
+over the same dates, with a **Previous period** entry in the legend. **Number**
+shows the change under the figure. The other chart types show the current
+period only, and a note says that the table holds the previous period.
+
+Each series gets a change figure, such as "↓ 14%". A rate shows its change in
+percentage points, such as "↑ 3 pts". When the previous value is 0, the figure
+is the difference in the unit of the metric, such as "↑ $1.20". Every change has
+the same colour, because a rise is good for some metrics and bad for others.
+
+### The real-or-noise sign
+
+Each change of **Median**, **Mean**, **90th percentile** or a rate carries a
+sign that says whether the change is real or noise. **Sum** and **Count** show
+the change and no sign, because they measure how much work ran.
+
+| Sign | Meaning |
+|---|---|
+| **Clear** | the likely ranges of the two periods do not overlap, so the change is real |
+| **Not clear yet** | the likely ranges overlap, so the change can be noise |
+| **Not enough cards** | a period has fewer than 5 finished cards with a known value |
+
+The likely range of a period is the range that holds the true value in 95 cases
+out of 100. Loupe computes it by resampling the finished cards, with a fixed
+seed, so a page shows the same sign on every load. A per-run graph resamples
+whole cards with all their runs, because the runs of one card are not
+independent. A rate uses the formula of a rate. Hover on the sign to read the
+likely range and the card count of each period.
+
+A steady metric never reads **Clear**, however many cards it has, because the
+sign answers whether the change is real. Read the likely ranges on hover to see
+that a metric is steady.
+
+A graph with many series widens each likely range, as on the
+[Experiments](experiments.md) page, so a sign on such a graph reads **Clear**
+more rarely. A row with an unknown value stays out of the likely range and out
+of the card count. The first weeks after a project starts have no previous
+period, so the change is empty and the sign reads **Not enough cards**.
+
+## Save a graph to the Dashboard
+
+Press **Save to dashboard** on the Metrics tab to keep the graph. A **Name**
+field opens, filled with the title of the graph. You can edit the name. An empty
+name takes the title. Two graphs can share a name. After the save, a notice links
+to the Dashboard.
+
+A saved graph keeps the metric, the statistic, the unit, the group, the range,
+the bucket, the compare and the chart type. The range stays rolling, so **30
+days** always means the last 30 days up to now.
+
+The Dashboard holds 12 graphs. At the limit, **Save to dashboard** is greyed out
+with the reason. An operator changes the limit with the
+`insights.dashboard_graph_cap` feature flag at `/admin/feature-flags`.
+
+## The Dashboard
+
+The **Dashboard** tab shows the saved graphs of the project in a grid of two
+columns. Each tile shows the name, a line with its settings, such as "Median ·
+90 days · per week · line", the chart and its legend. A tile is half width or
+full width. A dashed **Add a graph** tile follows the last tile, and it opens
+the Metrics tab.
+
+A project with no saved graph shows **No graphs on the Dashboard yet**, with a
+**Build a graph** button and three starting points: **Cost per finished card**,
+**Where the time goes** and **Stop rate by stage**. Each one opens the Metrics
+tab already set up, and saves nothing.
+
+The menu of a tile has these actions:
+
+| Action | Effect |
+|---|---|
+| **Open in Metrics** | opens the Metrics tab with the settings of the graph, in edit mode |
+| **Rename** | changes the name |
+| **Half width**, **Full width** | changes the width of the tile |
+| **Show legend**, **Hide legend** | switches the legend |
+| **Move up**, **Move down** | moves the tile one place. You can also drag a tile |
+| **Remove from the Dashboard** | asks first, then removes the tile |
+
+After a removal, a notice offers **Undo**, which puts the tile back in its place.
+The graph stays removable for one day. **Undo** checks the limit of 12 graphs, so
+it refuses when the Dashboard is full.
+
+In edit mode, a banner names the saved graph. **Save changes** updates it, and
+**Save as new graph** saves a copy. When you leave with unsaved changes, a dialog
+asks you to discard them.
+
+A tile whose metric is gone reads **This graph cannot load**. It names what is
+gone, such as a time bucket that a bucket rule change removed, or a metric that
+the workflow template dropped. It offers **Open in Metrics** and **Remove**. The
+tile draws again when the metric comes back.
+
+The Dashboard keeps the result of each graph for up to 15 minutes, and a line
+under the tabs reads "Updated 4 min ago". The Metrics tab always computes live.
+When you save, edit, rename, resize, move or remove a graph in another tab, an
+open Dashboard follows the change at once, if the instance runs live updates.
+The numbers refresh on the next load.
 
 ## Share a view
 
@@ -210,6 +362,11 @@ the old address stay when the page knows them.
 The MCP tool `metric_query` returns the same numbers as this page, and
 `metric_list` lists the metrics, with one `harness-events:<kind>` entry for each kind of the project. See [the MCP tools](mcp.md#what-the-tools-do).
 Over the MCP, the group of a bridge is its id, and the page shows its name.
+
+`metric_query` takes the range `seven-days` and the argument `compare`, which is
+`off` or `previous`. With `previous`, each series also returns the previous
+total, the change, the likely ranges and the sign, as the Metrics tab shows
+them. [The MCP tools](mcp.md#what-the-tools-do) list the fields.
 
 ## Reports
 
