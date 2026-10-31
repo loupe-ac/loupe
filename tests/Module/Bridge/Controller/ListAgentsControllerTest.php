@@ -357,6 +357,8 @@ final class ListAgentsControllerTest extends WebTestCase
         $limited = $crawler->filter('[data-agent-usage="session"]');
         self::assertSame('At its limit', trim($limited->filter('[data-agent-usage-value]')->text()));
         self::assertSame('0', $limited->filter('progress')->attr('value'));
+        self::assertSame('at-limit', $limited->attr('data-agent-usage-state'));
+        self::assertStringContainsString('lp-usage-bar--limit', (string) $limited->attr('class'));
         $silent = $crawler->filter('[data-agent-usage="week"]');
         self::assertSame('Use not reported', trim($silent->filter('[data-agent-usage-value]')->text()));
         self::assertSame('0', $silent->filter('progress')->attr('value'));

@@ -1050,7 +1050,14 @@
     .lp-usage-bar--stop .lp-usage-bar__track::-moz-progress-bar {
         @apply bg-status-pending;
     }
-    /* At its limit: red. */
+    /* At its limit: red, also with no use value, where the fill is empty. */
+    .lp-usage-bar--limit .lp-usage-bar__value {
+        @apply text-status-danger-deep;
+    }
+    .lp-usage-bar--limit .lp-usage-bar__track,
+    .lp-usage-bar--limit .lp-usage-bar__track::-webkit-progress-bar {
+        @apply bg-status-danger-bg;
+    }
     .lp-usage-bar--limit .lp-usage-bar__track::-webkit-progress-value {
         @apply bg-status-danger;
     }
