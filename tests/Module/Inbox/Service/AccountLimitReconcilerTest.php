@@ -194,6 +194,26 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         self::assertSame([], $this->queuedPushes());
     }
 
+    public function test_a_card_that_no_longer_waits_leaves_the_title_the_body_and_the_links(): void
+    {
+        $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true);
+        $this->waitingRequest($this->card);
+        $ended = $this->waitingRequest($this->card($this->em, $this->project, 13));
+        $this->reconciler->reconcile($this->project);
+        self::assertStringContainsString('- Card 13:', $this->onlyEpisode()->item->body ?? '');
+
+        $ended->state = WorkRequestState::Cancelled;
+        $this->em->flush();
+        $this->reconciler->reconcile($this->project);
+
+        $item = $this->onlyEpisode()->item;
+        self::assertSame(InboxItemState::Open, $item->state);
+        self::assertSame('claude is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
+        self::assertStringContainsString('- Card 12:', $item->body ?? '');
+        self::assertStringNotContainsString('- Card 13:', $item->body ?? '');
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_item_cards WHERE item_id = :item', ['item' => (string) $item->id]));
+    }
+
     public function test_the_notice_closes_as_done_when_the_account_can_take_work_again(): void
     {
         $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true);

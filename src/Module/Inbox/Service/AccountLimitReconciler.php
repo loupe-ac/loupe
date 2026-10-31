@@ -215,16 +215,21 @@ final readonly class AccountLimitReconciler
     }
 
     /**
-     * Links the cards the item does not hold yet and writes its title and body again when a card
-     * joined or the text changed.
+     * Links the cards that wait now, unlinks the cards that no longer wait, and writes the title
+     * and body again when the text changed.
      *
      * @param array<string, Card> $cards
      */
     private function extend(InboxItem $item, AccountLimit $limit, array $cards, \DateTimeImmutable $now): bool
     {
         $linked = [];
-        foreach ($item->cards as $link) {
-            $linked[($link->card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122()] = true;
+        foreach ($item->cards->toArray() as $link) {
+            $cardId = ($link->card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122();
+            if (!isset($cards[$cardId])) {
+                $item->cards->removeElement($link);
+                continue;
+            }
+            $linked[$cardId] = true;
         }
         foreach ($cards as $cardId => $card) {
             if (!isset($linked[$cardId])) {

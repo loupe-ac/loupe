@@ -58,7 +58,8 @@ final readonly class TryNowOverrides
         $now = $this->clock->now();
         $closed = false;
         foreach ($this->bridgeAccountTryNows->findOpenOfBridge($bridge, $now) as $override) {
-            $answers = array_filter($reports, static fn (AccountReadingReport $report): bool => $report->account === $override->account && $report->readAt > $override->pressedAt);
+            // The press time holds whole seconds, so a reading of the press second may predate the press and never answers it.
+            $answers = array_filter($reports, static fn (AccountReadingReport $report): bool => $report->account === $override->account && self::whole($report->readAt) > $override->pressedAt);
             if ([] === $answers) {
                 continue;
             }
@@ -71,5 +72,10 @@ final readonly class TryNowOverrides
         }
 
         return $closed;
+    }
+
+    private static function whole(\DateTimeImmutable $moment): \DateTimeImmutable
+    {
+        return $moment->setTime((int) $moment->format('G'), (int) $moment->format('i'), (int) $moment->format('s'));
     }
 }

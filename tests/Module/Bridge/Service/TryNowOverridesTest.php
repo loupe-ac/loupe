@@ -132,6 +132,24 @@ final class TryNowOverridesTest extends KernelTestCase
         self::assertArrayNotHasKey('claude', $this->limits()->blockedOf($this->bridge));
     }
 
+    public function test_a_reading_of_the_press_second_does_not_close_the_override_because_it_may_predate_the_press(): void
+    {
+        $this->seedAccountReading($this->em(), $this->bridge, '2026-10-16 11:00:00', 'claude', 'week', 100.0, self::RESET, true);
+        $override = $this->press('claude');
+
+        $this->recorder()->record($this->bridge, [$this->report('claude', 'week', 100.0, true, '2026-10-16 12:00:00.400')]);
+        $this->em()->flush();
+
+        self::assertNull($override->closedAt);
+        self::assertArrayNotHasKey('claude', $this->limits()->blockedOf($this->bridge));
+
+        $this->clock->sleep(1);
+        $this->recorder()->record($this->bridge, [$this->report('claude', 'week', 100.0, true, '2026-10-16 12:00:01.000')]);
+        $this->em()->flush();
+
+        self::assertNotNull($override->closedAt, 'a reading of the next second answers the press');
+    }
+
     public function test_a_reading_of_another_account_does_not_close_the_override(): void
     {
         $this->seedAccountReading($this->em(), $this->bridge, '2026-10-16 11:00:00', 'claude', 'week', 100.0, self::RESET, true);
