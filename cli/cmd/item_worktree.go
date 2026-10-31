@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -352,17 +353,9 @@ func (t *itemSessions) adopt(dirs map[string]string) {
 
 				continue
 			}
-			t.tracked[path] = &itemEntry{path: path, projectDir: cmpOr(rec.ProjectDir, projectDir), sessionID: rec.SessionID, launchedAt: rec.LaunchedAt}
+			t.tracked[path] = &itemEntry{path: path, projectDir: cmp.Or(rec.ProjectDir, projectDir), sessionID: rec.SessionID, launchedAt: rec.LaunchedAt}
 		}
 	}
-}
-
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-
-	return b
 }
 
 func readItemRecord(path string) (itemRecord, error) {
