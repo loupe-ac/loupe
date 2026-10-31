@@ -1,0 +1,18 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ level = 2, description, titleId, actions, className: extra, children, ...rest }) {
+    const Heading = 'h' + level;
+    const className = extra ? '{{ entry.rootClass }} ' + extra : '{{ entry.rootClass }}';
+
+    return (
+        <div {...rest} className={className}>
+            <div className="{{ entry.rootClass }}__copy">
+                <Heading className="{{ entry.rootClass }}__title" id={titleId}>{children}</Heading>
+                {description && <p className="{{ entry.rootClass }}__description">{description}</p>}
+            </div>
+            <div className="{{ entry.rootClass }}__actions">{actions}</div>
+        </div>
+    );
+}
+{% endautoescape %}

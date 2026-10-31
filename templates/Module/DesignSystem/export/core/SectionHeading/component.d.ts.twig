@@ -1,0 +1,25 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }} with a title, a sentence and an action" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The level of the heading, `h2` or `h3`. 2 by default. */
+    level?: 2 | 3;
+    /** The sentence under the title. Optional. */
+    description?: ReactNode;
+    /** The id of the heading, for `aria-labelledby`. Optional. */
+    titleId?: string;
+    /** The controls on the right of the title. Optional. */
+    actions?: ReactNode;
+    className?: string;
+    /** The title. There is no `title` prop. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

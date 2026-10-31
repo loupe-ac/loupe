@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\DesignSystem;
 
+use App\Module\DesignSystem\Catalog;
 use App\Tests\Support\ComponentSourceReader;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -27,6 +28,7 @@ final class SimpleComponentParityTest extends KernelTestCase
         yield 'Tooltip' => ['Tooltip', '<twig:Ds:Tooltip>A</twig:Ds:Tooltip>', '<twig:Ds:Tooltip :interactive="true">A</twig:Ds:Tooltip>', '{ interactive = false,', "'lp-tooltip--interactive'"];
         yield 'Flash' => ['Flash', '<twig:Ds:Flash severity="info" dismissLabel="Dismiss" title="T">A<twig:block name="actions"><b>B</b></twig:block></twig:Ds:Flash>', '<twig:Ds:Flash severity="error" dismissLabel="Dismiss" title="T">A<twig:block name="actions"><b>B</b></twig:block></twig:Ds:Flash>', '{ severity = ', "'lp-flash--' + severity"];
         yield 'EmptyState' => ['EmptyState', '<twig:Ds:EmptyState icon="lucide:inbox" title="T" body="B" linkLabel="L" linkHref="/x" />', '<twig:Ds:EmptyState onCard icon="lucide:inbox" title="T" body="B" linkLabel="L" linkHref="/x" />', '{ icon, title, body, linkLabel, linkHref, compact, onCard,', "'lp-empty-state--on-card'"];
+        yield 'SectionHeading' => ['SectionHeading', '<twig:Ds:SectionHeading description="D">T<twig:block name="actions"><b>B</b></twig:block></twig:Ds:SectionHeading>', '<twig:Ds:SectionHeading :level="3" description="D">T<twig:block name="actions"><b>B</b></twig:block></twig:Ds:SectionHeading>', '{ level = 2, description, titleId, actions,', ''];
         yield 'Pagination' => ['Pagination', '<twig:Ds:Pagination route="app_projects" :page="1" :totalPages="3" :pageList="[1, 2, null, 3]" />', '<twig:Ds:Pagination route="app_projects" :page="2" :totalPages="3" :pageList="[1, 2, null, 3]" />', '{ page, totalPages, pageList,', ''];
         yield 'Textarea' => ['Textarea', '<twig:Ds:Textarea>A</twig:Ds:Textarea>', '<twig:Ds:Textarea>A</twig:Ds:Textarea>', '{ defaultValue,', ''];
     }
@@ -121,6 +123,29 @@ final class SimpleComponentParityTest extends KernelTestCase
 
         self::assertStringNotContainsString('<button', $this->render('<twig:Ds:Flash severity="info">A</twig:Ds:Flash>'));
         self::assertStringContainsString('{dismissLabel && <button type="button" className="lp-flash__dismiss" data-action="click->flash#dismiss">{dismissLabel}</button>}', $jsx);
+    }
+
+    public function test_the_section_heading_wrapper_picks_the_tag_the_id_and_the_description_like_the_twig_component(): void
+    {
+        $jsx = self::componentJsx('SectionHeading');
+        $html = $this->render('<twig:Ds:SectionHeading :level="3" titleId="t" description="D">T</twig:Ds:SectionHeading>');
+
+        self::assertStringContainsString('<h3 class="lp-section-heading__title" id="t">T</h3>', $html);
+        self::assertStringContainsString('<p class="lp-section-heading__description">D</p>', $html);
+        self::assertStringNotContainsString('lp-section-heading__description', $this->render('<twig:Ds:SectionHeading>T</twig:Ds:SectionHeading>'));
+
+        self::assertStringContainsString("const Heading = 'h' + level;", $jsx);
+        self::assertStringContainsString('<Heading className="lp-section-heading__title" id={titleId}>{children}</Heading>', $jsx);
+        self::assertStringContainsString('{description && <p className="lp-section-heading__description">{description}</p>}', $jsx);
+    }
+
+    public function test_the_section_heading_preview_mounts_the_button_component_for_its_action(): void
+    {
+        $names = array_map(static fn ($entry): string => $entry->name, new Catalog()->entries());
+        $preview = self::componentSource()->preview(self::catalogEntry('SectionHeading'), $names);
+
+        self::assertStringContainsString("dsFind('Button', 'SectionHeading')", $preview);
+        self::assertStringNotContainsString('lp-btn', $preview);
     }
 
     private function render(string $template): string
