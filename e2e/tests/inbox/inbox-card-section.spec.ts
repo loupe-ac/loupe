@@ -470,7 +470,7 @@ test('an unavailable pull request keeps its unsent review recoverable', async ({
         .locator(`.lp-sidebar__link[href="/projects/${projectId}/inbox"]`)
         .click();
     await expect(item).toContainText(
-        'The review target is no longer available.',
+        'The review target is no longer available, so it takes no verdict.',
     );
     const recovery = item.locator('[data-inbox-draft-kind="review"]');
     await expect(recovery).toBeVisible();
