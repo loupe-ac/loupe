@@ -63,7 +63,7 @@ Two raw-request reads stay acceptable: a CSRF token on a hand-rolled fieldless f
 - Entities must not contain logic that needs a service, such as slugging or URL generation. A computed property that depends on a service belongs in that service, and never in a virtual property hook.
 - Several handlers or services may compute the same derived value from an entity's own fields with no service dependency, such as a canonical path or a storage key. Add a `public static function computeFoo(...): string` to the entity for it. Make it static, because callers often hold only raw identifiers. This gives one source of truth and prevents drift.
 - Repositories handle persistence only: queries, existence checks and writes. Logic that needs a non-persistence service, such as a generator, slugger or encoder, belongs in an Action or a dedicated service.
-- Inject the concrete repository class in the constructor, in a controller or a service. You may inject `EntityManagerInterface` for `flush()`, but every read goes through an injected repository.
+- Inject the concrete repository class in the constructor. You may inject `EntityManagerInterface` for `flush()`, but every read goes through an injected repository.
 - Entities use ULID primary keys by default. Use an integer id only where a sequence is semantically appropriate.
 - Converting a string column to a backed enum needs no migration, because the column already stores the backing values. Keep `length:` and add `enumType:`:
   ```php
