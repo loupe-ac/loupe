@@ -22,6 +22,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Ubermuda\AuditBundle\AuditActorProviderInterface;
 use Ubermuda\AuditBundle\AuditEvent;
 use Ubermuda\AuditBundle\Auditor;
@@ -279,6 +281,7 @@ final class StripeWebhookControllerTest extends WebTestCase
             $logger,
             new AuditContext(),
             $audit->auditor,
+            $this->unlimited(),
             self::WEBHOOK_SECRET,
         );
 
@@ -310,6 +313,65 @@ final class StripeWebhookControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame([], $audit->operations());
+    }
+
+    private function unlimited(): RateLimiterFactory
+    {
+        return new RateLimiterFactory(
+            ['id' => 'stripe_webhook', 'policy' => 'sliding_window', 'limit' => 1000, 'interval' => '1 minute'],
+            new InMemoryStorage(),
+        );
+    }
+
+    public function test_an_empty_signing_secret_refuses_even_a_body_signed_with_the_empty_key(): void
+    {
+        static::createClient();
+        $this->seedProfile();
+        $audit = new RecordingAuditor(new NullAuditActorProvider());
+        $logger = new RecordingLogger();
+        $sync = static::getContainer()->get(SyncStripeSubscriptionHandler::class);
+        self::assertInstanceOf(SyncStripeSubscriptionHandler::class, $sync);
+        $controller = new StripeWebhookController($sync, $logger, new AuditContext(), $audit->auditor, $this->unlimited(), '');
+
+        $payload = $this->payload('customer.subscription.updated', $this->classicSubscription(), time());
+        $timestamp = time();
+        $forged = sprintf('t=%d,v1=%s', $timestamp, hash_hmac('sha256', $timestamp.'.'.$payload, ''));
+
+        $response = $controller(Request::create(
+            '/webhooks/stripe',
+            Request::METHOD_POST,
+            server: ['HTTP_STRIPE_SIGNATURE' => $forged],
+            content: $payload,
+        ));
+
+        self::assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $response->getStatusCode());
+        $record = $audit->record('billing.webhook_rejected');
+        self::assertSame(AuditOutcome::Refused, $record->outcome);
+        self::assertSame(Auditor::CATEGORY_SECURITY, $record->category);
+        self::assertSame(['reason' => 'no_secret'], $record->context);
+        self::assertSame('billing.webhook_secret_missing', $logger->records[0]['message']);
+        $stored = $this->storedProfile();
+        self::assertIsArray($stored);
+        self::assertNull($stored['status']);
+    }
+
+    public function test_an_address_over_the_limit_gets_429_and_no_audit_record(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $audit = RecordingAuditor::installedIn(static::getContainer());
+        static::getContainer()->set('limiter.stripe_webhook', new RateLimiterFactory(
+            ['id' => 'stripe_webhook', 'policy' => 'fixed_window', 'limit' => 1, 'interval' => '1 minute'],
+            new InMemoryStorage(),
+        ));
+
+        $this->post($client, 'not json at all');
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        self::assertCount(1, $audit->operations());
+
+        $this->post($client, 'not json at all');
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertCount(1, $audit->operations());
     }
 
     public function test_a_missing_signature_header_is_rejected(): void
