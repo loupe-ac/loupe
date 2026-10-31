@@ -451,6 +451,12 @@ const openNoteOverDestination = async (page: Page): Promise<void> => {
     await siteReviewPanelSettled(page);
 };
 
+/** Choosing a mode resizes the panel, so the next click waits for it to settle. */
+const chooseMode = async (page: Page, name: string): Promise<void> => {
+    await page.locator('#lp-picker').getByRole('radio', { name }).click();
+    await siteReviewPanelSettled(page);
+};
+
 const fillNote = async (page: Page, body: string): Promise<void> => {
     await page.getByPlaceholder(/What should change/).fill(body);
     await siteReviewPanelSettled(page);
@@ -468,9 +474,7 @@ test('a review with no destination opens on the destination view', async ({
     await expect(picker.getByLabel('Card title')).toBeFocused();
     await siteReviewPanelSettled(page);
 
-    await picker
-        .getByRole('radio', { name: 'A new card for each note' })
-        .click();
+    await chooseMode(page, 'A new card for each note');
     await page.locator('#lp-destination-save').click();
     await expect(picker).toBeHidden();
     await expect(
@@ -537,10 +541,7 @@ test('one card per review is chosen once and remembered after a reload', async (
 test('a card per note names the card each note became', async ({ page }) => {
     await openHarness(page, null);
     await openNoteOverDestination(page);
-    await page
-        .locator('#lp-picker')
-        .getByRole('radio', { name: 'A new card for each note' })
-        .click();
+    await chooseMode(page, 'A new card for each note');
     await page.locator('#lp-destination-save').click();
     await fillNote(page, 'The logo is cut off');
     await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
@@ -565,9 +566,7 @@ test('the mode comes before the first pick', async ({ page }) => {
     await expect(picker).toBeVisible();
     await expect(pickToast).toBeHidden();
     await siteReviewPanelSettled(page);
-    await picker
-        .getByRole('radio', { name: 'A new card for each note' })
-        .click();
+    await chooseMode(page, 'A new card for each note');
     await page.locator('#lp-destination-save').click();
     await expect(picker).toBeHidden();
 
@@ -582,9 +581,7 @@ test('epic mode files each note as a card under the epic', async ({ page }) => {
     await openHarness(page, null);
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    await picker
-        .getByRole('radio', { name: 'A card for each note, under an epic' })
-        .click();
+    await chooseMode(page, 'A card for each note, under an epic');
     // The epic is the next step, so the modes view holds no epic controls.
     await expect(picker.getByLabel('Epic title')).toBeHidden();
     const save = page.locator('#lp-destination-save');
@@ -648,9 +645,7 @@ test('epic mode shows a type selector when the template has two grouping types',
     await openHarness(page, null);
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    await picker
-        .getByRole('radio', { name: 'A card for each note, under an epic' })
-        .click();
+    await chooseMode(page, 'A card for each note, under an epic');
     await page.locator('#lp-destination-save').click();
 
     const selector = picker.getByLabel('Type', { exact: true });
@@ -4258,9 +4253,7 @@ test('a page that blocks site data still gets a working launcher', async ({
     const picker = page.locator('#lp-picker');
     await expect(picker).toBeVisible();
     await siteReviewPanelSettled(page);
-    await picker
-        .getByRole('radio', { name: 'A new card for each note' })
-        .click();
+    await chooseMode(page, 'A new card for each note');
     await page.locator('#lp-destination-save').click();
     await expect(picker).toBeHidden();
 
@@ -4383,10 +4376,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
     // Another destination is another list: the old cards go, and the
     // request names the new destination.
     await page.locator('#lp-dest').click();
-    const picker = page.locator('#lp-picker');
-    await picker
-        .getByRole('radio', { name: 'One card for this review' })
-        .click();
+    await chooseMode(page, 'One card for this review');
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
