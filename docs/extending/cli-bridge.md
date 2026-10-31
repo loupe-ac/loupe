@@ -2462,6 +2462,9 @@ The bridge refuses the launch with a reason in these cases:
 
 - The session of an earlier launch for the same item still runs, or the
   bridge cannot tell whether it runs, or it started less than 10 minutes ago.
+- One check found the earlier session gone, and no second check confirms it
+  yet. A launch counts as a check, so a second launch a moment later
+  replaces the worktree.
 - A branch `inbox-<n>` exists in the project already. The bridge does not
   replace a branch that it did not make.
 - Git fails to make the worktree. The bridge leaves no folder and no branch

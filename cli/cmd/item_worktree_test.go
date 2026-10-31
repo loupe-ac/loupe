@@ -124,6 +124,9 @@ func TestPrepareReplacesTheStaleWorktreeOfAnEndedSession(t *testing.T) {
 	f.now = f.now.Add(time.Hour)
 	f.setAlive(ptr(false))
 
+	if _, err := f.prepare(12); err == nil || !exists(filepath.Join(dir, "unsaved.txt")) {
+		t.Fatalf("one dead reading replaced the worktree: err = %v", err)
+	}
 	got, err := f.prepare(12)
 	if err != nil {
 		t.Fatal(err)
@@ -368,6 +371,7 @@ func TestACodexItemSessionWithNoSessionFileCountsFromItsLaunch(t *testing.T) {
 		t.Fatal("removed before a day")
 	}
 	f.now = f.now.Add(2 * time.Hour)
+	f.items.sweep(context.Background())
 	if _, err := f.prepare(12); err != nil {
 		t.Fatalf("a relaunch after a day of silence must work: %v", err)
 	}
@@ -416,7 +420,7 @@ func TestAFailedDiscardLeavesTheEntryForTheSweep(t *testing.T) {
 	}
 }
 
-func TestPrepareReplacesAWorktreeAtOnceWhenItsSessionWasSeenAndEnded(t *testing.T) {
+func TestPrepareReplacesAWorktreeWhenItsSessionWasSeenAndEnded(t *testing.T) {
 	f := newItemFixture(t)
 	dir, _ := f.prepare(12)
 	f.items.finish(dir)
@@ -424,7 +428,50 @@ func TestPrepareReplacesAWorktreeAtOnceWhenItsSessionWasSeenAndEnded(t *testing.
 	f.setAlive(ptr(true))
 	f.items.sweep(context.Background())
 	f.setAlive(ptr(false))
+	f.items.sweep(context.Background())
 	if _, err := f.prepare(12); err != nil {
 		t.Fatalf("a session seen alive that now reads dead gets no grace: %v", err)
+	}
+}
+
+func TestPrepareKeepsTheWorktreeAfterOneDeadReading(t *testing.T) {
+	f := newItemFixture(t)
+	dir, _ := f.prepare(12)
+	f.items.finish(dir)
+	f.setAlive(ptr(true))
+	f.items.sweep(context.Background())
+
+	f.setAlive(ptr(false))
+	if _, err := f.prepare(12); err == nil || !strings.Contains(err.Error(), "try again") {
+		t.Fatalf("err = %v", err)
+	}
+	if !exists(dir) || !hasBranch(t, f.project, "inbox-12") {
+		t.Fatal("one dead reading removed the worktree of a session that may still run")
+	}
+	f.setAlive(ptr(true))
+	if _, err := f.prepare(12); err == nil {
+		t.Fatal("an alive reading must reset the count")
+	}
+	f.setAlive(ptr(false))
+	if _, err := f.prepare(12); err == nil || !exists(dir) {
+		t.Fatalf("a dead reading after an alive one is the first in a row: err = %v", err)
+	}
+}
+
+func TestPrepareCountsTheReadingsOfAnUntrackedRecord(t *testing.T) {
+	f := newItemFixture(t)
+	dir, _ := f.prepare(12)
+	f.items.finish(dir)
+	f.now = f.now.Add(time.Hour)
+	other := newItemSessions(nil, f.items.readings)
+	other.now = f.items.now
+
+	f.setAlive(ptr(false))
+	ctx := context.Background()
+	if _, err := other.prepare(ctx, f.project, "loupe", 12, itemSession); err == nil || !exists(dir) {
+		t.Fatalf("one dead reading replaced the worktree of a former bridge: err = %v", err)
+	}
+	if _, err := other.prepare(ctx, f.project, "loupe", 12, itemSession); err != nil {
+		t.Fatalf("the second dead reading in a row must replace it: %v", err)
 	}
 }

@@ -147,9 +147,24 @@ func (t *itemSessions) classify(e *itemEntry, r api.InteractiveSessionReading) s
 	return stateDead
 }
 
-// active reports whether the session of e may still run: it runs, nobody can
-// tell, or it started too recently to show in the process list.
-func (t *itemSessions) active(ctx context.Context, e *itemEntry) bool {
+// count applies one reading to e and reports whether the session stayed gone
+// for itemDeadReadings readings in a row.
+func (t *itemSessions) count(e *itemEntry, r api.InteractiveSessionReading) bool {
+	switch t.classify(e, r) {
+	case stateUnknown:
+		e.dead = 0
+	case stateAlive:
+		e.seen, e.dead = true, 0
+	case stateDead:
+		e.dead++
+	}
+
+	return e.dead >= itemDeadReadings
+}
+
+// ended takes one reading of the session of e, counted with the readings of
+// the sweep, and reports whether the session has ended.
+func (t *itemSessions) ended(ctx context.Context, e *itemEntry) bool {
 	var reading api.InteractiveSessionReading
 	if t.readings != nil {
 		if got := t.readings(ctx, []string{e.sessionID}); len(got) == 1 {
@@ -157,15 +172,16 @@ func (t *itemSessions) active(ctx context.Context, e *itemEntry) bool {
 		}
 	}
 
-	return t.classify(e, reading) != stateDead
+	return t.count(e, reading)
 }
 
 // prepare makes the worktree of item in the project at projectDir, on the new
 // branch inbox-<item> cut from the default branch, and tracks it as the folder
 // of session sessionID. The caller calls finish when the launch command
 // returns, or discard when the launch fails. A worktree of an earlier session
-// that ended is replaced. One that may still run makes prepare fail. A failure
-// leaves no folder, no record and no branch behind.
+// that ended is replaced. One that may still run makes prepare fail, and so
+// does the first reading that finds it gone. A failure leaves no folder, no
+// record and no branch behind.
 func (t *itemSessions) prepare(ctx context.Context, projectDir, slug string, item int, sessionID string) (string, error) {
 	if item < 1 {
 		return "", errors.New("the work request names no inbox item number")
@@ -180,8 +196,17 @@ func (t *itemSessions) prepare(ctx context.Context, projectDir, slug string, ite
 	worktreeMu.Lock()
 	defer worktreeMu.Unlock()
 
-	if prior := t.priorLocked(path); prior != nil && (prior.launching || t.active(ctx, prior)) {
-		return "", fmt.Errorf("item %d already has a session open in %s", item, path)
+	if prior := t.priorLocked(path); prior != nil {
+		if prior.launching {
+			return "", fmt.Errorf("item %d already has a session open in %s", item, path)
+		}
+		if !t.ended(ctx, prior) {
+			if prior.dead > 0 {
+				return "", fmt.Errorf("the earlier session of item %d looks ended, so try again in a minute once the bridge confirms it", item)
+			}
+
+			return "", fmt.Errorf("item %d already has a session open in %s", item, path)
+		}
 	}
 	if exists(path) || exists(path+".session") {
 		if err := t.removeLocked(ctx, path, projectDir); err != nil {
@@ -214,7 +239,8 @@ func (t *itemSessions) prepare(ctx context.Context, projectDir, slug string, ite
 	return path, nil
 }
 
-// priorLocked is the tracked entry for path, or the one its record names.
+// priorLocked is the tracked entry for path, or else it tracks the one its
+// record names, so its readings count with those of the sweep.
 func (t *itemSessions) priorLocked(path string) *itemEntry {
 	if e, ok := t.tracked[path]; ok {
 		return e
@@ -223,8 +249,10 @@ func (t *itemSessions) priorLocked(path string) *itemEntry {
 	if err != nil {
 		return nil
 	}
+	e := &itemEntry{path: path, projectDir: rec.ProjectDir, sessionID: rec.SessionID, launchedAt: rec.LaunchedAt}
+	t.tracked[path] = e
 
-	return &itemEntry{path: path, projectDir: rec.ProjectDir, sessionID: rec.SessionID, launchedAt: rec.LaunchedAt}
+	return e
 }
 
 // finish marks the launch command of path as returned, so the sweep may watch
@@ -341,23 +369,15 @@ func (t *itemSessions) sweep(ctx context.Context) {
 		if t.tracked[e.path] != e || e.launching || e.sessionID != got[i].SessionID {
 			continue
 		}
-		switch t.classify(e, got[i]) {
-		case stateUnknown:
-			e.dead = 0
-		case stateAlive:
-			e.seen, e.dead = true, 0
-		case stateDead:
-			e.dead++
-			if e.dead < itemDeadReadings {
-				continue
-			}
-			if err := t.removeLocked(ctx, e.path, e.projectDir); err != nil {
-				t.log.Warn("item_worktree_not_removed", "path", e.path, "session_id", e.sessionID, "error", err.Error())
-
-				continue
-			}
-			t.log.Info("item_worktree_removed", "path", e.path, "session_id", e.sessionID)
+		if !t.count(e, got[i]) {
+			continue
 		}
+		if err := t.removeLocked(ctx, e.path, e.projectDir); err != nil {
+			t.log.Warn("item_worktree_not_removed", "path", e.path, "session_id", e.sessionID, "error", err.Error())
+
+			continue
+		}
+		t.log.Info("item_worktree_removed", "path", e.path, "session_id", e.sessionID)
 	}
 }
 
