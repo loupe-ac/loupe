@@ -798,10 +798,14 @@ pass. No ruleset covers `epic/<n>`, so GitHub sends no behind event. The
 stage compares the child with `epic/<n>`, and merges `epic/<n>` in when the
 child is behind.
 
-The epic pull request from `epic/<n>` into `main` needs the approval of the
-owner, as any pull request into `main` does. It syncs by a merge of `main`,
-through `gh pr update-branch` or the app sync, and the approval covers that
-merge. An epic whose breakdown ran before the epic branch existed has no
+The epic pull request from `epic/<n>` into `main` needs a passed
+`Loupe / Approval` check on its head, as any pull request into `main` does.
+Loupe posts it when the agent review of the epic passes, or when a person
+approves the head on GitHub. When the epic or a child has the **Requires human
+review** switch on, only a person's approval posts it. The epic syncs by a
+merge of `main`, through `gh pr update-branch` or the app sync. The sync makes
+a new head, and Loupe posts the check again on it when the approval covers
+that merge. An epic whose breakdown ran before the epic branch existed has no
 `epic/<n>`, and its children target `main`.
 
 The app opens the epic pull request as a draft after the first child merge.
