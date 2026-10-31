@@ -13,12 +13,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Expires the open requests about a subject other than a card that no bridge
- * took in time, so the module of the subject hears of it. The workflow engine
- * expires the work of a card by its own rules, except the work that a person
- * asked for. An open session request of a person expires here after a short
- * wait, and other work of a person expires after the same timeout as the work
- * of a subject, with no pause of the card. A request that waits through a
- * work hold of its project keeps its time until the hold ends. Answers how many expired.
+ * took in time, so the module of the subject hears of it. Open work of a card
+ * waits with no time limit, except a session request of a person, which
+ * expires here after a short wait. A request that waits through a work hold
+ * of its project keeps its time until the hold ends. Answers how many expired.
  */
 final readonly class ExpireSubjectWorkRequestsHandler
 {
@@ -47,13 +45,6 @@ final readonly class ExpireSubjectWorkRequestsHandler
             foreach ($requests as $request) {
                 $id = $request->id ?? throw new \LogicException('A stored request has an id.');
                 $expired += (int) ($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Expired, onlyIfOpen: true, deadline: $requestDeadline));
-            }
-        }
-
-        foreach ($this->workRequests->findOpenOfCardsByRulePrefix(PersonWork::RULE_PREFIX) as $request) {
-            $id = $request->id ?? throw new \LogicException('A stored request has an id.');
-            if (($request->reopenedAt ?? $request->createdAt) <= $deadline) {
-                $expired += (int) ($this->withdraw)(new WithdrawWorkRequestCommand($id, WorkRequestState::Expired, onlyIfOpen: true, deadline: $deadline));
             }
         }
 
