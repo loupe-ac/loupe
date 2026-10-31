@@ -249,7 +249,7 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['usage-limit'], $this->passKeys($this->template($key), $facts));
         self::assertSame(MarkerKind::Waiting, $this->written('usage-limit')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('usage-limit')->link);
-        self::assertSame(['%cause%' => 'limit', '%account%' => 'claude', '%window%' => 'week', '%use%' => 100, '%stopAt%' => 95, '%resetsAt%' => $reading->resetsAt->getTimestamp()], $this->written('usage-limit')->params);
+        self::assertSame(['%cause%' => 'limit', '%account%' => 'claude', '%window%' => 'week', '%use%' => 100, '%stopAt%' => 95, '%resetsAt%' => $reading->resetsAt->getTimestamp(), '%bridgeId%' => '', '%canTryNow%' => 0], $this->written('usage-limit')->params);
     }
 
     #[DataProvider('shippedKeys')]
