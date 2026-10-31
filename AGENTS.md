@@ -10,7 +10,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 
 | Skill | Use when working on… |
 |---|---|
-| `project-backend` | PHP code under `src/`: forms, DTOs, entities, controllers, flash messages, the gamache layers and their configuration, email, CSRF |
+| `project-backend` | PHP code under `src/`: forms, DTOs, entities, controllers, flash messages, the gamache layers and their configuration, email, CSRF. Also migrations, `composer.json` bundle pins and `doctrine.yaml` |
 | `project-command-handler` | Command and handler pairs, any controller action with business logic, `DomainErrors` |
 | `project-authz` | Voters, `#[IsGranted]`, Mercure topic authorization, any access control |
 | `project-testing` | PHPUnit tests: unit, integration, WebTestCase, mock setup, database isolation between tests |
@@ -69,7 +69,7 @@ Work that the owner asks for in a session and that opens a pull request needs a 
 
 The workflow then moves the card to Implementation, and reviews and merges the pull request. Do not move the card yourself.
 
-A card whose body opens with `**Parked.**` is paused. Do not start it, and do not move it out of its column, until the owner unparks it. The board has no parked state, so that line is the whole signal. A real parked state is worth having, and the board card 'Give the board a parked state' asks for one.
+A card whose body opens with `**Parked.**` is paused: do not start it or move it.
 
 ## The bridge
 
