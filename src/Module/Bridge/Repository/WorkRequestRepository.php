@@ -196,6 +196,31 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open requests that the bridge matched to the account and could claim now, oldest first. The bridge
+     * itself may still refuse one, so the list is the set of offers worth pushing.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenMatchedToAccount(Bridge $bridge, string $account, \DateTimeImmutable $now, int $limit): array
+    {
+        return array_values($this->createQueryBuilder('w')
+            ->andWhere('w.state = :open')
+            ->andWhere('w.targetBridgeId IS NULL OR w.targetBridgeId = :bridgeId')
+            ->andWhere('w.waitUntil IS NULL OR w.waitUntil <= :now')
+            ->andWhere('EXISTS (SELECT 1 FROM '.BridgeWorkMatch::class.' m JOIN m.bridge mb WHERE m.workRequest = w AND mb.id = :bridgeId AND mb.owner = :owner AND m.account = :account)')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('owner', $bridge->owner)
+            ->setParameter('bridgeId', $bridge->id, UuidType::NAME)
+            ->setParameter('account', $account)
+            ->setParameter('now', $now, Types::DATETIME_IMMUTABLE)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * The projects that have a claim whose lease lapsed.
      *
      * @return list<string> RFC 4122 ids

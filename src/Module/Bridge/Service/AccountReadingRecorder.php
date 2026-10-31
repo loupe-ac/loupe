@@ -17,13 +17,14 @@ final readonly class AccountReadingRecorder
     public function __construct(
         private BridgeAccountReadingRepository $bridgeAccountReadings,
         private EntityManagerInterface $em,
+        private TryNowOverrides $tryNowOverrides,
     ) {
     }
 
     /**
      * @param list<AccountReadingReport> $reports
      *
-     * @return bool whether a reading was stored
+     * @return bool whether a reading was stored or a Try now override closed
      */
     public function record(Bridge $bridge, array $reports): bool
     {
@@ -31,7 +32,7 @@ final readonly class AccountReadingRecorder
             return false;
         }
 
-        $changed = false;
+        $changed = $this->tryNowOverrides->closeOnReadings($bridge, $reports);
 
         $latest = [];
         foreach ($this->bridgeAccountReadings->latestOfBridge($bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.'), $bridge->id) as $stored) {

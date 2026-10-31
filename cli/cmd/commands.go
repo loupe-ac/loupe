@@ -155,6 +155,8 @@ func (r *router) handleCommand(c api.Command) (string, string) {
 		return r.rerunCommand(c)
 	case api.CommandCollectSessionUsage:
 		return r.collectSessionUsage(c)
+	case api.CommandTryNow:
+		return r.tryNow(c)
 	}
 
 	return api.CommandRefused, unknownCommandKind

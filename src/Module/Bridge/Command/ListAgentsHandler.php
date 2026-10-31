@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\AccountLimits;
 use App\Module\Bridge\Service\BridgeLiveness;
@@ -19,6 +20,7 @@ final readonly class ListAgentsHandler
         private BridgeRepository $bridges,
         private BridgeLiveness $liveness,
         private AccountLimits $accountLimits,
+        private BridgeAccountTryNowRepository $bridgeAccountTryNows,
         private CliCompatibility $compatibility,
         private UrlGeneratorInterface $urlGenerator,
     ) {
@@ -47,6 +49,7 @@ final readonly class ListAgentsHandler
                     AgentUpdateChip::for($bridge, $this->compatibility->isCompatible($bridge->cliVersion), $installScriptUrl),
                     AgentHealthChip::for($bridge, $statuses[$bridge->id->toRfc4122()]),
                     $this->accountLimits->forBridge($bridge),
+                    $this->bridgeAccountTryNows->findLatestOfBridge($bridge),
                 ),
                 $bridges,
             ),

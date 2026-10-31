@@ -61,6 +61,9 @@ class Bridge
     /** The capability of a bridge that reports the usage of an interactive run from the session transcript. */
     public const string CAPABILITY_SESSION_USAGE = 'session-usage';
 
+    /** The capability of a bridge that takes a command of the kind `try-now`. */
+    public const string CAPABILITY_TRY_NOW = 'try-now';
+
     /** The capability of a bridge that reports its git identities, so a heartbeat without it clears the stored rows. */
     public const string CAPABILITY_GIT_IDENTITIES = 'git-identities';
 
@@ -280,6 +283,11 @@ class Bridge
     public function takesRunCommands(): bool
     {
         return $this->takesWorkRequests() && \in_array(self::CAPABILITY_RUN_COMMAND, $this->capabilities ?? [], true);
+    }
+
+    public function takesTryNow(): bool
+    {
+        return $this->takesCommands() && \in_array(self::CAPABILITY_TRY_NOW, $this->capabilities ?? [], true);
     }
 
     public function takesSessionUsage(): bool

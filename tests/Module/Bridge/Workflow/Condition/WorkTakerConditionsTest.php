@@ -19,6 +19,7 @@ use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Workflow\Contract\Facts;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class WorkTakerConditionsTest extends TestCase
 {
@@ -122,7 +123,19 @@ final class WorkTakerConditionsTest extends TestCase
 
         $evidence = new RunWorkTakerLimited()->evidence($facts, []);
 
-        self::assertSame(['%cause%' => 'limit', '%account%' => 'claude', '%window%' => 'week', '%use%' => 100, '%stopAt%' => 95, '%resetsAt%' => new \DateTimeImmutable('2026-11-01 17:00:00')->getTimestamp()], $evidence?->params);
+        self::assertSame(['%cause%' => 'limit', '%account%' => 'claude', '%window%' => 'week', '%use%' => 100, '%stopAt%' => 95, '%resetsAt%' => new \DateTimeImmutable('2026-11-01 17:00:00')->getTimestamp(), '%bridgeId%' => '', '%canTryNow%' => 0], $evidence?->params);
+    }
+
+    public function test_the_limited_evidence_names_the_bridge_and_whether_it_takes_try_now(): void
+    {
+        $bridgeId = Uuid::v4();
+        $reading = new AccountReadingReport('claude', 'week', 100.0, new \DateTimeImmutable('2026-11-01 17:00:00'), true, 'stream', new \DateTimeImmutable('2026-10-16 11:00:00'));
+        $account = new AccountLimit('claude', [new WindowLimit($reading, WindowLimitState::AtLimit)], 95, false, $bridgeId, true);
+
+        $evidence = new RunWorkTakerLimited()->evidence(self::facts(['implement' => self::limitedReading([$account])]), []);
+
+        self::assertSame((string) $bridgeId, $evidence?->params['%bridgeId%']);
+        self::assertSame(1, $evidence->params['%canTryNow%']);
     }
 
     public function test_the_limited_evidence_of_a_stop_value_carries_the_use_and_the_stop_value(): void

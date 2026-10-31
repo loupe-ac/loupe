@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Service;
 
 use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use App\Module\Bridge\Service\AccountLimits;
+use App\Module\Bridge\Service\TryNowOverrides;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
 use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\WindowLimitState;
@@ -120,7 +122,11 @@ final class AccountLimitsTest extends KernelTestCase
         $readings = self::getContainer()->get(BridgeAccountReadingRepository::class);
         self::assertInstanceOf(BridgeAccountReadingRepository::class, $readings);
 
-        return new AccountLimits($readings, new MockClock(new \DateTimeImmutable(self::NOW, new \DateTimeZone('UTC'))));
+        $tryNows = self::getContainer()->get(BridgeAccountTryNowRepository::class);
+        self::assertInstanceOf(BridgeAccountTryNowRepository::class, $tryNows);
+        $clock = new MockClock(new \DateTimeImmutable(self::NOW, new \DateTimeZone('UTC')));
+
+        return new AccountLimits($readings, $clock, new TryNowOverrides($tryNows, $clock));
     }
 
     private static function reading(string $window, ?float $usedPercent, string $resetsAt, bool $limited = false): AccountReadingReport

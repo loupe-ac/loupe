@@ -165,7 +165,7 @@ The shipped markers are:
 | `run-open` | Working | A worker runs on the card |
 | `no-bridge-online` | Waiting | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `no-capable-bridge` | Needs you | Work waits, and an online bridge exists, but none can run this kind of work. The card page links to the Agents page |
-| `usage-limit` | Waiting | Work waits because every agent account that could take it is at its usage limit or at its stop value. The label names the account, the window, the use and the reset time. The card page links to the Agents page |
+| `usage-limit` | Waiting | Work waits because every agent account that could take it is at its usage limit or at its stop value. The label names the account, the window, the use and the reset time. The card page links to the Agents page, and people who manage the project also get [Try now](board.md#try-now) |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
@@ -264,7 +264,8 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   free first, with its window, its use and its reset time. A hard limit reads
   "is at its weekly limit". A stop value reads "is at 96 % of its weekly window,
   new work stops at 95 %". The condition turns false when an account has room,
-  at the reset or when a reading shows the limit lifted.
+  at the reset, when a reading shows the limit lifted, or after
+  [Try now](board.md#try-now).
 - `bridge.account.usage` with an `account`, a `window` and `above`: the latest
   reading of that window of that bridge account shows a use above `above`. The
   `account` is `<bridge name>/<account>`, such as `desk/claude`. The `window` is

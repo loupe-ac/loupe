@@ -28,6 +28,12 @@ func (b *blockedSet) set(list []api.BlockedAccount) {
 	b.mu.Unlock()
 }
 
+func (b *blockedSet) remove(account string) {
+	b.mu.Lock()
+	delete(b.m, account)
+	b.mu.Unlock()
+}
+
 func (b *blockedSet) has(account string) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -172,4 +178,17 @@ func backOf(p pending, s settlement) settlement {
 	s.back.HasAssistantTurn = s.back.HasAssistantTurn || p.spec.resume
 
 	return s
+}
+
+// tryNow frees an account for new work. The next reply replaces the list, and
+// Loupe leaves the account out of it while the override holds. The heartbeat
+// goes out at once, so Loupe offers the waiting work now.
+func (r *router) tryNow(c api.Command) (state, reason string) {
+	r.blocked.remove(c.Account)
+	r.log.Info("account_try_now", "command", c.CommandID, "account", c.Account)
+	if r.heartbeat != nil {
+		r.heartbeat.send()
+	}
+
+	return api.CommandDone, ""
 }

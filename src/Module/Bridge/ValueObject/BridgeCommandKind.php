@@ -16,4 +16,7 @@ enum BridgeCommandKind: string
 
     /** The bridge that holds the transcript of an interactive session reports the usage of one run. */
     case CollectSessionUsage = 'collect-session-usage';
+
+    /** A person asks the bridge to start the waiting work of one account before its reset. The command names no run. */
+    case TryNow = 'try-now';
 }

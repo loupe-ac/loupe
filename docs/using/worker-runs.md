@@ -162,6 +162,7 @@ The work starts again by itself in one of these cases:
 - A new reading shows that the limit lifted early.
 - Another bridge has an account with room for the work. That bridge takes the
   work at once.
+- A person who manages the project presses [Try now](board.md#try-now).
 
 A run that did at least one assistant turn before the limit continues on its own
 bridge. The bridge resumes the same session, so the agent keeps its context. A

@@ -74,7 +74,7 @@ final readonly class CancelInboxActionHandler
     private function cancelResume(InboxAction $action, CancelInboxActionCommand $command): void
     {
         $bridgeCommand = null === $action->bridgeCommandId ? null : $this->bridgeCommands->find($action->bridgeCommandId);
-        if (null === $bridgeCommand || BridgeCommandState::Pending !== $bridgeCommand->state) {
+        if (null === $bridgeCommand || null === $bridgeCommand->workerRun || BridgeCommandState::Pending !== $bridgeCommand->state) {
             throw new DomainErrors(['action' => self::NOT_CANCELLABLE]);
         }
 

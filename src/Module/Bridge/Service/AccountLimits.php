@@ -11,6 +11,7 @@ use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\WindowLimit;
 use App\Module\Bridge\ValueObject\WindowLimitState;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Reads the latest reading of each usage window of an account and says
@@ -24,6 +25,7 @@ final readonly class AccountLimits
     public function __construct(
         private BridgeAccountReadingRepository $bridgeAccountReadings,
         private ClockInterface $clock,
+        private TryNowOverrides $tryNowOverrides,
     ) {
     }
 
@@ -40,9 +42,11 @@ final readonly class AccountLimits
             $byAccount[$reading->account][] = $reading;
         }
 
+        $tryNow = $this->tryNowOverrides->openOf($bridge);
+
         $limits = [];
         foreach ($byAccount as $account => $latest) {
-            $limits[$account] = $this->limitOf((string) $account, $stopAt[$account] ?? self::DEFAULT_STOP_AT, $latest);
+            $limits[$account] = $this->limitOf((string) $account, $stopAt[$account] ?? self::DEFAULT_STOP_AT, $latest, isset($tryNow[$account]), $bridge->id, $bridge->takesTryNow());
         }
 
         return $limits;
@@ -55,14 +59,14 @@ final readonly class AccountLimits
     }
 
     /** @param list<AccountReadingReport> $latest the newest reading of each window of the account */
-    public function limitOf(string $account, int $stopAt, array $latest): AccountLimit
+    public function limitOf(string $account, int $stopAt, array $latest, bool $tryNow = false, ?Uuid $bridgeId = null, bool $bridgeTakesTryNow = false): AccountLimit
     {
         $now = $this->clock->now();
 
         return new AccountLimit($account, array_map(
             static fn (AccountReadingReport $reading): WindowLimit => new WindowLimit($reading, self::stateOf($reading, $stopAt, $now)),
             $latest,
-        ), $stopAt);
+        ), $stopAt, $tryNow, $bridgeId, $bridgeTakesTryNow);
     }
 
     private static function stateOf(AccountReadingReport $reading, int $stopAt, \DateTimeImmutable $now): WindowLimitState

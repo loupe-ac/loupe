@@ -26,6 +26,13 @@
     </div>
     {% endif %}
 
+    {% set tryNowFlashes = app.flashes('bridge-try-now') %}
+    {% if tryNowFlashes is not empty %}
+    <div class="lp-agent-flashes" data-bridge-try-now-flash>
+        {% include '_flash_messages.html.twig' with {flashes: {error: tryNowFlashes}} only %}
+    </div>
+    {% endif %}
+
     {% do mercure_subscribe(worker_runs_topic(project)) %}
     {% set canManage = is_granted('project.manage', project) %}
     <div class="lp-live-frame" data-controller="worker-run-refresh">
@@ -140,12 +147,26 @@
                     {% endif %}
                     {% for account in connection.bridge.accounts %}
                     <div class="lp-agent-card__account{% if account.state == 'failing' %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
-                        <p class="lp-agent-card__account-line">
+                        <div class="lp-agent-card__account-line">
                             <strong>{{ account.name }}</strong>
                             <span>{{ account.harness }}</span>
                             <span>{{ (account.state == 'failing' ? 'bridge.agents.accounts.state.failing' : 'bridge.agents.accounts.state.ready')|trans }}</span>
                             {% if account.used ?? true %}{% else %}<span data-agent-account-unused>{{ 'bridge.agents.accounts.state.unused'|trans }}</span>{% endif %}
-                        </p>
+                            {% set tryNowState = connection.tryNowState(account.name) %}
+                            {% if tryNowState == 'trying' %}
+                            <span data-agent-try-now-state="trying">{{ 'bridge.agents.accounts.try_now.trying'|trans }}</span>
+                            {% elseif tryNowState == 'still-limited' %}
+                            <span data-agent-try-now-state="still-limited">{{ 'bridge.agents.accounts.try_now.still_limited'|trans({'%time%': connection.tryNowCheckedAt(account.name)|date('H:i')}) }}</span>
+                            {% endif %}
+                            {% if canManage and connection.canTryNow(account.name) %}
+                            <twig:Ds:ActionForm :action="path('app_project_bridge_account_try_now', {id: project.id, bridgeId: bridge.id, account: account.name})" token="bridge-try-now" frame="_top" data-agent-try-now="{{ account.name }}">
+                                <twig:Ds:Button type="submit" variant="ghost" size="sm">
+                                    <twig:ux:icon name="lucide:circle-play" class="lp-icon lp-icon--sm" />
+                                    {{ 'bridge.agents.accounts.try_now.action'|trans }}
+                                </twig:Ds:Button>
+                            </twig:Ds:ActionForm>
+                            {% endif %}
+                        </div>
                         {% include '@Bridge/_account_usage.html.twig' with {bars: connection.usageBars(account.name), tooltipKey: bridge.id ~ '-' ~ loop.index} only %}
                         {% if account.state == 'failing' %}
                         {% if account.reason %}

@@ -77,7 +77,7 @@ final class DesignUndoFlowTest extends KernelTestCase
         self::assertSame(WorkRequestState::Cancelled, $this->service(WorkRequestRepository::class)->find($request->id)?->state);
         $commands = $this->service(BridgeCommandRepository::class)->findAll();
         self::assertCount(1, $commands);
-        self::assertSame([BridgeCommandKind::StopRun, (string) $run->id], [$commands[0]->kind, (string) $commands[0]->workerRun->id]);
+        self::assertSame([BridgeCommandKind::StopRun, (string) $run->id], [$commands[0]->kind, (string) $commands[0]->workerRun?->id]);
         self::assertSame(DocumentStatus::ChangesRequested, $tech->status);
         $reviews = $this->reviews($tech);
         self::assertSame(['approved', 'changes-requested'], array_map(static fn (Review $review): string => $review->verdict->value, $reviews));
@@ -120,7 +120,7 @@ final class DesignUndoFlowTest extends KernelTestCase
         self::assertSame('product-design', $this->fresh($card)->column->slug);
         $commands = $this->service(BridgeCommandRepository::class)->findAll();
         self::assertCount(1, $commands, 'Stop-work asks the bridge to stop the background run only.');
-        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun->id);
+        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun?->id);
         $stopped = $this->events($card, CardEventKind::Stopped);
         self::assertSame([(string) $worker->id], array_map(static fn (CardEvent $event): mixed => $event->detail['runId'], $stopped));
         $this->em()->clear();
