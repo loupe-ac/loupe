@@ -14,6 +14,7 @@ use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
+use App\Module\Bridge\ValueObject\AccountReadingChange;
 use App\Module\Bridge\ValueObject\NetworkHandBack;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
@@ -111,7 +112,9 @@ final readonly class SettleWorkRequestHandler
             foreach ($this->projects->findOwnedBy($command->owner, $result->usageFollowers) as $project) {
                 $this->runsChanged->runsChanged($project);
             }
-            $this->events->dispatch(new BridgeAccountReadingsStored($result->usageFollowers));
+            if ($result->readingStored) {
+                $this->events->dispatch(new BridgeAccountReadingsStored($result->usageFollowers));
+            }
         }
         if ($result->settled && null !== $settled) {
             $this->auditor->record(
@@ -161,17 +164,20 @@ final readonly class SettleWorkRequestHandler
         // The claim proved the bridge exists. A bridge row goes only with its account, and then the match has no use.
         $bridge = $this->bridges->findOneByOwnerAndId($command->owner, $command->bridgeId);
         $usageFollowers = [];
+        $readingStored = false;
         if (null !== $bridge) {
-            if ($this->readings->record($bridge, [$handBack->report($now)])) {
+            $change = $this->readings->record($bridge, [$handBack->report($now)]);
+            if ($change->refreshesPage()) {
                 $usageFollowers = $bridge->projects;
             }
+            $readingStored = AccountReadingChange::Stored === $change;
             $this->em->flush();
             $this->bridgeWorkMatches->put($bridge->owner->id ?? throw new \LogicException('A stored owner always has an id.'), $bridge->id, $command->workRequestId, $handBack->account);
         }
         $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));
         $this->em->flush();
 
-        return new SettleWorkRequestResult($request, handedBack: true, usageFollowers: $usageFollowers);
+        return new SettleWorkRequestResult($request, handedBack: true, usageFollowers: $usageFollowers, readingStored: $readingStored);
     }
 
     /** Settle keeps the bridge and the token, so a repeat after the settlement still matches. */

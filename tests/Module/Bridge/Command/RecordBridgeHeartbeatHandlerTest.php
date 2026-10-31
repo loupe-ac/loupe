@@ -221,7 +221,10 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertCount(1, $this->publishedRunsChanged(), 'The first reading changes the bars.');
 
         $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:01:00')]));
-        self::assertCount(0, $this->publishedRunsChanged(), 'The same reading tells nobody.');
+        self::assertCount(1, $this->publishedRunsChanged(), 'The same values read later change the age that the page shows.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:01:00')]));
+        self::assertCount(0, $this->publishedRunsChanged(), 'A resent reading changes nothing and tells nobody.');
 
         $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', accountReadings: [self::reading('session', 41.0, readAt: '2026-10-07 12:02:00')]));
         $published = $this->publishedRunsChanged();

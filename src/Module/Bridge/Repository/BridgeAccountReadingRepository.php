@@ -50,11 +50,13 @@ class BridgeAccountReadingRepository extends ServiceEntityRepository
     /**
      * Moves the last seen time of the newest stored reading of one window forward, when the bridge reports the same
      * values again. The read time stays, because the history and the run deltas read it.
+     *
+     * @return bool whether the last seen time moved
      */
-    public function markSeen(Uuid $ownerId, Uuid $bridgeId, string $account, string $window, \DateTimeImmutable $seenAt): void
+    public function markSeen(Uuid $ownerId, Uuid $bridgeId, string $account, string $window, \DateTimeImmutable $seenAt): bool
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
-            'UPDATE bridge_account_readings SET seen_at = GREATEST(seen_at, :seen) WHERE id = (
+        return 0 < $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE bridge_account_readings SET seen_at = :seen WHERE seen_at < :seen AND id = (
                 SELECT id FROM bridge_account_readings
                 WHERE owner_id = :owner AND bridge_id = :bridge AND account = :account AND window_key = :window
                 ORDER BY read_at DESC, id DESC LIMIT 1

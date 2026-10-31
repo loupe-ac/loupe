@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Service;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\ValueObject\AccountReadingChange;
 use App\Module\Bridge\ValueObject\AccountReadingReport;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -24,18 +25,15 @@ final readonly class AccountReadingRecorder
     ) {
     }
 
-    /**
-     * @param list<AccountReadingReport> $reports
-     *
-     * @return bool whether a reading was stored or a Try now override closed
-     */
-    public function record(Bridge $bridge, array $reports): bool
+    /** @param list<AccountReadingReport> $reports */
+    public function record(Bridge $bridge, array $reports): AccountReadingChange
     {
         if ([] === $reports) {
-            return false;
+            return AccountReadingChange::None;
         }
 
         $changed = $this->tryNowOverrides->closeOnReadings($bridge, $reports);
+        $seen = false;
 
         $ownerId = $bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.');
         $latest = [];
@@ -51,8 +49,8 @@ final readonly class AccountReadingRecorder
             if (isset($latest[$key]) && $latest[$key]->says($report)) {
                 if (isset($added[$key])) {
                     $added[$key]->seenAt = max($added[$key]->seenAt, $report->readAt);
-                } else {
-                    $this->bridgeAccountReadings->markSeen($ownerId, $bridge->id, $report->account, $report->window, $report->readAt);
+                } elseif ($this->bridgeAccountReadings->markSeen($ownerId, $bridge->id, $report->account, $report->window, $report->readAt)) {
+                    $seen = true;
                 }
 
                 continue;
@@ -64,6 +62,10 @@ final readonly class AccountReadingRecorder
             $changed = true;
         }
 
-        return $changed;
+        return match (true) {
+            $changed => AccountReadingChange::Stored,
+            $seen => AccountReadingChange::Seen,
+            default => AccountReadingChange::None,
+        };
     }
 }

@@ -27,6 +27,7 @@ use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Bridge\Service\WorkRequestLease;
+use App\Module\Bridge\ValueObject\AccountReadingChange;
 use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
@@ -138,8 +139,9 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
             }
-            $readingsStored = $this->readings->record($bridge, $command->accountReadings);
-            $usageChanged = $readingsStored || $usageChanged;
+            $readingChange = $this->readings->record($bridge, $command->accountReadings);
+            $readingsStored = AccountReadingChange::Stored === $readingChange;
+            $usageChanged = $readingChange->refreshesPage() || $usageChanged;
             if (null !== $command->commandEntries) {
                 $bridge->commandEntries = $command->commandEntries;
                 $bridge->commandEntriesReportedAt = $now;
@@ -253,7 +255,7 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // The Agents pill of the sidebar sums the pools of the live bridges that follow a project, so it reloads
         // when the pools change, the bridge follows another set or comes back from quiet, on the projects it left as well.
-        // The Agents page also draws the usage bars, so it reloads when the accounts or their readings change.
+        // The Agents page also draws the usage bars and their age, so it reloads when the accounts or their readings change or age.
         $followedChanged = [] !== array_diff($followedBefore, $projects) || [] !== array_diff($projects, $followedBefore);
         $cameBack = $wasQuiet && null !== $bridge->workerPools;
         if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack || $usageChanged) {
