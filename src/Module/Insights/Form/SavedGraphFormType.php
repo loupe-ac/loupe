@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Form;
 
+use App\Module\Insights\Entity\InsightsSavedGraph;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -18,6 +19,7 @@ final class SavedGraphFormType extends AbstractType
     {
         $builder->add('name', TextType::class, [
             'required' => false,
+            'attr' => ['maxlength' => InsightsSavedGraph::MAX_NAME_LENGTH],
             'label' => 'insights.form.saved_graph_form.name.label',
         ]);
         foreach (['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart'] as $setting) {

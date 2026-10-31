@@ -15,8 +15,17 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'metrics'} only %}
 
+    {% if graph is not null %}
+    <div class="lp-metric-edit-banner" data-edit-banner>
+        {# The graph name is text that a person wrote, so it is escaped here before it enters the sentence. #}
+        <span>{{ 'analytics.metrics.edit.banner'|trans({'%name%': '<strong>' ~ graph.name|e ~ '</strong>'})|raw }}</span>
+        <a href="{{ path('app_project_analytics_metrics', {id: project.id}) }}">{{ 'analytics.metrics.edit.back'|trans }}</a>
+    </div>
+    {% endif %}
+
     {# A GET form, so the controls land in the URL. A control lists only the values its metric allows. #}
     <form method="get" action="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-controller="autosearch" class="lp-metric-controls" data-metrics-form>
+        {% if graph is not null %}<input type="hidden" name="graph" value="{{ graph.id }}">{% endif %}
         <div class="lp-metric-controls__field">
             <twig:Ds:Label for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</twig:Ds:Label>
             <twig:Ds:Select id="metrics-metric" name="metric" data-action="change->autosearch#search">
@@ -121,9 +130,44 @@
 
     <twig:Ds:Panel as="section" class="lp-metric-graph" data-metrics-chart>
         {# The title holds a template label or a bucket name that a person wrote, so it is rendered escaped. Never add |raw here. #}
-        <h2 class="lp-metric-table__title" data-metrics-title>{{ view.title }}</h2>
+        <div class="lp-metric-graph__head">
+            <h2 class="lp-metric-table__title" data-metrics-title>{{ view.title }}</h2>
+            {# One form serves both saves. Save changes posts to the update route through formaction. #}
+            {{ form_start(saveForm, {attr: {class: 'lp-metric-save', 'data-save-graph': ''}}) }}
+                {% if capReached %}
+                <span class="lp-metric-save__cap" data-save-cap>{{ 'analytics.metrics.save.cap_reached'|trans({'%limit%': capLimit}) }}</span>
+                {% endif %}
+                {% if graph is null %}
+                <div class="lp-metric-save__name">
+                    {{ form_label(saveForm.name, null, {label_attr: {class: 'sr-only'}}) }}
+                    {{ form_widget(saveForm.name, {attr: {class: ds_input_class(null, false, true)}}) }}
+                </div>
+                <twig:Ds:Button variant="primary" size="sm" type="submit" data-save-new :disabled="capReached ? 'disabled' : null">
+                    <twig:ux:icon name="lucide:bookmark" class="lp-icon lp-icon--sm" />
+                    {{ 'analytics.metrics.save.button'|trans }}
+                </twig:Ds:Button>
+                {% else %}
+                {% do saveForm.name.setRendered %}
+                <twig:Ds:Button variant="outline" size="sm" type="submit" data-save-new :disabled="capReached ? 'disabled' : null">{{ 'analytics.metrics.edit.save_new'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" size="sm" type="submit" data-save-update formaction="{{ path('app_project_analytics_update_graph', {id: project.id, graphId: graph.id}) }}">{{ 'analytics.metrics.edit.save'|trans }}</twig:Ds:Button>
+                {% endif %}
+            {{ form_end(saveForm) }}
+        </div>
         <twig:Ds:Chart :layout="view.layout" :labels="view.labels" :label="view.title" :valueLabel="('analytics.metrics.statistic.' ~ query.statistic.value)|trans" :changeLabel="'analytics.metrics.table.vs_previous'|trans" id="metrics-graph" />
     </twig:Ds:Panel>
+    {% endif %}
+
+    {% if graph is not null %}
+    <div data-controller="modal leave-guard" data-leave-guard-dirty-value="{{ dirty ? 'true' : 'false' }}">
+        <twig:Ds:Dialog aria-labelledby="leave-graph-title" data-action="cancel->modal#close">
+            <h2 class="lp-dialog-title" id="leave-graph-title">{{ 'analytics.metrics.edit.leave.title'|trans({'%name%': graph.name}) }}</h2>
+            <p class="lp-dialog-desc">{{ 'analytics.metrics.edit.leave.body'|trans }}</p>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'analytics.metrics.edit.leave.keep'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" type="button" data-action="click->leave-guard#discard">{{ 'analytics.metrics.edit.leave.discard'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        </twig:Ds:Dialog>
+    </div>
     {% endif %}
 </twig:Ds:Workspace>
 {% endblock %}

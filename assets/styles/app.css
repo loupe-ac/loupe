@@ -7588,6 +7588,32 @@
     .lp-metric-graph {
         @apply mt-4 flex flex-col gap-4;
     }
+    /* The title row of a graph: the title on the left, the save form on the right. */
+    .lp-metric-graph__head {
+        @apply flex min-h-9 items-center justify-between gap-4;
+    }
+    .lp-metric-graph__head .lp-metric-table__title {
+        @apply min-w-0 flex-1;
+    }
+    .lp-metric-save {
+        @apply flex flex-wrap items-center justify-end gap-2;
+    }
+    .lp-metric-save__name {
+        @apply w-64;
+    }
+    .lp-metric-save__cap {
+        @apply text-xs text-fg-dim;
+    }
+    /* The note above the controls when the page edits a saved graph. */
+    .lp-metric-edit-banner {
+        @apply mt-4 flex items-center justify-between gap-3 rounded-lg border border-accent-border bg-accent-faint px-3.5 py-2.5 text-sm text-fg-mute;
+    }
+    .lp-metric-edit-banner strong {
+        @apply text-ink;
+    }
+    .lp-metric-edit-banner a {
+        @apply text-accent-ink hover:text-ink;
+    }
     .lp-metric-table {
         @apply mt-4 flex flex-col gap-4;
     }

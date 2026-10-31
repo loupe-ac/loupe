@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Insights\Form;
 
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\View\MetricChartType;
+use App\Module\Insights\View\MetricsQuery;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class SavedGraphRequest
@@ -21,6 +23,22 @@ class SavedGraphRequest
         public ?string $compare = null,
         public ?string $chart = null,
     ) {
+    }
+
+    /** Every setting explicit, with the chart type the page draws, so a save never meets a lock the page already avoided. */
+    public static function fromQuery(MetricsQuery $query, MetricChartType $drawn, ?string $name = null): self
+    {
+        return new self(
+            $name,
+            $query->metric->key->key(),
+            $query->unit->value,
+            $query->statistic->value,
+            $query->group->value,
+            $query->range->value,
+            $query->bucket->value,
+            $query->compare->value,
+            $drawn->value,
+        );
     }
 
     /**

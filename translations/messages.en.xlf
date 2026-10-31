@@ -8636,6 +8636,16 @@
             <trans-unit id="analytics.metrics.saved_graph.flash.saved"><source>analytics.metrics.saved_graph.flash.saved</source><target>The graph is saved.</target></trans-unit>
             <trans-unit id="analytics.metrics.saved_graph.flash.updated"><source>analytics.metrics.saved_graph.flash.updated</source><target>The graph is updated.</target></trans-unit>
             <trans-unit id="analytics.metrics.saved_graph.flash.invalid"><source>analytics.metrics.saved_graph.flash.invalid</source><target>Loupe could not save the graph. Try again.</target></trans-unit>
+            <trans-unit id="analytics.metrics.save.button"><source>analytics.metrics.save.button</source><target>Save to dashboard</target></trans-unit>
+            <trans-unit id="analytics.metrics.save.cap_reached"><source>analytics.metrics.save.cap_reached</source><target>The Dashboard holds %limit% graphs. Remove one to add another.</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.banner"><source>analytics.metrics.edit.banner</source><target>Editing the saved graph %name%. The Dashboard shows your changes after you save.</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.back"><source>analytics.metrics.edit.back</source><target>Back to the Dashboard</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.save"><source>analytics.metrics.edit.save</source><target>Save changes</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.save_new"><source>analytics.metrics.edit.save_new</source><target>Save as new graph</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.title"><source>analytics.metrics.edit.leave.title</source><target>Discard your changes to “%name%”?</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.body"><source>analytics.metrics.edit.leave.body</source><target>You changed this saved graph and did not save. The Dashboard keeps the graph as it was.</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.keep"><source>analytics.metrics.edit.leave.keep</source><target>Keep editing</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.discard"><source>analytics.metrics.edit.leave.discard</source><target>Discard changes</target></trans-unit>
             <trans-unit id="insights.bucket_rules.intro"><source>insights.bucket_rules.intro</source><target>The tool time of each worker run is split into buckets. A rule sends every tool call whose signature matches its pattern to its bucket. The first rule that matches takes the call.</target></trans-unit>
             <trans-unit id="insights.bucket_rules.add.title"><source>insights.bucket_rules.add.title</source><target>Add a rule</target></trans-unit>
             <trans-unit id="insights.bucket_rules.add.submit"><source>insights.bucket_rules.add.submit</source><target>Add the rule</target></trans-unit>
