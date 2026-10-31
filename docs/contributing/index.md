@@ -46,6 +46,11 @@ one yields when two of them collide. In short:
 - All user-facing strings are translated.
 - Access control goes through Symfony voters, not inline checks.
 
+Shared agent workflows belong in `.agents/skills/`. Put an adapter for one agent
+harness in the configuration directory of that harness, and keep it a thin
+wrapper around the shared instructions. The `.claude/` links and settings give
+Claude Code access to the shared files, and they are not the canonical source.
+
 ## Commits and pull requests
 
 - Work on a branch and open a pull request against `main`. A pull request that
