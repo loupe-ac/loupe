@@ -154,7 +154,12 @@ The workflow makes three moves on its own:
 
 1. When the last open blocker of a child in Next finishes, and its epic sits in
    Implementation, the child moves to Implementation, which asks for its
-   implementation.
+   implementation. The `child-unblocked` rule also waits for the condition
+   `card.parent.epic_branch.exists`, which is true when the epic branch exists
+   in the repository that the bridge clones. The `implement` entry then passes
+   the branch to `bridge-before.sh` as `--epic-branch={epicBranch}`, which cuts the
+   worker folder from `origin/<branch>`, and names it in the prompt line
+   `Epic branch: {epicBranch}.`. An empty value means the card has no epic branch.
 2. When every child of an epic is done, the epic moves to In review when it has
    a pull request, and to Done when it has none. An epic with a child merged
    into its epic branch never moves straight to Done. While a breakdown request is
@@ -249,11 +254,12 @@ work:
   implement:
     permissions: full
     before:
-      run: [bin/worktrees/bridge-before.sh, "{cardNumber}", "{cardId}"]
+      run: [bin/worktrees/bridge-before.sh, "--epic-branch={epicBranch}", "{cardNumber}", "{cardId}"]
       timeout: 15m
     prompt: |
       Use the loupe-stage-implementation skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) entered implementation.
+      Epic branch: {epicBranch}.
       Loupe instance https://app.loupe.ac.
       If the card is no longer in implementation, stop.
 

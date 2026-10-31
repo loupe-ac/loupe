@@ -19,7 +19,7 @@ All three tests true means the check applies. The list of required states is the
 Write the list before you seed anything.
 
 1. A state is required when the card body, the tech design or the product document names it. It is also required when the "Prototype map" of the build notes has a state row for a page that the diff changes.
-2. Each page that the diff changes gets at least one state. When no source names a state for a changed page, its required state is the default state: the page as the seeded account sees it, with a marker that the diff adds to that page.
+2. Each page that the diff changes gets at least one state. When no source names a state for a changed page, its required state is the default state. That is the page as the seeded account sees it, with a marker that the diff adds to that page.
 3. An empty list counts as unproven. When you find no page that a changed path shows on, stop as "Block, never skip" says. The owner then narrows `Paths`, or names the page.
 
 ## Seed, mint and prove
@@ -39,7 +39,7 @@ The signed link goes into the pull request body only through a temporary body fi
 2. Pass that file to the one forge command that creates or replaces the body, and to nothing else.
 3. Remove the folder right after the command, also when the command fails.
 
-The profile `Section` and `Line` items say where the proven lines go and what a line looks like. On a rerun whose pull request exists, replace that section of the body with "Read the pull request body" and "Replace the pull request body" of the forge adapter. No build notes entry, such as a "Departures" entry, excuses a required state with no proven line. A line that says "Not seeded", or holds no link or marker, is unproven.
+The profile `Section` and `Line` items say where the proven lines go and what a line looks like. On a rerun whose pull request exists, replace that section of the body. Use "Read the pull request body" and "Replace the pull request body" of the forge adapter. No build notes entry, such as a "Departures" entry, excuses a required state with no proven line. A line that says "Not seeded", or holds no link or marker, is unproven.
 
 ## Block, never skip
 

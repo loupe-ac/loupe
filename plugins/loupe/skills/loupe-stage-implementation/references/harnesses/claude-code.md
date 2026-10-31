@@ -34,7 +34,7 @@ Then wait in the foreground with this loop, and a Bash timeout of 600000:
 for i in $(seq 1 57); do grep -q '^EXIT=' <log> && break; sleep 10; done; grep '^EXIT=' <log> || echo still-running; tail -25 <log>
 ```
 
-One loop waits 570 seconds at most. When it prints `still-running`, run it again. `EXIT=0` means the command passed. This loop ran successfully once, for a full gate run in a worker folder.
+One loop waits 570 seconds at most. When it prints `still-running`, run it again. `EXIT=0` means the command passed.
 
 ## Read a linked prototype
 
