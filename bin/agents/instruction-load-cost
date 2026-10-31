@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Ranks the agent instruction files of this repository by load cost over recent Claude Code sessions.
+#
+# Usage:
+#   bin/agents/instruction-load-cost [--days <n>] [--with <skill>]
+#
+# Reads the *.jsonl transcripts under ~/.claude/projects and ~/.claude-worker/projects
+# whose project directory is this repository, one of its .worktrees or a bridge card worktree,
+# modified in the last n days (default 30).
+# Loads: each Skill tool call counts once by its tool-use id. AGENTS.md loads once per top-level session.
+# Words: the current "wc -w" of AGENTS.md and of .agents/skills/<name>/SKILL.md. Cost: loads x words.
+# --with <skill>: per skill, the top-level sessions that load it and those that also load <skill>.
+# Prints counts and skill names only, never transcript content.
+# Requires: git, find, grep, awk, wc
+
+set -euo pipefail
+
+DAYS=30
+WITH=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --days) DAYS="${2:?--days needs a number}"; shift 2 ;;
+    --with) WITH="${2:?--with needs a skill name}"; shift 2 ;;
+    *) echo "Usage: $(basename "$0") [--days <n>] [--with <skill>]" >&2; exit 1 ;;
+  esac
+done
+[[ "$DAYS" =~ ^[0-9]+$ ]] || { echo "--days must be a whole number" >&2; exit 1; }
+
+# The main checkout, also from inside a worktree, because transcripts of every worktree count.
+MAIN=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+SLUG=$(printf '%s' "$MAIN" | sed 's/[^A-Za-z0-9]/-/g')
+REPO=$(basename "$MAIN" | sed 's/[^A-Za-z0-9]/-/g')
+
+DIRS=()
+for root in "$HOME/.claude/projects" "$HOME/.claude-worker/projects"; do
+  for dir in "$root/$SLUG" "$root/$SLUG"--worktrees-* "$root"/*-loupe-worktrees-"$REPO"-card-*; do
+    [[ -d "$dir" ]] && DIRS+=("$dir")
+  done
+done
+[[ ${#DIRS[@]} -gt 0 ]] || { echo "No transcripts found for $SLUG" >&2; exit 1; }
+
+FILES=$(mktemp)
+HITS=$(mktemp)
+trap 'rm -f "$FILES" "$HITS"' EXIT
+
+find "${DIRS[@]}" -type f -name '*.jsonl' -mtime "-$DAYS" -print0 >"$FILES"
+LC_ALL=C xargs -0 grep -oHE '"type":"tool_use","id":"[^"]+","name":"Skill","input":\{"skill":"[^"]+"' <"$FILES" >"$HITS" || true
+
+SESSIONS=$(tr '\0' '\n' <"$FILES" | grep -vc '/subagents/' || true)
+
+# Emits "<path>\t<id>\t<skill>" once per tool-use id, with the loupe: plugin prefix stripped.
+calls() {
+  awk '{
+    at = index($0, ":\"type\":\"tool_use\"")
+    path = substr($0, 1, at - 1)
+    split(substr($0, at), f, "\"")
+    id = f[8]; skill = f[18]
+    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^loupe:/, "", skill)
+    if (!(id in seen)) { seen[id] = 1; print path "\t" id "\t" skill }
+  }' "$HITS"
+}
+
+words() { [[ -f "$1" ]] && wc -w <"$1" | tr -d ' ' || echo ""; }
+
+echo "Window: last $DAYS days. Top-level sessions: $SESSIONS."
+echo
+
+{
+  printf 'AGENTS.md\t%s\t%s\n' "$SESSIONS" "$(words "$MAIN/AGENTS.md")"
+  calls | cut -f3 | sort | uniq -c | while read -r n skill; do
+    printf '%s\t%s\t%s\n' "$skill" "$n" "$(words "$MAIN/.agents/skills/$skill/SKILL.md")"
+  done
+} | awk -F'\t' '
+  $3 == "" { missing = missing sprintf("%s%s (%d)", missing == "" ? "" : ", ", $1, $2); next }
+  { name[++n] = $1; loads[n] = $2; words[n] = $3; cost[n] = $2 * $3; total += cost[n] }
+  END {
+    for (i = 1; i <= n; i++) for (j = i + 1; j <= n; j++) if (cost[j] > cost[i]) {
+      t = name[i]; name[i] = name[j]; name[j] = t
+      t = loads[i]; loads[i] = loads[j]; loads[j] = t
+      t = words[i]; words[i] = words[j]; words[j] = t
+      t = cost[i]; cost[i] = cost[j]; cost[j] = t
+    }
+    printf "%-36s %7s %7s %11s %7s\n", "file", "loads", "words", "load cost", "share"
+    for (i = 1; i <= n; i++) {
+      printf "%-36s %7d %7d %11d %6.1f%%\n", name[i], loads[i], words[i], cost[i], total ? 100 * cost[i] / total : 0
+      if (i <= 7) top += cost[i]
+    }
+    printf "\nTotal load cost: %d words. Top 7 share: %.1f%%.\n", total, total ? 100 * top / total : 0
+    if (missing != "") printf "Not in .agents/skills (loads): %s\n", missing
+  }'
+
+if [[ -n "$WITH" ]]; then
+  echo
+  echo "Top-level sessions per skill, and those that also load $WITH:"
+  calls | grep -v '/subagents/' | awk -F'\t' -v with="$WITH" '
+    { has[$1 SUBSEP $3] = 1; skills[$3] = 1; sessions[$1] = 1 }
+    END {
+      for (s in sessions) if ((s SUBSEP with) in has) both++
+      printf "%-36s %8s %8s\n", "skill", "sessions", "with"
+      cmd = "sort -k2,2nr -k1,1"
+      for (k in skills) {
+        if (k == with) continue
+        a = 0; b = 0
+        for (s in sessions) if ((s SUBSEP k) in has) { a++; if ((s SUBSEP with) in has) b++ }
+        printf "%-36s %8d %8d\n", k, a, b | cmd
+      }
+      close(cmd)
+      printf "Sessions that load %s: %d\n", with, both + 0
+    }'
+fi
