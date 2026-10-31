@@ -8,7 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Export\UserDataExporterInterface;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 
-/** The saved graphs of the projects the user owns. A removed graph is left out. */
+/** The saved graphs of the projects the user owns. A removed graph is kept for Undo, so it is exported with its removedAt. */
 final readonly class InsightsSavedGraphsExporter implements UserDataExporterInterface
 {
     public function __construct(
@@ -41,6 +41,7 @@ final readonly class InsightsSavedGraphsExporter implements UserDataExporterInte
                 'chartType' => $graph->chartType->value,
                 'width' => $graph->width->value,
                 'showLegend' => $graph->showLegend,
+                'removedAt' => $graph->removedAt?->format(\DateTimeInterface::ATOM),
             ];
         }
     }

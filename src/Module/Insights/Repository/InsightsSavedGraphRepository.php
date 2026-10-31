@@ -33,13 +33,12 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
             ->getResult());
     }
 
-    /** @return list<InsightsSavedGraph> the active graphs of the projects the user owns, by project, then in order of position */
+    /** @return list<InsightsSavedGraph> the graphs of the projects the user owns, removed ones included, by project, then in order of position */
     public function findByOwner(User $user): array
     {
         return array_values($this->createQueryBuilder('g')
             ->join('g.project', 'p')
             ->andWhere('p.owner = :user')
-            ->andWhere('g.removedAt IS NULL')
             ->setParameter('user', $user)
             ->orderBy('p.name', 'ASC')
             ->addOrderBy('p.id', 'ASC')

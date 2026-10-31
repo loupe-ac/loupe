@@ -12,7 +12,7 @@ final class InsightsSavedGraphsExporterTest extends KernelTestCase
 {
     use InsightsScenario;
 
-    public function test_it_exports_the_active_graphs_of_the_projects_the_user_owns_in_order(): void
+    public function test_it_exports_every_retained_graph_of_the_projects_the_user_owns_in_order(): void
     {
         self::bootKernel();
         $project = $this->scenarioProject('graphs-export');
@@ -26,7 +26,7 @@ final class InsightsSavedGraphsExporterTest extends KernelTestCase
         $rows = iterator_to_array($exporter->export($project->owner), false);
 
         self::assertSame('insights_saved_graphs.json', $exporter->filename());
-        $row = static fn (int $position, string $name): array => [
+        $row = static fn (int $position, string $name, ?string $removedAt = null): array => [
             'projectId' => (string) $project->id,
             'project' => $project->name,
             'position' => $position,
@@ -41,7 +41,12 @@ final class InsightsSavedGraphsExporterTest extends KernelTestCase
             'chartType' => 'line',
             'width' => 'half',
             'showLegend' => true,
+            'removedAt' => $removedAt,
         ];
-        self::assertSame([$row(2, 'First'), $row(5, 'Second')], $rows);
+        self::assertSame([
+            $row(2, 'First'),
+            $row(3, 'Removed', new \DateTimeImmutable('2026-10-01 10:00:00')->format(\DateTimeInterface::ATOM)),
+            $row(5, 'Second'),
+        ], $rows);
     }
 }
