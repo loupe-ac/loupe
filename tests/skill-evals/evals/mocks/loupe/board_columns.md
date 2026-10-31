@@ -1,0 +1,1 @@
+{"columns":[{"slug":"backlog","name":"Backlog","terminal":false},{"slug":"product-design","name":"Product design","terminal":false},{"slug":"tech-design","name":"Tech design","terminal":false},{"slug":"implementation","name":"Implementation","terminal":false},{"slug":"in-review","name":"In review","terminal":false},{"slug":"done","name":"Done","terminal":true}]}

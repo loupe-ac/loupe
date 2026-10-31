@@ -1,0 +1,1 @@
+{"cardId":"01a19328-0000-7000-8000-000000000042","number":42,"title":"Show the paging controls on the board","type":"feature","status":"implementation","priority":"medium","requiresHumanReview":false,"parentId":null,"pullRequestUrls":["https://github.com/acme/shop/pull/7"],"documents":[],"agentReview":null,"body":"Add paging controls under the board columns."}
