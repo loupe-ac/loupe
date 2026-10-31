@@ -173,17 +173,25 @@ final readonly class GitHubDelivery
         return [...$this->numberHints(\is_array($pullRequests) ? $pullRequests : []), ...$this->headHints($check['head_sha'] ?? null)];
     }
 
-    /** @return list<PullRequestRefreshHint> */
-    private function pushHints(): array
+    /** The branch a push moved, or null for any other event, a deletion, or a ref that is not a branch. */
+    public function pushedBranch(): ?string
     {
         $ref = $this->payload['ref'] ?? null;
-        if (true === ($this->payload['deleted'] ?? null) || !\is_string($ref) || !str_starts_with($ref, 'refs/heads/')) {
-            return [];
+        if ('push' !== $this->event || true === ($this->payload['deleted'] ?? null) || !\is_string($ref) || !str_starts_with($ref, 'refs/heads/')) {
+            return null;
         }
 
         $branch = substr($ref, \strlen('refs/heads/'));
 
-        return '' === $branch ? [] : [PullRequestRefreshHint::base($branch)];
+        return '' === $branch ? null : $branch;
+    }
+
+    /** @return list<PullRequestRefreshHint> */
+    private function pushHints(): array
+    {
+        $branch = $this->pushedBranch();
+
+        return null === $branch ? [] : [PullRequestRefreshHint::base($branch)];
     }
 
     /**

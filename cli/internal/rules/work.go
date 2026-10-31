@@ -62,7 +62,7 @@ const subjectCapabilityPrefix = "subject-"
 
 // contextPlaceholders fill from the context of the request. An empty value is
 // a real state, such as a card with no pull request.
-var contextPlaceholders = []string{"pullRequestNumber", "pullRequestUrl", "headSha", "reason", "documentId"}
+var contextPlaceholders = []string{"pullRequestNumber", "pullRequestUrl", "headSha", "reason", "documentId", "epicBranch"}
 
 // WorkEntry runs one kind of work request. Action is empty for a worker,
 // ActionInteractive or ActionCommand, as for a rule.
@@ -553,6 +553,7 @@ func workValues(w api.WorkRequest, slug string) map[string]string {
 		"headSha":           w.Context.HeadSHA,
 		"reason":            w.Context.Reason,
 		"documentId":        w.Context.DocumentID,
+		"epicBranch":        w.Context.EpicBranch,
 	}
 }
 

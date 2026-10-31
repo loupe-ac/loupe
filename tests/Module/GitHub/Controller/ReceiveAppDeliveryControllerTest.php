@@ -6,15 +6,18 @@ namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestReview;
+use App\Module\Forge\Event\ForgeBranchPushed;
 use App\Module\Forge\EventListener\RateLimitForgeDeliveries;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
 
 /** The App route verifies with the App's own secret, and acts only for an installation Loupe knows. */
@@ -212,6 +215,29 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame([[$onMain, true]], $this->queuedRefreshes());
+    }
+
+    public function test_a_push_of_a_branch_announces_it_and_a_tag_or_a_deleted_branch_announces_nothing(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('pushed');
+        $this->installation($project, 9_000_622);
+        $this->owned($project, 622, 'acme/t', ForgeRepositorySource::Installation, 9_000_622);
+        $announced = new RecordedEvents();
+        $dispatcher = static::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ForgeBranchPushed::class, $announced);
+        $payload = ['installation' => ['id' => 9_000_622], 'repository' => ['id' => 622, 'full_name' => 'acme/t']];
+
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/epic/852'] + $payload, self::SECRET);
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/tags/v1'] + $payload, self::SECRET);
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/epic/853', 'deleted' => true] + $payload, self::SECRET);
+
+        $pushed = $announced->of(ForgeBranchPushed::class);
+        self::assertCount(1, $pushed);
+        self::assertSame(['github', 'acme/t', 'epic/852'], [$pushed[0]->forge, $pushed[0]->repository, $pushed[0]->branch]);
+        self::assertEquals($project->id, $pushed[0]->projectId);
     }
 
     public function test_a_repository_another_installation_owns_is_dropped(): void
