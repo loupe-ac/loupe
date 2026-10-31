@@ -170,6 +170,38 @@ func TestTheOutcomeCarriesTheUsage(t *testing.T) {
 	}
 }
 
+func TestUnpricedKeepsTheTokensAndDropsTheCost(t *testing.T) {
+	in := &api.Usage{Source: api.UsageReported, Models: map[string]api.ModelUsage{
+		"m": {InputTokens: 3, OutputTokens: 4, CacheReadTokens: 5, CostUSD: ptr(1.5)},
+	}}
+
+	got := unpriced(in)
+
+	want := api.ModelUsage{InputTokens: 3, OutputTokens: 4, CacheReadTokens: 5}
+	if got.Source != api.UsageReported || got.Models["m"] != want {
+		t.Fatalf("unpriced = %s", usageText(got))
+	}
+	if in.Models["m"].CostUSD == nil {
+		t.Fatal("unpriced changed its input")
+	}
+	if unpriced(nil) != nil {
+		t.Fatal("unpriced(nil) is not nil")
+	}
+}
+
+func TestTheOutcomeCarriesTheCostSource(t *testing.T) {
+	h := newHarness(t)
+	rec := h.states()
+	h.worker.result = workerResult{hasResult: true, status: "finished", costSource: "openrouter"}
+
+	h.send(cardMoved(87))
+
+	sent := rec.states()
+	if got := outcomeOf(t, sent, runIDs(sent)[0]); got.CostSource != "openrouter" {
+		t.Fatalf("costSource = %q", got.CostSource)
+	}
+}
+
 // sameUsage compares two usages, with costs equal to a rounding error.
 func sameUsage(a, b *api.Usage) bool {
 	if a == nil || b == nil {

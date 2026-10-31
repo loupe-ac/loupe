@@ -512,6 +512,10 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 		out.Usage = toUsage(map[string]spend{name: stdout.usage.priceAt(name, 0)})
 	}
 
+	if h.onOpenRouter() {
+		out.CostSource = harness.CostSourceOpenRouter
+	}
+
 	if msg := h.providerProblem(sess, sessErr == nil); msg != "" {
 		out.Decoded, out.StructuredOutput, out.Result = false, nil, msg
 	}

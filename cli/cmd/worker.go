@@ -71,6 +71,8 @@ type workerResult struct {
 	command bool
 	// timedOut says the command ran past its timeout, so the bridge killed it.
 	timedOut bool
+	// costSource is "openrouter" when Loupe reads the billed cost of the run.
+	costSource string
 	// reported is the modelUsage claude printed, which counts the whole session.
 	// usage is what this process spent, and nil when unknown.
 	reported transcript.Usage
@@ -558,6 +560,10 @@ func workerOutcome(dir string, killed bool, waitErr error) workerResult {
 	res.killed, res.dir = killed, dir
 	if recErr == nil {
 		res.usage = workerUsage(rec, res.reported)
+	}
+	if doc.CostSource == harn.CostSourceOpenRouter {
+		res.costSource = doc.CostSource
+		res.usage = unpriced(res.usage)
 	}
 	if waitErr != nil {
 		res.err = waitErr

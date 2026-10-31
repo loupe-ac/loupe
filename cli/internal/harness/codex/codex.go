@@ -89,6 +89,7 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 	args = append(args, sandboxArgs(spec, resume)...)
 	args = append(args, sessionArgs(spec)...)
 	args = append(args, h.connectArgs()...)
+	args = append(args, h.sessionHeaderArgs(spec.RunID)...)
 	args = append(args, "--json", "--skip-git-repo-check")
 	if spec.Schema != "" && spec.RunDir != "" {
 		path := filepath.Join(spec.RunDir, schemaFile)
@@ -133,6 +134,33 @@ func (h Harness) connectArgs() []string {
 	}
 
 	return args
+}
+
+// sessionHeaderArgs sends the run key to OpenRouter as the session of the
+// run, when the provider of the profile is OpenRouter. Loupe later reads the
+// billed cost of that session. The -c override merges into the headers the
+// operator set in the profile.
+func (h Harness) sessionHeaderArgs(runID string) []string {
+	if runID == "" {
+		return nil
+	}
+	home, err := h.homeDir()
+	if err != nil {
+		return nil
+	}
+	name := configOpenRouter(home, h.profile)
+	if name == "" {
+		return nil
+	}
+
+	return []string{"-c", "model_providers." + name + ".http_headers.x-session-id=" + tomlString(runID)}
+}
+
+// onOpenRouter says whether the provider of the profile is OpenRouter.
+func (h Harness) onOpenRouter() bool {
+	home, err := h.homeDir()
+
+	return err == nil && configOpenRouter(home, h.profile) != ""
 }
 
 // sandboxArgs gives the flags of the sandbox mode. Workspace adds the main

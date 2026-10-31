@@ -59,6 +59,10 @@ type RunInfo struct {
 	Since     time.Time
 }
 
+// CostSourceOpenRouter is the cost source of a run that went through
+// OpenRouter.
+const CostSourceOpenRouter = "openrouter"
+
 // CheckSpec is one account to check. Env holds what the account adds to the
 // environment, and Projects maps each project slug to its folder.
 type CheckSpec struct {
@@ -88,6 +92,9 @@ type Spec struct {
 	SessionID      string
 	Prompt         string
 	Env            []string
+	// RunID is the id the bridge gives the run. It is the run key that Loupe
+	// stores, and a harness that routes through OpenRouter sends it there.
+	RunID string
 	// RunDir is the run directory, which holds the files of a worker.
 	RunDir string
 }
@@ -120,6 +127,10 @@ type Output struct {
 	// when the run did not say.
 	HarnessVersion string
 	SkillVersion   string
+	// CostSource names who prices the run: "openrouter" when the run went
+	// through OpenRouter and Loupe reads the billed cost, and "" when the
+	// bridge prices the usage.
+	CostSource string
 	// HarnessEvents counts the events of the run by kind. A nil map says the
 	// harness could not read the files, and an empty one says it read them and
 	// found no event.

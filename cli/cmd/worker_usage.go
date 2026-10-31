@@ -57,3 +57,18 @@ func apiUsage(source string, usage transcript.Usage) *api.Usage {
 
 	return &api.Usage{Source: source, Models: models}
 }
+
+// unpriced is the usage with no cost on any model. Loupe takes the cost of a
+// run on OpenRouter from the bill, and a list price is not the billed price.
+func unpriced(usage *api.Usage) *api.Usage {
+	if usage == nil {
+		return nil
+	}
+	models := make(map[string]api.ModelUsage, len(usage.Models))
+	for name, m := range usage.Models {
+		m.CostUSD = nil
+		models[name] = m
+	}
+
+	return &api.Usage{Source: usage.Source, Models: models}
+}
