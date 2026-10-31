@@ -5,24 +5,25 @@ description: "Use when a controller action needs business logic beyond rendering
 
 # Command + Handler Pattern
 
-Any controller action that does more than render a template or redirect must use
-a command + handler pair. The controller injects the handler and calls it
+A controller action that does more than render a template or redirect uses a
+command + handler pair. The controller injects the handler and calls it
 synchronously as a callable. Symfony Messenger is not involved. Do not put
 business logic in a controller. Do not route a command through Messenger unless
 async dispatch is a stated requirement.
 
 ## Scope: every entry point
 
-The pattern covers every entry point, not only controllers. Console commands
-(`Command/Console/`) and messenger handlers are thin shells too. They invoke a
-`Command/` + `Handler` pair. They never call a business-logic service directly.
+The pattern covers every entry point, and controllers are only one of them.
+Console commands (`Command/Console/`) and messenger handlers are thin shells too.
+They invoke a `Command/` + `Handler` pair. They never call a business-logic
+service directly.
 
-Name domain pairs verb-first, for example `RunTrialSweepCommand`. Give the
-domain pair a name that differs from the console command class and the messenger
-handler class, so the three never collide.
+Name a domain pair verb-first, for example `RunTrialSweepCommand`. Give it a name
+that differs from the console command class and the messenger handler class, so
+the three never collide.
 
-`PurgeExpiredExportsCommand` injects `ExpiredExportPurger` directly, a known
-pre-existing violation. Migrate it when you touch it. Do not copy it.
+`PurgeExpiredExportsCommand` injects `ExpiredExportPurger` directly. This is a
+known pre-existing violation. Migrate it when you touch it. Do not copy it.
 
 ## File layout
 
@@ -55,23 +56,22 @@ final readonly class CreateIssueCommand
 
 - A command may carry an entity directly. The controller resolved it through
   route entity mapping.
-- External-system data: carry only the stable ID. When the action imports or
-  syncs data from a third-party API, the command holds the identifier only (for
-  example `int $externalRepositoryId`). The handler fetches the full payload
+- For external-system data, carry only the stable ID. When the action imports or
+  syncs data from a third-party API, the command holds the identifier only, for
+  example `int $externalRepositoryId`. The handler fetches the full payload
   inside `__invoke()`.
-- Sealed-parameter commands: one call site passes magic constants, and another
-  passes real variables. Do not share one command between them. Create a
-  dedicated command for the fixed invocation, for example an
-  `OpenBrainstormCommand` whose handler hardcodes the seed prompt. A constructor
-  that one caller feeds string constants is a smell.
-- Raw input in, parsing in the handler. When the input is unstructured text that
-  needs parsing or normalization (for example a textarea pasted as one item per
-  line), the command carries the raw scalar string. The handler runs the parser
-  inside `__invoke()`. Do not parse in the controller and pass a pre-built array.
-  This is the same shape as the external-API rule. Every consumer of the handler
-  (another handler, a console command, a test) then gets the parsing, the dedup
-  and the normalization, and the controller stays a thin
-  request/handler/response shell.
+- Do not share one command between a call site that passes magic constants and
+  one that passes real variables. Create a dedicated command for the fixed
+  invocation, a sealed-parameter command. For example, the handler of an
+  `OpenBrainstormCommand` hardcodes the seed prompt. A constructor that one
+  caller feeds string constants is a smell.
+- Pass raw input in, and parse it in the handler. Unstructured text that needs
+  parsing or normalization, such as a textarea with one item per line, travels
+  as the raw scalar string. The handler runs the parser inside `__invoke()`. Do
+  not parse in the controller and pass a pre-built array. This is the same
+  shape as the external-API rule. Every consumer of the handler (another
+  handler, a console command, a test) then gets the parsing, the dedup and the
+  normalization. The controller stays a thin request/handler/response shell.
 
   ```php
   // ✗ controller parses, command carries the result
@@ -87,7 +87,7 @@ Write a `final readonly class` with exactly one public method, `__invoke()`. It
 takes the command. It returns the created or affected entity, or `void`. The
 handler owns repository reads, persistence (`persist` + `flush`), side effects,
 domain logging and async dispatch. A handler may dispatch a Messenger message as
-a side effect; only the command itself never goes through Messenger.
+a side effect. Only the command itself never goes through Messenger.
 
 ```php
 final readonly class CreateProjectHandler
@@ -117,21 +117,21 @@ final readonly class CreateProjectHandler
 ## Read handlers and view naming
 
 Not every handler writes. A controller action that only renders but needs data
-must still go through a handler, because a controller may not touch a repository
-directly (`controller.directStateAccess`; see `project-backend`). A read/query
-handler follows the same shape rules, `final readonly` and a single `__invoke()`,
-but returns a view object instead of a persisted entity. A view is a
+still goes through a handler, because a controller may not touch a repository
+directly (`controller.directStateAccess`, see `project-backend`). A read/query
+handler follows the same shape rules: `final readonly` and a single
+`__invoke()`. It returns a view object instead of a persisted entity. A view is a
 `final readonly` DTO in the same `Command/` directory.
 
-Two naming rules keep a handler and its view coherent:
+Keep a handler and its view coherent:
 
 - The view name mirrors the handler name. A `List<X>Handler` returns a
   `List<X>View`, verb-first, for example `ListIssuesHandler` returns
   `ListIssuesView`. Do not invert it to `<X>ListView`.
-- The returned data must contain what the handler name promises. A
+- The returned data contains what the handler name promises. A
   `ShowProjectHandler` that returns a bare `list<Issue>` is wrong, because the
   name leads you to expect a `Project`. A `Show<X>Handler` returns a view that
-  contains the looked-up `<X>` and its related data, for example
+  contains the looked-up `<X>` and its related data. For example,
   `ShowProjectHandler` returns `ProjectDetailView { public Project $project; … }`.
   The controller then reads the entity off the view (`'project' => $view->project`),
   and not from the route parameter separately.
@@ -145,12 +145,13 @@ unify them.
 `Gamache\PHPStan\CommandShapeRule` and `HandlerShapeRule` run under `just ci` on
 every class in a `Command\` namespace.
 
-- Command (name does not end in `Handler`, no parent class): must be
-  `final readonly`, with no public method besides `__construct()`. Identifiers:
-  `command.notFinalReadonly`, `command.hasPublicMethods`.
-- Handler (name ends in `Handler`): must be `final readonly`, with exactly one
-  public method, `__invoke()`. Identifiers: `handler.notFinalReadonly`,
-  `handler.invalidShape`.
+- A command is a class whose name does not end in `Handler` and that has no
+  parent class. It must be `final readonly`, with no public method besides
+  `__construct()`. Identifiers: `command.notFinalReadonly`,
+  `command.hasPublicMethods`.
+- A handler is a class whose name ends in `Handler`. It must be `final readonly`,
+  with exactly one public method, `__invoke()`. Identifiers:
+  `handler.notFinalReadonly`, `handler.invalidShape`.
 - Symfony console commands extend `Symfony\...\Command`, so the rule skips them.
   They live in `Command/Console/`.
 
@@ -258,6 +259,6 @@ try {
 ## Related conventions
 
 The examples above are illustrative. The skeleton ships no concrete command
-classes of its own. For surrounding conventions (controllers, forms/DTOs, flash
-messages, logging), see `project-backend`. For handler tests, see
+classes of its own. For the surrounding conventions (controllers, forms and
+DTOs, flash messages, logging), see `project-backend`. For handler tests, see
 `project-testing`.

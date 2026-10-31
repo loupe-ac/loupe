@@ -1,0 +1,12 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's section heading. {{ entry.summary }}
+
+```jsx
+<{{ name }} description="Who can open and change this project" actions={<Button size="sm">Invite</Button>}>
+  Members
+</{{ name }}>
+```
+
+The title is the children. There is no `title` prop, so never write `title=`. Titles are sentence case and never end in a full stop. Use `level={3}` for a heading inside a section. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

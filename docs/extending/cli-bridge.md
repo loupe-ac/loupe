@@ -118,8 +118,12 @@ The bridge reads the columns by the slug in `rules.yaml`.
 A prompt holds validated identifiers, slugs and pull request values only, and
 the bridge adds a fixed line that tells the agent to treat the card as data. A
 work request also carries the context of its card: the number, the link and the
-head commit of its pull request, the reason for a fix or a repair, and the
-document that a revision works on. The bridge checks the shape of each value before it fills a
+head commit of its pull request, the reason for a fix or a repair, the
+document that a revision works on, and the epic branch of the parent of the
+card. The epic branch, such as `epic/852`, fills `{epicBranch}`. It is empty
+when the card has no parent, or when the parent has no epic branch. The
+workflow holds an epic child until its epic branch exists, so a set value names
+a branch that exists. The bridge checks the shape of each value before it fills a
 prompt or a command with it. [The work map](../../cli/README.md#the-work-map)
 lists the placeholders.
 
@@ -1755,11 +1759,15 @@ work:
 The command follows this contract:
 
 - The bridge runs it as an argv list, with no shell, in the project `dir`.
-- Its elements can use `{cardNumber}` and `{cardId}`.
+- Its elements can use `{cardNumber}` and `{cardId}`, and the context placeholders such as `{epicBranch}`.
 - The last line of standard output that is not empty must be the folder path. A relative path resolves against the project `dir`.
 - An exit code that is not 0 fails the run, and no agent starts.
 - It runs again before each resume, so it must work when the folder already exists.
 - The timeout is `15m` by default and `60m` at most.
+
+Pass `{epicBranch}` to cut the folder of an epic child from its epic branch,
+such as `--epic-branch={epicBranch}`. The value is empty for any other card, so
+the command must then cut the folder from the default branch.
 
 A resumed session still starts in the folder where it began. A session that
 began in the project folder stays there, and new workers use the new folders.

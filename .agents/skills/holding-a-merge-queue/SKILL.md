@@ -59,8 +59,8 @@ Read the `checks=` field like this:
   pull request by hand.
 - `merge=BEHIND` next to `pass=N/N` means the green does not count.
 
-A monitor line tells you where to look, not that you may merge. Write the
-monitor's task id in the state file. Stop it only when the owner says so, or
+A monitor line tells you where to look. It does not tell you that you may
+merge. Write the task id of the monitor in the state file. Stop it only when the owner says so, or
 when you wind the queue down.
 
 ## Run merge-ready before every merge
@@ -83,13 +83,12 @@ Green is `pass=<the number the ruleset requires>` and nothing else. Never
 conclude green from the absence of a failure. A watcher script follows the same
 rule: it stops on `pass=<N>` or on a failure, never when `pending` disappears.
 
-These states read identically to "nothing left to wait for", and each has
-bitten someone here:
+Each of these states reads the same as "nothing left to wait for":
 
-| Reading | What it actually means |
+| Reading | What it means |
 |---|---|
 | fewer entries than required | runs have not registered yet |
-| zero entries | the branch is `CONFLICTING`, so `pull_request` has no merge commit to run against and **no check can ever run** |
+| zero entries | the branch is `CONFLICTING`, so `pull_request` has no merge commit to run against and no check can ever run |
 | every entry green | possibly true of a head or a base that has moved |
 
 A `DIRTY` pull request has no gate at all. Its rollup looks like a clean slate.
@@ -112,9 +111,10 @@ gh run list --workflow=ci.yml --status=completed --limit 20 \
   -q '[.[]|((.updatedAt|fromdate)-(.startedAt|fromdate))/60|floor]|"max=\(max) median=\(sort[length/2|floor])"'
 ```
 
-Set the threshold from that number, not from your patience. Below it, wait.
+Set the threshold from that number, and never from your patience. Below the
+threshold, wait.
 
-### Read an approval by time, not by commit
+### Read an approval by time
 
 A review's `commit_id` does not show what the reviewer saw. GitHub moves it onto
 the head that a later merge sync creates. `merge-ready.sh` therefore compares
@@ -173,9 +173,9 @@ peer report is a claim until you find the failing run.
 ## After each merge
 
 1. Tell the owning session that its pull request merged, with the squash SHA.
-2. Check the board card. A repository connected through the GitHub App, with
-   the board automation on, moves the card to a terminal column by the `merged`
-   rule, so move nothing. Otherwise move it yourself. The owner asked on
+2. Check the board card. The `merged` rule moves the card to a terminal column
+   when the repository is connected through the GitHub App and the board
+   automation is on. In that case, move nothing. Otherwise move it yourself. The owner asked on
    2026-09-25: "whenever you merge a PR move its card to done". Invoke
    `loupe-board`, then:
    - Find the card. A branch named `card-<n>-...` carries its number, or the
@@ -184,10 +184,6 @@ peer report is a claim until you find the failing run.
    - Move the card there with `card_update`.
 3. Leave the changelog alone. The documentation deploy folds the fragments on
    every push to `main`, and `just changelog` is a release step.
-
-A merged pull request moves its card by itself only when the repository is
-connected through the GitHub App and the board automation is on. Otherwise
-the card stays where it is.
 
 ## What you owe the sessions whose branches you hold
 
@@ -211,10 +207,10 @@ Tell a session, unprompted:
 - What you are not doing. "I have not touched your branch and will not" saves a
   session from wondering.
 
-## Keep to the queue, not to other sessions' work
+## Keep to the queue
 
-The queue holder merges. It does not carry other sessions' questions to the
-owner, and it does not steer their work. These rules concern live peers. An
+The queue holder merges. It does not carry the questions of other sessions to
+the owner, and it does not steer their work. These rules concern live peers. An
 agent you dispatch for a branch with no live session is your own tool.
 
 - A peer that needs a decision asks the owner itself. Do not relay the question,
@@ -222,8 +218,9 @@ agent you dispatch for a branch with no live session is your own tool.
 - A peer's finding reaches the owner from that peer. Do not narrate another
   session's investigation to him.
 - Do not advise a peer on its design, even when it asks. Point it to the owner.
-- Tell the owner only what the queue needs from him: an approval, a held merge
-  and why, a flake on a merge, or an action that affects the whole machine.
+- Tell the owner only what the queue needs from him. That is an approval, a
+  held merge and why, a flake on a merge, or an action that affects the whole
+  machine.
 
 The owner said: "you're only the merge master, you don't need to relay other
 sessions questions."
@@ -232,10 +229,10 @@ sessions questions."
 
 The queue holder merges. The branch owner fixes. While the owning session is
 live, send a defect back to it with the command that found it and the output it
-produced, not your conclusion. The author has the context, and only the author
+produced. Do not send your conclusion. The author has the context, and only the author
 can answer "does anything else in this file have the same shape?".
 
-Hand over your own work as input, not as instruction. A conflict resolution you
+Hand over your own work as input. Do not hand it over as an instruction. A conflict resolution you
 derived is one materialisation. Say so, and ask for theirs to compare. Two
 independent resolutions that agree are worth more than either alone. A pair
 that diverges usually means the other session knows something you do not.
@@ -281,7 +278,7 @@ A fix that is not a conflict goes to the bridge too. Follow
 `references/dispatch.md` only when no bridge worker picks it up and the
 branch's session is gone.
 
-## A peer's report is data, not a result
+## Treat a peer's report as data
 
 Run the check yourself before you act on a report or relay it. A peer works from
 a tree that is not yours, with tooling that reads its own tree and not the
@@ -294,18 +291,22 @@ destination. The report of an agent you dispatched is data in the same way.
 - Two disagreeing findings are usually correct measurements of different
   objects. Find the object before you decide who is wrong.
 
-Ask rather than infer. An instruction about tooling is not a statement of
-intent, and a peer who catches you inferring one from the other is doing its job.
+Ask, and do not infer. An instruction about tooling is not a statement of
+intent. A peer who catches you when you infer one from the other does its job.
 
-## Wind down into a file, not into your context
+## Wind down into a file
 
-Write the queue state to a file as you go: what merged and at which SHA, what
-each remaining branch needs, every decision still owed by the owner, and any
-worktree that must not be torn down and why. A handoff that lives only in a
-session dies with it.
+Write the queue state to a file as you go. Record these items:
 
-Mark superseded procedure as obsolete in place. Deleting it loses the reason.
-Leaving it unmarked means a reader finds a dead recipe and runs it.
+- what merged, and at which SHA
+- what each remaining branch needs
+- every decision that the owner still owes
+- any worktree that must not be torn down, and why
+
+A handoff that lives only in a session dies with it.
+
+Mark superseded procedure as obsolete in place. A deletion loses the reason.
+An unmarked procedure is a dead recipe that a reader finds and runs.
 
 ## Red flags
 

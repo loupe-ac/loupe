@@ -15,13 +15,11 @@ description: "Use when working on `.html.twig` files, Twig components or Turbo s
 
 ### The authenticated layout owns `project`
 
-`base.html.twig` runs `{% set project = current_project() %}` before it yields `block body`. On a route with no project `{id}` param it resolves to null and silently clobbers a controller-passed variable named `project`. Never pass `project` from a param-less route to a template inside the authenticated layout. Use a distinct name (`wizardProject`), or forward the raw id string so `current_project()` resolves it.
+`base.html.twig` runs `{% set project = current_project() %}` before it yields `block body`. On a route with no project `{id}` param, it resolves to null. It then overwrites a controller-passed variable named `project`, with no error. Never pass `project` from a param-less route to a template inside the authenticated layout. Use a distinct name (`wizardProject`), or forward the raw id string so `current_project()` resolves it.
 
 ## Render a form field by field, because there is no form theme
 
-This project registers no `form_themes`. `form_row()` therefore emits Symfony's
-default markup, which nothing here styles. The label sits against the
-placeholder, and the input has no box around it.
+This project registers no `form_themes`. `form_row()` therefore emits Symfony's default markup, which nothing here styles. The label sits against the placeholder, and the input has no box around it.
 
 Render each field with the form part components. `FormField` draws the label, the widget, the hint and the errors of one field:
 
@@ -37,12 +35,9 @@ A field that needs its own layout takes the classes from `ds_input_class('select
 
 Keep `form_end()`. It renders the hidden CSRF field.
 
-Nothing fails when you use `form_row()` instead. The page returns 200, the form
-submits, every test passes, and the diff reads as correct Twig. Only a person
-looking at the page sees the problem, so no gate in this repository catches it.
+Nothing fails when you use `form_row()` instead. The page returns 200, the form submits, every test passes, and the diff reads as correct Twig. Only a person who looks at the page sees the problem, so no gate in this repository catches it.
 
-No template uses `form_row()`. Treat a
-`form_row()` in a diff as a mistake rather than a style choice.
+No template uses `form_row()`. Treat a `form_row()` in a diff as a mistake rather than a style choice.
 
 ## Module template namespaces
 
@@ -62,7 +57,7 @@ Write `@Account/security/login.html.twig` everywhere: in PHP (`render()`, `->htm
 - A builder that assembles a template path from a class's module segment must emit `@<Module>/...`, not `Module/<Module>/...`.
 - Verify registration with `bin/console debug:twig`, which lists all loader namespaces.
 
-`lint:twig` validates syntax only. It does not check that `extends` and `include` targets resolve, so a green `lint:twig` does not prove a template-path refactor is correct. Verify with `bin/console debug:twig` for namespace registration, and with the e2e suite for render-time resolution failures.
+`lint:twig` validates syntax only. It does not check that `extends` and `include` targets resolve. A green `lint:twig` therefore does not prove a template-path refactor is correct. Verify with `bin/console debug:twig` for namespace registration, and with the e2e suite for render-time resolution failures.
 
 ## Twig components
 
@@ -80,7 +75,7 @@ twig_component:
 
 Use `<twig:ComponentName prop="{{ value }}" />`. To pass a PHP object, prefix the prop with a colon: `:prop="someObject"` evaluates the Twig expression. Without the colon the value is a literal string.
 
-A self-contained component that needs an entity injects a repository and resolves the entity from the raw route attribute. It does not take the entity as a prop. `EntityValueResolver` does not write the resolved entity back to the request attributes, so `$request->attributes->get('param')` always returns the raw string from the URL. See `symfony-entity-route-mapping`.
+A self-contained component that needs an entity injects a repository and resolves the entity from the raw route attribute. It does not take the entity as a prop. `EntityValueResolver` does not write the resolved entity back to the request attributes. `$request->attributes->get('param')` therefore always returns the raw string from the URL. See `symfony-entity-route-mapping`.
 
 ```php
 public function mount(): void
@@ -94,15 +89,15 @@ public function mount(): void
 }
 ```
 
-When a component template starts with a header comment that documents its props, those props must match the component's `mount()` signature. When you add, remove or rename a `mount()` parameter, update the comment in the same commit. A stale comment is worse than no comment.
+A component template can start with a header comment that documents its props. Those props must then match the component's `mount()` signature. When you add, remove or rename a `mount()` parameter, update the comment in the same commit. A stale comment is worse than no comment.
 
 ## Turbo frames and active state
 
-Never render active state on the server for links inside a Turbo frame. Only the frame content re-renders on navigation, so the sidebar stays stale. Derive the active state client-side, for example match `window.location.pathname` against each link's `href` on `turbo:load`. Use a dedicated Stimulus controller for this pattern.
+Never render active state on the server for links inside a Turbo frame. Only the frame content re-renders on navigation, so the sidebar stays stale. Derive the active state client-side. For example, match `window.location.pathname` against each link's `href` on `turbo:load`. Use a dedicated Stimulus controller for this pattern.
 
 ## Template naming
 
-A template file name must match the controller's verb prefix. `CreateFooController` renders `create_foo.html.twig`; `new_foo.html.twig` is wrong. The verb (create, list, view, edit, delete) is identical in both names. When you create or rename a controller, rename its template in the same commit. Gamache's `ControllerTemplateNameRule` enforces this, and mirrors the controller path to the template path.
+A template file name must match the controller's verb prefix. `CreateFooController` renders `create_foo.html.twig`, and `new_foo.html.twig` is wrong. The verb (create, list, view, edit, delete) is identical in both names. When you create or rename a controller, rename its template in the same commit. Gamache's `ControllerTemplateNameRule` enforces this. It also mirrors the controller path to the template path.
 
 ## Page titles
 
