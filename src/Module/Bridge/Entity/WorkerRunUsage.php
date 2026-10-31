@@ -75,6 +75,10 @@ class WorkerRunUsage
         /** Null when the bridge estimated a model it knows no price for. */
         #[ORM\Column(name: 'cost_usd', type: Types::DECIMAL, precision: 12, scale: 6, nullable: true)]
         public readonly ?string $costUsd,
+
+        /** True when OpenRouter bills the run. The cost then lives on the billed cost row, and a null price here is no estimate. */
+        #[ORM\Column(name: 'billed_cost', options: ['default' => false])]
+        public readonly bool $billedCost = false,
     ) {
     }
 }

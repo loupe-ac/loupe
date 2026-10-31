@@ -3570,8 +3570,18 @@
     .lp-run-drawer__metadata dd {
         @apply m-0 mt-1 text-sm break-all;
     }
-    .lp-run-drawer__metadata a {
+    .lp-run-drawer__metadata a:not(.lp-btn) {
         @apply text-accent-ink underline;
+    }
+    /* The unknown cost of a run, with its reason and the key settings button on the line below. */
+    .lp-run-drawer__cost-unknown {
+        @apply flex flex-col gap-1;
+    }
+    .lp-run-drawer__cost-reason {
+        @apply flex flex-wrap items-center gap-1.5 text-ink-soft;
+    }
+    .lp-run-drawer__cost-reason .lp-btn {
+        @apply -my-2;
     }
     .lp-run-drawer__heading {
         @apply text-base font-semibold mt-6 mb-2;

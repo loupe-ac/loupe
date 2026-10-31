@@ -7339,6 +7339,12 @@
             <trans-unit id="bridge.worker_runs.details.metrics"><source>bridge.worker_runs.details.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cost"><source>bridge.worker_runs.details.metric.cost</source><target>Cost</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.unknown"><source>bridge.worker_runs.details.metric.unknown</source><target>unknown</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.pending"><source>bridge.worker_runs.details.metric.pending</source><target>Pending</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.no-key"><source>bridge.worker_runs.details.metric.reason.no-key</source><target>No OpenRouter key</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.key-refused"><source>bridge.worker_runs.details.metric.reason.key-refused</source><target>OpenRouter refused the key</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.no-answer"><source>bridge.worker_runs.details.metric.reason.no-answer</source><target>OpenRouter did not answer</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.no-cost-found"><source>bridge.worker_runs.details.metric.reason.no-cost-found</source><target>No cost found</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.key_settings"><source>bridge.worker_runs.details.metric.key_settings</source><target>Open the OpenRouter key settings</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.input_tokens"><source>bridge.worker_runs.details.metric.input_tokens</source><target>Input tokens</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.output_tokens"><source>bridge.worker_runs.details.metric.output_tokens</source><target>Output tokens</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cache_read_tokens"><source>bridge.worker_runs.details.metric.cache_read_tokens</source><target>Cache read tokens</target></trans-unit>
@@ -7757,6 +7763,8 @@
             <trans-unit id="board.card.runs.usage.estimated"><source>board.card.runs.usage.estimated</source><target>Estimated</target></trans-unit>
             <trans-unit id="board.card.runs.usage.partial"><source>board.card.runs.usage.partial</source><target>{0}All runs have usage|{1}1 run has no usage|]1,Inf[%count% runs have no usage</target></trans-unit>
             <trans-unit id="board.card.runs.usage.unknown"><source>board.card.runs.usage.unknown</source><target>Usage unknown</target></trans-unit>
+            <trans-unit id="board.card.runs.usage.pending"><source>board.card.runs.usage.pending</source><target>{0}No runs pending|{1}1 run pending|]1,Inf[%count% runs pending</target></trans-unit>
+            <trans-unit id="board.card.runs.usage.no_cost"><source>board.card.runs.usage.no_cost</source><target>{0}No cost is unknown|{1}1 run has no cost|]1,Inf[%count% runs have no cost</target></trans-unit>
             <trans-unit id="board.card.conversation.title"><source>board.card.conversation.title</source><target>Conversation</target></trans-unit>
             <trans-unit id="board.card.conversation.description"><source>board.card.conversation.description</source><target>Inbox requests linked to this card share their original records.</target></trans-unit>
             <trans-unit id="board.card.feedback.description"><source>board.card.feedback.description</source><target>Feedback captured by the live review widget for this card.</target></trans-unit>
