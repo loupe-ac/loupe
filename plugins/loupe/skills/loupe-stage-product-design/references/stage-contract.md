@@ -29,9 +29,22 @@ A document matches by its tags, or by a title that starts `Product design` or `T
 ## First steps
 
 1. Connect to the Loupe tools as the harness adapter says. When that fails, the run changed nothing. Stop with `STAGE RESULT: loupe MCP unreachable`, which the structured result reports as `unfinished`. The workflow then retries the run.
-2. Load the `loupe-board` instruction.
-3. Call `card_get`.
-4. When the prompt names a column, turn it into a slug: lowercase, with hyphens for spaces. When that slug differs from the card `status`, stop with `STAGE RESULT: card left <column>`.
+2. Call `card_get`.
+3. When the prompt names a column, turn it into a slug: lowercase, with hyphens for spaces. When that slug differs from the card `status`, stop with `STAGE RESULT: card left <column>`.
+
+## Raise a card
+
+Follow this section when a stage rule sends a problem outside your work to a card. The breakdown of an epic follows its own steps.
+
+1. Say in one sentence what somebody must do. When you cannot, the problem is an observation, so write no card.
+2. When `card_search` exists, search with the words of the problem, and reuse a card that covers it. When the tool is missing, create the card without the search (rule 8).
+3. Call `card_create` with no `status` and no `parentCardId`, so the card lands in Backlog. Omit `reporter`, so it stays `agent`.
+4. Keep one concern per card. Write a body that stands alone: what the work is, why it matters, and where the code lives.
+5. Use absolute dates, such as 2026-09-06. Name the real class, route or file, never a task number or a phase name.
+6. Write public text, with no secrets, no customer names and no complaints about people.
+7. Pass `requiresHumanReview: true` when the card changes what a person sees and has a prototype. With the switch off, the pull request of the card can approve itself after the agent review. Leave it off for any other card.
+
+`card_update` replaces whole values, as rule 5 and the rules of your stage say.
 
 ## Find a linked document
 
