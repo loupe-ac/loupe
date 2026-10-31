@@ -377,6 +377,7 @@ export const KEPT_CSS_WORDS = new Set([
     'monaco',
     'monospace',
     'no-repeat',
+    'non-scaling-stroke',
     'none',
     'normal',
     'not-allowed',

@@ -6209,37 +6209,21 @@
         @apply rounded-md border border-line bg-surface-1 px-2.5 py-1 text-xs;
     }
     .lp-home-chart {
-        @apply flex h-36 items-end gap-3 border-b border-line-strong pb-1.5;
+        @apply relative h-36 border-b border-line-strong pb-1.5;
     }
-    .lp-home-chart__group {
-        @apply flex h-full flex-1 items-end gap-0.5;
+    .lp-home-chart__svg {
+        @apply h-full w-full;
     }
-    .lp-home-chart__bar {
-        @apply flex-1 rounded-t-sm;
+    .lp-home-chart__line {
+        @apply fill-none stroke-chart-1 stroke-2;
+        vector-effect: non-scaling-stroke;
     }
-    .lp-home-chart__bar--first {
-        @apply bg-chart-1;
+    .lp-home-chart__line--previous {
+        @apply stroke-chart-2 opacity-60;
+        stroke-dasharray: 5 4;
     }
-    .lp-home-chart__bar--second {
-        @apply bg-chart-2;
-    }
-    .lp-home-chart__bar--1 {
-        @apply h-1/3;
-    }
-    .lp-home-chart__bar--2 {
-        @apply h-2/5;
-    }
-    .lp-home-chart__bar--3 {
-        @apply h-1/2;
-    }
-    .lp-home-chart__bar--4 {
-        @apply h-3/5;
-    }
-    .lp-home-chart__bar--5 {
-        @apply h-2/3;
-    }
-    .lp-home-chart__bar--6 {
-        @apply h-3/4;
+    .lp-home-chart__change {
+        @apply absolute right-0 top-0 rounded-md border border-line bg-surface-1 px-2 py-0.5 text-xs font-medium text-ink;
     }
     .lp-home-chart__legend {
         @apply mt-2.5 flex gap-4 text-xs text-fg-mute;

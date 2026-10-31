@@ -4997,11 +4997,11 @@
             </trans-unit>
             <trans-unit id="landing.features.analytics.text">
                 <source>landing.features.analytics.text</source>
-                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments.</target>
+                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments, and a period with the one before.</target>
             </trans-unit>
             <trans-unit id="landing.features.analytics.caption">
                 <source>landing.features.analytics.caption</source>
-                <target>See what each finished card costs, by model.</target>
+                <target>See what each finished card costs, and whether a change is real or noise.</target>
             </trans-unit>
             <trans-unit id="landing.slide.board.lane.product_design">
                 <source>landing.slide.board.lane.product_design</source>
@@ -5263,17 +5263,25 @@
                 <source>landing.slide.analytics.statistic</source>
                 <target>Median</target>
             </trans-unit>
-            <trans-unit id="landing.slide.analytics.group">
-                <source>landing.slide.analytics.group</source>
-                <target>By model</target>
+            <trans-unit id="landing.slide.analytics.range">
+                <source>landing.slide.analytics.range</source>
+                <target>Last 30 days</target>
             </trans-unit>
-            <trans-unit id="landing.slide.analytics.claude_code">
-                <source>landing.slide.analytics.claude_code</source>
-                <target>Claude Code</target>
+            <trans-unit id="landing.slide.analytics.compare">
+                <source>landing.slide.analytics.compare</source>
+                <target>Vs previous period</target>
             </trans-unit>
-            <trans-unit id="landing.slide.analytics.codex">
-                <source>landing.slide.analytics.codex</source>
-                <target>Codex</target>
+            <trans-unit id="landing.slide.analytics.change">
+                <source>landing.slide.analytics.change</source>
+                <target>↓ 14% Clear</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.current">
+                <source>landing.slide.analytics.current</source>
+                <target>Current period</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.previous">
+                <source>landing.slide.analytics.previous</source>
+                <target>Previous period</target>
             </trans-unit>
             <trans-unit id="landing.works_with.title">
                 <source>landing.works_with.title</source>

@@ -158,19 +158,19 @@
                 <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.metric'|trans }}</span>
                 <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.per'|trans }}</span>
                 <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.statistic'|trans }}</span>
-                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.group'|trans }}</span>
+                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.range'|trans }}</span>
+                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.compare'|trans }}</span>
             </div>
             <div class="lp-home-chart" aria-hidden="true">
-                {% for pair in [['lp-home-chart__bar--5', 'lp-home-chart__bar--3'], ['lp-home-chart__bar--4', 'lp-home-chart__bar--3'], ['lp-home-chart__bar--6', 'lp-home-chart__bar--2'], ['lp-home-chart__bar--3', 'lp-home-chart__bar--2'], ['lp-home-chart__bar--4', 'lp-home-chart__bar--1'], ['lp-home-chart__bar--3', 'lp-home-chart__bar--1']] %}
-                    <div class="lp-home-chart__group">
-                        <span class="lp-home-chart__bar lp-home-chart__bar--first {{ pair[0] }}"></span>
-                        <span class="lp-home-chart__bar lp-home-chart__bar--second {{ pair[1] }}"></span>
-                    </div>
-                {% endfor %}
+                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-home-chart__svg" viewBox="0 0 300 120" preserveAspectRatio="none">
+                    <polyline class="lp-home-chart__line lp-home-chart__line--previous" points="0,62 50,56 100,66 150,52 200,58 250,48 300,54" />
+                    <polyline class="lp-home-chart__line" points="0,78 50,70 100,84 150,66 200,76 250,62 300,70" />
+                </svg>
+                <span class="lp-home-chart__change">{{ 'landing.slide.analytics.change'|trans }}</span>
             </div>
             <div class="lp-home-chart__legend">
-                <span><i class="lp-home-chart__swatch lp-home-chart__swatch--first"></i>{{ 'landing.slide.analytics.claude_code'|trans }}</span>
-                <span><i class="lp-home-chart__swatch lp-home-chart__swatch--second"></i>{{ 'landing.slide.analytics.codex'|trans }}</span>
+                <span><i class="lp-home-chart__swatch lp-home-chart__swatch--first"></i>{{ 'landing.slide.analytics.current'|trans }}</span>
+                <span><i class="lp-home-chart__swatch lp-home-chart__swatch--second"></i>{{ 'landing.slide.analytics.previous'|trans }}</span>
             </div>
         </div>
     </div>
