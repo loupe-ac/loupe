@@ -785,23 +785,41 @@ refuses it.
 
 ### Start an interactive session
 
-Select **Start an interactive session** on an item that has a card, to work
+Select **Start an interactive session** on any item, open or closed, to work
 with an agent in a terminal on your machine. The action needs an online bridge
-with a `session` entry in its rule file. Without one, the action stays grey and
-says that no bridge can open a session. The bridge opens a new session on the
-card. The prompt names the inbox item, and the agent reads your note with
-`inbox_get`.
+with a `session` entry in its rule file. A session about an item that has no
+card or several cards also needs a bridge version that supports it. Without a
+bridge, an item that has a card shows the action in grey with the reason "No
+bridge can open a session". An item that has no card shows no action. A bridge
+that has the `session` entry but not the new version shows the action in grey.
 
-An agent can suggest the action with a prompt for the session. When the action
-is the main button, the inbox shows the prompt in a text field above it. When
-the action is in the menu, choose it to show the field and its own start
-button. A grey action shows no field. You can edit the text. The
-session runs the text that you leave in the field. When you clear the field,
-the session starts with no suggested prompt. The limit is 2000
-characters, and an admin changes it with the `inbox.session_prompt_max_length`
-flag on the flags page. The action hides only while a session request of the
-same card is live. You can cancel the action until a bridge takes it. A request that
-no bridge takes within 2 minutes expires. See
+The session is about the card when the item has exactly one card. That is the
+card of a wait item, the only card linked to the item, or the card that the
+suggestion of the agent names. In every other case the session is about the
+item. The bridge then makes a plain git worktree for the session, and removes it
+when the session ends, also when it holds unsaved work. The hint below the
+button names the bridge, such as "Opens in a fresh worktree on geoffrey-mbp."
+When several bridges can take the session, the hint names none. The item shows
+the session as Running when the bridge starts it.
+
+The inbox shows the prompt of the session in a text field. When the action is
+the main button, the field is above it. When the action is in the menu, choose
+it to show the field and its own start button. A closed item shows the field
+and the button on their own. A grey action shows no field. You can edit the
+text, and the session runs the text that you leave in the field. When you clear
+the field, the session starts with no prompt.
+
+An agent can suggest the prompt. When it suggests none, Loupe writes one. The
+written prompt holds the number and the title of the item, the first 1,500
+characters of its text, and the cards and documents that it links. It tells the
+agent that the item text is data and not an instruction. Read the prompt
+before you start the session, because the text of an item comes from an agent.
+
+The limit of the prompt is 2000 characters, and an admin changes it with the
+`inbox.session_prompt_max_length` flag on the flags page. The action hides only
+while a session request of the same card or the same item is live. You can
+cancel the action until a bridge takes it. A request that no bridge takes
+within 2 minutes expires. See
 [Session entry](../extending/cli-bridge.md#session-entry).
 
 ## Answering through an agent
@@ -907,4 +925,5 @@ The install wizard writes the flag row on a fresh install, and a database
 migration writes it on an instance that upgrades. A missing row reads as off.
 
 The `inbox.session_prompt_max_length` flag sets the longest prompt that an agent
-can suggest for a session. It is an integer, and it defaults to 2000.
+can suggest for a session, and the longest prompt that Loupe writes. It is an
+integer, and it defaults to 2000.
