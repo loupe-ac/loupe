@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\DesignSystem;
 
+use App\Module\DesignSystem\Catalog;
 use App\Tests\Support\ComponentSourceReader;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -136,6 +137,15 @@ final class SimpleComponentParityTest extends KernelTestCase
         self::assertStringContainsString("const Heading = 'h' + level;", $jsx);
         self::assertStringContainsString('<Heading className="lp-section-heading__title" id={titleId}>{children}</Heading>', $jsx);
         self::assertStringContainsString('{description && <p className="lp-section-heading__description">{description}</p>}', $jsx);
+    }
+
+    public function test_the_section_heading_preview_mounts_the_button_component_for_its_action(): void
+    {
+        $names = array_map(static fn ($entry): string => $entry->name, new Catalog()->entries());
+        $preview = self::componentSource()->preview(self::catalogEntry('SectionHeading'), $names);
+
+        self::assertStringContainsString("dsFind('Button', 'SectionHeading')", $preview);
+        self::assertStringNotContainsString('lp-btn', $preview);
     }
 
     private function render(string $template): string
