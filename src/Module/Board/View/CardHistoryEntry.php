@@ -48,6 +48,7 @@ final readonly class CardHistoryEntry
         'run-resumed' => 'board.card.history.release_reason.run_resumed',
         'released-by-rule' => 'board.card.history.release_reason.released_by_rule',
         'released-by-person' => 'board.card.history.release_reason.released_by_person',
+        'work-timeout-removed' => 'board.card.history.release_reason.work_timeout_removed',
     ];
 
     private function __construct(
@@ -185,8 +186,8 @@ final readonly class CardHistoryEntry
     /** @param array<string, mixed> $detail */
     private static function pause(CardEvent $event, string|TranslatableMessage $actor, array $detail, string $icon, string $key): ?self
     {
-        $kind = \is_string($detail['kind'] ?? null) ? PauseKind::tryFrom($detail['kind']) : null;
-        if (null === $kind) {
+        $kindKey = \is_string($detail['kind'] ?? null) ? self::pauseKindKey($detail['kind']) : null;
+        if (null === $kindKey) {
             return null;
         }
         $ruleId = $detail['ruleId'] ?? null;
@@ -199,19 +200,29 @@ final readonly class CardHistoryEntry
             $icon,
             $event->occurredAt,
             $actor,
-            new TranslatableMessage($key, ['%actor%' => $actor, '%kind%' => new TranslatableMessage(match ($kind) {
-                PauseKind::Rule => 'board.card.history.pause_kind.rule',
-                PauseKind::Retries => 'board.card.history.pause_kind.retries',
-                PauseKind::WorkLimit => 'board.card.history.pause_kind.work_limit',
-                PauseKind::WorkTimeout => 'board.card.history.pause_kind.work_timeout',
-                PauseKind::WorkStopped => 'board.card.history.pause_kind.work_stopped',
-            })]),
+            new TranslatableMessage($key, ['%actor%' => $actor, '%kind%' => new TranslatableMessage($kindKey)]),
             match (true) {
                 null === $rule => null,
                 null === $releaseReason => new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => $rule]),
                 default => new TranslatableMessage('board.card.history.cause.pause_released', ['%reason%' => new TranslatableMessage($releaseReason), '%rule%' => $rule]),
             },
         );
+    }
+
+    /** An event from before the work timeout was removed still names the `work-timeout` kind. */
+    private static function pauseKindKey(string $kind): ?string
+    {
+        if ('work-timeout' === $kind) {
+            return 'board.card.history.pause_kind.work_timeout';
+        }
+
+        return match (PauseKind::tryFrom($kind)) {
+            PauseKind::Rule => 'board.card.history.pause_kind.rule',
+            PauseKind::Retries => 'board.card.history.pause_kind.retries',
+            PauseKind::WorkLimit => 'board.card.history.pause_kind.work_limit',
+            PauseKind::WorkStopped => 'board.card.history.pause_kind.work_stopped',
+            null => null,
+        };
     }
 
     /** @param array<string, mixed> $detail */

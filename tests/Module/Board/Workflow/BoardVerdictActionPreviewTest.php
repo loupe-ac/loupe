@@ -75,7 +75,7 @@ final class BoardVerdictActionPreviewTest extends KernelTestCase
     public function test_a_template_without_the_verdict_rule_lists_nothing(): void
     {
         $templates = $this->createStub(TemplateSource::class);
-        $templates->method('forProject')->willReturn(new Template('bare', 1, [], [], [], [10], 120, [], 'feature'));
+        $templates->method('forProject')->willReturn(new Template('bare', 1, [], [], [], [10], [], 'feature'));
         $boardSettings = self::getContainer()->get(BoardSettings::class);
         self::assertInstanceOf(BoardSettings::class, $boardSettings);
 

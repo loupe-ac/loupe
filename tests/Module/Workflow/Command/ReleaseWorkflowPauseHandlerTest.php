@@ -45,7 +45,6 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
     public static function releasableKinds(): iterable
     {
         yield 'retries' => [PauseKind::Retries];
-        yield 'work timeout' => [PauseKind::WorkTimeout];
         yield 'work limit' => [PauseKind::WorkLimit];
     }
 
@@ -95,7 +94,7 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
     public function test_a_release_whose_rule_has_no_state_writes_none(): void
     {
         $card = $this->card();
-        $this->pause($card, PauseKind::WorkTimeout, 'tech-design-write');
+        $this->pause($card, PauseKind::WorkStopped, 'tech-design-write');
 
         $this->handler()(new ReleaseWorkflowPauseCommand($card->snapshot(), $this->project->owner->id ?? throw new \LogicException('The owner is persisted.'), Actor::Human, null));
 

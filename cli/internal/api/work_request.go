@@ -137,6 +137,7 @@ type WorkRequestContext struct {
 	HeadSHA           string `json:"headSha"`
 	Reason            string `json:"reason"`
 	DocumentID        string `json:"documentId"`
+	EpicBranch        string `json:"epicBranch"`
 	InboxActionID     string `json:"inboxActionId"`
 	InboxItemNumber   int    `json:"inboxItemNumber"`
 	InboxItemID       string `json:"inboxItemId"`

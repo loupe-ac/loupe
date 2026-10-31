@@ -89,7 +89,7 @@ final class HumanReviewRuleExtensionTest extends TestCase
 
     private function extension(Rule ...$rules): HumanReviewRuleExtension
     {
-        $template = new Template('test', 1, [], array_values($rules), [], [], 30, [], 'feature');
+        $template = new Template('test', 1, [], array_values($rules), [], [], [], 'feature');
         $source = new readonly class($template) implements TemplateSource {
             public function __construct(
                 private Template $template,

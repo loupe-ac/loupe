@@ -83,7 +83,6 @@ final class WorkflowClosedUnmergedRuleDropMigrationTest extends KernelTestCase
             'slots' => [],
             'manualMoves' => [['from' => '*', 'to' => '*']],
             'backoffMinutes' => [10, 60, 360],
-            'workTimeoutMinutes' => 120,
             'rules' => $rules,
         ]);
         $this->em()->persist($binding);

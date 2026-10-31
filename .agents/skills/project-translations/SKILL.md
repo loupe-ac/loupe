@@ -21,15 +21,15 @@ Every locale-specific template must exist for all supported locales. When you ad
 
 ## Cleaning up orphan keys
 
-When you remove a field from a Symfony form, delete its translation entries from all locale files. Those entries are `*.form.<field>.label` and `*.form.<field>.placeholder`. Delete `*.form.save.label` as well if the whole form is gone. PHPStan and CI do not flag unused translation keys, and there is no scanner for them, so orphans silently rot until someone notices.
+When you remove a field from a Symfony form, delete its translation entries from all locale files. Those entries are `*.form.<field>.label` and `*.form.<field>.placeholder`. Delete `*.form.save.label` as well if the whole form is gone. PHPStan and CI do not flag unused translation keys, and no scanner finds them. An orphan stays until someone notices it.
 
 If the form has no fields left, delete the `*Type` and `*Request` classes as well. An empty `data_class` DTO is dead code.
 
 ## Translation keys inside FormType classes
 
-Each FormType must define and use translation keys scoped to its own feature path. Do not borrow keys from another form's namespace, even when the English text is identical today. Each FormType uses its own derived prefix.
+Each FormType defines and uses translation keys scoped to its own feature path, under its own derived prefix. Do not borrow keys from another form's namespace, even when the English text is identical today.
 
-The required prefix is `{module_lowercase}.form.{block_prefix}.*`. The block prefix is the class name with `Type` stripped, and CamelCase converted to snake_case word by word. Each compound word inside an abbreviation becomes its own snake segment. `ImportGitHubRepoFormType` strips `Type` to `ImportGitHubRepoForm`, which gives `import_git_hub_repo_form`, not `import_github_repo_form`.
+The required prefix is `{module_lowercase}.form.{block_prefix}.*`. The block prefix is the class name with `Type` stripped, and CamelCase converted to snake_case word by word. Each compound word inside an abbreviation becomes its own snake segment. `ImportGitHubRepoFormType` strips `Type` to `ImportGitHubRepoForm`, which gives `import_git_hub_repo_form`. It never gives `import_github_repo_form`.
 
 The form field options a user sees are `label`, `help`, `placeholder`, `invalid_message` and `choice_label`. Every string value you pass to one of them must follow the `module.form.block_prefix.` key prefix convention. This rule holds even when the translation lives in `translations/validators.en.xlf` rather than `messages.en.xlf`.
 
@@ -42,7 +42,7 @@ The key name and the domain file are independent concerns. `invalid_message` on 
 - `translations/messages.en.xlf` holds UI strings. These are form labels, placeholders, page titles, headings and flash messages. It also holds anything rendered with `{{ 'key'|trans }}` in Twig or `'label' => 'key'` in a FormType.
 - `translations/validators.en.xlf` holds Symfony `#[Assert]` constraint messages only. Use it for any string passed as `message:` in `#[Assert\NotBlank]`, `#[Assert\Regex]`, `#[Assert\Choice]` and similar constraints.
 
-A constraint message key in `messages.en.xlf` will silently fail. The Symfony Validator reads `validators.*`, not `messages.*`.
+A constraint message key in `messages.en.xlf` fails with no error. The Symfony Validator reads `validators.*` and ignores `messages.*`.
 
 ## Some `DomainErrors` keys are deliberately untranslated
 
@@ -54,14 +54,14 @@ Do not add a trans-unit to fix a key that appears to be missing one. Check first
 
 ## Pluralization
 
-Use Symfony interval syntax, not ICU.
+Use Symfony interval syntax. Do not use ICU.
 
 - Always include the `{0}` case. Omitting it throws `RuntimeException` at render time if the count can be zero.
-- Use `%count%`, with the percent signs, as the substitution key. A bare `count` is silently ignored.
+- Use `%count%`, with the percent signs, as the substitution key. Symfony ignores a bare `count` with no error.
 
 ## The gamache translation check
 
-`just gamache` includes a translation check. It scans PHP files under `src/` and Twig files under `templates/` for string literals that look like untranslated user-facing text, scored by word count, mixed case and punctuation.
+`just gamache` includes a translation check. It scans PHP files under `src/` and Twig files under `templates/` for string literals that look like untranslated user-facing text. It scores each literal by word count, mixed case and punctuation.
 
 1. It never fails CI, because its exit code is always 0. Its findings are advisory.
 2. To suppress a false positive, add `// @translation-check-ignore` on the same line in PHP, or `{# translation-check-ignore #}` on the same line in Twig.

@@ -89,7 +89,6 @@ final readonly class ShowWorkflowSettingsHandler
             markers: array_map(static fn (TemplateMarker $marker): WorkflowMarkerView => self::marker($template, $marker), $template->markers),
             metrics: array_map(fn (TemplateMetric $metric): WorkflowMetricView => $this->metric($template, $metric), $template->metrics),
             backoffMinutes: $template->backoffMinutes,
-            workTimeoutMinutes: $template->workTimeoutMinutes,
             workFailedBackoffMinutes: $template->onWorkFailed?->backoffMinutes,
         ));
     }

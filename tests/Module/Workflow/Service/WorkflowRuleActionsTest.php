@@ -54,7 +54,7 @@ final class WorkflowRuleActionsTest extends TestCase
         $templates = $this->createStub(TemplateSource::class);
         $templates->method('forProject')->willReturn(new Template('test', 1, [], [
             new Rule('verdict', null, $when, [new ActionCall('post-review', ['kind' => 'review'])]),
-        ], [], [10], 120, [], 'feature'));
+        ], [], [10], [], 'feature'));
 
         return new WorkflowRuleActions($settings, $templates);
     }

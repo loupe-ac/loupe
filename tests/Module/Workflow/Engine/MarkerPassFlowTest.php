@@ -172,7 +172,6 @@ final class MarkerPassFlowTest extends KernelTestCase
             'slots' => [['key' => 'one', 'label' => 'one'], ['key' => 'two', 'label' => 'two']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'rules' => [['id' => 'work', 'slot' => 'one', 'when' => ['all' => []], 'then' => ['request' => ['kind' => 'work']]]],
             'markers' => [
                 ['key' => 'work-requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'when' => ['card.run.work_open' => []]],
@@ -199,7 +198,6 @@ final class MarkerPassFlowTest extends KernelTestCase
             'slots' => [['key' => 'one', 'label' => 'one']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10], 'repair' => ['kind' => 'repair']],
             'rules' => [['id' => 'work', 'slot' => 'one', 'when' => ['all' => []], 'then' => ['request' => ['kind' => 'work']]]],
             'markers' => [

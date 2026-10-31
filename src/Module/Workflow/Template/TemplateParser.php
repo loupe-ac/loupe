@@ -232,12 +232,6 @@ final readonly class TemplateParser
             $errors[] = \sprintf('defaultType: type "%s" may have children', $defaultType);
         }
 
-        $workTimeoutMinutes = $source['workTimeoutMinutes'] ?? null;
-        if (!\is_int($workTimeoutMinutes) || $workTimeoutMinutes < 1) {
-            $errors[] = self::topLevelError($source, 'workTimeoutMinutes', 'must be a positive integer');
-            $workTimeoutMinutes = 0;
-        }
-
         $backoffMinutes = self::backoffMinutes($source['backoffMinutes'] ?? null);
         if (null === $backoffMinutes) {
             $errors[] = self::topLevelError($source, 'backoffMinutes', 'must be a list of positive integers');
@@ -303,7 +297,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values);
     }
 
     /**
