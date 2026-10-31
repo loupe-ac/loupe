@@ -31,6 +31,15 @@ store_file() {
     [ ! -f "$main/terraform/secrets.enc.yaml" ] || printf '%s' "$main/terraform/secrets.enc.yaml"
 }
 
+# The age recipients of the live store, comma separated, so a second store
+# encrypts to the same keys. Empty when there is no live store.
+live_recipients() {
+    local live
+    live=$(TF_SECRETS_STORE=${TF_SECRETS_LIVE_STORE-${TF_SECRETS_STORE:-}} store_file) || return 0
+    [ -n "$live" ] || return 0
+    awk '{ for (i = 1; i < NF; i++) if ($i == "recipient:") { printf "%s%s", sep, $(i + 1); sep = "," } }' "$live"
+}
+
 # Where a new store file goes.
 store_target() {
     if [ -n "${TF_SECRETS_STORE:-}" ]; then printf '%s' "$TF_SECRETS_STORE"; else printf '%s' "$TF_SECRETS_ROOT/secrets.enc.yaml"; fi
@@ -80,7 +89,7 @@ store_set_many() {
     tmpdir=$(mktemp -d "$dir/.rotate-secrets.tmp.XXXXXX")
     tmp=$tmpdir/secrets.enc.yaml
     if [ "$created" = 1 ]; then
-        printf '{}' | sops encrypt --input-type json --output-type yaml --filename-override "$file" /dev/stdin > "$tmp" \
+        printf '{}' | SOPS_AGE_RECIPIENTS=${SOPS_AGE_RECIPIENTS:-$(live_recipients)} sops encrypt --input-type json --output-type yaml --filename-override "$file" /dev/stdin > "$tmp" \
             || { rm -rf -- "$tmpdir"; ts_fail "could not start the secret store. Set SOPS_AGE_RECIPIENTS or add a .sops.yaml."; }
     else
         cp -p "$file" "$tmp" || { rm -rf -- "$tmpdir"; ts_fail "could not copy the store."; }

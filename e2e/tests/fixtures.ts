@@ -240,17 +240,21 @@ export async function signWidgetIn(
 
 /**
  * Waits for the site-review panel transitions to end. A growing composer slides
- * its controls, and a click mid-slide can land on the wrong row.
+ * its controls, and a click mid-slide can land on the wrong row. A ResizeObserver
+ * starts the height transition, so it waits two frames for that to begin first.
  */
 export async function siteReviewPanelSettled(page: Page): Promise<void> {
-    await page.locator('#lp-panel').evaluate((panel) =>
-        Promise.all(
+    await page.locator('#lp-panel').evaluate(async (panel) => {
+        await new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        );
+        await Promise.all(
             panel
                 .getAnimations({ subtree: true })
                 .filter((animation) => animation instanceof CSSTransition)
                 .map((animation) => animation.finished.catch(() => {})),
-        ),
-    );
+        );
+    });
 }
 
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;

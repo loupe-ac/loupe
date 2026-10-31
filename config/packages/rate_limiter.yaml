@@ -18,6 +18,14 @@ framework:
             limit: 3000
             interval: '1 minute'
 
+        # Bounds the anonymous Stripe webhook, keyed per client address, because
+        # nothing identifies a sender before the signature check. Stripe sends
+        # from a short fixed list of addresses and retries a refused delivery.
+        stripe_webhook:
+            policy: 'sliding_window'
+            limit: 120
+            interval: '1 minute'
+
         # Bounds a per-project forge hook. GitHub delivers for every tenant from
         # one shared pool of addresses, so an address key would let one tenant
         # starve the others. Keyed per hook key instead.
@@ -205,6 +213,10 @@ when@dev:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'
+            stripe_webhook:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
             forge_deliveries:
                 policy: 'sliding_window'
                 limit: 100000
@@ -257,6 +269,10 @@ when@dev:
 when@test:
     framework:
         rate_limiter:
+            stripe_webhook:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
             forge_deliveries:
                 policy: 'sliding_window'
                 limit: 100000

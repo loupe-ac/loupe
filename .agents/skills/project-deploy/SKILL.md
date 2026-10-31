@@ -59,7 +59,7 @@ These paths are safe:
 
 - `just tfvars-names` lists the variable names that the two files set, with no value.
 - `just healthz` reads the live version from `/healthz`.
-- `just rotate-secrets` rotates the secrets.
+- `just rotate-secrets` collects new secrets, and `bin/rotate-secrets apply` applies them. The `project-rotate-secrets` skill runs the apply.
 - `just tf-plan`, `just tf-apply` and `just tf-output` run Terraform with the secrets from the store.
 - `bin/tf-secrets names` lists the names the store holds, and `verify` compares the store with `terraform.tfvars`. Neither prints a value.
 - `bin/tf-plan-diff <plan> [NAME]` lists what a saved plan changes, with no value.
