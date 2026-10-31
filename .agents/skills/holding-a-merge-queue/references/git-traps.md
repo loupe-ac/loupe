@@ -14,7 +14,7 @@ A merge commit whose message lists `# Conflicts:` is a resolution. The block
 can be missing, because `git commit -m` drops it. `merge-ready.sh` therefore
 re-creates each merge from `main` with `git merge-tree`, and treats any merge
 whose tree differs as a resolution. Read the commit, and prove the resolution
-lost nothing in **both** directions before merging:
+lost nothing in both directions before you merge:
 
 ```bash
 comm -23 <(git show origin/main:$F | grep "^#" | sort) <(grep "^#" $F | sort)
@@ -27,8 +27,8 @@ the branch is for. Choose the grep to suit the file: headings for prose, test
 method names for a test file, entry prefixes for a list.
 
 A branch stacked on a pull request that merged by squash is where this arrives.
-The squash gives main the same content under a commit that shares no history,
-so the stacked branch conflicts in a file it is a strict superset of.
+The squash gives main the same content under a commit that shares no history.
+The stacked branch then conflicts in a file that it is a strict superset of.
 
 ## Re-derive, never reuse
 
@@ -73,10 +73,10 @@ one-line version is what produced the mistakes.
 
 | | |
 |---|---|
-| `git log A..B` | commits in B, not in A. **Want this for a rebase range.** |
+| `git log A..B` | commits in B, not in A. Use this for a rebase range. |
 | `git log A...B` | in either but not both. Rarely wanted. |
 | `git diff A..B` | the two trees compared. This produced a 272-file count for a one-commit branch. |
-| `git diff A...B` | what B changed since diverging. **Want this for "what did this branch change".** |
+| `git diff A...B` | what B changed since diverging. Use this for "what did this branch change". |
 
 ## Ancestry is not merge state
 
@@ -99,5 +99,5 @@ gh pr list --state merged --head <branch> --json number,mergeCommit
 ```
 
 `git merge-base --is-ancestor A B` is the right test for whether one *unmerged*
-branch contains another, which tells you that a stacked branch has been
-absorbed. Never use it for "did this land on `main`".
+branch contains another. It tells you that a stacked branch has been absorbed.
+Never use it for "did this land on `main`".
