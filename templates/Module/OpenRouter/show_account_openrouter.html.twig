@@ -1,0 +1,23 @@
+{% extends '@Account/_settings_layout.html.twig' %}
+
+{% block title %}{{ 'openrouter.account.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block settings_section 'openrouter' %}
+
+{% block settings_content %}
+{% do mercure_subscribe(openrouter_topic(app.user)) %}
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="openrouter-section"
+    data-controller="live-pill"
+    data-live-pill-events-value="{{ ['openrouter_key.changed']|json_encode }}"
+    data-live-pill-url-value="{{ path('app_account_openrouter_status') }}"
+    data-live-pill-stopped-value="{{ 'openrouter.live_stopped'|trans }}">
+    <twig:Ds:SectionHeading :description="'openrouter.account.description'|trans">{{ 'openrouter.account.heading'|trans }}</twig:Ds:SectionHeading>
+
+    {% include '@OpenRouter/_account_key_status.html.twig' with {view: view} only %}
+    <p class="lp-live-stopped" role="status" data-live-pill-target="status"></p>
+
+    {% if keyForm is not null %}
+    {% include '@OpenRouter/_key_form.html.twig' with {keyForm: keyForm, action: path('app_account_openrouter_save'), notManagementKey: notManagementKey, cancelUrl: view.key is not null ? path('app_account_openrouter') : null} only %}
+    {% endif %}
+</twig:Ds:Panel>
+{% endblock %}
