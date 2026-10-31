@@ -1,0 +1,25 @@
+{# The account key status frame. The account page and the status route both render it. #}
+<turbo-frame id="openrouter-key" data-live-pill-target="frame">
+    {% if view.key is not null %}
+    {% set key = view.key %}
+    <div class="lp-identity-row lp-identity-row--key" data-testid="openrouter-key-row">
+        {% include '@OpenRouter/_key_chip.html.twig' with {key: key} only %}
+        <span class="lp-identity-row__text">
+            <code class="lp-identity-row__name lp-identity-row__name--mono" data-testid="openrouter-key-mask">{{ key.masked }}</code>
+            <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="openrouter-key-last-read">
+                {%- if key.lastReadAt is not null -%}
+                    {{ 'openrouter.key.last_read'|trans }} <twig:Ds:RelativeTime :datetime="key.lastReadAt" />
+                {%- else -%}
+                    {{ 'openrouter.key.never_read'|trans }}
+                {%- endif -%}
+            </span>
+        </span>
+        <twig:Ds:Button variant="{{ key.refused ? 'primary' : 'outline' }}" size="sm" href="{{ path('app_account_openrouter', {replace: 1}) }}" data-turbo-frame="_top" data-testid="openrouter-key-replace">{{ 'openrouter.key.replace'|trans }}</twig:Ds:Button>
+        <twig:Ds:ActionForm action="{{ path('app_account_openrouter_remove') }}" token="openrouter-key-remove" frame="_top">
+            <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" data-testid="openrouter-key-remove">{{ 'openrouter.key.remove'|trans }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+    </div>
+    {% else %}
+    <p class="lp-connect-hint" data-testid="openrouter-key-empty">{{ 'openrouter.account.empty'|trans }}</p>
+    {% endif %}
+</turbo-frame>

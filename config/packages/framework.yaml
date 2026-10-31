@@ -40,6 +40,13 @@ framework:
                 headers:
                     Accept: 'application/vnd.github+json'
 
+            # The key test of the OpenRouter settings runs inline in the save
+            # request, so a slow OpenRouter must not become a slow Loupe.
+            openrouter.client:
+                base_uri: 'https://openrouter.ai/api/v1/'
+                timeout: 5
+                max_duration: 10
+
             # The GitHub App install exchanges its OAuth code here, inline in
             # the callback request. Without this Accept header GitHub answers
             # form-encoded.

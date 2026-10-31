@@ -1,0 +1,15 @@
+{# The management key form. Both settings sections include it, and it never echoes the stored key. #}
+{{ form_start(keyForm, {action: action, attr: {class: 'lp-form', novalidate: 'novalidate', 'data-testid': 'openrouter-key-form'}}) }}
+    <twig:Ds:FormField :fieldView="keyForm.secret" :widgetMono="true" :hintText="'openrouter.form.hint'|trans" />
+    {% if notManagementKey %}
+    <twig:Ds:Hint data-testid="openrouter-management-keys-link">
+        <a href="https://openrouter.ai/settings/management-keys" target="_blank" rel="noopener">{{ 'openrouter.error.create_management_key'|trans }}</a>
+    </twig:Ds:Hint>
+    {% endif %}
+    <twig:Ds:FormActions>
+        {% if cancelUrl %}
+        <twig:Ds:Button variant="ghost" href="{{ cancelUrl }}" data-turbo-frame="_top">{{ 'openrouter.key.cancel'|trans }}</twig:Ds:Button>
+        {% endif %}
+        <twig:Ds:Button variant="primary" type="submit">{{ 'openrouter.key.save'|trans }}</twig:Ds:Button>
+    </twig:Ds:FormActions>
+{{ form_end(keyForm) }}

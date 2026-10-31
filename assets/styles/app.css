@@ -5053,6 +5053,9 @@
     .lp-identity-row > .lp-status-chip {
         @apply shrink-0 whitespace-nowrap;
     }
+    .lp-identity-row--key > .lp-status-chip {
+        @apply ml-0;
+    }
 
     /* The Repositories section: a row for each repository, then its check list. */
     .lp-repository-list {

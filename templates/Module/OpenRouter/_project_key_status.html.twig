@@ -1,0 +1,32 @@
+{# The project key status frame. The project page and the status route both render it. #}
+<turbo-frame id="openrouter-key" data-live-pill-target="frame">
+    {% set key = view.inUse %}
+    {% if key is not null %}
+    <div class="lp-identity-row lp-identity-row--key" data-testid="openrouter-key-row">
+        <span class="lp-identity-row__text">
+            <span class="lp-identity-row__name" data-testid="openrouter-key-in-use">{{ 'openrouter.project.key_in_use'|trans }}: {{ (key.forProject ? 'openrouter.project.own_key' : 'openrouter.project.account_key')|trans }}</span>
+            <code class="lp-identity-row__meta" data-testid="openrouter-key-mask">{{ key.masked }}</code>
+        </span>
+        {% include '@OpenRouter/_key_chip.html.twig' with {key: key} only %}
+        {% if key.forProject %}
+        <twig:Ds:Button variant="{{ key.refused ? 'primary' : 'outline' }}" size="sm" href="{{ path('app_project_openrouter', {id: project.id, replace: 1}) }}" data-turbo-frame="_top" data-testid="openrouter-key-replace">{{ 'openrouter.project.replace'|trans }}</twig:Ds:Button>
+        <twig:Ds:ActionForm action="{{ path('app_project_openrouter_remove', {id: project.id}) }}" token="openrouter-key-remove" frame="_top">
+            <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" data-testid="openrouter-key-remove">{{ 'openrouter.project.remove'|trans }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+        {% else %}
+        <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_openrouter', {id: project.id, replace: 1}) }}" data-turbo-frame="_top" data-testid="openrouter-key-use-own">{{ 'openrouter.project.use_own'|trans }}</twig:Ds:Button>
+        {% endif %}
+    </div>
+    {% if key.forProject and view.accountKey is not null %}
+    <twig:Ds:Hint data-testid="openrouter-key-hint">{{ 'openrouter.project.hint_remove'|trans }}</twig:Ds:Hint>
+    {% elseif not key.forProject %}
+    <twig:Ds:Hint data-testid="openrouter-key-hint">{{ 'openrouter.project.hint_account'|trans }}</twig:Ds:Hint>
+    {% endif %}
+    {% else %}
+    <p class="lp-connect-hint" data-testid="openrouter-key-empty">{{ 'openrouter.project.none'|trans }}</p>
+    <twig:Ds:FormActions align="between">
+        <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_account_openrouter') }}" data-turbo-frame="_top" data-testid="openrouter-key-add-account">{{ 'openrouter.project.add_account'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_project_openrouter', {id: project.id, replace: 1}) }}" data-turbo-frame="_top" data-testid="openrouter-key-add-project">{{ 'openrouter.project.add_project'|trans }}</twig:Ds:Button>
+    </twig:Ds:FormActions>
+    {% endif %}
+</turbo-frame>

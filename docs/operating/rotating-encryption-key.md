@@ -1,17 +1,17 @@
 ---
 title: "Rotating the encryption key"
-description: "Replacing APP_ENCRYPTION_KEY without losing the GitHub tokens and webhook secrets that it encrypts."
+description: "Replacing APP_ENCRYPTION_KEY without losing the GitHub tokens, webhook secrets and OpenRouter keys that it encrypts."
 ---
 
 Rotate `APP_ENCRYPTION_KEY` when it leaks, or on a schedule. The app encrypts new values with the current key. It reads old values with the current key or with `APP_ENCRYPTION_KEY_PREVIOUS`. A console command moves every stored value to the current key. Then you remove the old key.
 
-The key encrypts three values: the secret of a project's GitHub webhook, and the access token and refresh token of a user's GitHub connection.
+The key encrypts four values: the secret of a project's GitHub webhook, the access token and refresh token of a user's GitHub connection, and the OpenRouter management key of a user or a project.
 
 ## Before you start
 
 - Rotation does not protect old backups. A dump taken before the rotation stays readable with the old key. Delete the dumps you no longer need, or keep them with the old key, as [Restoring the database](restoring.md) says.
 - The old key still opens production data until the last deploy of this page. Keep the window short.
-- If the key leaked together with a copy of the database, the GitHub tokens in that copy are exposed too. Rotation does not void them. Ask users to connect GitHub again, or revoke the tokens on GitHub.
+- If the key leaked together with a copy of the database, the GitHub tokens and the OpenRouter keys in that copy are exposed too. Rotation does not void them. Ask users to connect GitHub again, or revoke the tokens on GitHub. Ask users to replace their OpenRouter keys, and revoke the old ones on OpenRouter.
 
 ## The steps
 
