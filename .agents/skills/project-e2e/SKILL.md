@@ -76,7 +76,7 @@ Read `references/parallelism-and-sessions.md` before you write an authenticated 
 
 `PlaywrightSyncMiddleware` stamps every envelope dispatched during a request that carries `X-Playwright`, and mail is only one of them. So there is no worker to start and none to forget. It is registered under `when@dev` only, so production dispatch stays the same.
 
-The owner accepted a cost on 2026-08-16. `CancelSubscriptionMessage` and `GenerateDataExportMessage` also run inline, which puts their handlers inside the Doctrine transaction of the request. Account deletion can therefore call Stripe while the transaction is open. A Stripe failure then rolls the deletion back, and does not enter the retry flow of Messenger. A Codex review argued to exclude these two jobs. The owner declined, because the point was to remove the worker as a variable from e2e.
+A decision on 2026-08-16 accepted a cost. `CancelSubscriptionMessage` and `GenerateDataExportMessage` also run inline, which puts their handlers inside the Doctrine transaction of the request. Account deletion can therefore call Stripe while the transaction is open. A Stripe failure then rolls the deletion back, and does not enter the retry flow of Messenger. A Codex review argued to exclude these two jobs. The decision kept them inline on purpose, because the point was to remove the worker as a variable from e2e.
 
 So a green suite does not exercise the real async path for those two jobs, and it does not catch a bug that lives only there. Cover that path with a functional test. Revisit the exclusion if either job gets behaviour that depends on a committed transaction.
 
