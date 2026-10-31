@@ -21,8 +21,8 @@ Call `inbox_ask` with:
 
 - `sessionId`: your own session id, the first set value of `$LOUPE_SESSION_ID`, `$CLAUDE_CODE_SESSION_ID` and `$CODEX_THREAD_ID`. Read it with a shell command: `echo "${LOUPE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-$CODEX_THREAD_ID}}"`.
 - `bridgeId`: only when the bridge started you, from the footer line "Your session id is … and your bridge id is …. Pass both to inbox_ask." Omit it in an interactive session.
-- `context`: one or two sentences the owner reads above the items, such as "Working on card 33, I need two decisions before I write the migration".
-- `items`: each with a `kind` (`question` or `todo`) and a one-line `title`. The `title` and each option follow rule 18 of `loupe-documents`: they make sense with no document open. The `context` names the card in words, not only by its number.
+- `context`: one or two sentences the owner reads above the items, such as "Working on card 33, I need two decisions before I write the migration". The `context` names the card in words, not only by its number.
+- `items`: each with a `kind` (`question` or `todo`) and a one-line `title`. The `title` and each option follow rule 18 of `loupe-documents`: they make sense with no document open.
 
 Write the `context` and each item so that the owner can act on them with no other page open. Say what the ask is, why you ask now, and the next steps you suggest.
 
@@ -56,7 +56,7 @@ The `prompt` is plain text, and only `start-session` takes it. Loupe trims it an
 
 When the bridge started you, end your turn after a blocking ask. Do not poll `inbox_get` in a loop. When the ask closes, Loupe asks the bridge to resume your session, and the resume prompt tells you that the owner answered. A second `inbox_ask` from a resumed session opens a new ask.
 
-Pass your own session id as `readerSessionId` whenever you read your answers, on a resume or while your first run continues. Only `readerSessionId` records a read. The `sessionId` filter of `inbox_list` records nothing.
+Pass your own session id as `readerSessionId` whenever you read your answers. This applies on a resume and while your first run continues. Only `readerSessionId` records a read. The `sessionId` filter of `inbox_list` records nothing.
 
 1. Call `inbox_list` with the `askId` and `readerSessionId`. Each row then holds `state`, `closedBy`, `options`, `selectedOptions` (indexes into `options`) and `note`.
 2. Call `inbox_get` with `itemId` and `readerSessionId` when you need an item's body or links.
@@ -75,7 +75,7 @@ Use `inbox_action_run` only when the owner decided an item in your chat. Never u
 
 1. `action: "answer"` answers a question. Pass `selectedOptions` (zero-based indexes), `note`, or both.
 2. `action: "complete"` marks a to-do done. `action: "dismiss"` declines an item that allows it. Both take an optional `note`. A review verdict stays on the inbox page. When the owner gave the verdict of a document in your chat, call `document_verdict_submit`.
-3. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
+3. For `run-command`, call it first without `runDigest`, and show the preview to the owner. After the owner confirms, call it again with the same `branch`, `params` and the `runDigest`.
 4. For `start-session`, show the owner the `prompt` of the suggestion. Pass `sessionPrompt` with the prompt the owner confirms, or an empty string when the owner clears it. Leave it out to send the suggested prompt unchanged.
 
 The item shows that an agent typed the response. The answer to a workflow question is final and runs its action at once.
