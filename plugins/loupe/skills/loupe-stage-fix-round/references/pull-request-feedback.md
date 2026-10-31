@@ -56,7 +56,12 @@ An agent reviews each head commit of a pull request. `card_get` returns the late
    3. A decision made differently from the design: make the code follow the chosen option.
    4. A finding with `needsPerson` true: never settle it yourself, and never record a departure for it on your own. Follow "A finding that needs the owner" below.
 6. Leave a `spec` nit alone when it cites a departure that the build notes record. This holds also in a round that started for another reason, such as a CI failure. Never undo a recorded departure by accident.
-7. Answer a finding that needs evidence instead of code, and a finding you judge wrong, in the build notes. The finding has no thread, so you post no reply. Find the build notes by the tag `build-notes`. Add `### <finding title>` under `## Review answers`, in the order of the build notes. Open it with the result in one sentence. Then say what the finding asked, what you did, and the raw evidence in a code block. Remove each credential from the evidence before the revise, and show it as `<redacted>`. A departure goes in the "Departures" section, and the answer links to that entry. Revise the build notes with `document_revise`. Add one line to the pull request body: `Review answers: <review page URL>#heading-review-answers`. Build the URL from the instance and project of your prompt and the document id: `/projects/{projectId}/documents/{documentId}/review`. When the card has no build notes, create them with `document_create`, titled "Build notes: <card title>" and tagged `build-notes`, with only the Review answers section. Reference the tech design when the card links one, and link the document to the card (implementation contract rule 5).
+7. Answer a finding that needs evidence instead of code, and a finding you judge wrong, in the build notes. The finding has no thread, so you post no reply.
+   1. Find the build notes by the tag `build-notes`. Add `### <finding title>` under `## Review answers`, in the order of the build notes.
+   2. Open it with the result in one sentence. Then say what the finding asked, what you did, and the raw evidence in a code block. Remove each credential from the evidence before the revise, and show it as `<redacted>`.
+   3. A departure goes in the "Departures" section, and the answer links to that entry.
+   4. Revise the build notes with `document_revise`. Add one line to the pull request body: `Review answers: <review page URL>#heading-review-answers`. Build the URL from the instance and project of your prompt and the document id: `/projects/{projectId}/documents/{documentId}/review`.
+   5. When the card has no build notes, create them with `document_create`. Title them "Build notes: <card title>", tag them `build-notes`, and give them only the Review answers section. Reference the tech design when the card links one. Link the document to the card (implementation contract rule 5).
 8. A fix that changes the head starts the next review. Never wait for it. A round that ends with no push asks for a review of the same head.
 
 ## A finding that needs the owner
@@ -64,10 +69,12 @@ An agent reviews each head commit of a pull request. `card_get` returns the late
 A `spec` finding with `needsPerson` true goes to the owner as one blocking question. Fix every other finding first.
 
 1. Fix every finding that has no mark, and commit it. Do not push.
-2. Load `loupe-documents` and `loupe-inbox`. Write a Loupe document tagged `spec-review` with `document_create`, and link it to the card with `card_update` (send the `card_get` values plus the document). Title it with the card number and the short head commit. For each marked finding, give its title, what the design says, and what the code does. Reference the designs.
+2. Load `loupe-documents` and `loupe-inbox`. Write a Loupe document tagged `spec-review` with `document_create`. Link it to the card with `card_update`, and send the `card_get` values plus the document. Title it with the card number and the short head commit. For each marked finding, give its title, what the design says, and what the code does. Reference the designs.
 3. Call `inbox_search`. When an open item already asks the same thing, add it with `inbox_join`. Otherwise call `inbox_ask` with one blocking `question` per marked finding, with options when the choices are clear. Link the card and the document, and pass your session id and bridge id. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>` in the body of each item, never in an option.
 4. Stop with `STAGE RESULT: blocked: spec finding needs the owner`. The first sentence after it is "Answer the question in the inbox, then resume this run." End the turn, and push nothing.
-5. On the resume, read the answer with `inbox_get`, passing your session id as `readerSessionId`. When it says to follow the design, change the code to follow it. When it accepts the code, add an entry to the "Departures" section of the build notes. The entry names the requirement or decision, what the code does instead, and the owner's answer. Revise the build notes with `document_revise`. The next review then shows the departure as a `nit`.
+5. On the resume, read the answer with `inbox_get`, and pass your session id as `readerSessionId`.
+   - When the answer says to follow the design, change the code to follow it.
+   - When it accepts the code, add an entry to the "Departures" section of the build notes. The entry names the requirement or decision, what the code does instead, and the owner's answer. Revise the build notes with `document_revise`. The next review then shows the departure as a `nit`.
 6. Run the gate, push, and go on with the round.
 
 A departure that the implementer records while it builds, before any review, keeps its own rule.
@@ -113,7 +120,12 @@ When the profile `Environment` section names a folder check, run it first. When 
 git branch --show-current
 ```
 
-When it prints nothing, HEAD is detached. When it prints the base branch of the profile `Gate` section, treat it the same way. When it prints another card branch (`<prefix>` of `../../loupe-stage-implementation/references/commands.md` "Card branch") and `git status --porcelain` prints nothing, treat it the same way too. Run `git fetch origin <head branch>` and `git switch <head branch>`. When no local branch has that name, run `git switch --track -c <head branch> origin/<head branch>` instead. When the current branch then differs from the head branch, change nothing, and stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+When it prints nothing, HEAD is detached. Treat two other cases the same way:
+
+- It prints the base branch of the profile `Gate` section.
+- It prints another card branch (`<prefix>` of `../../loupe-stage-implementation/references/commands.md` "Card branch"), and `git status --porcelain` prints nothing.
+
+In these cases, run `git fetch origin <head branch>` and `git switch <head branch>`. When no local branch has that name, run `git switch --track -c <head branch> origin/<head branch>` instead. When the current branch then differs from the head branch, change nothing, and stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 
 Sync the branch as "Sync with the pull request branch" in `../../loupe-stage-implementation/references/commands.md` says. It recovers a branch that diverged from the pull request branch, or stops with `STAGE RESULT: blocked: local branch diverged from origin`. Never force-push.
 
