@@ -5,7 +5,7 @@ failing check that the diff explains. Dispatch only when no bridge worker picks
 the fix up and the branch's session is gone. Do not fix the branch in your own
 context, because your context must last as long as the queue.
 
-**Obsolete for a conflict since 2026-09-28.** The owner said: "I want all 3
+This procedure is obsolete for a conflict since 2026-09-28. The owner said: "I want all 3
 reasons and the merge queue should stop fixing conflicts". The bridge's `fix-pr`
 worker now resolves a conflict with the `loupe-stage-fix-round` skill, which
 carries this procedure. Never dispatch an agent for a conflict. The two sections
@@ -73,8 +73,8 @@ Rules:
 ````
 
 For a fix that is not a conflict, keep the worktree, write-check, skill, gate
-and push rules, and replace the merge and `comm` rules with the failing check
-and its log.
+and push rules. Replace the merge and `comm` rules with the failing check and
+its log.
 
 ## Verify the result before you merge
 
@@ -82,7 +82,7 @@ This step still applies, to a resolution that a bridge worker pushed. Read the
 pushed merge commit, and run the `comm` proof yourself, as
 `references/git-traps.md` says. Then run `scripts/merge-ready.sh <n>` on the new
 head. When `workflow_get` returns `approvalCoversConflictResolution` as `true`,
-the owner's approval covers a resolution that passes the `comm` check, so
+the owner's approval covers a resolution that passes the `comm` check. Then
 merge a pull request that no workflow rule reaches without asking him again.
-When the value is `false`, the resolution needs a new approval. A fix that is not a conflict is new content, and
-it needs a new approval.
+When the value is `false`, the resolution needs a new approval. A fix that is
+not a conflict is new content, and it needs a new approval.
