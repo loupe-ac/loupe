@@ -7697,6 +7697,7 @@
             <trans-unit id="board.card.history.pause_kind.rule"><source>board.card.history.pause_kind.rule</source><target>a workflow rule asked for it</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.retries"><source>board.card.history.pause_kind.retries</source><target>too many attempts were refused</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.work_limit"><source>board.card.history.pause_kind.work_limit</source><target>a rule reached its work limit</target></trans-unit>
+            <trans-unit id="board.card.history.pause_kind.work_timeout"><source>board.card.history.pause_kind.work_timeout</source><target>no bridge took the work in time</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.work_stopped"><source>board.card.history.pause_kind.work_stopped</source><target>the worker stopped and needs a person</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.facts_changed"><source>board.card.history.release_reason.facts_changed</source><target>the facts the rule reads changed</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.subject_changed"><source>board.card.history.release_reason.subject_changed</source><target>the rule moved to another pull request</target></trans-unit>
@@ -9398,6 +9399,7 @@
             <trans-unit id="workflow.settings.timings.heading"><source>workflow.settings.timings.heading</source><target>Retry timings</target></trans-unit>
             <trans-unit id="workflow.settings.timings.backoff"><source>workflow.settings.timings.backoff</source><target>Retry delays: %minutes% minutes</target></trans-unit>
             <trans-unit id="workflow.settings.timings.work_failed_backoff"><source>workflow.settings.timings.work_failed_backoff</source><target>Retries after failed work: %minutes% minutes</target></trans-unit>
+            <trans-unit id="workflow.settings.timings.no_timeout"><source>workflow.settings.timings.no_timeout</source><target>Work that a rule asks for waits for a bridge with no time limit.</target></trans-unit>
             <trans-unit id="workflow.bind.error.already_bound"><source>workflow.bind.error.already_bound</source><target>This project already runs a workflow template.</target></trans-unit>
             <trans-unit id="workflow.bind.error.unknown_template"><source>workflow.bind.error.unknown_template</source><target>No workflow template has this key.</target></trans-unit>
             <trans-unit id="workflow.bind.error.slot_unlinked"><source>workflow.bind.error.slot_unlinked</source><target>Choose a column for this slot.</target></trans-unit>

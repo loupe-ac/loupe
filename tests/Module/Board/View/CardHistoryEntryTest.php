@@ -288,6 +288,8 @@ final class CardHistoryEntryTest extends TestCase
         yield 'a rule' => ['rule', 'board.card.history.pause_kind.rule'];
         yield 'retries' => ['retries', 'board.card.history.pause_kind.retries'];
         yield 'a work limit' => ['work-limit', 'board.card.history.pause_kind.work_limit'];
+        yield 'a stopped worker' => ['work-stopped', 'board.card.history.pause_kind.work_stopped'];
+        yield 'a work timeout written before the timeout was removed' => ['work-timeout', 'board.card.history.pause_kind.work_timeout'];
     }
 
     #[DataProvider('pauseKinds')]

@@ -43,6 +43,8 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-workflow-template]', 'Lifecycle');
+        self::assertSelectorTextContains('[data-workflow-timings] [data-workflow-no-timeout]', 'no time limit');
+        self::assertSelectorTextNotContains('[data-workflow-timings]', 'Work timeout');
         self::assertSame(['next', 'product-design', 'tech-design', 'implementation', 'in-review'], $crawler->filter('[data-slot-key]')->extract(['data-slot-key']));
         self::assertSelectorTextContains('[data-slot-key="tech-design"]', 'Tech design');
         self::assertSelectorTextContains('[data-slot-key="implementation"] [data-slot-column]', 'In progress');
