@@ -959,6 +959,48 @@ func TestMatchWorkAppendsTheSuggestedPromptToASession(t *testing.T) {
 	}
 }
 
+func itemSessionRequest(kind string) api.WorkRequest {
+	w := workRequest(kind)
+	w.SubjectType, w.SubjectID, w.CardNumber = api.SubjectInboxItem, "01a137da-4de8-70ae-991f-2ef19584f2a6", 0
+	w.Capability = CapabilitySession
+	w.Context.InboxActionID = "01a10beb-ba65-736b-8626-a6e3fa59dfc5"
+	w.Context.InboxItemNumber = 12
+	w.Context.InboxItemID = w.SubjectID
+
+	return w
+}
+
+// Only the session kind takes an inbox item as its subject, and the prompt
+// still ends with the inbox note and the suggested prompt.
+func TestMatchWorkTakesAnInboxItemForTheSessionKindAlone(t *testing.T) {
+	s := checked(t, workFile+"  session:\n    action: interactive\n    prompt: Work on card {cardNumber}.\n")
+
+	w := itemSessionRequest("session")
+	w.Prompt = "Look at it"
+	m := s.MatchWork(w)
+	want := "Work on card ." + "\n\n" + directive.InboxNote(12, w.SubjectID) + "\n\n" + directive.SuggestedPrompt("Look at it")
+	if m.Skip != Run || m.Action != ActionInteractive || m.Prompt != want {
+		t.Fatalf("match = %+v, want prompt %q", m, want)
+	}
+
+	if m := s.MatchWork(itemSessionRequest("pair")); m.Skip != NoRule {
+		t.Fatalf("pair on an item skip = %v, want NoRule", m.Skip)
+	}
+	other := itemSessionRequest("session")
+	other.SubjectType = "analysis"
+	if m := s.MatchWork(other); m.Skip != NoRule {
+		t.Fatalf("session on another subject skip = %v, want NoRule", m.Skip)
+	}
+}
+
+func TestWorkKindsOnAdvertisesTheSessionOnAnInboxItem(t *testing.T) {
+	body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nlaunch:\n  command: ['{script}']\nwork:\n  session:\n    action: interactive\n    prompt: x\n  fix:\n    prompt: x\n"
+	want := []string{"fix", "session", "inbox-item:session", "teardown"}
+	if got := parse(t, body).WorkKindsOn(); !slices.Equal(got, want) {
+		t.Fatalf("WorkKindsOn = %#v, want %#v", got, want)
+	}
+}
+
 func splitWithHeadline(t *testing.T, fields string) *Set {
 	t.Helper()
 	text, _ := file(t, strings.Replace(workFile, "    metrics: [cost, merge-rate]\n", "    metrics: [cost, merge-rate]\n"+fields, 1))

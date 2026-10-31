@@ -378,11 +378,17 @@ func validAppPrompt(prompt string) bool {
 	return strings.TrimSpace(prompt) != "" && len(checkPlaceholders("", prompt, event.WorkRequestType, workPlaceholders)) == 0
 }
 
+// takes reports whether the entry of kind runs work about a subject type. The
+// session entry also runs the session of an inbox item that has no single card.
+func (w WorkEntry) takes(kind, subjectType string) bool {
+	return w.Subject == subjectType || kind == SessionKind && w.Subject == api.SubjectCard && subjectType == api.SubjectInboxItem
+}
+
 // entry is the work entry of the kind of w. With appPrompts, an entry about
 // another subject type counts as no entry, so the app prompt runs.
 func (s *Set) entry(w api.WorkRequest) (WorkEntry, bool) {
 	entry, ok := s.work[w.Kind]
-	if ok && s.appPrompts && entry.Subject != w.SubjectType && !runsCommand(w) {
+	if ok && s.appPrompts && !entry.takes(w.Kind, w.SubjectType) && !runsCommand(w) {
 		return WorkEntry{}, false
 	}
 
@@ -418,7 +424,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	off := s.offLocked(runs)
 	s.mu.RUnlock()
 	off = off || s.agentsOff != "" && (!ok || entry.Action != ActionCommand)
-	if (!ok && !s.appPrompts) || dead || off || (ok && entry.Subject != w.SubjectType && !runCommand) {
+	if (!ok && !s.appPrompts) || dead || off || (ok && !entry.takes(w.Kind, w.SubjectType) && !runCommand) {
 		return Match{Skip: NoRule, Project: slug}
 	}
 
@@ -700,6 +706,9 @@ func (s *Set) WorkKindsOn() []string {
 			kind = entry.Subject + ":" + kind
 		}
 		out = append(out, kind)
+		if kind == SessionKind {
+			out = append(out, api.SubjectInboxItem+":"+SessionKind)
+		}
 	}
 
 	return out
