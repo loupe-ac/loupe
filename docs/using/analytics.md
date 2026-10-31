@@ -279,9 +279,10 @@ whole cards with all their runs, because the runs of one card are not
 independent. A rate uses the formula of a rate. Hover on the sign to read the
 likely range and the card count of each period.
 
-A steady metric never reads **Clear**, however many cards it has, because the
-sign answers whether the change is real. Read the likely ranges on hover to see
-that a metric is steady.
+A steady metric rarely reads **Clear**, however many cards it has, because the
+sign answers whether the change is real. The sign is evidence, not a guarantee:
+a steady metric can still read **Clear** by chance. Read the likely ranges on
+hover to see that a metric is steady.
 
 A graph with many series widens each likely range, as on the
 [Experiments](experiments.md) page, so a sign on such a graph reads **Clear**
