@@ -155,19 +155,15 @@ function walk(folder, prefix = '') {
 }
 
 // Maps each blob id, and each blob file name, to the one file under _blob/ that
-// it names. A file with an extension wins over a bare file of the same id. An
-// id that two typed files share maps to neither.
+// it names. Only a file with an extension counts. An id that two typed files
+// share maps to neither.
 function blobFiles(files) {
     const typed = new Map();
-    const bare = new Set();
     for (const file of files) {
         if (path.posix.dirname(file) !== BLOB_DIR) continue;
         const name = path.posix.basename(file);
         const ext = path.posix.extname(name);
-        if (ext === '') {
-            bare.add(name);
-            continue;
-        }
+        if (ext === '') continue;
         const id = name.slice(0, -ext.length);
         typed.set(id, [...(typed.get(id) ?? []), file]);
     }
@@ -176,7 +172,6 @@ function blobFiles(files) {
         if (list.length === 1) out.set(id, list[0]);
         for (const file of list) out.set(path.posix.basename(file), file);
     }
-    for (const id of bare) if (!typed.has(id)) out.set(id, `${BLOB_DIR}/${id}`);
 
     return out;
 }
@@ -187,12 +182,12 @@ function rewriteBlobLinks(text, blobs, dir) {
     return text.replace(BLOB_LINK, (match, lead, ref) => (blobs.has(ref) ? lead + path.posix.relative(dir, blobs.get(ref)) : match));
 }
 
-// Copies each file that is not a canvas file to outFolder. Leaves out a bare
-// _blob/<id> that has a typed copy, which is the one the pages link to.
+// Copies each file that is not a canvas file to outFolder. Leaves out every
+// bare _blob/<id>, because the library serves it with no content type.
 function copyCompanions(folder, outFolder, blobs) {
     for (const file of walk(folder)) {
         if (file.endsWith(CANVAS_SUFFIX) || NOT_PAGE_FILES.has(path.posix.basename(file))) continue;
-        if (path.posix.dirname(file) === BLOB_DIR && path.posix.extname(file) === '' && blobs.get(path.posix.basename(file)) !== file) continue;
+        if (path.posix.dirname(file) === BLOB_DIR && path.posix.extname(file) === '') continue;
         const target = path.join(outFolder, file);
         fs.mkdirSync(path.dirname(target), { recursive: true });
         if (file.endsWith('.css')) fs.writeFileSync(target, rewriteBlobLinks(fs.readFileSync(path.join(folder, file), 'utf8'), blobs, path.posix.dirname(file)));

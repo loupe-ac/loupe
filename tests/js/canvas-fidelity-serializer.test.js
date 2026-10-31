@@ -222,13 +222,12 @@ describe('blob links', () => {
             'project/Main.dc.html',
         ]);
 
-    it('maps each id to its file with an extension, and a bare file only when it is the one file', () => {
+    it('maps each id to its file with an extension, and never to a bare file', () => {
         expect(Object.fromEntries(blobs())).toEqual({
             style: '_blob/style.css',
             'style.css': '_blob/style.css',
             font: '_blob/font.woff2',
             'font.woff2': '_blob/font.woff2',
-            bare: '_blob/bare',
             'twice.png': '_blob/twice.png',
             'twice.jpg': '_blob/twice.jpg',
         });
@@ -236,11 +235,11 @@ describe('blob links', () => {
 
     it('points each /_blob/ link of a page at its file, relative to the folder of the page', () => {
         const html =
-            '<link href="/_blob/style"><img src="/_blob/bare" srcset="/_blob/style 1x, /_blob/font 2x">' +
+            '<link href="/_blob/style"><img srcset="/_blob/style 1x, /_blob/font 2x">' +
             '<div style="background: url(&quot;/_blob/font&quot;)"></div>';
 
         expect(rewriteBlobLinks(html, blobs(), '.')).toBe(
-            '<link href="_blob/style.css"><img src="_blob/bare" srcset="_blob/style.css 1x, _blob/font.woff2 2x">' +
+            '<link href="_blob/style.css"><img srcset="_blob/style.css 1x, _blob/font.woff2 2x">' +
                 '<div style="background: url(&quot;_blob/font.woff2&quot;)"></div>',
         );
         expect(
@@ -256,9 +255,9 @@ describe('blob links', () => {
         );
     });
 
-    it('keeps a link with no file, an ambiguous id, a relative link and another host', () => {
+    it('keeps a link with no file, a link to a bare file, an ambiguous id, a relative link and another host', () => {
         const html =
-            '<a href="/_blob/gone"></a><a href="/_blob/twice"></a>' +
+            '<a href="/_blob/gone"></a><a href="/_blob/bare"></a><a href="/_blob/twice"></a>' +
             '<a href="../_blob/style"></a><a href="https://claude.ai/_blob/style"></a>';
 
         expect(rewriteBlobLinks(html, blobs(), '.')).toBe(html);
@@ -266,7 +265,7 @@ describe('blob links', () => {
 });
 
 describe('copyCompanions', () => {
-    it('copies the companion files, drops a bare blob that has a typed copy, and rewrites the blob links of each stylesheet', () => {
+    it('copies the companion files, drops every bare blob, and rewrites the blob links of each stylesheet', () => {
         const folder = canvas({
             'project/Main.dc.html': '',
             'project/support.js': '',
@@ -279,11 +278,7 @@ describe('copyCompanions', () => {
 
         copyCompanions(folder, out, blobFiles(walk(folder)));
 
-        expect(walk(out)).toEqual([
-            '_blob/font.woff2',
-            '_blob/only',
-            '_blob/style.css',
-        ]);
+        expect(walk(out)).toEqual(['_blob/font.woff2', '_blob/style.css']);
         expect(readFileSync(join(out, '_blob/style.css'), 'utf8')).toBe(
             `@font-face{src:url('font.woff2')}`,
         );
