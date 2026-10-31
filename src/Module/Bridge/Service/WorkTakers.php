@@ -53,10 +53,10 @@ final readonly class WorkTakers
         foreach ($open as $request) {
             $requestId = ($request->id ?? throw new \LogicException('A stored request has an id.'))->toRfc4122();
             $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => self::takes($bridge, $request)));
-            // Offers go to the target bridge alone, so while it can take the work no other bridge counts.
-            $target = array_values(array_filter($takers, static fn (Bridge $bridge): bool => null !== $request->targetBridgeId && $request->targetBridgeId->equals($bridge->id)));
-            if ([] !== $target) {
-                $takers = $target;
+            // Offers go to the target bridge alone, so no other bridge counts, also when the target cannot take the work.
+            $targetId = $request->targetBridgeId;
+            if (null !== $targetId) {
+                $takers = array_values(array_filter($takers, static fn (Bridge $bridge): bool => $targetId->equals($bridge->id)));
             }
             $limited = [];
             foreach ($takers as $taker) {

@@ -437,6 +437,26 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::Limited, $this->read($project, $targeted)->state);
     }
 
+    public function test_a_request_bound_to_a_bridge_that_dropped_its_kind_is_not_available_on_another_bridge(): void
+    {
+        [$project, , $owner] = $this->scenario('target-dropped-kind');
+        $target = $this->bridge($owner, $project, 10, workKinds: ['fix']);
+        $this->bridge($owner, $project, 20);
+        $targeted = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-16 11:00:00'), targetBridgeId: $target->id);
+
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $targeted)->state);
+    }
+
+    public function test_a_request_bound_to_a_bridge_that_left_the_project_is_not_available_on_another_bridge(): void
+    {
+        [$project, , $owner] = $this->scenario('target-left');
+        $target = $this->bridge($owner, $project, 10, follows: false);
+        $this->bridge($owner, $project, 20);
+        $targeted = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-16 11:00:00'), targetBridgeId: $target->id);
+
+        self::assertNotSame(WorkTakerState::Available, $this->read($project, $targeted)->state);
+    }
+
     public function test_a_paused_bridge_does_not_count_as_limited_and_a_free_bridge_beats_a_limited_one(): void
     {
         [$project, $request, $owner] = $this->scenario('limited-paused');
