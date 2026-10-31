@@ -347,6 +347,7 @@ final class CardHistoryEntryTest extends TestCase
         yield 'a resumed run' => ['run-resumed', 'board.card.history.release_reason.run_resumed'];
         yield 'a release rule' => ['released-by-rule', 'board.card.history.release_reason.released_by_rule'];
         yield 'a person' => ['released-by-person', 'board.card.history.release_reason.released_by_person'];
+        yield 'a removed work timeout' => ['work-timeout-removed', 'board.card.history.release_reason.work_timeout_removed'];
     }
 
     public function test_a_release_with_an_unknown_reason_keeps_the_rule_cause(): void

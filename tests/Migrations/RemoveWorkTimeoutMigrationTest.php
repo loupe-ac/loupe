@@ -6,7 +6,13 @@ namespace App\Tests\Migrations;
 
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
+use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEvent;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\View\CardHistoryEntry;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Tests\Module\Workflow\Action\ActionScenario;
@@ -58,12 +64,42 @@ final class RemoveWorkTimeoutMigrationTest extends KernelTestCase
         $connection->executeStatement("UPDATE card_pauses SET kind = 'work-timeout' WHERE id = ?", [(string) $pause->id]);
 
         $this->migrate($connection);
+        $this->migrate($connection);
 
         $row = $connection->fetchAssociative('SELECT kind, released_at, release_reason FROM card_pauses WHERE id = ?', [(string) $pause->id]);
         self::assertIsArray($row);
         self::assertSame('work-stopped', $row['kind']);
         self::assertNotNull($row['released_at']);
         self::assertSame('work-timeout-removed', $row['release_reason']);
+
+        $this->em()->clear();
+        $events = self::getContainer()->get(CardEventRepository::class);
+        self::assertInstanceOf(CardEventRepository::class, $events);
+        $stored = $this->em()->find(Card::class, $card->id) ?? throw new \LogicException('The card is stored.');
+        $released = array_values(array_filter($events->findForCard($stored), static fn (CardEvent $event): bool => CardEventKind::PauseReleased === $event->kind));
+        self::assertCount(1, $released);
+        self::assertSame(Actor::System, $released[0]->actorKind);
+        self::assertEquals(['kind' => 'work-timeout', 'reason' => 'no-bridge-took-work', 'ruleId' => 'implement', 'releaseReason' => 'work-timeout-removed'], $released[0]->detail);
+        $entry = CardHistoryEntry::of($released[0]);
+        self::assertSame('board.card.history.cause.pause_released', $entry->cause?->getMessage());
+    }
+
+    public function test_a_released_work_timeout_pause_gets_no_new_history_event(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('migration-no-timeout-released');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'next');
+        $pause = self::getContainer()->get(PauseCardHandler::class)(new PauseCardCommand($card, 'no-bridge-took-work', 'implement', PauseKind::WorkStopped))
+            ?? throw new \LogicException('The card had no pause.');
+        $connection = $this->em()->getConnection();
+        $connection->executeStatement("UPDATE card_pauses SET kind = 'work-timeout', released_at = NOW(), release_reason = 'released-by-person' WHERE id = ?", [(string) $pause->id]);
+        $before = (int) $connection->fetchOne("SELECT COUNT(*) FROM board_card_events WHERE card_id = ? AND kind = 'pause-released'", [(string) $card->id]);
+
+        $this->migrate($connection);
+
+        self::assertSame($before, (int) $connection->fetchOne("SELECT COUNT(*) FROM board_card_events WHERE card_id = ? AND kind = 'pause-released'", [(string) $card->id]));
+        self::assertSame('released-by-person', $connection->fetchOne('SELECT release_reason FROM card_pauses WHERE id = ?', [(string) $pause->id]));
     }
 
     public function test_a_binding_of_another_template_is_left_alone(): void

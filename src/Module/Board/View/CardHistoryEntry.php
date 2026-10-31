@@ -48,6 +48,7 @@ final readonly class CardHistoryEntry
         'run-resumed' => 'board.card.history.release_reason.run_resumed',
         'released-by-rule' => 'board.card.history.release_reason.released_by_rule',
         'released-by-person' => 'board.card.history.release_reason.released_by_person',
+        'work-timeout-removed' => 'board.card.history.release_reason.work_timeout_removed',
     ];
 
     private function __construct(

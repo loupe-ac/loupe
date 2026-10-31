@@ -38,12 +38,24 @@ final class Version20261031042556 extends AbstractMigration
         }
 
         // The pause kind no longer exists. An active pause ends, so its rule runs again, and the kept row reads as a stopped worker.
+        // The history records each release with the kind the pause had.
         $this->addSql(<<<'SQL'
-            UPDATE card_pauses
-            SET released_at = COALESCE(released_at, NOW()),
-                release_reason = COALESCE(release_reason, 'work-timeout-removed'),
-                kind = 'work-stopped'
-            WHERE kind = 'work-timeout'
+            WITH active AS (
+                SELECT id, card_id, project_id, reason, rule_id
+                FROM card_pauses
+                WHERE kind = 'work-timeout' AND released_at IS NULL
+            ), released AS (
+                UPDATE card_pauses
+                SET released_at = COALESCE(released_at, now() AT TIME ZONE 'UTC'),
+                    release_reason = COALESCE(release_reason, 'work-timeout-removed'),
+                    kind = 'work-stopped'
+                WHERE kind = 'work-timeout'
+            )
+            INSERT INTO board_card_events (id, card_id, project_id, kind, actor_kind, detail, occurred_at)
+            SELECT gen_random_uuid(), a.card_id, a.project_id, 'pause-released', 'system',
+                   jsonb_build_object('kind', 'work-timeout', 'reason', a.reason, 'ruleId', a.rule_id, 'releaseReason', 'work-timeout-removed'),
+                   now() AT TIME ZONE 'UTC'
+            FROM active a
             SQL);
     }
 
