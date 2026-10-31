@@ -79,7 +79,7 @@ final readonly class TryAccountNowHandler
                 return self::UNKNOWN_ACCOUNT;
             }
 
-            $now = self::whole($this->clock->now());
+            $now = $this->clock->now();
             $held = $this->bridgeAccountTryNows->findUnclosed($bridge, $command->account);
             if (null !== $held) {
                 if ($held->isOpenAt($now)) {
@@ -136,10 +136,5 @@ final readonly class TryAccountNowHandler
         }
 
         return $override;
-    }
-
-    private static function whole(\DateTimeImmutable $moment): \DateTimeImmutable
-    {
-        return $moment->setTime((int) $moment->format('G'), (int) $moment->format('i'), (int) $moment->format('s'));
     }
 }

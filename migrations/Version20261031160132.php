@@ -18,7 +18,7 @@ final class Version20261031160132 extends AbstractMigration
     #[\Override]
     public function up(Schema $schema): void
     {
-        $this->addSql('CREATE TABLE bridge_account_try_now (checked_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, still_limited BOOLEAN DEFAULT NULL, closed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, id UUID NOT NULL, account VARCHAR(40) NOT NULL, pressed_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, owner_id UUID NOT NULL, bridge_id UUID NOT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE TABLE bridge_account_try_now (checked_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, still_limited BOOLEAN DEFAULT NULL, closed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, id UUID NOT NULL, account VARCHAR(40) NOT NULL, pressed_at TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL, owner_id UUID NOT NULL, bridge_id UUID NOT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE INDEX IDX_4E5896B77E3C61F94948DF55 ON bridge_account_try_now (owner_id, bridge_id)');
         $this->addSql('CREATE INDEX idx_bridge_account_try_now_bridge ON bridge_account_try_now (owner_id, bridge_id, account, pressed_at)');
         $this->addSql('CREATE UNIQUE INDEX uniq_bridge_account_try_now_open ON bridge_account_try_now (owner_id, bridge_id, account) WHERE (closed_at IS NULL)');

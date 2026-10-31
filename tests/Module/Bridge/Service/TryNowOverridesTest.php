@@ -132,22 +132,21 @@ final class TryNowOverridesTest extends KernelTestCase
         self::assertArrayNotHasKey('claude', $this->limits()->blockedOf($this->bridge));
     }
 
-    public function test_a_reading_of_the_press_second_does_not_close_the_override_because_it_may_predate_the_press(): void
+    public function test_the_press_time_keeps_its_microseconds_so_a_reading_of_the_same_second_is_ordered_against_it(): void
     {
         $this->seedAccountReading($this->em(), $this->bridge, '2026-10-16 11:00:00', 'claude', 'week', 100.0, self::RESET, true);
-        $override = $this->press('claude');
+        $override = $this->press('claude', '2026-10-16 12:00:00.100000');
+        self::assertSame('2026-10-16 12:00:00.1', $this->em()->getConnection()->fetchOne('SELECT pressed_at FROM bridge_account_try_now'));
+
+        $this->recorder()->record($this->bridge, [$this->report('claude', 'week', 100.0, true, '2026-10-16 12:00:00.050')]);
+        $this->em()->flush();
+        self::assertNull($override->closedAt, 'a reading before the press in the same second does not answer it');
 
         $this->recorder()->record($this->bridge, [$this->report('claude', 'week', 100.0, true, '2026-10-16 12:00:00.400')]);
         $this->em()->flush();
-
-        self::assertNull($override->closedAt);
-        self::assertArrayNotHasKey('claude', $this->limits()->blockedOf($this->bridge));
-
-        $this->clock->sleep(1);
-        $this->recorder()->record($this->bridge, [$this->report('claude', 'week', 100.0, true, '2026-10-16 12:00:01.000')]);
-        $this->em()->flush();
-
-        self::assertNotNull($override->closedAt, 'a reading of the next second answers the press');
+        self::assertNotNull($override->closedAt, 'a reading after the press in the same second answers it');
+        self::assertTrue($override->stillLimited);
+        self::assertArrayHasKey('claude', $this->limits()->blockedOf($this->bridge));
     }
 
     public function test_a_reading_of_another_account_does_not_close_the_override(): void
@@ -162,9 +161,9 @@ final class TryNowOverridesTest extends KernelTestCase
         self::assertNull($override->closedAt);
     }
 
-    private function press(string $account): BridgeAccountTryNow
+    private function press(string $account, string $at = self::NOW): BridgeAccountTryNow
     {
-        $override = new BridgeAccountTryNow(Uuid::v7(), $this->bridge, $account, new \DateTimeImmutable(self::NOW));
+        $override = new BridgeAccountTryNow(Uuid::v7(), $this->bridge, $account, new \DateTimeImmutable($at));
         $this->em()->persist($override);
         $this->em()->flush();
 

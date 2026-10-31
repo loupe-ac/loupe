@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Repository;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -37,7 +37,7 @@ class BridgeAccountTryNowRepository extends ServiceEntityRepository
             ->andWhere('t.pressedAt > :since')
             ->setParameter('bridgeId', $bridge->id, UuidType::NAME)
             ->setParameter('owner', $bridge->owner)
-            ->setParameter('since', $now->modify(\sprintf('-%d minutes', BridgeAccountTryNow::LIFETIME_MINUTES)), Types::DATETIME_IMMUTABLE)
+            ->setParameter('since', $now->modify(\sprintf('-%d minutes', BridgeAccountTryNow::LIFETIME_MINUTES)), MicrosecondDateTimeImmutableType::NAME)
             ->getQuery()
             ->getResult());
     }
@@ -71,7 +71,7 @@ class BridgeAccountTryNowRepository extends ServiceEntityRepository
             ->andWhere('t.pressedAt > :since')
             ->setParameter('owner', $ownerId, 'uuid')
             ->setParameter('account', $account)
-            ->setParameter('since', $now->modify(\sprintf('-%d minutes', BridgeAccountTryNow::LIFETIME_MINUTES)), Types::DATETIME_IMMUTABLE)
+            ->setParameter('since', $now->modify(\sprintf('-%d minutes', BridgeAccountTryNow::LIFETIME_MINUTES)), MicrosecondDateTimeImmutableType::NAME)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -131,7 +131,7 @@ class BridgeAccountTryNowRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('t')
             ->delete()
             ->andWhere('t.pressedAt < :cutoff')
-            ->setParameter('cutoff', $cutoff, Types::DATETIME_IMMUTABLE)
+            ->setParameter('cutoff', $cutoff, MicrosecondDateTimeImmutableType::NAME)
             ->getQuery()
             ->execute();
     }

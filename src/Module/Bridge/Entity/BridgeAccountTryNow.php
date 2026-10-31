@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -49,8 +50,8 @@ class BridgeAccountTryNow
         #[ORM\Column(length: 40)]
         public readonly string $account,
 
-        /** UTC. */
-        #[ORM\Column(name: 'pressed_at')]
+        /** UTC, with microseconds, so a reading of the same second can be ordered against the press. */
+        #[ORM\Column(name: 'pressed_at', type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public readonly \DateTimeImmutable $pressedAt,
     ) {
     }
