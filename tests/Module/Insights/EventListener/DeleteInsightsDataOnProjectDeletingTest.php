@@ -17,7 +17,7 @@ final class DeleteInsightsDataOnProjectDeletingTest extends KernelTestCase
 {
     use InsightsScenario;
 
-    private const array TABLES = ['insights_analyses', 'insights_proposals', 'insights_project_settings', 'insights_bucket_rules'];
+    private const array TABLES = ['insights_analyses', 'insights_proposals', 'insights_project_settings', 'insights_bucket_rules', 'insights_saved_graphs'];
 
     protected function setUp(): void
     {
@@ -60,6 +60,7 @@ final class DeleteInsightsDataOnProjectDeletingTest extends KernelTestCase
         $em->persist(new InsightsProjectSettings($project));
         $em->persist(new InsightsBucketRule($project, 'Bash:git *', 'git', 0));
         $em->flush();
+        $this->seedSavedGraph($project);
 
         return $project;
     }
@@ -75,6 +76,7 @@ final class DeleteInsightsDataOnProjectDeletingTest extends KernelTestCase
             'insights_proposals' => (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_proposals p JOIN insights_analyses a ON a.id = p.analysis_id WHERE a.project_id = ?', [$id]),
             'insights_project_settings' => (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_project_settings WHERE project_id = ?', [$id]),
             'insights_bucket_rules' => (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_bucket_rules WHERE project_id = ?', [$id]),
+            'insights_saved_graphs' => (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_saved_graphs WHERE project_id = ?', [$id]),
         ];
     }
 }

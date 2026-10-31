@@ -297,6 +297,7 @@ export const KEPT_CSS_WORDS = new Set([
     'button',
     'center',
     'circle',
+    'clip',
     'close-quote',
     'collapse',
     'color',

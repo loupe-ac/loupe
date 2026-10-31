@@ -216,7 +216,7 @@ final class ShowMetricsControllerChartsTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('$3.00', trim($crawler->filter('[data-metrics-chart] .lp-chart__figure-value')->text()));
-        self::assertCount(0, $crawler->filter('[data-metrics-chart] svg'));
+        self::assertCount(0, $crawler->filter('[data-metrics-chart] figure svg'));
         self::assertCount(0, $crawler->filter('[data-metrics-chart] .lp-data-table'));
     }
 

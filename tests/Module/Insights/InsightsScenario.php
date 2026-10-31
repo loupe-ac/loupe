@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights;
 
+use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricRange;
+use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\Analysis;
 use App\Module\Insights\Entity\AnalysisScope;
 use App\Module\Insights\Entity\AnalysisState;
 use App\Module\Insights\Entity\AnalysisTopic;
+use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Entity\ProposalKind;
+use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -55,6 +63,31 @@ trait InsightsScenario
         $em->flush();
 
         return $proposal;
+    }
+
+    private function seedSavedGraph(Project $project, string $name = 'Tests', int $position = 0, ?\DateTimeImmutable $removedAt = null): InsightsSavedGraph
+    {
+        $em = $this->em();
+        $graph = new InsightsSavedGraph(
+            $project,
+            $name,
+            'bucket-time:tests',
+            MetricUnit::Run,
+            MetricStatistic::Median,
+            MetricGroup::None,
+            MetricRange::ThirtyDays,
+            MetricBucket::Day,
+            MetricCompare::Off,
+            MetricChartType::Line,
+            SavedGraphWidth::Half,
+            true,
+            $position,
+            removedAt: $removedAt,
+        );
+        $em->persist($graph);
+        $em->flush();
+
+        return $graph;
     }
 
     private function seedDocument(EntityManagerInterface $em, Project $project): Document
