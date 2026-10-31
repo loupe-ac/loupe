@@ -16,15 +16,15 @@ final readonly class DrainOutboxTask
 
 ## Never add a schedule provider
 
-Do not add a `ScheduleProviderInterface` or `#[AsSchedule]` class. Only one provider may claim a schedule name, so the idiom does not compose across modules. The second module must either edit the first module's provider, which breaks the module boundary, or claim a new schedule name. A new schedule name mints a new `scheduler_<name>` transport, and you must then add that transport to every `messenger:consume` invocation, including `compose.yaml`, the `worker_command` in `terraform/main.tf`, and the production deploy config. Tagged tasks all land on the one `default` schedule and the single `scheduler_default` transport that the worker already consumes. `AddScheduleMessengerPass` decorates a provider when one exists and synthesises the schedule when none does, so removal of the last provider changes nothing about the transports.
+Do not add a `ScheduleProviderInterface` or `#[AsSchedule]` class. Only one provider may claim a schedule name, so the idiom does not compose across modules. The second module must either edit the first module's provider, which breaks the module boundary, or claim a new schedule name. A new schedule name mints a new `scheduler_<name>` transport. You must then add that transport to every `messenger:consume` invocation, including `compose.yaml`, the `worker_command` in `terraform/main.tf`, and the production deploy config. Tagged tasks all land on the one `default` schedule and the single `scheduler_default` transport that the worker already consumes. `AddScheduleMessengerPass` decorates a provider when one exists and synthesises the schedule when none does. Removing the last provider therefore changes nothing about the transports.
 
 ## Use a cron expression
 
-Use a cron expression, not `#[AsPeriodicTask]`. The periodic trigger counts down from worker boot, and `--time-limit=3600` recycles the worker every hour, so a periodic tick can starve. The cron grid is wall-clock and survives a restart.
+Use a cron expression, and never `#[AsPeriodicTask]`. The periodic trigger counts down from worker boot, and `--time-limit=3600` recycles the worker every hour. A periodic tick can therefore starve. The cron grid is wall-clock and survives a restart.
 
 ## Pair every task with a command and a test
 
-The wiring lives in an attribute and a compiler pass, so nothing else notices a tick that goes missing. Give every task a manual `app:*` console command, which is the backstop and the dev/e2e seam, and a registration test:
+The wiring lives in an attribute and a compiler pass, so nothing else notices a tick that goes missing. Give every task a manual `app:*` console command, which is the backstop and the dev/e2e seam. Give it a registration test as well:
 
 ```php
 self::assertSame(
