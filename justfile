@@ -167,6 +167,26 @@ phpunit *args:
 js-test *args:
     npx vitest run "$@"
 
+# Offline evals of plugins/loupe against mocked `loupe` MCP tools; runs on the host.
+# Usage: just skill-eval [--case <glob>] [other plugin eval flags]. SKILL_EVAL_REF=<ref> takes the plugin from a git ref.
+# The copy drops hooks/, whose SessionEnd hook calls the real `loupe` CLI, and names a
+# `loupe` server so the mocks attach. Nothing ever connects to its URL.
+skill-eval *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    ref="${SKILL_EVAL_REF:-}"
+    mkdir -p "$tmp/plugins"
+    if [ -n "$ref" ]; then git archive "$ref" plugins/loupe | tar -x -C "$tmp"; else cp -R plugins/loupe "$tmp/plugins/"; fi
+    plugin="$tmp/plugins/loupe"
+    rm -rf "$plugin/hooks"
+    printf '{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.invalid/mcp"}}}\n' > "$plugin/.mcp.json"
+    cp -R tests/skill-evals/evals "$plugin/evals"
+    out="tests/skill-evals/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)${ref:+-${ref//\//-}}"
+    claude plugin eval "$plugin" --ablation none --model claude-opus-5-5 --no-publish --trust-plugin \
+        --max-cost-usd 15 --output-dir "$out" "$@"
+
 # Mutation testing over all of `src`, which a weekly GitHub Action also runs.
 # Never run it beside another test run in this worktree, because both use one
 # database. `--list-tests` runs the PHPUnit bootstrap alone, which builds the
