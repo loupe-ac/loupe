@@ -40,7 +40,7 @@ When a count is not 0, or the console does not connect, stop. Show the owner the
 
 ## An unexpected plan
 
-The script prints each extra resource as `<address> <actions>`, and each extra app field by name, such as `spec.env.ADMIN_EMAIL`. It prints no value. Show the owner the list, and ask whether to accept it. Name the likely cause when you know it, such as a Terraform change on `main` that was never applied.
+The script prints each extra resource as `<address> <actions>`, and each extra app field by name, such as `spec.env.ADMIN_EMAIL`. It prints no value. Show the owner the list, and ask whether to accept it. Name the likely cause when you know it, such as a Terraform change on `main` that nobody applied.
 
 When the owner accepts, run `bin/rotate-secrets apply --allow <name>` with one `--allow` for each name. An `--allow` counts for one run only. Repeat it on a later run, such as `apply --reencrypted`, when the same name comes back. Otherwise stop. The pending values stay. `bin/rotate-secrets discard` refuses after an apply starts, because the live store can hold values that production lacks.
 
