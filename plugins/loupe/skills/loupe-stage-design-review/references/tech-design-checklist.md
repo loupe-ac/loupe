@@ -15,6 +15,10 @@ The design review stage applies this list to a draft tech design and to its depl
 1. Read the product document and its answers first. Then read the design against them.
 2. Read each decision of the design as a reader who opens only that section, as `loupe-documents` rule 18 says. A decision that leans on another section is a finding.
 3. Check that each decided option follows the answer of the owner. The answer wins over the text.
-4. Check that a Breakdown, when the design has one, gives each requirement to one child, and that no entry names a loop of blockers. Give an `important` finding for each of these, with the test of `../../loupe-stage-implementation/references/breakdown.md` "Post-epic work": an entry that reads as post-epic work and has no `Follow-up.` marker, and a follow-up entry whose `Blocked by` names a child entry.
+4. Check a Breakdown, when the design has one. Give an `important` finding for each of these problems:
+   1. A requirement that the Breakdown does not give to one child.
+   2. An entry that names a loop of blockers.
+   3. An entry that reads as post-epic work and has no `Follow-up.` marker. Use the test of `../../loupe-stage-implementation/references/breakdown.md` "Post-epic work".
+   4. A follow-up entry whose `Blocked by` names a child entry.
 5. A design that is right where the product document is wrong is a finding with `needsPerson`, because only the owner can change the product document.
 6. Do not flag a matter of taste, a style that the formatter enforces, or a decision that the owner already answered.
