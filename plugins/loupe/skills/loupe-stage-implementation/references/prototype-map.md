@@ -1,6 +1,12 @@
 # The Prototype map
 
-Read this file when step 9 of `SKILL.md` collects an artifact, also when only the parent card or a design links it.
+Read this file at step 9 of `SKILL.md` when the card, its parent, the source card of a follow-up or a linked design links an artifact.
+
+## Collect the artifacts
+
+1. Take the `artifacts` of `card_get`, and each artifact that a linked design names by its library link.
+2. For every card with a `parent`, add the `artifacts` of `card_get` on `parent.cardId`.
+3. A follow-up has no parent, so it adds the `artifacts` of its source card (`breakdown.md` "Build a follow-up").
 
 ## Read the artifacts
 

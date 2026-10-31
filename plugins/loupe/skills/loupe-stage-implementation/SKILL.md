@@ -43,8 +43,7 @@ Build the approved tech design of one card into a ready, linked pull request. An
 7. Read `references/commands.md` and the profile, and load its `Instruction files`.
 8. Find the base branch. Check the worker folder, and put it on a card branch, per `references/commands.md`. A child of an epic with an epic branch takes that branch as its base.
 9. Load `loupe-documents` and `loupe-recommendations`. Then collect the artifacts and write the build notes.
-   - Collect the artifacts of the card. These are the `artifacts` of `card_get`, and each artifact that a linked design names by its library link. For every card with a `parent`, add the `artifacts` of `card_get` on `parent.cardId`. A follow-up has no parent, so it adds the `artifacts` of its source card (`references/breakdown.md` "Build a follow-up").
-   - When this collects an artifact, follow `references/prototype-map.md` before you write the build notes.
+   - When the card, its parent, the source card of a follow-up or a linked design links an artifact, follow `references/prototype-map.md` before you write the build notes.
    - Write the build notes, titled "Build notes: <card title>". Give them these `##` sections in this order, each only when it has content: Decisions from the answers, Prototype map, Tasks, Visual check, Preview, Departures, Review answers, Deploy notes.
    - Open the first section with the decisions that step 4 took from answers, with the option text and any note. The Review answers section is for the fix round.
    - The Deploy notes section appears only when the card has a deploy notes document, as step 11 finds it. It links that document and says whether the build changed it.
