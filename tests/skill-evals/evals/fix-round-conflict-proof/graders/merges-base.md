@@ -1,4 +1,4 @@
 ---
 type: regex
-pattern: 'git merge [^\n]*origin/main'
+pattern: 'git merge (?!--ff-only)[^\n]*origin/'
 ---

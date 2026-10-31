@@ -20,7 +20,7 @@ The copy leaves out `hooks/`. Its SessionEnd hook calls the real `loupe` CLI on 
 
 The recipe passes `--ablation none`, `--model claude-opus-5-5` (the model of the bridge workers), `--max-cost-usd 15` and `--no-publish`. Flags you add come last and win. A full run costs about $4.
 
-Results go to `tests/skill-evals/results/<time>/`, which git ignores. Each holds `aggregate-result.json` and `report.html`. The command exits 1 when any case scores below 1.0, and the `wrong-passage` cases do that until their passages are fixed.
+Results go to `tests/skill-evals/results/<time>/`, which git ignores. Each holds `aggregate-result.json` and `report.html`. The command exits 1 when any case scores below 1.0.
 
 ## Why there is no baseline arm
 
@@ -42,7 +42,7 @@ score() { jq -r '.cases[] | "\(.name)\t\(.aggregates.score)"' "$1/aggregate-resu
 join -t $'\t' <(score tests/skill-evals/results/<run A>) <(score tests/skill-evals/results/<run B>)
 ```
 
-Each case runs 3 times, so a score moves in steps of a third. A drop of one step can be noise. Run the case again before you trust it.
+A run scores the fraction of its graders that passed, and a case score is the mean of its 3 runs. One grader that fails in one run therefore moves the case score by a small step, such as 0.07 for a case with 5 graders. A small drop can be noise. Run the case again before you trust it.
 
 ## Add a case
 
@@ -61,10 +61,20 @@ Prefer graders that cost nothing: `tool_used` with `input_match`, `tool_order`, 
 
 A grader that says a tool was never called (`min: 0`, `max: 0`) needs a mock for that tool. A tool with no mock is absent from the run, so the grader passes for nothing.
 
-The mocks have no `_tools.json`, so each mocked tool carries a placeholder description. That is deliberate. The skill is then the only source of what the tool does, which is what the suite tests. With the real descriptions, a stale passage in a skill can hide behind a correct tool description.
+## Real tool descriptions
+
+`evals/mocks/loupe/_tools.json` holds the `tools/list` answer of a real Loupe instance: the name, description and input schema of each tool. Each mocked tool carries them, so a run sees what a real session sees. A cut of skill text that restates a tool description can then pass. The schemas also catch a mock `expect:` that names a wrong field.
+
+Regenerate the file with `just skill-eval-tools`. It runs `loupe mcp` against the instance that `loupe login` signed in to, and sends `initialize` and `tools/list` only. Run it again in these cases:
+
+1. A pull request changes a tool description, a parameter or the tool list, and you want the suite to see it.
+2. You compare a revision of the skills against a cut that relies on a tool description.
+3. Before a baseline run that other runs will compare against.
+
+Commit the new file with the change it belongs to. The file reflects the deployed instance, so a tool change that is not deployed yet needs the instance of your worktree: pass `--config` or `--project` through to `loupe mcp`.
 
 ## Tags
 
 - `insurance`: a rule against a rare and expensive failure. These cases must pass.
-- `wrong-passage`: a passage that the audit found wrong. The case passes once the passage is fixed, and fails until then.
+- `wrong-passage`: a passage that the audit found wrong. The real tool description is right, so the case passes today. It fails when a change leaves the agent with the wrong rule.
 - The skill name, such as `loupe-board`, for a run of one skill with `--tag`.

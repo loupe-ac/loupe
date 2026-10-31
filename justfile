@@ -187,6 +187,10 @@ skill-eval *args:
     claude plugin eval "$plugin" --ablation none --model claude-opus-5-5 --no-publish --trust-plugin \
         --max-cost-usd 15 --output-dir "$out" "$@"
 
+# Save the real loupe tool descriptions for the skill-eval mocks. Usage: just skill-eval-tools [loupe mcp flags]
+skill-eval-tools *args:
+    tests/skill-evals/update-tools.sh "$@"
+
 # Mutation testing over all of `src`, which a weekly GitHub Action also runs.
 # Never run it beside another test run in this worktree, because both use one
 # database. `--list-tests` runs the PHPUnit bootstrap alone, which builds the
