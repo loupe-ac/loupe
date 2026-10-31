@@ -59,17 +59,19 @@ class BridgeAccountTryNowRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** Whether a bridge of the owner holds an open override for an account of that name. */
-    public function hasOpenForOwnerAccount(Uuid $ownerId, string $account, \DateTimeImmutable $now): bool
+    /** Whether the bridge of the owner holds an open override for its account of that name. */
+    public function hasOpenForBridgeAccount(Uuid $ownerId, Uuid $bridgeId, string $account, \DateTimeImmutable $now): bool
     {
         return null !== $this->createQueryBuilder('t')
             ->select('1')
             ->join('t.bridge', 'b')
             ->andWhere('IDENTITY(b.owner) = :owner')
+            ->andWhere('b.id = :bridge')
             ->andWhere('t.account = :account')
             ->andWhere('t.closedAt IS NULL')
             ->andWhere('t.pressedAt > :since')
             ->setParameter('owner', $ownerId, 'uuid')
+            ->setParameter('bridge', $bridgeId, 'uuid')
             ->setParameter('account', $account)
             ->setParameter('since', $now->modify(\sprintf('-%d minutes', BridgeAccountTryNow::LIFETIME_MINUTES)), MicrosecondDateTimeImmutableType::NAME)
             ->setMaxResults(1)

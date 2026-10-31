@@ -35,9 +35,9 @@ final readonly class TryNowOverrides
         return $open;
     }
 
-    public function isOpenForAccount(Uuid $ownerId, string $account): bool
+    public function isOpenForAccount(Uuid $ownerId, Uuid $bridgeId, string $account): bool
     {
-        return $this->bridgeAccountTryNows->hasOpenForOwnerAccount($ownerId, $account, $this->clock->now());
+        return $this->bridgeAccountTryNows->hasOpenForBridgeAccount($ownerId, $bridgeId, $account, $this->clock->now());
     }
 
     /**

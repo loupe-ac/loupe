@@ -34,7 +34,7 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Keeps one open notice for each account that holds open card work of a project at its hard limit,
+ * Keeps one open notice for each bridge account that holds open card work of a project at its hard limit,
  * and closes it when the account can take work again or the waiting work ended. An account that
  * is only at its stop value gets no notice, because its runs continue. Running it twice changes
  * nothing, so any trigger may ask again.
@@ -91,22 +91,22 @@ final readonly class AccountLimitReconciler
             $reindex = [];
             $ownerId = $project->owner->id ?? throw new \LogicException('A project owner always has an id.');
 
-            foreach ($episodes as $account => $episode) {
-                if (isset($limited[$account])) {
+            foreach ($episodes as $key => $episode) {
+                if (isset($limited[$key])) {
                     continue;
                 }
                 // A press of Try now lifts the account for a short time. The notice waits for the answer of the next reading.
-                if ($enabled && $this->tryNowOverrides->isOpenForAccount($ownerId, $account)) {
+                if ($enabled && $this->tryNowOverrides->isOpenForAccount($ownerId, $episode->bridgeId, $episode->account)) {
                     continue;
                 }
                 $this->close($episode, $enabled, $now);
                 $closed = true;
             }
 
-            foreach ($limited as $account => $row) {
-                $episode = $episodes[$account] ?? null;
+            foreach ($limited as $key => $row) {
+                $episode = $episodes[$key] ?? null;
                 if (null === $episode) {
-                    $episode = $this->open($project, $account, $row['limit'], $row['cards'], $now);
+                    $episode = $this->open($project, $row['limit'], $row['cards'], $now);
                     // The next item number reads the database, so the item must reach it first.
                     $this->em->flush();
                     $opened = true;
@@ -141,7 +141,7 @@ final readonly class AccountLimitReconciler
      * The accounts at their hard limit that hold open card work, with the cards that wait for them. A request counts
      * for an account only while its wait reads Limited and the account has a window at its limit.
      *
-     * @return array<string, array{limit: AccountLimit, cards: array<string, Card>}> by account name
+     * @return array<string, array{limit: AccountLimit, cards: array<string, Card>}> by InboxAccountLimit::keyOf()
      */
     private function limitedAccounts(Project $project): array
     {
@@ -162,26 +162,24 @@ final readonly class AccountLimitReconciler
                 if (!$limit->atHardLimit()) {
                     continue;
                 }
+                $key = InboxAccountLimit::keyOf($limit->bridgeId ?? throw new \LogicException('A work taker reads the limits of one bridge.'), $limit->account);
                 $subjectId = $requests[$requestId]->subjectId;
-                $subjects[$limit->account][$subjectId->toRfc4122()] = $subjectId;
-                $best = $limits[$limit->account] ?? null;
-                if (null === $best || ($limit->releaseAt() ?? $limit->windows[0]->reading->resetsAt) > ($best->releaseAt() ?? $best->windows[0]->reading->resetsAt)) {
-                    $limits[$limit->account] = $limit;
-                }
+                $subjects[$key][$subjectId->toRfc4122()] = $subjectId;
+                $limits[$key] = $limit;
             }
         }
 
         $rows = [];
-        foreach ($limits as $account => $limit) {
+        foreach ($limits as $key => $limit) {
             $cards = [];
-            foreach ($this->cards->findByIdsInProject($project, array_values($subjects[$account])) as $card) {
+            foreach ($this->cards->findByIdsInProject($project, array_values($subjects[$key])) as $card) {
                 $cards[($card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122()] = $card;
             }
             uasort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
             if ([] === $cards) {
                 continue;
             }
-            $rows[$account] = ['limit' => $limit, 'cards' => $cards];
+            $rows[$key] = ['limit' => $limit, 'cards' => $cards];
         }
         ksort($rows);
 
@@ -189,8 +187,9 @@ final readonly class AccountLimitReconciler
     }
 
     /** @param array<string, Card> $cards */
-    private function open(Project $project, string $account, AccountLimit $limit, array $cards, \DateTimeImmutable $now): InboxAccountLimit
+    private function open(Project $project, AccountLimit $limit, array $cards, \DateTimeImmutable $now): InboxAccountLimit
     {
+        $account = $limit->account;
         $item = new InboxItem(
             project: $project,
             number: $this->inboxItems->nextNumber($project),
@@ -205,7 +204,7 @@ final readonly class AccountLimitReconciler
             $item->cards->add(new InboxItemCard($item, $card, $now));
         }
         $item->body = $this->body($item, $account, $limit);
-        $episode = new InboxAccountLimit($project, $item, $account, $now);
+        $episode = new InboxAccountLimit($project, $item, $limit->bridgeId ?? throw new \LogicException('A work taker reads the limits of one bridge.'), $account, $now);
         $this->em->persist($item);
         $this->em->persist($episode);
         // The Doctrine transport commits the message with the notice.

@@ -150,6 +150,47 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         self::assertSame(2, $this->itemCount());
     }
 
+    public function test_accounts_of_the_same_name_on_two_bridges_each_get_their_own_notice(): void
+    {
+        $other = $this->secondBridge();
+        $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true);
+        $this->reading('claude', 'session', 100.0, self::SESSION_RESET, limited: true, bridge: $other);
+        $this->waitingRequest($this->card);
+
+        $this->reconciler->reconcile($this->project);
+
+        $titles = [];
+        foreach ($this->episodes() as $episode) {
+            $titles[$episode->bridgeId->toRfc4122()] = $episode->item->title;
+        }
+        self::assertEquals([
+            $this->bridge->id->toRfc4122() => 'claude is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC',
+            $other->id->toRfc4122() => 'claude is at its session limit · 1 card waits · resets Fri 16 Oct, 15:00 UTC',
+        ], $titles);
+    }
+
+    public function test_a_try_now_override_on_one_bridge_holds_only_the_notice_of_its_own_account(): void
+    {
+        $other = $this->secondBridge();
+        $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true);
+        $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true, bridge: $other);
+        $this->waitingRequest($this->card);
+        $this->reconciler->reconcile($this->project);
+        self::assertCount(2, $this->episodes());
+
+        $this->em->persist(new BridgeAccountTryNow(Uuid::v7(), $other, 'claude', new \DateTimeImmutable(self::NOW)));
+        $this->reading('claude', 'week', 40.0, self::WEEK_RESET, limited: false, readAt: '2026-10-16 11:59:00');
+        $this->reading('claude', 'week', 40.0, self::WEEK_RESET, limited: false, readAt: '2026-10-16 11:59:00', bridge: $other);
+        $this->clock->sleep(60);
+        $this->reconciler->reconcile($this->project);
+
+        $open = [];
+        foreach ($this->episodes() as $episode) {
+            $open[$episode->bridgeId->toRfc4122()] = InboxItemState::Open === $episode->item->state;
+        }
+        self::assertEquals([$this->bridge->id->toRfc4122() => false, $other->id->toRfc4122() => true], $open);
+    }
+
     public function test_the_item_lists_each_window_at_its_limit_with_its_own_reset_and_the_title_names_the_latest(): void
     {
         $this->reading('claude', 'session', 100.0, self::SESSION_RESET, limited: true);
@@ -300,11 +341,24 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         self::assertNotSame($first->item, $open[0]->item);
     }
 
-    private function reading(string $account, string $window, ?float $usedPercent, string $resetsAt, bool $limited, string $readAt = '2026-10-16 11:00:00'): void
+    private function reading(string $account, string $window, ?float $usedPercent, string $resetsAt, bool $limited, string $readAt = '2026-10-16 11:00:00', ?Bridge $bridge = null): void
     {
         $utc = new \DateTimeZone('UTC');
-        $this->em->persist(new BridgeAccountReading(Uuid::v7(), $this->bridge, $account, $window, $usedPercent, new \DateTimeImmutable($resetsAt, $utc), $limited, 'stream', new \DateTimeImmutable($readAt, $utc)));
+        $this->em->persist(new BridgeAccountReading(Uuid::v7(), $bridge ?? $this->bridge, $account, $window, $usedPercent, new \DateTimeImmutable($resetsAt, $utc), $limited, 'stream', new \DateTimeImmutable($readAt, $utc)));
         $this->em->flush();
+    }
+
+    /** A second bridge of the owner with the same account names as the first. */
+    private function secondBridge(): Bridge
+    {
+        $bridge = new Bridge($this->project->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable(self::NOW)->modify('-10 seconds'));
+        $bridge->capabilities = $this->bridge->capabilities;
+        $bridge->workKinds = $this->bridge->workKinds;
+        $bridge->accounts = $this->bridge->accounts;
+        $this->em->persist($bridge);
+        $this->em->flush();
+
+        return $bridge;
     }
 
     private function waitingRequest(Card $card): WorkRequest

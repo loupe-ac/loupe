@@ -20,7 +20,7 @@ class InboxAccountLimitRepository extends ServiceEntityRepository
     /**
      * The open episodes of the project, with their items.
      *
-     * @return array<string, InboxAccountLimit> by account name
+     * @return array<string, InboxAccountLimit> by InboxAccountLimit::keyOf()
      */
     public function findOpenForProject(Project $project): array
     {
@@ -36,7 +36,7 @@ class InboxAccountLimitRepository extends ServiceEntityRepository
 
         $byAccount = [];
         foreach ($rows as $row) {
-            $byAccount[$row->account] = $row;
+            $byAccount[InboxAccountLimit::keyOf($row->bridgeId, $row->account)] = $row;
         }
 
         return $byAccount;
