@@ -109,7 +109,7 @@ runs to a page.
 | **Lost** | the bridge reconnected, and it no longer holds the run |
 | **Closed** | the interactive session ended, a person closed it, its card moved to another column, or Loupe found no sign of life from it. The drawer shows the reason |
 
-Queued, Resumed, Preparing, Running, Stopping and Stopped at a usage limit are open states. A bridge that dies cannot close
+Queued, Resumed, Preparing, Running and Stopping are open states. A bridge that dies cannot close
 its runs, so Loupe closes them. **Timed out** is a guess: a bridge can go quiet
 and come back, and a later report from it replaces the guess. **Lost** is a
 fact: the bridge came back without the run, so the run can no longer end. See

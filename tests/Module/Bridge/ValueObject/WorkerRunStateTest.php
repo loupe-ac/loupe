@@ -76,7 +76,7 @@ final class WorkerRunStateTest extends TestCase
         self::assertSame('bridge.worker_runs.state.usage_limit', $state->translationKey());
         self::assertSame('pending', $state->chipModifier());
         self::assertFalse($state->isOpen());
-        self::assertFalse($state->isOutcome());
+        self::assertTrue($state->isOutcome());
         self::assertFalse($state->isFailure());
         self::assertFalse($state->isStop());
         self::assertFalse($state->isWarning());
@@ -94,7 +94,7 @@ final class WorkerRunStateTest extends TestCase
     public function test_only_the_exit_code_states_are_outcomes(): void
     {
         self::assertSame(
-            ['succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up'],
+            ['usage-limit', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up'],
             array_values(array_map(
                 static fn (WorkerRunState $state): string => $state->value,
                 array_filter(WorkerRunState::cases(), static fn (WorkerRunState $state): bool => $state->isOutcome()),

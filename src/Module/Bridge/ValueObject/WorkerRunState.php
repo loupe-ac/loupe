@@ -128,7 +128,7 @@ enum WorkerRunState: string
     /** How a worker process ended. Only these states carry an exit code or a failure reason. */
     public function isOutcome(): bool
     {
-        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::GaveUp], true);
+        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::GaveUp, self::UsageLimit], true);
     }
 
     /** The ends where the work broke. A stop for a person and work that remains are not failures. */

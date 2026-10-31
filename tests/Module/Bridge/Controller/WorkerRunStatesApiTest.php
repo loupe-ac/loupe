@@ -266,6 +266,33 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertSame('card_moved', $run->resumeSkipped);
     }
 
+    public function test_a_run_that_a_usage_limit_stopped_closes_with_its_exit(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-usage-limit@example.com');
+        $project = $this->project($em, $owner, 'Run States Usage Limit');
+        $raw = $this->agentToken($client, $owner);
+        $runId = (string) Uuid::v4();
+
+        $this->put($client, $this->path($project->id, $runId), $raw, $this->payload());
+        $this->put($client, $this->path($project->id, $runId), $raw, $this->payload([
+            'state' => 'usage-limit',
+            'sessionId' => (string) Uuid::v4(),
+            'startedAt' => '2026-09-23T10:00:00+00:00',
+            'endedAt' => '2026-09-23T10:01:00+00:00',
+            'exitCode' => 1,
+            'hasResult' => false,
+            'output' => 'You have hit your session limit',
+        ]));
+
+        self::assertResponseStatusCodeSame(201);
+        $run = $this->allRuns()[0];
+        self::assertSame(WorkerRunState::UsageLimit, $run->state);
+        self::assertSame(1, $run->exitCode);
+        self::assertNotNull($run->endedAt);
+    }
+
     public function test_a_blocked_worker_closes_as_blocked(): void
     {
         $client = static::createClient();
@@ -1120,6 +1147,8 @@ final class WorkerRunStatesApiTest extends WebTestCase
         yield 'waiting-on-forge with a non-zero exit code' => [array_merge($result, ['state' => 'waiting-on-forge', 'exitCode' => 1, 'resultStatus' => 'waiting'])];
         yield 'waiting-on-forge with no result' => [array_merge($outcome, ['state' => 'waiting-on-forge', 'hasResult' => false])];
         yield 'gave-up after a worker that waits on the forge' => [array_merge($result, ['state' => 'gave-up', 'resultStatus' => 'waiting'])];
+        yield 'usage-limit after a good result' => [array_merge($result, ['state' => 'usage-limit', 'resultStatus' => 'finished'])];
+        yield 'usage-limit after a run that never started' => [array_merge($outcome, ['state' => 'usage-limit', 'exitCode' => null, 'failureReason' => 'no claude'])];
         yield 'gave-up after a run that never started' => [array_merge($outcome, ['state' => 'gave-up', 'exitCode' => null, 'failureReason' => 'no claude'])];
         yield 'result fields above the limit' => [array_merge($result, ['state' => 'succeeded', 'resultStatus' => 'finished', 'resultFields' => ['note' => str_repeat('x', 4000)]])];
         yield 'result fields as a list' => [array_merge($result, ['state' => 'succeeded', 'resultStatus' => 'finished', 'resultFields' => ['a', 'b']])];

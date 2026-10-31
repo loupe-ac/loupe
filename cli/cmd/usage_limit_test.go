@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"testing"
@@ -169,6 +170,41 @@ func TestAnExperimentRequestMatchesOneAccountAndTriesNoOther(t *testing.T) {
 	}
 }
 
+// A card pinned to another variant than the one the bridge draws runs on the
+// account of the pin. The skip and the claim both name that account.
+func TestAPinnedRequestChecksAndClaimsTheAccountOfThePin(t *testing.T) {
+	h := newHarnessWith(t, experimentRules, rules.Defaults{})
+	f := h.withWork()
+	other := map[string]string{"a": "b", "b": "a"}
+	pins := h.pins(func(_ context.Context, candidate string) (string, string, error) { return other[candidate], "", nil })
+	w := workRequest(1, 81, "implement", api.WorkRequestOpen)
+	f.requests[w.WorkRequestID] = w
+	exp := h.router.rules().MatchWork(w).Experiment
+	drawn := exp.Pick(cardUUID(81))
+	pinned := exp.Settings(exp.Variants[slices.IndexFunc(exp.Variants, func(v rules.Variant) bool { return v.Name == other[drawn.Name] })]).Account
+
+	h.reply(api.HeartbeatReply{BlockedAccounts: []api.BlockedAccount{{Account: pinned}}, WorkRequests: []api.WorkRequest{w}})
+
+	if got := h.router.skips.Pending(); len(got) != 1 || got[0].Account != pinned || h.queueLen() != 0 {
+		t.Fatalf("skipped = %+v, want the pinned account %s", got, pinned)
+	}
+	if len(pins.recorded()) == 0 {
+		t.Fatal("the offer read no pin")
+	}
+
+	h.reply(api.HeartbeatReply{BlockedAccounts: []api.BlockedAccount{}, WorkRequests: []api.WorkRequest{w}})
+
+	f.mu.Lock()
+	accounts := slices.Clone(f.accounts)
+	f.mu.Unlock()
+	if !slices.Equal(accounts, []string{pinned}) {
+		t.Fatalf("claimed accounts = %v, want %s", accounts, pinned)
+	}
+	if calls := h.worker.recorded(); len(calls) != 1 || calls[0].account != pinned {
+		t.Fatalf("runs = %+v, want one on %s", calls, pinned)
+	}
+}
+
 func TestTheSkippedLogKeepsOneEntryForEachRequestAndDropsWhatWasSent(t *testing.T) {
 	var l skipLog
 	l.Note("b", "claude")
@@ -290,6 +326,23 @@ func TestALimitedRunHandsItsRequestBack(t *testing.T) {
 	}
 	if got := h.heldClaims(); len(got) != 0 {
 		t.Fatalf("claims after the hand-back = %v", got)
+	}
+}
+
+// The run of a hand-back reads usage-limit, so its record matches the open
+// request. A command run, which hands nothing back, keeps the failure.
+func TestARunThatHandsItsRequestBackReportsUsageLimit(t *testing.T) {
+	h := newHarnessWith(t, workRules, rules.Defaults{})
+	f := h.withWork()
+	rec := h.states()
+	h.worker.result = workerResult{exitCode: 1, limit: limitedReading("session")}
+
+	h.offer(f, workRequest(1, 87, "implement", api.WorkRequestOpen))
+
+	sent := rec.states()
+	wantStates(t, sent, api.RunQueued, api.RunRunning, api.RunUsageLimit)
+	if got := sent[2].report; got.ExitCode == nil || *got.ExitCode != 1 || got.Account != "claude" {
+		t.Fatalf("usage-limit = %+v", got)
 	}
 }
 
