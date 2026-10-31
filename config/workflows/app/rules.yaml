@@ -11,7 +11,6 @@ rules:
       then:
           request:
               kind: discovery
-              onTimeout: expire
               onNoTaker: fail
               prompt: discovery
               checks:
@@ -25,7 +24,6 @@ rules:
       then:
           request:
               kind: discovery-revise
-              onTimeout: expire
               onNoTaker: fail
               prompt: discovery-revise
               checks:

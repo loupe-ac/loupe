@@ -200,12 +200,12 @@ final class ShippedMarkersTest extends KernelTestCase
     }
 
     #[DataProvider('shippedKeys')]
-    public function test_queued_work_with_no_online_bridge_is_stuck_and_links_to_the_agents_page(string $key): void
+    public function test_queued_work_with_no_online_bridge_waits_and_links_to_the_agents_page(string $key): void
     {
         $template = $this->template($key);
 
         self::assertSame(['no-bridge-online'], $this->passKeys($template, $this->takerFacts(WorkTakerState::None, ['implement'])));
-        self::assertSame(MarkerKind::Stuck, $this->written('no-bridge-online')->kind);
+        self::assertSame(MarkerKind::Waiting, $this->written('no-bridge-online')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('no-bridge-online')->link);
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('no-bridge-online')->since, 'the engine saw the marker first at the time of the pass');
     }
@@ -216,7 +216,7 @@ final class ShippedMarkersTest extends KernelTestCase
         $template = $this->template($key);
 
         self::assertSame(['no-capable-bridge'], $this->passKeys($template, $this->takerFacts(WorkTakerState::NotCapable, ['implement'])));
-        self::assertSame(MarkerKind::Stuck, $this->written('no-capable-bridge')->kind);
+        self::assertSame(MarkerKind::NeedsYou, $this->written('no-capable-bridge')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('no-capable-bridge')->link);
     }
 

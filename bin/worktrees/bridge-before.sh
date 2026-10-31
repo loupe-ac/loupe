@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # Bridge `before` command: create or repair the card's worktree at .worktrees/card-<n>.
-# Usage: bridge-before.sh [--git-only] <cardNumber> <cardId> [<pullRequestNumber>]
+# Usage: bridge-before.sh [--git-only] [--epic-branch=<name>] <cardNumber> <cardId> [<pullRequestNumber>]
 # --git-only makes the git worktree alone, with no database, containers or widget marker.
+# --epic-branch cuts a new worktree from origin/<name> rather than origin/main. An empty name means none.
 # The bridge reads the last stdout line as the worker's folder, so all other output goes to stderr.
 set -euo pipefail
 
 exec 3>&1 1>&2
 
 git_only=""
-if [ "${1:-}" = "--git-only" ]; then
-    git_only=1
+epic_branch=""
+while [ $# -gt 0 ]; do
+    case $1 in
+        --git-only) git_only=1 ;;
+        --epic-branch=*) epic_branch=${1#--epic-branch=} ;;
+        *) break ;;
+    esac
     shift
-fi
+done
 
 number=${1:-}
 card_id=${2:-}
@@ -28,6 +34,11 @@ if ! [[ $card_id =~ ^[A-Za-z0-9-]+$ ]]; then
 fi
 if [ -n "$pr" ] && ! [[ $pr =~ ^[1-9][0-9]*$ ]]; then
     echo "bridge-before: the pull request number '$pr' is not a positive integer." >&2
+    exit 1
+fi
+
+if [ -n "$epic_branch" ] && { [[ $epic_branch == -* ]] || ! git check-ref-format --branch "$epic_branch" >/dev/null 2>&1; }; then
+    echo "bridge-before: the epic branch '$epic_branch' is not a valid branch name." >&2
     exit 1
 fi
 
@@ -108,6 +119,12 @@ else
     elif [ -n "$branch" ]; then
         free_branch "$branch"
         git -C "$main" worktree add "$root" "$branch"
+    elif [ -n "$epic_branch" ]; then
+        if ! git -C "$main" show-ref --verify --quiet "refs/remotes/origin/$epic_branch"; then
+            echo "bridge-before: the epic branch $epic_branch is missing on origin." >&2
+            exit 1
+        fi
+        git -C "$main" worktree add --detach "$root" "origin/$epic_branch"
     else
         git -C "$main" worktree add --detach "$root" origin/main
     fi

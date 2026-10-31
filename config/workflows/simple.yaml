@@ -1,5 +1,5 @@
 key: simple
-version: 10
+version: 11
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -27,7 +27,6 @@ slots: []
 manualMoves:
     - { from: '*', to: '*' }
 backoffMinutes: [10, 60, 360]
-workTimeoutMinutes: 120
 facts:
     pr-reviewable:
         all:
@@ -58,7 +57,6 @@ rules:
       then:
           request:
               kind: teardown
-              onTimeout: expire
 
 inbox: [waits-for-approval, run-needs-you, paused]
 markers:
@@ -154,13 +152,13 @@ markers:
       remedy: marker.run_open.remedy
       when: { card.run.worker_active: {} }
     - key: no-capable-bridge
-      kind: stuck
+      kind: needs-you
       label: marker.no_capable_bridge
       remedy: marker.no_capable_bridge.remedy
       link: agents
       when: { card.run.work_no_capable_taker: {} }
     - key: no-bridge-online
-      kind: stuck
+      kind: waiting
       label: marker.no_bridge_online
       remedy: marker.no_bridge_online.remedy
       link: agents

@@ -54,7 +54,7 @@ final class CardWorkflowPanelPageTest extends WebTestCase
         $card = $this->card($em, $project, 'Paused', 'next');
         $pause = static::getContainer()->get(PauseCardHandler::class);
         self::assertInstanceOf(PauseCardHandler::class, $pause);
-        $pause(new PauseCardCommand($card, Engine::NO_BRIDGE_TOOK_WORK, 'implement', PauseKind::WorkTimeout));
+        $pause(new PauseCardCommand($card, 'no-bridge-took-work', 'implement', PauseKind::WorkStopped));
         $em->clear();
 
         $client->loginUser($owner);

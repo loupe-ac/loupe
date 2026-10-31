@@ -217,7 +217,6 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
             'slots' => [['key' => 'tech-design', 'label' => 'workflow.slot.tech_design'], ['key' => 'implementation', 'label' => 'workflow.slot.implementation']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'rules' => [
                 ['id' => 'missing', 'slot' => 'tech-design', 'when' => ['card.gone' => []], 'then' => ['request' => ['kind' => 'gone']]],
                 ['id' => 'unprovided', 'slot' => 'tech-design', 'when' => [UnprovidedFactsReady::KEY => []], 'then' => ['request' => ['kind' => 'unprovided']]],
@@ -262,7 +261,6 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
             'slots' => [['key' => 'tech-design', 'label' => 'workflow.slot.tech_design']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'rules' => [
                 ['id' => 'hold', 'slot' => 'tech-design', 'when' => ['all' => []], 'then' => ['pause' => ['reason' => 'on-hold', 'until' => [ProvidedFactsReady::KEY => []]]]],
             ],
@@ -389,7 +387,6 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
             'slots' => [['key' => 'tech-design', 'label' => 'workflow.slot.tech_design'], ['key' => 'implementation', 'label' => 'workflow.slot.implementation']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'rules' => $rules,
         ];
         $this->service(ProjectTemplateCopy::class)->reset();

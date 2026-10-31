@@ -163,7 +163,8 @@ The shipped markers are:
 | `session-open` | Working | A person has an interactive session open on the card |
 | `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 6 |
 | `run-open` | Working | A worker runs on the card |
-| `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
+| `no-bridge-online` | Waiting | Work waits, and no online bridge could take it. The card page links to the Agents page |
+| `no-capable-bridge` | Needs you | Work waits, and an online bridge exists, but none can run this kind of work. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
@@ -395,9 +396,8 @@ attempts were refused". A failed repair records the code `repair-failed`.
 
 Each escalation starts one repair at most. A repair request is never retried
 and never repaired. A release of the pause starts a new escalation, so the
-next failure can start one more repair. A bridge with no `repair` entry lets
-the request expire after the work timeout, and the card then pauses with "no
-bridge took the work". [The repair
+next failure can start one more repair. A bridge with no `repair` entry takes
+no repair, and the repair request waits until a bridge takes it. [The repair
 entry](../extending/cli-bridge.md#repair-entry) shows one.
 
 A resumed run ends the pause of its card. When a person resumes a run, or a
@@ -456,17 +456,17 @@ must list `still-true`, or the first such end pauses the card. The Lifecycle
 review rules set it, so a review run that ends with no review, such as one that
 saw a new head, asks for a review of the current head again.
 
-A work request that no bridge takes within 2 hours pauses the card with "no
-bridge took the work". A teardown request is the exception: it expires with no
-pause. The inbox then shows the item **Paused: No bridge took the requested
-work in time**. It tells you to open the card and resume it. Start a bridge
-before you resume it. Before that, work that waits 10 minutes with no online bridge opens
-the notice **No bridge can take work**, as [the inbox guide](inbox.md#notices)
-says.
+A work request that no bridge takes does not expire. It waits until a bridge
+takes it or until its rule cancels it, for example when the card leaves the
+column of the rule. The card shows "No bridge is online to take this work." as
+Waiting when no online bridge could take the work, and "A bridge is online, but
+none can run this work." as Needs you when no online bridge can run the kind. Work that
+waits 10 minutes with no online bridge opens the notice **No bridge can take
+work**, as [the inbox guide](inbox.md#notices) says.
 
 A person ends a pause with **Retry now** in the Workflow panel of the card. The
-button shows for a pause after too many retries, after the work limit, after
-no bridge took the work, or after the worker stopped. It needs the permission to manage the project. A
+button shows for a pause after too many retries, after the work limit, or after
+the worker stopped. It needs the permission to manage the project. A
 release is refused on an unmanaged card. It is also refused on a pause that a
 rule made, because that pause ends only on its own release condition. After a
 release the paused rule runs again with a fresh budget of retries and work. The
@@ -487,7 +487,7 @@ project holds all new work:
 - A bridge cannot claim a request of the project. The claim is refused with
   `project_held`, and the request does not show in the offers of a bridge.
 - When the hold starts, Loupe withdraws each open card request of the project, so
-  the work timeout never pauses a card for the hold. A request about another
+  the hold leaves no stale request behind. A request about another
   subject, such as an analysis, stays open, and it gets a new timeout when the hold ends.
 - Work that a bridge already claimed, and a run that is under way, finishes.
 - Rules that start no worker still run: moves, writes to GitHub and merges.
@@ -497,7 +497,7 @@ The hold follows the stored result of the check. A failed read keeps the last
 certain result, so a failed read neither starts nor ends the hold. A removed
 repository leaves the result at once. When no repository has a blocking gap
 any more, after a check or after a removal, the hold ends. Each held rule then asks
-for its work again, and the open work timeout starts over.
+for its work again.
 
 ## Writes to GitHub
 
@@ -914,7 +914,9 @@ Some rules act from any slot:
    it has no open blocker, and it has no pull request. It also waits until the epic
    branch holds the code of each blocker outside the epic. The rule
    `epic-branch-sync` merges `main` into the epic branch first, and the
-   condition `card.parent.epic_branch.synced` is true when that is done. It waits while the epic has work in
+   condition `card.parent.epic_branch.synced` is true when that is done. It also
+   waits until the condition `card.parent.epic_branch.exists` is true, which
+   needs the epic branch in the repository that the bridge clones. It waits while the epic has work in
    progress. That work is any open worker run of the epic, and any work that the
    workflow requested for the epic and no bridge finished. When the last such
    work ends, the epic evaluates its children again, in any column. A change to
@@ -1285,8 +1287,7 @@ kind `discovery` when the card carries a requested
 with the request. The rule sets `onNoTaker: fail`, so the request fails at once
 when no online bridge could take it, and the run fails with the cause: no bridge
 serves the project, or a bridge is online and cannot run discovery. A request
-that a capable bridge does not claim in time expires, and the run fails with the
-reason that no bridge took the work.
+that a capable bridge does not claim waits until a bridge claims it.
 
 The rule `discovery-revise` also watches the Backlog. It asks for work of kind
 `discovery-revise` when you asked for changes to the report of a
@@ -1402,7 +1403,7 @@ A request rule can set the optional `onNoTaker` parameter to `fail`. The engine
 then expires an open request of the rule as soon as no online bridge that
 follows the project could take it. The card does not pause, and the module that
 owns the work reads the cause from the reason of the request. A request without
-the parameter waits for the work timeout instead.
+the parameter waits until a bridge takes it.
 
 The `move` action takes the optional parameter `outcome`. Its value must be a
 key from the `outcomes:` list of the template, as [Outcomes and metrics](#outcomes-and-metrics)
