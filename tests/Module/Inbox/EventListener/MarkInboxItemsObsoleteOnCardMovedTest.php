@@ -10,6 +10,8 @@ use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -49,9 +51,10 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
 
         foreach ([$first, $second] as $item) {
             $fresh = $this->reload($item);
-            self::assertSame(InboxItemState::Obsolete, $fresh->state);
+            self::assertSame(InboxItemState::Cancelled, $fresh->state);
             self::assertNotNull($fresh->closedAt);
-            self::assertNull($fresh->closeNote);
+            self::assertNull($fresh->note);
+            self::assertSame([InboxCloser::Loupe, InboxCloseCause::CardFinished], [$fresh->closedBy, $fresh->closeCause]);
         }
     }
 
@@ -69,7 +72,7 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $unfinished = $this->em->find(Card::class, $unfinished->id);
         self::assertInstanceOf(Card::class, $unfinished);
         $this->move($unfinished, $project, 'done');
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
     }
 
     public function test_an_item_that_is_already_closed_keeps_its_state_and_close_time(): void
@@ -78,16 +81,16 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $card = $this->card($this->em, $project);
         $item = $this->linkedItem($project, 1, $card);
         $closedAt = new \DateTimeImmutable('2026-09-01 12:00:00');
-        $item->state = InboxItemState::Withdrawn;
-        $item->closeNote = 'Settled';
+        $item->state = InboxItemState::Cancelled;
+        $item->note = 'Settled';
         $item->closedAt = $closedAt;
         $this->em->flush();
 
         $this->move($card, $project, 'done');
 
         $fresh = $this->reload($item);
-        self::assertSame(InboxItemState::Withdrawn, $fresh->state);
-        self::assertSame('Settled', $fresh->closeNote);
+        self::assertSame(InboxItemState::Cancelled, $fresh->state);
+        self::assertSame('Settled', $fresh->note);
         self::assertEquals($closedAt, $fresh->closedAt);
     }
 
@@ -103,8 +106,8 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $stale = $this->linkedItem($project, 1, $card);
         $open = $this->linkedItem($project, 2, $card);
         $this->em->flush();
-        $stale->state = InboxItemState::Withdrawn;
-        $this->em->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($stale), 'state', InboxItemState::Withdrawn);
+        $stale->state = InboxItemState::Cancelled;
+        $this->em->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($stale), 'state', InboxItemState::Cancelled);
 
         $this->move($card, $project, 'done');
 
@@ -112,7 +115,7 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $movedCard = $this->em->find(Card::class, $card->id);
         self::assertInstanceOf(Card::class, $movedCard);
         self::assertTrue($movedCard->column->terminal);
-        self::assertSame(InboxItemState::Obsolete, $this->reload($open)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($open)->state);
     }
 
     public function test_a_column_delete_that_moves_the_last_unfinished_card_into_a_terminal_column_closes_the_item(): void
@@ -130,7 +133,7 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         self::assertInstanceOf(DeleteBoardColumnHandler::class, $handler);
         $handler(new DeleteBoardColumnCommand($this->column($project, 'in-progress'), Actor::Human, $this->column($project, 'done')));
 
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
         self::assertSame(InboxItemState::Open, $this->reload($untouched)->state);
     }
 
@@ -160,7 +163,7 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
 
         $this->configureColumn($project, 'in-progress', terminal: true);
 
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
         self::assertSame(InboxItemState::Open, $this->reload($untouched)->state);
     }
 

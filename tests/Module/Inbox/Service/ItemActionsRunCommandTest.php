@@ -37,10 +37,12 @@ use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandOutcome;
 use App\Module\Inbox\View\RunCommandRun;
@@ -847,6 +849,12 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $holds = self::getContainer()->get(CardHoldRepository::class);
         self::assertInstanceOf(CardHoldRepository::class, $holds);
 
+        $reviewLookup = self::getContainer()->get(InboxReviewLookup::class);
+        self::assertInstanceOf(InboxReviewLookup::class, $reviewLookup);
+
+        $sessionPrompts = self::getContainer()->get(SessionPromptWriter::class);
+        self::assertInstanceOf(SessionPromptWriter::class, $sessionPrompts);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -860,6 +868,8 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
             $waitText,
             $holds,
+            $reviewLookup,
+            $sessionPrompts,
         );
     }
 

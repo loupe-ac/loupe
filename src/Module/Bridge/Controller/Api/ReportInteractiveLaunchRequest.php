@@ -12,7 +12,7 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
-/** How one launch of an interactive session went, as the bridge reports it. An interactive run is about a card. */
+/** How one launch of an interactive session went, as the bridge reports it. An interactive run is about a card, or about another subject such as an inbox item. */
 final class ReportInteractiveLaunchRequest
 {
     public const array STATES = [WorkerRunState::Running->value, WorkerRunState::NotStarted->value];
@@ -22,15 +22,15 @@ final class ReportInteractiveLaunchRequest
         #[Assert\Uuid]
         public ?string $bridgeId = null,
 
-        #[Assert\Choice(choices: [WorkSubject::CARD])]
         #[Assert\NotBlank]
+        #[Assert\Regex(pattern: WorkSubject::TYPE_PATTERN)]
         public ?string $subjectType = null,
 
         #[Assert\NotBlank]
         #[Assert\Uuid]
         public ?string $subjectId = null,
 
-        #[Assert\NotNull]
+        /** Required for a card and absent for any other subject. */
         #[Assert\Range(min: 1, max: WorkerRun::MAX_CARD_NUMBER)]
         public ?int $cardNumber = null,
 
@@ -80,6 +80,18 @@ final class ReportInteractiveLaunchRequest
     }
 
     #[Assert\Callback]
+    public function validateCardNumber(ExecutionContextInterface $context): void
+    {
+        if (WorkSubject::CARD === $this->subjectType && null === $this->cardNumber) {
+            $context->buildViolation('A session about a card names the card number.')->atPath('cardNumber')->addViolation();
+        }
+
+        if (null !== $this->subjectType && WorkSubject::CARD !== $this->subjectType && null !== $this->cardNumber) {
+            $context->buildViolation('A session about a subject that is no card has no card number.')->atPath('cardNumber')->addViolation();
+        }
+    }
+
+    #[Assert\Callback]
     public function validateFailureReason(ExecutionContextInterface $context): void
     {
         if (WorkerRunState::NotStarted->value === $this->state && null === $this->failureReason()) {
@@ -107,10 +119,12 @@ final class ReportInteractiveLaunchRequest
         return Uuid::fromString($this->bridgeId ?? throw new \LogicException('bridgeId is required after validation.'));
     }
 
-    /** The card, because the subject type is always a card after validation. */
-    public function cardId(): Uuid
+    public function subject(): WorkSubject
     {
-        return Uuid::fromString($this->subjectId ?? throw new \LogicException('subjectId is required after validation.'));
+        return new WorkSubject(
+            $this->subjectType ?? throw new \LogicException('subjectType is required after validation.'),
+            Uuid::fromString($this->subjectId ?? throw new \LogicException('subjectId is required after validation.')),
+        );
     }
 
     /** Trimmed, because the length constraint measured the trimmed value. */

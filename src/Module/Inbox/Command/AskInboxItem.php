@@ -29,6 +29,8 @@ final readonly class AskInboxItem
         public ?string $reviewDocumentId = null,
         public ?string $reviewPullRequestId = null,
         public array $suggestedActions = [],
+        /** Whether the owner may dismiss the item. */
+        public bool $dismissible = true,
     ) {
     }
 }

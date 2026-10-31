@@ -144,3 +144,15 @@ it('keeps a server-rendered note visible when there is no local draft', () => {
     expect(fallback.textContent).toBe('Server note');
     expect(controller.element.hidden).toBe(false);
 });
+
+it('hides a server-rendered draft when the owner discards it', () => {
+    const fallback = document.createElement('div');
+    fallback.dataset.formDraftRecoveryTarget = 'fallback';
+    fallback.textContent = 'Server note';
+    controller.element.append(fallback);
+    rememberFormDraft('question', null);
+    controller.render();
+    controller.discard();
+    expect(fallback.hidden).toBe(true);
+    expect(controller.element.hidden).toBe(true);
+});

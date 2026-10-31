@@ -94,7 +94,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('Implement worker', $message->filter('.lp-comment-author')->text());
         self::assertStringContainsString('stopped', $message->filter('.lp-form-hint')->text());
         self::assertSame('API key', $message->filter('.lp-review-doc__prose strong')->text());
-        self::assertSame('Resume the run', trim($crawler->filter('[data-inbox-reply-heading]')->text()));
+        self::assertCount(0, $crawler->filter('[data-inbox-reply-heading]'), 'A main action with no reason of its own has no heading.');
         $main = $crawler->filter('.inbox-split__main');
         self::assertSame('Resume the run', trim($main->text()));
         self::assertSame($this->actionPath($item, 'resume-run'), parse_url((string) $main->attr('formaction'), \PHP_URL_PATH));
@@ -106,15 +106,16 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('panel', $menu->attr('data-split-button-target'));
         self::assertSame($menu->attr('id'), $crawler->filter('.lp-split-button__toggle')->attr('aria-controls'));
         self::assertStringContainsString('split-button', (string) $crawler->filter('.inbox-split')->attr('data-controller'));
-        // The menu holds the other actions, never the default, and Dismiss apart.
+        // The menu holds the other actions, never the default. Dismiss is a button of its own beside the split button.
         self::assertCount(0, $menu->filter('[data-inbox-action="resume-run"]'));
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $menu->filter('a[data-inbox-action="open"]')->attr('href'));
-        // Dismiss sits apart, after a divider.
-        self::assertCount(1, $menu->filter('.lp-menu__divider'));
-        $dismiss = $menu->filter('.lp-menu__divider ~ [data-inbox-action="dismiss"]');
-        self::assertSame('inbox_decline_'.$item->id, $dismiss->attr('form'));
-        self::assertSame('Dismiss', trim($dismiss->filter('.lp-menu__label')->text()));
-        self::assertSame('Closes this item without an action.', $dismiss->filter('.lp-menu__line')->text());
+        self::assertCount(0, $menu->filter('.lp-menu__divider'));
+        self::assertCount(0, $menu->filter('[data-inbox-action="dismiss"]'));
+        $dismiss = $crawler->filter('.lp-comment-composer__actions > [data-inbox-action="dismiss"]');
+        self::assertCount(1, $dismiss);
+        self::assertSame($this->actionPath($item, 'dismiss'), parse_url((string) $dismiss->attr('formaction'), \PHP_URL_PATH));
+        self::assertNull($dismiss->attr('form'), 'Dismiss posts the reply form it sits in.');
+        self::assertSame('Dismiss', trim($dismiss->text()));
     }
 
     public function test_a_resume_queues_the_command_and_the_thread_shows_the_you_card(): void
@@ -222,21 +223,21 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseRedirects();
         $stored = $this->reload($item);
-        self::assertSame([InboxItemState::Declined, 'Not now'], [$stored->state, $stored->closeNote]);
+        self::assertSame([InboxItemState::Declined, 'Not now'], [$stored->state, $stored->note]);
     }
 
-    public function test_the_menu_dismiss_posts_to_the_decline_route_and_ignores_the_note(): void
+    public function test_the_menu_dismiss_posts_the_reply_form_to_the_dismiss_action_with_its_note(): void
     {
         $item = $this->runItem();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
-        $form = $crawler->filter('form#inbox_decline_'.$item->id);
+        $form = $crawler->filter('form#inbox_action_'.$item->id);
         self::assertCount(1, $form);
-        self::assertSame('/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/decline', parse_url((string) $form->attr('action'), \PHP_URL_PATH));
-        // Dismiss ignores the note, so the form carries none.
-        self::assertNull($crawler->filter('textarea')->attr('data-inbox-decline-target'));
-        self::assertSame('', (string) $form->filter('input[type="hidden"][name$="[closeNote]"]')->attr('value'));
-        self::assertNull($crawler->filter('button[data-inbox-action="dismiss"]')->attr('data-action'));
+        $dismiss = $form->filter('button[data-inbox-action="dismiss"]');
+        self::assertCount(1, $dismiss);
+        self::assertSame($this->actionPath($item, 'dismiss'), parse_url((string) $dismiss->attr('formaction'), \PHP_URL_PATH));
+        self::assertCount(1, $form->filter('textarea'));
+        self::assertNull($dismiss->attr('data-action'));
     }
 
     public function test_a_note_over_the_limit_is_refused_and_keeps_the_typed_note(): void
@@ -380,12 +381,100 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $field = $crawler->filter('textarea[data-inbox-session-prompt]');
         self::assertCount(1, $field);
-        self::assertSame('inbox_action_'.$item->id.'[sessionPrompt]', $field->attr('name'));
+        self::assertSame('inbox_response_'.$item->id.'[sessionPrompt]', $field->attr('name'));
         self::assertSame('Use the <skill>.', trim($field->text()));
 
         $this->post($this->actionPath($item, 'start-session'), $item, ['note' => '', 'sessionPrompt' => 'Use the <skill>. Part 1 only.']);
 
         self::assertSame('Use the <skill>. Part 1 only.', $this->onlyAction($item)->sessionPrompt);
+    }
+
+    private function itemSessionBridge(string $name = 'geoffrey-mbp'): void
+    {
+        $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->workKinds = [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
+        $session->name = $name;
+        $this->em()->persist($session);
+        $this->em()->flush();
+    }
+
+    private function noticeWithNoCard(): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: 'The remote is blocked', blocking: false, origin: InboxAskOrigin::Loupe, body: 'Push failed twice.');
+        $this->em()->persist($item);
+        $this->em()->flush();
+        $this->askHolding($this->em(), $this->project, [$item]);
+        $this->em()->flush();
+
+        return $item;
+    }
+
+    public function test_a_notice_with_no_card_starts_a_session_from_a_written_prompt_and_names_the_bridge(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->noticeWithNoCard();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $thread = $crawler->filter('#inbox-item-'.$item->number);
+        $main = $thread->filter('.inbox-split__main');
+        self::assertSame('start-session', $main->attr('data-inbox-action'));
+        $field = $thread->filter('textarea[data-inbox-session-prompt]');
+        self::assertCount(1, $field);
+        self::assertStringContainsString('The remote is blocked', $field->text());
+        self::assertStringContainsString('Push failed twice.', $field->text());
+        self::assertStringContainsString('Opens in a fresh worktree on geoffrey-mbp.', $thread->filter('.inbox-split__hint')->text());
+
+        $this->post($this->actionPath($item, 'start-session'), $item, ['note' => '', 'sessionPrompt' => 'Look at the remote.'], 'inbox_response_'.$item->id);
+
+        $action = $this->onlyAction($item);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id, null, 'Look at the remote.'], [$request?->subjectType, (string) $request?->subjectId, $request?->cardNumber, $request?->prompt]);
+
+        $you = $this->client->request(Request::METHOD_GET, $this->pageUrl())->filter('#inbox-item-'.$item->number.' [data-inbox-action-status]');
+        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-prompt]')->text()));
+        self::assertCount(0, $you->filter('[data-inbox-action-note]'));
+    }
+
+    public function test_a_started_session_quotes_both_its_prompt_and_the_note_of_the_reply(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->noticeWithNoCard();
+
+        $this->post($this->actionPath($item, 'start-session'), $item, ['note' => 'Ignore the cache.', 'sessionPrompt' => 'Look at the remote.'], 'inbox_response_'.$item->id);
+
+        $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId);
+        self::assertSame('Look at the remote.', $request?->prompt);
+        $you = $this->client->request(Request::METHOD_GET, $this->pageUrl())->filter('#inbox-item-'.$item->number.' [data-inbox-action-status]');
+        self::assertSame('Ignore the cache.', trim($you->filter('[data-inbox-action-note]')->text()));
+        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-prompt]')->text()));
+        self::assertStringContainsString('Your note for the agent', $you->text());
+        self::assertStringContainsString('Prompt for the session', $you->text());
+    }
+
+    public function test_a_closed_item_offers_a_new_session_with_its_prompt_and_starts_it(): void
+    {
+        $this->itemSessionBridge();
+        $question = $this->answered($this->em(), $this->sessionQuestion(null));
+        $question->cards->clear();
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?ask='.$this->em()->getConnection()->fetchOne('SELECT ask_id FROM inbox_ask_items WHERE item_id = ?', [$question->id?->toRfc4122()]));
+
+        self::assertResponseIsSuccessful();
+        $thread = $crawler->filter('#inbox-item-'.$question->number);
+        $button = $thread->filter('button[data-inbox-action="start-session"]');
+        self::assertCount(1, $button);
+        self::assertSame($this->actionPath($question, 'start-session'), parse_url((string) $button->attr('formaction') ?: (string) $thread->filter('form.lp-inbox-thread__reply')->attr('action'), \PHP_URL_PATH));
+        self::assertStringContainsString('Which tag order?', $thread->filter('textarea[data-inbox-session-prompt]')->text());
+        self::assertStringContainsString('Opens in a fresh worktree on geoffrey-mbp.', $thread->filter('.inbox-split__hint')->text());
+
+        $this->post($this->actionPath($question, 'start-session'), $question, ['sessionPrompt' => 'Pick up the answer.']);
+
+        $request = $this->em()->find(WorkRequest::class, $this->onlyAction($question)->workRequestId);
+        self::assertSame([InboxItem::SUBJECT_TYPE, 'Pick up the answer.'], [$request?->subjectType, $request?->prompt]);
     }
 
     public function test_a_session_prompt_field_the_owner_cleared_starts_the_session_with_no_prompt(): void
@@ -415,10 +504,10 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringStartsWith('Your answer', trim($crawler->filter('#inbox-item-'.$question->number.' legend.lp-decision__prompt')->text()));
-        self::assertCount(0, $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread]'));
+        self::assertCount(1, $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread] form.lp-inbox-answer'));
     }
 
-    public function test_a_question_offers_its_suggested_session_below_the_answer_form_and_starts_it(): void
+    public function test_a_question_offers_its_suggested_session_in_the_menu_of_the_answer_form_and_starts_it(): void
     {
         $this->sessionBridge();
         $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']]);
@@ -428,10 +517,12 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $item = $crawler->filter('#inbox-item-'.$question->number);
         self::assertCount(1, $item->filter('form.lp-inbox-answer'));
-        self::assertSame('start-session', $item->filter('[data-inbox-thread] .inbox-split__main')->attr('data-inbox-action'));
-        self::assertSame('Pair on the answer.', trim($item->filter('[data-inbox-reply-heading]')->text()));
+        self::assertSame('answer', $item->filter('[data-inbox-thread] .inbox-split__main')->attr('data-inbox-action'));
+        self::assertCount(0, $item->filter('[data-inbox-reply-heading]'));
+        self::assertCount(1, $item->filter('.lp-menu__panel [data-inbox-action="start-session"]'));
+        self::assertNotNull($item->filter('[data-inbox-session-prompt-field]')->attr('hidden'));
         self::assertSame('Use the skill.', trim($item->filter('textarea[data-inbox-session-prompt]')->text()));
-        self::assertCount(0, $item->filter('[data-inbox-thread] textarea[name$="[note]"]'));
+        self::assertCount(1, $item->filter('form.lp-inbox-answer textarea[name$="[note]"]'));
 
         $this->post($this->actionPath($question, 'start-session'), $question, ['sessionPrompt' => 'Use the skill.']);
 
@@ -454,7 +545,7 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSame('Open the document', trim($crawler->filter('#inbox-item-'.$item->number.' .inbox-split__main')->text()));
+        self::assertSame('Open the document', trim($crawler->filter('#inbox-item-'.$item->number.' .lp-menu__panel [data-inbox-action="open"] .lp-menu__label')->text()));
     }
 
     public function test_a_session_prompt_shows_no_field_while_start_session_is_off(): void
@@ -477,12 +568,11 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $split = $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread] .inbox-split');
-        self::assertCount(0, $split->filter('.inbox-split__main'));
+        self::assertSame('answer', $split->filter('.inbox-split__main')->attr('data-inbox-action'));
         self::assertCount(1, $split->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
         $toggle = $split->filter('.lp-split-button__toggle');
-        self::assertStringContainsString('lp-split-button__toggle--alone', (string) $toggle->attr('class'));
-        self::assertSame('Other actions', trim($toggle->text()));
-        self::assertNull($toggle->attr('aria-label'));
+        self::assertStringNotContainsString('lp-split-button__toggle--alone', (string) $toggle->attr('class'));
+        self::assertSame('Other actions', $toggle->attr('aria-label'));
     }
 
     public function test_a_session_prompt_in_the_menu_stays_hidden_until_the_owner_picks_start_session(): void
@@ -495,7 +585,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $thread = $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread]');
         self::assertNotSame('start-session', $thread->filter('.inbox-split__main')->attr('data-inbox-action'));
-        self::assertSame('inbox-session-prompt', $thread->filter('form.lp-inbox-thread__reply')->attr('data-controller'));
+        self::assertStringContainsString('inbox-session-prompt', (string) $thread->filter('form.lp-inbox-thread__reply')->attr('data-controller'));
         $field = $thread->filter('[data-inbox-session-prompt-field]');
         self::assertNotNull($field->attr('hidden'));
         self::assertSame('Use the skill.', trim($field->filter('textarea[data-inbox-session-prompt]')->text()));
@@ -506,7 +596,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame($this->actionPath($question, 'start-session'), parse_url((string) $confirm->attr('formaction'), \PHP_URL_PATH));
     }
 
-    public function test_a_question_with_a_card_and_no_suggestion_shows_no_reply_card(): void
+    public function test_a_question_with_a_card_and_no_suggestion_keeps_the_answer_as_main_and_offers_a_session_in_the_menu(): void
     {
         $this->sessionBridge();
         $question = $this->sessionQuestion(null);
@@ -514,8 +604,11 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('#inbox-item-'.$question->number.' form.lp-inbox-answer'));
-        self::assertCount(0, $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread]'));
+        $item = $crawler->filter('#inbox-item-'.$question->number);
+        self::assertCount(1, $item->filter('form.lp-inbox-answer'));
+        self::assertSame('answer', $item->filter('[data-inbox-thread] .inbox-split__main')->attr('data-inbox-action'));
+        self::assertCount(1, $item->filter('.lp-menu__panel [data-inbox-action="start-session"]'));
+        self::assertStringContainsString('Which tag order?', $item->filter('textarea[data-inbox-session-prompt]')->text());
     }
 
     public function test_a_run_command_posts_the_confirmed_branch_and_values_and_queues_the_request(): void
@@ -599,13 +692,13 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        $main = $crawler->filter('.inbox-split__main');
-        self::assertSame('Run design-export on epic/42', trim($main->text()));
-        self::assertSame('button', $main->attr('type'));
-        self::assertNull($main->attr('formaction'));
-        self::assertStringContainsString('modal#open', (string) $main->attr('data-action'));
-        self::assertCount(1, $crawler->filter('[data-inbox-done]'));
-        $formId = 'inbox_action_'.$item->id;
+        self::assertSame('Mark complete', trim($crawler->filter('.inbox-split__main')->text()));
+        $run = $crawler->filter('.lp-menu__panel [data-inbox-action="run-command"]');
+        self::assertSame('Run design-export on epic/42', trim($run->filter('.lp-menu__label')->text()));
+        self::assertSame('button', $run->attr('type'));
+        self::assertNull($run->attr('formaction'));
+        self::assertStringContainsString('modal#open', (string) $run->attr('data-action'));
+        $formId = 'inbox_response_'.$item->id;
         $dialog = $crawler->filter('[data-inbox-run-command-dialog]');
         self::assertCount(1, $dialog);
         self::assertSame('Run design-export?', trim($dialog->filter('.lp-dialog-title')->text()));
@@ -639,13 +732,13 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('form.lp-inbox-answer'));
-        self::assertSame('Read the card first.', trim($crawler->filter('[data-inbox-reply-heading]')->text()));
+        self::assertSame('answer', $crawler->filter('.inbox-split__main')->attr('data-inbox-action'));
         self::assertCount(1, $crawler->filter('.inbox-split [data-inbox-action="open"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-done]'));
-        self::assertCount(0, $crawler->filter('[data-inbox-action="start-session"]'));
+        self::assertCount(1, $crawler->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
     }
 
-    public function test_a_question_with_no_suggestion_shows_no_split_button(): void
+    public function test_a_question_with_a_card_and_no_suggestion_and_no_bridge_shows_only_a_grey_session_in_the_menu(): void
     {
         $item = $this->question($this->em(), $this->project, ++$this->number);
         $item->cards->add(new InboxItemCard($item, $this->card));
@@ -656,7 +749,8 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('form.lp-inbox-answer'));
-        self::assertCount(0, $crawler->filter('.inbox-split'));
+        self::assertCount(1, $crawler->filter('.lp-menu__panel [data-inbox-action]'));
+        self::assertCount(1, $crawler->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
     }
 
     public function test_a_failed_command_shows_its_last_lines_with_run_again_and_mark_done(): void
@@ -673,7 +767,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertStringContainsString('SQLSTATE[08006] could not connect', $block->filter('[data-inbox-run-command-output]')->text());
         self::assertSame('Run again', trim($block->filter('[data-inbox-action="run-command-again"]')->text()));
         self::assertNull($block->filter('[data-inbox-action="run-command-again"]')->attr('disabled'));
-        self::assertSame('inbox_done_'.$item->id, $block->filter('[data-inbox-run-command-done]')->attr('form'));
+        self::assertSame('inbox_response_'.$item->id, $block->filter('[data-inbox-run-command-done]')->attr('form'));
         self::assertCount(1, $crawler->filter('[data-inbox-run-command-dialog]'));
     }
 
@@ -783,7 +877,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertStringContainsString('Queued', $block->filter('.lp-status-chip')->text());
         self::assertCount(1, $block->filter('form.lp-inbox-thread__cancel'));
         self::assertCount(0, $block->filter('[data-inbox-action="run-command-again"]'));
-        self::assertNotNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertCount(1, $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="run-command"][aria-disabled="true"]'));
         self::assertCount(0, $block->filter('[data-inbox-run-command-offline]'));
     }
 
@@ -828,7 +922,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('Copy', trim($proposed->filter('.lp-copy-button__chip')->text()));
         self::assertSame('design-export is not in the rules.yaml of '.$this->bridge->label.', and that bridge does not accept added entries.', trim($crawler->filter('[data-inbox-run-command-off]')->text()));
         self::assertStringContainsString('loupe bridge reload', $crawler->filter('.lp-comment-composer')->text());
-        self::assertNotNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertCount(1, $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="run-command"][aria-disabled="true"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-run-command-dialog]'));
         self::assertCount(0, $crawler->filter('[data-inbox-add-entry-dialog]'));
         self::assertCount(0, $crawler->filter('[data-inbox-action="add-entry"]'));
@@ -853,11 +947,11 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        $main = $crawler->filter('.inbox-split__main');
-        self::assertSame('Add to rules.yaml', trim($main->text()));
-        self::assertSame(['button', 'add-entry'], [$main->attr('type'), $main->attr('data-inbox-action')]);
-        self::assertNull($main->attr('disabled'));
-        self::assertStringContainsString('modal#open', (string) $main->attr('data-action'));
+        $row = $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="add-entry"]');
+        self::assertSame('Add to rules.yaml', trim($row->filter('.lp-menu__label')->text()));
+        self::assertSame('button', $row->attr('type'));
+        self::assertNull($row->attr('aria-disabled'));
+        self::assertStringContainsString('modal#open', (string) $row->attr('data-action'));
         self::assertSame('design-export is not in the rules.yaml of '.$this->bridge->label.'. The agent proposes this entry.', trim($crawler->filter('[data-inbox-run-command-off]')->text()));
         $proposed = $crawler->filter('[data-inbox-run-command-proposed]');
         self::assertSame('Proposed entry', trim($proposed->filter('.lp-code-dark__label')->text()));
@@ -865,7 +959,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('modal', $crawler->filter('[data-inbox-thread]')->attr('data-controller'));
         self::assertCount(0, $crawler->filter('[data-inbox-run-command-dialog]'));
 
-        $formId = 'inbox_action_'.$item->id;
+        $formId = 'inbox_response_'.$item->id;
         $dialog = $crawler->filter('[data-inbox-add-entry-dialog]');
         self::assertCount(1, $dialog);
         self::assertSame('Add design-export to rules.yaml?', trim($dialog->filter('.lp-dialog-title')->text()));
@@ -885,7 +979,7 @@ final class InboxActionControllersTest extends WebTestCase
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
-        self::assertSame('Open the card', trim($crawler->filter('.inbox-split__main')->text()));
+        self::assertSame('Mark complete', trim($crawler->filter('.inbox-split__main')->text()));
         $row = $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="add-entry"]');
         self::assertCount(1, $row);
         self::assertSame('Add to rules.yaml', trim($row->filter('.lp-menu__label')->text()));
@@ -939,8 +1033,9 @@ final class InboxActionControllersTest extends WebTestCase
         $this->em()->flush();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
-        self::assertSame('Run design-export on epic/42', trim($crawler->filter('.inbox-split__main')->text()));
-        self::assertNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        $row = $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="run-command"]');
+        self::assertSame('Run design-export on epic/42', trim($row->filter('.lp-menu__label')->text()));
+        self::assertNull($row->attr('aria-disabled'));
         self::assertCount(1, $crawler->filter('[data-inbox-run-command-dialog]'));
     }
 
@@ -957,7 +1052,7 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertStringContainsString('Refused: write-failed', $crawler->filter('[data-inbox-action-status="refused"] .lp-status-chip')->text());
-        self::assertSame('Add to rules.yaml', trim($crawler->filter('.inbox-split__main')->text()));
+        self::assertSame('Add to rules.yaml', trim($crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="add-entry"] .lp-menu__label')->text()));
     }
 
     public function test_cancelling_a_queued_add_withdraws_its_request(): void
@@ -1003,7 +1098,7 @@ final class InboxActionControllersTest extends WebTestCase
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
-        self::assertNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertNull($crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="run-command"]')->attr('aria-disabled'));
         $dialog = $crawler->filter('[data-inbox-run-command-dialog]');
         self::assertNotNull($dialog->filter('[data-inbox-action="run-command-confirm"]')->attr('disabled'));
         self::assertSame('No worktree for epic/42 on '.$this->bridge->label, trim($dialog->filter('[data-inbox-run-command-no-worktree]')->text()));

@@ -19,6 +19,8 @@ use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Module\Inbox\Service\InboxActionStatuses;
 use App\Module\Inbox\Twig\InboxExtension;
 use App\Module\Inbox\View\InboxActionState;
 use App\Module\Inbox\View\InboxActionStatus;
@@ -74,6 +76,17 @@ final class InboxExtensionActionsTest extends KernelTestCase
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $actions->menu[1]->href);
         self::assertTrue($actions->menu[1]->card);
         self::assertSame(InboxActionKind::Dismiss, $actions->dismiss?->action->kind);
+    }
+
+    public function test_the_thread_function_builds_the_thread_of_the_item(): void
+    {
+        $item = $this->runItem(WorkerRunState::Blocked);
+
+        $thread = $this->extension->thread($item);
+
+        self::assertSame($item, $thread->item);
+        self::assertSame(InboxActionKind::ResumeRun, $thread->replyCard?->main?->action->kind);
+        self::assertNotNull(array_find(self::getContainer()->get(Environment::class)->getFunctions(), static fn ($function): bool => 'inbox_thread' === $function->getName()));
     }
 
     public function test_the_card_page_gets_no_link_back_to_itself(): void
@@ -134,7 +147,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
         $this->em()->persist($retried);
         $this->em()->flush();
 
-        $lines = $this->extension->actionStatusLines($item);
+        $lines = $this->statusLines($item);
 
         self::assertCount(1, $lines);
         self::assertSame(InboxActionState::Retried, $lines[0]->state);
@@ -146,7 +159,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
     {
         $item = $this->runItem(WorkerRunState::Blocked);
 
-        self::assertSame([], $this->extension->actionStatusLines($item));
+        self::assertSame([], $this->statusLines($item));
     }
 
     public function test_only_the_states_that_still_answer_the_wait_are_in_progress(): void
@@ -170,7 +183,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
         $action->waitId = $answered->id;
         $this->em()->persist($action);
         $this->em()->flush();
-        $status = $this->extension->actionStatusLines($item)[0];
+        $status = $this->statusLines($item)[0];
 
         self::assertTrue($status->answers($watch->waits));
 
@@ -215,9 +228,15 @@ final class InboxExtensionActionsTest extends KernelTestCase
         self::assertFalse(new InboxActionStatus($action, InboxActionState::Retried, 'inbox.action.status.retried')->answers($watch->waits));
     }
 
+    /** @return list<InboxActionStatus> */
+    private function statusLines(InboxItem $item): array
+    {
+        return self::getContainer()->get(InboxActionStatuses::class)->forItems([$item])[(string) $item->id] ?? [];
+    }
+
     private function watchOf(InboxItem $item): InboxCardWatch
     {
-        return $this->extension->cardWatch($item) ?? throw new \LogicException('A run item has a watch.');
+        return self::getContainer()->get(InboxCardWatchRepository::class)->findOneForItem($item) ?? throw new \LogicException('A run item has a watch.');
     }
 
     private function runItem(WorkerRunState $state): InboxItem

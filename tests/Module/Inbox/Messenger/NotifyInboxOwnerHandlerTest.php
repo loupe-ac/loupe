@@ -178,7 +178,7 @@ final class NotifyInboxOwnerHandlerTest extends KernelTestCase
     {
         $this->em->persist(new NotificationPreference($this->project->owner, NotificationEvent::OtherInboxItem, NotificationChannel::WebPush, true));
         $notice = $this->notice(507);
-        $notice->state = InboxItemState::Done;
+        $notice->state = InboxItemState::Resolved;
         $this->em->flush();
 
         $this->handle(new NotifyInboxOwner((string) $notice->id, NotifyInboxOwnerKind::Notice));

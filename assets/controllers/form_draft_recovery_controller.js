@@ -50,6 +50,7 @@ export default class extends Controller {
                   .closest('.lp-inbox-ask')
                   ?.querySelector('.lp-inbox-ask__title'));
         discardFormDraft(this.keyValue);
+        if (this.hasFallbackTarget) this.fallbackTarget.hidden = true;
         this.render();
         if (containsFocus && heading) {
             heading.setAttribute('tabindex', '-1');

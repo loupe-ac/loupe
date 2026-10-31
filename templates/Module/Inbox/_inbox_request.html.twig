@@ -21,7 +21,7 @@
         <time datetime="{{ row.createdAt|date('c') }}">{{ row.createdAt|inbox_age }}</time>
         {%- if row.outcome -%}
             <span aria-hidden="true">·</span>
-            <span data-inbox-outcome="{{ row.outcome }}">{{ ('inbox.row.outcome.' ~ row.outcome)|trans }}</span>
+            <span data-inbox-outcome="{{ row.outcome.key }}">{{ row.outcome.key|trans(row.outcome.parameters) }}</span>
         {%- elseif row.isClosed -%}
             <span aria-hidden="true">·</span>
             <span data-inbox-outcome="closed">{{ 'inbox.row.closed'|trans }}</span>

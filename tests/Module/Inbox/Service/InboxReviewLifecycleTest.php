@@ -49,7 +49,6 @@ final class InboxReviewLifecycleTest extends KernelTestCase
             'documentId' => (string) $review->document?->id,
             'pullRequestId' => null,
             'verdict' => 'approved',
-            'note' => 'The retry behaviour is clear.',
             'submittedAt' => '2026-09-17T00:00:00+00:00',
             'reviewerId' => (string) $owner->id,
             'reviewedVersionNumber' => 1,
@@ -105,10 +104,10 @@ final class InboxReviewLifecycleTest extends KernelTestCase
         $document->addVersion('# Review', '<h1>Review</h1>');
         $verdict = new Review($document->currentVersion(), Verdict::Approved, $owner, note: 'The retry behaviour is clear.');
         $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
-        $item->state = InboxItemState::Done;
+        $item->state = InboxItemState::Resolved;
         $review = new InboxReview($item, $document);
         $review->verdict = InboxReviewVerdict::Approved;
-        $review->note = $verdict->note;
+        $item->note = $verdict->note;
         $review->reviewer = $owner;
         $review->submittedAt = new \DateTimeImmutable('2026-09-17 00:00:00', new \DateTimeZone('UTC'));
         $review->reviewedVersionNumber = 1;

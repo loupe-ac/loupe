@@ -1,0 +1,164 @@
+{#- The card where the owner answers one open item: one form with the fields the item takes, a hint, Dismiss and the split button.
+   Params: item, card (ReplyCard), form (FormView), actionParams, responseFrame, cardDrawer, refusedForm,
+   runCommand (RunCommandView or null), commandDialog, addEntryDialog, sessionRow (ThreadAction or null), sessionMain (whether Start session is the main button). -#}
+{% set names = card.fields|map(field => field.value) %}
+{% set kind = item.kind.value %}
+{% set answers = not item.isAutomatic() and kind in ['question', 'workflow'] %}
+{% set review = card.review %}
+{% set verdictField = 'verdict' in names %}
+{% set noteLabel = 'inbox.thread.note_placeholder'|trans %}
+{% set main = card.main %}
+{% set mainPost = main and not main.isLink and not main.action.runCommand ? main.action.kind.value : null %}
+{% set controllers = [] %}
+{% set sessionHint = sessionRow and sessionRow.action.bridgeName ? 'inbox.action.start-session.worktree_hint'|trans({'%bridge%': sessionRow.action.bridgeName}) : '' %}
+{% set attrs = {id: form.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply' ~ (answers ? ' lp-inbox-answer' : ''), 'data-turbo-frame': responseFrame} %}
+{% if answers or verdictField %}
+    {% set controllers = controllers|merge(['form-draft']) %}
+    {% set attrs = attrs|merge({'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': answers ? item.id : item.id ~ ':review', 'data-action': 'submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared'}) %}
+{% endif %}
+{% if sessionRow and not sessionMain %}
+    {% set controllers = controllers|merge(['inbox-session-prompt']) %}
+{% endif %}
+{% if controllers %}{% set attrs = attrs|merge({'data-controller': controllers|join(' ')}) %}{% endif %}
+<div class="lp-inbox-item__actions">
+    {{ form_start(form, {action: path('app_inbox_item_action', actionParams|merge({kind: mainPost ?? 'resume-run'})), attr: attrs}) }}
+        {% if card.targetGone %}
+            <p role="status">{{ 'inbox.review.error.target_unavailable'|trans }}</p>
+        {% else %}
+            {% if main and main.action.reason and not mainPost %}
+                <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ main.action.reason }}</h3>
+            {% endif %}
+            {% set entryProposed = runCommand and runCommand.entryYaml and runCommand.disabledReasonKey == 'inbox.action.run-command.disabled.entry_missing' %}
+            {% if runCommand and not runCommand.canOpenDialog and not (runCommand.run and runCommand.run.state.isLive) %}
+                {% if entryProposed %}
+                    <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ (runCommand.addEntryLive ? 'inbox.run_command.missing.adding' : (runCommand.acceptsEntries ? 'inbox.run_command.missing.reason_proposed' : 'inbox.run_command.missing.reason_no_opt_in'))|trans({'%entry%': runCommand.entry, '%bridge%': runCommand.bridgeName}) }}</p>
+                {% else %}
+                    <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ runCommand.disabledReasonKey|trans }}</p>
+                {% endif %}
+            {% endif %}
+            {% if entryProposed %}
+                {% if runCommand.acceptsEntries %}
+                    <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label_add'|trans" :text="runCommand.entryYaml|trim" :copy="false" data-inbox-run-command-proposed />
+                {% else %}
+                    <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label'|trans" :text="runCommand.entryYaml|trim" :copyLabel="'inbox.run_command.missing.copy'|trans" :copiedLabel="'inbox.run_command.missing.copied'|trans" data-inbox-run-command-proposed />
+                    <twig:Ds:Hint>{{ 'inbox.run_command.missing.hint'|trans({'%command%': 'loupe bridge reload'}) }}</twig:Ds:Hint>
+                {% endif %}
+            {% endif %}
+
+            {% if verdictField %}
+                <twig:Ds:FieldErrors :fieldView="form" />
+                {% if review.document %}
+                    <div class="lp-inbox-item__refusal" hidden data-form-draft-target="stale" role="status">
+                        <p>{{ 'inbox.review.stale_draft'|trans }}</p>
+                        <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="form-draft#discard">{{ 'inbox.answer.discard_draft'|trans }}</twig:Ds:Button>
+                    </div>
+                    {{ form_widget(form.versionNumber, {type: 'hidden', attr: {'data-form-draft-target': 'guard'}}) }}
+                    <twig:Ds:FieldErrors :fieldView="form.versionNumber" />
+                    {{ form_widget(form.expectedReviewId, {attr: {'data-form-draft-target': 'guard'}}) }}
+                    <twig:Ds:FieldErrors :fieldView="form.expectedReviewId" />
+                    {% if app.request.attributes.get('_route') != 'app_document_review' %}
+                        {% set version = inbox_review_version(review) %}
+                        <a class="lp-inbox-review-document" href="{{ path('app_document_review', {projectId: review.document.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top" data-inbox-review-document-card>
+                            <twig:ux:icon name="lucide:file-text" class="lp-inbox-review-document__icon" />
+                            <span class="lp-inbox-review-document__text">
+                                <span class="lp-inbox-review-document__title">{{ review.document.title|reference_plain }}</span>
+                                <span class="lp-inbox-review-document__sub">{% if version %}{{ 'inbox.review.version'|trans({'%version%': version}) }} · {% endif %}{{ review.document.status.translationKey()|trans }}</span>
+                            </span>
+                            <span class="lp-inbox-review-document__action">{{ 'inbox.review.read_it'|trans }}</span>
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <div class="lp-inbox-item__refusal" hidden data-form-draft-target="stale" role="status">
+                        <p>{{ 'inbox.review.stale_draft'|trans }}</p>
+                        <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="form-draft#discard">{{ 'inbox.answer.discard_draft'|trans }}</twig:Ds:Button>
+                    </div>
+                    {% if card.hintKey %}<twig:Ds:Hint>{{ card.hintKey|trans }}</twig:Ds:Hint>{% endif %}
+                    {{ form_widget(form.expectedUrl, {attr: {'data-form-draft-target': 'guard'}}) }}
+                    <twig:Ds:FieldErrors :fieldView="form.expectedUrl" />
+                {% endif %}
+                {% include '@Inbox/_verdict_block.html.twig' with {form: form} only %}
+            {% elseif answers %}
+                {% set selectedErrorsId = form.selectedOptions.vars.id ~ '_errors' %}
+                {% set textErrorsId = form.note.vars.id ~ '_errors' %}
+                {% set written = 'options' not in names %}
+                {% set noteAttr = {class: 'lp-decision__note-field', rows: 2, placeholder: (written ? 'inbox.answer.write_placeholder' : 'inbox.answer.placeholder')|trans, 'aria-label': (written ? 'inbox.answer.legend' : 'inbox.answer.placeholder')|trans, 'data-form-draft-target': 'text', 'data-action': 'input->form-draft#remember'} %}
+                {% if form.note.vars.errors|length > 0 %}{% set noteAttr = noteAttr|merge({'aria-describedby': textErrorsId}) %}{% endif %}
+                {% set selected = (form.selectedOptions.vars.value ?? '')|split(',') %}
+                {# The controls post under a name outside the form, so the form reads the ticked indexes from selectedOptions, which the controller fills. #}
+                <fieldset class="lp-decision lp-decision--inbox" data-decision-type="{{ written ? 'text' : (item.multiple ? 'multiple' : 'single') }}"{% if not written %} data-action="change->form-draft#select"{% endif %}{% if form.selectedOptions.vars.errors|length > 0 %} aria-describedby="{{ selectedErrorsId }}"{% endif %}>
+                    <legend class="lp-decision__prompt">{{ 'inbox.answer.legend'|trans }}<span class="lp-decision__kind">{{ (written ? 'inbox.answer.write' : (item.multiple ? 'inbox.answer.pick_any' : 'inbox.answer.pick_one'))|trans }}</span></legend>
+                    {% if not written %}
+                        <button type="button" class="lp-decision__clear" data-action="form-draft#clear">{{ 'inbox.answer.clear'|trans }}</button>
+                        <div class="lp-decision__options">
+                            {% for option in item.options %}
+                                {% set optionId = 'inbox_option_' ~ item.id ~ '_' ~ loop.index0 %}
+                                <div class="lp-decision__option">
+                                    <input type="{{ item.multiple ? 'checkbox' : 'radio' }}" name="lp-inbox-{{ item.id }}" value="{{ loop.index0 }}" id="{{ optionId }}" data-form-draft-target="option"{{ (loop.index0 ~ '') in selected ? ' checked' }}>
+                                    <label for="{{ optionId }}">{{ option }}</label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if 'note' in names %}
+                        <div class="lp-decision__note">{{ form_widget(form.note, {attr: noteAttr}) }}</div>
+                    {% endif %}
+                </fieldset>
+                {{ form_widget(form.selectedOptions) }}
+                <twig:Ds:FieldErrors :fieldView="form.selectedOptions" :id="selectedErrorsId" />
+                {% if 'note' in names %}
+                    <twig:Ds:FieldErrors :fieldView="form.note" :id="textErrorsId" />
+                {% endif %}
+            {% elseif 'note' in names %}
+                {{ form_widget(form.note, {attr: {class: ds_input_class('textarea'), rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
+                <twig:Ds:FieldErrors :fieldView="form.note" />
+            {% endif %}
+
+            {% if sessionMain %}
+                <twig:Ds:FormField :fieldView="form.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+            {% elseif sessionRow %}
+                <div data-inbox-session-prompt-target="field" data-inbox-session-prompt-field hidden>
+                    <twig:Ds:FormField :fieldView="form.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+                    {% if sessionHint %}<twig:Ds:Hint data-inbox-session-worktree>{{ sessionHint }}</twig:Ds:Hint>{% endif %}
+                    <twig:Ds:FormActions>
+                        <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans(sessionRow.action.labelParams) }}</twig:Ds:Button>
+                    </twig:Ds:FormActions>
+                </div>
+            {% endif %}
+        {% endif %}
+        {% if not verdictField %}<twig:Ds:FieldErrors :fieldView="form" />{% endif %}
+        {{ form_widget(form._token) }}
+        <div class="lp-comment-composer__actions">
+            {% if main and main.action.runCommand %}
+                {% set hint = runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '' %}
+            {% else %}
+                {% set hint = card.hintKey and not (verdictField and not review.document) ? card.hintKey|trans : '' %}
+            {% endif %}
+            {% if sessionMain and '' == hint %}{% set hint = sessionHint %}{% endif %}
+            <twig:Ds:Hint as="span" class="inbox-split__hint">{{ hint }}</twig:Ds:Hint>
+            {% if card.dismiss %}
+                <twig:Ds:Button variant="ghost" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))" data-inbox-action="dismiss">{{ card.dismiss.action.labelKey|trans(card.dismiss.action.labelParams) }}</twig:Ds:Button>
+            {% endif %}
+            {% if main or card.menu %}
+                <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
+                    <twig:block name="main">
+                    {% if main and main.isLink %}
+                        <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="main.href" :target="main.external ? '_blank' : null" :rel="main.external ? 'noopener noreferrer' : null" :data-turbo-frame="main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-drawer-title="main.card and cardDrawer ? item.title|reference_plain : null" :data-action="main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ main.action.kind.value }}">{{ main.action.labelKey|trans(main.action.labelParams) }}</twig:Ds:Button>
+                    {% elseif main and main.action.runCommand and addEntryDialog %}
+                        <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" data-action="click->modal#open" data-inbox-action="add-entry">{{ 'inbox.action.add-entry.label'|trans }}</twig:Ds:Button>
+                    {% elseif main and main.action.runCommand %}
+                        <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
+                    {% elseif main %}
+                        <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: main.action.kind.value}))" data-inbox-action="{{ main.action.kind.value }}">{{ main.action.labelKey|trans(main.action.labelParams) }}</twig:Ds:Button>
+                    {% endif %}
+                    </twig:block>
+                    <twig:block name="content">
+                        {% for row in card.menu %}
+                            {% include '@Inbox/_inbox_thread_row.html.twig' with {row: row, actionParams: actionParams, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
+                        {% endfor %}
+                    </twig:block>
+                </twig:Ds:SplitButton>
+            {% endif %}
+        </div>
+    {{ form_end(form, {render_rest: false}) }}
+    <template data-inbox-reply-draft-template>{% include '@Inbox/_reply_draft.html.twig' only %}</template>
+</div>

@@ -108,15 +108,15 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-inbox-linked-menu] [data-linked-card="'.$this->card->id.'"]'));
     }
 
-    /** @return iterable<string, array{string}> */
+    /** @return iterable<string, array{string, string}> */
     public static function loupeCloses(): iterable
     {
-        yield 'done, after a verdict' => ['approve'];
-        yield 'obsolete, after the card finished' => ['finish'];
+        yield 'done, after a verdict' => ['approve', 'Resolved'];
+        yield 'obsolete, after the card finished' => ['finish', 'Cancelled'];
     }
 
     #[DataProvider('loupeCloses')]
-    public function test_an_item_loupe_closed_says_so_and_refuses_a_dismissal(string $cause): void
+    public function test_an_item_loupe_closed_says_so_and_refuses_a_dismissal(string $cause, string $label): void
     {
         $this->reconcile();
         if ('approve' === $cause) {
@@ -127,19 +127,20 @@ final class WaitItemPageTest extends WebTestCase
         $this->em->flush();
         $this->reconcile();
         $item = $this->onlyWatch()->item;
-        self::assertSame('approve' === $cause ? InboxItemState::Done : InboxItemState::Obsolete, $item->state);
+        self::assertSame('approve' === $cause ? InboxItemState::Resolved : InboxItemState::Cancelled, $item->state);
 
         $this->client->request(Request::METHOD_GET, $this->pageUrl().'?queue=completed');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-editable]', 'Loupe closed this item, so it takes no response.');
+        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-closing="loupe"] .lp-status-chip', $label);
         self::assertSelectorTextNotContains('#inbox-item-1', 'The agent closed');
+        self::assertSelectorNotExists('#inbox-item-1 .lp-comment-composer__actions');
 
-        $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/decline';
-        $this->client->request(Request::METHOD_POST, $url, ['inbox_decline_'.$item->id => ['closeNote' => '', '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/dismiss';
+        $this->client->request(Request::METHOD_POST, $url, ['inbox_action_'.$item->id => ['note' => '', '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'Loupe closed this item');
+        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'no longer fits the item');
         self::assertSame($item->state, $this->onlyWatch()->item->state);
     }
 
@@ -180,12 +181,9 @@ final class WaitItemPageTest extends WebTestCase
         self::assertStringContainsString('waits for your review', $ended->text());
         self::assertStringContainsString('Closed', $ended->text());
 
-        self::assertCount(0, $crawler->filter('form[name="inbox_done_'.$item->id.'"]'));
-        self::assertCount(0, $crawler->filter('form[name="inbox_answer_'.$item->id.'"]'));
-        $dismiss = $crawler->filter('form[name="inbox_decline_'.$item->id.'"]');
-        self::assertCount(1, $dismiss);
+        self::assertCount(0, $crawler->filter('form[name="inbox_response_'.$item->id.'"]'));
         $row = $crawler->filter('#inbox-item-1 button[data-inbox-action="dismiss"]');
-        self::assertSame('inbox_decline_'.$item->id, $row->attr('form'));
+        self::assertSame('/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/dismiss', parse_url((string) $row->attr('formaction'), \PHP_URL_PATH));
         self::assertStringContainsString('Dismiss', $row->text());
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $crawler->filter('#inbox-item-1 a[data-inbox-action="open"]')->attr('href'));
     }
@@ -238,7 +236,7 @@ final class WaitItemPageTest extends WebTestCase
         // The run cannot resume and Open is the card itself, so the first enabled action, Send an agent, takes the main part.
         self::assertSame('send-agent', $crawler->filter('#inbox-item-1 .inbox-split__main')->attr('data-inbox-action'));
         self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel [data-inbox-action="start-session"]')->attr('aria-disabled'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel button[data-inbox-action="dismiss"]'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .lp-comment-composer__actions > button[data-inbox-action="dismiss"]'));
     }
 
     public function test_send_an_agent_from_the_card_page_queues_the_agent(): void
@@ -299,7 +297,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('Add the key, then read the card.', trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
     }
 
-    public function test_the_reply_heading_falls_back_to_the_label_with_no_suggestion(): void
+    public function test_the_reply_card_has_no_heading_with_no_suggestion(): void
     {
         $this->document->status = DocumentStatus::Approved;
         $this->blockedRun();
@@ -307,7 +305,8 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSame(trim($crawler->filter('#inbox-item-1 .inbox-split__main')->text()), trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split__main'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-reply-heading]'));
     }
 
     /** @param array<string, mixed>|null $resultFields */

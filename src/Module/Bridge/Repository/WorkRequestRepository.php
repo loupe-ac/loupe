@@ -516,6 +516,30 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The ids of the subjects of a type that have an open or claimed request of the kind, in one query.
+     *
+     * @param list<string> $subjectIds RFC 4122 ids
+     *
+     * @return array<string, true> keyed by the subject id
+     */
+    public function findSubjectIdsWithLiveRequest(string $subjectType, string $kind, array $subjectIds): array
+    {
+        if ([] === $subjectIds) {
+            return [];
+        }
+
+        /** @var list<string> $found */
+        $found = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT DISTINCT subject_id FROM work_requests
+             WHERE subject_type = :type AND kind = :kind AND subject_id IN (:subjects) AND state IN ('open', 'claimed')",
+            ['type' => $subjectType, 'kind' => $kind, 'subjects' => $subjectIds],
+            ['subjects' => ArrayParameterType::STRING],
+        )->fetchFirstColumn();
+
+        return array_fill_keys($found, true);
+    }
+
+    /**
      * The ids of the cards that have an open work request in the projects.
      *
      * @param list<string> $projectIds RFC 4122 ids

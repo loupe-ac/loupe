@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use Symfony\Component\Uid\Uuid;
 
 /** How one launch of an interactive session by a bridge went: running or not-started. */
@@ -16,8 +17,9 @@ final readonly class ReportInteractiveLaunchCommand
         public string $handle,
         public Uuid $sessionId,
         public Uuid $bridgeId,
-        public Uuid $cardId,
-        public int $cardNumber,
+        public WorkSubject $subject,
+        /** Null for a subject that is no card. */
+        public ?int $cardNumber,
         /** The kind of the work request, or the name of the session when it runs no work request. */
         public string $workKind,
         public WorkerRunState $state,

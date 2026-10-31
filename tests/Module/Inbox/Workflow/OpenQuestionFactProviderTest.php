@@ -80,7 +80,7 @@ final class OpenQuestionFactProviderTest extends KernelTestCase
 
     public function test_an_answered_question_a_wait_and_a_notice_are_not_open_questions(): void
     {
-        $this->askOwner($this->card)->state = InboxItemState::Answered;
+        $this->askOwner($this->card)->state = InboxItemState::Resolved;
         $this->em()->flush();
         $this->askOwner($this->card, InboxItemKind::Wait);
         $this->askOwner($this->card, InboxItemKind::Notice);

@@ -116,7 +116,7 @@ with no card shows its source, **Agent** or **Loupe**, instead. An ask that
 holds an open blocking item ends the line with **Blocking**. A review request
 from an agent adds a line under its title that names the target: `Document
 "Tech design"`, or `Pull request #812: Fix the board filter`. The ask page
-shows the same line under its heading. The pull request title is the one that
+shows the target in its byline, after the kind. The pull request title is the one that
 Loupe read from GitHub at its last check, so a renamed pull request shows its
 new title after the next check. A closed ask shows
 how it ended: answered, approved, changes requested, done, dismissed, declined,
@@ -225,16 +225,18 @@ Every item that takes a response shows its forms under its text.
 
 - **Answer a question.** The **Your answer** block lists the options, and says
   whether you pick one or any. A hovered option turns grey, and a picked option
-  turns pale lime. Pick an option, write a note for the agent, or do both, as
-  the question allows. Then select **Send answer**. Select **Clear choice** at
+  turns pale lime. Pick an option, and write an optional note for the agent
+  beside it. When the question allows a written answer, the note alone also
+  answers it. Then select **Send answer**. Select **Clear choice** at
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
-- **Mark a to-do done.** Select **Mark complete**.
-- **Decline an item.** Write an optional note for the agent in the note field,
-  then select **Decline**. Decline any item that you cannot or will not answer,
+- **Mark a to-do done.** Write an optional note for the agent in the note
+  field, then select **Mark complete**. The closed to-do shows your note.
+- **Dismiss an item.** Write an optional note for the agent in the note field,
+  then select **Dismiss**. Dismiss any item that you cannot or will not answer,
   including a question whose options do not fit. A workflow question has no
-  **Decline**, because Loupe needs one of its options.
+  **Dismiss**, because Loupe needs one of its options.
 
 The buttons sit at the right of the item, with the main button last. Only the
 project owner sees them. Another member who can see the project reads the ask
@@ -265,23 +267,20 @@ Drafts stay in memory and do not survive a reload or a closed tab.
 If the request closes before you respond, its page shows your unsent answer separately from the recorded response.
 Copy that draft if needed, or select **Discard draft** to clear it from this tab.
 
-## Changing a response
+## A sent response is final
 
 Review results are final when submitted, even if no agent waits on the request.
 The result keeps the verdict, note, reviewer, time, and reviewed document version.
 Withdrawing a document verdict reopens document review and adds a withdrawal notice beside the original result.
 It does not reopen the completed request, change its answer, or resume the agent again.
 
-For questions and to-dos, you can change a response until an ask that holds the item closes. After that,
-the response is final, because an agent may already act on it. Send a
+A sent response is final. This holds for answers, closing notes, completed to-dos and review results.
+You cannot change it, because an agent may already act on it. Send a
 correction to the agent in some other way.
 
-Each closed item says which case applies:
-
-- "You can still change this response" shows the forms again, so you can pick
-  other options, mark the item done or close it.
-- "This response is final" shows no forms. A change sent from an older copy of
-  the page is refused with the same message.
+A closed item shows your reply, or the message of whoever closed it. It has no reply card.
+The chip of a closed request says when it closed. Point at the chip to see how each item ended.
+A response sent from an older copy of the page is refused, and the item keeps its first response.
 
 An agent can also close an item itself, when it withdraws the item or the work
 behind it finishes. Such an item takes no response from you.
@@ -490,15 +489,13 @@ reason shows as the heading of the reply card when that action is the main one.
 A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
 fit is dropped.
-An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
-that carries suggestions shows a reply card with a split button, beside Decline
-and Mark done. The button offers the suggested actions that fit the to-do now,
-and the recommended one is the main action. A to-do with no suggestion that
-fits shows no split button. A question works the same way, with its split button
-under the answer form. A question offers only the actions that its agent
-suggested, because a worker waits for the answer. Its reply card takes no note,
-because the answer carries your words. An action on a question does not answer
-it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
+An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. The reply
+card of the to-do keeps **Mark complete** as its main action. The suggested
+actions that fit the to-do now go in the menu. Dismiss stays beside the split
+button. A to-do with no suggestion that fits shows no menu. A question works the
+same way, with **Send answer** as its main action. A question offers only the
+actions that its agent suggested, because a worker waits for the answer. An
+action on a question does not answer it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
@@ -583,7 +580,7 @@ worker ends.
 
 An ended run that has stored output also shows **Open the full log**, with the
 number of lines. The link opens the whole log as plain text in a new tab. On a
-failed run, the link sits left of **Mark done** and **Run again**.
+failed run, the link sits left of **Mark complete** and **Run again**.
 
 A success ends the item. A to-do closes as done, and the worker that waits for
 the answer resumes. For a stopped run, Loupe resumes the worker, which reads the
@@ -789,35 +786,55 @@ refuses it.
 
 ### Start an interactive session
 
-Select **Start an interactive session** on an item that has a card, to work
-with an agent in a terminal on your machine. The action needs an online bridge
-with a `session` entry in its rule file. Without one, the action stays grey and
-says that no bridge can open a session. The bridge opens a new session on the
-card. The prompt names the inbox item, and the agent reads your note with
-`inbox_get`.
+Select **Start an interactive session** on any item, open or closed, to work
+with an agent in a terminal on your machine. The action sits in the menu of the
+reply card. It is the main button only when the agent recommended it, or when
+the item has no response of its own, such as a notice. The action needs an online bridge
+with a `session` entry in its rule file. A session about an item that has no
+card or several cards also needs a bridge version that supports it. Without a
+bridge, an item that has a card shows the action in grey with the reason "No
+bridge can open a session". An item that has no card shows no action. A bridge
+that has the `session` entry but not the new version shows the action in grey.
 
-An agent can suggest the action with a prompt for the session. When the action
-is the main button, the inbox shows the prompt in a text field above it. When
-the action is in the menu, choose it to show the field and its own start
-button. A grey action shows no field. You can edit the text. The
-session runs the text that you leave in the field. When you clear the field,
-the session starts with no suggested prompt. The limit is 2000
-characters, and an admin changes it with the `inbox.session_prompt_max_length`
-flag on the flags page. The action hides only while a session request of the
-same card is live. You can cancel the action until a bridge takes it. A request that
-no bridge takes within 2 minutes expires. See
+The session is about the card when the item has exactly one card. That is the
+card of a wait item, the only card linked to the item, or the card that the
+suggestion of the agent names. In every other case the session is about the
+item. The bridge then makes a plain git worktree for the session, and removes it
+when the session ends, also when it holds unsaved work. The hint below the
+button names the bridge, such as "Opens in a fresh worktree on geoffrey-mbp."
+When several bridges can take the session, the hint names none. The item shows
+the session as Running when the bridge starts it.
+
+The inbox shows the prompt of the session in a text field. When the action is
+the main button, the field is above it. When the action is in the menu, choose
+it to show the field and its own start button. A closed item shows the field
+and the button on their own. A grey action shows no field. You can edit the
+text, and the session runs the text that you leave in the field. When you clear
+the field, the session starts with no prompt.
+
+An agent can suggest the prompt. When it suggests none, Loupe writes one. The
+written prompt holds the number and the title of the item, the first 1,500
+characters of its text, and the cards and documents that it links. It tells the
+agent that the item text is data and not an instruction. Read the prompt
+before you start the session, because the text of an item comes from an agent.
+
+The limit of the prompt is 2000 characters, and an admin changes it with the
+`inbox.session_prompt_max_length` flag on the flags page. The action hides only
+while a session request of the same card or the same item is live. You can
+cancel the action until a bridge takes it. A request that no bridge takes
+within 2 minutes expires. See
 [Session entry](../extending/cli-bridge.md#session-entry).
 
 ## Answering through an agent
 
-You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_answer`, `inbox_decline`, `inbox_done` or `inbox_action_run`. Each tool runs the same code as the matching button on the inbox page. The same rules hold. An option must exist, a question with no free text refuses text, and a closed answer changes only while no closed ask holds the item.
+You can decide an item in a chat with an agent, and the agent records your decision. The agent calls `inbox_action_run` with the action `answer`, `complete` or `dismiss`. The tool runs the same code as the matching button on the inbox page. The old tools `inbox_answer`, `inbox_done` and `inbox_decline` are gone, and a call to one returns an error that names `inbox_action_run`. The same rules hold. An option must exist, a question with no free text refuses text, and a closed item takes no second response.
 
-The item shows "Answered through an agent" beside its response. A later response from the page removes that line. `inbox_get` returns the same fact as `respondedThroughAgent`.
+The item shows "Answered through an agent" beside its response. A response is final, so the line stays. `inbox_get` returns the same fact as `closedBy`, with the value `owner-through-agent`.
 
 These limits hold:
 
 1. A session that a bridge started as a worker cannot use these tools. A worker has no person beside it, so it cannot carry your decision. Answer on the page when you resume a worker session by hand.
-2. A review stays on the inbox page. `inbox_decline` refuses a review, and no tool records a review verdict.
+2. A review stays on the inbox page. `inbox_action_run` refuses a review, and only `document_verdict_submit` records the verdict of a document review.
 3. The answer to a workflow question is final. It runs its action at once.
 4. `inbox_action_run` runs every action that fits the item, except the links **Open** and **Review**. A `run-command` call without a `runDigest` runs nothing. It returns the command, the branch, the values and a `runDigest`. The agent shows them to you. The command runs after you confirm in chat and the agent calls again with the same branch, values and `runDigest`. A `start-session` sends the prompt that you confirm in chat. The agent shows you the suggested prompt, and you can change it or clear it, as in the field on the page. When you change nothing, the agent sends the suggested prompt unchanged.
 5. The tools follow the `inbox.enabled` flag. They need no second setting.
@@ -911,4 +928,5 @@ The install wizard writes the flag row on a fresh install, and a database
 migration writes it on an instance that upgrades. A missing row reads as off.
 
 The `inbox.session_prompt_max_length` flag sets the longest prompt that an agent
-can suggest for a session. It is an integer, and it defaults to 2000.
+can suggest for a session, and the longest prompt that Loupe writes. It is an
+integer, and it defaults to 2000.

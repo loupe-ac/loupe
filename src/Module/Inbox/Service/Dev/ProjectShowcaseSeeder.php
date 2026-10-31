@@ -39,6 +39,7 @@ use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -558,9 +559,10 @@ final readonly class ProjectShowcaseSeeder
             freeText: true,
             createdAt: $now->modify('-2 days'),
         );
-        $answered->state = InboxItemState::Answered;
+        $answered->state = InboxItemState::Resolved;
+        $answered->closedBy = InboxCloser::Owner;
         $answered->selectedOptions = [0];
-        $answered->answerText = 'A few seconds of lag is fine for an export.';
+        $answered->note = 'A few seconds of lag is fine for an export.';
         $answered->closedAt = $now->modify('-2 days +30 minutes');
 
         $declined = new InboxItem(
@@ -574,7 +576,8 @@ final readonly class ProjectShowcaseSeeder
             createdAt: $now->modify('-2 days'),
         );
         $declined->state = InboxItemState::Declined;
-        $declined->closeNote = 'Someone else writes the notes this cycle. Ask again at 1.5.';
+        $declined->closedBy = InboxCloser::Owner;
+        $declined->note = 'Someone else writes the notes this cycle. Ask again at 1.5.';
         $declined->closedAt = $now->modify('-2 days +45 minutes');
 
         $reviewed = new InboxItem(
@@ -587,11 +590,12 @@ final readonly class ProjectShowcaseSeeder
             body: 'It answers what a rename does to a rule that points at the column.',
             createdAt: $now->modify('-3 days'),
         );
-        $reviewed->state = InboxItemState::Done;
+        $reviewed->state = InboxItemState::Resolved;
+        $reviewed->closedBy = InboxCloser::Owner;
+        $reviewed->note = 'Say what happens to a rule whose column is deleted rather than renamed.';
         $reviewed->closedAt = $now->modify('-3 days +2 hours');
         $review = new InboxReview($reviewed, $documents['rules']);
         $review->verdict = InboxReviewVerdict::ChangesRequested;
-        $review->note = 'Say what happens to a rule whose column is deleted rather than renamed.';
         $review->reviewer = $reviewer;
         $review->submittedAt = $now->modify('-3 days +2 hours');
         $review->reviewedVersionNumber = 1;

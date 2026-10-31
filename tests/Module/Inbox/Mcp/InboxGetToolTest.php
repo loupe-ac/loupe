@@ -117,7 +117,6 @@ final class InboxGetToolTest extends KernelTestCase
             'documentId' => (string) $document->id,
             'pullRequestId' => null,
             'verdict' => 'approved',
-            'note' => 'Ready to build.',
             'reviewerId' => (string) $project->owner->id,
             'reviewerName' => $project->owner->fullName,
             'submittedAt' => $result->submittedAt->format(\DATE_ATOM),
@@ -133,7 +132,8 @@ final class InboxGetToolTest extends KernelTestCase
         $this->em->clear();
 
         $closed = ($this->tool)($itemId, $sessionId);
-        self::assertSame('done', $closed['state']);
+        self::assertSame('resolved', $closed['state']);
+        self::assertSame(['owner', 'Ready to build.'], [$closed['closedBy'], $closed['note']]);
         self::assertSame($expected, $closed['review']);
         $list = self::getContainer()->get(InboxListTool::class);
         self::assertInstanceOf(InboxListTool::class, $list);
@@ -172,8 +172,10 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertTrue($item['freeText']);
         self::assertSame('open', $item['state']);
         self::assertSame([], $item['selectedOptions']);
-        self::assertNull($item['answerText']);
-        self::assertNull($item['closeNote']);
+        self::assertNull($item['note']);
+        self::assertNull($item['closedBy']);
+        self::assertNull($item['closeCause']);
+        self::assertTrue($item['dismissible']);
         self::assertSame([['cardId' => (string) $card->id, 'number' => 7, 'title' => 'Ship it']], $item['cards']);
         self::assertSame([['documentId' => (string) $document->id, 'title' => 'The design']], $item['documents']);
         self::assertSame('agent', $item['origin']);

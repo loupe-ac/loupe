@@ -42,7 +42,7 @@ final class CardOpenInboxItemReaderTest extends KernelTestCase
         $em->persist(new InboxCardWatch($wait, $waiting->id ?? throw new \LogicException('Flushed.'), $waiting->number));
 
         $done = $this->item($em, $project, 4, 'Done');
-        $done->state = InboxItemState::Done;
+        $done->state = InboxItemState::Resolved;
         $em->persist(new InboxItemCard($done, $closed));
 
         $other = $this->project($em, $this->owner($em, 'other-items'), 'other-items');

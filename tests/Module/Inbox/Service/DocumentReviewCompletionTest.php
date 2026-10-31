@@ -8,6 +8,7 @@ use App\Module\Account\Repository\UserRepository;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -51,7 +52,7 @@ final class DocumentReviewCompletionTest extends KernelTestCase
         $events = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $events);
         $events->addListener(ReviewSubmitted::class, static function () use ($item): void {
-            self::assertSame(InboxItemState::Done, $item->state);
+            self::assertSame(InboxItemState::Resolved, $item->state);
             throw new \RuntimeException('Abort after inbox completion.');
         }, -1000);
         $submit = self::getContainer()->get(SubmitReviewHandler::class);
@@ -110,9 +111,10 @@ final class DocumentReviewCompletionTest extends KernelTestCase
 
         $stored = $em->find(InboxReview::class, $review->id);
         self::assertInstanceOf(InboxReview::class, $stored);
-        self::assertSame(InboxItemState::Done, $stored->item->state);
+        self::assertSame(InboxItemState::Resolved, $stored->item->state);
         self::assertSame(InboxReviewVerdict::from($verdict), $stored->verdict);
-        self::assertSame('Please verify retries.', $stored->note);
+        self::assertSame('Please verify retries.', $stored->item->note);
+        self::assertSame([InboxCloser::Owner, null], [$stored->item->closedBy, $stored->item->closeCause]);
         self::assertSame((string) $result->id, (string) $stored->documentReview?->id);
         self::assertSame((string) $owner->id, (string) $stored->reviewer?->id);
         self::assertSame(1, $stored->reviewedVersionNumber);
@@ -157,7 +159,8 @@ final class DocumentReviewCompletionTest extends KernelTestCase
 
         $stored = $em->find(InboxReview::class, $review->id);
         self::assertInstanceOf(InboxReview::class, $stored);
-        self::assertSame(InboxItemState::Done, $stored->item->state);
+        self::assertSame(InboxItemState::Resolved, $stored->item->state);
+        self::assertSame([InboxCloser::Rule, null], [$stored->item->closedBy, $stored->item->closeCause]);
         self::assertSame((string) $result->id, (string) $stored->documentReview?->id);
         $payloads = $em->getConnection()->fetchFirstColumn(
             'SELECT payload FROM outbox_events WHERE project_id = ? AND type = ?',

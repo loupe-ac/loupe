@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxChangedPublisher;
@@ -24,6 +25,8 @@ use Ubermuda\AuditBundle\AuditSubject;
  */
 final readonly class JoinInboxAskHandler
 {
+    public const string NOT_AGENT_ITEM = 'inbox.join.error.not_agent_item';
+
     public function __construct(
         private InboxItemRepository $inboxItems,
         private InboxSessionAsks $sessionAsks,
@@ -37,6 +40,11 @@ final readonly class JoinInboxAskHandler
     {
         $item = $command->item;
         $project = $item->project;
+
+        // Loupe opens a wait, a notice and a workflow question, and no agent waits on them.
+        if (\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Notice, InboxItemKind::Workflow], true)) {
+            throw new DomainErrors(['itemId' => self::NOT_AGENT_ITEM]);
+        }
 
         try {
             $view = $this->em->wrapInTransaction(function () use ($command, $item, $project): JoinInboxAskView|InboxRefusal {

@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Board\Repository\CardPullRequestRepository;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -40,7 +41,7 @@ final readonly class SubmitInboxPullRequestReviewHandler
             throw new DomainErrors(['note' => 'review.document.flash.note_required']);
         }
 
-        $this->closer->respond($item, InboxItemState::Done, 'verdict', function (InboxItem $item) use ($command, $verdict, $note): ?array {
+        $this->closer->respond($item, InboxItemState::Resolved, InboxCloser::Owner, null, 'verdict', function (InboxItem $item) use ($command, $verdict, $note): ?array {
             $review = $this->inboxReviews->findOneBy(['item' => $item]);
             if (null === $review || InboxReviewTargetKind::PullRequest !== $review->targetKind) {
                 return ['verdict' => 'inbox.review.error.not_a_pull_request'];
@@ -55,7 +56,7 @@ final readonly class SubmitInboxPullRequestReviewHandler
 
             $review->targetLabel = $url;
             $review->verdict = $verdict;
-            $review->note = '' === $note ? null : $note;
+            $item->note = '' === $note ? null : $note;
             $review->reviewer = $command->reviewer;
             $review->submittedAt = new \DateTimeImmutable();
 

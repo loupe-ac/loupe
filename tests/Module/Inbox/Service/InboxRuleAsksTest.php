@@ -15,6 +15,8 @@ use App\Module\Inbox\Command\DeclineInboxItemHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -120,12 +122,13 @@ final class InboxRuleAsksTest extends KernelTestCase
         $this->em->clear();
         $stored = $this->em->find(InboxItem::class, $item->id);
         self::assertInstanceOf(InboxItem::class, $stored);
-        self::assertSame(InboxItemState::Withdrawn, $stored->state);
-        self::assertSame('The rule stopped holding.', $stored->closeNote);
+        self::assertSame(InboxItemState::Cancelled, $stored->state);
+        self::assertSame('The rule stopped holding.', $stored->note);
+        self::assertSame([InboxCloser::Rule, InboxCloseCause::RuleWithdrew], [$stored->closedBy, $stored->closeCause]);
 
         $this->asks->withdraw($item->id, 'Again');
         $this->em->clear();
-        self::assertSame('The rule stopped holding.', $this->em->find(InboxItem::class, $item->id)?->closeNote);
+        self::assertSame('The rule stopped holding.', $this->em->find(InboxItem::class, $item->id)?->note);
     }
 
     public function test_the_answer_is_final_and_queues_the_picked_index(): void
@@ -133,7 +136,8 @@ final class InboxRuleAsksTest extends KernelTestCase
         $item = $this->open();
 
         $this->answer($item, '1');
-        self::assertSame(InboxItemState::Answered, $item->state);
+        self::assertSame(InboxItemState::Resolved, $item->state);
+        self::assertSame(InboxCloser::Owner, $item->closedBy);
         self::assertSame([1], $item->selectedOptions);
         self::assertEquals([new RunRuleAskAnswer((string) $item->id, 1)], $this->answers());
 
@@ -166,7 +170,7 @@ final class InboxRuleAsksTest extends KernelTestCase
 
         $withdraw = self::getContainer()->get(WithdrawInboxItemHandler::class);
         self::assertInstanceOf(WithdrawInboxItemHandler::class, $withdraw);
-        self::assertSame(['itemId' => WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE], $this->refused(fn () => $withdraw(new WithdrawInboxItemCommand($item, 'No'))));
+        self::assertSame(['itemId' => WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE], $this->refused(fn () => $withdraw(new WithdrawInboxItemCommand($item, 'No', Uuid::v4()))));
 
         self::assertSame(InboxItemState::Open, $item->state);
     }
@@ -181,8 +185,8 @@ final class InboxRuleAsksTest extends KernelTestCase
         $this->dispatch(new CardHeld($this->projectId(), $this->cardId()));
 
         $this->em->clear();
-        self::assertSame(InboxItemState::Withdrawn, $this->em->find(InboxItem::class, $item->id)?->state);
-        self::assertSame(InboxItemState::Answered, $this->em->find(InboxItem::class, $answered->id)?->state);
+        self::assertSame(InboxItemState::Cancelled, $this->em->find(InboxItem::class, $item->id)?->state);
+        self::assertSame(InboxItemState::Resolved, $this->em->find(InboxItem::class, $answered->id)?->state);
     }
 
     public function test_a_deleted_card_withdraws_its_items_by_card_id(): void
@@ -195,7 +199,7 @@ final class InboxRuleAsksTest extends KernelTestCase
 
         $this->dispatch(new CardChanged($this->projectId(), $this->cardId(), CardChanged::DELETED, false));
         $this->em->clear();
-        self::assertSame(InboxItemState::Withdrawn, $this->em->find(InboxItem::class, $item->id)?->state);
+        self::assertSame(InboxItemState::Cancelled, $this->em->find(InboxItem::class, $item->id)?->state);
     }
 
     public function test_an_agent_cannot_create_the_kind(): void

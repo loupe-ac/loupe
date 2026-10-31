@@ -29,6 +29,15 @@ final readonly class RunInboxActionCommand
         public ?string $sessionPrompt = null,
         /** An agent ran the action on behalf of the owner. */
         public bool $throughAgent = false,
+        /** The comma-separated option indexes of an answer. */
+        public string $selectedOptions = '',
+        /** The verdict of a review: approved or changes-requested. */
+        public ?string $verdict = null,
+        /** The document version the owner read, for the review of a document. */
+        public ?int $versionNumber = null,
+        public ?string $expectedReviewId = null,
+        /** The pull request the owner read, for the review of a pull request. */
+        public ?string $expectedUrl = null,
     ) {
     }
 }

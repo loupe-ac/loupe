@@ -27,14 +27,14 @@ final readonly class InboxRow
     public array $cards;
 
     /**
-     * @param list<InboxItem> $items   at least one, in the order the ask holds them
-     * @param ?string         $outcome the translation suffix of how a closed row ended
-     * @param ?InboxItem      $closing the item that closed the row, which also gives its outcome
+     * @param list<InboxItem>    $items   at least one, in the order the ask holds them
+     * @param ?InboxOutcomeLabel $outcome how a closed row ended
+     * @param ?InboxItem         $closing the item that closed the row, which also gives its outcome
      */
     public function __construct(
         public ?InboxAsk $ask,
         public array $items,
-        public ?string $outcome = null,
+        public ?InboxOutcomeLabel $outcome = null,
         public ?InboxItem $closing = null,
     ) {
         $first = $items[0] ?? throw new \LogicException('A row holds at least one item.');

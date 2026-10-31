@@ -1,0 +1,14 @@
+{#- The card where the owner starts a new session from a closed item: the prompt and one button.
+   Params: item, row (ThreadAction of Start session), form (FormView), actionParams, responseFrame. -#}
+{% set bridge = row.action.bridgeName %}
+<div class="lp-inbox-item__actions">
+    {{ form_start(form, {action: path('app_inbox_item_action', actionParams|merge({kind: 'start-session'})), attr: {id: form.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}}) }}
+        <twig:Ds:FormField :fieldView="form.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+        <twig:Ds:FieldErrors :fieldView="form" />
+        {{ form_widget(form._token) }}
+        <div class="lp-comment-composer__actions">
+            <twig:Ds:Hint as="span" class="inbox-split__hint">{{ bridge ? 'inbox.action.start-session.worktree_hint'|trans({'%bridge%': bridge}) : '' }}</twig:Ds:Hint>
+            <twig:Ds:Button variant="primary" size="sm" type="submit" data-inbox-action="start-session">{{ row.action.labelKey|trans(row.action.labelParams) }}</twig:Ds:Button>
+        </div>
+    {{ form_end(form, {render_rest: false}) }}
+</div>
