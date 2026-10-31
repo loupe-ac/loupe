@@ -65,9 +65,12 @@ final class AccountOpenRouterControllerTest extends WebTestCase
         self::assertSame('sk-or-v1-…a3f9', trim($crawler->filter('[data-testid="openrouter-key-mask"]')->text()));
         self::assertStringContainsString('Connected', $crawler->filter('[data-testid="openrouter-key-row"]')->text());
         self::assertSame('No cost read yet', trim($crawler->filter('[data-testid="openrouter-key-last-read"]')->text()));
-        self::assertCount(0, $crawler->filter('[data-testid="openrouter-key-form"]'));
-        self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-replace"]'));
-        self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-remove"]'));
+        self::assertCount(1, $crawler->filter('.lp-openrouter-replace:not(.open) [data-testid="openrouter-key-form"]'));
+        self::assertSame('disclosure#toggle', $crawler->filter('[data-testid="openrouter-key-replace"]')->attr('data-action'));
+        self::assertCount(1, $crawler->filter('[data-controller="modal"] [data-testid="openrouter-key-remove"][type="button"]'));
+        $dialog = $crawler->filter('[data-testid="openrouter-remove-dialog"]');
+        self::assertStringContainsString('Remove your OpenRouter key?', $dialog->text());
+        self::assertSame(self::PAGE.'/remove', $dialog->filter('form')->attr('action'));
         self::assertStringNotContainsString('the-whole-secret', (string) $client->getResponse()->getContent());
     }
 
@@ -104,7 +107,7 @@ final class AccountOpenRouterControllerTest extends WebTestCase
         self::assertStringContainsString('lp-btn--primary', (string) $crawler->filter('[data-testid="openrouter-key-replace"]')->attr('class'));
     }
 
-    public function test_replace_opens_the_form_and_cancel_leads_back(): void
+    public function test_replace_opens_the_form_and_cancel_closes_it(): void
     {
         $client = $this->client();
         $user = $this->makeUser(static::getContainer(), 'page-replace');
@@ -113,9 +116,9 @@ final class AccountOpenRouterControllerTest extends WebTestCase
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, self::PAGE.'?replace=1');
 
-        self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-form"]'));
+        self::assertCount(1, $crawler->filter('.lp-openrouter-replace.open [data-testid="openrouter-key-form"]'));
         self::assertSame('', (string) $crawler->filter('[data-testid="openrouter-key-form"] input[type="password"]')->attr('value'));
-        self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-form"] a[href="'.self::PAGE.'"]'));
+        self::assertSame('disclosure#toggle', $crawler->filter('[data-testid="openrouter-key-cancel"]')->attr('data-action'));
     }
 
     public function test_the_page_never_shows_the_key_of_another_user(): void
@@ -218,7 +221,7 @@ final class AccountOpenRouterControllerTest extends WebTestCase
         $client->loginUser($user);
 
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, self::PAGE);
-        $client->submitForm('Remove');
+        $client->submitForm('Remove the key');
 
         self::assertResponseRedirects(self::PAGE);
         $this->em()->clear();

@@ -91,9 +91,13 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         self::assertSame("Key in use: This project's key", trim($crawler->filter('[data-testid="openrouter-key-in-use"]')->text()));
         self::assertSame('sk-or-v1-…7c21', trim($crawler->filter('[data-testid="openrouter-key-mask"]')->text()));
         self::assertStringContainsString('Connected', $crawler->filter('[data-testid="openrouter-key-row"]')->text());
-        self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-replace"]'));
-        self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-remove"]'));
-        self::assertStringContainsString('Remove the project key to use the key of your account again.', $crawler->filter('[data-testid="openrouter-key-hint"]')->text());
+        self::assertSame('disclosure#toggle', $crawler->filter('[data-testid="openrouter-key-replace"]')->attr('data-action'));
+        self::assertCount(1, $crawler->filter('[data-controller="modal"] [data-testid="openrouter-key-remove"][type="button"]'));
+        self::assertStringContainsString('Remove the key of this project?', $crawler->filter('[data-testid="openrouter-remove-dialog"]')->text());
+        self::assertCount(1, $crawler->filter('.lp-openrouter-replace:not(.open) [data-testid="openrouter-key-form"]'));
+        $hint = $crawler->filter('.lp-openrouter-note[data-testid="openrouter-key-hint"]');
+        self::assertStringContainsString('Remove the project key to use the key of your account again.', $hint->text());
+        self::assertCount(1, $hint->filter('svg'));
         self::assertStringNotContainsString('a3f9', $crawler->filter('[data-testid="openrouter-key-row"]')->text());
     }
 
@@ -115,7 +119,8 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         self::assertStringContainsString('Refused by OpenRouter', $crawler->filter('[data-testid="openrouter-key-row"]')->text());
         self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-use-own"]'));
         self::assertCount(0, $crawler->filter('[data-testid="openrouter-key-remove"]'));
-        self::assertCount(0, $crawler->filter('[data-testid="openrouter-key-form"]'));
+        self::assertCount(1, $crawler->filter('.lp-openrouter-replace:not(.open) [data-testid="openrouter-key-form"]'));
+        self::assertCount(1, $crawler->filter('.lp-openrouter-note[data-testid="openrouter-key-hint"] svg'));
     }
 
     public function test_with_no_key_anywhere_the_page_offers_a_key_for_the_project_or_the_account(): void
@@ -131,6 +136,7 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-empty"]'));
         self::assertCount(0, $crawler->filter('[data-testid="openrouter-key-row"]'));
         self::assertSame($this->page($project).'?replace=1', $crawler->filter('[data-testid="openrouter-key-add-project"]')->attr('href'));
+        self::assertSame('disclosure#toggle', $crawler->filter('[data-testid="openrouter-key-add-project"]')->attr('data-action'));
         self::assertSame('/account/openrouter', $crawler->filter('[data-testid="openrouter-key-add-account"]')->attr('href'));
     }
 
@@ -189,6 +195,7 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('OpenRouter says this is not a management key.', $crawler->filter('[data-testid="openrouter-key-form"]')->text());
+        self::assertCount(1, $crawler->filter('.lp-openrouter-replace.open [data-testid="openrouter-key-form"]'));
         self::assertCount(1, $crawler->filter('a[href="https://openrouter.ai/settings/management-keys"]'));
         self::assertStringNotContainsString(self::SECRET, (string) $client->getResponse()->getContent());
         self::assertNull($this->keys()->findOneBy(['project' => $project]));
@@ -204,7 +211,7 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         $client->loginUser($owner);
 
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $this->page($project));
-        $client->submitForm('Remove');
+        $client->submitForm('Remove the key');
 
         self::assertResponseRedirects($this->page($project));
         $this->em()->clear();

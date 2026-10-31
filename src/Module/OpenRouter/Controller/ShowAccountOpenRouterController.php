@@ -35,14 +35,13 @@ final class ShowAccountOpenRouterController extends AppController
         }
 
         $view = ($this->showAccount)(new ShowAccountOpenRouterCommand($user));
-        $keyForm = $this->getInjectedFormView($request, 'keyForm');
-        if (null === $keyForm && (null === $view->key || $request->query->has('replace'))) {
-            $keyForm = $this->createForm(OpenRouterKeyFormType::class, new OpenRouterKeyRequest())->createView();
-        }
+        $injectedForm = $this->getInjectedFormView($request, 'keyForm');
+        $keyForm = $injectedForm ?? $this->createForm(OpenRouterKeyFormType::class, new OpenRouterKeyRequest())->createView();
 
         return $this->render('@OpenRouter/show_account_openrouter.html.twig', [
             'view' => $view,
             'keyForm' => $keyForm,
+            'replaceOpen' => null !== $injectedForm || $request->query->has('replace'),
             'notManagementKey' => true === $request->attributes->get('notManagementKey'),
         ]);
     }

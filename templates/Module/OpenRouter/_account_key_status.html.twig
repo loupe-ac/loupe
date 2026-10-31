@@ -14,10 +14,8 @@
                 {%- endif -%}
             </span>
         </span>
-        <twig:Ds:Button variant="{{ key.refused ? 'primary' : 'outline' }}" size="sm" href="{{ path('app_account_openrouter', {replace: 1}) }}" data-turbo-frame="_top" data-testid="openrouter-key-replace">{{ 'openrouter.key.replace'|trans }}</twig:Ds:Button>
-        <twig:Ds:ActionForm action="{{ path('app_account_openrouter_remove') }}" token="openrouter-key-remove" frame="_top">
-            <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" data-testid="openrouter-key-remove">{{ 'openrouter.key.remove'|trans }}</twig:Ds:Button>
-        </twig:Ds:ActionForm>
+        <twig:Ds:Button variant="{{ key.refused ? 'primary' : 'outline' }}" size="sm" href="{{ path('app_account_openrouter', {replace: 1}) }}" data-turbo-frame="_top" data-action="disclosure#toggle" data-disclosure-target="trigger" aria-controls="openrouter-replace" data-testid="openrouter-key-replace">{{ 'openrouter.key.replace'|trans }}</twig:Ds:Button>
+        {% include '@OpenRouter/_remove_dialog.html.twig' with {label: 'openrouter.key.remove'|trans, title: 'openrouter.remove.account.title'|trans, description: 'openrouter.remove.account.description'|trans, action: path('app_account_openrouter_remove')} only %}
     </div>
     {% else %}
     <p class="lp-connect-hint" data-testid="openrouter-key-empty">{{ 'openrouter.account.empty'|trans }}</p>

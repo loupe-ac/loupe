@@ -6,8 +6,8 @@
 
 {% block settings_content %}
 {% do mercure_subscribe(openrouter_topic(app.user)) %}
-<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="openrouter-section"
-    data-controller="live-pill"
+<twig:Ds:Panel as="section" class="lp-connect-block{{ replaceOpen ? ' disclosure-open' }}" data-testid="openrouter-section"
+    data-controller="live-pill disclosure"
     data-live-pill-events-value="{{ ['openrouter_key.changed']|json_encode }}"
     data-live-pill-url-value="{{ path('app_account_openrouter_status') }}"
     data-live-pill-stopped-value="{{ 'openrouter.live_stopped'|trans }}">
@@ -16,8 +16,12 @@
     {% include '@OpenRouter/_account_key_status.html.twig' with {view: view} only %}
     <p class="lp-live-stopped" role="status" data-live-pill-target="status"></p>
 
-    {% if keyForm is not null %}
-    {% include '@OpenRouter/_key_form.html.twig' with {keyForm: keyForm, action: path('app_account_openrouter_save'), notManagementKey: notManagementKey, cancelUrl: view.key is not null ? path('app_account_openrouter') : null} only %}
+    {% if view.key is null %}
+    {% include '@OpenRouter/_key_form.html.twig' with {keyForm: keyForm, action: path('app_account_openrouter_save'), notManagementKey: notManagementKey, cancellable: false} only %}
+    {% else %}
+    <div id="openrouter-replace" class="lp-openrouter-replace{{ replaceOpen ? ' open' }}" data-disclosure-target="content">
+        {% include '@OpenRouter/_key_form.html.twig' with {keyForm: keyForm, action: path('app_account_openrouter_save'), notManagementKey: notManagementKey, cancellable: true} only %}
+    </div>
     {% endif %}
 </twig:Ds:Panel>
 {% endblock %}

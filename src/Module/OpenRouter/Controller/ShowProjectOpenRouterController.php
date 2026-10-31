@@ -32,15 +32,14 @@ final class ShowProjectOpenRouterController extends AppController
     public function __invoke(Project $project, Request $request): Response
     {
         $view = ($this->showProject)(new ShowProjectOpenRouterCommand($project));
-        $keyForm = $this->getInjectedFormView($request, 'keyForm');
-        if (null === $keyForm && $request->query->has('replace')) {
-            $keyForm = $this->createForm(OpenRouterKeyFormType::class, new OpenRouterKeyRequest())->createView();
-        }
+        $injectedForm = $this->getInjectedFormView($request, 'keyForm');
+        $keyForm = $injectedForm ?? $this->createForm(OpenRouterKeyFormType::class, new OpenRouterKeyRequest())->createView();
 
         return $this->render('@OpenRouter/show_project_openrouter.html.twig', [
             'project' => $project,
             'view' => $view,
             'keyForm' => $keyForm,
+            'replaceOpen' => null !== $injectedForm || $request->query->has('replace'),
             'notManagementKey' => true === $request->attributes->get('notManagementKey'),
         ]);
     }

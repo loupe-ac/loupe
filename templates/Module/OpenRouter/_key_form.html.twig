@@ -7,8 +7,8 @@
     </twig:Ds:Hint>
     {% endif %}
     <twig:Ds:FormActions>
-        {% if cancelUrl %}
-        <twig:Ds:Button variant="ghost" href="{{ cancelUrl }}" data-turbo-frame="_top">{{ 'openrouter.key.cancel'|trans }}</twig:Ds:Button>
+        {% if cancellable %}
+        <twig:Ds:Button variant="ghost" type="button" data-action="disclosure#toggle" data-testid="openrouter-key-cancel">{{ 'openrouter.key.cancel'|trans }}</twig:Ds:Button>
         {% endif %}
         <twig:Ds:Button variant="primary" type="submit">{{ 'openrouter.key.save'|trans }}</twig:Ds:Button>
     </twig:Ds:FormActions>

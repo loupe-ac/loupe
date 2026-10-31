@@ -9940,6 +9940,11 @@
             <trans-unit id="openrouter.key.remove"><source>openrouter.key.remove</source><target>Remove</target></trans-unit>
             <trans-unit id="openrouter.key.save"><source>openrouter.key.save</source><target>Save the key</target></trans-unit>
             <trans-unit id="openrouter.key.cancel"><source>openrouter.key.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="openrouter.remove.account.title"><source>openrouter.remove.account.title</source><target>Remove your OpenRouter key?</target></trans-unit>
+            <trans-unit id="openrouter.remove.account.description"><source>openrouter.remove.account.description</source><target>Loupe forgets the key. Projects that use it show no billed cost for new runs until you add a key again.</target></trans-unit>
+            <trans-unit id="openrouter.remove.project.title"><source>openrouter.remove.project.title</source><target>Remove the key of this project?</target></trans-unit>
+            <trans-unit id="openrouter.remove.project.description"><source>openrouter.remove.project.description</source><target>Loupe forgets the key of this project. The project then uses the key of your account, when you have one.</target></trans-unit>
+            <trans-unit id="openrouter.remove.confirm"><source>openrouter.remove.confirm</source><target>Remove the key</target></trans-unit>
             <trans-unit id="openrouter.form.hint"><source>openrouter.form.hint</source><target>The key can manage your whole OpenRouter account. Loupe uses it only to read costs.</target></trans-unit>
             <trans-unit id="openrouter.form.open_router_key_form.secret.label"><source>openrouter.form.open_router_key_form.secret.label</source><target>Management key</target></trans-unit>
             <trans-unit id="openrouter.form.open_router_key_form.secret.placeholder"><source>openrouter.form.open_router_key_form.secret.placeholder</source><target>sk-or-v1-…</target></trans-unit>

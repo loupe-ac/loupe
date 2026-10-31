@@ -5066,6 +5066,20 @@
     .lp-identity-row--key > .lp-status-chip {
         @apply ml-0;
     }
+    /* The OpenRouter key form stays closed until a Replace button opens it. */
+    .lp-openrouter-replace {
+        @apply hidden overflow-hidden;
+    }
+    .lp-openrouter-replace.open {
+        @apply block;
+    }
+    /* A note on the key in use, drawn as a card with an icon. */
+    .lp-openrouter-note {
+        @apply flex items-start gap-3 m-0 rounded-xl border border-line bg-app py-3 px-4 text-sm leading-normal text-fg-mute;
+    }
+    .lp-openrouter-note__icon {
+        @apply shrink-0 mt-0.5;
+    }
 
     /* The Repositories section: a row for each repository, then its check list. */
     .lp-repository-list {
