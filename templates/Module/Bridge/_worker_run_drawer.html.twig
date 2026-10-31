@@ -52,10 +52,12 @@
                 <span data-worker-run-cost-pending>{{ 'bridge.worker_runs.details.metric.pending'|trans }}</span>
                 {% elseif billedCost is not null and billedCost.state.value == 'unknown' and billedCost.reason is not null %}
                 <span class="lp-run-drawer__cost-unknown" data-worker-run-cost-unknown>
-                    {{ 'bridge.worker_runs.details.metric.unknown'|trans }}
-                    <span data-worker-run-cost-reason>{{ ('bridge.worker_runs.details.metric.reason.' ~ billedCost.reason.value)|trans }}</span>
-                    {% set keySettingsUrl = is_granted('project.manage', project) ? path('app_project_openrouter', {id: project.id}) : path('app_account_openrouter') %}
-                    <twig:Ds:Button variant="ghost icon" href="{{ keySettingsUrl }}" data-turbo-frame="_top" data-worker-run-cost-settings :aria-label="'bridge.worker_runs.details.metric.key_settings'|trans"><twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+                    <span>{{ 'bridge.worker_runs.details.metric.unknown'|trans }}</span>
+                    <span class="lp-run-drawer__cost-reason">
+                        <span data-worker-run-cost-reason>{{ ('bridge.worker_runs.details.metric.reason.' ~ billedCost.reason.value)|trans }}</span>
+                        {% set keySettingsUrl = is_granted('project.manage', project) ? path('app_project_openrouter', {id: project.id}) : path('app_account_openrouter') %}
+                        <twig:Ds:Button variant="ghost icon" href="{{ keySettingsUrl }}" data-turbo-frame="_top" data-worker-run-cost-settings :aria-label="'bridge.worker_runs.details.metric.key_settings'|trans"><twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+                    </span>
                 </span>
                 {% elseif fact is null or fact.costMicroUsd is null %}
                 {{ 'bridge.worker_runs.details.metric.unknown'|trans }}
