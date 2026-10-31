@@ -337,3 +337,11 @@ Read the file before you work on the topic.
 - `references/http-and-concurrency.md` before you call an external service through `HttpClientInterface`, or write a read-check-write handler that a concurrent request could race.
 - `references/workflow-facts.md` before a module feeds facts, a condition or a re-evaluation listener to the workflow engine. Import only `App\Module\Workflow\Contract`.
 - `references/env-vars.md` before you add an environment variable. Never put JSON in one. A new key reaches seven places, and `DeploymentConfigParityCheck` reports one that `docs/reference/environment.md` lacks.
+
+## Migration names, bundle pins and entity mapping
+
+Give a Doctrine migration a real current-datetime timestamp in its `VersionYYYYMMDDHHMMSS` class name. Never use a round placeholder such as `…000000`. Two parallel branches that both use a round number collide on the version prefix. The class names still differ, but the collision is confusing and it breaks `migrate-diff` ordering assumptions.
+
+To consume an unmerged `ubermuda/*` bundle branch, pin `"dev-<branch>#<full-40-char-sha> as dev-main"`. Keep the `as dev-main` alias, because sibling ubermuda packages require `dev-main@dev`. After the bundle pull request merges, repoint to plain `"dev-main#<merge-sha>"` and drop the alias in the same wave. Re-copy any assets the bundle ships, such as `feature_flag_form_controller.js`, at every pin change.
+
+`config/packages/doctrine.yaml` maps `dir: '%kernel.project_dir%/src'` with `prefix: 'App'`, which covers every entity under `src/Module/*/Entity/`. Do not narrow it to `src/Entity`, which is empty and exists only as a skeleton placeholder. When the mapping is wrong, PHPUnit fails with "Could not find the entity manager for class" on every entity.
