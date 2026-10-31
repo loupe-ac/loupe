@@ -85,7 +85,7 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
             'endedAt' => '2026-01-01T10:05:00.000000+00:00',
             'expiresAt' => '2026-09-29T12:15:00+00:00',
             'cause' => 'person',
-            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null],
+            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null, 'epicBranch' => null],
             'model' => null,
             'effort' => null,
             'harness' => null,

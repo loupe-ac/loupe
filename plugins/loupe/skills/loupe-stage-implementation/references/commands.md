@@ -79,7 +79,12 @@ Slug a column label from the prompt: lowercase, with hyphens for spaces. Compare
 
 ## Find the base branch
 
-`<base>` is the base branch from the profile `Gate` section, with one exception. A card whose `card_get` `parent` is not null can belong to an epic branch, when the profile has an `Epics` section. Fill the epic branch pattern of that section with `parent.number`, and run this:
+`<base>` is the base branch from the profile `Gate` section, with one exception.
+
+1. A prompt line `Epic branch: <name>.` with a non-empty name sets `<base>` to that name. Run `git ls-remote --exit-code origin refs/heads/<name>`. When it fails, stop with `STAGE RESULT: blocked: epic branch <name> missing`. Never fall back to the profile base branch.
+2. A prompt with no such line, or with an empty one, runs the check below. The bridge fills the line as empty for a card with no epic branch.
+
+A card whose `card_get` `parent` is not null can belong to an epic branch, when the profile has an `Epics` section. Fill the epic branch pattern of that section with `parent.number`, and run this:
 
 ```bash
 git ls-remote --exit-code origin refs/heads/<epic branch>
