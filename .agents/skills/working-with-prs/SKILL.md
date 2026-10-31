@@ -332,7 +332,7 @@ Write one Markdown list item per link in the Preview section. Name the marker
 that you found:
 
 ```markdown
-- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
+- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`, no data
 ```
 
 A page that only a signed-out visitor sees, such as the landing page at `/`,
