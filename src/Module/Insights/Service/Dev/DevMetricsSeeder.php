@@ -110,7 +110,10 @@ final readonly class DevMetricsSeeder
         return true;
     }
 
-    /** The previous period costs about 15% more, so a compare shows a fall. WorkerRunFactListener writes the fact row on flush. */
+    /**
+     * The runs of one day share a card, so the compare sign counts enough cards. No board card has that number, so the run drawer links nowhere.
+     * The previous period costs about 15% more, so a compare shows a fall. WorkerRunFactListener writes the fact row on flush.
+     */
     private function run(Project $project, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, float $baseCost, int $baseMinutes): WorkerRun
     {
         $wave = 1 + 0.25 * sin($daysAgo * 0.9 + $index);
@@ -124,8 +127,8 @@ final readonly class DevMetricsSeeder
             project: $project,
             bridgeId: Uuid::fromString(self::BRIDGE),
             subjectType: WorkSubject::CARD,
-            subjectId: Uuid::v7(),
-            cardNumber: null,
+            subjectId: Uuid::v5(Uuid::fromString(self::BRIDGE), $day->format('Y-m-d')),
+            cardNumber: (int) $day->format('ymd'),
             workKind: $workKind,
             state: WorkerRunState::Succeeded,
             runKey: Uuid::v7(),

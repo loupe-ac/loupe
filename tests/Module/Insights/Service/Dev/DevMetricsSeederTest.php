@@ -43,6 +43,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         sort($models);
         self::assertSame(['claude-haiku-5-5', 'claude-opus-5-5', 'claude-sonnet-5-5'], $models);
 
+        self::assertSame(DevMetricsSeeder::DAYS, \count(array_unique(array_map(static fn (WorkerRun $run): ?int => $run->cardNumber, $runs))), 'Each day has one card, so the compare sign counts enough cards.');
+
         $days = $this->days($runs);
         sort($days);
         self::assertSame('2026-10-30', end($days), 'The newest runs are from yesterday, so none starts in the future.');
