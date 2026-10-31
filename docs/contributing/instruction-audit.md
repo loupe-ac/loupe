@@ -17,8 +17,8 @@ bin/agents/instruction-load-cost --days 7              # a shorter window
 bin/agents/instruction-load-cost --with loupe-board    # sessions that also load loupe-board
 ```
 
-The script reads the Claude Code transcripts of this repository and of its
-worktrees, under `~/.claude/projects` and `~/.claude-worker/projects`. It reads
+The script reads the Claude Code transcripts of this repository, of its
+worktrees and of the bridge card worktrees, under `~/.claude/projects` and `~/.claude-worker/projects`. It reads
 them without changes and prints counts only. A skill load counts once per
 `Skill` tool call. `AGENTS.md` counts once per top-level session. The load cost
 of a file is its loads times its current word count.

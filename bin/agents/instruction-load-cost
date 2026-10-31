@@ -5,7 +5,8 @@
 #   bin/agents/instruction-load-cost [--days <n>] [--with <skill>]
 #
 # Reads the *.jsonl transcripts under ~/.claude/projects and ~/.claude-worker/projects
-# whose project directory is this repository or one of its .worktrees, modified in the last n days (default 30).
+# whose project directory is this repository, one of its .worktrees or a bridge card worktree,
+# modified in the last n days (default 30).
 # Loads: each Skill tool call counts once by its tool-use id. AGENTS.md loads once per top-level session.
 # Words: the current "wc -w" of AGENTS.md and of .agents/skills/<name>/SKILL.md. Cost: loads x words.
 # --with <skill>: per skill, the top-level sessions that load it and those that also load <skill>.
@@ -28,10 +29,11 @@ done
 # The main checkout, also from inside a worktree, because transcripts of every worktree count.
 MAIN=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 SLUG=$(printf '%s' "$MAIN" | sed 's/[^A-Za-z0-9]/-/g')
+REPO=$(basename "$MAIN" | sed 's/[^A-Za-z0-9]/-/g')
 
 DIRS=()
 for root in "$HOME/.claude/projects" "$HOME/.claude-worker/projects"; do
-  for dir in "$root/$SLUG" "$root/$SLUG"--worktrees-*; do
+  for dir in "$root/$SLUG" "$root/$SLUG"--worktrees-* "$root"/*-loupe-worktrees-"$REPO"-card-*; do
     [[ -d "$dir" ]] && DIRS+=("$dir")
   done
 done
