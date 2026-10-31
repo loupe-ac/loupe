@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
-	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
@@ -87,22 +86,6 @@ func (l *skipLog) Drop(sent []api.SkippedWork) {
 			delete(l.m, s.WorkRequestID)
 		}
 	}
-}
-
-// matchedAccount is the account a request runs on once the bridge matched it.
-// An experiment picks its variant from the card, as a run does when the
-// server has no pin for the card yet, so the same request gives the same
-// account on each offer. A command has no account.
-func matchedAccount(m rules.Match, p pending) string {
-	if m.Experiment == nil {
-		return m.Account
-	}
-	cardID, number := cardOf(p.event)
-	if number < 1 {
-		cardID = ""
-	}
-
-	return m.Experiment.Settings(m.Experiment.Pick(cmp.Or(cardID, p.key))).Account
 }
 
 // skipBlocked drops the queued copy of a request whose account is blocked, and

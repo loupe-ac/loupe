@@ -227,7 +227,16 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 		return
 	}
 	p := pending{key: w.SubjectID, event: workEvent(w), work: w, set: set}
-	p.account = matchedAccount(m, p)
+	// The pin of the card picks the variant, so the account checked and
+	// claimed is the account the run starts on.
+	var variant *rules.RunSettings
+	var pin runPin
+	p.account = m.Account
+	if m.Experiment != nil {
+		p.experiment = m.Experiment
+		settings, resolved := r.resolveVariant(p)
+		variant, pin, p.account = &settings, resolved, settings.Account
+	}
 	if p.account != "" && r.blocked.has(p.account) {
 		r.skipBlocked(w, p.account, source)
 
@@ -240,6 +249,7 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 		p.event.SessionID = w.ResumeSessionID
 	}
 	p.apply(m)
+	p.variant, p.pin = variant, pin
 	r.enqueue(p)
 }
 
