@@ -1118,6 +1118,9 @@ final class RotateSecretsTest extends TestCase
         self::assertSame('', $this->stored('TF_VAR_spaces_access_id'));
         self::assertSame('new-spaces-id', $this->value('spaces_access_id'));
         self::assertStringNotContainsString('spaces-secret', (string) file_get_contents($this->dir.'/secrets.vars'));
+        $output = $process->getOutput().$process->getErrorOutput();
+        self::assertStringContainsString("  https://cloud.digitalocean.com/spaces/access_keys\n", $output);
+        self::assertStringContainsString('with Full Access', $output);
     }
 
     public function test_the_menu_enters_a_value_again_and_leaves_out_a_skipped_one(): void
