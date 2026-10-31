@@ -133,9 +133,9 @@ final readonly class SessionPromptWriter
     private static function wholeWords(string $text, int $length): string
     {
         $head = mb_substr($text, 0, $length);
-        if (mb_strlen($text) > $length && 1 !== preg_match('/\s/u', mb_substr($text, $length, 1))) {
-            $space = mb_strrpos($head, ' ');
-            $head = false === $space ? $head : mb_substr($head, 0, $space);
+        $space = mb_strrpos($head, ' ');
+        if (mb_strlen($text) > $length && 1 !== preg_match('/\s/u', mb_substr($text, $length, 1)) && false !== $space) {
+            $head = mb_substr($head, 0, $space);
         }
 
         return rtrim($head);

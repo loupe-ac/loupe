@@ -16,6 +16,7 @@ use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
@@ -113,18 +114,18 @@ final class InteractiveRunsTest extends KernelTestCase
         $sessionId = Uuid::v4();
         $bridgeId = Uuid::v4();
 
-        [$launched, $created] = $this->runs()->recordLaunch($project, $cardId, 3, $sessionId, 'design', $bridgeId);
+        [$launched, $created] = $this->runs()->recordLaunch($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId);
         self::assertTrue($created);
         $this->runs()->closeOnMove($project, [$cardId]);
 
-        [$again, $created] = $this->runs()->recordLaunch($project, $cardId, 3, $sessionId, 'design', $bridgeId);
+        [$again, $created] = $this->runs()->recordLaunch($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId);
 
         self::assertFalse($created);
         self::assertEquals($launched->id, $again->id);
 
         $failedSession = Uuid::v4();
-        [$failed] = $this->runs()->recordLaunchFailure($project, $cardId, 3, $failedSession, 'design', $bridgeId, 'launcher exited 1', new \DateTimeImmutable(self::NOW));
-        [$late, $created] = $this->runs()->recordLaunch($project, $cardId, 3, $failedSession, 'design', $bridgeId);
+        [$failed] = $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $failedSession, 'design', $bridgeId, 'launcher exited 1', new \DateTimeImmutable(self::NOW));
+        [$late, $created] = $this->runs()->recordLaunch($project, WorkSubject::card($cardId), 3, $failedSession, 'design', $bridgeId);
 
         self::assertFalse($created);
         self::assertEquals($failed->id, $late->id);
@@ -142,18 +143,18 @@ final class InteractiveRunsTest extends KernelTestCase
         $bridgeId = Uuid::v4();
         $at = new \DateTimeImmutable(self::NOW);
 
-        $this->runs()->recordLaunch($project, $cardId, 3, $sessionId, 'design', $bridgeId, harness: 'codex');
+        $this->runs()->recordLaunch($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId, harness: 'codex');
         self::assertCount(1, $this->publishedRunsChanged());
-        $this->runs()->recordLaunchFailure($project, $cardId, 3, $failedSession, 'design', $bridgeId, 'exited 1', $at, harness: 'codex');
+        $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $failedSession, 'design', $bridgeId, 'exited 1', $at, harness: 'codex');
         self::assertCount(1, $this->publishedRunsChanged());
 
-        $this->runs()->recordLaunch($project, $cardId, 3, $sessionId, 'design', $bridgeId, harness: 'codex');
-        $this->runs()->recordLaunchFailure($project, $cardId, 3, $failedSession, 'design', $bridgeId, 'exited 1', $at, harness: 'codex');
+        $this->runs()->recordLaunch($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId, harness: 'codex');
+        $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $failedSession, 'design', $bridgeId, 'exited 1', $at, harness: 'codex');
         self::assertCount(0, $this->publishedRunsChanged());
 
-        $this->runs()->recordLaunch($project, $cardId, 3, $sessionId, 'design', $bridgeId, harnessSessionId: 'thread-1');
+        $this->runs()->recordLaunch($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId, harnessSessionId: 'thread-1');
         self::assertCount(1, $this->publishedRunsChanged());
-        $this->runs()->recordLaunchFailure($project, $cardId, 3, $failedSession, 'design', $bridgeId, 'exited 1', $at, model: 'gpt-5');
+        $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $failedSession, 'design', $bridgeId, 'exited 1', $at, model: 'gpt-5');
         self::assertCount(1, $this->publishedRunsChanged());
     }
 
@@ -165,7 +166,7 @@ final class InteractiveRunsTest extends KernelTestCase
         $bridgeId = Uuid::v4();
         $at = new \DateTimeImmutable('2026-09-23 11:59:00');
 
-        [$run, $created] = $this->runs()->recordLaunchFailure($project, $cardId, 8, $sessionId, 'design', $bridgeId, 'launcher exited 127', $at);
+        [$run, $created] = $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 8, $sessionId, 'design', $bridgeId, 'launcher exited 127', $at);
 
         self::assertTrue($created);
         $run = $this->reload($run);
@@ -188,7 +189,7 @@ final class InteractiveRunsTest extends KernelTestCase
     {
         $project = $this->scenario('interactive-launch-failure-long');
 
-        [$run] = $this->runs()->recordLaunchFailure($project, Uuid::v7(), 8, Uuid::v4(), 'design', Uuid::v4(), str_repeat('é', WorkerRun::MAX_FAILURE_REASON_LENGTH + 5), new \DateTimeImmutable(self::NOW));
+        [$run] = $this->runs()->recordLaunchFailure($project, WorkSubject::card(Uuid::v7()), 8, Uuid::v4(), 'design', Uuid::v4(), str_repeat('é', WorkerRun::MAX_FAILURE_REASON_LENGTH + 5), new \DateTimeImmutable(self::NOW));
 
         self::assertSame(str_repeat('é', WorkerRun::MAX_FAILURE_REASON_LENGTH), $this->reload($run)->failureReason);
     }
@@ -201,7 +202,7 @@ final class InteractiveRunsTest extends KernelTestCase
         $sessionId = Uuid::v4();
         $open = $this->runs()->open($project, $cardId, 3, $sessionId, 'card_run_open');
 
-        [$run, $created] = $this->runs()->recordLaunchFailure($project, $cardId, 3, $sessionId, 'design', Uuid::v4(), 'launcher exited 1', new \DateTimeImmutable(self::NOW));
+        [$run, $created] = $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $sessionId, 'design', Uuid::v4(), 'launcher exited 1', new \DateTimeImmutable(self::NOW));
 
         self::assertFalse($created);
         self::assertEquals($open->id, $run->id);
@@ -221,8 +222,8 @@ final class InteractiveRunsTest extends KernelTestCase
         $bridgeId = Uuid::v4();
         $at = new \DateTimeImmutable(self::NOW);
 
-        [$first] = $this->runs()->recordLaunchFailure($project, $cardId, 3, $sessionId, 'design', $bridgeId, 'launcher exited 1', $at);
-        [$again, $created] = $this->runs()->recordLaunchFailure($project, $cardId, 3, $sessionId, 'design', $bridgeId, 'launcher exited 1', $at);
+        [$first] = $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId, 'launcher exited 1', $at);
+        [$again, $created] = $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $sessionId, 'design', $bridgeId, 'launcher exited 1', $at);
 
         self::assertFalse($created);
         self::assertEquals($first->id, $again->id);
@@ -230,7 +231,7 @@ final class InteractiveRunsTest extends KernelTestCase
         $closedSession = Uuid::v4();
         $closed = $this->runs()->open($project, $cardId, 3, $closedSession, 'design', $bridgeId);
         $this->runs()->close($project, $cardId, $closedSession);
-        [$late, $created] = $this->runs()->recordLaunchFailure($project, $cardId, 3, $closedSession, 'design', $bridgeId, 'launcher exited 1', $at);
+        [$late, $created] = $this->runs()->recordLaunchFailure($project, WorkSubject::card($cardId), 3, $closedSession, 'design', $bridgeId, 'launcher exited 1', $at);
 
         self::assertFalse($created);
         self::assertEquals($closed->id, $late->id);
@@ -444,7 +445,7 @@ final class InteractiveRunsTest extends KernelTestCase
 
         $run = $this->runs()->open($project, $cardId, 3, $sessionId, 'design');
         $this->runs()->open($project, $cardId, 3, $sessionId, 'design');
-        $this->runs()->recordLaunchFailure($project, $failedCard, 4, Uuid::v4(), 'design', Uuid::v4(), 'exited 127', new \DateTimeImmutable(self::NOW));
+        $this->runs()->recordLaunchFailure($project, WorkSubject::card($failedCard), 4, Uuid::v4(), 'design', Uuid::v4(), 'exited 127', new \DateTimeImmutable(self::NOW));
         $this->runs()->close($project, $cardId, $sessionId);
         $this->runs()->close($project, $cardId, $sessionId);
         self::assertNotNull($run->id);

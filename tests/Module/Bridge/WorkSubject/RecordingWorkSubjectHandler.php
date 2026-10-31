@@ -6,6 +6,8 @@ namespace App\Tests\Module\Bridge\WorkSubject;
 
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlerInterface;
+use App\Module\Project\Entity\Project;
+use Symfony\Component\Uid\Uuid;
 
 /** Records each call, for a subject type that no module registers yet. */
 final class RecordingWorkSubjectHandler implements WorkSubjectHandlerInterface
@@ -22,6 +24,12 @@ final class RecordingWorkSubjectHandler implements WorkSubjectHandlerInterface
     public static function subjectType(): string
     {
         return self::TYPE;
+    }
+
+    #[\Override]
+    public function subjectExists(Project $project, Uuid $subjectId): bool
+    {
+        return true;
     }
 
     #[\Override]

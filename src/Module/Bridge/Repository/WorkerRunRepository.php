@@ -435,15 +435,15 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** The open run of the session on the card, else its latest run. */
-    public function findLatestInteractive(Project $project, Uuid $cardId, Uuid $sessionId): ?WorkerRun
+    /** The open run of the session on the subject, else its latest run. */
+    public function findLatestInteractive(Project $project, Uuid $subjectId, Uuid $sessionId, string $subjectType = WorkSubject::CARD): ?WorkerRun
     {
         return $this->interactive($project)
             ->addSelect('CASE WHEN r.state = :running THEN 0 ELSE 1 END AS HIDDEN openFirst')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
             ->andWhere('r.sessionId = :sessionId')
-            ->setParameter('cardId', $cardId, UuidType::NAME)
-            ->setParameter('cardSubject', WorkSubject::CARD)
+            ->setParameter('cardId', $subjectId, UuidType::NAME)
+            ->setParameter('cardSubject', $subjectType)
             ->setParameter('sessionId', $sessionId, UuidType::NAME)
             ->setParameter('running', WorkerRunState::Running->value)
             ->orderBy('openFirst', 'ASC')

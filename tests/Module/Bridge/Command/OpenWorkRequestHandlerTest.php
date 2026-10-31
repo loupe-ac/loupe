@@ -20,6 +20,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\WorkSubject\InboxItemWorkSubjectHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\WorkHolds;
@@ -602,7 +603,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
-            new WorkSubjectHandlers([new RecordingWorkSubjectHandler(), new InboxItemWorkSubjectHandler()]),
+            new WorkSubjectHandlers([new RecordingWorkSubjectHandler(), new InboxItemWorkSubjectHandler($this->service(InboxItemRepository::class))]),
             $this->service(WorkHolds::class),
         );
     }
