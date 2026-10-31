@@ -13,6 +13,7 @@ use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxOpenRouterKeyNoticeRepository;
 use App\Module\Inbox\Service\OpenRouterKeyNoticeReconciler;
+use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\QueuedPushes;
@@ -145,6 +146,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $this->reconciler->refused($this->keyId, false, $second->requireId());
         $this->reconciler->refused($this->openRouterKey($this->em), false, $this->project->requireId());
         $this->clock->sleep(600);
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
 
         $this->reconciler->works($this->keyId);
 
@@ -161,6 +163,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
     public function test_a_second_works_signal_changes_nothing(): void
     {
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
         $this->reconciler->works($this->keyId);
         $this->clock->sleep(60);
 
@@ -197,7 +200,9 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
     public function test_a_later_refusal_opens_a_new_notice_after_the_first_closed(): void
     {
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
         $this->reconciler->works($this->keyId);
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Refused);
 
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
 
@@ -235,6 +240,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $notice = $this->onlyNotice();
         self::assertSame(InboxItemState::Open, $notice->item->state);
         $this->em->getConnection()->executeStatement("UPDATE inbox_items SET state = 'obsolete' WHERE id = :id", ['id' => (string) $notice->item->id]);
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
 
         $this->reconciler->works($this->keyId);
 
@@ -255,6 +261,27 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
 
         self::assertEquals(new \DateTimeImmutable('2026-10-31 11:00:00'), $notice->endedAt);
         self::assertSame('2026-10-31 11:00:00', $this->em->getConnection()->fetchOne('SELECT ended_at FROM inbox_openrouter_key_notices WHERE id = :id', ['id' => (string) $notice->id]));
+    }
+
+    public function test_a_stale_refusal_of_a_key_that_works_again_opens_nothing(): void
+    {
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
+
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+
+        self::assertSame([], $this->notices());
+        self::assertSame(0, $this->itemCount());
+    }
+
+    public function test_a_stale_works_signal_of_a_key_refused_again_leaves_its_notice_open(): void
+    {
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+
+        $this->reconciler->works($this->keyId);
+
+        $notice = $this->onlyNotice();
+        self::assertSame(InboxItemState::Open, $notice->item->state);
+        self::assertNull($notice->endedAt);
     }
 
     private function bodyOf(InboxOpenRouterKeyNotice $notice): string

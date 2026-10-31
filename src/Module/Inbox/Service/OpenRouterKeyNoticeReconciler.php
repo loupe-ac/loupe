@@ -14,6 +14,7 @@ use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxOpenRouterKeyNoticeRepository;
+use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\OpenRouter\Repository\OpenRouterKeyRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
@@ -60,9 +61,9 @@ final readonly class OpenRouterKeyNoticeReconciler
 
         $notice = $this->em->wrapInTransaction(function () use ($keyId, $forProject, $project): ?InboxOpenRouterKeyNotice {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
-            // A refusal read before a replace or a removal must not outlive the key.
-            // The share lock makes the delete wait, so its close sees this notice.
-            if (!$this->openRouterKeys->lockIfPresent($keyId)) {
+            // A stale refusal must not outlive the key or a later read that worked.
+            // The share lock makes a delete or a state change wait for this notice.
+            if (OpenRouterKeyState::Refused !== $this->openRouterKeys->lockState($keyId)) {
                 return null;
             }
 
@@ -117,9 +118,15 @@ final readonly class OpenRouterKeyNoticeReconciler
                     return false;
                 }
 
+                // A stale works signal leaves the notice of a key refused again open,
+                // and never closes a removed key as done.
+                $keyState = $this->openRouterKeys->lockState($notice->keyId);
+                if (InboxItemState::Done === $state && OpenRouterKeyState::Refused === $keyState) {
+                    return false;
+                }
+
                 $now = self::whole($this->clock->now());
-                // A works signal read before a removal must not close a removed key as done.
-                $done = InboxItemState::Done === $state && $this->inbox->isEnabled() && $this->openRouterKeys->lockIfPresent($notice->keyId);
+                $done = InboxItemState::Done === $state && $this->inbox->isEnabled() && null !== $keyState;
                 $note = $done ? $this->translator->trans('inbox.openrouter_key.closed', [
                     '%start%' => self::stamp($notice->startedAt),
                     '%end%' => self::stamp($now),

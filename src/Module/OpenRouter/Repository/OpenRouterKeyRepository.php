@@ -83,15 +83,17 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
     }
 
     /**
-     * Locks the key row for share inside the caller's transaction, so a delete
-     * waits for that transaction. Returns false when the key is gone.
+     * Locks the key row for share inside the caller's transaction, so a delete or
+     * a health change waits for that transaction. Returns null when the key is gone.
      */
-    public function lockIfPresent(Uuid $keyId): bool
+    public function lockState(Uuid $keyId): ?OpenRouterKeyState
     {
-        return false !== $this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT id FROM openrouter_keys WHERE id = :id FOR SHARE',
+        $state = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT state FROM openrouter_keys WHERE id = :id FOR SHARE',
             ['id' => $keyId->toRfc4122()],
         );
+
+        return false === $state ? null : OpenRouterKeyState::from((string) $state);
     }
 
     /** @return int the number of rows deleted */

@@ -8,6 +8,7 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxOpenRouterKeyNotice;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Repository\InboxOpenRouterKeyNoticeRepository;
+use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\OpenRouter\Event\OpenRouterKeyRefused;
 use App\Module\OpenRouter\Event\OpenRouterKeyRemoved;
 use App\Module\OpenRouter\Event\OpenRouterKeyWorks;
@@ -47,6 +48,7 @@ final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
         $this->events->dispatch(new OpenRouterKeyRefused($keyId, false, $this->project->requireId()));
         self::assertSame([null], $this->endedAts());
 
+        $this->storeKeyState($this->em, $keyId, OpenRouterKeyState::Working);
         $this->events->dispatch(new OpenRouterKeyWorks($keyId, false, $this->project->requireId()));
         $notice = $this->only();
         self::assertNotNull($notice->endedAt);

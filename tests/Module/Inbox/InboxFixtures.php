@@ -13,6 +13,7 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\OpenRouter\Entity\OpenRouterKey;
+use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
@@ -65,14 +66,21 @@ trait InboxFixtures
         return $owner;
     }
 
-    /** A stored account key of a new user, so a refusal of it counts. */
-    private function openRouterKey(EntityManagerInterface $em): Uuid
+    /** A stored account key of a new user, refused by default so a refusal of it counts. */
+    private function openRouterKey(EntityManagerInterface $em, OpenRouterKeyState $state = OpenRouterKeyState::Refused): Uuid
     {
         $key = new OpenRouterKey('sk-or-v1-0000000000000000a3f9', user: $this->owner($em, 'openrouter-key'));
+        $key->state = $state;
         $em->persist($key);
         $em->flush();
 
         return $key->id ?? throw new \LogicException('A stored key has an id.');
+    }
+
+    /** Stores a key state as a cost read in another process does. */
+    private function storeKeyState(EntityManagerInterface $em, Uuid $keyId, OpenRouterKeyState $state): void
+    {
+        $em->getConnection()->executeStatement('UPDATE openrouter_keys SET state = :state WHERE id = :id', ['state' => $state->value, 'id' => $keyId->toRfc4122()]);
     }
 
     private function project(EntityManagerInterface $em, User $owner, string $slug): Project
