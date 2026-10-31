@@ -41,7 +41,7 @@ When the document offers more than one way to do something, the format must show
 2. Put the alternatives in a numbered sub-list, so that a reviewer can refer to them.
 3. Name your recommendation if you have one.
 
-Never fold alternatives into a flat sentence such as "do X or do Y.". The reader takes it as an instruction and misses the choice.
+Never fold alternatives into a flat sentence such as "do X or do Y." The reader takes it as an instruction and misses the choice.
 
 When the alternatives are a clean either/or, also wrap them in a decision fence (rule 12). The reviewer then clicks an option, and does not type "option 2" into a comment for you to parse.
 
@@ -115,7 +115,7 @@ A pair of `<!-- decision: some-id -->` and `<!-- /decision -->` comments around 
 
 Read `references/decision-fences.md` before you write a fence. The same file says how to write the options fence.
 
-### 13. Know that a stray HTML comment shows as a visible note
+### 13. A stray HTML comment shows as a visible note
 
 On its own line, the comment shows as a block note. Inside a paragraph, it shows as an inline note. Never wrap such a comment in an HTML element that opens its own block. Loupe then keeps the element and drops the comment, so the note disappears with no error.
 
