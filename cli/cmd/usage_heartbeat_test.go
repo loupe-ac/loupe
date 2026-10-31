@@ -71,3 +71,31 @@ func TestAFailedHeartbeatKeepsTheReadings(t *testing.T) {
 		t.Fatalf("readings after a failure = %+v", got)
 	}
 }
+
+func TestAHeartbeatCarriesNoReadingWithoutAResetTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	noReset := `{"type":"result","is_error":true,"result":"You've hit your session limit · resets soon"}` + "\n"
+	if err := os.WriteFile(path, []byte(noReset), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := usage.NewCollector()
+	c.Start("run", "claude", usage.NewTail(func() (string, bool) { return path, true }, usage.ParseClaude))
+
+	client := &fakeHeartbeats{}
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.usage = c })
+	hh.h.setBody(api.Heartbeat{Accounts: []api.AccountReport{{Name: "claude", State: api.AccountReady}}})
+	eventually(t, "the heartbeat with account rows", func() bool { return client.count() >= 2 })
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	for _, hb := range client.sent[1:] {
+		for _, r := range hb.Accounts[0].Readings {
+			if r.ResetsAt == nil {
+				t.Fatalf("a reading with no reset time was sent: %+v", r)
+			}
+		}
+	}
+	if len(c.Pending()) != 0 {
+		t.Fatalf("pending = %+v", c.Pending())
+	}
+}

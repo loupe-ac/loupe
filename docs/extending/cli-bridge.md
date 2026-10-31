@@ -858,7 +858,7 @@ A reading has these keys:
 |---|---|
 | `window` | `session` for a 5-hour window, `week` for a 7-day window, and `<n>h`, `<n>d` or `<n>m` for any other length |
 | `usedPercent` | The use of the window in percent, from 0 to 200. It is `null` when the source gives no use |
-| `resetsAt` | The reset time in UTC, or `null` when the source gives none |
+| `resetsAt` | The reset time in UTC |
 | `limited` | `true` when the window is at its limit |
 | `source` | Where the reading came from: `claude-event`, `claude-status`, `claude-message` or `codex` |
 | `readAt` | The time of the reading in UTC |
@@ -866,7 +866,9 @@ A reading has these keys:
 The bridge reads the usage while a run goes. On each heartbeat it reads the new
 lines of the output file of each live run, from the place where it stopped. It
 reads the rest after the run ends. The bridge keeps one reading for each window
-of each account. A heartbeat that Loupe does not accept leaves the readings for
+of each account. It drops a reading that Loupe refuses: a reading with no reset
+time, a reset time more than 31 days ahead, or a window name out of the pattern
+of the heartbeat. A heartbeat that Loupe does not accept leaves the readings for
 the next one.
 
 A Claude Code account has three sources, in this order:
@@ -885,7 +887,8 @@ A Claude Code account has three sources, in this order:
 3. The message "You've hit your session limit · resets 3:45pm" and the same
    forms for the weekly, Opus and Sonnet limits. The `session` limit reads the
    window `session`, and the others read `week`. The bridge reads the reset
-   time in its own time zone, as the next time after now. `usedPercent` is
+   time in its own time zone, as the next time after now. A message whose
+   reset time the bridge cannot read gives no reading. `usedPercent` is
    `null` and `limited` is `true`. The source is `claude-message`.
 
 A Codex account has one source, the session file of the run. The bridge reads

@@ -3,6 +3,7 @@ package usage
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -118,4 +119,36 @@ func TestCollectorFinishReadsTheRest(t *testing.T) {
 	}
 	c.Poll(now)
 	c.Finish("unknown", now)
+}
+
+func TestCollectorDropsAReadingThatLoupeRefuses(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	c := NewCollector()
+	c.Start("run1", "claude", NewTail(func() (string, bool) { return path, true }, ParseClaude))
+	appendTo(t, path, `{"type":"result","is_error":true,"result":"You've hit your session limit · resets soon"}`+"\n")
+	appendTo(t, path, `{"type":"result","is_error":true,"result":"You've hit your weekly limit · resets Oct 30, 3pm"}`+"\n")
+	c.Finish("run1", now)
+	if got := c.Pending(); len(got) != 0 {
+		t.Fatalf("pending = %+v", got)
+	}
+
+	codex := filepath.Join(t.TempDir(), "session.jsonl")
+	c.Start("run2", "codex", NewTail(func() (string, bool) { return codex, true }, ParseCodex))
+	appendTo(t, codex, `{"payload":{"rate_limits":{"primary":{"used_percent":10,"window_minutes":-60,"resets_at":1793420400},"secondary":{"used_percent":20,"window_minutes":10080,"resets_at":0}}}}`+"\n")
+	c.Finish("run2", now)
+	if got := c.Pending(); len(got) != 0 {
+		t.Fatalf("pending = %+v", got)
+	}
+}
+
+func TestCollectorKeepsAResetAtTheLimitOfTheLead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	c := NewCollector()
+	c.Start("run1", "claude", NewTail(func() (string, bool) { return path, true }, ParseClaude))
+	limit := now.Add(maxResetLead).Unix()
+	appendTo(t, path, `{"type":"rate_limit_event","rate_limit_info":{"unifiedWindows":{"seven_day":{"utilization":0.1,"resetsAt":`+strconv.FormatInt(limit, 10)+`}}}}`+"\n")
+	c.Finish("run1", now)
+	if rs := c.Pending()["claude"]; len(rs) != 1 || rs[0].ResetsAt.Unix() != limit {
+		t.Fatalf("pending = %+v", c.Pending())
+	}
 }

@@ -2,10 +2,17 @@ package usage
 
 import (
 	"maps"
+	"regexp"
 	"slices"
 	"sync"
 	"time"
 )
+
+// maxResetLead is the furthest ahead of now that Loupe accepts a reset time.
+const maxResetLead = 31 * 24 * time.Hour
+
+// windowPattern is the window name that Loupe accepts.
+var windowPattern = regexp.MustCompile(`^[a-z0-9]{1,16}$`)
 
 // Collector tails the files of the live runs and keeps, for each account, the
 // latest reading of each window that no heartbeat carried yet.
@@ -42,7 +49,7 @@ func (c *Collector) Poll(now time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, run := range c.runs {
-		c.keep(run.account, run.tail.Read(now, false))
+		c.keep(run.account, run.tail.Read(now, false), now)
 	}
 }
 
@@ -58,11 +65,17 @@ func (c *Collector) Finish(runID string, now time.Time) {
 		return
 	}
 	delete(c.runs, runID)
-	c.keep(run.account, run.tail.Read(now, true))
+	c.keep(run.account, run.tail.Read(now, true), now)
 }
 
-func (c *Collector) keep(account string, readings []Reading) {
+// keep drops a reading that Loupe would refuse, because Loupe then refuses the
+// whole heartbeat that carries it: a reading with no reset time, a reset time
+// too far ahead, or a window name out of its pattern.
+func (c *Collector) keep(account string, readings []Reading, now time.Time) {
 	for _, r := range readings {
+		if r.ResetsAt == nil || r.ResetsAt.After(now.Add(maxResetLead)) || !windowPattern.MatchString(r.Window) {
+			continue
+		}
 		if c.pending[account] == nil {
 			c.pending[account] = map[string]Reading{}
 		}
