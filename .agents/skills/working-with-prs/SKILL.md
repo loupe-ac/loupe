@@ -302,11 +302,37 @@ sign-in failed. The count must be 1 or more, or the state is not seeded. For a
 signed link, fetch the bare page URL once without the link, and confirm that
 the count is 0.
 
+A page that shows records needs a second proof. The marker must show only when
+the page holds its data. A page title, a heading, a panel id or a chart
+container fails, because the page renders them with no data too. In
+`pr:loupe-ac/loupe#1381`, the Metrics marker `data-metrics-title` counted 1 on a
+project with 0 runs, so every chart was empty. Pick a marker that the template
+prints once for each record, such as a row id or a `data-series` attribute.
+The temporary seed command also creates an empty twin of the record and prints
+its path. Mint a link to that path, and fetch it with the same cookie jar:
+
+```bash
+twin=$( ( cd .worktrees/<name> && bin/worktrees/compose-exec.sh \
+    bin/console app:dev:preview-login-link --path=/projects/<twin id>/analytics/metrics ) | tail -1 )
+/usr/bin/curl -sSL -c "$jar" -b "$jar" -o "$page" \
+    -w '%{http_code} %{url_effective}\n' "$twin"
+grep -c 'data-series' "$page"
+```
+
+The count on the twin page must be 0. The bare URL fetch proves the sign-in,
+and the twin fetch proves the data. End the line with the empty path:
+
+```markdown
+- [Metrics, three runs](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `data-series`, empty `/projects/<twin id>/analytics/metrics`
+```
+
+A state that shows no records, such as a form or a dialog, ends with `no data`.
+
 Write one Markdown list item per link in the Preview section. Name the marker
 that you found:
 
 ```markdown
-- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
+- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`, no data
 ```
 
 A page that only a signed-out visitor sees, such as the landing page at `/`,
