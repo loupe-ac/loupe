@@ -13,6 +13,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/logfile"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 	"github.com/spf13/cobra"
 )
@@ -52,7 +53,7 @@ func newUsageBackfillCmd() *cobra.Command {
 			return backfill(cmd, o)
 		},
 	}
-	cmd.Flags().StringVar(&o.logFile, "log-file", "", "read the bridge log at this `path`; empty uses bridge.log in your config directory")
+	cmd.Flags().StringVar(&o.logFile, "log-file", "", "read the bridge log at this `path` and its dated files; empty uses bridge.log in your config directory")
 	cmd.Flags().StringVar(&o.project, "project", "", "send only the sessions of the project with this `id`, as the bridge log names it")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "print what the command would send, and send nothing")
 
@@ -151,11 +152,20 @@ var workerEnds = map[string]bool{"worker_finished": true, "worker_no_result": tr
 // the order each session first appears. A worker ends at the first end line of
 // its card and rule, because a card runs one worker at a time.
 func readWorkerSessions(path, project string) ([]*workerSession, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("read the bridge log: %w", err)
+	// The dated files of a rotated log come first, oldest to newest.
+	files := logfile.Family(path)
+	if len(files) == 0 {
+		files = []string{path}
 	}
-	defer f.Close()
+	readers := make([]io.Reader, len(files))
+	for i, name := range files {
+		f, err := os.Open(name)
+		if err != nil {
+			return nil, fmt.Errorf("read the bridge log: %w", err)
+		}
+		defer f.Close()
+		readers[i] = f
+	}
 
 	type running struct {
 		session *workerSession
@@ -165,7 +175,7 @@ func readWorkerSessions(path, project string) ([]*workerSession, error) {
 	var sessions []*workerSession
 	byID := map[string]*workerSession{}
 	byCard := map[string]*running{}
-	r := bufio.NewReaderSize(f, 1<<16)
+	r := bufio.NewReaderSize(io.MultiReader(readers...), 1<<16)
 	for {
 		line, err := r.ReadBytes('\n')
 		if bytes.Contains(line, []byte(`"worker_`)) {

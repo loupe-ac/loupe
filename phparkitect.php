@@ -116,6 +116,20 @@ return static function (Config $config): void {
 
     $config->add($src,
         Rule::allClasses()
+            ->that(new ResideInOneOfTheseNamespaces('App\Module\Bridge'))
+            ->should(new NotDependsOnTheseNamespaces(['App\Module\OAuth']))
+            ->because('Bridge asks which login a token belongs to through App\Security\LoginLivenessInterface, so it never learns how OAuth stores a refresh token'),
+    );
+
+    $config->add($src,
+        Rule::allClasses()
+            ->that(new ResideInOneOfTheseNamespaces('App\Module\OAuth'))
+            ->should(new NotDependsOnTheseNamespaces(['App\Module\Bridge']))
+            ->because('OAuth answers the login question for Bridge through App\Security\LoginLivenessInterface, so an import back closes a cycle'),
+    );
+
+    $config->add($src,
+        Rule::allClasses()
             ->that(new ResideInOneOfTheseNamespaces('App\Module\DesignSystem'))
             ->should(new NotDependsOnTheseNamespaces(['App\Module'], ['App\Module\DesignSystem']))
             ->because('The design system is a leaf: the catalog and the tokens describe the UI and read no feature'),

@@ -11,10 +11,12 @@ use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
+use App\Module\Board\Repository\CardValueRepository;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\SiteReview\Entity\SiteReviewScreenshot;
@@ -34,6 +36,7 @@ final readonly class CardExporter implements UserDataExporterInterface
         private CardLinkRepository $cardLinks,
         private CardSiteReviewCommentRepository $cardSiteReviewComments,
         private CardEventRepository $cardEvents,
+        private CardValueRepository $cardValues,
         private SiteReviewScreenshotRepository $siteReviewScreenshots,
         private TranslatorInterface $translator,
     ) {
@@ -127,6 +130,16 @@ final readonly class CardExporter implements UserDataExporterInterface
                 'parentCardId' => null === $card->parent ? null : (string) $card->parent->id,
                 'parentNumber' => $card->parent?->number,
                 'laneEnabled' => $card->laneEnabled,
+                // No writer user, for the reason given for the history below.
+                'values' => array_map(
+                    static fn (CardValue $value): array => [
+                        'key' => $value->key,
+                        'value' => $value->value,
+                        'writerKind' => $value->writerKind->value,
+                        'updatedAt' => $value->updatedAt->format(\DateTimeInterface::ATOM),
+                    ],
+                    $this->cardValues->findForCard($card),
+                ),
                 // No actor user: another account's name is not this account's data.
                 'history' => array_map(
                     static fn (CardEvent $event): array => [

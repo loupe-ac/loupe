@@ -387,6 +387,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The title of a section, with an optional sentence and optional actions.',
                 element: 'div',
+                export: 'SectionHeading',
                 legacyClasses: ['lp-section-title', 'lp-card-panel__title', 'lp-workshop-section__title'],
                 legacyEnforced: true,
             ),

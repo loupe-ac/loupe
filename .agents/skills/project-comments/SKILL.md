@@ -25,12 +25,13 @@ rediscover.
 | 3–5 lines | Two interacting constraints, or a rejected alternative that a reader would otherwise retry. |
 | 6+ lines | Almost always wrong. Move it to the commit message or the PR body. |
 
-At a sixth line, stop. Ask what the reader must know **at this line of code** to
+At a sixth line, stop. Ask what the reader must know at this line of code to
 avoid breaking something. Write only that.
 
 ## Keep
 
 Keep a comment that records an invisible constraint:
+
 - Ordering or coupling that the type system cannot express
   (*"must run first; it calls `EntityManager::clear()` as it iterates"*)
 - Concurrency and transaction boundaries
@@ -41,8 +42,9 @@ Keep a comment that records an invisible constraint:
 ## Cut
 
 Cut what the reader recovers from elsewhere:
+
 - A restatement of what the next line does
-- A tutorial on framework behaviour; link the concept instead
+- A tutorial on framework behaviour. Link the concept instead
 - The investigation behind the fix, which belongs in the commit message
 - Benchmark numbers and measurements, which belong in the PR body
 - Design-decision logs and alternatives considered, which belong in the PR body
@@ -74,18 +76,19 @@ stops the next person from "improving" this into a partial index.
 // rewrites the predicate), so migrate-diff never settles. Keep these plain.
 ```
 
-Two lines. The reader learns the trap, and the reasoning lives in the PR.
+The new comment has two lines. The reader learns the trap, and the reasoning
+lives in the PR.
 
 ## Also enforced mechanically
 
-Three checks are hard failures. This skill is the judgment layer above all
-three: passing every check does not make a 17-line comment worth keeping.
+These checks are hard failures. This skill is the judgment layer above them.
+A 17-line comment that passes every check can still be worth cutting.
 
 - `NoTodosCheck` (`just gamache`) fails on `TODO`, `FIXME` and `XXX`.
   Follow-ups go on the project board.
 - `SelfContainedCommentsCheck` fails on references to tasks, phases, spec
   sections, handoff docs or dated decisions. State the underlying fact instead.
-- `CommentBudgetCheck` fails on any run of **6 or more** consecutive comment
+- `CommentBudgetCheck` fails on any run of 6 or more consecutive comment
   lines, in PHP, Twig, JS, CSS, YAML and the justfile alike.
 
 The budget check fails instead of warning, because a check that cannot fail is a
@@ -99,6 +102,7 @@ unmarked block says it was not worth one.
 ## Red flags
 
 You are writing narration if the comment:
+
 - Could start with "This is because I..." or "Note that we tried..."
 - Explains the diff rather than the code
 - Would be stale the moment someone refactors the lines below it

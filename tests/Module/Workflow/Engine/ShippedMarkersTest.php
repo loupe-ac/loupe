@@ -583,7 +583,7 @@ final class ShippedMarkersTest extends KernelTestCase
         $facts = FactsMother::facts(
             card: FactsMother::card(slot: 'implementation'),
             run: FactsMother::run(activeWorkKinds: ['implement', 'fix'], activeWorkerKinds: ['implement']),
-            provided: [WorkRequestFacts::class => new WorkRequestFacts(['implement', 'fix'], []), WorkTakerFacts::class => $this->openRequests(['fix'])],
+            provided: [WorkRequestFacts::class => new WorkRequestFacts(['implement', 'fix'], [], ['implement', 'fix'], []), WorkTakerFacts::class => $this->openRequests(['fix'])],
         );
 
         self::assertSame(['run-open', 'work-requested'], $this->passKeys($this->template($key), $facts));

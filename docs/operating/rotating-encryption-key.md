@@ -38,11 +38,11 @@ A rotation takes three deploys. The first deploy teaches every container the new
 
 ## Run it with the recipe
 
-On App Platform, `just rotate-secrets app_encryption_key` runs steps 1 to 6 for you. It edits `terraform/terraform.tfvars`, applies it three times, and stops at step 4 until you confirm. It never prints a key. At the end it lists the old credentials to delete by hand.
+On App Platform, `just rotate-secrets app_encryption_key` makes the new key and saves it as pending. The apply session then runs steps 1 to 6 with `bin/rotate-secrets apply`. It never prints a key. At the end it lists the old credentials to delete by hand.
 
-The script asks you to run the command in step 4 yourself, because it cannot reach a console in an App Platform container.
+The apply stops after the second deploy with exit code 10, because the script cannot reach a console in an App Platform container. The session runs step 4 in the production console, and reads every `unreadable` count. When each count is 0, it runs `bin/rotate-secrets apply --reencrypted`, which makes the third deploy. A count above 0 stops the session, and the old key stays in place.
 
-When the recipe stops, because an apply fails or you answer no, run it again. It saves its progress in `terraform/terraform.tfvars.rotating`, and resumes with the same two keys. It refuses to start while `app_encryption_key_previous` is set and no progress is saved.
+When the apply stops, because an apply fails or a count is not 0, run `bin/rotate-secrets apply` again. It saves its progress in `terraform/terraform.tfvars.rotating`, and resumes with the same two keys. The collection refuses to start while `app_encryption_key_previous` is set and no progress is saved.
 
 ## On Docker Compose
 

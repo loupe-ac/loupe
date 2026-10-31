@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Template;
 
+use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\CountFilter;
 use App\Module\Workflow\Contract\MetricType;
 use App\Module\Workflow\Contract\RepositorySuggestion;
@@ -11,6 +12,7 @@ use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
+use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\InvalidTemplate;
 use App\Module\Workflow\Template\Rule;
@@ -169,6 +171,7 @@ final class AppRulesTest extends KernelTestCase
             'outcomes' => [new TemplateOutcome('merged', true)],
             'metrics' => [new TemplateMetric('fix-rounds-2', 'Fix rounds', 'The fix rounds.', MetricType::Count, new CountFilter(role: 'fix'))],
             'repositorySettings' => [new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning)],
+            'values' => [new TemplateValueKey('interactive', CardValueType::Bool, 'a.label', 'a.caption', 'a.help', 'a.history')],
         ]);
         foreach (new \ReflectionMethod(Template::class, '__construct')->getParameters() as $parameter) {
             if ($parameter->isDefaultValueAvailable()) {

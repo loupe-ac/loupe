@@ -19,6 +19,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `project-templates` | `.html.twig` files or Twig component PHP classes |
 | `project-worktrees` | Git worktrees: provisioning, URLs, per-worktree databases, worktree tooling. Also the shared Docker stack, the dev app URL, Compose services, processes inside a container |
 | `project-deploy` | Deploying to production, `terraform apply`, verifying the live version, the production container layout |
+| `project-rotate-secrets` | Applying a pending secret rotation after `just rotate-secrets` collected it: `bin/rotate-secrets apply`, its exit codes, the re-encrypt check |
 | `project-translations` | UI strings, translation keys, adding a new locale, the gamache translation check and its configuration |
 | `loupe-design-rebuild` | Rebuilding the Design System artifact from the export: `app:design-system:export`, the pending-rebuild to-do |
 | `project-site-review` | The site-review widget (`public/live-review/widget.js`), `src/Module/SiteReview/`, its API routes, dev harness or e2e specs |
@@ -31,6 +32,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `loupe-workers` | Reading worker runs and bridges, or stopping, resuming and cancelling workers through the `loupe` MCP: `worker_run_list`, `worker_run_get`, `bridge_list`, `worker_run_resume`, `worker_run_stop`, `card_hold`, `card_release`, `card_pause_release`, `bridge_command_cancel`, recovering workers after an outage |
 | `loupe-analysis` | Running an analysis of a project's worker runs through the `loupe` MCP: `analysis_get`, `metric_query`, `analysis_report`, the cost report and its proposals |
 | `loupe-product-design` | An interactive product design session with the owner through the `loupe` MCP, from a card or a one-line idea: `/loupe:product-design` |
+| `loupe-tech-design` | An interactive tech design session with the owner through the `loupe` MCP: `/loupe:tech-design` |
 | `loupe-stage-product-design` | One review round on a card's product document, or a prompt that names the skill |
 | `loupe-stage-tech-design` | A card entering the Tech design column, or a prompt that names the skill: write or revise the tech design |
 | `loupe-stage-implementation` | A card entering the Implementation column, or a prompt that names the skill: build the approved tech design into a ready pull request, or break an epic down into child cards |

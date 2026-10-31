@@ -5,7 +5,7 @@ description: "Use when a work request asks for an analysis of a Loupe project, s
 
 # Running a Loupe analysis
 
-An analysis reads the worker runs of one project, or the comparison of one experiment, and ends with a report document and a short list of proposals. The owner starts it on the Reports tab of the Analytics page. A bridge then runs you with the analysis id. The owner reads the report and creates or dismisses each proposal.
+An analysis reads the worker runs of one project, or the comparison of one experiment. It ends with a report document and a short list of proposals. The owner starts it on the Reports tab of the Analytics page. A bridge then runs you with the analysis id. The owner reads the report and creates or dismisses each proposal.
 
 Change no code and no card. Read through the `loupe` MCP, write one document, and report.
 
@@ -51,12 +51,14 @@ Pass `scope.range` as the `range` of each `metric_query`. Call `metric_list` fir
 
 1. In `metric_list`, find the `bucket-time:<name>` entries. Each one is a bucket that has time on a run of the project. The bucket `other` holds the calls that no rule takes. `analytics_settings_get` does not list the rules, so infer the buckets from `metric_list`.
 2. Query `duration` with unit `run`, statistic `median`, `p90` and `sum`, and group `stage`. Note the `total` of each series and its `rows`.
-3. Query `duration` again with unit `run`, statistic `sum` and no group. A stage group leaves out the runs that belong to no card, and a bucket query counts them. Query each `bucket-time:<name>` with unit `run` and statistic `sum`, and compare each sum with this ungrouped `duration` sum. A bucket with a large share is a cost of time. A run with no bucket data has an unknown value, so note how many rows each series holds.
+3. Query `duration` again with unit `run`, statistic `sum` and no group. A stage group leaves out the runs that belong to no card, and a bucket query counts them. Query each `bucket-time:<name>` with unit `run` and statistic `sum`. Compare each sum with this ungrouped `duration` sum.
+   - A bucket with a large share is a cost of time.
+   - A run with no bucket data has an unknown value, so note how many rows each series holds.
 4. Call `worker_run_list` with `workKind` for the stage with the most time. Read `metrics`: `durationMs`, `toolTimeMs`, `modelTimeMs`, `idleGapMs`, `longestCallMs` and `toolCalls`. Sort by the value you study, because the list is newest first.
 5. Call `worker_run_get` and `worker_run_tool_calls` on the longest runs, about five to ten. Page through each run while `hasMore` is true.
-6. Find the slowest calls: sort the calls by `durationMs`. Read their `signatures`.
-7. Find repeated steps: count the same `signatures` in one run, and across runs. The same step many times is a candidate for a cache, a smaller scope or a skip.
-8. Find polling loops: a run of calls with signatures such as `for`, `grep` or `sleep`, and `waitsOn` null, that repeat in a short time. A call with `waitsOn` set reads a background task that it started earlier, so the wait is a known step. A loop with `waitsOn` null polls with no link to its task, so its time is pure waiting.
+6. Find the slowest calls. Sort the calls by `durationMs`, and read their `signatures`.
+7. Find repeated steps. Count the same `signatures` in one run, and across runs. The same step many times is a candidate for a cache, a smaller scope or a skip.
+8. Find polling loops. A polling loop is a run of calls that repeat in a short time, with signatures such as `for`, `grep` or `sleep`, and `waitsOn` null. A call with `waitsOn` set reads a background task that it started earlier, so the wait is a known step. A loop with `waitsOn` null polls with no link to its task, so its time is pure waiting.
 9. Separate the outliers that are not the fault of the worker. Name each one in the report, and leave it out of the proposals:
    - a call far longer than the other calls of its run, with no sign of work in it;
    - a gap that ends the run, such as an `idleGapMs` before the last call;
@@ -67,7 +69,9 @@ Pass `scope.range` as the `range` of each `metric_query`. Call `metric_list` fir
 
 ### Proposals for time
 
-1. Propose a rule of kind `bucket-rule` for a signature that falls in `other` and takes real time. Give `payload` as `{"pattern": "<glob>", "bucket": "<name>"}`. The pattern is a glob over a call signature, such as `git *`, `grep` or `Agent`: `*` matches any run of characters and `?` matches one. The pattern is at most 120 characters. The bucket name matches `a-z`, `0-9`, `_` and `-`, at most 64 characters. Prefer a bucket name that already exists.
+1. Propose a rule of kind `bucket-rule` for a signature that falls in `other` and takes real time. Give `payload` as `{"pattern": "<glob>", "bucket": "<name>"}`.
+   - The pattern is a glob over a call signature, such as `git *`, `grep` or `Agent`. In it, `*` matches any run of characters and `?` matches one. The pattern is at most 120 characters.
+   - The bucket name matches `a-z`, `0-9`, `_` and `-`, at most 64 characters. Prefer a bucket name that already exists.
 2. Propose a `card` for each fix, such as a cache, a faster step, or a polling loop that waits on the task. Cite the runs and the calls that show the time.
 3. Give `estimatedSaving` as a short text in time, such as `about 3 minutes a run`, based on the numbers in the body.
 4. State the sample size and your confidence in the report, as [The report](#the-report) says. A claim from fewer than ten runs is low.
@@ -80,18 +84,19 @@ Pass `scope.range` as the `range` of each `metric_query`. Call `metric_list` fir
 
 1. Call `experiment_get` with `experiment` set to `scope.experiment`.
 2. Call it again with `page` 2, 3 and on while `hasMore` is true. Keep every row of `cards`.
-3. Read `baseline`. It is null when the experiment names no baseline. Then `headline.comparisons` is empty and the experiment has no verdict, so say so in the report and go on to the confounders.
+3. Read `baseline`. It is null when the experiment names no baseline. Then `headline.comparisons` is empty and the experiment has no verdict. Say so in the report, and go on to the confounders.
 4. Read `confidenceLevel`. The ranges are 95% for one comparison, and widen to 1 minus 5%/N for N comparisons, such as 97.5% for two. Say the level in the report. A wider range needs more cards before a variant clears the baseline.
 5. Read `variants`: the model, the weight, `cards`, `finishedCards`, `runs` and `costUsd` of each.
 6. Read `metrics`. For each metric, note the range of each variant in `byVariant` and its `clear` flag. `clear` is true when every variant is clear against the baseline, false when one is not, and null when there is no baseline. Read the `parts` of `fix-rounds` too.
-7. Read `headline`. `headline.goal` keeps only the metric, the direction and a `problem`. The results are in `headline.comparisons`, one for each variant other than the baseline. Read the `state` of each: `not-enough-cards`, `clear`, `not-clear` or `held`. Read its `change`, its `cardsBehind` and the `guards` changes. Each change reads the variant against the baseline. Read `headline.baselineArm` for the baseline figure, and `headline.controls`.
+7. Read `headline`. `headline.goal` keeps only the metric, the direction and a `problem`. The results are in `headline.comparisons`, one for each variant other than the baseline. Read the `state` of each: `not-enough-cards`, `clear`, `not-clear` or `held`.
+   - Read its `change`, its `cardsBehind` and the `guards` changes. Each change reads the variant against the baseline. Read `headline.baselineArm` for the baseline figure, and `headline.controls`.
 8. Read `minFinishedCards`.
 9. Note `unknownMetrics`. The rule declares these keys, and the server has no such metric. Say so in the report.
 
 ### Read the verdicts
 
 1. For each comparison, state the variant, the baseline, the change and its range, and the `state`.
-2. A `held` comparison is held. It is not lost and it is not clear. Read `holdReason` and `heldBy`, and name the controls that hold it. A held comparison has no change, so give no verdict for that variant. A control on the baseline holds every comparison.
+2. A `held` comparison is held. It is neither lost nor clear. Read `holdReason` and `heldBy`, and name the controls that hold it. A held comparison has no change, so give no verdict for that variant. A control on the baseline holds every comparison.
 3. A `not-clear` comparison only leans. Say that it is not a result.
 4. A `not-enough-cards` comparison needs more cards. Use `cardsBehind` to say how many.
 5. Check `headline.goal.problem`. A value of `unknown-metric` or `no-direction` means the goal gives no comparison. Say so in the report.
@@ -143,13 +148,13 @@ A confounder is a cause other than the variant that changes a figure.
 The host metrics come from samples that a bridge takes of its machine. Read them in `metrics` of `worker_run_list` and `worker_run_get`: `meanCpuPct`, `peakMemBytes`, `peakSwapBytes`, `concurrentRuns` and `onBattery`. `concurrentRuns` counts the runs on the same bridge whose times overlap, the run itself included. Loupe computes it from the start and end times of the runs, so an ended run has a value with no sample. The other four metrics come from samples. A null value in them means that no sample is known.
 
 1. Call `worker_run_list` with `endedAfter` set to the start of `scope.range`, such as 30 or 90 days before today. Pass no `endedAfter` for `all`. Walk every page while `hasMore` is true, with `perPage` 100.
-2. Count the runs whose `meanCpuPct`, `peakMemBytes`, `peakSwapBytes` and `onBattery` are all null. These runs have no sample. Say in the report that sampling can be off. The instance flag `bridge.host_sampling_enabled` is off by default, and the `collect` key in the bridge `rules.yaml` can be `false`. A run that is shorter than the sample interval also has no sample.
+2. Count the runs whose `meanCpuPct`, `peakMemBytes`, `peakSwapBytes` and `onBattery` are all null. These runs have no sample. Say in the report that sampling can be off for these reasons. The instance flag `bridge.host_sampling_enabled` is off by default, and the `collect` key in the bridge `rules.yaml` can be `false`. A run that is shorter than the sample interval also has no sample.
 3. When no run has a sample, skip steps 5 to 7. Do step 4, because `concurrentRuns` stays available with no sample. The report then says that no sample is known, and gives only the concurrency findings.
 4. For each `workKind` and each `bridgeId`, compare runs with `concurrentRuns` 1 against runs with a higher count. Compare `metrics.durationMs`, and the share of runs whose `state` is `failed`, `timed-out` or `lost`.
 5. Find the runs with `onBattery` true. Also find the runs that ended `stopped`, `failed` or `lost` on a bridge that was on battery near that time.
 6. Call `bridge_host_samples` with the `runId` of each of those runs. A falling `batteryPct` with `onAc` false shows a drain. A gap in `sampledAt` before the end of the run can show that the machine slept or lost power. A bridge restart, a failed host read or sampling that went off also leave a gap. Name the cause as likely only when the battery fell before the gap, and say what else can explain it.
 7. Find the runs with a high `meanCpuPct`, and the runs whose `peakMemBytes` is near `memTotal` of their samples. A `peakSwapBytes` above zero shows memory pressure. Group them by `workKind` and `bridgeId`.
-8. Find a change for each problem. Examples are a smaller worker pool on a bridge, a laptop bridge that stays on AC power, or a heavy work kind that moves to another bridge.
+8. Find a change for each problem. Examples are a smaller worker pool on a bridge, or a laptop bridge that stays on AC power. A heavy work kind that moves to another bridge is a third example.
 
 | Sign | Where to read it |
 |---|---|
@@ -162,7 +167,7 @@ The host metrics come from samples that a bridge takes of its machine. Read them
 ## The report
 
 1. Call `document_create` with the tag `analysis`. Use a title such as `Cost report: last 90 days`, `Time report: last 30 days`, `Experiment report: implement` or `Host report: last 30 days`.
-2. Open with a summary of three to five lines: the main findings and the best proposal. A cost report gives the total cost and the main cost drivers. A time report gives the total time and the main time drivers. An experiment report gives the recommended variant or the runs still needed, and the main confounder.
+2. Open with a summary of three to five lines. Give the main findings and the best proposal. A cost report gives the total cost and the main cost drivers. A time report gives the total time and the main time drivers. An experiment report gives the recommended variant or the runs still needed, and the main confounder.
 3. Cite the numbers for each claim. Link the runs and the cards you read.
 4. Give the sample size of each claim, and say how sure you are: high, medium or low. A claim from fewer than ten rows is low.
 5. Keep advice concrete. Name the work kind, the model, the step or the command to change.

@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\ListExperimentsHandler;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Experiment\ExperimentSummary;
+use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Project\Entity\Project;
@@ -51,6 +52,7 @@ final class ListExperimentsHandlerTest extends KernelTestCase
         $handler = new ListExperimentsHandler(
             self::getContainer()->get(WorkerRunRepository::class),
             self::getContainer()->get(ExperimentPinRepository::class),
+            self::getContainer()->get(ExperimentArchiveRepository::class),
         );
         $view = $handler(new ListExperimentsCommand($project));
 

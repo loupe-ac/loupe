@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\View\BridgeStatus;
+use App\Security\LoginLivenessInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Uid\Uuid;
@@ -21,6 +22,7 @@ final readonly class BridgeLiveness
         private BridgeRepository $bridges,
         private HeartbeatInterval $heartbeatInterval,
         private ClockInterface $clock,
+        private LoginLivenessInterface $logins,
 
         #[Autowire(param: 'app.bridge.default_heartbeat_interval_seconds')]
         private int $defaultInterval,
@@ -39,19 +41,26 @@ final readonly class BridgeLiveness
         }
 
         $now = $this->clock->now();
+        $quietBefore = $this->quietBefore($now);
         $lastSeen = [];
+        $quietLogins = [];
         foreach ($this->bridges->findByOwnerAndIds($owner, $bridgeIds) as $bridge) {
             $lastSeen[$bridge->id->toRfc4122()] = $bridge->lastSeenAt;
+            if ($bridge->lastSeenAt < $quietBefore && null !== $bridge->loginId) {
+                $quietLogins[$bridge->id->toRfc4122()] = $bridge->loginId;
+            }
         }
 
-        $quietBefore = $this->quietBefore($now);
+        $expired = [] === $quietLogins ? [] : array_map(static fn (Uuid $id): string => $id->toRfc4122(), $this->logins->expired(array_values($quietLogins)));
         $statuses = [];
         foreach ($bridgeIds as $bridgeId) {
-            $seenAt = $lastSeen[$bridgeId->toRfc4122()] ?? null;
-            $statuses[$bridgeId->toRfc4122()] = new BridgeStatus(
+            $key = $bridgeId->toRfc4122();
+            $seenAt = $lastSeen[$key] ?? null;
+            $statuses[$key] = new BridgeStatus(
                 lastSeenAt: $seenAt,
                 checkedAt: $now,
                 quiet: null === $seenAt || $seenAt < $quietBefore,
+                loginExpired: isset($quietLogins[$key]) && \in_array($quietLogins[$key]->toRfc4122(), $expired, true),
             );
         }
 

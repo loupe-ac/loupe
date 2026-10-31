@@ -18,6 +18,8 @@ framework:
             - document-publish
             - comment-action
             - toggle-project-widget-forwarding
+            - experiment-archive
+            - experiment-unarchive
             - github-hook-create
             - github-hook-secret-rotate
             - forge-repository-remove

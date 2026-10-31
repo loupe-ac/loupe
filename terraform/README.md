@@ -61,7 +61,7 @@ Then delete the secret lines from `terraform.tfvars`. `bin/tf-secrets names` lis
 value. `printf '%s'` keeps a trailing line break out of the value, and a builtin keeps the value out of the process list.
 `secrets.enc.yaml` is gitignored. Back up the age key file: a lost key means a full rotation of every secret.
 
-`just rotate-secrets` writes new values into the store for the listed secrets, and into `terraform.tfvars` for the rest.
+`just rotate-secrets` collects new values into a pending store, `secrets.pending.enc.yaml`. `bin/rotate-secrets apply` then writes them into the store for the listed secrets, and into `terraform.tfvars` for the rest.
 
 `just build-prod`/`just deploy`/`just logs-prod` (in the project `justfile`) build
 and roll out the image; the `prod_image` variable there must match the module's

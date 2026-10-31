@@ -1569,6 +1569,7 @@
             <trans-unit id="review.document.panels.comments"><source>review.document.panels.comments</source><target>Comments</target></trans-unit>
             <trans-unit id="review.document.panels.outline"><source>review.document.panels.outline</source><target>Outline</target></trans-unit>
             <trans-unit id="review.document.panels.comments_label"><source>review.document.panels.comments_label</source><target>Comments panel, %count% open</target></trans-unit>
+            <trans-unit id="review.document.panels.decisions_label"><source>review.document.panels.decisions_label</source><target>Decisions panel, %answered% of %total% answered</target></trans-unit>
             <trans-unit id="review.document.panels.outline_heading"><source>review.document.panels.outline_heading</source><target>On this page</target></trans-unit>
             <trans-unit id="review.document.group.in_text"><source>review.document.group.in_text</source><target>In the text</target></trans-unit>
             <trans-unit id="review.document.group.not_in_text"><source>review.document.group.not_in_text</source><target>No longer in the text</target></trans-unit>
@@ -3061,6 +3062,14 @@
             <trans-unit id="project.connect.tool.experiment_get">
                 <source>project.connect.tool.experiment_get</source>
                 <target>Read the comparison of one experiment: each variant, each metric with its likely range, and the cards it keeps or leaves out.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.experiment_archive">
+                <source>project.connect.tool.experiment_archive</source>
+                <target>Archive an experiment so it leaves the main experiments list. Its page and data stay readable.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.experiment_unarchive">
+                <source>project.connect.tool.experiment_unarchive</source>
+                <target>Put an archived experiment back in the main experiments list.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.analysis_get">
                 <source>project.connect.tool.analysis_get</source>
@@ -5689,6 +5698,7 @@
                 <source>inbox.ask.bridge.quiet</source>
                 <target>No resume will come while the bridge stays quiet.</target>
             </trans-unit>
+            <trans-unit id="inbox.ask.bridge.login_expired"><source>inbox.ask.bridge.login_expired</source><target>Its login expired. Run `loupe login` on that machine.</target></trans-unit>
             <trans-unit id="inbox.presence.no_bridge"><source>inbox.presence.no_bridge</source><target>No bridge started this session, so an answer does not resume the agent.</target></trans-unit>
             <trans-unit id="inbox.presence.label.live"><source>inbox.presence.label.live</source><target>Agent online</target></trans-unit>
             <trans-unit id="inbox.presence.label.quiet"><source>inbox.presence.label.quiet</source><target>Agent bridge quiet</target></trans-unit>
@@ -6026,7 +6036,7 @@
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.body.remedy">
                 <source>inbox.bridge_outage.body.remedy</source>
-                <target>Start a bridge, or run `loupe login`.</target>
+                <target>{0}Start a bridge, or run `loupe login`.|{1}The login of %bridges% expired. Run `loupe login` on that machine.|]1,Inf]The logins of %bridges% expired. Run `loupe login` on each of those machines.</target>
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.closed">
                 <source>inbox.bridge_outage.closed</source>
@@ -6488,6 +6498,18 @@
             <trans-unit id="board.card.error.column_changed">
                 <source>board.card.error.column_changed</source>
                 <target>Someone moved this card to another column. Reload the page and try again.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_type_bool">
+                <source>board.card.error.value_type_bool</source>
+                <target>This key takes true or false.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_undeclared">
+                <source>board.card.error.value_key_undeclared</source>
+                <target>The workflow template declares no key %key%. Declared keys: %declared%.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_undeclared_none">
+                <source>board.card.error.value_key_undeclared_none</source>
+                <target>The workflow template declares no key %key%. Declared keys: none.</target>
             </trans-unit>
             <trans-unit id="board.card.error.title_blank">
                 <source>board.card.error.title_blank</source>
@@ -7161,6 +7183,20 @@
             <trans-unit id="bridge.experiments.empty.title"><source>bridge.experiments.empty.title</source><target>No experiments yet</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, add variants to a worker entry under work: in rules.yaml. The kind of work names the experiment.</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.docs"><source>bridge.experiments.empty.docs</source><target>Read how to set up an experiment</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived_empty.title"><source>bridge.experiments.archived_empty.title</source><target>No archived experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived_empty.description"><source>bridge.experiments.archived_empty.description</source><target>An experiment that you archive shows here.</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived_empty.back"><source>bridge.experiments.archived_empty.back</source><target>Back to the experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.all_archived.title"><source>bridge.experiments.all_archived.title</source><target>All experiments are archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.all_archived.description"><source>bridge.experiments.all_archived.description</source><target>Every experiment of this project is archived. Show the archived experiments to see them.</target></trans-unit>
+            <trans-unit id="bridge.experiments.show_archived"><source>bridge.experiments.show_archived</source><target>Show archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.count"><source>bridge.experiments.count</source><target>{0}No experiments|{1}1 experiment|]1,Inf[%count% experiments</target></trans-unit>
+            <trans-unit id="bridge.experiments.archived"><source>bridge.experiments.archived</source><target>Archived</target></trans-unit>
+            <trans-unit id="bridge.experiments.column.actions"><source>bridge.experiments.column.actions</source><target>Actions</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive"><source>bridge.experiments.archive</source><target>Archive %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.unarchive"><source>bridge.experiments.unarchive</source><target>Unarchive %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive_action"><source>bridge.experiments.archive_action</source><target>Archive</target></trans-unit>
+            <trans-unit id="bridge.experiments.unarchive_action"><source>bridge.experiments.unarchive_action</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="bridge.experiments.archive.error.unknown"><source>bridge.experiments.archive.error.unknown</source><target>No run and no card pin names this experiment, so there is nothing to archive.</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.comparison"><source>bridge.experiments.tabs.comparison</source><target>Comparison</target></trans-unit>
@@ -7695,6 +7731,8 @@
             <trans-unit id="board.card.history.cause.auto_approval"><source>board.card.history.cause.auto_approval</source><target>No unanswered decision, no open thread, and the agent review passed.</target></trans-unit>
             <trans-unit id="board.card.history.human_review_on"><source>board.card.history.human_review_on</source><target>%actor% turned on human review.</target></trans-unit>
             <trans-unit id="board.card.history.human_review_off"><source>board.card.history.human_review_off</source><target>%actor% turned off human review.</target></trans-unit>
+            <trans-unit id="board.card.history.value_on"><source>board.card.history.value_on</source><target>%actor% turned on %subject%.</target></trans-unit>
+            <trans-unit id="board.card.history.value_off"><source>board.card.history.value_off</source><target>%actor% turned off %subject%.</target></trans-unit>
             <trans-unit id="board.card.history.cause.human_review_rollout"><source>board.card.history.cause.human_review_rollout</source><target>Set when the human review switch shipped, because an artifact reached the card.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_stale"><source>board.card.history.verdict_failed_cause.verdict_stale</source><target>The document has a newer version than the one the rule checked.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_failed_cause.verdict_changed"><source>board.card.history.verdict_failed_cause.verdict_changed</source><target>Another verdict arrived after the rule read the document.</target></trans-unit>
@@ -7803,6 +7841,11 @@
             <trans-unit id="board.card.human_review.tooltip"><source>board.card.human_review.tooltip</source><target>On: the pull request waits for your approval. Off: the workflow can approve it.</target></trans-unit>
             <trans-unit id="board.card.human_review.rules_link"><source>board.card.human_review.rules_link</source><target>See the rules</target></trans-unit>
             <trans-unit id="board.card.human_review.error.not_saved"><source>board.card.human_review.error.not_saved</source><target>The review setting was not saved. Reload the page and try again.</target></trans-unit>
+            <trans-unit id="board.card.values.title"><source>board.card.values.title</source><target>Values</target></trans-unit>
+            <trans-unit id="board.card.values.help_label"><source>board.card.values.help_label</source><target>About this setting</target></trans-unit>
+            <trans-unit id="board.card.values.set_by"><source>board.card.values.set_by</source><target>Set by %writer%</target></trans-unit>
+            <trans-unit id="board.card.values.not_set"><source>board.card.values.not_set</source><target>Not set</target></trans-unit>
+            <trans-unit id="board.card.values.error.not_saved"><source>board.card.values.error.not_saved</source><target>The value was not saved. Reload the page and try again.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.error.not_saved"><source>board.card.lane.error.not_saved</source><target>The lane setting was not saved. Reload the page and try again.</target></trans-unit>
@@ -8316,6 +8359,9 @@
             <trans-unit id="bridge.agents.connection"><source>bridge.agents.connection</source><target>Connection setup</target></trans-unit>
             <trans-unit id="bridge.agents.connection_label"><source>bridge.agents.connection_label</source><target>Bridge connection</target></trans-unit>
             <trans-unit id="bridge.agents.status.stale"><source>bridge.agents.status.stale</source><target>Stale</target></trans-unit>
+            <trans-unit id="bridge.agents.status.login_expired"><source>bridge.agents.status.login_expired</source><target>Login expired</target></trans-unit>
+            <trans-unit id="bridge.agents.hint.login_expired"><source>bridge.agents.hint.login_expired</source><target>Run `loupe login` on %name%.</target></trans-unit>
+            <trans-unit id="bridge.agents.hint.stale"><source>bridge.agents.hint.stale</source><target>Run `loupe bridge status` on %name% to see why.</target></trans-unit>
             <trans-unit id="bridge.agents.status.healthy"><source>bridge.agents.status.healthy</source><target>Healthy</target></trans-unit>
             <trans-unit id="bridge.agents.project_connection"><source>bridge.agents.project_connection</source><target>Receives eligible work for %project%.</target></trans-unit>
             <trans-unit id="bridge.agents.runtime"><source>bridge.agents.runtime</source><target>CLI version</target></trans-unit>
@@ -9157,12 +9203,20 @@
             <trans-unit id="github.app.flash.repositories_elsewhere"><source>github.app.flash.repositories_elsewhere</source><target>{0}No repository belongs to another project.|{1}1 repository belongs to another project, so Loupe did not connect it.|]1,Inf[%count% repositories belong to another project, so Loupe did not connect them.</target></trans-unit>
 
             <!-- Workflow conditions: what a rule waits for -->
+            <trans-unit id="workflow.value.tech_design_interactive.label"><source>workflow.value.tech_design_interactive.label</source><target>Tech design</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.caption"><source>workflow.value.tech_design_interactive.caption</source><target>Interactive session</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.help"><source>workflow.value.tech_design_interactive.help</source><target>Turn this on to write the tech design in a session with you. The workflow then asks your bridge for a terminal in place of an autonomous agent.</target></trans-unit>
+            <trans-unit id="workflow.value.tech_design_interactive.history"><source>workflow.value.tech_design_interactive.history</source><target>the interactive session for tech design</target></trans-unit>
             <trans-unit id="workflow.waiting.card_in_slot"><source>workflow.waiting.card_in_slot</source><target>Waiting: the card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_in_slot"><source>workflow.waiting.not.card_in_slot</source><target>Waiting: the card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_in_slot"><source>workflow.waiting.parent_in_slot</source><target>Waiting: the parent card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.parent_in_slot"><source>workflow.waiting.not.parent_in_slot</source><target>Waiting: the parent card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_type"><source>workflow.waiting.card_type</source><target>Waiting: the card type is not %type%.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_type"><source>workflow.waiting.not.card_type</source><target>Waiting: the card type is %type%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value"><source>workflow.waiting.card_value</source><target>Waiting: the card value "%key%" is not %value%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value"><source>workflow.waiting.not.card_value</source><target>Waiting: the card value "%key%" is %value%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value_set"><source>workflow.waiting.card_value_set</source><target>Waiting: the card holds no value for "%key%".</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value_set"><source>workflow.waiting.not.card_value_set</source><target>Waiting: the card holds a value for "%key%".</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_open_blocker"><source>workflow.waiting.card_has_open_blocker</source><target>Waiting: the card has no open blocker.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_has_open_blocker"><source>workflow.waiting.not.card_has_open_blocker</source><target>Waiting: a blocking card is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_parent_epic_branch_synced"><source>workflow.waiting.card_parent_epic_branch_synced</source><target>Waiting: the default branch is not yet merged into the epic branch.</target></trans-unit>

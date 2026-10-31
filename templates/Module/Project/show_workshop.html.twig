@@ -77,8 +77,10 @@
                 {% for connection in workshop.connections %}
                 <a class="lp-workshop-crew__row" href="{{ connection.url }}" data-workshop-connection="{{ connection.id }}">
                     <twig:Ds:Avatar icon="lucide:bot" size="xs" />
-                    <span><strong><span title="{{ connection.id }}" data-bridge-label>{{ connection.label }}</span></strong><small>{{ connection.cliVersion|short_sha }}</small></span>
-                    <span class="lp-workshop-crew__status">{{ (connection.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy')|trans }}</span>
+                    <span><strong><span title="{{ connection.id }}" data-bridge-label>{{ connection.label }}</span></strong><small>{{ connection.cliVersion|short_sha }}</small>
+                    {%- if connection.quiet %}<small data-workshop-connection-hint>{{ (connection.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': connection.label}) }}</small>{% endif -%}
+                    </span>
+                    <span class="lp-workshop-crew__status">{{ (connection.loginExpired ? 'bridge.agents.status.login_expired' : (connection.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy'))|trans }}</span>
                 </a>
                 {% else %}
                 <a class="lp-workshop-crew__row" href="{{ path('app_project_connect', {id: workshop.project.id}) }}" data-workshop-crew-empty>

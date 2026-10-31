@@ -380,6 +380,36 @@ and to its log file, named by `--log-file`. Each line carries a stable `event`
 key, so `jq` selects what you want. The log file is appended, so it is a history
 across runs.
 
+Each entry carries a `bridge` key with the bridge name: the `name:` of the rule
+file, or the host name when the file sets none. Two bridges on one machine can
+share one log file, and the key tells their entries apart.
+
+### Log rotation
+
+The bridge rotates its log once a day. The first entry of a new day moves the
+file to a dated name, such as `bridge.2026-10-29.log` for `bridge.log`. The date
+is the day of the last entry in the file. A log path with no extension gets the
+date as a suffix. The bridge deletes each dated file that is more than 13 days
+old, so it keeps about two weeks of history. The files keep mode 0600.
+
+Several bridges can write one log file. Each entry takes a lock on `<log>.lock`,
+so no bridge writes into a file that another bridge renamed.
+
+Each bridge also writes `bridge-<hash>.state.json` beside its lock file. It
+holds the name, the rule file, the log path, the process id, the CLI version
+and the start time. The bridge never deletes it, so the log of a stopped bridge
+stays easy to find.
+
+### Read the log
+
+`loupe bridge logs` prints the last entries of every bridge log on the machine,
+merged by time. It reads the dated files after the live file.
+`-n <count>` sets how many entries it prints, `--bridge <name>` keeps one
+bridge, `--json` prints the lines as they are, and `-f` keeps reading. With
+`-f`, a rotation loses and repeats no entry. The command reads local files and
+needs no network. `loupe usage backfill` reads the dated files too, so a
+rotation does not drop a session.
+
 The bridge logs `connected` when the hub answers with an event stream, and
 `stream_error` when a connection fails. A hub, proxy or login page that answers
 200 with something other than `text/event-stream` is a failure. The error names
@@ -855,7 +885,8 @@ The first error puts the whole bridge in one waiting state. It writes one
 `login_expired` event to the log with the message "Your Loupe login expired.
 Run `loupe login` in another terminal. The bridge resumes by itself." On macOS
 it also shows one notice, "Loupe bridge needs a new login". The notice needs
-notifications for your terminal to be on in System Settings.
+notifications for your terminal to be on in System Settings. While the login
+stays expired, the bridge shows the notice again every hour.
 
 While it waits, the bridge sends no heartbeat, starts no new claim and spends no
 report retry. Workers that already run keep running. The bridge looks at
@@ -863,6 +894,21 @@ report retry. Workers that already run keep running. The bridge looks at
 writes a `login_resumed` event and carries on with no restart. A bridge that
 starts with an expired login still exits, and the error tells you to run
 `loupe login`.
+
+Loupe also tells a quiet bridge with an expired login from other silence. The
+server tags each refresh token with the login it belongs to, and a refresh
+copies the tag to the new token. Each heartbeat records the login of its access
+token on the bridge. When the bridge goes quiet and its login holds no refresh
+token that is neither revoked nor expired, the Agents page, the Connect page
+and Workshop show "Login expired", and `bridge_list` reports
+`quietCause: login-expired`. Any other quiet bridge shows "Stale". A bridge
+that went quiet before this feature, or whose last refresh answer was lost
+more than the refresh grace period ago, still shows "Stale".
+
+`loupe bridge status` shows whether a bridge waits for a new login, with the
+last error and the running workers. `loupe status` adds a `Bridges:` line, and
+it fails while a bridge waits for a login. See the
+[CLI reference](../reference/cli.md#loupe-bridge-status).
 
 ## Tool calls
 
@@ -1889,6 +1935,9 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
   review:
     model: opus
     prompt: Run the loupe-stage-review skill for card {cardNumber} in project {project}.
@@ -2229,9 +2278,9 @@ and allows 60 calls per minute per token. An older server answers `404`.
 ## Interactive action
 
 An entry with `action: interactive` opens an interactive Claude Code or Codex
-session in a terminal window, on the bridge's machine, as its account says. It is for Product design, so the
-owner does not type `/loupe:product-design` by hand. An entry without `action`
-is a worker entry.
+session in a terminal window, on the bridge's machine, as its account says. It is for Product design and for Tech design, so the
+owner does not type `/loupe:product-design` or `/loupe:tech-design` by hand.
+An entry without `action` is a worker entry.
 
 ```yaml
 launch:
@@ -2241,7 +2290,18 @@ work:
   product-design:
     action: interactive
     prompt: /loupe:product-design {cardNumber}
+  tech-design-session:
+    action: interactive
+    prompt: /loupe:tech-design {cardNumber}
 ```
+
+The kind `tech-design-session` is asked for when the card has its "Interactive
+session" switch on under Tech design. A request with the capability
+`interactive` never runs as a headless worker. When the file has no
+interactive entry for the kind, the bridge skips the request, even with
+`appPrompts: true`. The request waits, and after the work timeout the card
+pauses with "no bridge took the work". Run `loupe update` to get this
+behaviour, and add the entry by hand when your file is older than this entry.
 
 An interactive entry takes `prompt`, `account`, `model` and `permissions`. The check
 refuses `before` and `workerPool` on it. It also refuses the action

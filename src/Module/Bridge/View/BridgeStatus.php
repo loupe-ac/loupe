@@ -12,6 +12,8 @@ final readonly class BridgeStatus
         public ?\DateTimeImmutable $lastSeenAt,
         public \DateTimeImmutable $checkedAt,
         public bool $quiet,
+        /** True for a quiet bridge whose login holds no refresh token that can still work. */
+        public bool $loginExpired = false,
     ) {
     }
 }

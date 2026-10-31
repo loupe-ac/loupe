@@ -15,7 +15,7 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
 
-    {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'cards'} only %}
+    {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'cards', archived: report.archived} only %}
 
     <twig:Ds:FilterBar class="lp-cost-controls" :count="'bridge.experiments.card_count'|trans({'%count%': report.filteredTotal})">
         <nav class="lp-cost-toggle" aria-label="{{ 'bridge.experiments.cards.filter_label'|trans }}" data-experiment-filter>

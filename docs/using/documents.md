@@ -163,6 +163,11 @@ decision. A green tag shows an answered decision, and a grey tag
 shows one with no answer. A note shows under the answer as "Note:" and its text.
 Select a row to go to its decision in the text.
 
+The Decisions button of the toolbar shows the same count as `answered/total`,
+for example `0/1`, so you see an open decision while the panel is closed. The
+count changes after each answer with no reload. A document with no decisions
+shows no count.
+
 The Comments panel lists each thread on two lines. The first line is the quoted
 passage in grey, and the second line is the comment. General comments come
 first, then the threads under **In the text** in passage order. A thread whose

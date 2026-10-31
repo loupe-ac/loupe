@@ -32,6 +32,7 @@ use App\Module\Bridge\Metric\CardMilestoneSourceInterface;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
+use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
@@ -1583,6 +1584,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             $container->get(WorkerRunRepository::class),
             $container->get(ExperimentPinRepository::class),
             $container->get(ExperimentDefinitionRepository::class),
+            $container->get(ExperimentArchiveRepository::class),
             $container->get(WorkerRunFactRepository::class),
             $reports,
             $titles,

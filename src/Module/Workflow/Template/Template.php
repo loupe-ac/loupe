@@ -10,6 +10,7 @@ use App\Module\Workflow\Contract\ReadsDocumentTag;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
+use App\Module\Workflow\Contract\TemplateValueKey;
 
 final readonly class Template
 {
@@ -47,6 +48,7 @@ final readonly class Template
      * @param list<TemplateOutcome>           $outcomes                         the outcomes a move may set, in template order
      * @param list<TemplateMetric>            $metrics                          the metrics the template declares, in template order
      * @param list<RepositorySuggestion>      $repositorySettings               the settings the template suggests for a connected repository, in template order
+     * @param list<TemplateValueKey>          $values                           the value keys a card can hold, in template order
      */
     public function __construct(
         public string $key,
@@ -68,6 +70,7 @@ final readonly class Template
         public array $outcomes = [],
         public array $metrics = [],
         public array $repositorySettings = [],
+        public array $values = [],
     ) {
     }
 

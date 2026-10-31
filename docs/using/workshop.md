@@ -37,6 +37,9 @@ Open board shows the full board, including the cards that are not in motion.
 
 Your crew lists the connected bridges and links to the Agents page. With no bridge connected, its row links to the connection guide.
 Workshop does not infer running agents from open cards or bridge heartbeats.
+A bridge that missed its heartbeats reads "Stale", with the hint to run `loupe bridge status` on that machine.
+It reads "Login expired", with the hint to run `loupe login` on that machine, when its login can no longer refresh.
+The Agents page and the Connect page show the same state and the same hint.
 
 ## The readiness guide
 

@@ -2879,11 +2879,26 @@
         @apply m-0 text-sm font-semibold text-ink whitespace-nowrap;
     }
     /* The review switch of a card, with the help mark that sits beside its label. */
-    .lp-card-review {
+    .lp-card-review,
+    .lp-card-value__control {
         @apply flex items-center gap-1.5;
     }
-    .lp-card-review__help {
+    .lp-card-review__help,
+    .lp-card-value__help {
         @apply inline-flex cursor-help text-fg-mute;
+    }
+    /* The value rows of a card, one for each key its workflow template declares. */
+    .lp-card-values {
+        @apply flex flex-col gap-3;
+    }
+    .lp-card-value {
+        @apply flex flex-col gap-1;
+    }
+    .lp-card-value__label {
+        @apply text-sm font-semibold text-ink;
+    }
+    .lp-card-value__meta {
+        @apply text-xs font-normal text-fg-mute;
     }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {
@@ -7712,10 +7727,10 @@
 
     /* ── Experiments ───────────────────────────────────────────────── */
 
-    /* Experiment, Cards, Last run. */
+    /* Experiment, Cards, Last run, Actions. */
     .lp-data-table--experiments {
         --lp-data-table-columns: minmax(0, 1fr) calc(var(--spacing) * 28)
-            calc(var(--spacing) * 32);
+            calc(var(--spacing) * 32) calc(var(--spacing) * 12);
     }
     /* Card, Variant, Column, Runs, Fix rounds, Cost, Left out. */
     .lp-data-table--experiment-cards {
@@ -7741,6 +7756,9 @@
     }
     .lp-experiment-heading__name {
         @apply m-0 font-mono text-lg font-bold text-ink;
+    }
+    .lp-experiment-heading__archive {
+        @apply ml-auto;
     }
     .lp-experiment-tabs {
         @apply mb-4;

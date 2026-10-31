@@ -15,12 +15,14 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/logfile"
 	"github.com/loupe-ac/loupe/cli/internal/outbound"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
@@ -52,7 +54,7 @@ func newBridgeCmd() *cobra.Command {
 		Use:   "bridge",
 		Short: "Run Loupe work requests in local workers",
 	}
-	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
+	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgeStatusCmd(), newBridgePreflightCmd(), newBridgeHooksCmd(), newBridgeLogsCmd())
 
 	return cmd
 }
@@ -120,21 +122,30 @@ func newBridgeRunCmd() *cobra.Command {
 // bridgeLog is the log of a bridge and the file it appends to.
 type bridgeLog struct {
 	path string
-	file *os.File
+	file *logfile.Writer
 	log  *slog.Logger
+	last *lastErrorTracker
+	// name is the bridge name that each entry carries.
+	name *bridgeLogName
 }
 
-func openBridgeLog(cmd *cobra.Command, logFile string) (*bridgeLog, error) {
+// openBridgeLog names the bridge from the rule file before the first entry,
+// because the start can log before the rule file validates.
+func openBridgeLog(cmd *cobra.Command, logFile, rulesPath string) (*bridgeLog, error) {
 	path := logFile
 	if path == "" {
 		path = defaultLogPath()
 	}
-	f, err := openLogFile(path)
+	f, err := logfile.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	name := &bridgeLogName{}
+	name.set(logName(rules.NameOf(rulesPath)))
 
-	return &bridgeLog{path: path, file: f, log: newBridgeLogger(bridgeLogWriter(f, cmd.OutOrStdout()))}, nil
+	log, last := newNamedTrackedLogger(bridgeLogWriter(f, cmd.OutOrStdout()), name)
+
+	return &bridgeLog{path: path, file: f, name: name, log: log, last: last}, nil
 }
 
 func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
@@ -159,7 +170,7 @@ func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
 
 	// A resumed image logs from the start, because a failure before the
 	// health hands the bridge back, and the operator reads why in the log.
-	bl, err := openBridgeLog(cmd, o.logFile)
+	bl, err := openBridgeLog(cmd, o.logFile, path)
 	if err != nil {
 		return err
 	}
@@ -194,7 +205,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if bl == nil && migration.notable() {
 		// The start can stop before its log opens, and the next start finds nothing to log.
 		var err error
-		if bl, err = openBridgeLog(cmd, o.logFile); err != nil {
+		if bl, err = openBridgeLog(cmd, o.logFile, path); err != nil {
 			return err
 		}
 		defer bl.file.Close()
@@ -210,7 +221,6 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -231,12 +241,11 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	cfg.BridgeID = bridgeID
 
 	if bl == nil {
-		if bl, err = openBridgeLog(cmd, o.logFile); err != nil {
+		if bl, err = openBridgeLog(cmd, o.logFile, path); err != nil {
 			return err
 		}
 		defer bl.file.Close()
 	}
-
 	if b == nil {
 		sock, err := socketPath(path)
 		if err != nil {
@@ -258,6 +267,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		defer b.close()
 		b.recovered = leftoverHandover(b.file, bl.log)
 	}
+	// The state file names the log of the bridge that holds the lock, so a
+	// start that the lock refuses leaves it alone.
+	ident := newBridgeIdentity(path, bl)
+	ident.update(set)
 	cursorFile, err := cursorPath(path)
 	if err != nil {
 		return err
@@ -282,6 +295,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		cursorFile: cursorFile,
 		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
+		rulesPath:  path,
+		logPath:    bl.path,
+		lastError:  bl.last,
+		onRules:    ident.update,
 	}
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
@@ -386,7 +403,26 @@ func bridgeLogWriter(file, out io.Writer) io.Writer {
 // slog names the message "msg". The bridge names it "event", because a reader
 // selects lines by what happened rather than by a prose message.
 func newBridgeLogger(w io.Writer) *slog.Logger {
-	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+	return newNamedBridgeLogger(w, nil)
+}
+
+// newTrackedLogger is newBridgeLogger with a tracker of the last record at the
+// level Warn or above.
+func newTrackedLogger(w io.Writer) (*slog.Logger, *lastErrorTracker) {
+	return newNamedTrackedLogger(w, nil)
+}
+
+// newNamedBridgeLogger is newBridgeLogger with the bridge name on each entry.
+func newNamedBridgeLogger(w io.Writer, name *bridgeLogName) *slog.Logger {
+	log, _ := newNamedTrackedLogger(w, name)
+
+	return log
+}
+
+// newNamedTrackedLogger is newTrackedLogger with the bridge name on each entry.
+func newNamedTrackedLogger(w io.Writer, name *bridgeLogName) (*slog.Logger, *lastErrorTracker) {
+	last := &lastErrorTracker{}
+	var h slog.Handler = slog.NewJSONHandler(w, &slog.HandlerOptions{
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.MessageKey {
 				a.Key = "event"
@@ -394,7 +430,62 @@ func newBridgeLogger(w io.Writer) *slog.Logger {
 
 			return a
 		},
-	}))
+	})
+	if name != nil {
+		h = namedHandler{Handler: h, name: name}
+	}
+
+	return slog.New(&lastErrorHandler{Handler: h, last: last}), last
+}
+
+// lastErrorTracker keeps the last record at the level Warn or above.
+type lastErrorTracker struct {
+	mu   sync.Mutex
+	last *statusError
+}
+
+func (t *lastErrorTracker) get() *statusError {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.last == nil {
+		return nil
+	}
+	c := *t.last
+
+	return &c
+}
+
+// lastErrorHandler passes each record to the wrapped handler and tells the
+// tracker about the ones at Warn or above.
+type lastErrorHandler struct {
+	slog.Handler
+	last *lastErrorTracker
+}
+
+func (h *lastErrorHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level >= slog.LevelWarn {
+		e := statusError{Event: r.Message, Time: r.Time}
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key == "message" || (a.Key == "error" && e.Message == "") {
+				e.Message = a.Value.String()
+			}
+
+			return true
+		})
+		h.last.mu.Lock()
+		h.last.last = &e
+		h.last.mu.Unlock()
+	}
+
+	return h.Handler.Handle(ctx, r)
+}
+
+func (h *lastErrorHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &lastErrorHandler{Handler: h.Handler.WithAttrs(attrs), last: h.last}
+}
+
+func (h *lastErrorHandler) WithGroup(name string) slog.Handler {
+	return &lastErrorHandler{Handler: h.Handler.WithGroup(name), last: h.last}
 }
 
 // defaultLogPath names the log the bridge appends to. The temp directory is the
@@ -406,21 +497,6 @@ func defaultLogPath() string {
 	}
 
 	return filepath.Join(d, "bridge.log")
-}
-
-// openLogFile appends to path and creates its directory. A supervisor's log is
-// a history, so the file is never truncated.
-func openLogFile(path string) (*os.File, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return nil, fmt.Errorf("create log directory: %w", err)
-	}
-
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("open log file: %w", err)
-	}
-
-	return f, nil
 }
 
 // subscribe blocks in the foreground until Ctrl-C or SIGTERM. Cancelling also
@@ -565,7 +641,8 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 				return r.credentials.answer(ctx, runID)
 			},
-			env: r.runEnv,
+			env:    r.runEnv,
+			status: r.status,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					problem := "this bridge runs no update checks"
@@ -717,4 +794,42 @@ func jwtRefresher(cfg config.Config, bridgeID, first string, onRefresh func(api.
 
 		return events.JWT, nil
 	}
+}
+
+// status describes the bridge for the status op. It reads state and makes no
+// request, so it answers while the login is expired.
+func (r *router) status() statusResult {
+	res := statusResult{
+		Name:      r.rules().Name(),
+		RulesPath: r.rulesPath,
+		PID:       os.Getpid(),
+		Version:   cliVersion(),
+		LogFile:   r.logPath,
+		Login:     loginValid,
+		Workers:   []statusWorker{},
+	}
+	if g := currentBridgeGate(); g != nil && g.expired() {
+		res.Login = loginExpired
+	}
+	if r.lastError != nil {
+		res.LastError = r.lastError.get()
+	}
+	r.mu.Lock()
+	if r.heartbeat != nil {
+		res.LastHeartbeatAt = r.heartbeat.lastOK.Load()
+	}
+	for _, run := range r.live {
+		w := statusWorker{Card: run.p.work.CardNumber, Kind: run.p.work.Kind, StartedAt: run.began}
+		if w.Card == 0 {
+			w.Card = run.p.event.CardNumber
+		}
+		if w.Kind == "" {
+			w.Kind = run.p.rule
+		}
+		res.Workers = append(res.Workers, w)
+	}
+	r.mu.Unlock()
+	slices.SortFunc(res.Workers, func(a, b statusWorker) int { return a.StartedAt.Compare(b.StartedAt) })
+
+	return res
 }

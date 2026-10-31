@@ -11,6 +11,8 @@ enum ParameterType: string
     /** A condition parameter alone. */
     case Bool = 'bool';
     case Slot = 'slot';
+    /** A condition parameter alone: a string that names a value key the template declares in its `values` list. */
+    case ValueKey = 'value-key';
     /** A string that names an outcome the template declares in its `outcomes` list. */
     case Outcome = 'outcome';
     /** An expression over conditions, such as the release of a pause. */

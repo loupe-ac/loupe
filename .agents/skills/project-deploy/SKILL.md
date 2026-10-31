@@ -5,27 +5,18 @@ description: "Use when deploying to production, running terraform apply, verifyi
 
 # Deploying
 
-Production is a DigitalOcean App Platform app pulling `ghcr.io/loupe-ac/loupe:prod`.
-Infrastructure lives in `terraform/`. The secrets live in an encrypted sops
-store, `terraform/secrets.enc.yaml`, which `bin/tf-secrets` reads. The other
-real values sit in `terraform/terraform.tfvars`, which is gitignored.
+Production is a DigitalOcean App Platform app that pulls `ghcr.io/loupe-ac/loupe:prod`. The infrastructure lives in `terraform/`. The secrets live in an encrypted sops store, `terraform/secrets.enc.yaml`, which `bin/tf-secrets` reads. The other real values sit in `terraform/terraform.tfvars`, which is gitignored.
 
 ## The two halves, and why they are not the same event
 
-A deploy is two independent things, and confusing them is the failure this skill
-exists to prevent.
+A deploy is two independent things. This skill exists to stop you from confusing them.
 
-1. **The image.** `just build-prod` builds it, `just push-prod` pushes it to the
-   `prod` tag. Nothing about this changes production.
-2. **The app spec.** `terraform apply` changes environment variables, instance
-   sizes and routes. It creates a deployment.
+1. The image. `just build-prod` builds it, and `just push-prod` pushes it to the `prod` tag. This step changes nothing in production.
+2. The app spec. `terraform apply` changes environment variables, instance sizes and routes. It creates a deployment.
 
-**A `terraform apply` deployment does not re-pull the image.** The tag is fixed
-at `prod`, so App Platform sees the same tag it already has and reuses the layers
-it holds. The spec change goes live and the code does not.
+A `terraform apply` deployment does not re-pull the image. The tag is fixed at `prod`, so App Platform sees the tag it already has and reuses the layers it holds. The spec change goes live and the code does not.
 
-That is not a bug in the platform. `variable "image_tag"` says so: "A fixed tag
-means App Platform's deployment history is the only record of what ran."
+The platform works as designed. `variable "image_tag"` says so: "A fixed tag means App Platform's deployment history is the only record of what ran."
 
 ## What deploy notes hold
 
@@ -45,21 +36,32 @@ Record each item of the change that the deploy must handle:
 
 ## The production container layout
 
-Production runs one container per process type, web and messenger worker, from the same image. `docker/prod/supervisord.conf` is only the web container's image-default CMD, so never add a background process there as a `[program:]` block. The worker's command belongs to whatever orchestrates the containers: `worker_command` in `terraform/main.tf` for App Platform, or the `worker` service in `docker/compose/prod.yaml` for a single host. Both run `supervisord -c /etc/worker-supervisord.conf`.
+Production runs one container per process type, web and messenger worker, from the same image. `docker/prod/supervisord.conf` is only the image-default CMD of the web container. Never add a background process there as a `[program:]` block.
 
-That is the one exception to the rule above. The worker container runs two consumers, `messenger:consume scheduler_default card_eval jobs` and `messenger:consume card_sweep`, each with `--time-limit=3600 --memory-limit=128M`. The second keeps the low-priority workflow sweep from starving behind event-driven jobs. The schedule transport comes first in the first consumer, because a deep jobs backlog must not delay ticks.
+The worker's command belongs to the tool that orchestrates the containers. On App Platform that is `worker_command` in `terraform/main.tf`. On a single host it is the `worker` service in `docker/compose/prod.yaml`. Both run `supervisord -c /etc/worker-supervisord.conf`, which is the one exception to the rule above.
 
-`docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact, so it must keep working alongside `terraform/`. It is driven by `docker/compose/prod.env`, which is gitignored, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
+The worker container runs two consumers, `messenger:consume scheduler_default card_eval jobs` and `messenger:consume card_sweep`, each with `--time-limit=3600 --memory-limit=128M`. The second consumer keeps the low-priority workflow sweep from starving behind event-driven jobs. The schedule transport comes first in the first consumer, because a deep jobs backlog must not delay ticks.
+
+`docker/compose/prod.yaml` is the reference single-host topology: web, worker, Postgres and a Mercure hub. It is a distributed artefact, so it must keep working alongside `terraform/`. The gitignored `docker/compose/prod.env` drives it, and `docker/compose/prod.env.example` is its template. Run it with `--env-file`, because Compose otherwise interpolates the development `.env`. `compose.yaml` stays dev-only and shares nothing with it.
 
 ## The secret read guard
 
-A `PreToolUse` hook, `.agents/hooks/no-secret-reads.sh`, refuses an agent tool call that reads `terraform.tfvars`, a Terraform state file, a saved plan (`*.tfplan`), `docker/compose/prod.env`, the age key file or a `.rotate-secrets.tmp.*` file. It also refuses a recursive search over a folder that holds one. It refuses `bin/tf-secrets exec`, which can run any command with every secret in its environment, and the store reads `sops decrypt`, `sops edit`, `sops exec-env` and `age --decrypt`. Deny rules in `.claude/settings.json` cover the file tools.
+A `PreToolUse` hook, `.agents/hooks/no-secret-reads.sh`, refuses an agent tool call that reads one of these files:
+
+- `terraform.tfvars`
+- a Terraform state file
+- a saved plan (`*.tfplan`)
+- `docker/compose/prod.env`
+- the age key file
+- a `.rotate-secrets.tmp.*` file
+
+It also refuses a recursive search over a folder that holds one. It refuses `bin/tf-secrets exec`, which can run any command with every secret in its environment. It refuses the store reads `sops decrypt`, `sops edit`, `sops exec-env` and `age --decrypt`. Deny rules in `.claude/settings.json` cover the file tools.
 
 These paths are safe:
 
 - `just tfvars-names` lists the variable names that the two files set, with no value.
 - `just healthz` reads the live version from `/healthz`.
-- `just rotate-secrets` rotates the secrets.
+- `just rotate-secrets` collects new secrets, and `bin/rotate-secrets apply` applies them. The `project-rotate-secrets` skill runs the apply.
 - `just tf-plan`, `just tf-apply` and `just tf-output` run Terraform with the secrets from the store.
 - `bin/tf-secrets names` lists the names the store holds, and `verify` compares the store with `terraform.tfvars`. Neither prints a value.
 - `bin/tf-plan-diff <plan> [NAME]` lists what a saved plan changes, with no value.
@@ -138,13 +140,9 @@ Or, when the image is already pushed:
 doctl apps create-deployment "$(just tf-output -raw app_id | tail -1)" --force-rebuild --wait
 ```
 
-`--force-rebuild` is what makes the platform fetch the tag again. Without it a
-deployment can complete, report `ACTIVE`, and run the previous image.
+`--force-rebuild` makes the platform fetch the tag again. Without it, a deployment can complete, report `ACTIVE`, and run the previous image.
 
-The working tree must be clean. `APP_VERSION` comes from `git describe --tags
---always --dirty`, so an uncommitted change ships an image whose version cannot
-be traced to a commit. `just release` refuses outright; `just deploy` does not,
-so check yourself.
+The working tree must be clean. `APP_VERSION` comes from `git describe --tags --always --dirty`, so an uncommitted change ships an image whose version no commit traces. `just release` refuses an unclean tree. `just deploy` does not, so check it yourself.
 
 ## Ship an infrastructure change
 
@@ -153,50 +151,31 @@ just tf-plan -out=deploy.tfplan                       # read it, then apply the 
 just tf-apply deploy.tfplan; s=$?; rm -f terraform/deploy.tfplan; (exit $s)
 ```
 
-Apply the saved plan rather than re-planning, so what lands is what you reviewed.
-Terraform writes every secret into a saved plan in plain text, so the apply
-command removes the file, also when the apply fails. If a session ends between
-the two commands, delete `terraform/deploy.tfplan` by hand.
+Apply the saved plan, and do not plan again, so that what lands is what you reviewed. Terraform writes every secret into a saved plan in plain text. The apply command therefore removes the file, also when the apply fails. If a session ends between the two commands, delete `terraform/deploy.tfplan` by hand.
 
-**Read the plan as JSON, not as text.** The DigitalOcean provider collapses the
-app resource into "(N unchanged blocks hidden)", and an added environment
-variable hides in there. Grepping the human-readable output for a variable name
-finds nothing and reads as "no change":
+Read the plan as JSON, never as text. The DigitalOcean provider collapses the app resource into "(N unchanged blocks hidden)", and an added environment variable hides in there. A grep of the text output for a variable name finds nothing and reads as "no change". Use the script instead:
 
 ```bash
 bin/tf-plan-diff terraform/deploy.tfplan MY_VAR
 ```
 
-The script prints each changed resource, and whether `MY_VAR` appears before and
-after. It prints no value. Never run `terraform show -json` on a saved plan
-yourself: the hook refuses it, because the JSON holds the secrets.
+The script prints each changed resource, and whether `MY_VAR` appears before and after. It prints no value. Never run `terraform show -json` on a saved plan yourself. The hook refuses it, because the JSON holds the secrets.
 
-To ship code and an infrastructure change together, apply the plan first. Then
-run `just deploy`, or `create-deployment --force-rebuild` when the image is
-already pushed. That makes two rollouts. The apply's deployment keeps the cached
-image even when you pushed a new `prod` tag before it, as the 2026-10-12 release
-of `2f0d20fe5` showed.
+To ship code and an infrastructure change together, apply the plan first. Then run `just deploy`, or `create-deployment --force-rebuild` when the image is already pushed. That makes two rollouts. The deployment of the apply keeps the cached image, also when you pushed a new `prod` tag before it.
 
 ## Verify what is actually live
 
-**Ask the app, not the platform.** `doctl apps get` reporting `ACTIVE` says a
-deployment finished. It does not say which image is running, and the previous
-deployment is also `ACTIVE` until the new one replaces it.
+Ask the app, because the platform cannot tell you. When `doctl apps get` reports `ACTIVE`, a deployment finished. That does not say which image runs, and the previous deployment also stays `ACTIVE` until the new one replaces it.
 
 ```bash
 just healthz
 ```
 
-The recipe loads the secrets from the store, reads the token and the domain through `terraform console`, sends the token to `curl` on standard input, and prints the body. It never prints the token. It answers `{"status":"ok","version":"<short sha>"}`. Compare that against
-`git rev-parse --short HEAD`. Without the header the endpoint reports liveness
-alone and no metadata, which is deliberate.
+The recipe loads the secrets from the store, and reads the token and the domain through `terraform console`. It sends the token to `curl` on standard input, and prints the body. It never prints the token. It answers `{"status":"ok","version":"<short sha>"}`. Compare that against `git rev-parse --short HEAD`. Without the header, the endpoint reports liveness alone and no metadata, by design.
 
-Do not scrape `/about` for this. It renders the same version behind a session and
-an edge cache, so it is both harder to read and less trustworthy.
+Do not scrape `/about` for this. It renders the same version behind a session and an edge cache, so it is harder to read and less trustworthy.
 
-`/admin/status` runs the `DiagnosticInterface` checks and needs an admin session.
-It is where `TrustedProxyCheck` reports, so read it after any change to
-`TRUSTED_PROXIES` or to the edge.
+`/admin/status` runs the `DiagnosticInterface` checks and needs an admin session. `TrustedProxyCheck` reports there, so read it after any change to `TRUSTED_PROXIES` or to the edge.
 
 ## Which deployment is running, and why
 
@@ -209,37 +188,25 @@ for d in json.load(sys.stdin)[:3]:
 "
 ```
 
-`cause` is the tell. `app spec updated` came from a `terraform apply` and may be
-running old code. `manual` came from `create-deployment`.
+Read the `cause` field. `app spec updated` came from a `terraform apply` and may run old code. `manual` came from `create-deployment`.
 
 ## Migrations
 
-`enable_predeploy_migrations = true`, so a pre-deploy job runs
-`doctrine:migrations:migrate` before the new containers take traffic. A failed
-migration fails the deployment and the previous one keeps serving.
+`enable_predeploy_migrations = true`, so a pre-deploy job runs `doctrine:migrations:migrate` before the new containers take traffic. A failed migration fails the deployment, and the previous one keeps serving.
 
-"Check the release diff" lists the migrations of the release. A release with no
-migration is a much smaller risk than one with. Say which you are shipping.
+"Check the release diff" lists the migrations of the release. A release with no migration is a much smaller risk than one with a migration. Say which you ship.
 
 ## Trusted proxies
 
-`app.loupe.ac` and `loupe.ac` sit behind Cloudflare, which sits in front of App Platform's private
-ingress. `TRUSTED_PROXIES` must list Cloudflare's ranges, or Symfony stops the
-address walk at the ingress and every visitor resolves to a Cloudflare address.
+`app.loupe.ac` and `loupe.ac` sit behind Cloudflare, which sits in front of the private ingress of App Platform. `TRUSTED_PROXIES` must list the Cloudflare ranges. Otherwise Symfony stops the address walk at the ingress, and every visitor resolves to a Cloudflare address.
 
-The failure is quiet and it is not what you would test for. The immediate peer is
-private and therefore trusted, so `isFromTrustedProxy()` answers true and the
-configuration looks right, while `getClientIp()` still returns the edge. Two rate
-limiters key on that address, so they collapse to one bucket per edge node.
+A test does not easily show this failure. The immediate peer is private and therefore trusted, so `isFromTrustedProxy()` answers true and the configuration looks right. `getClientIp()` still returns the edge. Two rate limiters key on that address, so they collapse to one bucket per edge node.
 
-Terraform prepends `PRIVATE_SUBNETS` to whatever `trusted_proxies` holds, so set
-the Cloudflare ranges alone. Refresh them from `cloudflare.com/ips-v4` and
-`/ips-v6` when they change. `TrustedProxyCheck` on `/admin/status` is what tells
-you the list has gone stale.
+Terraform prepends `PRIVATE_SUBNETS` to the value of `trusted_proxies`, so set the Cloudflare ranges alone. Refresh them from `cloudflare.com/ips-v4` and `/ips-v6` when they change. `TrustedProxyCheck` on `/admin/status` tells you when the list is stale.
 
 ## After a deploy
 
-`docs/operating/post-deploy-checks.md` is the operator-facing list. Run every check below that an agent can run, then report. Do not stop at the first pass.
+`docs/operating/post-deploy-checks.md` is the list for operators. Run every check below that an agent can run, then report. Do not stop at the first pass.
 
 ```bash
 APP=$(just tf-output -raw app_id | tail -1)
@@ -261,17 +228,19 @@ Run the two console checks in the `web` component. `doctl apps console` needs a 
 - `health-check:status` exits 0 on a warning. Report each row that is not `OK`. An `UNKNOWN` row is not a pass.
 - When the console does not connect or prints no table, report both checks as not checked, with the error line.
 
+Then do these checks:
+
 - Read the newest deployment, as "Which deployment is running, and why" shows. It must be `ACTIVE` with cause `manual`.
-- Compare the version in the `migrate` log with the newest file in `migrations/` on the target sha. A release with no migration logs that it is already at the latest version. This log shows the pre-deploy job ran. The console check above shows that no migration is pending.
+- Compare the version in the `migrate` log with the newest file in `migrations/` on the target sha. A release with no migration logs that it is already at the latest version. This log shows that the pre-deploy job ran. The console check above shows that no migration is pending.
 - Read the run log matches. Ignore lines from before the new deployment started.
 - Call `search_issues` through the Sentry MCP with `is:unresolved firstSeen:-1h environment:prod` on the `loupe` project. Read each new issue.
 - Run each check that the deploy notes ask for and that an agent can run.
 
 ### Do every deploy-note step yourself
 
-Do each step of the deploy notes that an agent can do, without asking the owner again. The owner's go on the summary covers them. Hand a step to the owner only when it needs a browser, a session, or a secret that a hook refuses to you.
+Do each step of the deploy notes that an agent can do, and do not ask the owner again. The go of the owner on the summary covers them. Hand a step to the owner only when it needs a browser, a session, or a secret that a hook refuses to you.
 
-- For a CLI change, run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/`. When it prints a file, push the next `cli/v*` tag at the deployed sha, and wait for the `CLI release` workflow. A tag is never moved, so a failed release gets the next patch tag.
+- For a CLI change, run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/`. When it prints a file, push the next `cli/v*` tag at the deployed sha. Then wait for the `CLI release` workflow. Never move a tag, so a failed release gets the next patch tag.
 - For a bridge update, read `~/Library/Application Support/loupe/rules.yaml`, and copy it to a backup file next to it. Edit it when the release changes its format. Then run `loupe update`, and read `loupe --version` and the end of `bridge.log`.
 - A running bridge reads the file only at start and on `loupe bridge reload`. The update preflight reads the file on disk, so edit the file first and update after. Never run `loupe bridge stop` for an update, because it ends every running worker.
 - Run a backfill or a console command in the `web` console, as above.

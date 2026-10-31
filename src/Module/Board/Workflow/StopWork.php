@@ -31,7 +31,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * one `stopped` history row for each run it asked to stop. The runs go in bridge order, and the bridge locks come before
  * the lock of any work request, the order of a claim, so a pass and a claim cannot wait for each other.
  * An interactive session stays: the move that follows closes its row. A request that a person started stays too,
- * because no rule owns it. A run that is stopping already, or has a stop pending, is skipped, so a retry of the rule
+ * because no rule owns it, and so does an open background run that such a request started. A run that is stopping already, or has a stop pending, is skipped, so a retry of the rule
  * writes no second row. Any other refused stop, or more open runs than one pass reads, refuses the action, so the
  * move that follows waits for a retry.
  */
@@ -100,7 +100,7 @@ final readonly class StopWork implements Action
         $now = $this->clock->now();
         $open = $this->workerRuns->findOpenForCard($card->project, $cardId, self::MAX_RUNS + 1, WorkerRunKind::Interactive);
         $refused = \count($open) > self::MAX_RUNS;
-        $runs = \array_slice($open, 0, self::MAX_RUNS);
+        $runs = array_values(array_filter(\array_slice($open, 0, self::MAX_RUNS), fn (WorkerRun $run): bool => !$this->startedByPerson($run)));
         usort($runs, static fn (WorkerRun $a, WorkerRun $b): int => strcmp((string) $a->bridgeId, (string) $b->bridgeId));
         foreach ($runs as $run) {
             try {
@@ -127,5 +127,14 @@ final readonly class StopWork implements Action
         }
 
         return $refused ? ActionOutcome::refused(self::STOP_REFUSED) : ActionOutcome::done();
+    }
+
+    /** The run reads its rule id from its work request, and from its own copy when the request is gone. A run with neither is a rule's. */
+    private function startedByPerson(WorkerRun $run): bool
+    {
+        $request = null === $run->workRequestId ? null : $this->ledger->find($run->workRequestId);
+        $ruleId = $request->ruleId ?? $run->ruleId;
+
+        return null !== $ruleId && PersonWork::owns($ruleId);
     }
 }

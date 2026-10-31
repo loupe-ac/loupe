@@ -68,30 +68,36 @@ final class RunMarkerConditionsTest extends TestCase
 
     public function test_an_open_worker_run_shows_the_oldest_kind_or_the_asked_kind(): void
     {
-        $facts = self::facts(new WorkerRunFacts(['fix', 'implement'], [
+        $since = [
             'fix' => new \DateTimeImmutable('2026-10-01 10:00:00'),
             'implement' => new \DateTimeImmutable('2026-10-01 09:00:00'),
-        ]));
+        ];
+        $facts = self::facts(new WorkerRunFacts(['fix', 'implement'], $since, ['fix'], ['fix' => $since['fix']]));
         $condition = new RunWorkerActive();
 
         self::assertEquals(new Evidence(['%kind%' => 'implement']), $condition->evidence($facts, []));
         self::assertEquals(new Evidence(['%kind%' => 'fix']), $condition->evidence($facts, ['kind' => 'fix']));
         self::assertNull($condition->evidence($facts, ['kind' => 'review']));
-        self::assertNull($condition->evidence(self::facts(new WorkerRunFacts([], [])), []));
+        self::assertEquals(new Evidence(['%kind%' => 'fix']), $condition->evidence($facts, ['origin' => 'rule']), 'A run that a person started is no evidence for a rule-only reading.');
+        self::assertNull($condition->evidence($facts, ['origin' => 'rule', 'kind' => 'implement']));
+        self::assertNull($condition->evidence(self::facts(new WorkerRunFacts([], [], [], [])), []));
     }
 
     public function test_a_live_work_request_shows_the_oldest_kind_or_the_asked_kind(): void
     {
-        $facts = self::facts(new WorkRequestFacts(['review', 'fix'], [
+        $since = [
             'review' => new \DateTimeImmutable('2026-10-01 08:00:00'),
             'fix' => new \DateTimeImmutable('2026-10-01 10:00:00'),
-        ]));
+        ];
+        $facts = self::facts(new WorkRequestFacts(['review', 'fix'], $since, ['fix'], ['fix' => $since['fix']]));
         $condition = new RunWorkActive();
 
         self::assertEquals(new Evidence(['%kind%' => 'review']), $condition->evidence($facts, []));
         self::assertEquals(new Evidence(['%kind%' => 'fix']), $condition->evidence($facts, ['kind' => 'fix']));
         self::assertNull($condition->evidence($facts, ['kind' => 'merge']));
-        self::assertNull($condition->evidence(self::facts(new WorkRequestFacts([], [])), []));
+        self::assertEquals(new Evidence(['%kind%' => 'fix']), $condition->evidence($facts, ['origin' => 'rule']), 'A request that a person started is no evidence for a rule-only reading.');
+        self::assertNull($condition->evidence($facts, ['origin' => 'rule', 'kind' => 'review']));
+        self::assertNull($condition->evidence(self::facts(new WorkRequestFacts([], [], [], [])), []));
     }
 
     private static function facts(object $provided): Facts

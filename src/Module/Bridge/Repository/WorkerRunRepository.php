@@ -17,6 +17,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunListQuery;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\PersonWork;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\LockMode;
@@ -593,6 +594,75 @@ class WorkerRunRepository extends ServiceEntityRepository
         }, $rows);
     }
 
+    /** Whether any worker run of the project names the experiment. */
+    public function experimentHasRun(Project $project, string $experiment): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT 1 FROM bridge_worker_runs WHERE project_id = :project AND experiment = :experiment LIMIT 1',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment],
+        );
+    }
+
+    /**
+     * The ids of every run of the project received at $from or later, whatever
+     * experiment the run names.
+     *
+     * @return list<string>
+     */
+    public function findRunIdsReceivedFrom(Project $project, \DateTimeImmutable $from): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM bridge_worker_runs WHERE project_id = :project AND received_at >= :from',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'from' => $from],
+            ['from' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids);
+    }
+
+    /**
+     * The ids of the runs that name the experiment now and were received at
+     * $from or later.
+     *
+     * @return list<string>
+     */
+    public function findExperimentRunIdsReceivedFrom(Project $project, string $experiment, \DateTimeImmutable $from): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM bridge_worker_runs WHERE project_id = :project AND experiment = :experiment AND received_at >= :from',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment, 'from' => $from],
+            ['from' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids);
+    }
+
+    /**
+     * For each archived experiment of the project, the ids of the runs that
+     * name it and were received in its archive second or later.
+     *
+     * @return array<string, list<string>> experiment => run ids
+     */
+    public function findExperimentRunIdsFromArchive(Project $project): array
+    {
+        /** @var list<array{experiment: string, id: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT r.experiment, r.id FROM bridge_worker_runs r
+            JOIN bridge_experiment_archives a ON a.project_id = r.project_id AND a.experiment = r.experiment
+            WHERE r.project_id = :project AND r.received_at >= a.archived_at',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122()],
+        );
+
+        $byExperiment = [];
+        foreach ($rows as $row) {
+            $byExperiment[$row['experiment']][] = Uuid::fromString($row['id'])->toRfc4122();
+        }
+
+        return $byExperiment;
+    }
+
     /**
      * Every worker run, of any experiment or of none, of the cards that ran in
      * the experiment, are pinned to it, or keep a fact of it. Oldest first.
@@ -963,14 +1033,25 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** @return array<string, \DateTimeImmutable> each work kind of the card's open worker runs, sorted, mapped to the start of its oldest run */
-    public function findOpenWorkSinceOfCard(Uuid $cardId): array
+    /**
+     * A run belongs to a person when the work request that started it has a person rule id. The run reads that id from
+     * its request, and from its own copy when the request is gone. A run with neither belongs to a rule.
+     *
+     * @param bool $ruleOwnedOnly leave out the runs that a person started
+     *
+     * @return array<string, \DateTimeImmutable> each work kind of the card's open worker runs, sorted, mapped to the start of its oldest run
+     */
+    public function findOpenWorkSinceOfCard(Uuid $cardId, bool $ruleOwnedOnly = false): array
     {
+        $origin = $ruleOwnedOnly
+            ? 'AND (COALESCE(w.rule_id, r.rule_id) IS NULL OR COALESCE(w.rule_id, r.rule_id) NOT LIKE :person)'
+            : '';
         /** @var list<array{work_kind: string, since: string}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
             'SELECT r.work_kind, MIN(COALESCE(r.started_at, r.received_at)) AS since
              FROM bridge_worker_runs r
-             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL AND r.state IN (:open)
+             LEFT JOIN work_requests w ON w.id = r.work_request_id
+             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL AND r.state IN (:open) '.$origin.'
              GROUP BY r.work_kind
              ORDER BY r.work_kind',
             [
@@ -978,6 +1059,7 @@ class WorkerRunRepository extends ServiceEntityRepository
                 'card' => $cardId->toRfc4122(),
                 'kind' => WorkerRunKind::Worker->value,
                 'open' => array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()),
+                ...($ruleOwnedOnly ? ['person' => PersonWork::RULE_PREFIX.'%'] : []),
             ],
             ['open' => ArrayParameterType::STRING],
         )->fetchAllAssociative();

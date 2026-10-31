@@ -19,7 +19,7 @@ final class ShippedKindPromptsTest extends TestCase
         $prompts = $this->prompts();
 
         $kinds = $this->lifecycleKinds();
-        self::assertCount(17, $kinds);
+        self::assertCount(18, $kinds);
         foreach ($kinds as $kind) {
             $text = $prompts->forKind($kind);
             self::assertNotNull($text, \sprintf('The kind "%s" ships no prompt.', $kind));

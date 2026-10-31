@@ -16,7 +16,7 @@
                     aria-pressed="{{ open ? 'true' : 'false' }}"
                     {% if reason %}aria-disabled="true"{% endif %}
                     title="{{ reason ? reason|trans : ('review.document.panels.' ~ name)|trans }}"
-                    aria-label="{{ name == 'comments' ? 'review.document.panels.comments_label'|trans({'%count%': openCommentCount}) : ('review.document.panels.' ~ name)|trans }}"
+                    {% if name != 'decisions' or reason %}aria-label="{{ name == 'comments' ? 'review.document.panels.comments_label'|trans({'%count%': openCommentCount}) : ('review.document.panels.' ~ name)|trans }}"{% endif %}
                     {% if name == 'comments' %}data-label-template="{{ 'review.document.panels.comments_label'|trans }}"{% endif %}
                     data-review-panels-target="button"
                     data-review-panels-name-param="{{ name }}"
@@ -24,6 +24,10 @@
                 {% if name == 'decisions' %}<twig:ux:icon name="lucide:list-checks" />{% endif %}
                 {% if name == 'comments' %}<twig:ux:icon name="lucide:message-square" />{% endif %}
                 {% if name == 'outline' %}<twig:ux:icon name="lucide:list" />{% endif %}
+                {% if name == 'decisions' and not reason %}
+                <span id="review-toolbar-decisions-count" aria-hidden="true">{{ 'review.document.decisions.count'|trans({'%answered%': answeredDecisions, '%total%': decisionRows|length}) }}</span>
+                <span class="sr-only" id="review-toolbar-decisions-label">{{ 'review.document.panels.decisions_label'|trans({'%answered%': answeredDecisions, '%total%': decisionRows|length}) }}</span>
+                {% endif %}
                 {% if name == 'comments' %}<span data-review-panels-target="openCount">{{ openCommentCount }}</span>{% endif %}
             </button>
             {% endfor %}

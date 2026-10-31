@@ -13,6 +13,8 @@ final readonly class ListExperimentsView
      */
     public function __construct(
         public array $experiments,
+        /** How many experiments of the project are archived, whichever list this view holds. */
+        public int $archivedCount = 0,
     ) {
     }
 }

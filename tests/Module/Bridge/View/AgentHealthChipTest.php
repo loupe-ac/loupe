@@ -34,4 +34,22 @@ final class AgentHealthChipTest extends TestCase
 
         self::assertSame([$state, $label, $tone], [$chip->state, $chip->label, $chip->tone]);
     }
+
+    public function test_a_quiet_bridge_with_an_expired_login_reads_login_expired(): void
+    {
+        $bridge = new Bridge(new User(fullName: 'Riley Chen', email: 'chip@example.com', password: 'x'), Uuid::v4(), [], '1.5.0', new \DateTimeImmutable());
+        $now = new \DateTimeImmutable();
+
+        $chip = AgentHealthChip::for($bridge, new BridgeStatus($now, $now, true, true));
+
+        self::assertSame(['login_expired', 'bridge.agents.status.login_expired', 'failed'], [$chip->state, $chip->label, $chip->tone]);
+    }
+
+    public function test_a_live_bridge_never_reads_login_expired(): void
+    {
+        $bridge = new Bridge(new User(fullName: 'Riley Chen', email: 'chip@example.com', password: 'x'), Uuid::v4(), [], '1.5.0', new \DateTimeImmutable());
+        $now = new \DateTimeImmutable();
+
+        self::assertSame('healthy', AgentHealthChip::for($bridge, new BridgeStatus($now, $now, false, true))->state);
+    }
 }

@@ -14,7 +14,10 @@ use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A work request is open or claimed, of the given kind, or of any kind when no kind is given. */
+/**
+ * A work request is open or claimed, of the given kind, or of any kind when no kind is given.
+ * With `origin: rule`, a request that a person started does not count.
+ */
 final readonly class RunWorkActive implements Condition, MarkerEvidence
 {
     #[\Override]
@@ -32,7 +35,10 @@ final readonly class RunWorkActive implements Condition, MarkerEvidence
     #[\Override]
     public static function parameters(): array
     {
-        return [new Parameter('kind', ParameterType::String, required: false)];
+        return [
+            new Parameter('kind', ParameterType::String, required: false),
+            new Parameter('origin', ParameterType::String, required: false, choices: [ActiveKindEvidence::ORIGIN_RULE]),
+        ];
     }
 
     #[\Override]
@@ -45,7 +51,8 @@ final readonly class RunWorkActive implements Condition, MarkerEvidence
     public function evaluate(Facts $facts, array $params): bool
     {
         $kind = ParameterValue::optionalString($params, 'kind');
-        $active = $facts->get(WorkRequestFacts::class)->activeKinds;
+        $work = $facts->get(WorkRequestFacts::class);
+        $active = ActiveKindEvidence::isRuleOnly($params) ? $work->activeRuleKinds : $work->activeKinds;
 
         return null === $kind ? [] !== $active : \in_array($kind, $active, true);
     }
@@ -59,6 +66,8 @@ final readonly class RunWorkActive implements Condition, MarkerEvidence
     #[\Override]
     public function evidence(Facts $facts, array $params): ?Evidence
     {
-        return ActiveKindEvidence::of($facts->get(WorkRequestFacts::class)->since, ParameterValue::optionalString($params, 'kind'));
+        $work = $facts->get(WorkRequestFacts::class);
+
+        return ActiveKindEvidence::of(ActiveKindEvidence::isRuleOnly($params) ? $work->ruleSince : $work->since, ParameterValue::optionalString($params, 'kind'));
     }
 }
