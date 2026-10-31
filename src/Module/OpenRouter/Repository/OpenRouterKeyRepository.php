@@ -8,7 +8,6 @@ use App\Module\OpenRouter\Entity\OpenRouterKey;
 use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\OpenRouter\View\OpenRouterKeySummary;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\AbstractQuery;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -71,14 +70,16 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
         return $rows;
     }
 
-    public function findIdForUser(Uuid $userId): ?Uuid
+    /** @return ?Uuid the id of the row the delete removed, so an event names that row and no other */
+    public function deleteReturningIdForUser(Uuid $userId): ?Uuid
     {
-        return $this->findIdOf('user', $userId);
+        return $this->deleteReturningId('user_id', $userId);
     }
 
-    public function findIdForProject(Uuid $projectId): ?Uuid
+    /** @return ?Uuid the id of the row the delete removed, so an event names that row and no other */
+    public function deleteReturningIdForProject(Uuid $projectId): ?Uuid
     {
-        return $this->findIdOf('project', $projectId);
+        return $this->deleteReturningId('project_id', $projectId);
     }
 
     /**
@@ -111,13 +112,13 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
             ->execute();
     }
 
-    private function findIdOf(string $owner, Uuid $ownerId): ?Uuid
+    private function deleteReturningId(string $column, Uuid $ownerId): ?Uuid
     {
-        $id = $this->getEntityManager()
-            ->createQuery('SELECT k.id FROM '.OpenRouterKey::class.' k WHERE k.'.$owner.' = :owner')
-            ->setParameter('owner', $ownerId, UuidType::NAME)
-            ->getOneOrNullResult(AbstractQuery::HYDRATE_SINGLE_SCALAR);
+        $id = $this->getEntityManager()->getConnection()->fetchOne(
+            'DELETE FROM openrouter_keys WHERE '.$column.' = :owner RETURNING id',
+            ['owner' => $ownerId->toRfc4122()],
+        );
 
-        return null === $id ? null : Uuid::fromString((string) $id);
+        return false === $id ? null : Uuid::fromString((string) $id);
     }
 }

@@ -118,7 +118,8 @@ final readonly class OpenRouterKeyNoticeReconciler
                 }
 
                 $now = self::whole($this->clock->now());
-                $done = InboxItemState::Done === $state && $this->inbox->isEnabled();
+                // A works signal read before a removal must not close a removed key as done.
+                $done = InboxItemState::Done === $state && $this->inbox->isEnabled() && $this->openRouterKeys->lockIfPresent($notice->keyId);
                 $note = $done ? $this->translator->trans('inbox.openrouter_key.closed', [
                     '%start%' => self::stamp($notice->startedAt),
                     '%end%' => self::stamp($now),

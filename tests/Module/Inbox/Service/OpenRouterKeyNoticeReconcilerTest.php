@@ -181,6 +181,19 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         self::assertNotNull($notice->endedAt);
     }
 
+    public function test_a_works_signal_for_a_removed_key_closes_its_notice_as_obsolete(): void
+    {
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+        $this->em->getConnection()->executeStatement('DELETE FROM openrouter_keys WHERE id = :id', ['id' => $this->keyId->toRfc4122()]);
+
+        $this->reconciler->works($this->keyId);
+
+        $notice = $this->onlyNotice();
+        self::assertSame(InboxItemState::Obsolete, $notice->item->state);
+        self::assertNull($notice->item->closeNote);
+        self::assertNotNull($notice->endedAt);
+    }
+
     public function test_a_later_refusal_opens_a_new_notice_after_the_first_closed(): void
     {
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());

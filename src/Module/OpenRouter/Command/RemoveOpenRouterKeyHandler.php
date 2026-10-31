@@ -30,16 +30,13 @@ final readonly class RemoveOpenRouterKeyHandler
         $ownerId = $owner instanceof User
             ? $owner->id ?? throw new \LogicException('A stored user has an id.') : $owner->requireId();
 
-        $keyId = $owner instanceof User ? $this->openRouterKeys->findIdForUser($ownerId) : $this->openRouterKeys->findIdForProject($ownerId);
-        $removed = $owner instanceof User ? $this->openRouterKeys->deleteForUser($ownerId) : $this->openRouterKeys->deleteForProject($ownerId);
-        if (0 === $removed) {
+        $keyId = $owner instanceof User ? $this->openRouterKeys->deleteReturningIdForUser($ownerId) : $this->openRouterKeys->deleteReturningIdForProject($ownerId);
+        if (null === $keyId) {
             return;
         }
 
         $this->changed->changed($owner);
-        if (null !== $keyId) {
-            $this->events->dispatch(new OpenRouterKeyRemoved($keyId));
-        }
+        $this->events->dispatch(new OpenRouterKeyRemoved($keyId));
         $scope = $owner instanceof User ? 'account' : 'project';
         $this->auditor->record(
             'openrouter.key_removed',

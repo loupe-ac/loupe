@@ -53,8 +53,7 @@ final readonly class SaveOpenRouterKeyHandler
             ? $owner->id ?? throw new \LogicException('A stored user has an id.') : $owner->requireId();
 
         [$key, $replacedId] = $this->em->wrapInTransaction(function () use ($owner, $ownerId, $secret): array {
-            $replacedId = $owner instanceof User ? $this->openRouterKeys->findIdForUser($ownerId) : $this->openRouterKeys->findIdForProject($ownerId);
-            $owner instanceof User ? $this->openRouterKeys->deleteForUser($ownerId) : $this->openRouterKeys->deleteForProject($ownerId);
+            $replacedId = $owner instanceof User ? $this->openRouterKeys->deleteReturningIdForUser($ownerId) : $this->openRouterKeys->deleteReturningIdForProject($ownerId);
 
             $key = $owner instanceof User ? new OpenRouterKey($secret, user: $owner) : new OpenRouterKey($secret, project: $owner);
             $this->em->persist($key);
