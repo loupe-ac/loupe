@@ -1,1 +1,0 @@
-- (#PENDING) — **Changed:** A network outage of a bridge no longer fails a run. The work waits five minutes, the card shows Waiting, and the run resumes its session on the same bridge.
