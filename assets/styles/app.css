@@ -25,7 +25,6 @@
 @import './components/form-actions.css';
 @import './components/avatar.css';
 @import './components/relative-time.css';
-@import './components/usage-bar.css';
 @import './components/data-table.css';
 @import './components/menu.css';
 @import './components/split-button.css';
@@ -1005,6 +1004,62 @@
     }
     .lp-agent-section[open] > .lp-agent-section__summary {
         @apply mb-1;
+    }
+    /* The usage bars of an account on the Agents page, `templates/Module/Bridge/_account_usage.html.twig`. */
+    /* The bars of one account, side by side. */
+    .lp-usage {
+        @apply mt-1 grid grid-cols-2 items-end gap-3;
+    }
+    /* One window. Its tooltip, the age of the reading, shows on hover and focus. */
+    .lp-usage-bar {
+        @apply relative grid min-w-0 gap-1 rounded-md outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+    }
+    .lp-usage-bar:hover > .lp-tooltip,
+    .lp-usage-bar:focus-visible > .lp-tooltip {
+        @apply visible opacity-100;
+    }
+    .lp-usage-bar__line {
+        @apply m-0 flex flex-wrap items-baseline gap-x-1.5;
+    }
+    .lp-usage-bar__name {
+        @apply text-xs text-fg-mute;
+    }
+    .lp-usage-bar__value {
+        @apply text-sm font-semibold tabular-nums;
+    }
+    /* The track is a progress element, so the fill needs no inline style. */
+    .lp-usage-bar__track {
+        @apply block h-1.5 w-full appearance-none overflow-hidden rounded-full border-0 bg-surface-3;
+    }
+    .lp-usage-bar__track::-webkit-progress-bar {
+        @apply bg-surface-3;
+    }
+    .lp-usage-bar__track::-webkit-progress-value {
+        @apply rounded-full bg-accent;
+    }
+    .lp-usage-bar__track::-moz-progress-bar {
+        @apply rounded-full bg-accent;
+    }
+    .lp-usage-bar__reset {
+        @apply ml-auto inline-flex items-center gap-1 text-xs text-fg-mute;
+    }
+    /* At its stop value: amber. */
+    .lp-usage-bar--stop .lp-usage-bar__track::-webkit-progress-value {
+        @apply bg-status-pending;
+    }
+    .lp-usage-bar--stop .lp-usage-bar__track::-moz-progress-bar {
+        @apply bg-status-pending;
+    }
+    /* At its limit: red. */
+    .lp-usage-bar--limit .lp-usage-bar__track::-webkit-progress-value {
+        @apply bg-status-danger;
+    }
+    .lp-usage-bar--limit .lp-usage-bar__track::-moz-progress-bar {
+        @apply bg-status-danger;
+    }
+    /* No reading to trust: the label is quiet and the bar stays empty. */
+    .lp-usage-bar--unknown .lp-usage-bar__value {
+        @apply font-normal text-fg-mute;
     }
     /* A narrow card at a large text size wraps the menu under the label. */
     .lp-redesign-agents .lp-agent-card__heading {
