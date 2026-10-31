@@ -20,12 +20,18 @@ final readonly class AccountReadingRecorder
     ) {
     }
 
-    /** @param list<AccountReadingReport> $reports */
-    public function record(Bridge $bridge, array $reports): void
+    /**
+     * @param list<AccountReadingReport> $reports
+     *
+     * @return bool whether a reading was stored
+     */
+    public function record(Bridge $bridge, array $reports): bool
     {
         if ([] === $reports) {
-            return;
+            return false;
         }
+
+        $changed = false;
 
         $latest = [];
         foreach ($this->bridgeAccountReadings->latestOfBridge($bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.'), $bridge->id) as $stored) {
@@ -41,6 +47,9 @@ final readonly class AccountReadingRecorder
 
             $latest[$key] = $report;
             $this->em->persist(new BridgeAccountReading(Uuid::v7(), $bridge, $report->account, $report->window, $report->usedPercent, $report->resetsAt, $report->limited, $report->source, $report->readAt));
+            $changed = true;
         }
+
+        return $changed;
     }
 }

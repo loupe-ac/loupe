@@ -904,6 +904,27 @@ keeps `used_percent` as it is. The window comes from `window_minutes`. A
 non-null `rate_limit_reached_type` marks the window that it names as limited.
 The source is `codex`.
 
+### Usage on the Agents page
+
+The Agents page draws two bars for each account, named **Session** and
+**Week**, also before the first reading. A window of another length reads its length, such as
+`3d`. Each bar shows the use in percent and the reset time. The bar stops at
+100 %, and its label keeps the real value, such as 104 %. A window at its stop
+value is amber, and a window at its limit is red. A tooltip on the bar gives the
+age of the reading.
+
+A window with no use value has an empty bar. Its label reads **At its limit**
+when the reading is `limited`, and **Use not reported** otherwise. A window
+whose reset time passed with no newer reading reads **Unknown**, with an empty
+bar and no reset time. A window with no reading yet also reads **Unknown**.
+
+The Worker pools and Accounts sections of each connection collapse. A section
+opens on its own when it holds a problem: a pool with queued work, or an account
+that fails or takes no new work. A section that you open or close keeps that
+state while the page reloads during your visit. The summary line of a closed
+Accounts section names each account with its worst state, such as
+`claude near its limit · codex Unknown`.
+
 ### Migration and rollback
 
 At each start, the bridge gives an account to a `rules.yaml` with no `accounts`
