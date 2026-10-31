@@ -33,10 +33,19 @@ final readonly class InboxThreadActionBuilder
     /** @param ?string $hostCardId the card whose page shows the item, so the thread offers no link back to it */
     public function build(InboxItem $item, ?string $hostCardId = null): InboxThreadActions
     {
+        return $this->fromActions($item, $this->itemActions->forItem($item), $hostCardId);
+    }
+
+    /**
+     * @param list<ItemAction> $actions    what ItemActions gives for the item, so a caller that holds them reads them once
+     * @param ?string          $hostCardId the card whose page shows the item, so the thread offers no link back to it
+     */
+    public function fromActions(InboxItem $item, array $actions, ?string $hostCardId = null): InboxThreadActions
+    {
         $rows = [];
         $dismiss = null;
         $default = null;
-        foreach ($this->itemActions->forItem($item) as $action) {
+        foreach ($actions as $action) {
             // The response forms of the page carry these, so the split button has a row for Dismiss on a wait item alone.
             if ($action->kind->isResponse() && !(InboxActionKind::Dismiss === $action->kind && $item->isAutomatic())) {
                 continue;

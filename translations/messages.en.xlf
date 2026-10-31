@@ -5703,11 +5703,11 @@
             <trans-unit id="inbox.form.run_inbox_action_form.verdict.label"><source>inbox.form.run_inbox_action_form.verdict.label</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.form.run_inbox_action_form.verdict.approve"><source>inbox.form.run_inbox_action_form.verdict.approve</source><target>Approve</target></trans-unit>
             <trans-unit id="inbox.form.run_inbox_action_form.verdict.changes"><source>inbox.form.run_inbox_action_form.verdict.changes</source><target>Request changes</target></trans-unit>
-            <trans-unit id="inbox.action.answer.label"><source>inbox.action.answer.label</source><target>Answer</target></trans-unit>
+            <trans-unit id="inbox.action.answer.label"><source>inbox.action.answer.label</source><target>Send answer</target></trans-unit>
             <trans-unit id="inbox.action.answer.effect"><source>inbox.action.answer.effect</source><target>Sends your answer and closes the question. The answer is final.</target></trans-unit>
             <trans-unit id="inbox.action.complete.label"><source>inbox.action.complete.label</source><target>Mark complete</target></trans-unit>
             <trans-unit id="inbox.action.complete.effect"><source>inbox.action.complete.effect</source><target>Closes the to-do as done. This is final.</target></trans-unit>
-            <trans-unit id="inbox.action.submit-review.label"><source>inbox.action.submit-review.label</source><target>Submit the review</target></trans-unit>
+            <trans-unit id="inbox.action.submit-review.label"><source>inbox.action.submit-review.label</source><target>Submit review</target></trans-unit>
             <trans-unit id="inbox.action.submit-review.effect"><source>inbox.action.submit-review.effect</source><target>Sends your verdict and closes the review. The verdict is final.</target></trans-unit>
             <trans-unit id="inbox.action.hold-card.label"><source>inbox.action.hold-card.label</source><target>Hold the card</target></trans-unit>
             <trans-unit id="inbox.action.hold-card.effect"><source>inbox.action.hold-card.effect</source><target>Makes the card unmanaged, so no rule and no worker acts on it until you release it.</target></trans-unit>
@@ -5802,7 +5802,7 @@
             <trans-unit id="inbox.action.error.not_cancellable"><source>inbox.action.error.not_cancellable</source><target>This action cannot be cancelled now.</target></trans-unit>
             <trans-unit id="inbox.action.status.queued"><source>inbox.action.status.queued</source><target>Queued</target></trans-unit>
             <trans-unit id="inbox.action.status.offline"><source>inbox.action.status.offline</source><target>No bridge is online.</target></trans-unit>
-            <trans-unit id="inbox.action.status.expired"><source>inbox.action.status.expired</source><target>Expired. No bridge took it.</target></trans-unit>
+            <trans-unit id="inbox.action.status.expired"><source>inbox.action.status.expired</source><target>Expired: no bridge took it</target></trans-unit>
             <trans-unit id="inbox.action.status.refused"><source>inbox.action.status.refused</source><target>Refused: %reason%</target></trans-unit>
             <trans-unit id="inbox.action.status.refused_no_reason"><source>inbox.action.status.refused_no_reason</source><target>Refused</target></trans-unit>
             <trans-unit id="inbox.action.status.cancelled"><source>inbox.action.status.cancelled</source><target>Cancelled</target></trans-unit>
@@ -6055,10 +6055,6 @@
                 <source>inbox.item.through_agent</source>
                 <target>An agent recorded this response for the owner.</target>
             </trans-unit>
-            <trans-unit id="inbox.item.final">
-                <source>inbox.item.final</source>
-                <target>This response is final. You cannot change it.</target>
-            </trans-unit>
             <trans-unit id="inbox.item.respond_elsewhere">
                 <source>inbox.item.respond_elsewhere</source>
                 <target>Respond to item %number% at the request that holds it</target>
@@ -6138,10 +6134,6 @@
             <trans-unit id="inbox.answer.clear">
                 <source>inbox.answer.clear</source>
                 <target>Clear choice</target>
-            </trans-unit>
-            <trans-unit id="inbox.answer.submit">
-                <source>inbox.answer.submit</source>
-                <target>Send answer</target>
             </trans-unit>
             <trans-unit id="inbox.answer.error.not_a_question">
                 <source>inbox.answer.error.not_a_question</source>
@@ -6228,6 +6220,27 @@
             <trans-unit id="inbox.thread.you_verb.start-session"><source>inbox.thread.you_verb.start-session</source><target>started a session at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.run-command"><source>inbox.thread.you_verb.run-command</source><target>ran %entry% at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.add-entry"><source>inbox.thread.you_verb.add-entry</source><target>added an entry at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.answer"><source>inbox.thread.you_verb.answer</source><target>sent an answer at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.complete"><source>inbox.thread.you_verb.complete</source><target>marked it complete at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.submit-review"><source>inbox.thread.you_verb.submit-review</source><target>submitted a review at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
+            <trans-unit id="inbox.ask.closed_outcome"><source>inbox.ask.closed_outcome</source><target>Closed %time%: %outcome%</target></trans-unit>
+            <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.author.agent"><source>inbox.thread.closing.author.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.author.loupe"><source>inbox.thread.closing.author.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.author.rule"><source>inbox.thread.closing.author.rule</source><target>Workflow rule</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.withdrawn"><source>inbox.thread.closing.withdrawn</source><target>The agent withdrew this item, so it takes no answer.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.card-deleted"><source>inbox.thread.closing.card-deleted</source><target>The card was deleted, so nobody needs this answer.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.card-finished"><source>inbox.thread.closing.card-finished</source><target>The card finished, so nobody needs this answer.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.cause-ended"><source>inbox.thread.closing.cause-ended</source><target>What this item waited for has ended.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.fact-ended"><source>inbox.thread.closing.fact-ended</source><target>What this notice reported no longer holds.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.command-succeeded"><source>inbox.thread.closing.command-succeeded</source><target>The command succeeded, so the to-do is done.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.rule-withdrew"><source>inbox.thread.closing.rule-withdrew</source><target>The workflow rule withdrew this item.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.switched-off"><source>inbox.thread.closing.switched-off</source><target>The rule that asked is switched off, so it no longer asks.</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.default"><source>inbox.thread.closing.default</source><target>%closer% closed this item.</target></trans-unit>
             <trans-unit id="inbox.thread.cancel"><source>inbox.thread.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="inbox.project_list.open_items">
                 <source>inbox.project_list.open_items</source>
@@ -7936,6 +7949,7 @@
             <trans-unit id="bridge.worker_runs.worker_pool_label"><source>bridge.worker_runs.worker_pool_label</source><target>%pool% pool</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.duration"><source>bridge.worker_runs.column.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.started"><source>bridge.worker_runs.column.started</source><target>Started</target></trans-unit>
+            <trans-unit id="inbox.answer.final_hint"><source>inbox.answer.final_hint</source><target>Your answer is final once you send it.</target></trans-unit>
             <trans-unit id="inbox.answer.placeholder"><source>inbox.answer.placeholder</source><target>Note for the agent (optional)</target></trans-unit>
             <trans-unit id="inbox.view.label"><source>inbox.view.label</source><target>Ask list</target></trans-unit>
             <trans-unit id="inbox.view.open"><source>inbox.view.open</source><target>Open · %count%</target></trans-unit>
@@ -8689,7 +8703,7 @@
             <trans-unit id="review.deleted_threads.undo"><source>review.deleted_threads.undo</source><target>Undo</target></trans-unit>
             <trans-unit id="inbox.review.error.not_a_review"><source>inbox.review.error.not_a_review</source><target>This request does not accept a review verdict.</target></trans-unit>
             <trans-unit id="inbox.review.error.not_a_pull_request"><source>inbox.review.error.not_a_pull_request</source><target>This request does not target a pull request.</target></trans-unit>
-            <trans-unit id="inbox.review.error.target_unavailable"><source>inbox.review.error.target_unavailable</source><target>The review target is no longer available.</target></trans-unit>
+            <trans-unit id="inbox.review.error.target_unavailable"><source>inbox.review.error.target_unavailable</source><target>The review target is no longer available, so it takes no verdict.</target></trans-unit>
             <trans-unit id="inbox.review.error.target_changed"><source>inbox.review.error.target_changed</source><target>The review target changed. Reload the request before submitting your verdict.</target></trans-unit>
             <trans-unit id="inbox.item.kind.review"><source>inbox.item.kind.review</source><target>Review</target></trans-unit>
             <trans-unit id="inbox.review.verdict.approved"><source>inbox.review.verdict.approved</source><target>Approved</target></trans-unit>
@@ -8697,8 +8711,7 @@
             <trans-unit id="inbox.review.version"><source>inbox.review.version</source><target>Version %version%</target></trans-unit>
             <trans-unit id="inbox.review.open_document"><source>inbox.review.open_document</source><target>Review document</target></trans-unit>
             <trans-unit id="inbox.review.read_it"><source>inbox.review.read_it</source><target>Read it</target></trans-unit>
-            <trans-unit id="inbox.review.local_only"><source>inbox.review.local_only</source><target>This records your review in Loupe. It does not post a review to the code host.</target></trans-unit>
-            <trans-unit id="inbox.review.submit"><source>inbox.review.submit</source><target>Submit review</target></trans-unit>
+            <trans-unit id="inbox.review.local_only"><source>inbox.review.local_only</source><target>This records your verdict in Loupe. It posts nothing to the code host.</target></trans-unit>
             <trans-unit id="inbox.review.submitted"><source>inbox.review.submitted</source><target>Review recorded.</target></trans-unit>
             <trans-unit id="inbox.review.withdrawn"><source>inbox.review.withdrawn</source><target>%name% withdrew this verdict at %time%. This request keeps its original answer.</target></trans-unit>
             <trans-unit id="inbox.review.error.not_a_document"><source>inbox.review.error.not_a_document</source><target>This request does not target a document.</target></trans-unit>
@@ -8711,7 +8724,7 @@
             <trans-unit id="inbox.review.unsent_unavailable"><source>inbox.review.unsent_unavailable</source><target>This request no longer accepts a review here. This draft was not sent.</target></trans-unit>
             <trans-unit id="inbox.review.stale_draft"><source>inbox.review.stale_draft</source><target>This draft belongs to an earlier review state. Inspect the current content before reviewing again. Copy your note before discarding this draft.</target></trans-unit>
             <trans-unit id="inbox.answer.unsent"><source>inbox.answer.unsent</source><target>Your unsent answer</target></trans-unit>
-            <trans-unit id="inbox.answer.unsent_closed"><source>inbox.answer.unsent_closed</source><target>This request no longer accepts responses. This draft was not sent.</target></trans-unit>
+            <trans-unit id="inbox.answer.unsent_closed"><source>inbox.answer.unsent_closed</source><target>This item is closed, so it takes no answer. Your draft was not sent.</target></trans-unit>
             <trans-unit id="inbox.answer.discard_draft"><source>inbox.answer.discard_draft</source><target>Discard draft</target></trans-unit>
             <trans-unit id="about.hero.licence"><source>about.hero.licence</source><target>Free software, AGPL-3.0</target></trans-unit>
             <trans-unit id="board.card.tab.details"><source>board.card.tab.details</source><target>Details</target></trans-unit>

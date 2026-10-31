@@ -80,9 +80,11 @@ final class NoticeItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?q=races');
 
         self::assertResponseIsSuccessful();
-        $editable = $crawler->filter('[data-inbox-item="1"] [data-inbox-editable]');
-        self::assertCount(1, $editable);
-        self::assertSame('no', $editable->attr('data-inbox-editable'));
+        $closing = $crawler->filter('[data-inbox-item="1"] [data-inbox-closing="loupe"]');
+        self::assertCount(1, $closing);
+        self::assertSame('Loupe', $closing->filter('.lp-comment-author')->text());
+        self::assertStringContainsString('What this notice reported no longer holds.', $closing->text());
+        self::assertCount(0, $crawler->filter('[data-inbox-item="1"] [data-inbox-editable]'));
         self::assertCount(0, $crawler->filter('[data-inbox-item="1"] form'));
     }
 

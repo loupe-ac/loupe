@@ -132,8 +132,9 @@ final class WaitItemPageTest extends WebTestCase
         $this->client->request(Request::METHOD_GET, $this->pageUrl().'?queue=completed');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-editable]', $label);
+        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-closing="loupe"] .lp-status-chip', $label);
         self::assertSelectorTextNotContains('#inbox-item-1', 'The agent closed');
+        self::assertSelectorNotExists('#inbox-item-1 .lp-comment-composer__actions');
 
         $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/dismiss';
         $this->client->request(Request::METHOD_POST, $url, ['inbox_action_'.$item->id => ['note' => '', '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
@@ -235,7 +236,7 @@ final class WaitItemPageTest extends WebTestCase
         // The run cannot resume and Open is the card itself, so the first enabled action, Send an agent, takes the main part.
         self::assertSame('send-agent', $crawler->filter('#inbox-item-1 .inbox-split__main')->attr('data-inbox-action'));
         self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel [data-inbox-action="start-session"]')->attr('aria-disabled'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel button[data-inbox-action="dismiss"]'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .lp-comment-composer__actions > button[data-inbox-action="dismiss"]'));
     }
 
     public function test_send_an_agent_from_the_card_page_queues_the_agent(): void
@@ -296,7 +297,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('Add the key, then read the card.', trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
     }
 
-    public function test_the_reply_heading_falls_back_to_the_label_with_no_suggestion(): void
+    public function test_the_reply_card_has_no_heading_with_no_suggestion(): void
     {
         $this->document->status = DocumentStatus::Approved;
         $this->blockedRun();
@@ -304,7 +305,8 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSame(trim($crawler->filter('#inbox-item-1 .inbox-split__main')->text()), trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split__main'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-reply-heading]'));
     }
 
     /** @param array<string, mixed>|null $resultFields */

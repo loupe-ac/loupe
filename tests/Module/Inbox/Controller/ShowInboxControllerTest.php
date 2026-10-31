@@ -386,9 +386,9 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('Question', $block->filter('[data-inbox-kind-label]')->text());
         // A missing translation renders its key, and the gate does not fail on that.
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
-        // Dismiss sits in the response row, posts the answer form to the dismiss address, and so carries the note field's text.
-        self::assertCount(1, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[formaction*="/actions/dismiss"]'));
-        self::assertCount(0, $block->filter('#inbox-item-12 .lp-inbox-item__buttons button[form]'));
+        // Dismiss sits in the action row, posts the answer form to the dismiss address, and so carries the note field's text.
+        self::assertCount(1, $block->filter('#inbox-item-12 .lp-comment-composer__actions > button[formaction*="/actions/dismiss"]'));
+        self::assertCount(0, $block->filter('#inbox-item-12 .lp-comment-composer__actions > button[form]'));
         self::assertCount(1, $block->filter('form#inbox_response_'.$question->id.'[action*="/actions/answer"]'));
         self::assertCount(0, $block->filter('[name$="[closeNote]"]'));
         self::assertCount(0, $block->filter('script'));
@@ -793,9 +793,9 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('Blocking', $row->filter('[data-inbox-blocking]')->text());
         self::assertCount(0, $row->filter('[data-inbox-outcome]'));
         self::assertSame('todo', $row->filter('[data-inbox-kind]')->attr('data-inbox-kind'));
-        // The row carries Blocking, so the item heads of the ask pane leave it out.
+        // Each item head of the ask pane marks its own item as blocking.
         self::assertCount(2, $crawler->filter('.lp-inbox-ask .lp-inbox-item__head'));
-        self::assertCount(0, $crawler->filter('.lp-inbox-ask .lp-inbox-item__blocking'));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-item__head .lp-inbox-item__blocking'));
     }
 
     public function test_a_row_has_no_excerpt_avatar_or_status_chip(): void
@@ -832,7 +832,8 @@ final class ShowInboxControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?queue=completed');
 
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id="'.$closed->id.'"]'));
-        self::assertSame('no', $crawler->filter('#inbox-item-1 [data-inbox-editable]')->attr('data-inbox-editable'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-response]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-editable]'));
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
     }
 
@@ -869,7 +870,7 @@ final class ShowInboxControllerTest extends WebTestCase
         );
     }
 
-    public function test_the_page_says_every_sent_answer_is_final(): void
+    public function test_the_page_shows_every_sent_answer_as_a_reply_with_no_card(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-editable');
         $project = $this->inboxProject($this->em, $owner);
@@ -882,14 +883,15 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
-        self::assertSame('no', $crawler->filter('#inbox-item-1 [data-inbox-editable]')->attr('data-inbox-editable'));
-        self::assertStringContainsString('This response is final', $crawler->filter('#inbox-item-1')->text());
+        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-response]'));
+        self::assertStringNotContainsString('This response is final', $crawler->filter('#inbox-item-1')->text());
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .lp-comment-composer__actions'));
 
         $completed = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?queue=completed');
 
-        self::assertSame('no', $completed->filter('#inbox-item-2 [data-inbox-editable]')->attr('data-inbox-editable'));
-        self::assertStringContainsString('This response is final', $completed->filter('#inbox-item-2')->text());
+        self::assertCount(1, $completed->filter('#inbox-item-2 [data-inbox-response]'));
+        self::assertStringNotContainsString('This response is final', $completed->filter('#inbox-item-2')->text());
         self::assertCount(0, $completed->filter('#inbox-item-2 form'));
     }
 
@@ -908,7 +910,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
-        self::assertSame('0', $crawler->filter('#inbox-item-1 .lp-inbox-item__answer-text')->text());
+        self::assertSame('0', $crawler->filter('#inbox-item-1 .lp-inbox-thread__note blockquote')->text());
     }
 
     public function test_a_written_only_question_answers_inside_the_decision_block(): void
@@ -1081,7 +1083,8 @@ final class ShowInboxControllerTest extends WebTestCase
         $rows = $crawler->filter('a.lp-list-row .lp-list-row__subtitle')->each(static fn ($node): string => $node->text());
         sort($rows);
         self::assertSame(['Document "Tech design: Inbox asks"', 'Pull request #812: Fix the board filter'], $rows);
-        self::assertContains($crawler->filter('[data-inbox-review-target]')->text(), $rows);
+        self::assertContains($crawler->filter('[data-inbox-review-target]')->text(), ['Tech design: Inbox asks', '#812']);
+        self::assertCount(0, $crawler->filter('.lp-inbox-ask__target'));
     }
 
     public function test_an_ask_names_the_target_of_a_review_item_that_follows_a_question(): void
@@ -1106,7 +1109,8 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('Document "Tech design: Inbox asks"', $crawler->filter('a.lp-list-row .lp-list-row__subtitle')->text());
-        self::assertSame('Document "Tech design: Inbox asks"', $crawler->filter('[data-inbox-review-target]')->text());
+        self::assertSame('Tech design: Inbox asks', $crawler->filter('.lp-inbox-ask__byline [data-inbox-review-target]')->text());
+        self::assertSame('Tech design: Inbox asks', $crawler->filter('.lp-inbox-ask__byline [data-inbox-review-target] a')->text());
     }
 
     public function test_the_page_reads_every_review_in_one_query(): void

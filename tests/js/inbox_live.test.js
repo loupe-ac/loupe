@@ -14,6 +14,8 @@ vi.mock('../../assets/lib/live.js', () => ({
     },
 }));
 
+const { default: InboxReplyDraftController } =
+    await import('../../assets/controllers/inbox_reply_draft_controller.js');
 const {
     default: InboxLiveController,
     DEBOUNCE_MILLISECONDS,
@@ -29,14 +31,17 @@ function row(key, title) {
     return `<a class="lp-list-row" data-inbox-request="${key}" href="/inbox?ask=${key}">${title}</a>`;
 }
 
+const DRAFT_TEMPLATE =
+    '<template data-inbox-reply-draft-template><div data-inbox-reply-draft data-controller="inbox-reply-draft"><ul data-inbox-reply-draft-target="choiceList"></ul><div data-inbox-reply-draft-target="noteList"></div><button type="button" data-action="inbox-reply-draft#discard">Discard draft</button></div></template>';
+
 function item({ open = true, note = '', number = 1, actions = true } = {}) {
     const body = !open
         ? '<div class="lp-inbox-item__response" data-inbox-response>Closed by the agent.</div>'
         : actions
-          ? `<div class="lp-inbox-item__actions"><form id="inbox_action_${number}"><textarea name="note">${note}</textarea><button type="submit">Send answer</button></form></div>`
+          ? `<div class="lp-inbox-item__actions"><form id="inbox_action_${number}" class="lp-inbox-thread__reply" data-form-draft-key-value="item-${number}"><fieldset><input type="radio" name="pick" id="pick_a" value="0"><label for="pick_a">CSV</label><input type="radio" name="pick" id="pick_b" value="1"><label for="pick_b">JSON</label></fieldset><textarea name="note">${note}</textarea><button type="submit">Send answer</button></form>${DRAFT_TEMPLATE}</div>`
           : '';
 
-    return `<article data-inbox-item="${number}" data-inbox-item-open="${open}" class="lp-inbox-item"><h3>Which column?</h3>${body}</article>`;
+    return `<article data-inbox-item="${number}" data-inbox-item-open="${open}" class="lp-inbox-item"><h3 class="lp-inbox-item__title">Which column?</h3><div data-inbox-thread>${body}</div></article>`;
 }
 
 function view({
@@ -171,9 +176,10 @@ it('reads the view again after a reconnect', async () => {
     expect(fetch).toHaveBeenCalledTimes(1);
 });
 
-it('keeps the typed note and locks the form when the item closed', async () => {
+it('shows the typed reply with a Discard button when the item closed', async () => {
     await mount();
     typeNote('Use the Next column');
+    document.querySelector('#pick_b').checked = true;
     answer(
         view({
             open: false,
@@ -183,19 +189,56 @@ it('keeps the typed note and locks the form when the item closed', async () => {
     changed();
     await settle();
 
-    const note = document.querySelector('textarea');
-    expect(note.value).toBe('Use the Next column');
-    expect(note.readOnly).toBe(true);
-    expect(document.querySelector('button[type="submit"]').disabled).toBe(true);
+    const draft = document.querySelector(
+        '[data-inbox-thread] [data-inbox-reply-draft]',
+    );
+    expect(draft).not.toBeNull();
+    expect(draft.dataset.inboxReplyDraftChoicesValue).toBe('["JSON"]');
+    expect(draft.dataset.inboxReplyDraftNotesValue).toBe(
+        '["Use the Next column"]',
+    );
+    expect(draft.dataset.inboxReplyDraftKeyValue).toBe('item-1');
+    expect(document.querySelector('form')).toBeNull();
     expect(document.querySelector('[data-inbox-closed-notice]')).not.toBeNull();
-    expect(document.querySelectorAll('.lp-inbox-item__actions')).toHaveLength(
+});
+
+it('keeps the unsent reply through the next read', async () => {
+    await mount();
+    typeNote('Use the Next column');
+    answer(view({ open: false }));
+    changed();
+    await settle();
+    answer(view({ open: false }));
+    changed();
+    await settle();
+
+    expect(document.querySelectorAll('[data-inbox-reply-draft]')).toHaveLength(
         1,
     );
+});
+
+it('removes the unsent reply when the reader discards it', async () => {
+    application.register('inbox-reply-draft', InboxReplyDraftController);
+    await mount();
+    typeNote('Use the Next column');
+    answer(view({ open: false }));
+    changed();
+    await settle();
+
+    await vi.advanceTimersByTimeAsync(0);
+    const draft = document.querySelector('[data-inbox-reply-draft]');
+    expect(
+        draft.querySelector('[data-inbox-reply-draft-target="noteList"]')
+            .textContent,
+    ).toBe('Use the Next column');
+    draft.querySelector('button').click();
+    expect(document.querySelector('[data-inbox-reply-draft]')).toBeNull();
 });
 
 it('keeps the typed note and leaves the form open when the item is still open', async () => {
     await mount();
     typeNote('Half an answer');
+    document.querySelector('#pick_b').checked = true;
     answer(
         view({ rows: [row('new', 'A new ask'), row(ASK, 'Which column?')] }),
     );
@@ -204,10 +247,8 @@ it('keeps the typed note and leaves the form open when the item is still open', 
 
     const note = document.querySelector('textarea');
     expect(note.value).toBe('Half an answer');
-    expect(note.readOnly).toBe(false);
-    expect(document.querySelector('button[type="submit"]').disabled).toBe(
-        false,
-    );
+    expect(document.querySelector('#pick_b').checked).toBe(true);
+    expect(document.querySelector('[data-inbox-reply-draft]')).toBeNull();
 });
 
 it('drops the typed form when the new view shows another item in its place', async () => {
@@ -239,6 +280,7 @@ it('shows the closed item as read-only when nothing was typed', async () => {
     changed();
     await settle();
     expect(document.querySelector('.lp-inbox-item__actions')).toBeNull();
+    expect(document.querySelector('[data-inbox-reply-draft]')).toBeNull();
     expect(document.querySelector('[data-inbox-response]')).not.toBeNull();
 });
 

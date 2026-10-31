@@ -1,5 +1,4 @@
-{# The selected request: its title and byline, the message of its source, its items. The byline holds the menu of what it links.
-   The list row beside it carries Blocking, so an item head here leaves it out.
+{# The selected request: its title and byline, the message of its source, one thread per item. The byline holds the target of a review and the menu of what it links.
    Params: row (InboxRow), inbox (InboxPageView), refusedForm, cardDrawer (whether the page hosts the card drawer). #}
 {% set ask = row.ask %}
 {% set items = row.items %}
@@ -11,8 +10,6 @@
         <header class="lp-inbox-ask__summary">
             {# An ask stores no title. Its first item names it, as the request list does. #}
             <h2 class="lp-inbox-ask__title">{{ row.title|reference_plain }}</h2>
-            {% set reviewTarget = inbox_review_target(items) %}
-            {% if reviewTarget %}<p class="lp-inbox-ask__target" data-inbox-review-target>{{ reviewTarget }}</p>{% endif %}
             <div class="lp-inbox-ask__byline">
                 {# Who and when, then what it is, in the order of the document review byline. #}
                 <span class="lp-inbox-ask__head">
@@ -41,8 +38,29 @@
                         {% include '@Inbox/_ask_wait_card.html.twig' with {card: waitCard, kindLabel: false} only %}
                     </span>
                 {% endif %}
+                {% for review in inbox_review_targets(items) %}
+                    <span aria-hidden="true">·</span>
+                    <span class="lp-inbox-ask__kind" data-inbox-review-target>
+                        {% if review.document %}
+                            <twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--md" aria-hidden="true" />
+                            <a href="{{ path('app_document_review', {projectId: review.document.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top">{{ review.document.title|reference_plain }}</a>
+                        {% elseif review.pullRequest and safe_pull_request_url(review.pullRequest.url) %}
+                            <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--md" aria-hidden="true" />
+                            <a href="{{ review.pullRequest.url }}" target="_blank" rel="noopener noreferrer">{{ review.pullRequest.number ? '#' ~ review.pullRequest.number : review.targetLabel }}</a>
+                        {% else %}
+                            <twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--md" aria-hidden="true" />
+                            <span>{{ review.targetLabel }}</span>
+                        {% endif %}
+                    </span>
+                {% endfor %}
                 {% if ask and ask.closedAt %}
-                    <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>{# @design-system-ignore #}
+                    {% set outcomeTexts = [] %}
+                    {% for outcome in items|map(item => inbox_outcome(item))|filter(outcome => outcome) %}
+                        {% set text = outcome.key|trans(outcome.parameters) %}
+                        {% set text = text|slice(0, 1)|lower ~ text|slice(1) %}
+                        {% if text not in outcomeTexts %}{% set outcomeTexts = outcomeTexts|merge([text]) %}{% endif %}
+                    {% endfor %}
+                    <twig:Ds:StatusChip modifier="resolved">{% if outcomeTexts %}{{ 'inbox.ask.closed_outcome'|trans({'%time%': ask.closedAt|relative_time, '%outcome%': outcomeTexts|join(', ')}) }}{% else %}{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}{% endif %}</twig:Ds:StatusChip>{# @design-system-ignore #}
                 {% endif %}
                 <div class="lp-inbox-ask__byline-actions">
                     {% include '@Inbox/_ask_linked.html.twig' with {items: items, menuId: ask ? ask.id : items|first.id} only %}
@@ -57,7 +75,7 @@
         {% endif %}
         <div class="lp-inbox-ask__items">
             {% for item in items %}
-                {% include '@Inbox/_inbox_item.html.twig' with {item: item, ask: ask, inbox: inbox, refusedForm: refusedForm, showHead: items|length > 1, showTitle: items|length > 1, showBlocking: false, position: loop.index, cardDrawer: cardDrawer ?? false} only %}
+                {% include '@Inbox/_inbox_thread.html.twig' with {item: item, ask: ask, inbox: inbox, refusedForm: refusedForm ?? null, showHead: items|length > 1, position: loop.index, cardDrawer: cardDrawer ?? false} only %}
             {% endfor %}
         </div>
     </div>

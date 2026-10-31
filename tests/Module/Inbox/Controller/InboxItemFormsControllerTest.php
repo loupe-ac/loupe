@@ -75,7 +75,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $name = 'inbox_response_'.$item->id;
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('#inbox-item-1', 'It does not post a review to the code host.');
+        self::assertSelectorTextContains('#inbox-item-1', 'It posts nothing to the code host.');
         // The pull request under review is a row of the linked items, not a loose link above the form.
         self::assertCount(1, $crawler->filter('[data-inbox-linked-menu] [data-linked-pull-request]'));
         self::assertCount(0, $crawler->filter('form[name="'.$name.'"] .lp-inbox-item__jump'));
@@ -305,7 +305,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         $name = 'inbox_response_'.$item->id;
 
-        self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-inbox-item__buttons [form]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-comment-composer__actions [form]'));
         self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-decision__note-field'));
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([$name.'[selectedOptions]' => '2']));
 
@@ -313,7 +313,8 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSame([2], $this->reload($item)->selectedOptions);
         $crawler = $this->client->request(Request::METHOD_GET, $this->completedUrl());
         self::assertCount(0, $crawler->filter('form[name="'.$name.'"]'));
-        self::assertSelectorExists('#inbox-item-6 [data-inbox-editable="no"]');
+        self::assertSelectorExists('#inbox-item-6 [data-inbox-response]');
+        self::assertSelectorNotExists('#inbox-item-6 [data-inbox-editable]');
     }
 
     public function test_a_refused_answer_re_renders_the_page_with_422_and_the_error(): void
@@ -368,13 +369,12 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?side=closed&item=1');
         self::assertSelectorNotExists('#inbox-item-1 form');
-        self::assertSame('no', $crawler->filter('#inbox-item-1 [data-inbox-editable]')->attr('data-inbox-editable'));
-        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-editable]', 'This response is final');
+        self::assertSelectorExists('#inbox-item-1 [data-inbox-response]');
+        self::assertSelectorNotExists('#inbox-item-1 [data-inbox-editable]');
 
         $this->post($item, 'answer', ['selectedOptions' => '1']);
 
         self::assertResponseStatusCodeSame(422);
-        // The page carries a static "final" line too, so the assertion targets the refusal itself.
         self::assertSelectorTextContains('#inbox-item-1 [data-inbox-refusal]', 'no longer fits the item');
         self::assertSame([0], $this->reload($item)->selectedOptions);
     }
@@ -527,7 +527,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $ask = $this->askHolding($this->em, $this->project, [$item]);
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
-        self::assertCount(1, $crawler->filter('#inbox-item-2 form.lp-inbox-done textarea[name="inbox_response_'.$item->id.'[note]"]'));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 form.lp-inbox-thread__reply textarea[name="inbox_response_'.$item->id.'[note]"]'));
 
         $this->post($item, 'done', ['note' => '  Exported to S3.  ']);
 
@@ -538,7 +538,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertStringContainsString('Exported to S3.', $crawler->filter('#inbox-item-2')->text());
     }
 
-    public function test_a_to_do_shows_its_suggested_actions_in_the_split_button_beside_dismiss_and_done(): void
+    public function test_a_to_do_shows_its_suggested_actions_in_the_menu_of_one_reply_card(): void
     {
         $this->seedColumns($this->project);
         $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Export card', 'Body', number: 1);
@@ -555,25 +555,22 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSame('Read the card first.', trim($crawler->filter('#inbox-item-2 [data-inbox-reply-heading]')->text()));
-        self::assertCount(1, $crawler->filter('#inbox-item-2 .inbox-split__main[data-inbox-action="open"]'));
-        self::assertCount(0, $crawler->filter('#inbox-item-2 [data-inbox-action="send-agent"]'));
-        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
-        $row = $crawler->filter('#inbox-item-2 .lp-comment-composer__actions');
-        self::assertCount(1, $row, 'Dismiss, Mark done and the split button share one reply card row.');
+        self::assertCount(1, $crawler->filter('#inbox-item-2 form'), 'The to-do has one form, with the note, Dismiss and the split button in it.');
+        $form = $crawler->filter('#inbox-item-2 form.lp-inbox-thread__reply');
+        self::assertStringContainsString('/actions/complete', (string) $form->attr('action'));
+        self::assertSame('complete', $form->filter('.inbox-split__main')->attr('data-inbox-action'));
+        self::assertCount(1, $form->filter('.lp-menu__panel [data-inbox-action="open"]'));
+        self::assertCount(0, $form->filter('[data-inbox-action="send-agent"]'));
+        $row = $form->filter('.lp-comment-composer__actions');
+        self::assertCount(1, $row, 'Dismiss and the split button share one reply card row.');
         self::assertCount(1, $row->filter('.inbox-split'));
-        $doneForm = $crawler->filter('#inbox-item-2 form.lp-inbox-done');
-        self::assertCount(1, $row->filter('button[form="'.$doneForm->attr('id').'"][formaction*="/actions/dismiss"]'));
-        self::assertCount(1, $row->filter('[data-inbox-done]'));
-        self::assertSame($doneForm->attr('id'), $row->filter('[data-inbox-done]')->attr('form'));
-        self::assertStringContainsString('/actions/complete', (string) $doneForm->attr('action'));
-        self::assertCount(0, $doneForm->filter('button'), 'The done form keeps no second Mark done button.');
-        $note = $row->ancestors()->filter('form')->first()->filter('textarea[form="'.$doneForm->attr('id').'"]');
-        self::assertCount(1, $note, 'The reply card holds the note of the done form.');
-        self::assertSame('inbox_response_'.$item->id.'[note]', $note->attr('name'));
+        $dismiss = $row->filter('button[formaction*="/actions/dismiss"]');
+        self::assertCount(1, $dismiss);
+        self::assertNull($dismiss->attr('form'));
+        self::assertCount(1, $form->filter('textarea[name="inbox_response_'.$item->id.'[note]"]'));
     }
 
-    public function test_a_to_do_with_no_suggestion_shows_no_split_button(): void
+    public function test_a_to_do_with_no_suggestion_shows_the_main_button_and_no_menu(): void
     {
         $item = $this->todo($this->em, $this->project, 2);
         $this->askHolding($this->em, $this->project, [$item]);
@@ -581,8 +578,9 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertCount(0, $crawler->filter('#inbox-item-2 .inbox-split'));
-        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
+        self::assertSame('Mark complete', trim($crawler->filter('#inbox-item-2 .inbox-split__main')->text()));
+        self::assertCount(0, $crawler->filter('#inbox-item-2 .lp-split-button__toggle'));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 form.lp-inbox-thread__reply'));
     }
 
     #[DataProvider('itemsThatForbidDismiss')]

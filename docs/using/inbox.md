@@ -116,7 +116,7 @@ with no card shows its source, **Agent** or **Loupe**, instead. An ask that
 holds an open blocking item ends the line with **Blocking**. A review request
 from an agent adds a line under its title that names the target: `Document
 "Tech design"`, or `Pull request #812: Fix the board filter`. The ask page
-shows the same line under its heading. The pull request title is the one that
+shows the target in its byline, after the kind. The pull request title is the one that
 Loupe read from GitHub at its last check, so a renamed pull request shows its
 new title after the next check. A closed ask shows
 how it ended: answered, approved, changes requested, done, dismissed, declined,
@@ -278,7 +278,7 @@ A sent response is final. This holds for answers, closing notes, completed to-do
 You cannot change it, because an agent may already act on it. Send a
 correction to the agent in some other way.
 
-A closed item shows its outcome and no reply form. The text "This response is final" marks it.
+A closed item shows your reply, or the message of whoever closed it, with its outcome. It has no reply card.
 A response sent from an older copy of the page is refused, and the item keeps its first response.
 
 An agent can also close an item itself, when it withdraws the item or the work
@@ -488,15 +488,13 @@ reason shows as the heading of the reply card when that action is the main one.
 A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
 fit is dropped.
-An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
-that carries suggestions shows a reply card with a split button, beside Dismiss
-and Mark done. The button offers the suggested actions that fit the to-do now,
-and the recommended one is the main action. A to-do with no suggestion that
-fits shows no split button. A question works the same way, with its split button
-under the answer form. A question offers only the actions that its agent
-suggested, because a worker waits for the answer. Its reply card takes no note,
-because the answer carries your words. An action on a question does not answer
-it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
+An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. The reply
+card of the to-do keeps **Mark complete** as its main action. The suggested
+actions that fit the to-do now go in the menu. Dismiss stays beside the split
+button. A to-do with no suggestion that fits shows no menu. A question works the
+same way, with **Send answer** as its main action. A question offers only the
+actions that its agent suggested, because a worker waits for the answer. An
+action on a question does not answer it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
@@ -581,7 +579,7 @@ worker ends.
 
 An ended run that has stored output also shows **Open the full log**, with the
 number of lines. The link opens the whole log as plain text in a new tab. On a
-failed run, the link sits left of **Mark done** and **Run again**.
+failed run, the link sits left of **Mark complete** and **Run again**.
 
 A success ends the item. A to-do closes as done, and the worker that waits for
 the answer resumes. For a stopped run, Loupe resumes the worker, which reads the

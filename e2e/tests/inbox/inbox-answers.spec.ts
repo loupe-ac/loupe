@@ -253,7 +253,7 @@ test('the owner answers a question and declines a to-do', async ({
         'The importer reads CSV.',
     );
     // A sent answer is final, so the question keeps no form to change it.
-    await expect(question.locator('[data-inbox-editable="no"]')).toBeVisible();
+    await expect(question.locator('.lp-comment-composer')).toHaveCount(0);
     await expect(question.locator('form')).toHaveCount(0);
     await expect(sidebarPill).toHaveText('1');
 
@@ -276,5 +276,5 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(question.locator('[data-inbox-response]')).toContainText(
         'The importer reads CSV.',
     );
-    await expect(question.locator('[data-inbox-editable="no"]')).toBeVisible();
+    await expect(question.locator('.lp-comment-composer')).toHaveCount(0);
 });
