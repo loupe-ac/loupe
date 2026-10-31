@@ -210,7 +210,7 @@
         @apply grid grid-cols-1 gap-3 sm:grid-cols-3;
     }
     .lp-chart__figure {
-        @apply rounded-xl bg-surface-2 px-4 py-3;
+        @apply rounded-xl border border-line bg-surface-1 px-4 py-3;
     }
     .lp-chart__figure-name {
         @apply m-0 flex items-center gap-1.5 truncate text-xs text-fg-label;

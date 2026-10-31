@@ -122,18 +122,18 @@
     </form>
 
     {% if view.layout is null %}
-    <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.metrics.empty.title'|trans" data-metrics-empty>
+    <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.metrics.empty.title'|trans" class="lp-metric-empty" data-metrics-empty>
         <p>{{ 'analytics.metrics.empty.description'|trans }}</p>
     </twig:Ds:EmptyState>
     {% else %}
     {% set barsLock = view.locks['stacked-bars'] %}
     {% if view.chart.fellBack %}
-    <twig:Ds:Flash severity="info" data-metrics-note="switched">{{ ('analytics.metrics.note.switched.' ~ view.chart.reason.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
+    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="switched">{{ ('analytics.metrics.note.switched.' ~ view.chart.reason.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
     {% elseif barsLock is not null %}
-    <twig:Ds:Flash severity="info" data-metrics-note="locked">{{ ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
+    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="locked">{{ ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
     {% endif %}
     {% if query.compare.value == 'previous' and view.chart.type.value in ['bars', 'stacked-bars', 'percent-stacked', 'donut'] %}
-    <twig:Ds:Flash severity="info" data-metrics-note="previous-in-table">{{ 'analytics.metrics.note.previous_in_table'|trans }}</twig:Ds:Flash>
+    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="previous-in-table">{{ 'analytics.metrics.note.previous_in_table'|trans }}</twig:Ds:Flash>
     {% endif %}
 
     <twig:Ds:Panel as="section" class="lp-metric-graph" data-metrics-chart>

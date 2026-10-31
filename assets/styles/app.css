@@ -7585,8 +7585,16 @@
     .lp-metric-controls__field {
         @apply flex min-w-0 flex-col gap-1;
     }
+    .lp-metric-graph,
+    .lp-metric-empty {
+        @apply mt-4;
+    }
     .lp-metric-graph {
-        @apply mt-4 flex flex-col gap-4;
+        @apply flex flex-col gap-4;
+    }
+    /* A note about the chart spans the page and stays quieter than a flash. */
+    .lp-metric-note {
+        @apply mx-0 mt-4 py-2 text-xs font-normal text-fg-mute;
     }
     /* The title row of a graph: the title on the left, the save form on the right. */
     .lp-metric-graph__head {
@@ -7626,7 +7634,7 @@
         @apply hidden;
     }
     .lp-dashboard-notice {
-        @apply mt-4;
+        @apply mx-0 mt-4;
     }
     .lp-dashboard-undo {
         @apply inline-flex flex-wrap items-center gap-2;
