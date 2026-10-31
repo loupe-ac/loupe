@@ -951,6 +951,33 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertSame(1000, (int) $em->getConnection()->fetchOne('SELECT peak_mem_bytes FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]));
     }
 
+    /** The run ended before its account readings arrived, with no host samples, so the readings alone must rewrite its fact row. */
+    public function test_account_readings_rewrite_the_usage_of_an_ended_run_even_when_they_store_nothing(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock('2026-01-01 12:30:00'));
+        $em = $this->em();
+        $this->storeHostSampling('false');
+        $owner = $this->user($em, 'heartbeat-readings-facts@example.com');
+        $project = $this->project($em, $owner, 'Reading Facts');
+        $bridge = $this->seedBridge($em, $owner);
+        $run = $this->seedRun($em, $project, bridgeId: $bridge->id, account: 'work');
+        $delta = static fn (): mixed => $em->getConnection()->fetchOne('SELECT session_usage_delta FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]);
+        self::assertNull($delta());
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, [], 'b4e39aa7', accountReadings: [
+            self::reading('session', 20.0, readAt: '2026-01-01 10:01:00'),
+            self::reading('session', 35.0, readAt: '2026-01-01 10:04:00'),
+        ]));
+        self::assertEqualsWithDelta(15.0, (float) $delta(), 0.001);
+
+        $em->getConnection()->executeStatement('UPDATE bridge_worker_run_facts SET session_usage_delta = NULL WHERE run_id = ?', [(string) $run->id]);
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, [], 'b4e39aa7', accountReadings: [
+            self::reading('session', 35.0, readAt: '2026-01-01 10:04:30'),
+        ]));
+        self::assertEqualsWithDelta(15.0, (float) $delta(), 0.001, 'A reading equal to the latest stores nothing and still recomputes.');
+    }
+
     private function retention(): WorkerRunRetentionPolicy
     {
         $retention = self::getContainer()->get(WorkerRunRetentionPolicy::class);
