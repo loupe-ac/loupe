@@ -314,3 +314,117 @@ func TestProjectDirsMapsEachSlugToItsFolder(t *testing.T) {
 		t.Fatalf("dirs of no set = %v", got)
 	}
 }
+
+// A Codex session shows no session id in the process list, so its session file
+// decides: untouched for a day means it ended.
+func TestACodexItemSessionEndsWhenItsSessionFileIsIdleForADay(t *testing.T) {
+	f := newItemFixture(t)
+	f.items.codex = func(string) bool { return true }
+	var at *time.Time
+	f.items.readings = func(_ context.Context, ids []string) []api.InteractiveSessionReading {
+		return []api.InteractiveSessionReading{{SessionID: ids[0], TranscriptAt: at}}
+	}
+	dir, _ := f.prepare(12)
+	f.items.finish(dir)
+	ctx := context.Background()
+
+	recent := f.now.Add(-time.Hour)
+	at = &recent
+	f.now = f.now.Add(2 * time.Hour)
+	for range 3 {
+		f.items.sweep(ctx)
+	}
+	if !exists(dir) {
+		t.Fatal("a Codex session with a recent session file was removed")
+	}
+	if _, err := f.prepare(12); err == nil {
+		t.Fatal("a Codex session with a recent session file must refuse a relaunch")
+	}
+
+	f.now = f.now.Add(24 * time.Hour)
+	f.items.sweep(ctx)
+	if !exists(dir) {
+		t.Fatal("one idle reading removed the worktree")
+	}
+	f.items.sweep(ctx)
+	if exists(dir) || hasBranch(t, f.project, "inbox-12") {
+		t.Fatal("an idle Codex session must lose its worktree and branch")
+	}
+}
+
+func TestACodexItemSessionWithNoSessionFileCountsFromItsLaunch(t *testing.T) {
+	f := newItemFixture(t)
+	f.items.codex = func(string) bool { return true }
+	f.items.readings = func(_ context.Context, ids []string) []api.InteractiveSessionReading {
+		return []api.InteractiveSessionReading{{SessionID: ids[0]}}
+	}
+	dir, _ := f.prepare(12)
+	f.items.finish(dir)
+
+	f.now = f.now.Add(23 * time.Hour)
+	f.items.sweep(context.Background())
+	f.items.sweep(context.Background())
+	if !exists(dir) {
+		t.Fatal("removed before a day")
+	}
+	f.now = f.now.Add(2 * time.Hour)
+	if _, err := f.prepare(12); err != nil {
+		t.Fatalf("a relaunch after a day of silence must work: %v", err)
+	}
+}
+
+func TestAFailedRemovalKeepsTheEntrySoTheNextSweepRetries(t *testing.T) {
+	f := newItemFixture(t)
+	dir, _ := f.prepare(12)
+	f.items.finish(dir)
+	f.now = f.now.Add(time.Hour)
+	f.setAlive(ptr(false))
+	f.items.tracked[dir].projectDir = t.TempDir()
+
+	f.items.sweep(context.Background())
+	f.items.sweep(context.Background())
+	if _, tracked := f.items.tracked[dir]; !tracked {
+		t.Fatal("a failed removal dropped the entry")
+	}
+	if !exists(dir + ".session") {
+		t.Fatal("a failed removal dropped the record")
+	}
+
+	f.items.tracked[dir].projectDir = f.project
+	f.items.sweep(context.Background())
+	if _, tracked := f.items.tracked[dir]; tracked || exists(dir) || exists(dir+".session") || hasBranch(t, f.project, "inbox-12") {
+		t.Fatal("the retry must remove everything")
+	}
+}
+
+func TestAFailedDiscardLeavesTheEntryForTheSweep(t *testing.T) {
+	f := newItemFixture(t)
+	dir, _ := f.prepare(12)
+	f.items.tracked[dir].projectDir = t.TempDir()
+
+	f.items.discard(context.Background(), dir)
+	e, tracked := f.items.tracked[dir]
+	if !tracked || e.launching {
+		t.Fatalf("entry = %+v, tracked = %v; the sweep must be able to retry", e, tracked)
+	}
+	f.items.tracked[dir].projectDir = f.project
+	f.setAlive(ptr(false))
+	f.items.sweep(context.Background())
+	f.items.sweep(context.Background())
+	if exists(dir) || hasBranch(t, f.project, "inbox-12") {
+		t.Fatal("the sweep must finish the removal")
+	}
+}
+
+func TestPrepareReplacesAWorktreeAtOnceWhenItsSessionWasSeenAndEnded(t *testing.T) {
+	f := newItemFixture(t)
+	dir, _ := f.prepare(12)
+	f.items.finish(dir)
+
+	f.setAlive(ptr(true))
+	f.items.sweep(context.Background())
+	f.setAlive(ptr(false))
+	if _, err := f.prepare(12); err != nil {
+		t.Fatalf("a session seen alive that now reads dead gets no grace: %v", err)
+	}
+}

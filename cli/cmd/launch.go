@@ -335,7 +335,7 @@ func (r *router) runLaunch(l launch) {
 		report.BridgeID, report.WorkKind, report.At = r.bridgeID, p.rule, time.Now()
 		report.SubjectType, report.SubjectID, report.CardNumber = api.SubjectCard, cardID, number
 		if isItemSession(p) {
-			report.SubjectType, report.SubjectID = api.SubjectInboxItem, p.work.SubjectID
+			report.SubjectType, report.SubjectID, report.CardNumber = api.SubjectInboxItem, p.work.SubjectID, 0
 		}
 		if p.isWork() {
 			report.WorkRequestID, report.WorkKind, report.RuleID = p.work.WorkRequestID, p.work.Kind, p.work.RuleID

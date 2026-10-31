@@ -269,17 +269,19 @@ type router struct {
 	wg sync.WaitGroup
 }
 
-// rules is the current rule set.
+// itemSessions is the tracker of the item session worktrees, made on first use.
 func (r *router) itemSessions() *itemSessions {
 	r.itemsOnce.Do(func() {
 		if r.items == nil {
 			r.items = newItemSessions(r.log, newSessionLiveness(r.rules).readings)
+			r.items.codex = codexLaunched
 		}
 	})
 
 	return r.items
 }
 
+// rules is the current rule set.
 func (r *router) rules() *rules.Set {
 	return r.set.Load()
 }

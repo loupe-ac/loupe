@@ -18,6 +18,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
@@ -30,6 +31,9 @@ const (
 	itemSessionGrace = 10 * time.Minute
 	// itemSweepInterval is the time between two checks of the item sessions.
 	itemSweepInterval = 30 * time.Second
+	// codexIdle is how long a Codex session file may stay unchanged before the
+	// session counts as ended. A Codex process carries no session id.
+	codexIdle = 24 * time.Hour
 	// itemDeadReadings is how many readings in a row must find a session gone.
 	itemDeadReadings = 2
 )
@@ -65,7 +69,9 @@ type itemSessions struct {
 	log *slog.Logger
 	// readings reads how the sessions stand, as sessionLiveness.readings does.
 	readings func(context.Context, []string) []api.InteractiveSessionReading
-	now      func() time.Time
+	// codex reports whether the session ran under Codex. It may be nil.
+	codex func(sessionID string) bool
+	now   func() time.Time
 
 	mu      sync.Mutex
 	tracked map[string]*itemEntry
@@ -103,6 +109,44 @@ func checkItemPath(path string) error {
 	return nil
 }
 
+// sessionState is how a reading finds an item session.
+type sessionState int
+
+const (
+	stateUnknown sessionState = iota
+	stateAlive
+	stateDead
+)
+
+// classify reads one reading of the session of e. A Codex session ends when
+// its session file, or else its launch, is older than codexIdle. Any other
+// session is dead when it is gone from the process list, but a session never
+// seen alive gets itemSessionGrace to show up. A reading that cannot tell is
+// unknown.
+func (t *itemSessions) classify(e *itemEntry, r api.InteractiveSessionReading) sessionState {
+	if t.codex != nil && t.codex(e.sessionID) {
+		last := e.launchedAt
+		if r.TranscriptAt != nil && r.TranscriptAt.After(last) {
+			last = *r.TranscriptAt
+		}
+		if t.now().Sub(last) >= codexIdle {
+			return stateDead
+		}
+
+		return stateUnknown
+	}
+	switch {
+	case r.Alive == nil:
+		return stateUnknown
+	case *r.Alive:
+		return stateAlive
+	case !e.seen && t.now().Sub(e.launchedAt) < itemSessionGrace:
+		return stateUnknown
+	}
+
+	return stateDead
+}
+
 // active reports whether the session of e may still run: it runs, nobody can
 // tell, or it started too recently to show in the process list.
 func (t *itemSessions) active(ctx context.Context, e *itemEntry) bool {
@@ -112,11 +156,8 @@ func (t *itemSessions) active(ctx context.Context, e *itemEntry) bool {
 			reading = got[0]
 		}
 	}
-	if reading.Alive == nil || *reading.Alive {
-		return true
-	}
 
-	return t.now().Sub(e.launchedAt) < itemSessionGrace
+	return t.classify(e, reading) != stateDead
 }
 
 // prepare makes the worktree of item in the project at projectDir, on the new
@@ -209,6 +250,9 @@ func (t *itemSessions) discard(ctx context.Context, path string) {
 	}
 	if err := t.removeLocked(ctx, path, e.projectDir); err != nil {
 		t.log.Warn("item_worktree_not_removed", "path", path, "error", err.Error())
+		// The sweep retries a removal that failed, so the launch is over and
+		// its grace is spent.
+		e.launching, e.launchedAt = false, time.Time{}
 	}
 }
 
@@ -230,7 +274,6 @@ func (t *itemSessions) removeLocked(ctx context.Context, path, projectDir string
 	if err := checkItemPath(path); err != nil {
 		return err
 	}
-	delete(t.tracked, path)
 	var problems []error
 	if projectDir != "" {
 		if out, err := git(ctx, projectDir, "worktree", "remove", "--force", path); err != nil && exists(path) {
@@ -257,6 +300,9 @@ func (t *itemSessions) removeLocked(ctx context.Context, path, projectDir string
 		if err := os.Remove(path + ".session"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			problems = append(problems, err)
 		}
+	}
+	if len(problems) == 0 {
+		delete(t.tracked, path)
 	}
 
 	return errors.Join(problems...)
@@ -295,14 +341,12 @@ func (t *itemSessions) sweep(ctx context.Context) {
 		if t.tracked[e.path] != e || e.launching || e.sessionID != got[i].SessionID {
 			continue
 		}
-		switch alive := got[i].Alive; {
-		case alive == nil:
+		switch t.classify(e, got[i]) {
+		case stateUnknown:
 			e.dead = 0
-		case *alive:
+		case stateAlive:
 			e.seen, e.dead = true, 0
-		case !e.seen && t.now().Sub(e.launchedAt) < itemSessionGrace:
-			e.dead = 0
-		default:
+		case stateDead:
 			e.dead++
 			if e.dead < itemDeadReadings {
 				continue
@@ -413,6 +457,13 @@ func (t *itemSessions) run(ctx context.Context, dirs map[string]string, every ti
 			t.sweep(ctx)
 		}
 	}
+}
+
+// codexLaunched reports whether the bridge launched the session with Codex.
+func codexLaunched(sessionID string) bool {
+	threads, err := config.CodexThreadsDir()
+
+	return err == nil && codex.Launched(threads, sessionID)
 }
 
 func exists(path string) bool {

@@ -2478,9 +2478,11 @@ next to each worktree, `item-<n>.session`, and goes on with the same checks. It
 removes a folder `item-<n>` that has no such file. It never removes a
 `card-<n>` worktree or the project folder.
 
-A Codex session carries no session id in its command line. The bridge can never
-tell that it ended, so it keeps the worktree of a Codex session until you
-remove it with `git worktree remove --force`.
+A Codex session carries no session id in its command line, so the process
+list cannot show that it ended. For a Codex session the bridge looks at the
+Codex session file instead. It counts the session as ended when that file has
+not changed for 24 hours. It then removes the worktree and the branch, and a
+new session for the item can open.
 
 The bridge reports the work kind `inbox-item:session` next to `session`, as
 the [heartbeat reference](../reference/bridge-heartbeat.md#work-requests)
