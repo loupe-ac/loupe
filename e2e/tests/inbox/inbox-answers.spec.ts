@@ -269,7 +269,7 @@ test('the owner answers a question and declines a to-do', async ({
         page.locator('[data-inbox-queue-empty="open-asks"]'),
     ).toBeVisible();
     await page.getByRole('link', { name: 'View it' }).click();
-    await expect(todo).toContainText('Dismissed by you');
+    await expect(todo).toContainText('dismissed it at');
     await expect(sidebarPill).toHaveCount(0);
 
     await page.reload();

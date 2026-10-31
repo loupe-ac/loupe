@@ -6036,6 +6036,14 @@
                 <source>inbox.outcome.agent.withdrawn</source>
                 <target>Withdrawn by the agent</target>
             </trans-unit>
+            <trans-unit id="inbox.outcome.verdict.approved">
+                <source>inbox.outcome.verdict.approved</source>
+                <target>Approved</target>
+            </trans-unit>
+            <trans-unit id="inbox.outcome.verdict.changes_requested">
+                <source>inbox.outcome.verdict.changes_requested</source>
+                <target>Changes requested</target>
+            </trans-unit>
             <trans-unit id="inbox.outcome.resolved">
                 <source>inbox.outcome.resolved</source>
                 <target>Resolved</target>
@@ -6225,7 +6233,6 @@
             <trans-unit id="inbox.thread.you_verb.complete"><source>inbox.thread.you_verb.complete</source><target>marked it complete at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.submit-review"><source>inbox.thread.you_verb.submit-review</source><target>submitted a review at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
-            <trans-unit id="inbox.ask.closed_outcome"><source>inbox.ask.closed_outcome</source><target>Closed %time%: %outcome%</target></trans-unit>
             <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>

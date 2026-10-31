@@ -46,7 +46,7 @@ final readonly class InboxThreadBuilder
             waits: null === $watch ? [] : $this->cardWaitText->pageWaits($watch->waits),
             actions: $statuses,
             reply: $closed && $byOwner ? $this->reply($item, $note) : null,
-            closing: $closed && !$byOwner ? new InboxThreadClosing($item->closedBy, $this->outcome->forItem($item), $item->closedAt, $note) : null,
+            closing: $closed && !$byOwner ? new InboxThreadClosing($item->closedBy, $this->outcome->shortFor($item), $item->closedAt, $note) : null,
             replyCard: $answering ? null : $this->replyCards->build($item, $hostCardId),
             refusalKey: $this->replyCards->refusalFor($item),
         );
@@ -64,7 +64,7 @@ final readonly class InboxThreadBuilder
         return new InboxThreadReply(
             verbKey: 'inbox.thread.you_verb.'.$verb,
             at: $item->closedAt,
-            outcome: $this->outcome->forItem($item),
+            outcome: $this->outcome->verdictFor($item),
             options: array_map(static fn (int $index): string => (string) ($item->options[$index] ?? $index), $item->selectedOptions),
             note: $note,
             throughAgent: InboxCloser::OwnerThroughAgent === $item->closedBy,

@@ -111,8 +111,8 @@ final class WaitItemPageTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function loupeCloses(): iterable
     {
-        yield 'done, after a verdict' => ['approve', 'Resolved by Loupe'];
-        yield 'obsolete, after the card finished' => ['finish', 'Cancelled by Loupe: the card finished'];
+        yield 'done, after a verdict' => ['approve', 'Resolved'];
+        yield 'obsolete, after the card finished' => ['finish', 'Cancelled'];
     }
 
     #[DataProvider('loupeCloses')]

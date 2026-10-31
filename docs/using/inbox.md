@@ -278,7 +278,8 @@ A sent response is final. This holds for answers, closing notes, completed to-do
 You cannot change it, because an agent may already act on it. Send a
 correction to the agent in some other way.
 
-A closed item shows your reply, or the message of whoever closed it, with its outcome. It has no reply card.
+A closed item shows your reply, or the message of whoever closed it. It has no reply card.
+The chip of a closed request says when it closed. Point at the chip to see how each item ended.
 A response sent from an older copy of the page is refused, and the item keeps its first response.
 
 An agent can also close an item itself, when it withdraws the item or the work

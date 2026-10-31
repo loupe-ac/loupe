@@ -60,7 +60,8 @@
                         {% set text = text|slice(0, 1)|lower ~ text|slice(1) %}
                         {% if text not in outcomeTexts %}{% set outcomeTexts = outcomeTexts|merge([text]) %}{% endif %}
                     {% endfor %}
-                    <twig:Ds:StatusChip modifier="resolved">{% if outcomeTexts %}{{ 'inbox.ask.closed_outcome'|trans({'%time%': ask.closedAt|relative_time, '%outcome%': outcomeTexts|join(', ')}) }}{% else %}{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}{% endif %}</twig:Ds:StatusChip>{# @design-system-ignore #}
+                    {% set reason = outcomeTexts|join(', ') %}
+                    <twig:Ds:StatusChip modifier="resolved" :reason="reason ? reason|slice(0, 1)|upper ~ reason|slice(1) : null" data-inbox-ask-closed>{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>{# @design-system-ignore #}
                 {% endif %}
                 <div class="lp-inbox-ask__byline-actions">
                     {% include '@Inbox/_ask_linked.html.twig' with {items: items, menuId: ask ? ask.id : items|first.id} only %}

@@ -84,6 +84,30 @@ final class InboxOutcomeTest extends TestCase
         }
     }
 
+    /** @return iterable<string, array{string, InboxItemState, ?InboxCloser, ?InboxCloseCause}> */
+    public static function shortLabels(): iterable
+    {
+        yield 'answered by the owner' => ['inbox.outcome.resolved', InboxItemState::Resolved, InboxCloser::Owner, null];
+        yield 'done by Loupe after a command' => ['inbox.outcome.resolved', InboxItemState::Resolved, InboxCloser::Loupe, InboxCloseCause::CommandSucceeded];
+        yield 'dismissed by the owner' => ['inbox.outcome.declined', InboxItemState::Declined, InboxCloser::Owner, null];
+        yield 'cancelled when the card was deleted' => ['inbox.outcome.cancelled', InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::CardDeleted];
+        yield 'withdrawn by the agent' => ['inbox.outcome.cancelled', InboxItemState::Cancelled, InboxCloser::Agent, InboxCloseCause::Withdrawn];
+    }
+
+    #[DataProvider('shortLabels')]
+    public function test_the_short_label_names_the_state_and_no_closer_or_cause(string $key, InboxItemState $state, ?InboxCloser $closer, ?InboxCloseCause $cause): void
+    {
+        $item = $this->item(InboxItemKind::Todo, $state, $closer, $cause);
+
+        self::assertSame($key, $this->outcome()->shortFor($item)?->key);
+        self::assertNull($this->outcome()->verdictFor($item));
+    }
+
+    public function test_an_open_item_has_no_short_label(): void
+    {
+        self::assertNull($this->outcome()->shortFor($this->item(InboxItemKind::Review, InboxItemState::Open, null, null)));
+    }
+
     private function outcome(): InboxOutcome
     {
         return new InboxOutcome(new InboxReviewLookup($this->createStub(InboxReviewRepository::class)));

@@ -23,11 +23,28 @@ final readonly class InboxOutcome
     /** Null for an open item. */
     public function forItem(InboxItem $item): ?InboxOutcomeLabel
     {
-        $verdict = InboxItemState::Resolved === $item->state && InboxItemKind::Review === $item->kind
-            ? $this->inboxReviews->forItem($item)?->verdict
-            : null;
+        return $this->label($item, $this->verdict($item));
+    }
 
-        return $this->label($item, $verdict);
+    /** The state alone, or the verdict of a review, for a place that already names who closed the item and why. */
+    public function shortFor(InboxItem $item): ?InboxOutcomeLabel
+    {
+        return $this->verdictFor($item) ?? match ($item->state) {
+            InboxItemState::Open => null,
+            InboxItemState::Resolved => new InboxOutcomeLabel('inbox.outcome.resolved'),
+            InboxItemState::Declined => new InboxOutcomeLabel('inbox.outcome.declined'),
+            InboxItemState::Cancelled => new InboxOutcomeLabel('inbox.outcome.cancelled'),
+        };
+    }
+
+    /** The verdict of a resolved review, or null for any other item. */
+    public function verdictFor(InboxItem $item): ?InboxOutcomeLabel
+    {
+        return match ($this->verdict($item)) {
+            InboxReviewVerdict::Approved => new InboxOutcomeLabel('inbox.outcome.verdict.approved'),
+            InboxReviewVerdict::ChangesRequested => new InboxOutcomeLabel('inbox.outcome.verdict.changes_requested'),
+            null => null,
+        };
     }
 
     public function label(InboxItem $item, ?InboxReviewVerdict $verdict): ?InboxOutcomeLabel
@@ -42,6 +59,13 @@ final readonly class InboxOutcome
             }),
             InboxItemState::Cancelled => new InboxOutcomeLabel($this->cancelledKey($item)),
         };
+    }
+
+    private function verdict(InboxItem $item): ?InboxReviewVerdict
+    {
+        return InboxItemState::Resolved === $item->state && InboxItemKind::Review === $item->kind
+            ? $this->inboxReviews->forItem($item)?->verdict
+            : null;
     }
 
     private function resolvedKey(InboxItem $item, ?InboxReviewVerdict $verdict): string

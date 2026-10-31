@@ -13,6 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 
 /** The thread of each item on the inbox page: its reply, its closing message and its reply card. */
@@ -81,7 +82,7 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertCount(1, $reply);
         self::assertSame('You', $reply->filter('.lp-comment-author')->text());
         self::assertStringContainsString('sent an answer at', $reply->filter('.lp-form-hint')->text());
-        self::assertSame('Answered by you', trim($reply->filter('.lp-inbox-thread__chip')->text()));
+        self::assertCount(0, $reply->filter('.lp-inbox-thread__chip'), 'The verb already says the owner answered.');
         self::assertSame(['JSON'], $reply->filter('[data-inbox-choices] li')->each(static fn ($node): string => trim($node->text())));
         self::assertSame('Your note for the agent', trim($reply->filter('.lp-inbox-thread__note-label')->text()));
         self::assertSame('Two retries max.', trim($reply->filter('.lp-inbox-thread__note blockquote')->text()));
@@ -89,7 +90,7 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
         self::assertCount(0, $crawler->filter('#inbox-item-1 template[data-inbox-reply-draft-template]'));
         self::assertCount(0, $crawler->filter('#inbox-item-1 .lp-comment-composer__actions'));
-        self::assertStringContainsString('Closed 30m ago: answered by you', trim($crawler->filter('.lp-inbox-ask__byline .lp-status-chip')->text()));
+        self::assertSame(['Closed 30m ago', 'Answered by you'], $this->closedChip($crawler));
     }
 
     public function test_the_chip_of_an_ask_whose_items_ended_differently_names_each_outcome(): void
@@ -102,8 +103,8 @@ final class InboxThreadPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?side=closed');
 
         self::assertSame(
-            'Closed 30m ago: answered by you, dismissed by you, withdrawn by the agent',
-            trim($crawler->filter('.lp-inbox-ask__byline .lp-status-chip')->text()),
+            ['Closed 30m ago', 'Answered by you, dismissed by you, withdrawn by the agent'],
+            $this->closedChip($crawler),
         );
     }
 
@@ -115,7 +116,16 @@ final class InboxThreadPageTest extends WebTestCase
 
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?side=closed');
 
-        self::assertSame('Closed 30m ago: dismissed by you', trim($crawler->filter('.lp-inbox-ask__byline .lp-status-chip')->text()));
+        self::assertSame(['Closed 30m ago', 'Dismissed by you'], $this->closedChip($crawler));
+    }
+
+    /** @return array{string, string} the label of the closed chip of the byline, and the outcome its tooltip names */
+    private function closedChip(Crawler $crawler): array
+    {
+        $chip = $crawler->filter('.lp-inbox-ask__byline [data-inbox-ask-closed]');
+        $reason = trim($chip->filter('.lp-tooltip')->text());
+
+        return [trim(str_replace($reason, '', $chip->text())), $reason];
     }
 
     /** @return iterable<string, array{InboxCloser, InboxCloseCause|null, string, string}> */
@@ -144,7 +154,7 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertCount(1, $closing);
         self::assertSame($author, $closing->filter('.lp-comment-author')->text());
         self::assertStringContainsString('closed this', $closing->filter('.lp-form-hint')->text());
-        self::assertNotSame('', trim($closing->filter('.lp-status-chip')->text()));
+        self::assertSame('Cancelled', trim($closing->filter('.lp-status-chip')->text()), 'The message names the closer and the cause, so the chip holds the state alone.');
         self::assertSame($sentence, trim($closing->filter('.lp-comment-body')->text()));
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
         self::assertCount(0, $crawler->filter('#inbox-item-1 .lp-comment-composer__actions'));

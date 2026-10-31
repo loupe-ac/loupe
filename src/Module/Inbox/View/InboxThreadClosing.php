@@ -11,6 +11,7 @@ final readonly class InboxThreadClosing
 {
     public function __construct(
         public ?InboxCloser $closer,
+        /** The state or the verdict alone, because the message names the closer and the cause. */
         public ?InboxOutcomeLabel $outcome,
         public ?\DateTimeImmutable $at,
         /** The reason of the closer, when it gave one. */

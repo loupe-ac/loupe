@@ -12,6 +12,7 @@ final readonly class InboxThreadReply
         /** The translation key of what the owner did, which takes %time%. */
         public string $verbKey,
         public ?\DateTimeImmutable $at,
+        /** The verdict of a review; the verb already says what the owner did otherwise. */
         public ?InboxOutcomeLabel $outcome,
         public array $options,
         public ?string $note,

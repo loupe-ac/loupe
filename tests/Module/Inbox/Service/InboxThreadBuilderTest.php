@@ -98,7 +98,7 @@ final class InboxThreadBuilderTest extends KernelTestCase
         self::assertNotNull($thread->reply);
         self::assertSame('inbox.thread.you_verb.answer', $thread->reply->verbKey);
         self::assertSame($item->closedAt, $thread->reply->at);
-        self::assertSame('inbox.outcome.owner.answered', $thread->reply->outcome?->key);
+        self::assertNull($thread->reply->outcome, 'The verb already says the owner answered.');
         self::assertSame(['CSV'], $thread->reply->options);
         self::assertSame('Use CSV, please.', $thread->reply->note);
         self::assertFalse($thread->reply->throughAgent);
@@ -125,7 +125,7 @@ final class InboxThreadBuilderTest extends KernelTestCase
         $reply = $this->builder->build($item)->reply;
 
         self::assertSame('inbox.thread.you_verb.dismiss', $reply?->verbKey);
-        self::assertSame('inbox.outcome.owner.dismissed', $reply->outcome?->key);
+        self::assertNull($reply->outcome, 'The verb already says the owner dismissed it.');
         self::assertSame('Not mine.', $reply->note);
         self::assertSame([], $reply->options);
     }
@@ -161,9 +161,9 @@ final class InboxThreadBuilderTest extends KernelTestCase
     /** @return iterable<string, array{InboxCloser, InboxItemState, ?InboxCloseCause, string}> */
     public static function closers(): iterable
     {
-        yield 'agent' => [InboxCloser::Agent, InboxItemState::Cancelled, InboxCloseCause::Withdrawn, 'inbox.outcome.agent.withdrawn'];
-        yield 'loupe' => [InboxCloser::Loupe, InboxItemState::Cancelled, InboxCloseCause::CardDeleted, 'inbox.outcome.loupe.card_deleted'];
-        yield 'rule' => [InboxCloser::Rule, InboxItemState::Resolved, null, 'inbox.outcome.rule.resolved'];
+        yield 'agent' => [InboxCloser::Agent, InboxItemState::Cancelled, InboxCloseCause::Withdrawn, 'inbox.outcome.cancelled'];
+        yield 'loupe' => [InboxCloser::Loupe, InboxItemState::Cancelled, InboxCloseCause::CardDeleted, 'inbox.outcome.cancelled'];
+        yield 'rule' => [InboxCloser::Rule, InboxItemState::Resolved, null, 'inbox.outcome.resolved'];
     }
 
     public function test_a_notice_holds_its_text_and_no_reply_card(): void
