@@ -49,7 +49,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $this->project = $this->project($em, $this->owner($em, 'key-notice'), 'key-notice');
         $em->flush();
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
-        $this->keyId = Uuid::v7();
+        $this->keyId = $this->openRouterKey($em);
     }
 
     public function test_a_refused_account_key_opens_one_notice_in_the_project(): void
@@ -115,7 +115,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
     public function test_a_different_key_refused_in_the_same_project_opens_another_notice(): void
     {
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
-        $this->reconciler->refused(Uuid::v7(), true, $this->project->requireId());
+        $this->reconciler->refused($this->openRouterKey($this->em), true, $this->project->requireId());
 
         self::assertCount(2, $this->notices());
     }
@@ -143,7 +143,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $this->em->flush();
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
         $this->reconciler->refused($this->keyId, false, $second->requireId());
-        $this->reconciler->refused(Uuid::v7(), false, $this->project->requireId());
+        $this->reconciler->refused($this->openRouterKey($this->em), false, $this->project->requireId());
         $this->clock->sleep(600);
 
         $this->reconciler->works($this->keyId);
@@ -204,6 +204,44 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         self::assertNotNull($first->endedAt);
         self::assertCount(1, $this->openNotices());
         self::assertNotSame($first, $this->openNotices()[0]);
+    }
+
+    public function test_a_refusal_of_a_removed_key_opens_nothing(): void
+    {
+        $this->em->getConnection()->executeStatement('DELETE FROM openrouter_keys WHERE id = :id', ['id' => $this->keyId->toRfc4122()]);
+
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+
+        self::assertSame([], $this->notices());
+        self::assertSame(0, $this->itemCount());
+    }
+
+    public function test_a_close_reads_the_item_and_the_notice_again_under_the_lock(): void
+    {
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+        $notice = $this->onlyNotice();
+        self::assertSame(InboxItemState::Open, $notice->item->state);
+        $this->em->getConnection()->executeStatement("UPDATE inbox_items SET state = 'obsolete' WHERE id = :id", ['id' => (string) $notice->item->id]);
+
+        $this->reconciler->works($this->keyId);
+
+        self::assertSame(InboxItemState::Obsolete, $notice->item->state);
+        self::assertNull($notice->item->closeNote);
+        self::assertSame('obsolete', $this->em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $notice->item->id]));
+        self::assertNotNull($notice->endedAt);
+    }
+
+    public function test_the_reload_reads_the_end_another_process_stored(): void
+    {
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+        $notice = $this->onlyNotice();
+        $this->em->getConnection()->executeStatement("UPDATE inbox_openrouter_key_notices SET ended_at = '2026-10-31 11:00:00' WHERE id = :id", ['id' => (string) $notice->id]);
+
+        $this->repository()->reloadEndedAt($notice);
+        $this->em->flush();
+
+        self::assertEquals(new \DateTimeImmutable('2026-10-31 11:00:00'), $notice->endedAt);
+        self::assertSame('2026-10-31 11:00:00', $this->em->getConnection()->fetchOne('SELECT ended_at FROM inbox_openrouter_key_notices WHERE id = :id', ['id' => (string) $notice->id]));
     }
 
     private function bodyOf(InboxOpenRouterKeyNotice $notice): string

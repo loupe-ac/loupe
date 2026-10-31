@@ -51,4 +51,23 @@ class InboxOpenRouterKeyNoticeRepository extends ServiceEntityRepository
 
         return $notices;
     }
+
+    /** Reads the stored end, which another process may have set since the notice loaded. */
+    public function reloadEndedAt(InboxOpenRouterKeyNotice $notice): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $endedAt = $connection->fetchOne(
+            'SELECT ended_at FROM inbox_openrouter_key_notices WHERE id = :id',
+            ['id' => ($notice->id ?? throw new \LogicException('A stored notice has an id.'))->toRfc4122()],
+        );
+        if (false === $endedAt || null === $endedAt) {
+            return;
+        }
+
+        $stored = $connection->convertToPHPValue($endedAt, 'datetime_immutable');
+        \assert($stored instanceof \DateTimeImmutable);
+        $notice->endedAt = $stored;
+        $unitOfWork = $this->getEntityManager()->getUnitOfWork();
+        $unitOfWork->setOriginalEntityProperty(spl_object_id($notice), 'endedAt', $notice->endedAt);
+    }
 }

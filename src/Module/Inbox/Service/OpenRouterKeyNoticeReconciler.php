@@ -14,6 +14,7 @@ use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxOpenRouterKeyNoticeRepository;
+use App\Module\OpenRouter\Repository\OpenRouterKeyRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
@@ -36,6 +37,7 @@ final readonly class OpenRouterKeyNoticeReconciler
         private ProjectRepository $projects,
         private InboxOpenRouterKeyNoticeRepository $inboxOpenRouterKeyNotices,
         private InboxItemRepository $inboxItems,
+        private OpenRouterKeyRepository $openRouterKeys,
         private InboxItemCloser $closer,
         private InboxSearchIndexer $searchIndexer,
         private InboxChangedPublisher $inboxChanged,
@@ -58,9 +60,17 @@ final readonly class OpenRouterKeyNoticeReconciler
 
         $notice = $this->em->wrapInTransaction(function () use ($keyId, $forProject, $project): ?InboxOpenRouterKeyNotice {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+            // A refusal read before a replace or a removal must not outlive the key.
+            // The share lock makes the delete wait, so its close sees this notice.
+            if (!$this->openRouterKeys->lockIfPresent($keyId)) {
+                return null;
+            }
 
             $now = self::whole($this->clock->now());
             $existing = $this->inboxOpenRouterKeyNotices->findOpenForKeyInProject($keyId, $project);
+            if (null !== $existing) {
+                $this->inboxItems->reloadChangeableColumns([$existing->item]);
+            }
             if (null !== $existing && InboxItemState::Open === $existing->item->state) {
                 return null;
             }
@@ -101,6 +111,8 @@ final readonly class OpenRouterKeyNoticeReconciler
             $project = $notice->project;
             $closed = $this->em->wrapInTransaction(function () use ($notice, $project, $state): bool {
                 $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+                $this->inboxOpenRouterKeyNotices->reloadEndedAt($notice);
+                $this->inboxItems->reloadChangeableColumns([$notice->item]);
                 if (null !== $notice->endedAt) {
                     return false;
                 }

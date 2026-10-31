@@ -12,6 +12,7 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\OpenRouter\Entity\OpenRouterKey;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
@@ -62,6 +63,16 @@ trait InboxFixtures
         $em->persist($owner);
 
         return $owner;
+    }
+
+    /** A stored account key of a new user, so a refusal of it counts. */
+    private function openRouterKey(EntityManagerInterface $em): Uuid
+    {
+        $key = new OpenRouterKey('sk-or-v1-0000000000000000a3f9', user: $this->owner($em, 'openrouter-key'));
+        $em->persist($key);
+        $em->flush();
+
+        return $key->id ?? throw new \LogicException('A stored key has an id.');
     }
 
     private function project(EntityManagerInterface $em, User $owner, string $slug): Project

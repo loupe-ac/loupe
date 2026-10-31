@@ -15,7 +15,6 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
@@ -23,6 +22,7 @@ final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
     use InboxFixtures;
 
     private EventDispatcherInterface $events;
+    private EntityManagerInterface $em;
     private Project $project;
 
     protected function setUp(): void
@@ -33,6 +33,7 @@ final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
         $events = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $events);
         $this->events = $events;
+        $this->em = $em;
 
         $this->project = $this->project($em, $this->owner($em, 'key-listeners'), 'key-listeners');
         $em->flush();
@@ -41,7 +42,7 @@ final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
 
     public function test_a_refused_key_opens_a_notice_and_a_working_key_closes_it(): void
     {
-        $keyId = Uuid::v7();
+        $keyId = $this->openRouterKey($this->em);
 
         $this->events->dispatch(new OpenRouterKeyRefused($keyId, false, $this->project->requireId()));
         self::assertSame([null], $this->endedAts());
@@ -54,7 +55,7 @@ final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
 
     public function test_a_removed_key_closes_its_notice_as_obsolete(): void
     {
-        $keyId = Uuid::v7();
+        $keyId = $this->openRouterKey($this->em);
         $this->events->dispatch(new OpenRouterKeyRefused($keyId, true, $this->project->requireId()));
 
         $this->events->dispatch(new OpenRouterKeyRemoved($keyId));
