@@ -1,8 +1,45 @@
-{# Placeholder. The tile grid. Props: project (Project), view (DashboardView). #}
-<div id="dashboard-grid" data-dashboard-capped="{{ view.capReached ? 'true' : 'false' }}" data-updated-at="{{ view.updatedAt is null ? '' : view.updatedAt|date('c') }}">
-    {% for tile in view.tiles %}
-        {% include '@Insights/_dashboard_tile.html.twig' with {project: project, tile: tile} only %}
-    {% else %}
-        <p data-dashboard-empty>{{ 'analytics.dashboard.empty.title'|trans }}</p>
-    {% endfor %}
-</div>
+{# The tile grid, the empty state or the Add slot. Props: project (Project), view (DashboardView). #}
+{% if view.tiles is empty %}
+    <div id="dashboard-grid" data-dashboard-capped="false">
+        <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.dashboard.empty.title'|trans" :body="'analytics.dashboard.empty.body'|trans" onCard data-dashboard-empty>
+            <twig:Ds:Button variant="primary" href="{{ path('app_project_analytics_metrics', {id: project.id}) }}">
+                <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'analytics.dashboard.empty.build'|trans }}
+            </twig:Ds:Button>
+            <div class="lp-dashboard-starts">
+                <p class="lp-dashboard-starts__title">{{ 'analytics.dashboard.empty.start'|trans }}</p>
+                <div class="lp-dashboard-starts__list">
+                    {% set starts = {
+                        cost: {metric: 'cost', unit: 'card', statistic: 'median', group: 'none', range: 'ninety-days', bucket: 'week', compare: 'off', chart: 'line'},
+                        time: {metric: 'bucket-time-each', unit: 'run', statistic: 'mean', group: 'none', range: 'ninety-days', bucket: 'week', compare: 'off', chart: 'stacked-bars'},
+                        stop: {metric: 'stop-rate', unit: 'run', statistic: 'mean', group: 'stage', range: 'thirty-days', bucket: 'week', compare: 'off', chart: 'bars'},
+                    } %}
+                    {% for key, query in starts %}
+                    <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_metrics', {id: project.id}|merge(query)) }}" data-dashboard-start="{{ key }}">{{ ('analytics.dashboard.empty.' ~ key)|trans }}</twig:Ds:Button>
+                    {% endfor %}
+                </div>
+            </div>
+        </twig:Ds:EmptyState>
+    </div>
+{% else %}
+    <div id="dashboard-grid" class="lp-dashboard-grid" data-controller="graph-drag" data-dashboard-capped="{{ view.capReached ? 'true' : 'false' }}">
+        {% for tile in view.tiles %}
+            {% include '@Insights/_dashboard_tile.html.twig' with {project: project, tile: tile} only %}
+        {% endfor %}
+        {% if view.capReached %}
+            <div class="lp-dashboard-grid__cell">
+                <div class="lp-graph-add lp-graph-add--disabled" data-dashboard-add="capped">
+                    <span class="lp-graph-add__title">{{ 'analytics.dashboard.add.title'|trans }}</span>
+                    <span class="lp-graph-add__hint">{{ 'analytics.dashboard.add.cap'|trans({'%limit%': view.capLimit}) }}</span>
+                </div>
+            </div>
+        {% else %}
+            <div class="lp-dashboard-grid__cell">
+                <a class="lp-graph-add" href="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-dashboard-add>
+                    <span class="lp-graph-add__icon"><twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" /></span>
+                    <span class="lp-graph-add__title">{{ 'analytics.dashboard.add.title'|trans }}</span>
+                    <span class="lp-graph-add__hint">{{ 'analytics.dashboard.add.hint'|trans }}</span>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}

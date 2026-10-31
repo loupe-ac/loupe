@@ -43,6 +43,7 @@
 @import './components/switch.css';
 @import './components/stepper.css';
 @import './components/chart.css';
+@import './components/graph-tile.css';
 
 @source "../../templates/components/Ds";
 

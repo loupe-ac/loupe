@@ -366,6 +366,18 @@ readonly class Catalog
                 viewport: '900x700',
             ),
             new ComponentEntry(
+                name: 'GraphTile',
+                rootClass: 'lp-graph-tile',
+                template: 'components/Ds/GraphTile.html.twig',
+                variants: ['line', 'bars', 'stacked-bars', 'percent-stacked', 'donut', 'number', 'broken'],
+                states: [],
+                enforced: true,
+                group: 'core',
+                summary: 'A saved graph on the Dashboard: a grip, the name, the settings line, an actions block for the menu and the chart. A broken tile names what is gone, draws no chart and holds the buttons of its footer block.',
+                element: 'article',
+                viewport: '900x700',
+            ),
+            new ComponentEntry(
                 name: 'SectionHeading',
                 rootClass: 'lp-section-heading',
                 template: 'components/Ds/SectionHeading.html.twig',

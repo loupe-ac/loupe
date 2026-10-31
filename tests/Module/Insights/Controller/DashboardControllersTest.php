@@ -100,6 +100,75 @@ final class DashboardControllersTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-dashboard-tile="ready"]'));
     }
 
+    public function test_the_forms_of_a_tile_post_what_the_controllers_read(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('page-forms');
+        $first = $this->seedSavedGraph($project, 'First', 0);
+        $first->metric = 'cost';
+        $second = $this->seedSavedGraph($project, 'Second', 1);
+        $second->metric = 'cost';
+        $this->em()->flush();
+        $projectId = (string) $project->id;
+        $base = '/projects/'.$projectId.self::BASE;
+        $firstId = (string) $first->id;
+        $secondId = (string) $second->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        foreach ([$firstId, $secondId] as $id) {
+            $client->request(Request::METHOD_GET, $base.'/graphs/'.$id);
+        }
+        $crawler = $client->request(Request::METHOD_GET, $base);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][target="_top"]'));
+        self::assertCount(1, $crawler->filter('[data-dashboard-add]'));
+        self::assertSame($base.'/graphs/'.$firstId.'/remove', $crawler->filter('#dashboard-graph-'.$firstId.' form[data-dashboard-remove-form]')->attr('action'));
+        self::assertSame('Open in Metrics', trim($crawler->filter('#dashboard-graph-'.$firstId.' .lp-menu__item[href]')->text()));
+        self::assertStringContainsString('graph='.$firstId, (string) $crawler->filter('#dashboard-graph-'.$firstId.' .lp-menu__item[href]')->attr('href'));
+        self::assertCount(0, $crawler->filter('#dashboard-graph-'.$firstId.' form[action$="/move/up"]'));
+        self::assertCount(1, $crawler->filter('#dashboard-graph-'.$firstId.' form[action$="/move/down"]'));
+
+        $tile = $crawler->filter('#dashboard-graph-'.$firstId);
+        $client->submit($tile->filter('button[value="full"]')->form());
+        self::assertResponseRedirects($base);
+        $client->submit($tile->filter('button[name$="[show]"]')->form());
+        self::assertResponseRedirects($base);
+        $client->submit($tile->filter('form[data-graph-tile-target="renameForm"]')->form(['rename_graph_'.$firstId.'[name]' => 'Renamed']));
+        self::assertResponseRedirects($base);
+        $drag = $crawler->filter('#dashboard-graph-'.$firstId.' form[data-graph-drag-form]')->form(['drag_graph_'.$firstId.'[steps]' => '1']);
+        $client->submit($drag);
+        self::assertResponseRedirects($base);
+
+        $this->em()->clear();
+        $stored = static::getContainer()->get(InsightsSavedGraphRepository::class)->find($firstId);
+        self::assertInstanceOf(InsightsSavedGraph::class, $stored);
+        self::assertSame('Renamed', $stored->name);
+        self::assertSame(SavedGraphWidth::Full, $stored->width);
+        self::assertFalse($stored->showLegend);
+        self::assertSame(['Second', 'Renamed'], $this->activeNames($projectId));
+    }
+
+    public function test_the_empty_dashboard_offers_three_starting_points_that_open_metrics(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('page-starts');
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.self::BASE);
+
+        $starts = $crawler->filter('[data-dashboard-start]');
+        self::assertCount(3, $starts);
+        foreach ($starts->each(static fn ($start): ?string => $start->attr('href')) as $href) {
+            self::assertStringStartsWith('/projects/'.$projectId.'/analytics/metrics?', (string) $href);
+        }
+        $client->click($starts->first()->link());
+        self::assertResponseIsSuccessful();
+    }
+
     public function test_a_broken_graph_shows_what_is_gone_and_computes_nothing(): void
     {
         $client = static::createClient();

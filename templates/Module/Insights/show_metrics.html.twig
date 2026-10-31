@@ -15,11 +15,19 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'metrics'} only %}
 
+    {% if app.request.query.has('saved') %}
+    <p class="lp-metric-saved">
+        <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_dashboard', {id: project.id}) }}" data-metrics-saved-link>
+            <twig:ux:icon name="lucide:chart-column" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.saved_graph.view'|trans }}
+        </twig:Ds:Button>
+    </p>
+    {% endif %}
+
     {% if graph is not null %}
     <div class="lp-metric-edit-banner" data-edit-banner>
         {# The graph name is text that a person wrote, so it is escaped here before it enters the sentence. #}
         <span>{{ 'analytics.metrics.edit.banner'|trans({'%name%': '<strong>' ~ graph.name|e ~ '</strong>'})|raw }}</span>
-        <a href="{{ path('app_project_analytics_metrics', {id: project.id}) }}">{{ 'analytics.metrics.edit.back'|trans }}</a>
+        <a href="{{ path('app_project_analytics_dashboard', {id: project.id}) }}">{{ 'analytics.metrics.edit.back'|trans }}</a>
     </div>
     {% endif %}
 

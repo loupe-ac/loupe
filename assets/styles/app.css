@@ -45,6 +45,7 @@
 @import './components/switch.css';
 @import './components/stepper.css';
 @import './components/chart.css';
+@import './components/graph-tile.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -7613,6 +7614,69 @@
     }
     .lp-metric-edit-banner a {
         @apply text-accent-ink hover:text-ink;
+    }
+    /* The link to the Dashboard under the tabs after a save. */
+    .lp-metric-saved {
+        @apply m-0 mt-4;
+    }
+    /* The Dashboard: two columns of tiles. A full-width tile spans both. */
+    .lp-dashboard-age {
+        @apply m-0 mt-4 text-xs text-fg-dim;
+    }
+    .lp-dashboard-age[hidden] {
+        @apply hidden;
+    }
+    .lp-dashboard-notice {
+        @apply mt-4;
+    }
+    .lp-dashboard-undo {
+        @apply inline-flex flex-wrap items-center gap-2;
+    }
+    .lp-dashboard-live-status {
+        @apply m-0 mt-2 text-xs text-fg-dim empty:hidden;
+    }
+    .lp-dashboard-grid {
+        @apply mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2;
+    }
+    .lp-dashboard-grid__cell {
+        @apply block min-w-0;
+    }
+    .lp-dashboard-grid__cell--full {
+        @apply lg:col-span-2;
+    }
+    .lp-dashboard-grid__cell--dragging {
+        @apply opacity-50;
+    }
+    .lp-dashboard-grid__cell--drop .lp-graph-tile {
+        @apply border-accent-border bg-accent-faint;
+    }
+    /* The slot after the last tile that leads to Metrics. */
+    .lp-graph-add {
+        @apply box-border flex h-full min-h-50 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-line-strong p-6 text-center text-fg-mute no-underline;
+    }
+    a.lp-graph-add:hover {
+        @apply border-accent-border bg-accent-faint text-ink;
+    }
+    .lp-graph-add--disabled {
+        @apply cursor-default;
+    }
+    .lp-graph-add__icon {
+        @apply inline-flex size-9 items-center justify-center rounded-full bg-surface-2 text-ink;
+    }
+    .lp-graph-add__title {
+        @apply text-sm font-semibold text-ink;
+    }
+    .lp-graph-add__hint {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-dashboard-starts {
+        @apply mt-5 flex flex-col items-center gap-2.5;
+    }
+    .lp-dashboard-starts__title {
+        @apply m-0 text-xs font-semibold text-fg-label;
+    }
+    .lp-dashboard-starts__list {
+        @apply flex flex-wrap justify-center gap-2;
     }
     .lp-metric-table {
         @apply mt-4 flex flex-col gap-4;
