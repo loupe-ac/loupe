@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -21,6 +22,7 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -46,6 +48,7 @@ final readonly class SettleWorkRequestHandler
         private AccountReadingRecorder $readings,
         private ProjectRepository $projects,
         private WorkerRunChangedPublisher $runsChanged,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -101,9 +104,12 @@ final readonly class SettleWorkRequestHandler
             );
             $this->announcer->announce($settled);
         }
-        // The Agents page draws the usage bars, and a later heartbeat with the same reading stores nothing new.
-        foreach ($this->projects->findOwnedBy($command->owner, $result->usageFollowers) as $project) {
-            $this->runsChanged->runsChanged($project);
+        // The Agents page and the usage rules read the new reading, and a later heartbeat with it stores nothing new.
+        if ([] !== $result->usageFollowers) {
+            foreach ($this->projects->findOwnedBy($command->owner, $result->usageFollowers) as $project) {
+                $this->runsChanged->runsChanged($project);
+            }
+            $this->events->dispatch(new BridgeAccountReadingsStored($result->usageFollowers));
         }
         if ($result->settled && null !== $settled) {
             $this->auditor->record(

@@ -11,6 +11,7 @@ use App\Module\Bridge\Command\SettleWorkRequestCommand;
 use App\Module\Bridge\Command\SettleWorkRequestHandler;
 use App\Module\Bridge\Command\SettleWorkRequestResult;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
@@ -30,6 +31,7 @@ use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
@@ -200,10 +202,13 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
     {
         [$owner, $request] = $this->claimed('settle-hand-back-reload', recordRunsChanged: true);
         $other = $this->alsoFollowed($owner, $request, 'settle-hand-back-reload');
+        $stored = DispatchedEvents::of(self::getContainer(), BridgeAccountReadingsStored::class);
 
         $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
 
         self::assertSame(self::sorted([(string) $request->project->id, $other]), $this->publishedProjects(), 'The Agents page of each followed project draws the new reading.');
+        self::assertSame([self::sorted([(string) $request->project->id, $other])], array_map(static fn (BridgeAccountReadingsStored $event): array => self::sorted($event->projectIds), $stored->events()), 'The usage rules read the new reading.');
+        self::assertSame([0], $stored->transactionDepths(), 'The event follows the commit.');
     }
 
     public function test_a_hand_back_with_a_known_reading_reloads_only_the_project_of_the_request(): void
@@ -213,10 +218,12 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         $bridge = $this->service(BridgeRepository::class)->findOneByOwnerAndId($owner, $request->bridgeId ?? throw new \LogicException('A claimed request has a bridge.')) ?? throw new \LogicException('The bridge exists.');
         $this->service(AccountReadingRecorder::class)->record($bridge, [self::handBack()->report(new \DateTimeImmutable(self::NOW))]);
         $this->em()->flush();
+        $stored = DispatchedEvents::of(self::getContainer(), BridgeAccountReadingsStored::class);
 
         $this->settle($owner, $request, WorkRequestState::Open, handBack: self::handBack());
 
         self::assertSame([(string) $request->project->id], $this->publishedProjects());
+        self::assertSame([], $stored->events());
     }
 
     public function test_a_second_hand_back_from_the_same_claim_loses(): void
@@ -309,6 +316,7 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
             $this->service(AccountReadingRecorder::class),
             $this->service(ProjectRepository::class),
             $this->service(WorkerRunChangedPublisher::class),
+            $this->service(EventDispatcherInterface::class),
         );
 
         return $handler(new SettleWorkRequestCommand(

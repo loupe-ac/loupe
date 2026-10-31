@@ -30,6 +30,7 @@ use App\Module\Workflow\Engine\Engine;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
@@ -196,6 +197,7 @@ final class NoWorkFinishFlowTest extends KernelTestCase
             $this->service(AccountReadingRecorder::class),
             $this->service(ProjectRepository::class),
             $this->service(WorkerRunChangedPublisher::class),
+            $this->service(EventDispatcherInterface::class),
         );
 
         $result = $handler(new SettleWorkRequestCommand(
