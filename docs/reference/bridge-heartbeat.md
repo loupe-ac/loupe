@@ -135,7 +135,9 @@ Each row of `readings` holds these fields:
 
 The server stores a reading only when its `usedPercent`, `resetsAt` or
 `limited` value differs from the latest reading it holds for the same bridge,
-account and window. A window whose reset time has passed, with no newer
+account and window. A reading with the same values moves the last seen time of
+the stored reading forward, and the agents page counts the age of the reading
+from that time. A window whose reset time has passed, with no newer
 reading, counts as unknown and blocks nothing. The server deletes old
 readings with the worker runs, and keeps the latest reading of each window of
 each account. The account data export lists the readings in

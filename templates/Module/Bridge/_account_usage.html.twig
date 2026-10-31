@@ -33,7 +33,7 @@
         </p>
         <progress class="lp-usage-bar__track" max="100" value="{{ fill }}" aria-label="{{ windowName }}" aria-valuetext="{{ valueLabel }}"></progress>
         {% if reading %}
-        <twig:Ds:Tooltip id="{{ tooltipId }}" data-agent-usage-age>{{ 'bridge.agents.usage.read'|trans({'%age%': reading.readAt|relative_time}) }}{# @design-system-ignore #}</twig:Ds:Tooltip>
+        <twig:Ds:Tooltip id="{{ tooltipId }}" data-agent-usage-age>{{ 'bridge.agents.usage.read'|trans({'%age%': reading.seenAt|relative_time}) }}{# @design-system-ignore #}</twig:Ds:Tooltip>
         {% endif %}
     </div>
     {% endfor %}

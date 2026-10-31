@@ -1152,6 +1152,42 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertSame(1, $this->countReadings($em));
     }
 
+    public function test_a_reading_equal_to_the_latest_one_moves_its_seen_time_and_keeps_its_read_time(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-seen@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:00:00')]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 14:00:00')]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 13:00:00')]));
+
+        self::assertSame([['2026-10-07 12:00:00', '2026-10-07 14:00:00']], $this->readAndSeenTimes($em, $bridgeId));
+    }
+
+    public function test_a_window_repeated_in_one_heartbeat_moves_the_seen_time_of_the_new_reading(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-seen-new@example.com');
+        $bridgeId = Uuid::v4();
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [
+            self::reading('session', 29.0, readAt: '2026-10-07 12:00:00'),
+            self::reading('session', 29.0, readAt: '2026-10-07 12:00:30'),
+        ]));
+
+        self::assertSame([['2026-10-07 12:00:00', '2026-10-07 12:00:30']], $this->readAndSeenTimes($em, $bridgeId));
+    }
+
+    /** @return list<list<mixed>> */
+    private function readAndSeenTimes(\Doctrine\ORM\EntityManagerInterface $em, Uuid $bridgeId): array
+    {
+        return $em->getConnection()->fetchAllNumeric('SELECT read_at, seen_at FROM bridge_account_readings WHERE bridge_id = :id', ['id' => (string) $bridgeId]);
+    }
+
     public function test_a_stored_reading_announces_the_followed_projects_after_the_commit(): void
     {
         self::bootKernel();

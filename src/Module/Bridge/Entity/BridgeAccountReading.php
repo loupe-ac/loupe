@@ -46,9 +46,14 @@ class BridgeAccountReading
         #[ORM\Column(length: 40)]
         public readonly string $source,
 
-        /** UTC. */
+        /** UTC. When the bridge first reported these values. */
         #[ORM\Column(name: 'read_at')]
         public readonly \DateTimeImmutable $readAt,
     ) {
+        $this->seenAt = $readAt;
     }
+
+    /** UTC. When the bridge last reported these values. */
+    #[ORM\Column(name: 'seen_at')]
+    public \DateTimeImmutable $seenAt;
 }

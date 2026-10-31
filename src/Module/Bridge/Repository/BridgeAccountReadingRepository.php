@@ -17,11 +17,11 @@ use Symfony\Component\Uid\Uuid;
 /**
  * @extends ServiceEntityRepository<BridgeAccountReading>
  *
- * @phpstan-type ReadingRow array{bridge_id: string, account: string, window_key: string, used_percent: float|string|null, resets_at: string, limited: bool, source: string, read_at: string}
+ * @phpstan-type ReadingRow array{bridge_id: string, account: string, window_key: string, used_percent: float|string|null, resets_at: string, limited: bool, source: string, read_at: string, seen_at: string}
  */
 class BridgeAccountReadingRepository extends ServiceEntityRepository
 {
-    private const string COLUMNS = 'bridge_id, account, window_key, used_percent, resets_at, limited, source, read_at';
+    private const string COLUMNS = 'bridge_id, account, window_key, used_percent, resets_at, limited, source, read_at, seen_at';
 
     public function __construct(ManagerRegistry $registry)
     {
@@ -45,6 +45,23 @@ class BridgeAccountReadingRepository extends ServiceEntityRepository
         );
 
         return array_map(self::report(...), $rows);
+    }
+
+    /**
+     * Moves the last seen time of the newest stored reading of one window forward, when the bridge reports the same
+     * values again. The read time stays, because the history and the run deltas read it.
+     */
+    public function markSeen(Uuid $ownerId, Uuid $bridgeId, string $account, string $window, \DateTimeImmutable $seenAt): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE bridge_account_readings SET seen_at = GREATEST(seen_at, :seen) WHERE id = (
+                SELECT id FROM bridge_account_readings
+                WHERE owner_id = :owner AND bridge_id = :bridge AND account = :account AND window_key = :window
+                ORDER BY read_at DESC, id DESC LIMIT 1
+            )',
+            ['seen' => $seenAt->setTimezone(new \DateTimeZone('UTC')), 'owner' => $ownerId->toRfc4122(), 'bridge' => $bridgeId->toRfc4122(), 'account' => $account, 'window' => $window],
+            ['seen' => Types::DATETIME_IMMUTABLE],
+        );
     }
 
     /**
@@ -168,6 +185,7 @@ class BridgeAccountReadingRepository extends ServiceEntityRepository
             limited: $row['limited'],
             source: $row['source'],
             readAt: new \DateTimeImmutable($row['read_at'], $utc),
+            seenAt: new \DateTimeImmutable($row['seen_at'], $utc),
         );
     }
 }

@@ -391,6 +391,26 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertSame('work Unknown', trim($crawler->filter('details[data-agent-accounts] [data-agent-section-summary]')->text()));
     }
 
+    public function test_the_age_of_a_reading_counts_from_the_last_report_of_the_same_values(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-seen@example.com');
+        $project = $this->project($em, $owner, 'Usage seen');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $reading = $this->seedAccountReading($em, $bridge, '-3 hours', resetsAt: new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s'));
+        $reading->seenAt = new \DateTimeImmutable('-1 minute', new \DateTimeZone('UTC'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertStringContainsString('Read 1m ago', $crawler->filter('[data-agent-usage="session"] [data-agent-usage-age]')->text());
+    }
+
     public function test_an_account_with_no_reading_yet_shows_an_unknown_session_and_week_bar(): void
     {
         $client = static::createClient();

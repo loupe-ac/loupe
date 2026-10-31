@@ -35,6 +35,7 @@ final readonly class BridgeAccountReadingExporter implements UserDataExporterInt
                 'limited' => $reading->limited,
                 'source' => $reading->source,
                 'readAt' => $reading->readAt->format(\DateTimeInterface::ATOM),
+                'seenAt' => $reading->seenAt->format(\DateTimeInterface::ATOM),
             ];
         }
     }

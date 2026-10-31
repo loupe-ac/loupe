@@ -38,6 +38,7 @@ final class BridgeAccountReadingExporterTest extends KernelTestCase
             'limited' => true,
             'source' => 'stream',
             'readAt' => '2026-10-07T12:01:00+00:00',
+            'seenAt' => '2026-10-07T12:01:00+00:00',
         ], $rows[0]);
         self::assertSame(29.5, $rows[1]['usedPercent']);
         self::assertSame('week', $rows[1]['window']);
