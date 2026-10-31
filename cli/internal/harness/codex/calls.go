@@ -222,10 +222,10 @@ func (h Harness) load(s session, seen map[string]bool, since, until time.Time) (
 }
 
 // between sums the spend of the thread and of its subagents.
-func (t *tree) between(from, to time.Time, priced bool) map[string]spend {
-	byModel := t.session.between(from, to, cmp.Or(t.model, fallbackModel), priced)
+func (t *tree) between(from, to time.Time) map[string]spend {
+	byModel := t.session.between(from, to, cmp.Or(t.model, fallbackModel))
 	for _, c := range t.children {
-		for name, n := range c.between(from, to, priced) {
+		for name, n := range c.between(from, to) {
 			byModel[name] = byModel[name].plus(n)
 		}
 	}

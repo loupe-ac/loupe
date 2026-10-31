@@ -66,16 +66,6 @@ func (t tokens) priceAt(name string, prompt int64) spend {
 	return spend{tokens: t, cost: *c}
 }
 
-// spendAt is priceAt when priced is true. Otherwise it keeps the tokens with
-// no cost, for a run whose cost Loupe reads from the bill.
-func (t tokens) spendAt(name string, prompt int64, priced bool) spend {
-	if !priced {
-		return spend{tokens: t, unpriced: true}
-	}
-
-	return t.priceAt(name, prompt)
-}
-
 // plus adds the spend of another reply of the same model.
 func (s spend) plus(o spend) spend {
 	return spend{tokens: s.tokens.plus(o.tokens), cost: s.cost + o.cost, unpriced: s.unpriced || o.unpriced}
@@ -367,15 +357,15 @@ func (s *session) event(at time.Time, raw json.RawMessage, previous *tokens) {
 
 // between sums the token counts at or after from, and before to when to is set.
 // A count from a line with no model counts for fallback. Each reply is priced
-// by its own prompt size, unless priced is false.
-func (s session) between(from, to time.Time, fallback string, priced bool) map[string]spend {
+// by its own prompt size.
+func (s session) between(from, to time.Time, fallback string) map[string]spend {
 	byModel := map[string]spend{}
 	for _, ev := range s.events {
 		if ev.at.Before(from) || (!to.IsZero() && !ev.at.Before(to)) {
 			continue
 		}
 		name := cmp.Or(ev.model, fallback)
-		byModel[name] = byModel[name].plus(ev.delta.spendAt(name, ev.prompt, priced))
+		byModel[name] = byModel[name].plus(ev.delta.priceAt(name, ev.prompt))
 	}
 
 	return byModel
@@ -507,10 +497,9 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 		out.CallsRead = true
 		out.Calls, out.Timing, out.PeakContextTokens = t.metrics(run.Since, end)
 	}
-	priced := !h.onOpenRouter()
 	var counted map[string]spend
 	if treeErr == nil && !t.skipped {
-		counted = t.between(time.Time{}, end, priced)
+		counted = t.between(time.Time{}, end)
 	}
 	switch {
 	case treeErr == nil && t.skipped:
@@ -520,11 +509,7 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 		out.Usage = toUsage(counted)
 	case stdout.usage != nil:
 		name := cmp.Or(sess.model, run.Model, fallbackModel)
-		out.Usage = toUsage(map[string]spend{name: stdout.usage.spendAt(name, 0, priced)})
-	}
-
-	if !priced {
-		out.CostSource = harness.CostSourceOpenRouter
+		out.Usage = toUsage(map[string]spend{name: stdout.usage.priceAt(name, 0)})
 	}
 
 	if msg := h.providerProblem(sess, sessErr == nil); msg != "" {
@@ -567,16 +552,6 @@ func document(text string) json.RawMessage {
 // SessionUsage is what the thread and its subagents spent at or after from,
 // and before to when to is set.
 func (h Harness) SessionUsage(runID string, from, to time.Time) (transcript.Usage, error) {
-	return h.usage(runID, from, to, true)
-}
-
-// RunUsage is SessionUsage for a worker run. A run on OpenRouter keeps its
-// token counts with no list price, because Loupe reads its billed cost.
-func (h Harness) RunUsage(runID string, from, to time.Time) (transcript.Usage, error) {
-	return h.usage(runID, from, to, !h.onOpenRouter())
-}
-
-func (h Harness) usage(runID string, from, to time.Time, priced bool) (transcript.Usage, error) {
 	t, err := h.tree(runID, from, to)
 	if err != nil {
 		return nil, err
@@ -585,17 +560,16 @@ func (h Harness) usage(runID string, from, to time.Time, priced bool) (transcrip
 		return nil, errNoUsage
 	}
 
-	return toUsage(t.between(from, to, priced)), nil
+	return toUsage(t.between(from, to)), nil
 }
 
 // errNoUsage says the session file holds no token count, so the spend is
 // unknown and not zero.
 var errNoUsage = errors.New("the Codex session holds no token count")
 
-// SessionTotal is what the whole thread and its subagents spent, read as
-// RunUsage because only a resume of a worker run reads it.
+// SessionTotal is what the whole thread and its subagents spent.
 func (h Harness) SessionTotal(runID string) (transcript.Usage, error) {
-	return h.RunUsage(runID, time.Time{}, time.Time{})
+	return h.SessionUsage(runID, time.Time{}, time.Time{})
 }
 
 func (h Harness) StartDir(runID string) (string, error) {

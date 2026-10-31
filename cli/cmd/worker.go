@@ -326,6 +326,9 @@ type runRecord struct {
 	Project string `json:"project,omitempty"`
 	Agent   bool   `json:"agent,omitempty"`
 	Managed bool   `json:"managed,omitempty"`
+	// CostSource is the cost source of the command at launch. The outcome
+	// reads it from here, so a profile change during the run changes nothing.
+	CostSource string `json:"costSource,omitempty"`
 }
 
 func writeRunRecord(dir string, rec runRecord) error {
@@ -484,7 +487,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 		Dir: spec.dir, PermissionMode: spec.permissionMode, Model: spec.model, Effort: spec.effort,
 		SessionID: spec.sessionID, Resume: spec.resume, Prompt: spec.prompt,
 		Harness: h.Name(), Account: spec.account, ConfigDir: spec.configDir, Profile: spec.profile, Baseline: baseline,
-		Project: spec.project, Agent: spec.agent != nil, Managed: managed,
+		Project: spec.project, Agent: spec.agent != nil, Managed: managed, CostSource: command.CostSource,
 	}
 	// A worker with no record cannot outlive this bridge, so it does not run.
 	if err := writeRunRecord(dir, rec); err != nil {
@@ -561,8 +564,8 @@ func workerOutcome(dir string, killed bool, waitErr error) workerResult {
 	if recErr == nil {
 		res.usage = workerUsage(rec, res.reported)
 	}
-	if doc.CostSource == harn.CostSourceOpenRouter {
-		res.costSource = doc.CostSource
+	if rec.CostSource == harn.CostSourceOpenRouter {
+		res.costSource = rec.CostSource
 		res.usage = unpriced(res.usage)
 	}
 	if waitErr != nil {

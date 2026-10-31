@@ -28,11 +28,7 @@ type Harness interface {
 	// SessionUsage is what the session spent at or after from, and before to
 	// when to is set.
 	SessionUsage(sessionID string, from, to time.Time) (transcript.Usage, error)
-	// RunUsage is SessionUsage for a worker run, with no list price when
-	// Loupe reads the billed cost of the run.
-	RunUsage(sessionID string, from, to time.Time) (transcript.Usage, error)
-	// SessionTotal is what the whole session spent before a resume, with no
-	// list price when Loupe reads the billed cost of the run.
+	// SessionTotal is what the whole session spent before a resume.
 	SessionTotal(sessionID string) (transcript.Usage, error)
 	// StartDir is the folder the session started in, and "" with no error
 	// when this machine holds no record of the session.
@@ -110,6 +106,10 @@ type Command struct {
 	Args  []string
 	Env   []string
 	Files map[string]string
+	// CostSource is "openrouter" when the command sends the run to
+	// OpenRouter, so Loupe reads its billed cost, and "" when the bridge
+	// prices the usage. It is read once, when the command is built.
+	CostSource string
 }
 
 // Output is what a worker left. Decoded says the run left a valid document,
@@ -131,10 +131,6 @@ type Output struct {
 	// when the run did not say.
 	HarnessVersion string
 	SkillVersion   string
-	// CostSource names who prices the run: "openrouter" when the run went
-	// through OpenRouter and Loupe reads the billed cost, and "" when the
-	// bridge prices the usage.
-	CostSource string
 	// HarnessEvents counts the events of the run by kind. A nil map says the
 	// harness could not read the files, and an empty one says it read them and
 	// found no event.

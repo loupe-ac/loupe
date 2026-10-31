@@ -725,7 +725,9 @@ cost of the run from OpenRouter instead, because a list price is not the price
 of the provider that served the run. The bridge finds such a run by the
 `base_url` of its provider. The run is on OpenRouter when the host of that URL
 is `openrouter.ai`. The provider name comes from the profile file first, then
-from `config.toml`, and so does its `base_url`.
+from `config.toml`, and so does its `base_url`. The bridge reads them once,
+when the run starts, so a profile change during the run does not change how
+the bridge reports it.
 
 For such a run, the bridge adds this override to `codex exec`. `<provider>` is
 the name of the provider table and `<run key>` is the id of the run:

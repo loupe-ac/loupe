@@ -46,6 +46,7 @@ func codexHome(t *testing.T, usage string) string {
 	bin := t.TempDir()
 	script := `#!/bin/sh
 printf '%s\n' "$@" > "$CODEX_HOME/args.log"
+if [ -f "$CODEX_HOME/swap" ]; then cp "$CODEX_HOME/swap" "$CODEX_HOME/openrouter.config.toml"; fi
 last=""
 while [ $# -gt 0 ]; do
   if [ "$1" = "-o" ]; then last="$2"; fi
@@ -108,6 +109,43 @@ func TestRunWorkerRunsCodexAndReadsItsFiles(t *testing.T) {
 		if !strings.Contains(string(args), want) {
 			t.Fatalf("args = %q, want %q", args, want)
 		}
+	}
+}
+
+// The cost source follows the provider at launch. The fake codex rewrites the
+// profile while it runs, and the outcome still reads the launch provider.
+func TestTheCostSourceOfACodexRunFollowsTheLaunchProvider(t *testing.T) {
+	const elsewhere = "model_provider = \"openrouter\"\n[model_providers.openrouter]\nbase_url = \"https://api.example.com/v1\"\n"
+	openRouter, err := os.ReadFile(filepath.Join(codexFixtures, "openrouter.config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, tc := range map[string]struct{ launch, swap, want string }{
+		"leaves OpenRouter": {string(openRouter), elsewhere, "openrouter"},
+		"joins OpenRouter":  {elsewhere, string(openRouter), ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			home := codexHome(t, `{"input_tokens":1000,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":50,"reasoning_output_tokens":0}`)
+			for file, body := range map[string]string{"openrouter.config.toml": tc.launch, "swap": tc.swap} {
+				if err := os.WriteFile(filepath.Join(home, file), []byte(body), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			res := runWorker(context.Background(), codexSpec(home), nil)
+
+			rec, err := readRunRecord(res.dir)
+			if err != nil || rec.CostSource != tc.want || res.costSource != tc.want {
+				t.Fatalf("record %q, outcome %q, %v; want %q", rec.CostSource, res.costSource, err, tc.want)
+			}
+			if tc.want != "" {
+				for model, m := range res.usage.Models {
+					if m.CostUSD != nil {
+						t.Fatalf("%s carries a cost: %+v", model, res.usage)
+					}
+				}
+			}
+		})
 	}
 }
 

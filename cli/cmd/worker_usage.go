@@ -41,7 +41,7 @@ func workerUsage(rec runRecord, reported transcript.Usage) *api.Usage {
 		return nil
 	}
 
-	usage, err := recordHarness(rec).RunUsage(rec.SessionID, since, time.Time{})
+	usage, err := recordHarness(rec).SessionUsage(rec.SessionID, since, time.Time{})
 	if err != nil {
 		return nil
 	}
