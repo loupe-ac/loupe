@@ -131,25 +131,6 @@ final class CardCreateToolTest extends KernelTestCase
         ));
     }
 
-    /** Release 1 keeps the old parameter working, so an agent mid-upgrade is not broken. */
-    public function test_the_deprecated_origin_parameter_still_sets_the_reporter(): void
-    {
-        $this->actAsMcpTokenBoundTo($this->makeProject('card-create-origin-alias'));
-
-        $card = ($this->tool)('Old caller', 'Body', 'idea', origin: 'human');
-
-        self::assertSame(Actor::Human->value, $card['reporter']);
-    }
-
-    public function test_reporter_wins_when_a_caller_sends_both_names(): void
-    {
-        $this->actAsMcpTokenBoundTo($this->makeProject('card-create-both-names'));
-
-        $card = ($this->tool)('Both', 'Body', 'idea', reporter: 'human', origin: 'agent');
-
-        self::assertSame(Actor::Human->value, $card['reporter']);
-    }
-
     /** The widget owns `reviewer`, because it says the app could not name who raised the card. */
     public function test_a_caller_cannot_claim_the_reviewer_reporter(): void
     {
