@@ -1,0 +1,8 @@
+{# Placeholder. One tile, inside its frame. Props: project (Project), tile (DashboardTileView). #}
+{% if tile.waiting %}
+    <turbo-frame id="{{ tile.frameId }}" src="{{ path('app_project_analytics_dashboard_graph', {id: project.id, graphId: tile.graph.id}) }}" loading="lazy" data-dashboard-tile="waiting">
+        {{ 'analytics.dashboard.tile.loading'|trans }}
+    </turbo-frame>
+{% else %}
+    {% include '@Insights/_dashboard_tile_frame.html.twig' with {project: project, tile: tile} only %}
+{% endif %}

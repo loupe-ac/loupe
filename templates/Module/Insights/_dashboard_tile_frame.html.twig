@@ -1,0 +1,11 @@
+{# Placeholder. A ready or broken tile in its frame; also the answer of the single tile route. Props: project (Project), tile (DashboardTileView). #}
+<turbo-frame id="{{ tile.frameId }}" data-dashboard-tile="{{ tile.broken ? 'broken' : 'ready' }}">
+    <h2>{{ tile.graph.name }}</h2>
+    {% if tile.broken %}
+        <p data-dashboard-broken="{{ tile.broken.reason.value }}">{{ ('analytics.dashboard.broken.' ~ tile.broken.reason.value|replace({'-': '_'}))|trans({'%name%': tile.broken.name}) }}</p>
+    {% elseif tile.result.layout is null %}
+        <p>{{ 'analytics.metrics.empty.title'|trans }}</p>
+    {% else %}
+        <twig:Ds:Chart :layout="tile.result.layout" :labels="tile.result.labels" :label="tile.result.title" :id="'tile-' ~ tile.graph.id" />
+    {% endif %}
+</turbo-frame>

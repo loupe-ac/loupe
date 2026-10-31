@@ -1,0 +1,8 @@
+{# Placeholder. The tile grid. Props: project (Project), view (DashboardView). #}
+<div id="dashboard-grid" data-dashboard-capped="{{ view.capReached ? 'true' : 'false' }}" data-updated-at="{{ view.updatedAt is null ? '' : view.updatedAt|date('c') }}">
+    {% for tile in view.tiles %}
+        {% include '@Insights/_dashboard_tile.html.twig' with {project: project, tile: tile} only %}
+    {% else %}
+        <p data-dashboard-empty>{{ 'analytics.dashboard.empty.title'|trans }}</p>
+    {% endfor %}
+</div>

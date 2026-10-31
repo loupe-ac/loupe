@@ -82,4 +82,19 @@ class InsightsSavedGraph
         public ?\DateTimeImmutable $removedAt = null,
     ) {
     }
+
+    /** @return array<string, string> the Metrics controls of the graph, by name */
+    public function settings(): array
+    {
+        return [
+            'metric' => $this->metric,
+            'unit' => $this->unit->value,
+            'statistic' => $this->statistic->value,
+            'group' => $this->group->value,
+            'range' => $this->range->value,
+            'bucket' => $this->bucket->value,
+            'compare' => $this->compare->value,
+            'chart' => $this->chartType->value,
+        ];
+    }
 }

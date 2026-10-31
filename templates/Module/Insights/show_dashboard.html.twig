@@ -1,0 +1,18 @@
+{# Placeholder. The Dashboard page. Props: project (Project), view (DashboardView). #}
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'analytics.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div data-dashboard-page data-topic="{{ dashboard_topic(project) }}">
+    {% include '@Insights/_tabs.html.twig' with {project: project, active: 'dashboard'} only %}
+    {% if view.removed is not null %}
+        <form method="post" action="{{ path('app_project_analytics_dashboard_graph_undo', {id: project.id, graphId: view.removed.id}) }}" data-dashboard-undo>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-dashboard-graph-undo') }}">
+            <span>{{ 'analytics.dashboard.flash.removed'|trans({'%name%': view.removed.name}) }}</span>
+            <button type="submit">{{ 'analytics.dashboard.remove.undo'|trans }}</button>
+        </form>
+    {% endif %}
+    {% include '@Insights/_dashboard_grid.html.twig' with {project: project, view: view} only %}
+</div>
+{% endblock %}

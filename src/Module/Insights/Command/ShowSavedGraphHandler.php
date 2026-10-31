@@ -28,16 +28,7 @@ final readonly class ShowSavedGraphHandler
         }
 
         /** @var InputBag<string> $saved */
-        $saved = new InputBag([
-            'metric' => $graph->metric,
-            'unit' => $graph->unit->value,
-            'statistic' => $graph->statistic->value,
-            'group' => $graph->group->value,
-            'range' => $graph->range->value,
-            'bucket' => $graph->bucket->value,
-            'compare' => $graph->compare->value,
-            'chart' => $graph->chartType->value,
-        ]);
+        $saved = new InputBag($graph->settings());
 
         return new SavedGraphResult($graph, MetricsQuery::fromQuery($saved, $this->templateMetrics->forProject($projectId)));
     }

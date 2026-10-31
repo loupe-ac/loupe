@@ -1,0 +1,6 @@
+{# Placeholder. The grid as a Turbo stream. Props: project (Project), view (DashboardView). #}
+<turbo-stream action="replace" target="dashboard-grid">
+    <template>
+        {% include '@Insights/_dashboard_grid.html.twig' with {project: project, view: view} only %}
+    </template>
+</turbo-stream>
