@@ -1,6 +1,5 @@
 ---
 type: regex
-pattern: '^[ \t]*(\$ )?git (pull --)?rebase'
-flags: m
+pattern: 'git (rebase\s+(-\S+\s+)*origin/|pull\s+--rebase)'
 match: not_contains
 ---
