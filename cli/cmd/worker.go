@@ -25,6 +25,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/stream"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
 // waitDelay bounds the wait after the context kills the worker's process
@@ -80,6 +81,11 @@ type workerResult struct {
 	streamed bool
 	calls    []stream.Call
 	timing   stream.Timing
+	// limit is the limited reading that stopped the run, and nil when no
+	// reading of the run was limited. assistantTurn says the agent took at
+	// least one turn, so the run did work.
+	limit         *usage.Reading
+	assistantTurn bool
 	// peakContextTokens is the largest input context of the main session,
 	// and nil when unknown.
 	peakContextTokens *int64
@@ -552,6 +558,7 @@ func workerOutcome(dir string, killed bool, waitErr error) workerResult {
 	res.streamed, res.calls, res.timing, res.peakContextTokens = doc.CallsRead, doc.Calls, doc.Timing, doc.PeakContextTokens
 	res.harnessVersion, res.skillVersion = doc.HarnessVersion, doc.SkillVersion
 	res.harnessEvents = doc.HarnessEvents
+	res.assistantTurn = doc.AssistantTurns > 0 || len(doc.Calls) > 0
 	if readErr := errors.Join(cmp.Or(doc.ReadErr, headErr), stderrErr); readErr != nil {
 		res.output = strings.TrimLeft(res.output+"\n"+readErr.Error(), "\n")
 	}

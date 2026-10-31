@@ -319,6 +319,31 @@ class Bridge
         return WorkSubject::CARD === $subjectType ? $kind : $subjectType.':'.$kind;
     }
 
+    /** Whether the last heartbeat lists the account with the work kind, so a worker of the bridge can run the kind on it. */
+    public function accountRuns(string $account, string $workKind): bool
+    {
+        foreach ($this->accounts ?? [] as $row) {
+            if ($row['name'] === $account) {
+                return \in_array($workKind, $row['kinds'] ?? [], true);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the bridge reports the kinds of every account and no account runs the work kind.
+     * A claim of such work names no account, as the bridge answers it with no worker.
+     */
+    public function runsOnNoAccount(string $workKind): bool
+    {
+        if (null === $this->accounts) {
+            return false;
+        }
+
+        return array_all($this->accounts, fn ($row) => !(!isset($row['kinds']) || \in_array($workKind, $row['kinds'], true)));
+    }
+
     public function nameClashes(): bool
     {
         return null !== $this->requestedName && null === $this->name;

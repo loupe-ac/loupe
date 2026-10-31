@@ -79,6 +79,7 @@ The path holds no project, because one bridge follows several projects.
 | `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `git-identities` says that the bridge reports [its git identity](#the-git-identity). `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workKinds` | optional. A list of at most 50 kinds of work the bridge can run, such as `fix` or `tech-design`. It holds the kinds of the rule file whose agent and account are on. A kind whose subject is `card` is its bare name. A kind of another subject is `<subject>:<kind>`, such as `analysis:cost-report`. Each kind and each subject starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. An empty list says that the bridge can run no kind. A missing or `null` value stores an empty list, so a bridge from before work kinds counts as able to run no kind until its CLI is upgraded |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
+| `skipped` | optional. A list of at most 200 rows, one for each offered request that the bridge skipped since its last heartbeat, because the account it matched to the request is blocked. See [Skipped requests](#skipped-requests). A missing or `null` value changes nothing |
 | `hostSamples` | optional. A list of at most 720 [host samples](#host-samples), oldest first. A missing, `null` or empty value stores nothing |
 
 Each row of `hooks` holds these fields:
@@ -180,6 +181,27 @@ heartbeat with no list keeps the rows and their time. A heartbeat with no
 CLI, which pushes with the git setup of the machine. It clears the git identity
 rows and their time. The
 [`bridge_list`](../using/mcp.md) tool shows the entries to a worker.
+
+### Skipped requests
+
+An account takes no new work at its hard limit, and also at or above its
+`stopAt` value, which is 95 by default. The reply lists such an account in
+`blockedAccounts`, with the time that it takes work again. The bridge matches a
+request to one account first. When that account is blocked, the bridge skips the
+request. It never tries another entry or another account for it.
+
+The bridge reports each skipped request in `skipped` on its next heartbeat. Each
+row holds these fields:
+
+| Field | Rule |
+|---|---|
+| `workRequestId` | required. The id of the skipped request, a uuid |
+| `account` | required. The account that the bridge matched to the request, with the same rule as the `name` of an account row |
+
+Loupe keeps that match until the request is claimed or closes. The offers in
+`workRequests` leave out a request whose matched account is blocked on this
+bridge. The card of the request shows the same account. A heartbeat that leaves
+a request out of `skipped` does not remove its match.
 
 ### Host samples
 
@@ -335,6 +357,7 @@ The reply carries these fields:
 | `commands` | the pending commands of the bridge, oldest first |
 | `workRequests` | the open work requests the bridge can claim, oldest first. It is empty for a bridge that does not report `work-requests`. See [Work requests](#work-requests) |
 | `lostClaims` | the ids from `workClaims` that the bridge no longer holds. It is empty when the body has no `workClaims` |
+| `blockedAccounts` | the accounts of the bridge that take no new work now. Each row is `{"account":"claude","until":"2026-11-01T17:00:00+00:00"}`. `until` is when the account takes work again. See [Skipped requests](#skipped-requests) |
 
 ## The interval
 
@@ -494,7 +517,7 @@ as the heartbeat.
 
 | Field | Rule |
 |---|---|
-| `state` | required. `done` or `refused` |
+| `state` | required. `done`, `refused` or `open`. The state `open` gives the work back, as the next section says |
 | `reason` | optional. Text of at most 1000 characters |
 
 A pending command takes the state. A command that is already `done`, `refused`,
@@ -598,7 +621,8 @@ The event and the reply never carry the claim token.
 `POST /api/bridges/{bridgeId}/work-requests/{workRequestId}/claim`
 
 The bridge claims an open request before it starts the work. It uses the same
-token as the heartbeat, and the request has no body. Of two bridges that claim
+token as the heartbeat. The body names the account that the bridge chose for the
+request: `{"account":"claude"}`. Of two bridges that claim
 one request, one gets the claim and the other gets `already_claimed`.
 
 ```json
@@ -625,9 +649,17 @@ record holds no claim token.
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
 | 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
 | 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
+| 409 | `{"error":"waiting"}` | the request waits for a time that has not passed yet |
+| 409 | `{"error":"account_blocked"}` | the named account is at its hard limit, or at or above its stop value |
+| 422 | `{"error":"account_unknown"}` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |
 | 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
 | 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
 | 429 | | more than 60 claims in one minute from one token |
+
+A refused claim leaves the request open and spends no retry. The bridge tries
+again at the next offer. A bridge from before the account field sends no
+account, so each of its claims gets `account_unknown`. It claims no work until
+you run `loupe update`.
 
 ### The lease
 
@@ -695,6 +727,25 @@ writes a `bridge.work_request_settled` record to the audit log.
 | 409 | `{"error":"claim_lost"}` | this bridge does not hold the claim with this token, or the request already settled with another state |
 | 422 | `{"error":"invalid_state"}`, `{"error":"invalid_claim_token"}` or `{"error":"invalid_reason"}` | the body is invalid |
 | 429 | | more than 60 results in one minute from one token |
+
+### Giving a request back at a usage limit
+
+A run that stops at a usage limit ends with the state `open`. The request opens
+again, Loupe spends no retry, and the card shows Waiting. The body adds these
+fields:
+
+| Field | Rule |
+|---|---|
+| `cause` | required with `open`. `usage-limit` |
+| `account` | required with `open`. The account of the run |
+| `reading` | required with `open`. The reading that showed the limit, with the fields `window`, `usedPercent`, `resetsAt`, `limited` and `source` of a heartbeat reading |
+| `sessionId` | optional. The session of the run, a uuid or `null` |
+| `hasAssistantTurn` | required with `open`. `true` when the run did at least one assistant turn |
+
+The request waits for the account, not for a time. It is offered again when the
+account takes work: at its reset, when a reading shows the limit lifted early, or
+at once to another bridge with room. A run with `hasAssistantTurn` set to `true`
+waits for its own bridge, and the bridge resumes the same session.
 
 ## Deletion and export
 

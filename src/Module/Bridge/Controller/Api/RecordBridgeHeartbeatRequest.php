@@ -8,6 +8,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
+use App\Module\Bridge\ValueObject\SkippedWorkRequest;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -63,6 +64,9 @@ final class RecordBridgeHeartbeatRequest
     /** Far above the work one bridge runs at a time, and small enough to bound the renewal statement. */
     public const int MAX_WORK_CLAIMS = 200;
 
+    /** Far above the requests a reply offers, and small enough to bound the statements. */
+    public const int MAX_SKIPPED = 200;
+
     /** Twelve hours of one sample a minute, which a bridge holds while the server is away. */
     public const int MAX_HOST_SAMPLES = 720;
 
@@ -84,6 +88,7 @@ final class RecordBridgeHeartbeatRequest
      * @param list<BridgeGitIdentityInput>|null    $gitIdentities       null from a bridge that predates git identities
      * @param list<BridgeSessionReadingInput>|null $interactiveSessions null from a bridge that predates session liveness
      * @param int|null                             $gitIdentitiesAge    the seconds since the bridge read $gitIdentities, null for a fresh read
+     * @param list<BridgeSkippedWorkInput>|null    $skipped             the requests the bridge skipped since its last heartbeat, null from a bridge that predates them
      */
     public function __construct(
         #[Assert\All([new Assert\NotBlank(), new Assert\Uuid()])]
@@ -177,7 +182,19 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $interactiveSessions = null,
+
+        #[Assert\All([new Assert\Type(BridgeSkippedWorkInput::class)])]
+        #[Assert\Count(max: self::MAX_SKIPPED)]
+        #[Assert\Type('list')]
+        #[Assert\Valid]
+        public ?array $skipped = null,
     ) {
+    }
+
+    /** @return list<SkippedWorkRequest> */
+    public function skipped(): array
+    {
+        return array_map(static fn (BridgeSkippedWorkInput $entry): SkippedWorkRequest => $entry->skipped(), array_values($this->skipped ?? []));
     }
 
     /**

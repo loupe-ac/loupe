@@ -13,6 +13,7 @@ use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\RecordingAuditor;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -170,6 +171,68 @@ final class WorkRequestClaimApiTest extends WebTestCase
         $this->assertRefused($client, 422, 'capability_missing');
     }
 
+    /** @return iterable<string, array{array<string, mixed>|null}> */
+    public static function bodiesWithoutAnAccountTheBridgeRuns(): iterable
+    {
+        yield 'no body' => [null];
+        yield 'no account' => [[]];
+        yield 'a number' => [['account' => 7]];
+        yield 'a malformed name' => [['account' => 'Not An Account']];
+        yield 'an account the bridge does not list' => [['account' => 'other']];
+    }
+
+    /** @param array<string, mixed>|null $body */
+    #[DataProvider('bodiesWithoutAnAccountTheBridgeRuns')]
+    public function test_a_claim_with_no_account_the_bridge_runs_is_refused(?array $body): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('claim-account-unknown-'.md5(json_encode($body, \JSON_THROW_ON_ERROR)).'@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project);
+
+        $this->post($client, $this->token($owner), $this->path($bridge, $request), $body);
+
+        $this->assertRefused($client, 422, 'account_unknown');
+        self::assertSame(WorkRequestState::Open, $this->reload($request)->state);
+    }
+
+    public function test_an_account_that_does_not_run_the_kind_is_unknown(): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('claim-account-kind@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'review');
+
+        $this->post($client, $this->token($owner), $this->path($bridge, $request));
+
+        $this->assertRefused($client, 422, 'account_unknown');
+    }
+
+    public function test_an_account_at_its_limit_is_refused_and_the_request_stays_open(): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('claim-account-blocked@example.com');
+        $this->seedAccountReading($this->em(), $bridge, '2026-10-01 12:00:00', resetsAt: '2026-10-01 17:00:00', limited: true);
+        $request = $this->seedWorkRequest($this->em(), $project);
+
+        $this->post($client, $this->token($owner), $this->path($bridge, $request));
+
+        $this->assertRefused($client, 409, 'account_blocked');
+        self::assertSame(WorkRequestState::Open, $this->reload($request)->state);
+    }
+
+    public function test_a_request_that_waits_for_a_time_is_refused_until_it_passes(): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('claim-waiting@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project);
+        $request->waitUntil = new \DateTimeImmutable('2026-10-01 12:35:00');
+        $this->em()->flush();
+
+        $this->post($client, $this->token($owner), $this->path($bridge, $request));
+        $this->assertRefused($client, 409, 'waiting');
+
+        $request->waitUntil = new \DateTimeImmutable('2026-10-01 12:30:00');
+        $this->em()->flush();
+
+        $this->post($client, $this->token($owner), $this->path($bridge, $request));
+        self::assertResponseStatusCodeSame(200);
+    }
+
     public function test_a_widget_token_is_refused_by_the_firewall(): void
     {
         [$client, $owner, $project, $bridge] = $this->scenario('claim-widget@example.com');
@@ -242,6 +305,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
     private function capable(Bridge $bridge): void
     {
         $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement', 'design-export']]];
         $this->em()->flush();
     }
 
@@ -260,12 +324,14 @@ final class WorkRequestClaimApiTest extends WebTestCase
         return '/api/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/claim';
     }
 
-    private function post(KernelBrowser $client, string $raw, string $path): void
+    /** @param array<string, mixed>|null $body the JSON body, or null for none. Defaults to the account every scenario bridge runs. */
+    private function post(KernelBrowser $client, string $raw, string $path, ?array $body = ['account' => 'work']): void
     {
         $client->request(
             Request::METHOD_POST,
             $path,
-            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'HTTP_ACCEPT' => 'application/json'],
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'],
+            content: null === $body ? null : json_encode($body, \JSON_THROW_ON_ERROR),
         );
     }
 

@@ -504,3 +504,31 @@ func TestARunWithoutAStartLineHasNoVersions(t *testing.T) {
 		t.Fatalf("versions = %q, %q; want none", out.HarnessVersion, out.SkillVersion)
 	}
 }
+
+// A turn is a main-session assistant line. A subagent line and the limit
+// message that Claude Code writes as an assistant line are no turn.
+func TestCountsTheAssistantTurnsOfTheMainSession(t *testing.T) {
+	line := func(parent, text string) string {
+		return `{"type":"assistant","parent_tool_use_id":` + parent + `,"message":{"content":[{"type":"text","text":"` + text + `"}]}}` + "\n"
+	}
+	for name, tc := range map[string]struct {
+		in   string
+		want int
+	}{
+		"none":     {`{"type":"user","message":{"content":[]}}` + "\n", 0},
+		"two":      {line("null", "a") + line("null", "b"), 2},
+		"subagent": {line(`"toolu_1"`, "a") + line("null", "b"), 1},
+		"limit":    {line("null", "You\u2019ve hit your session limit \u00b7 resets 3:45pm"), 0},
+		"quoted":   {line("null", "The text says: You've hit your session limit"), 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, err := Read(strings.NewReader(tc.in))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.AssistantTurns != tc.want {
+				t.Fatalf("AssistantTurns = %d, want %d", out.AssistantTurns, tc.want)
+			}
+		})
+	}
+}

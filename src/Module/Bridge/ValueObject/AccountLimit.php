@@ -7,10 +7,14 @@ namespace App\Module\Bridge\ValueObject;
 /** The usage windows of one account and what they say about new work. */
 final readonly class AccountLimit
 {
-    /** @param list<WindowLimit> $windows */
+    /**
+     * @param list<WindowLimit> $windows
+     * @param int               $stopAt  the percentage of use at which the account stops taking new work
+     */
     public function __construct(
         public string $account,
         public array $windows,
+        public int $stopAt,
     ) {
     }
 
@@ -22,14 +26,28 @@ final readonly class AccountLimit
     /** The latest reset of the blocking windows. Null when the account is not blocked. */
     public function releaseAt(): ?\DateTimeImmutable
     {
-        $release = null;
+        return $this->releasingWindow()?->reading->resetsAt;
+    }
+
+    /** The blocking window with the latest reset, a window at its limit first on a tie. Null when the account is not blocked. */
+    public function releasingWindow(): ?WindowLimit
+    {
+        $releasing = null;
         foreach ($this->windows as $window) {
-            if ($window->state->blocks() && (null === $release || $window->reading->resetsAt > $release)) {
-                $release = $window->reading->resetsAt;
+            if (!$window->state->blocks()) {
+                continue;
+            }
+            $later = null === $releasing || $window->reading->resetsAt > $releasing->reading->resetsAt;
+            $tie = null !== $releasing
+                && $window->reading->resetsAt == $releasing->reading->resetsAt
+                && WindowLimitState::AtLimit === $window->state
+                && WindowLimitState::AtLimit !== $releasing->state;
+            if ($later || $tie) {
+                $releasing = $window;
             }
         }
 
-        return $release;
+        return $releasing;
     }
 
     /** Null when the account is not blocked. */

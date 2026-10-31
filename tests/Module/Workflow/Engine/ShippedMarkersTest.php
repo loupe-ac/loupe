@@ -11,6 +11,11 @@ use App\Module\Board\Workflow\ChildActivityFacts;
 use App\Module\Board\Workflow\ChildMark;
 use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\PauseFacts;
+use App\Module\Bridge\ValueObject\AccountLimit;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
+use App\Module\Bridge\ValueObject\UsageLimitWait;
+use App\Module\Bridge\ValueObject\WindowLimit;
+use App\Module\Bridge\ValueObject\WindowLimitState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
@@ -62,7 +67,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'pull-requests-closed', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested', 'retry-scheduled',
+        'document-in-review', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'work-requested', 'retry-scheduled',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
@@ -228,6 +233,23 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['bridge-paused'], $this->passKeys($template, $this->takerFacts(WorkTakerState::Paused, ['implement'])));
         self::assertSame(MarkerKind::Waiting, $this->written('bridge-paused')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('bridge-paused')->link);
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_queued_work_held_by_a_usage_limit_waits_with_the_limit_in_its_params_and_links_to_the_agents_page(string $key): void
+    {
+        $reading = new AccountReadingReport('claude', 'week', 100.0, new \DateTimeImmutable('2026-11-01 17:00:00'), true, 'stream', new \DateTimeImmutable('2026-10-01 11:00:00'));
+        $limit = new UsageLimitWait([new AccountLimit('claude', [new WindowLimit($reading, WindowLimitState::AtLimit)], 95)]);
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: ['implement']),
+            provided: [WorkTakerFacts::class => new WorkTakerFacts(['implement' => new WorkTakerReading(WorkTakerState::Limited, new \DateTimeImmutable('2026-10-01 11:00:00'), null, limit: $limit)])],
+        );
+
+        self::assertSame(['usage-limit'], $this->passKeys($this->template($key), $facts));
+        self::assertSame(MarkerKind::Waiting, $this->written('usage-limit')->kind);
+        self::assertSame(MarkerLink::Agents, $this->written('usage-limit')->link);
+        self::assertSame(['%cause%' => 'limit', '%account%' => 'claude', '%window%' => 'week', '%use%' => 100, '%stopAt%' => 95, '%resetsAt%' => $reading->resetsAt->getTimestamp()], $this->written('usage-limit')->params);
     }
 
     #[DataProvider('shippedKeys')]

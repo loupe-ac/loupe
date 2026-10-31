@@ -10,6 +10,7 @@ use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\Service\WorkRequestPayload;
+use App\Module\Bridge\ValueObject\AccountLimit;
 use App\Outbox\AgentPush;
 use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
@@ -80,6 +81,7 @@ final class RecordBridgeHeartbeatController extends AppController
             interactiveSessions: $payload->interactiveSessions(),
             accessTokenId: AuthenticatedCredential::of($this->tokenStorage->getToken())?->accessTokenId,
             accountReadings: $payload->accountReadings(),
+            skipped: $payload->skipped(),
         ));
 
         return new JsonResponse([
@@ -89,6 +91,10 @@ final class RecordBridgeHeartbeatController extends AppController
             'workRequests' => array_map(WorkRequestPayload::of(...), $result->workRequests),
             'lostClaims' => $result->lostClaims,
             'watchSessions' => $result->watchSessions,
+            'blockedAccounts' => array_values(array_map(
+                static fn (AccountLimit $limit): array => ['account' => $limit->account, 'until' => $limit->releaseAt()?->format(\DateTimeInterface::ATOM)],
+                $result->blockedAccounts,
+            )),
         ]);
     }
 }

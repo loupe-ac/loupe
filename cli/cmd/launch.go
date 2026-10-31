@@ -307,9 +307,9 @@ func (r *router) runLaunch(l launch) {
 	if reason != "" {
 		launched.exitCode = -1
 	}
-	state, why, post := r.workResultLocked(p, launched, false)
+	st, post := r.workResultLocked(p, launched, false)
 	r.mu.Unlock()
 	if post {
-		r.settleWork(p, state, why)
+		r.settleWork(p, st)
 	}
 }

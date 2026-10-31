@@ -136,6 +136,7 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 	doc.ReadErr = err
 	if err == nil {
 		doc.CallsRead, doc.Calls, doc.Timing, doc.PeakContextTokens = true, out.Calls, out.Timing, out.PeakContextTokens
+		doc.AssistantTurns = out.AssistantTurns
 		doc.HarnessVersion, doc.SkillVersion = out.HarnessVersion, out.SkillVersion
 	}
 	if path, err := h.find(run.SessionID); err == nil {

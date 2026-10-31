@@ -48,6 +48,12 @@ final readonly class AccountLimits
         return $limits;
     }
 
+    /** @return array<string, AccountLimit> keyed by account name, for each account that takes no new work */
+    public function blockedOf(Bridge $bridge): array
+    {
+        return array_filter($this->forBridge($bridge), static fn (AccountLimit $limit): bool => $limit->blocked());
+    }
+
     /** @param list<AccountReadingReport> $latest the newest reading of each window of the account */
     public function limitOf(string $account, int $stopAt, array $latest): AccountLimit
     {
@@ -56,7 +62,7 @@ final readonly class AccountLimits
         return new AccountLimit($account, array_map(
             static fn (AccountReadingReport $reading): WindowLimit => new WindowLimit($reading, self::stateOf($reading, $stopAt, $now)),
             $latest,
-        ));
+        ), $stopAt);
     }
 
     private static function stateOf(AccountReadingReport $reading, int $stopAt, \DateTimeImmutable $now): WindowLimitState

@@ -12,6 +12,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -253,6 +254,167 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame(WorkRequestState::Claimed, $result->request?->state);
     }
 
+    /** @return iterable<string, array{?string}> */
+    public static function accountsTheBridgeDoesNotRunForTheKind(): iterable
+    {
+        yield 'no account' => [null];
+        yield 'an account the bridge does not list' => ['other'];
+        yield 'an account that runs other kinds' => ['spare'];
+    }
+
+    #[DataProvider('accountsTheBridgeDoesNotRunForTheKind')]
+    public function test_a_claim_with_no_account_the_bridge_runs_for_the_kind_is_refused_and_stays_open(?string $account): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-account-unknown', WorkRequestState::Open);
+        $bridge->accounts[] = ['name' => 'spare', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['review']];
+        $this->em()->flush();
+        $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
+
+        $result = $this->claim($owner, $bridge, $request, $account);
+
+        self::assertNull($result->request);
+        self::assertSame(WorkRequestRefusal::AccountUnknown, $result->refusal);
+        self::assertSame('account_unknown', $result->refusal->code());
+        self::assertSame(422, $result->refusal->httpStatus());
+        self::assertSame([], $changes->events());
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_a_claim_with_no_account_is_accepted_when_every_account_reports_its_kinds_and_none_runs_the_kind(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-no-account-runs', WorkRequestState::Open);
+        $bridge->accounts = [
+            ['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['review']],
+            ['name' => 'spare', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => []],
+        ];
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request, null);
+
+        self::assertNull($result->refusal);
+        self::assertSame(WorkRequestState::Claimed, $result->request?->state);
+    }
+
+    public function test_a_claim_with_no_account_is_refused_when_an_account_row_has_no_kinds_key(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-old-bridge', WorkRequestState::Open);
+        $bridge->accounts = [
+            ['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['review']],
+            ['name' => 'old', 'harness' => 'claude', 'state' => 'ready', 'reason' => null],
+        ];
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request, null);
+
+        self::assertNull($result->request);
+        self::assertSame(WorkRequestRefusal::AccountUnknown, $result->refusal);
+        self::assertSame('account_unknown', $result->refusal->code());
+    }
+
+    public function test_a_bridge_that_lists_no_account_claims_nothing(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-no-accounts', WorkRequestState::Open);
+        $bridge->accounts = null;
+        $this->em()->flush();
+
+        self::assertSame(WorkRequestRefusal::AccountUnknown, $this->claim($owner, $bridge, $request)->refusal);
+    }
+
+    /** @return iterable<string, array{bool, ?float}> */
+    public static function blockingReadings(): iterable
+    {
+        yield 'at its limit' => [true, null];
+        yield 'at its limit with a use' => [true, 100.0];
+        yield 'at its stop value' => [false, 95.0];
+        yield 'above its stop value' => [false, 120.0];
+    }
+
+    #[DataProvider('blockingReadings')]
+    public function test_a_blocked_account_is_refused_and_the_request_stays_open(bool $limited, ?float $usedPercent): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-blocked', WorkRequestState::Open);
+        $this->seedAccountReading($this->em(), $bridge, '2026-10-01 12:00:00', usedPercent: $usedPercent, resetsAt: '2026-10-01 17:00:00', limited: $limited);
+        $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertNull($result->request);
+        self::assertSame(WorkRequestRefusal::AccountBlocked, $result->refusal);
+        self::assertSame('account_blocked', $result->refusal->code());
+        self::assertSame(409, $result->refusal->httpStatus());
+        self::assertSame([], $changes->events());
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_only_the_named_account_is_checked(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-named-account', WorkRequestState::Open);
+        $bridge->accounts[] = ['name' => 'spare', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement']];
+        $this->em()->flush();
+        $this->seedAccountReading($this->em(), $bridge, '2026-10-01 12:00:00', usedPercent: null, resetsAt: '2026-10-01 17:00:00', limited: true);
+
+        self::assertSame(WorkRequestRefusal::AccountBlocked, $this->claim($owner, $bridge, $request, 'work')->refusal);
+        self::assertSame(WorkRequestState::Claimed, $this->claim($owner, $bridge, $request, 'spare')->request?->state);
+    }
+
+    public function test_an_account_whose_window_reset_is_not_blocked(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-reset', WorkRequestState::Open);
+        $this->seedAccountReading($this->em(), $bridge, '2026-10-01 10:00:00', usedPercent: null, resetsAt: '2026-10-01 12:00:00', limited: true);
+
+        self::assertNull($this->claim($owner, $bridge, $request)->refusal);
+    }
+
+    public function test_a_request_that_waits_for_a_time_is_refused_until_the_time_passes(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-waiting', WorkRequestState::Open);
+        $request->waitUntil = new \DateTimeImmutable('2026-10-01 12:30:01');
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertSame(WorkRequestRefusal::Waiting, $result->refusal);
+        self::assertSame('waiting', $result->refusal->code());
+        self::assertSame(409, $result->refusal->httpStatus());
+
+        $request->waitUntil = new \DateTimeImmutable(self::NOW);
+        $this->em()->flush();
+
+        self::assertNull($this->claim($owner, $bridge, $request)->refusal);
+    }
+
+    public function test_a_held_card_is_refused_before_a_blocked_account(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-held-blocked', WorkRequestState::Open);
+        $this->seedAccountReading($this->em(), $bridge, '2026-10-01 12:00:00', usedPercent: null, resetsAt: '2026-10-01 17:00:00', limited: true);
+        $this->hold($request, $owner);
+
+        self::assertSame(WorkRequestRefusal::CardHeld, $this->claim($owner, $bridge, $request)->refusal);
+    }
+
+    public function test_a_claim_clears_the_wait_and_the_matches_of_the_request(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-clears', WorkRequestState::Open);
+        $other = $this->seedBridge($this->em(), $owner, projects: $bridge->projects);
+        $request->waitCause = WorkRequest::WAIT_USAGE_LIMIT;
+        $request->waitAccount = 'work';
+        $this->em()->flush();
+        $matches = self::getContainer()->get(BridgeWorkMatchRepository::class);
+        self::assertInstanceOf(BridgeWorkMatchRepository::class, $matches);
+        $ownerId = $owner->id ?? throw new \LogicException('The owner has an id.');
+        $requestId = $request->id ?? throw new \LogicException('The request has an id.');
+        $matches->put($ownerId, $bridge->id, $requestId, 'work');
+        $matches->put($ownerId, $other->id, $requestId, 'work');
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertSame(WorkRequestState::Claimed, $result->request?->state);
+        self::assertSame([null, null], [$result->request->waitCause, $result->request->waitAccount]);
+        self::assertSame('0', (string) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_work_matches'));
+    }
+
     /** Writes the row alone, because a real hold cancels the open requests of its card. */
     private function hold(WorkRequest $request, User $owner): void
     {
@@ -270,16 +432,17 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         $project = $this->project($em, $owner, 'Project '.$name);
         $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id?->toRfc4122()]);
         $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement', 'fix', 'analysis:implement']]];
         $em->flush();
 
         return [$owner, $bridge, $this->seedWorkRequest($em, $project, state: $state)];
     }
 
-    private function claim(User $owner, Bridge $bridge, WorkRequest $request): ClaimWorkRequestResult
+    private function claim(User $owner, Bridge $bridge, WorkRequest $request, ?string $account = 'work'): ClaimWorkRequestResult
     {
         $handler = self::getContainer()->get(ClaimWorkRequestHandler::class);
         self::assertInstanceOf(ClaimWorkRequestHandler::class, $handler);
 
-        return $handler(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.')));
+        return $handler(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.'), $account));
     }
 }

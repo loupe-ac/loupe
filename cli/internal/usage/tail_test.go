@@ -164,3 +164,42 @@ func TestCollectorKeepsAWindowThatTheTopLevelCompletes(t *testing.T) {
 		t.Fatalf("pending = %+v", c.Pending())
 	}
 }
+
+func TestCollectorFinishGivesTheLastReadingOfEachWindow(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	c := NewCollector()
+	c.Start("run1", "claude", NewTail(func() (string, bool) { return path, true }, ParseClaude))
+	appendTo(t, path, `{"type":"rate_limit_event","rate_limit_info":{"unifiedWindows":{"five_hour":{"utilization":1,"resetsAt":1793420400,"status":"rejected"},"seven_day":{"utilization":0.2,"resetsAt":1793912400}}}}`+"\n")
+	c.Poll(now)
+	appendTo(t, path, `{"type":"rate_limit_event","rate_limit_info":{"unifiedWindows":{"five_hour":{"utilization":0.1,"resetsAt":1793420400,"status":"allowed"}}}}`+"\n")
+	last := c.Finish("run1", now.Add(time.Second))
+	if len(last) != 2 || last[0].Window != "session" || last[0].Limited || last[1].Window != "week" {
+		t.Fatalf("last = %+v", last)
+	}
+	if got := c.Finish("run1", now); got != nil {
+		t.Fatalf("second finish = %+v", got)
+	}
+}
+
+func TestCollectorFinishKeepsALimitedReadingWithNoResetTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	c := NewCollector()
+	c.Start("run1", "claude", NewTail(func() (string, bool) { return path, true }, ParseClaude))
+	appendTo(t, path, `{"type":"result","is_error":true,"result":"You've hit your session limit · resets soon"}`+"\n")
+	last := c.Finish("run1", now)
+	if len(last) != 1 || !last[0].Limited || last[0].ResetsAt != nil {
+		t.Fatalf("last = %+v", last)
+	}
+	if len(c.Pending()) != 0 {
+		t.Fatalf("pending = %+v", c.Pending())
+	}
+}
+
+func TestLimitMessageHelpers(t *testing.T) {
+	if !IsLimitMessage("You've hit your weekly limit · resets Oct 30, 3pm") || IsLimitMessage("I hit a limit") {
+		t.Fatal("IsLimitMessage")
+	}
+	if got := ParseLimitMessage("You've hit your session limit · resets 3:45pm", now); len(got) != 1 || got[0].Window != "session" || !got[0].Limited {
+		t.Fatalf("ParseLimitMessage = %+v", got)
+	}
+}

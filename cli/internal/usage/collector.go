@@ -25,6 +25,9 @@ type Collector struct {
 type liveTail struct {
 	account string
 	tail    *Tail
+	// last is the latest reading of each window that the run read, before
+	// any filter of the heartbeat.
+	last map[string]Reading
 }
 
 func NewCollector() *Collector {
@@ -38,7 +41,7 @@ func (c *Collector) Start(runID, account string, tail *Tail) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.runs[runID] = &liveTail{account: account, tail: tail}
+	c.runs[runID] = &liveTail{account: account, tail: tail, last: map[string]Reading{}}
 }
 
 // Poll reads the new lines of each live run.
@@ -49,23 +52,45 @@ func (c *Collector) Poll(now time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, run := range c.runs {
-		c.keep(run.account, run.tail.Read(now, false), now)
+		readings := run.tail.Read(now, false)
+		run.note(readings)
+		c.keep(run.account, readings, now)
 	}
 }
 
-// Finish reads the rest of a run and stops following it.
-func (c *Collector) Finish(runID string, now time.Time) {
+// note keeps the latest reading of each window that the run read.
+func (l *liveTail) note(readings []Reading) {
+	for _, r := range readings {
+		if old, ok := l.last[r.Window]; !ok || !r.ReadAt.Before(old.ReadAt) {
+			l.last[r.Window] = r
+		}
+	}
+}
+
+// Finish reads the rest of a run and stops following it. It returns the
+// latest reading of each window that the run read, in window name order, and
+// nothing for a run it does not follow.
+func (c *Collector) Finish(runID string, now time.Time) []Reading {
 	if c == nil {
-		return
+		return nil
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	run, ok := c.runs[runID]
 	if !ok {
-		return
+		return nil
 	}
 	delete(c.runs, runID)
-	c.keep(run.account, run.tail.Read(now, true), now)
+	readings := run.tail.Read(now, true)
+	run.note(readings)
+	c.keep(run.account, readings, now)
+
+	var last []Reading
+	for _, w := range slices.Sorted(maps.Keys(run.last)) {
+		last = append(last, run.last[w])
+	}
+
+	return last
 }
 
 // keep drops a reading that Loupe would refuse, because Loupe then refuses the

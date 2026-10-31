@@ -188,6 +188,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 default => 'readiness.row.bridge.not_capable',
             }, 'readiness.row.bridge.action', $connect],
             WorkTakerState::Paused => [false, 'readiness.row.bridge.paused', 'readiness.row.bridge.resume', $agents],
+            WorkTakerState::Limited => [false, 'readiness.row.bridge.limited', 'marker.link.agents', $agents],
             WorkTakerState::Available => [true, $named ? 'readiness.row.bridge.done_on' : 'readiness.row.bridge.done', null, null],
         };
 

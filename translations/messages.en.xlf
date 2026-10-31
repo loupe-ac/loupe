@@ -5391,6 +5391,10 @@
                 <source>landing.requirements.need.machine.text</source>
                 <target>The bridge starts the workers, so it must be running while work happens.</target>
             </trans-unit>
+            <trans-unit id="landing.requirements.need.usage_limit">
+                <source>landing.requirements.need.usage_limit</source>
+                <target>Work waits through a usage limit and resumes at the reset, with each account's usage on the Agents page.</target>
+            </trans-unit>
             <trans-unit id="landing.requirements.need.action">
                 <source>landing.requirements.need.action</source>
                 <target>I'm all set, I want in!</target>
@@ -7508,6 +7512,10 @@
                 <source>bridge.worker_runs.state.blocked</source>
                 <target>Blocked</target>
             </trans-unit>
+            <trans-unit id="bridge.worker_runs.state.usage_limit">
+                <source>bridge.worker_runs.state.usage_limit</source>
+                <target>Stopped at a usage limit</target>
+            </trans-unit>
             <trans-unit id="bridge.worker_runs.state.waiting_on_forge">
                 <source>bridge.worker_runs.state.waiting_on_forge</source>
                 <target>Waiting on the forge</target>
@@ -9290,6 +9298,8 @@
             <trans-unit id="workflow.waiting.not.run_work_no_taker"><source>workflow.waiting.not.run_work_no_taker</source><target>Waiting: an open work request has no online bridge that could take it.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_no_capable_taker"><source>workflow.waiting.run_work_no_capable_taker</source><target>Waiting: no online bridge is unable to run an open work request.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_no_capable_taker"><source>workflow.waiting.not.run_work_no_capable_taker</source><target>Waiting: an online bridge cannot run an open work request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_taker_limited"><source>workflow.waiting.run_work_taker_limited</source><target>Waiting: the accounts that could take the open work are not all at a usage limit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_taker_limited"><source>workflow.waiting.not.run_work_taker_limited</source><target>Waiting: the only accounts that could take the open work are at a usage limit.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_taker_paused"><source>workflow.waiting.run_work_taker_paused</source><target>Waiting: the bridges that could take the open work are not all paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
@@ -9554,6 +9564,7 @@
             <trans-unit id="readiness.row.bridge.not_capable_app_prompts_on"><source>readiness.row.bridge.not_capable_app_prompts_on</source><target>%machine% is online, but it does not run the prompts Loupe sends. Run `loupe init` again</target></trans-unit>
             <trans-unit id="readiness.row.bridge.seen"><source>readiness.row.bridge.seen</source><target>seen</target></trans-unit>
             <trans-unit id="readiness.row.bridge.paused"><source>readiness.row.bridge.paused</source><target>Paused, so it takes no new work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.limited"><source>readiness.row.bridge.limited</source><target>At a usage limit, so it takes no new work</target></trans-unit>
             <trans-unit id="readiness.row.bridge.resume"><source>readiness.row.bridge.resume</source><target>Resume</target></trans-unit>
             <trans-unit id="readiness.row.bridge.action"><source>readiness.row.bridge.action</source><target>Start</target></trans-unit>
             <trans-unit id="readiness.row.github.label"><source>readiness.row.github.label</source><target>Install the GitHub App</target></trans-unit>
@@ -9794,6 +9805,15 @@
             <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
+            <trans-unit id="marker.usage_limit"><source>marker.usage_limit</source><target>Work waits for the usage of an account to reset.</target></trans-unit>
+            <trans-unit id="marker.usage_limit.limit"><source>marker.usage_limit.limit</source><target>Work waits: %account% is at its %cadence% limit · %window% · %use% % · resets %date% at %time%</target></trans-unit>
+            <trans-unit id="marker.usage_limit.limit_unmeasured"><source>marker.usage_limit.limit_unmeasured</source><target>Work waits: %account% is at its %cadence% limit · %window% · resets %date% at %time%</target></trans-unit>
+            <trans-unit id="marker.usage_limit.stop"><source>marker.usage_limit.stop</source><target>Work waits: %account% is at %use% % of its %cadence% window, new work stops at %stopAt% % · resets %date% at %time%</target></trans-unit>
+            <trans-unit id="marker.usage_limit.window.session"><source>marker.usage_limit.window.session</source><target>Session</target></trans-unit>
+            <trans-unit id="marker.usage_limit.window.week"><source>marker.usage_limit.window.week</source><target>Week</target></trans-unit>
+            <trans-unit id="marker.usage_limit.cadence.session"><source>marker.usage_limit.cadence.session</source><target>session</target></trans-unit>
+            <trans-unit id="marker.usage_limit.cadence.week"><source>marker.usage_limit.cadence.week</source><target>weekly</target></trans-unit>
+            <trans-unit id="marker.usage_limit.remedy"><source>marker.usage_limit.remedy</source><target>Nothing. The work starts again when the usage resets. Check the account on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
             <trans-unit id="marker.repository_misfit">
                 <source>marker.repository_misfit</source>

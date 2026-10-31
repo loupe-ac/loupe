@@ -192,7 +192,7 @@ is in a state. The mark says what the card needs now:
 | **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. A card in Implementation is also **Stuck** when every pull request it links to closed with no merge and no worker runs on it. A reference link, a pull request that finished before it was linked, does not count. Reopen the pull request, or remove the link so the card gets implement work again. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card or on its children for longer than the stuck delay and no other reason applies. An epic never shows it while a child has an open worker run. The remedy line on the card page says what to do |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, a blocking inbox question names the card, or the project holds new work because a repository has a blocking gap |
 | **Working** | A worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
-| **Waiting** | Work waits for a free spot on a bridge that could take it (a request that a bridge already took does not count), the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
+| **Waiting** | Work waits for a free spot on a bridge that could take it (a request that a bridge already took does not count), the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), an agent account that could take the work is at its usage limit or at its stop value (the line shows the account, the window and the reset time), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
 
 When several states apply, the tile shows the first in the order **Stuck**,
 **Needs you**, **Working**, **Waiting**. Inside one state, the marker that comes
@@ -597,6 +597,10 @@ A rule can fail to read its facts. Then the condition line gives the reason:
 the workflow could not read the source, the source is off on this instance, or
 the condition no longer exists. The rule waits, and the workflow tries it again
 at the next evaluation.
+
+When an agent account reaches its usage limit, the card shows **Waiting**
+with the account, the window, the use and the reset time. The work starts
+again by itself. See [Usage limits](worker-runs.md#usage-limits).
 
 An unmanaged card is a different control from the pause of a bridge. **Pause
 new work** on the Agents page stops one bridge from starting any queued run,

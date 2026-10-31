@@ -27,6 +27,8 @@ final readonly class WorkTakerReading
          * @var list<string>
          */
         public array $expiredTakers = [],
+        /** On a limited reading: the blocked accounts that hold the work. */
+        public ?UsageLimitWait $limit = null,
     ) {
     }
 }

@@ -594,6 +594,17 @@ type Heartbeat struct {
 	// InteractiveSessions holds one reading for each session the last reply
 	// named in WatchSessions. An empty list sends no key.
 	InteractiveSessions []InteractiveSessionReading `json:"interactiveSessions,omitempty"`
+	// Skipped lists each offered request the bridge skipped since its last
+	// heartbeat, because the account it matched is blocked. An empty list
+	// sends no key.
+	Skipped []SkippedWork `json:"skipped,omitempty"`
+}
+
+// SkippedWork is an offered request that the bridge skipped, and the account
+// it matched.
+type SkippedWork struct {
+	WorkRequestID string `json:"workRequestId"`
+	Account       string `json:"account"`
 }
 
 // InteractiveSessionReading is what the bridge sees of one interactive
@@ -682,8 +693,9 @@ type AccountReport struct {
 	// entry or an experiment variant. StopAt is the use, in percent, at which
 	// Loupe stops new work on the account. Readings are the latest reading of
 	// each window since the last heartbeat. A Loupe that does not know a key
-	// ignores it.
-	Kinds    []string        `json:"kinds,omitempty"`
+	// ignores it. Kinds is never null, so Loupe can tell a bridge that
+	// reports kinds from an older one.
+	Kinds    []string        `json:"kinds"`
 	StopAt   int             `json:"stopAt,omitempty"`
 	Readings []usage.Reading `json:"readings,omitempty"`
 }
@@ -724,6 +736,16 @@ type HeartbeatReply struct {
 	// WatchSessions are the ids of the open interactive runs this bridge
 	// launched. The next heartbeat carries a reading for each.
 	WatchSessions []string
+	// BlockedAccounts are the accounts that take no new work, with the time
+	// they come free. Nil says the reply holds no such key, and keeps the
+	// list the bridge holds. An empty list clears it.
+	BlockedAccounts []BlockedAccount
+}
+
+// BlockedAccount is an account at its limit or above its stop value.
+type BlockedAccount struct {
+	Account string    `json:"account"`
+	Until   time.Time `json:"until"`
 }
 
 // WorkerPoolReport is the size of one worker pool, the slots its runs take,
@@ -836,16 +858,18 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 			WorkRequests  []json.RawMessage `json:"workRequests"`
 			LostClaims    []json.RawMessage `json:"lostClaims"`
 			WatchSessions []json.RawMessage `json:"watchSessions"`
+			Blocked       []json.RawMessage `json:"blockedAccounts"`
 		}
 		_ = decodeBody(resp.Body, &reply)
 
 		return HeartbeatReply{
-			CLIRange:      strings.TrimSpace(reply.CLIRange),
-			Paused:        reply.Paused,
-			Commands:      decodeCommands(reply.Commands),
-			WorkRequests:  decodeWorkRequests(reply.WorkRequests),
-			LostClaims:    decodeLostClaims(reply.LostClaims),
-			WatchSessions: decodeWatchSessions(reply.WatchSessions),
+			CLIRange:        strings.TrimSpace(reply.CLIRange),
+			Paused:          reply.Paused,
+			Commands:        decodeCommands(reply.Commands),
+			WorkRequests:    decodeWorkRequests(reply.WorkRequests),
+			LostClaims:      decodeLostClaims(reply.LostClaims),
+			WatchSessions:   decodeWatchSessions(reply.WatchSessions),
+			BlockedAccounts: decodeBlockedAccounts(reply.Blocked),
 		}, nil
 	case resp.StatusCode == http.StatusNoContent:
 		return HeartbeatReply{}, nil
