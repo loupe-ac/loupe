@@ -1123,6 +1123,76 @@ final class RotateSecretsTest extends TestCase
         self::assertStringContainsString('with Full Access', $output);
     }
 
+    public function test_the_menu_enters_a_value_again_and_leaves_out_a_skipped_one(): void
+    {
+        $this->vars("do_token = \"old-do\"\nregistry_credentials = \"user:old-ghcr\"\nmailer_dsn = \"smtp://user:oldpw@smtp.example.com:587\"\nstripe_secret_key = \"old-stripe\"\n");
+
+        $process = $this->rotate(['do_token', 'registry_credentials', 'mailer_dsn', 'stripe_secret_key'], "wrong-do\nuser:new-ghcr\np@ss\n\n1\nnew-do\ns\n", ['ROTATE_MENU' => '1']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('new-do', $this->value('do_token'));
+        self::assertSame('user:new-ghcr', $this->value('registry_credentials'));
+        self::assertSame('smtp://user:p%40ss@smtp.example.com:587', $this->value('mailer_dsn'));
+        self::assertSame('old-stripe', $this->value('stripe_secret_key'));
+        $output = $process->getOutput().$process->getErrorOutput();
+        foreach (['wrong-do', 'new-do', 'new-ghcr', 'p@ss', 'old-stripe'] as $secret) {
+            self::assertStringNotContainsString($secret, $output);
+        }
+        self::assertMatchesRegularExpression('/4\) stripe_secret_key +skipped/', $output);
+        self::assertStringContainsString('stripe_secret_key: skipped, not rotated', $output);
+        [, $revoke] = explode('Revoke by hand:', $output) + [1 => ''];
+        self::assertStringContainsString('The old value of do_token.', $revoke);
+        self::assertStringNotContainsString('The old value of stripe_secret_key.', $revoke);
+    }
+
+    public function test_a_vendor_secret_skipped_in_the_menu_leaves_its_group_not_rotated_in_full(): void
+    {
+        $this->vars("install_token = \"x\"\ndo_token = \"old-do\"\n");
+
+        $process = $this->rotate(['@no-relogin'], "\ns\n", ['ROTATE_MENU' => '1']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('old-do', $this->value('do_token'));
+        self::assertStringContainsString('do_token: skipped, not rotated', $process->getOutput());
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
+    }
+
+    public function test_a_skipped_vendor_secret_selected_twice_leaves_its_group_not_rotated_in_full(): void
+    {
+        $this->vars("install_token = \"x\"\ndo_token = \"old-do\"\n");
+
+        $process = $this->rotate(['do_token', 'do_token', '@no-relogin'], "\ns\n", ['ROTATE_MENU' => '1']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('old-do', $this->value('do_token'));
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
+    }
+
+    public function test_the_menu_asks_again_for_a_value_of_the_wrong_form(): void
+    {
+        $this->vars("registry_credentials = \"user:old-ghcr\"\n");
+
+        $process = $this->rotate(['registry_credentials'], "no-colon\nuser:new-ghcr\ns\n", ['ROTATE_MENU' => '1']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertStringContainsString('registry_credentials: the new value needs the form user:token. Type it again', $process->getOutput());
+        self::assertSame('user:new-ghcr', $this->value('registry_credentials'));
+    }
+
+    public function test_quitting_the_menu_saves_nothing(): void
+    {
+        $this->vars("do_token = \"old-do\"\n");
+        $before = (string) file_get_contents($this->dir.'/secrets.vars');
+
+        $process = $this->rotate(['do_token'], "new-do\nq\n", ['ROTATE_MENU' => '1']);
+
+        self::assertSame(1, $process->getExitCode());
+        self::assertStringContainsString('quit. Nothing was saved.', $process->getErrorOutput());
+        self::assertSame($before, (string) file_get_contents($this->dir.'/secrets.vars'));
+        self::assertFileDoesNotExist($this->dir.'/.rotate-secrets.pending');
+        self::assertFileDoesNotExist($this->dir.'/applies.log');
+    }
+
     public function test_the_web_push_pair_puts_the_private_key_in_the_store_and_the_public_key_in_the_file(): void
     {
         $this->useStore(['TF_VAR_vapid_private_key' => 'old-private']);
