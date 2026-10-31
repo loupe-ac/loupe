@@ -1,6 +1,6 @@
 ---
 name: project-backend
-description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine entities, controllers, commands or flash messages, or when changing a gamache rule or its configuration, a Doctrine migration, a `composer.json` bundle pin or `config/packages/doctrine.yaml`."
+description: "Use when editing PHP under `src/`: forms, DTOs, entities, controllers, commands, flash messages, gamache rules, a Doctrine migration, a `composer.json` bundle pin or `config/packages/doctrine.yaml`."
 ---
 
 # Backend: forms, DTOs, Doctrine, controllers, flash messages
