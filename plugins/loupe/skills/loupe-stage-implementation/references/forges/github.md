@@ -100,7 +100,7 @@ gh pr create --base <base> --title "<title>" --body-file <file> [--draft]
 
 Link a pull request that `gh pr list` returns, and create none. Pass `--draft` when the profile `Pull request` section says to open a draft.
 
-To open a pull request from a branch that the checkout is not on, such as an epic branch, skip the push, and name the head:
+A branch that the checkout is not on, such as an epic branch, takes another form. Skip the push, and name the head:
 
 ```bash
 gh pr list --head <branch> --base <base> --state open --json url
@@ -183,7 +183,9 @@ Set `--conflicts` from the project rule: `hold` when `workflow_get` returns `app
 
 Set `APPROVER` when the profile `Merge` section names an approver. Then only that reviewer's approval counts. Otherwise omit it, and every reviewer counts.
 
-The script takes each reviewer's last approving or blocking review. The earliest approval that is still current sets the time, so every current approver must have seen each commit. The script reads the pushes to the head branch, and takes the head of the last push before that time. A commit in that head is covered. The script sorts every other commit. A push time is used because a commit made before the approval can reach the branch after it. The script prints one line:
+The script takes each reviewer's last approving or blocking review. The earliest approval that is still current sets the time, so every current approver must have seen each commit. The script reads the pushes to the head branch, and takes the head of the last push before that time. A commit in that head is covered. The script sorts every other commit.
+
+The script uses a push time because a commit made before the approval can reach the branch after it. It prints one line:
 
 | Line | Exit | Meaning |
 |---|---|---|
