@@ -107,7 +107,7 @@ git branch --show-current
 1. A linked document tagged `build-notes` whose `references` hold the tech design id is the build notes. Reuse it, and create no second one.
 2. An open pull request on a branch that starts `<prefix>` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request.
 
-   Run `git branch --show-current`. HEAD can be detached, or on another `<prefix>` branch while `git status --porcelain` prints nothing. In that case run `git fetch origin <head>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+   Run `git branch --show-current`. When HEAD is detached, or on another `<prefix>` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`. Run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.
 
@@ -153,7 +153,7 @@ Never rebase, and never force-push. The reset changes only the local branch, and
 ## Push without force
 
 1. Push with the command of the stage. Never pass `--force`, `--force-with-lease` or `--no-verify`.
-2. The forge can reject the push because the remote branch holds commits that HEAD does not. Then run "Sync with the pull request branch" again as a push retry. Then run the gate again, and push again.
+2. The forge rejects a push when the remote branch holds commits that HEAD does not. When it does, run "Sync with the pull request branch" again as a push retry. Then run the gate again, and push again.
 3. Push three times at most. When the third push is rejected for that reason, stop with `STAGE RESULT: blocked: local branch diverged from origin`.
 4. A push that a hook or a branch protection rejects is not a divergence. Never route around it.
 
