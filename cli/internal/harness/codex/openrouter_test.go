@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 const openRouterProvider = `model_provider = "gw"
@@ -87,6 +88,22 @@ func TestReadRunNamesTheCostSourceOfAnOpenRouterRun(t *testing.T) {
 
 		if got := h.ReadRun(dir, harness.RunInfo{SessionID: runID}).CostSource; got != want {
 			t.Fatalf("profile %q: CostSource = %q, want %q", profile, got, want)
+		}
+	}
+}
+
+func TestReadRunKeepsTheTokensOfAnOpenRouterRunAndPricesNone(t *testing.T) {
+	withFetched(t, map[string]transcript.FetchedPrice{"openrouter/free": {Rates: transcript.Rates{Input: 1e6, Output: 1e6}}})
+	for profile, wantCost := range map[string]bool{"openrouter": false, "": true} {
+		h := newHarness(t, profile)
+		dir := runDir(t, "stdout.jsonl", `{"status":"done","summary":"x"}`)
+
+		got := h.ReadRun(dir, harness.RunInfo{SessionID: runID}).Usage["openrouter/free"]
+		if got.OutputTokens != 128 {
+			t.Fatalf("profile %q: usage = %+v, want the token counts", profile, got)
+		}
+		if (got.CostUSD != nil) != wantCost {
+			t.Fatalf("profile %q: cost = %v, want a cost %v", profile, got.CostUSD, wantCost)
 		}
 	}
 }

@@ -66,6 +66,16 @@ func (t tokens) priceAt(name string, prompt int64) spend {
 	return spend{tokens: t, cost: *c}
 }
 
+// spendAt is priceAt when priced is true. Otherwise it keeps the tokens with
+// no cost, for a run whose cost Loupe reads from the bill.
+func (t tokens) spendAt(name string, prompt int64, priced bool) spend {
+	if !priced {
+		return spend{tokens: t, unpriced: true}
+	}
+
+	return t.priceAt(name, prompt)
+}
+
 // plus adds the spend of another reply of the same model.
 func (s spend) plus(o spend) spend {
 	return spend{tokens: s.tokens.plus(o.tokens), cost: s.cost + o.cost, unpriced: s.unpriced || o.unpriced}
@@ -357,15 +367,15 @@ func (s *session) event(at time.Time, raw json.RawMessage, previous *tokens) {
 
 // between sums the token counts at or after from, and before to when to is set.
 // A count from a line with no model counts for fallback. Each reply is priced
-// by its own prompt size.
-func (s session) between(from, to time.Time, fallback string) map[string]spend {
+// by its own prompt size, unless priced is false.
+func (s session) between(from, to time.Time, fallback string, priced bool) map[string]spend {
 	byModel := map[string]spend{}
 	for _, ev := range s.events {
 		if ev.at.Before(from) || (!to.IsZero() && !ev.at.Before(to)) {
 			continue
 		}
 		name := cmp.Or(ev.model, fallback)
-		byModel[name] = byModel[name].plus(ev.delta.priceAt(name, ev.prompt))
+		byModel[name] = byModel[name].plus(ev.delta.spendAt(name, ev.prompt, priced))
 	}
 
 	return byModel
@@ -497,9 +507,10 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 		out.CallsRead = true
 		out.Calls, out.Timing, out.PeakContextTokens = t.metrics(run.Since, end)
 	}
+	priced := !h.onOpenRouter()
 	var counted map[string]spend
 	if treeErr == nil && !t.skipped {
-		counted = t.between(time.Time{}, end)
+		counted = t.between(time.Time{}, end, priced)
 	}
 	switch {
 	case treeErr == nil && t.skipped:
@@ -509,10 +520,10 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 		out.Usage = toUsage(counted)
 	case stdout.usage != nil:
 		name := cmp.Or(sess.model, run.Model, fallbackModel)
-		out.Usage = toUsage(map[string]spend{name: stdout.usage.priceAt(name, 0)})
+		out.Usage = toUsage(map[string]spend{name: stdout.usage.spendAt(name, 0, priced)})
 	}
 
-	if h.onOpenRouter() {
+	if !priced {
 		out.CostSource = harness.CostSourceOpenRouter
 	}
 
@@ -564,7 +575,7 @@ func (h Harness) SessionUsage(runID string, from, to time.Time) (transcript.Usag
 		return nil, errNoUsage
 	}
 
-	return toUsage(t.between(from, to)), nil
+	return toUsage(t.between(from, to, true)), nil
 }
 
 // errNoUsage says the session file holds no token count, so the spend is

@@ -740,6 +740,25 @@ with token counts, no cost, and the cost source `openrouter`. A preset such as
 `deepseek/deepseek-v4-flash@preset/relace-only` needs no price row for this.
 An interactive Codex session on OpenRouter keeps the bridge price.
 
+To run the workers of an account on a preset, follow these steps:
+
+1. Create the preset on the [presets page](https://openrouter.ai/settings/presets/new)
+   of OpenRouter, such as `relace-only` with Relace as its only provider.
+2. Set `model` in the account of `rules.yaml` to the model and the preset,
+   such as `deepseek/deepseek-v4-flash@preset/relace-only`.
+3. Set the same value as `model` in the profile file of the account.
+4. Run `loupe bridge reload`.
+
+```yaml
+accounts:
+  openrouter:
+    harness: codex
+    codexHome: ~/.codex
+    profile: openrouter
+    model: deepseek/deepseek-v4-flash@preset/relace-only
+    envFile: ~/loupe/openrouter.env
+```
+
 A gateway on another address is not found. Run `loupe update` on each bridge
 host, because an older bridge sends no header and keeps the old pricing.
 
