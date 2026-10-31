@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountReading;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Event\BridgeReported;
@@ -87,7 +88,7 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
@@ -127,7 +128,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
             }
-            $this->recordAccountReadings($bridge, $command->accountReadings);
+            $readingsStored = $this->recordAccountReadings($bridge, $command->accountReadings);
             if (null !== $command->commandEntries) {
                 $bridge->commandEntries = $command->commandEntries;
                 $bridge->commandEntriesReportedAt = $now;
@@ -214,6 +215,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $followed,
                 $wasQuiet,
                 $availabilityChanged,
+                $readingsStored,
             ];
         });
 
@@ -241,6 +243,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
         if ($availabilityChanged) {
             $this->events->dispatch(new BridgeAvailabilityChanged(array_values(array_unique([...$followedBefore, ...$projects]))));
+        }
+
+        if ($readingsStored) {
+            $this->events->dispatch(new BridgeAccountReadingsStored(array_values(array_unique([...$followedBefore, ...$projects]))));
         }
 
         $watchSessions = $this->applySessionReadings($command);
@@ -306,12 +312,15 @@ final readonly class RecordBridgeHeartbeatHandler
      * Stores each reading that differs from the latest one of its account and window.
      *
      * @param list<AccountReadingReport> $reports
+     *
+     * @return bool whether it stored at least one reading
      */
-    private function recordAccountReadings(Bridge $bridge, array $reports): void
+    private function recordAccountReadings(Bridge $bridge, array $reports): bool
     {
         if ([] === $reports) {
-            return;
+            return false;
         }
+        $persisted = false;
 
         $latest = [];
         foreach ($this->bridgeAccountReadings->latestOfBridge($bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.'), $bridge->id) as $stored) {
@@ -327,7 +336,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
             $latest[$key] = $report;
             $this->em->persist(new BridgeAccountReading(Uuid::v7(), $bridge, $report->account, $report->window, $report->usedPercent, $report->resetsAt, $report->limited, $report->source, $report->readAt));
+            $persisted = true;
         }
+
+        return $persisted;
     }
 
     /** A live process is a sign of life now. Otherwise the transcript time counts, never later than now. */

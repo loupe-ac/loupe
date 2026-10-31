@@ -613,6 +613,31 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of these projects that sit in a column that is not terminal, which are the cards a rule can act on.
+     *
+     * @param list<string> $projectIds RFC 4122 ids
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function findIdsInOpenColumnsOfProjects(array $projectIds): array
+    {
+        if ([] === $projectIds) {
+            return [];
+        }
+
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT c.id FROM board_cards c JOIN board_columns k ON k.id = c.column_id
+             WHERE c.project_id IN (:projects) AND k.terminal = false
+             ORDER BY c.project_id, c.number',
+            ['projects' => $projectIds],
+            ['projects' => ArrayParameterType::STRING],
+        )->fetchFirstColumn();
+
+        return $ids;
+    }
+
+    /**
      * The parents of these cards, the cards they block and their follow-ups, each once, without the given ids.
      *
      * @param list<string> $cardIds

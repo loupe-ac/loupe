@@ -20,9 +20,9 @@ again when you change a control. Without JavaScript, press **Apply**.
 | Control | Values | Default |
 |---|---|---|
 | Metric | one metric from [the list below](#the-metrics) | **Cost** |
-| Unit | **Per run** or **Per finished card** | **Per finished card** |
-| Statistic | **Median**, **Mean**, **Sum**, **90th percentile** or **Count** | **Median** |
-| Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version**, **By plugin version** or **No grouping** | **No grouping** |
+| Unit | **Per run**, **Per finished card** or **Per reading** | **Per finished card** |
+| Statistic | **Median**, **Mean**, **Sum**, **Maximum**, **90th percentile** or **Count** | **Median** |
+| Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version**, **By plugin version**, **By account window** or **No grouping** | **No grouping** |
 | Range | **30 days**, **90 days** or **All time** | **90 days** |
 | Bucket | **Per day**, **Per week** or **Per month** | **Per week** |
 
@@ -73,6 +73,9 @@ not counted.
 | **Time in &lt;bucket&gt;, subagents included** | the tool time of a run in one time bucket, with the calls of subagents | run, card |
 | **Calls in &lt;bucket&gt;** | the number of tool calls of a run in one time bucket, subagent calls included | run, card |
 | **Harness events: &lt;kind&gt;** | the number of [harness events](#harness-events) of one kind in a run, such as **Harness events: diagnostics** | run, card |
+| **Session usage of a run** | how many points of the 5-hour [usage window](#account-usage) a run used, from its first to its last reading | run |
+| **Week usage of a run** | how many points of the weekly usage window a run used, from its first to its last reading | run |
+| **Account usage** | the [use of a usage window](#account-usage) of a bridge account, as a percentage | reading |
 
 The workflow template of the project can declare more metrics. They appear
 after the built-in ones, with the label and the description from the template.
@@ -102,6 +105,30 @@ call that has no duration. Their keys are `bucket-time-all:<name>` and
 came has no value for them. Run `php bin/console app:bridge:recompute-bucket-times`
 once to fill them for past runs. It queues one computation for each project.
 
+### Account usage
+
+A bridge reads how much of its usage windows an account has used, and sends the
+readings to Loupe. **Account usage** charts them. One row is one stored reading
+of one window of one account. Its time is the time when the bridge read it.
+
+The group of a row is `<bridge name>/<account> <window>`, such as `desk/claude
+session`. The window is `session` for a 5-hour window, `week` for a 7-day window,
+or its length for any other window. Only **By account window** is available. A
+bridge with no name has no rows, because the group needs a name. A reading that
+gives no use, such as one that only says the account is at its limit, has no row.
+
+The value is a percentage from 0 to 200. A value above 100 means use past the
+limit, such as extra usage. The metric takes **Maximum**, **Mean**, **Median**,
+**90th percentile** and **Count**, and no **Sum**. **Maximum** per bucket shows the highest use of each day or
+week.
+
+**Session usage of a run** and **Week usage of a run** compare the runs of a project. The value of a
+run is the use at its last reading minus the use at its first reading, among the
+readings of the account of the run between its start and its end. A run needs
+two readings with a use to have a value. Otherwise the value is unknown. The
+figure is approximate. A parallel run, or a session of your own on the same
+account, draws from the same window and shifts it.
+
 ### Harness events
 
 The harness writes small events beside the messages of a run, such as
@@ -126,7 +153,7 @@ do not pay this amount. A duration shows in milliseconds, seconds, minutes or
 hours. A duration that a template declares shows in hours. A rate shows as a percentage. With
 **Count**, the summary and the chart show a number of rows for every metric.
 
-**Stop rate** takes only **Mean** and **Count**. A rate that a template declares
+**Account usage** takes **Maximum**, **Mean**, **Median**, **90th percentile** and **Count**. **Stop rate** takes only **Mean** and **Count**. A rate that a template declares
 takes the same two statistics.
 
 ## Statistics, groups, ranges and buckets
@@ -136,6 +163,7 @@ takes the same two statistics.
 | **Median** | the middle value |
 | **Mean** | the average value |
 | **Sum** | the total of the values |
+| **Maximum** | the highest value. Only a percentage metric offers it |
 | **90th percentile** | the value that 90% of the rows do not pass |
 | **Count** | the number of rows with a known value |
 
@@ -153,6 +181,7 @@ A group splits the rows into one series for each value:
 | **By harness version** | version of the harness that ran the run, such as `2.1.301` for Claude Code |
 | **By CLI version** | version of the Loupe CLI that started the run |
 | **By plugin version** | version of the Loupe plugin that the worker loaded, such as `5.5.0` |
+| **By account window** | usage window of a bridge account, such as `desk/claude session`. Only **Account usage** takes it |
 | **No grouping** | one series for all the rows |
 
 A run from a bridge that does not send a version has no value for the three

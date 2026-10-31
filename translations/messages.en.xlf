@@ -8463,6 +8463,9 @@
             <trans-unit id="analytics.metrics.metric.duration"><source>analytics.metrics.metric.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.runs"><source>analytics.metrics.metric.runs</source><target>Runs</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.stop-rate"><source>analytics.metrics.metric.stop-rate</source><target>Stop rate</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.account-usage"><source>analytics.metrics.metric.account-usage</source><target>Account usage</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.session-usage"><source>analytics.metrics.metric.session-usage</source><target>Session usage of a run</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.week-usage"><source>analytics.metrics.metric.week-usage</source><target>Week usage of a run</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>
@@ -8473,6 +8476,9 @@
             <trans-unit id="analytics.metrics.metric_group.bucket_calls"><source>analytics.metrics.metric_group.bucket_calls</source><target>Calls in time buckets</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.run"><source>analytics.metrics.unit.run</source><target>Per run</target></trans-unit>
             <trans-unit id="analytics.metrics.unit.card"><source>analytics.metrics.unit.card</source><target>Per finished card</target></trans-unit>
+            <trans-unit id="analytics.metrics.unit.reading"><source>analytics.metrics.unit.reading</source><target>Per reading</target></trans-unit>
+            <trans-unit id="analytics.metrics.statistic.max"><source>analytics.metrics.statistic.max</source><target>Maximum</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.account-window"><source>analytics.metrics.group.account-window</source><target>By account window</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.median"><source>analytics.metrics.statistic.median</source><target>Median</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.mean"><source>analytics.metrics.statistic.mean</source><target>Mean</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.sum"><source>analytics.metrics.statistic.sum</source><target>Sum</target></trans-unit>
@@ -8498,6 +8504,7 @@
             <trans-unit id="analytics.metrics.unknown"><source>analytics.metrics.unknown</source><target>unknown</target></trans-unit>
             <trans-unit id="analytics.metrics.series.none"><source>analytics.metrics.series.none</source><target>No group</target></trans-unit>
             <trans-unit id="analytics.metrics.rows.run"><source>analytics.metrics.rows.run</source><target>{0}No runs|{1}1 run|]1,Inf[%count% runs</target></trans-unit>
+            <trans-unit id="analytics.metrics.rows.reading"><source>analytics.metrics.rows.reading</source><target>{0}No readings|{1}1 reading|]1,Inf[%count% readings</target></trans-unit>
             <trans-unit id="analytics.metrics.rows.card"><source>analytics.metrics.rows.card</source><target>{0}No cards|{1}1 card|]1,Inf[%count% cards</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.label"><source>analytics.metrics.chart.label</source><target>%metric%, %statistic%, %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.chart.week"><source>analytics.metrics.chart.week</source><target>Week of %date%</target></trans-unit>
@@ -9270,6 +9277,8 @@
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.bridge_account_usage"><source>workflow.waiting.bridge_account_usage</source><target>Waiting: the %window% window of %account% is not above %above% percent.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.bridge_account_usage"><source>workflow.waiting.not.bridge_account_usage</source><target>Waiting: the %window% window of %account% is above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.parent_document_approved"><source>workflow.waiting.not.parent_document_approved</source><target>Waiting: every %tag% document of the parent card is approved.</target></trans-unit>
             <trans-unit id="workflow.ask.unplanned_child"><source>workflow.ask.unplanned_child</source><target>Card #%child% is a child of epic #%epic%, and it links no approved tech design. What must happen to it?</target></trans-unit>

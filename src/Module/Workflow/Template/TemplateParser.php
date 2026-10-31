@@ -1085,11 +1085,12 @@ final readonly class TemplateParser
             }
             $param = $value[$parameter->name];
             $error = match ($parameter->type) {
-                ParameterType::Int => \is_int($param) && $param >= 1 ? null : \sprintf('parameter "%s" must be a positive integer', $parameter->name),
+                ParameterType::Int => \is_int($param) && $param >= ($parameter->min ?? 1) && $param <= ($parameter->max ?? \PHP_INT_MAX) ? null : self::intError($parameter, 1),
                 ParameterType::Bool => \is_bool($param) ? null : \sprintf('parameter "%s" must be true or false', $parameter->name),
                 ParameterType::String => match (true) {
                     !\is_string($param) || '' === $param => \sprintf('parameter "%s" must be a non-empty string', $parameter->name),
                     null !== $parameter->choices && !\in_array($param, $parameter->choices, true) => \sprintf('parameter "%s" must be one of: %s', $parameter->name, implode(', ', $parameter->choices)),
+                    null !== $parameter->pattern && 1 !== preg_match($parameter->pattern, $param) => \sprintf('parameter "%s" must match %s', $parameter->name, $parameter->patternHint ?? $parameter->pattern),
                     default => null,
                 },
                 ParameterType::Slot => match (true) {
@@ -1274,15 +1275,25 @@ final readonly class TemplateParser
             : [\sprintf('%s: parameter "equals" must be of the type "%s" that the value key "%s" declares', $where, $value->type->value, $value->key)];
     }
 
+    /** @param int $least the minimum to report when the parameter declares none */
+    private static function intError(Parameter $parameter, int $least): string
+    {
+        $min = $parameter->min ?? $least;
+
+        return match (true) {
+            null !== $parameter->max => \sprintf('parameter "%s" must be an integer from %d to %d', $parameter->name, $min, $parameter->max),
+            1 === $min => \sprintf('parameter "%s" must be a positive integer', $parameter->name),
+            default => \sprintf('parameter "%s" must be an integer of at least %d', $parameter->name, $min),
+        };
+    }
+
     /** @return ?string what is wrong with the value of a string, int or slot parameter, or null when nothing is */
     private static function parameterError(Parameter $parameter, mixed $given): ?string
     {
         $name = $parameter->name;
 
         return match (true) {
-            ParameterType::Int === $parameter->type => \is_int($given) && $given >= ($parameter->min ?? \PHP_INT_MIN) ? null : (1 === $parameter->min
-                ? \sprintf('parameter "%s" must be a positive integer', $name)
-                : \sprintf('parameter "%s" must be an integer of at least %d', $name, $parameter->min ?? 0)),
+            ParameterType::Int === $parameter->type => \is_int($given) && $given >= ($parameter->min ?? \PHP_INT_MIN) && $given <= ($parameter->max ?? \PHP_INT_MAX) ? null : self::intError($parameter, 0),
             null !== $parameter->fixed => $given === $parameter->fixed ? null : \sprintf('parameter "%s" must be %s', $name, $parameter->fixed),
             null !== $parameter->choices => \in_array($given, $parameter->choices, true) ? null : \sprintf('parameter "%s" must be one of %s', $name, implode(', ', $parameter->choices)),
             null !== $parameter->pattern => \is_string($given) && 1 === preg_match($parameter->pattern, $given) ? null : \sprintf('parameter "%s" must match %s', $name, $parameter->patternHint ?? $parameter->pattern),

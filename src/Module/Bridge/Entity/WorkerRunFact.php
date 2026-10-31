@@ -161,6 +161,16 @@ class WorkerRunFact
         /** Null when no sample within the run knew the power state. */
         #[ORM\Column(name: 'on_battery', nullable: true)]
         public readonly ?bool $onBattery,
+
+        /**
+         * The last less the first use of the window, in percentage points, from the readings of the account of the run
+         * inside its window. Null with fewer than two such readings. Approximate: other work on the account counts too.
+         */
+        #[ORM\Column(name: 'session_usage_delta', nullable: true)]
+        public readonly ?float $sessionUsageDelta,
+
+        #[ORM\Column(name: 'week_usage_delta', nullable: true)]
+        public readonly ?float $weekUsageDelta,
     ) {
     }
 }

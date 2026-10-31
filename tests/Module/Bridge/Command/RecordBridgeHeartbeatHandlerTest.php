@@ -11,6 +11,7 @@ use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Bridge\Repository\BridgeRepository;
@@ -980,6 +981,16 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         return $announced;
     }
 
+    private function recordReadings(): RecordedEvents
+    {
+        $announced = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeAccountReadingsStored::class, $announced);
+
+        return $announced;
+    }
+
     /** @return list<list<string>> */
     private static function announcedProjects(RecordedEvents $announced): array
     {
@@ -1065,6 +1076,38 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:01:00')]));
 
         self::assertSame(1, $this->countReadings($em));
+    }
+
+    public function test_a_stored_reading_announces_the_followed_projects_after_the_commit(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-announce@example.com');
+        $project = $this->project($em, $owner, 'Reading Announce');
+        $bridgeId = Uuid::v4();
+        $announced = $this->recordReadings();
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [(string) $project->id], 'b4e39aa7', accountReadings: [self::reading('session', 29.0)]));
+
+        self::assertSame([[(string) $project->id]], array_map(static fn (BridgeAccountReadingsStored $event): array => $event->projectIds, $announced->of(BridgeAccountReadingsStored::class)));
+        self::assertSame(1, $this->countReadings($em), 'The event follows a committed row.');
+    }
+
+    public function test_a_heartbeat_that_stores_no_reading_announces_nothing(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-silent@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:00:00')]));
+        $announced = $this->recordReadings();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: []));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:01:00')]));
+
+        self::assertSame([], $announced->of(BridgeAccountReadingsStored::class));
     }
 
     public function test_it_stores_a_reading_that_differs_in_use_reset_or_limit_and_compares_each_window_alone(): void

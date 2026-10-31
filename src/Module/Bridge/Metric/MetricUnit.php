@@ -9,4 +9,5 @@ enum MetricUnit: string
 {
     case Run = 'run';
     case Card = 'card';
+    case Reading = 'reading';
 }

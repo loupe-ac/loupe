@@ -154,6 +154,20 @@ final class MetricChartTest extends TestCase
         self::assertSame(MetricStatistic::Count, $chart->statistic);
     }
 
+    public function test_a_usage_percent_tops_at_one_hundred_and_grows_past_a_higher_value(): void
+    {
+        $shape = new MetricShape(new MetricKey(Metric::AccountUsage));
+        $ticks = static fn (MetricChart $chart): array => array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks);
+
+        $low = MetricChart::build($shape, MetricStatistic::Max, MetricBucket::Week, [self::series(null, ['2026-09-28' => 40.0])]);
+        $over = MetricChart::build($shape, MetricStatistic::Max, MetricBucket::Week, [self::series(null, ['2026-09-28' => 140.0])]);
+
+        self::assertNotNull($low);
+        self::assertNotNull($over);
+        self::assertSame([0.0, 50.0, 100.0], $ticks($low));
+        self::assertSame(150.0, $ticks($over)[\count($ticks($over)) - 1]);
+    }
+
     public function test_a_small_money_step_takes_more_decimals(): void
     {
         $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0.018])]);

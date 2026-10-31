@@ -6,7 +6,10 @@ namespace App\Module\Bridge\Repository;
 
 use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\ValueObject\AccountReadingReport;
+use App\Module\Bridge\ValueObject\AccountUsageReading;
+use App\Module\Bridge\ValueObject\NamedAccountReading;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -42,6 +45,74 @@ class BridgeAccountReadingRepository extends ServiceEntityRepository
         );
 
         return array_map(self::report(...), $rows);
+    }
+
+    /**
+     * The newest reading of each window of each account, on the named bridges of the owner of the project. A bridge
+     * with no name has no address a rule could use, so its readings stay out.
+     *
+     * @return list<NamedAccountReading>
+     */
+    public function latestNamedOfProjectOwner(Uuid $projectId): array
+    {
+        /** @var list<array{name: string, account: string, window_key: string, used_percent: float|string|null, resets_at: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT DISTINCT ON (b.name, r.account, r.window_key) b.name, r.account, r.window_key, r.used_percent, r.resets_at
+                FROM bridge_account_readings r
+                JOIN bridges b ON b.owner_id = r.owner_id AND b.id = r.bridge_id
+                JOIN projects p ON p.owner_id = r.owner_id
+                WHERE p.id = :project AND b.name IS NOT NULL
+                ORDER BY b.name, r.account, r.window_key, r.read_at DESC, r.id DESC',
+            ['project' => $projectId->toRfc4122()],
+        );
+
+        $utc = new \DateTimeZone('UTC');
+
+        return array_map(static fn (array $row): NamedAccountReading => new NamedAccountReading(
+            $row['name'],
+            $row['account'],
+            $row['window_key'],
+            null === $row['used_percent'] ? null : (float) $row['used_percent'],
+            new \DateTimeImmutable($row['resets_at'], $utc),
+        ), $rows);
+    }
+
+    /**
+     * The readings that have a use value, of the given bridges of one owner, read at or after the cutoff. A null
+     * cutoff reads them all.
+     *
+     * @param list<Uuid> $bridgeIds
+     *
+     * @return list<AccountUsageReading>
+     */
+    public function findUsageOfBridges(Uuid $ownerId, array $bridgeIds, ?\DateTimeImmutable $since): array
+    {
+        if ([] === $bridgeIds) {
+            return [];
+        }
+
+        $params = ['owner' => $ownerId->toRfc4122(), 'bridges' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $bridgeIds)];
+        $types = ['bridges' => ArrayParameterType::STRING];
+        $sql = 'SELECT id, bridge_id, account, window_key, used_percent, read_at FROM bridge_account_readings
+            WHERE owner_id = :owner AND bridge_id IN (:bridges) AND used_percent IS NOT NULL';
+        if (null !== $since) {
+            $sql .= ' AND read_at >= :since';
+            $params['since'] = $since->setTimezone(new \DateTimeZone('UTC'));
+            $types['since'] = Types::DATETIME_IMMUTABLE;
+        }
+
+        /** @var list<array{id: string, bridge_id: string, account: string, window_key: string, used_percent: float|string, read_at: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative($sql.' ORDER BY read_at, id', $params, $types);
+        $utc = new \DateTimeZone('UTC');
+
+        return array_map(static fn (array $row): AccountUsageReading => new AccountUsageReading(
+            Uuid::fromString($row['id']),
+            Uuid::fromString($row['bridge_id']),
+            $row['account'],
+            $row['window_key'],
+            (float) $row['used_percent'],
+            new \DateTimeImmutable($row['read_at'], $utc),
+        ), $rows);
     }
 
     /**

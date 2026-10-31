@@ -68,6 +68,8 @@ final readonly class WorkerRunFactExporter implements UserDataExporterInterface
                 'peakSwapBytes' => $fact->peakSwapBytes,
                 'concurrentRuns' => $fact->concurrentRuns,
                 'onBattery' => $fact->onBattery,
+                'sessionUsageDelta' => $fact->sessionUsageDelta,
+                'weekUsageDelta' => $fact->weekUsageDelta,
             ];
         }
     }

@@ -159,7 +159,7 @@ final readonly class MetricChart
 
     /**
      * The top of the value axis and its step. A count scales as a count. A ratio
-     * tops at 100%. Another metric tops at a floor of its own, so tiny values still read.
+     * tops at 100%. A usage percent tops at 100 or above. Another metric tops at a floor of its own, so tiny values still read.
      *
      * @param list<float> $values
      *
@@ -174,6 +174,7 @@ final readonly class MetricChart
 
         $floor = match ($type) {
             MetricValueType::Money => 0.04,
+            MetricValueType::Percent => 100.0,
             MetricValueType::Duration => $metric->isInHours() ? 1.0 : 1000.0,
             default => (float) self::TARGET_TICKS,
         };
