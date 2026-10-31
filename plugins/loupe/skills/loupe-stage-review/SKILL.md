@@ -49,9 +49,7 @@ Review the pull request of one card at one head commit, and send the result to L
       - A row of the Prototype map that the diff does not build as shown, with no departure on file. The check covers the parts, their order, the components, the states and the visible text. It does not cover sample data, exact colours or spacing.
       - A "Not built by this card" line or a "built by another child" row with a reason that the evidence does not support. The evidence is the card body, the designs and the card that the reason names. Read that card with `card_get`. A sibling card that builds the part supports the reason. So does a Breakdown entry of the parent tech design that gives the part to another child.
       - A collected artifact that the map omits. Build notes with no map for a card that collects an artifact omit each one.
-      - A part of a page with no row and no departure on file. Compare each page with the map.
-
-      Give a finding on a part of a page the category `spec`, and the path of the template or stylesheet when one exists. Be sure before you write it: the design or a prototype page must show the part, and the diff must show the gap. A prototype part that no design names is still a requirement.
+      - A part of a page with no row and no departure on file. Compare each page with the map. Give such a finding the category `spec`, and the path of the template or stylesheet when one exists. Be sure before you write it: the design or a prototype page must show the part, and the diff must show the gap. A prototype part that no design names is still a requirement.
    8. When the design is wrong and the code is right, say so in the body, and keep the severity `important`.
    9. Set `needsPerson` to true on a `spec` finding that a worker cannot settle from the design and the code alone. These are the cases:
       - The design is unclear, contradicts itself, or looks wrong against the code.
