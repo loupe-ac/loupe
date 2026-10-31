@@ -144,6 +144,55 @@ final class SessionPromptWriterTest extends KernelTestCase
         self::assertMatchesRegularExpression('/wordy \[text cut\]/', $prompt);
     }
 
+    public function test_many_links_and_a_small_limit_drop_the_links_and_keep_the_frame(): void
+    {
+        $item = $this->item(InboxItemKind::Notice, 'Many links', str_repeat('word ', 100));
+        for ($i = 0; $i < 30; ++$i) {
+            $this->em->persist($document = $this->document($this->em, $this->project));
+            $document->title = 'Design '.$i;
+            $item->documents->add(new InboxItemDocument($item, $document));
+        }
+        $this->link($item, 7, 9);
+        $this->em->flush();
+
+        foreach ([400, 600, 900] as $limit) {
+            $prompt = $this->writer($limit)->write($item);
+
+            self::assertLessThanOrEqual($limit, mb_strlen($prompt), 'limit '.$limit);
+            self::assertStringContainsString('</item>', $prompt);
+            self::assertStringEndsWith('Read the item. Then wait for my instruction.', $prompt);
+            foreach (explode("\n", $prompt) as $line) {
+                if (str_starts_with($line, '- ')) {
+                    self::assertMatchesRegularExpression('~^- Design \d+ https?://\S+/documents/[0-9a-f-]{36}/review$~', $line, 'a link line is whole');
+                }
+            }
+        }
+        $tight = $this->writer(400)->write($item);
+        self::assertLessThan(30, substr_count($tight, '/documents/'));
+        self::assertSame(30, substr_count($this->writer(SessionPromptLimit::DEFAULT * 4)->write($item), '/documents/'));
+    }
+
+    public function test_cards_drop_only_after_every_document_is_gone(): void
+    {
+        $item = $this->item(InboxItemKind::Notice, 'Cards', 'Text.');
+        $document = $this->document($this->em, $this->project);
+        $item->documents->add(new InboxItemDocument($item, $document));
+        $this->link($item, 7, 9);
+        $this->em->flush();
+
+        $prompt = $this->writer(250)->write($item);
+
+        self::assertStringNotContainsString('/documents/', $prompt);
+        self::assertStringContainsString('</item>', $prompt);
+    }
+
+    private function link(InboxItem $item, int ...$numbers): void
+    {
+        foreach ($numbers as $number) {
+            $item->cards->add(new InboxItemCard($item, $this->card($this->em, $this->project, $number)));
+        }
+    }
+
     private function item(InboxItemKind $kind, string $title, string $body): InboxItem
     {
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: $kind, title: $title, blocking: false, origin: InboxAskOrigin::Agent, body: $body);

@@ -16,6 +16,7 @@ use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
+use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -92,7 +93,7 @@ final readonly class ItemActions
      */
     public function waitFor(InboxItem $item, InboxActionKind $kind): ?InboxCardWait
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         $match = match ($kind) {
@@ -113,7 +114,7 @@ final readonly class ItemActions
     /** The newest open wait of the item, or null. An action that needs no run or pause answers this wait. */
     public function newestOpenWait(InboxItem $item): ?InboxCardWait
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         return array_last($waits);
@@ -122,7 +123,7 @@ final readonly class ItemActions
     /** The card and the stage work that Send an agent starts for the item now, or null when the action does not fit. */
     public function sendAgentFor(InboxItem $item): ?SendAgentTarget
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
 
         return $this->sendAgentTargets([$item], null === $watch ? [] : [self::key($item) => $watch->cardId])[self::key($item)] ?? null;
     }
@@ -135,7 +136,7 @@ final readonly class ItemActions
      */
     public function runCommandFor(InboxItem $item, ?string $branch = null, ?array $params = null): ?RunCommandView
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
         $runs = $this->runsOf($waits);
         $suggestion = $this->suggestionsOf($item, $waits, $runs)[InboxActionKind::RunCommand->value] ?? null;
@@ -150,7 +151,7 @@ final readonly class ItemActions
     public function runCommandCardId(InboxItem $item): ?Uuid
     {
         if ($item->isAutomatic()) {
-            return ($this->inboxCardWatches->findForItems([$item])[0] ?? null)?->cardId;
+            return ($this->watchOf($item))?->cardId;
         }
 
         return self::onlyCardOf($item);
@@ -162,20 +163,20 @@ final readonly class ItemActions
      */
     public function sessionSubjectOf(InboxItem $item): WorkSubject
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $cardId = self::sessionCardOf($item, $watch?->cardId);
 
         return null === $cardId ? new WorkSubject(InboxItem::SUBJECT_TYPE, $item->id ?? throw new \LogicException('A stored item has an id.')) : WorkSubject::card($cardId);
     }
 
-    /** The prompt that fills the field of the session: the one the agent suggested, else the written one. Null when the item offers no session. */
-    public function sessionPromptFor(InboxItem $item): ?string
+    /** The prompt that fills the field of the session: the one the agent suggested, else the written one. */
+    public function sessionPromptFor(InboxItem $item): string
     {
         $suggested = self::suggestedSessionPrompt($item);
-        if (null !== $suggested || (InboxItemState::Open === $item->state && self::offersOnlySuggestions($item))) {
+        if (null !== $suggested) {
             return $suggested;
         }
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
 
         return $this->sessionPrompts->write($item, null === $watch ? [] : self::openWaits($watch->waits->toArray()));
     }
@@ -188,7 +189,7 @@ final readonly class ItemActions
     /** The card that an action on the item acts on: the card of its watch, else the card its suggestion names, else its first linked card. */
     public function cardIdOf(InboxItem $item, InboxActionKind $kind): ?Uuid
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         if (null !== $watch) {
             return $watch->cardId;
         }
@@ -208,37 +209,7 @@ final readonly class ItemActions
      */
     public function forItems(array $items): array
     {
-        $rest = array_values(array_filter($items, static fn (InboxItem $item): bool => !self::isPlain($item)));
-        $complex = $this->forComplexItems($rest);
-        $actions = [];
-        foreach ($items as $item) {
-            $actions[self::key($item)] = $complex[self::key($item)] ?? self::plainActions($item);
-        }
-
-        return $actions;
-    }
-
-    /**
-     * Whether an open to-do or question has no suggestion, so it offers its response and Dismiss and nothing else.
-     * Such an item needs no read of waits, cards or bridges.
-     */
-    public static function isPlain(InboxItem $item): bool
-    {
-        return InboxItemState::Open === $item->state
-            && self::offersOnlySuggestions($item)
-            && !$item->isAutomatic()
-            && [] === ($item->suggestedActions ?? []);
-    }
-
-    /** @return list<ItemAction> */
-    private static function plainActions(InboxItem $item): array
-    {
-        $response = self::responseKind($item) ?? throw new \LogicException('A plain item takes a response.');
-
-        return array_map(
-            static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $response),
-            $item->dismissible ? [$response, InboxActionKind::Dismiss] : [$response],
-        );
+        return $this->forComplexItems($items);
     }
 
     /**
@@ -250,7 +221,7 @@ final readonly class ItemActions
     {
         $openWaits = [];
         $watchedCards = [];
-        foreach ($this->inboxCardWatches->findForItems($items) as $watch) {
+        foreach ($this->inboxCardWatches->findForItems(array_values(array_filter($items, static fn (InboxItem $item): bool => $item->isAutomatic()))) as $watch) {
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
             $watchedCards[self::key($watch->item)] = $watch->cardId;
         }
@@ -274,7 +245,7 @@ final readonly class ItemActions
         $liveItemSessions = $this->workRequests->findSubjectIdsWithLiveRequest(
             InboxItem::SUBJECT_TYPE,
             WorkRequest::SESSION_KIND,
-            array_values(array_map(self::key(...), array_filter($items, static fn (InboxItem $item): bool => null === $sessionCards[self::key($item)]))),
+            array_values(array_map(self::key(...), $items)),
         );
 
         $suggested = [];
@@ -298,7 +269,7 @@ final readonly class ItemActions
                 $bridges = array_values(array_filter($bridges, SessionBridges::opensItemSessions(...)));
             }
             $sessionOnline = [] !== $bridges;
-            $sessionLive = null === $sessionCard ? isset($liveItemSessions[self::key($item)]) : isset($liveCardSessions[$sessionCard->toRfc4122()]);
+            $sessionLive = isset($liveItemSessions[self::key($item)]) || (null !== $sessionCard && isset($liveCardSessions[$sessionCard->toRfc4122()]));
             $suggestions = $suggested[self::key($item)];
             $commandSuggestion = $suggestions[InboxActionKind::RunCommand->value] ?? null;
             $runCommand = null === $commandSuggestion?->command
@@ -311,7 +282,7 @@ final readonly class ItemActions
             if (InboxItemState::Open !== $item->state) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::StartSession === $kind && $sessionOnline));
             } elseif (self::offersOnlySuggestions($item)) {
-                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => $kind->isResponse() || isset($suggestions[$kind->value])));
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => $kind->isResponse() || InboxActionKind::StartSession === $kind || isset($suggestions[$kind->value])));
             }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             // A retry alone repeats a loop whose last run stopped for a person, so it is not the default then.
@@ -758,6 +729,12 @@ final readonly class ItemActions
         }
 
         return $releasable;
+    }
+
+    /** Only an automatic item has a watch, so any other item costs no read. */
+    private function watchOf(InboxItem $item): ?InboxCardWatch
+    {
+        return $item->isAutomatic() ? ($this->inboxCardWatches->findForItems([$item])[0] ?? null) : null;
     }
 
     private static function key(InboxItem $item): string

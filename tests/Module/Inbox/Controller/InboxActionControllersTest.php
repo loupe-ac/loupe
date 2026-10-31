@@ -576,7 +576,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame($this->actionPath($question, 'start-session'), parse_url((string) $confirm->attr('formaction'), \PHP_URL_PATH));
     }
 
-    public function test_a_question_with_a_card_and_no_suggestion_shows_the_answer_form_alone(): void
+    public function test_a_question_with_a_card_and_no_suggestion_keeps_the_answer_as_main_and_offers_a_session_in_the_menu(): void
     {
         $this->sessionBridge();
         $question = $this->sessionQuestion(null);
@@ -584,8 +584,11 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('#inbox-item-'.$question->number.' form.lp-inbox-answer'));
-        self::assertCount(0, $crawler->filter('#inbox-item-'.$question->number.' .lp-split-button__toggle'));
+        $item = $crawler->filter('#inbox-item-'.$question->number);
+        self::assertCount(1, $item->filter('form.lp-inbox-answer'));
+        self::assertSame('answer', $item->filter('[data-inbox-thread] .inbox-split__main')->attr('data-inbox-action'));
+        self::assertCount(1, $item->filter('.lp-menu__panel [data-inbox-action="start-session"]'));
+        self::assertStringContainsString('Which tag order?', $item->filter('textarea[data-inbox-session-prompt]')->text());
     }
 
     public function test_a_run_command_posts_the_confirmed_branch_and_values_and_queues_the_request(): void
@@ -712,10 +715,10 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('answer', $crawler->filter('.inbox-split__main')->attr('data-inbox-action'));
         self::assertCount(1, $crawler->filter('.inbox-split [data-inbox-action="open"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-done]'));
-        self::assertCount(0, $crawler->filter('[data-inbox-action="start-session"]'));
+        self::assertCount(1, $crawler->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
     }
 
-    public function test_a_question_with_no_suggestion_shows_no_menu(): void
+    public function test_a_question_with_a_card_and_no_suggestion_and_no_bridge_shows_only_a_grey_session_in_the_menu(): void
     {
         $item = $this->question($this->em(), $this->project, ++$this->number);
         $item->cards->add(new InboxItemCard($item, $this->card));
@@ -726,7 +729,8 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('form.lp-inbox-answer'));
-        self::assertCount(0, $crawler->filter('.lp-split-button__toggle'));
+        self::assertCount(1, $crawler->filter('.lp-menu__panel [data-inbox-action]'));
+        self::assertCount(1, $crawler->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
     }
 
     public function test_a_failed_command_shows_its_last_lines_with_run_again_and_mark_done(): void

@@ -786,7 +786,9 @@ refuses it.
 ### Start an interactive session
 
 Select **Start an interactive session** on any item, open or closed, to work
-with an agent in a terminal on your machine. The action needs an online bridge
+with an agent in a terminal on your machine. The action sits in the menu of the
+reply card. It is the main button only when the agent recommended it, or when
+the item has no response of its own, such as a notice. The action needs an online bridge
 with a `session` entry in its rule file. A session about an item that has no
 card or several cards also needs a bridge version that supports it. Without a
 bridge, an item that has a card shows the action in grey with the reason "No

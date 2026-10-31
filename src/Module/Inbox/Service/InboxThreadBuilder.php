@@ -29,7 +29,7 @@ final readonly class InboxThreadBuilder
     public function build(InboxItem $item, ?string $hostCardId = null): InboxThreadView
     {
         $watch = $item->isAutomatic() ? $this->inboxCardWatches->findOneForItem($item) : null;
-        $statuses = ItemActions::isPlain($item) ? [] : ($this->actionStatuses->forItems([$item])[(string) $item->id] ?? []);
+        $statuses = $this->actionStatuses->forItems([$item])[(string) $item->id] ?? [];
         $last = array_last($statuses);
         // An action under way answers the wait, so the card stays away until it expires, is refused or is cancelled.
         $answering = null !== $last && $last->answers($watch->waits ?? []);
