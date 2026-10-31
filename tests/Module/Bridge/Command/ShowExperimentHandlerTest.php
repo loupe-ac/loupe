@@ -690,6 +690,18 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame([], $view->unknownMetrics);
     }
 
+    public function test_a_usage_metric_is_no_experiment_metric(): void
+    {
+        $this->seedHeadlineExperiment(['goal' => ['metric' => 'session-usage', 'better' => 'lower'], 'guards' => ['account-usage', 'week-usage']]);
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->headline);
+        self::assertSame(GoalState::UnknownMetric, $view->headline->goal->problem);
+        self::assertSame(['account-usage', 'week-usage'], $view->unknownGuards);
+    }
+
     public function test_a_goal_with_no_direction_names_the_problem(): void
     {
         $this->seedHeadlineExperiment(['goal' => ['metric' => 'cost']]);

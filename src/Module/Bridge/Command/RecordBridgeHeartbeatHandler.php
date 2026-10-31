@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountReading;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Event\BridgeReported;
@@ -85,11 +86,11 @@ final readonly class RecordBridgeHeartbeatHandler
         $owned = $this->projects->findIdsOwnedBy($command->owner, $command->projects);
         $projects = array_values(array_filter($command->projects, static fn (string $id): bool => \in_array($id, $owned, true)));
         // A bridge keeps the flag value it read at connect, so it can still send samples after sampling went off.
-        $samples = $this->hostSampling->enabled() ? $this->samplesInWindow($command->hostSamples) : [];
+        $samples = $this->hostSampling->enabled() ? $this->inWindow($command->hostSamples, static fn (BridgeHostSampleReport $sample): \DateTimeImmutable => $sample->sampledAt) : [];
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $usageChanged] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $usageChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
@@ -131,7 +132,8 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
             }
-            $usageChanged = $this->recordAccountReadings($bridge, $command->accountReadings) || $usageChanged;
+            $readingsStored = $this->recordAccountReadings($bridge, $command->accountReadings);
+            $usageChanged = $readingsStored || $usageChanged;
             if (null !== $command->commandEntries) {
                 $bridge->commandEntries = $command->commandEntries;
                 $bridge->commandEntriesReportedAt = $now;
@@ -220,13 +222,17 @@ final readonly class RecordBridgeHeartbeatHandler
                 $wasQuiet,
                 $availabilityChanged,
                 $usageChanged,
+                $readingsStored,
             ];
         });
 
         // After the commit, because the writer locks run rows and the bridge lock must not wait on them.
         // A resent batch inserts nothing and still recomputes, so a failed recompute gets a retry.
-        if ([] !== $samples) {
-            $times = array_map(static fn (BridgeHostSampleReport $sample): int => $sample->sampledAt->getTimestamp(), $samples);
+        $times = [
+            ...array_map(static fn (BridgeHostSampleReport $sample): int => $sample->sampledAt->getTimestamp(), $samples),
+            ...array_map(static fn (AccountReadingReport $reading): int => $reading->readAt->getTimestamp(), $this->inWindow($command->accountReadings, static fn (AccountReadingReport $reading): \DateTimeImmutable => $reading->readAt)),
+        ];
+        if ([] !== $times) {
             $this->factWriter->upsert($this->workerRuns->findEndedIdsOnBridgeBetween(
                 $command->owner->id ?? throw new \LogicException('An authenticated user always has an id.'),
                 $command->bridgeId,
@@ -248,6 +254,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
         if ($availabilityChanged) {
             $this->events->dispatch(new BridgeAvailabilityChanged(array_values(array_unique([...$followedBefore, ...$projects]))));
+        }
+
+        if ($readingsStored) {
+            $this->events->dispatch(new BridgeAccountReadingsStored(array_values(array_unique([...$followedBefore, ...$projects]))));
         }
 
         $watchSessions = $this->applySessionReadings($command);
@@ -321,7 +331,6 @@ final readonly class RecordBridgeHeartbeatHandler
         if ([] === $reports) {
             return false;
         }
-
         $changed = false;
 
         $latest = [];
@@ -378,22 +387,25 @@ final readonly class RecordBridgeHeartbeatHandler
     }
 
     /**
-     * Drops the samples of a bridge with a wrong clock, so they neither escape the purge
+     * Drops the reports of a bridge with a wrong clock, so they neither escape the purge
      * nor widen the recompute window to every run of the bridge.
      *
-     * @param list<BridgeHostSampleReport> $samples
+     * @template T of object
      *
-     * @return list<BridgeHostSampleReport>
+     * @param list<T>                         $reports
+     * @param \Closure(T): \DateTimeImmutable $timeOf
+     *
+     * @return list<T>
      */
-    private function samplesInWindow(array $samples): array
+    private function inWindow(array $reports, \Closure $timeOf): array
     {
         $now = $this->clock->now();
         $oldest = $now->sub(new \DateInterval('P'.$this->retention->retentionDays().'D'));
         $latest = $now->modify(self::MAX_SAMPLE_LEAD);
 
         return array_values(array_filter(
-            $samples,
-            static fn (BridgeHostSampleReport $sample): bool => $sample->sampledAt >= $oldest && $sample->sampledAt <= $latest,
+            $reports,
+            static fn (object $report): bool => $timeOf($report) >= $oldest && $timeOf($report) <= $latest,
         ));
     }
 }

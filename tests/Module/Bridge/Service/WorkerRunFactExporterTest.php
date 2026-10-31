@@ -37,6 +37,7 @@ final class WorkerRunFactExporterTest extends KernelTestCase
         $this->seedRun($em, $this->project($em, $this->user($em, 'facts-export-other@example.com'), 'Other Facts'));
         $connection = $em->getConnection();
         $connection->executeStatement(Version20261006005345::BACKFILL_SQL);
+        $connection->executeStatement('UPDATE bridge_worker_run_facts SET session_usage_delta = 12.5, week_usage_delta = 0.5 WHERE run_id = ?', [(string) $kept->id]);
         $connection->executeStatement('DELETE FROM bridge_worker_runs WHERE id = ?', [(string) $swept->id]);
         $em->clear();
 
@@ -86,7 +87,11 @@ final class WorkerRunFactExporterTest extends KernelTestCase
             'peakSwapBytes' => 0,
             'concurrentRuns' => 1,
             'onBattery' => false,
+            'sessionUsageDelta' => 12.5,
+            'weekUsageDelta' => 0.5,
         ], $rows[0]);
+        self::assertNull($rows[1]['sessionUsageDelta']);
+        self::assertNull($rows[1]['weekUsageDelta']);
         self::assertSame((string) $swept->id, $rows[1]['runId']);
         self::assertNull($rows[1]['costMicroUsd']);
     }

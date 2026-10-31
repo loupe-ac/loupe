@@ -38,6 +38,7 @@ final readonly class MetricValueFormatter
         return match ($type) {
             MetricValueType::Money => null !== $moneyDecimals ? $this->money($value, $moneyDecimals, $moneyDecimals) : $this->money($value, 2, self::maxMoneyDecimals($value)),
             MetricValueType::Ratio => $this->number($value, \NumberFormatter::PERCENT, 1, 1),
+            MetricValueType::Percent => $this->number($value, \NumberFormatter::DECIMAL, 0, 1).' %',
             MetricValueType::Duration => $inHours
                 ? $this->number($value, \NumberFormatter::DECIMAL, 0, 1).' h'
                 : self::milliseconds((int) round($value)),

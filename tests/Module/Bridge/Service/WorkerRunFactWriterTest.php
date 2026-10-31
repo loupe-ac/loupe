@@ -216,6 +216,126 @@ final class WorkerRunFactWriterTest extends KernelTestCase
         ], $this->hostColumns());
     }
 
+    public function test_it_takes_the_usage_change_from_the_first_to_the_last_reading_inside_the_run_window(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'facts-writer-usage@example.com');
+        $project = $this->project($em, $owner, 'Facts Writer Usage');
+        $bridge = $this->seedBridge($em, $owner);
+        $other = $this->seedBridge($em, $owner);
+        $run = $this->seedRun($em, $project, bridgeId: $bridge->id, harness: 'claude', account: 'work');
+        $this->seedAccountReading($em, $bridge, '2026-01-01 09:59:59', usedPercent: 5.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:00:00', usedPercent: 30.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:02:00', usedPercent: null);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:03:00', usedPercent: 31.5);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:05:00', usedPercent: 38.5);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:05:01', usedPercent: 90.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:01:00', account: 'play', usedPercent: 70.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:04:00', account: 'play', usedPercent: 99.0);
+        $this->seedAccountReading($em, $other, '2026-01-01 10:01:00', usedPercent: 60.0);
+        $this->seedAccountReading($em, $other, '2026-01-01 10:04:00', usedPercent: 80.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:01:00', window: 'week', usedPercent: 50.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:04:00', window: 'week', usedPercent: 49.0);
+
+        $this->writer()->upsert([self::id($run)]);
+
+        self::assertEquals(
+            [(string) $run->id => ['session_usage_delta' => 8.5, 'week_usage_delta' => -1.0]],
+            $this->usageColumns(),
+        );
+    }
+
+    public function test_a_window_with_fewer_than_two_readings_with_a_value_has_no_change(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'facts-writer-usage-few@example.com');
+        $project = $this->project($em, $owner, 'Facts Writer Usage Few');
+        $bridge = $this->seedBridge($em, $owner);
+        $run = $this->seedRun($em, $project, bridgeId: $bridge->id, harness: 'claude', account: 'work');
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:01:00', usedPercent: 30.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:02:00', usedPercent: null);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:01:00', window: 'week', usedPercent: null);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:02:00', window: 'week', usedPercent: null);
+
+        $this->writer()->upsert([self::id($run)]);
+
+        self::assertEquals(
+            [(string) $run->id => ['session_usage_delta' => null, 'week_usage_delta' => null]],
+            $this->usageColumns(),
+        );
+    }
+
+    public function test_a_run_with_no_account_no_bridge_or_no_end_has_no_usage_change(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'facts-writer-usage-none@example.com');
+        $project = $this->project($em, $owner, 'Facts Writer Usage None');
+        $bridge = $this->seedBridge($em, $owner);
+        $noAccount = $this->seedRun($em, $project, bridgeId: $bridge->id);
+        $running = $this->seedRun($em, $project, cardNumber: 2, bridgeId: $bridge->id, account: 'work');
+        $em->getConnection()->executeStatement('UPDATE bridge_worker_runs SET ended_at = NULL WHERE id = ?', [(string) $running->id]);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:01:00', usedPercent: 10.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:04:00', usedPercent: 20.0);
+
+        $this->writer()->upsert([self::id($noAccount), self::id($running)]);
+
+        self::assertEquals([
+            (string) $noAccount->id => ['session_usage_delta' => null, 'week_usage_delta' => null],
+            (string) $running->id => ['session_usage_delta' => null, 'week_usage_delta' => null],
+        ], $this->usageColumns());
+    }
+
+    public function test_another_owners_bridge_with_the_same_id_adds_no_usage_change(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'facts-writer-usage-owner@example.com');
+        $other = $this->user($em, 'facts-writer-usage-other@example.com');
+        $bridge = $this->seedBridge($em, $owner);
+        $otherBridge = $this->seedBridge($em, $other, $bridge->id);
+        $run = $this->seedRun($em, $this->project($em, $owner, 'Facts Writer Usage Mine'), bridgeId: $bridge->id, account: 'work');
+        $this->seedAccountReading($em, $otherBridge, '2026-01-01 10:01:00', usedPercent: 10.0);
+        $this->seedAccountReading($em, $otherBridge, '2026-01-01 10:04:00', usedPercent: 20.0);
+
+        $this->writer()->upsert([self::id($run)]);
+
+        self::assertEquals([(string) $run->id => ['session_usage_delta' => null, 'week_usage_delta' => null]], $this->usageColumns());
+    }
+
+    public function test_a_second_write_replaces_the_usage_change(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'facts-writer-usage-again@example.com');
+        $bridge = $this->seedBridge($em, $owner);
+        $run = $this->seedRun($em, $this->project($em, $owner, 'Facts Writer Usage Again'), bridgeId: $bridge->id, account: 'work');
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:01:00', usedPercent: 10.0);
+        $this->writer()->upsert([self::id($run)]);
+        self::assertEquals([(string) $run->id => ['session_usage_delta' => null, 'week_usage_delta' => null]], $this->usageColumns());
+
+        $this->seedAccountReading($em, $bridge, '2026-01-01 10:04:00', usedPercent: 25.0);
+        $this->writer()->upsert([self::id($run)]);
+
+        self::assertEquals([(string) $run->id => ['session_usage_delta' => 15.0, 'week_usage_delta' => null]], $this->usageColumns());
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function usageColumns(): array
+    {
+        $columns = [];
+        foreach ($this->em()->getConnection()->fetchAllAssociative('SELECT run_id, session_usage_delta, week_usage_delta FROM bridge_worker_run_facts') as $row) {
+            $runId = $row['run_id'];
+            self::assertIsString($runId);
+            unset($row['run_id']);
+            $columns[$runId] = $row;
+        }
+
+        return $columns;
+    }
+
     private static function id(WorkerRun $run): Uuid
     {
         return $run->id ?? throw new \LogicException('The run has no id.');
