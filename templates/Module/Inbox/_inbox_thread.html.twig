@@ -19,6 +19,9 @@
 {% set sessionRow = rows|filter(row => row and row.action.sessionPrompt is not null and row.action.disabledReasonKey is null)|first %}
 {% set sessionMain = card and sessionRow and sessionRow is same as(card.main) %}
 {% set showCard = granted and card and not reviewDenied %}
+{# A sent response is final, but a closed item still starts a new session. #}
+{% set closedSession = home and not open and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) ? inbox_actions(item, hostCardId ?? null).main : null %}
+{% set closedSession = closedSession and closedSession.action.sessionPrompt is not null ? closedSession : null %}
 {% set commandDialog = showCard and runCommand and runCommand.canOpenDialog %}
 {% set addEntryDialog = showCard and runCommand and runCommand.canAddEntry %}
 {% set form = showCard ? inbox_reply_form(item, refusedForm ?? null) : null %}
@@ -197,6 +200,9 @@
                 <p role="status">{{ 'inbox.review.error.target_unavailable'|trans }}</p>
             {% elseif showCard %}
                 {% include '@Inbox/_reply_card.html.twig' with {item: item, card: card, form: form, actionParams: actionParams, responseFrame: responseFrame, cardDrawer: cardDrawer ?? false, refusedForm: refusedForm ?? null, runCommand: runCommand, commandDialog: commandDialog, addEntryDialog: addEntryDialog, sessionRow: sessionRow, sessionMain: sessionMain} only %}
+            {% endif %}
+            {% if closedSession %}
+                {% include '@Inbox/_session_card.html.twig' with {item: item, row: closedSession, form: inbox_reply_form(item, refusedForm ?? null), actionParams: actionParams, responseFrame: responseFrame} only %}
             {% endif %}
             {% if review and (not open or reviewDenied or (card and card.targetGone)) %}
                 {% include '@Inbox/_response_draft.html.twig' with {

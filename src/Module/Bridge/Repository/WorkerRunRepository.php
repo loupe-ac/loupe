@@ -435,15 +435,15 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** The open run of the session on the card, else its latest run. */
-    public function findLatestInteractive(Project $project, Uuid $cardId, Uuid $sessionId): ?WorkerRun
+    /** The open run of the session on the subject, else its latest run. */
+    public function findLatestInteractive(Project $project, Uuid $subjectId, Uuid $sessionId, string $subjectType = WorkSubject::CARD): ?WorkerRun
     {
         return $this->interactive($project)
             ->addSelect('CASE WHEN r.state = :running THEN 0 ELSE 1 END AS HIDDEN openFirst')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
             ->andWhere('r.sessionId = :sessionId')
-            ->setParameter('cardId', $cardId, UuidType::NAME)
-            ->setParameter('cardSubject', WorkSubject::CARD)
+            ->setParameter('cardId', $subjectId, UuidType::NAME)
+            ->setParameter('cardSubject', $subjectType)
             ->setParameter('sessionId', $sessionId, UuidType::NAME)
             ->setParameter('running', WorkerRunState::Running->value)
             ->orderBy('openFirst', 'ASC')
@@ -1317,11 +1317,11 @@ class WorkerRunRepository extends ServiceEntityRepository
     /**
      * The runs that these requests started, newest report first. The subject filter leads with the indexed columns.
      *
-     * @param list<WorkRequest> $requests card requests
+     * @param list<WorkRequest> $requests requests about a subject, which is a card or an inbox item
      *
      * @return list<WorkerRun>
      */
-    public function findOfCardWorkRequests(array $requests): array
+    public function findOfSubjectWorkRequests(array $requests): array
     {
         if ([] === $requests) {
             return [];
@@ -1329,12 +1329,12 @@ class WorkerRunRepository extends ServiceEntityRepository
 
         return array_values($this->createQueryBuilder('r')
             ->andWhere('r.project IN (:projects)')
-            ->andWhere('r.subjectType = :card')
-            ->andWhere('r.subjectId IN (:cards)')
+            ->andWhere('r.subjectType IN (:types)')
+            ->andWhere('r.subjectId IN (:subjects)')
             ->andWhere('r.workRequestId IN (:requests)')
             ->setParameter('projects', array_values(array_unique(array_map(static fn (WorkRequest $request): string => (string) $request->project->id, $requests))))
-            ->setParameter('card', WorkSubject::CARD)
-            ->setParameter('cards', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectId->toRfc4122(), $requests))))
+            ->setParameter('types', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectType, $requests))))
+            ->setParameter('subjects', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectId->toRfc4122(), $requests))))
             ->setParameter('requests', array_map(static fn (WorkRequest $request): string => (string) $request->id, $requests))
             ->orderBy('r.receivedAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')

@@ -306,9 +306,10 @@ final readonly class RunInboxActionHandler
     private function startSession(RunInboxActionCommand $command, string $note): InboxAction
     {
         $item = $command->item;
-        $projectId = $item->project->id ?? throw new \LogicException('A stored project has an id.');
-        $card = $this->cardDirectory->findInProject($projectId, $this->itemActions->cardIdOf($item, InboxActionKind::StartSession) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
-            ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+        $subject = $this->itemActions->sessionSubjectOf($item);
+        $card = $subject->isCard()
+            ? ($this->cardDirectory->findInProject($item->project->id ?? throw new \LogicException('A stored project has an id.'), $subject->id) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
+            : null;
 
         if (mb_strlen($command->sessionPrompt ?? '') > $this->promptLimit->maxLength()) {
             throw new DomainErrors(['action' => self::SESSION_PROMPT_TOO_LONG]);
@@ -329,8 +330,8 @@ final readonly class RunInboxActionHandler
         try {
             $request = ($this->openWorkRequest)(new OpenWorkRequestCommand(
                 project: $item->project,
-                subject: WorkSubject::card($card->id),
-                cardNumber: $card->number,
+                subject: $subject,
+                cardNumber: $card?->number,
                 kind: WorkRequest::SESSION_KIND,
                 capability: Bridge::CAPABILITY_SESSION,
                 ruleId: self::SESSION_RULE_ID,

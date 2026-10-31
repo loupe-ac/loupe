@@ -42,6 +42,7 @@ use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandOutcome;
 use App\Module\Inbox\View\RunCommandRun;
@@ -851,6 +852,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $reviewLookup = self::getContainer()->get(InboxReviewLookup::class);
         self::assertInstanceOf(InboxReviewLookup::class, $reviewLookup);
 
+        $sessionPrompts = self::getContainer()->get(SessionPromptWriter::class);
+        self::assertInstanceOf(SessionPromptWriter::class, $sessionPrompts);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -865,6 +869,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             $waitText,
             $holds,
             $reviewLookup,
+            $sessionPrompts,
         );
     }
 

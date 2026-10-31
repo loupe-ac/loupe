@@ -10,6 +10,7 @@
 {% set main = card.main %}
 {% set mainPost = main and not main.isLink and not main.action.runCommand ? main.action.kind.value : null %}
 {% set controllers = [] %}
+{% set sessionHint = sessionRow and sessionRow.action.bridgeName ? 'inbox.action.start-session.worktree_hint'|trans({'%bridge%': sessionRow.action.bridgeName}) : '' %}
 {% set attrs = {id: form.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply' ~ (answers ? ' lp-inbox-answer' : ''), 'data-turbo-frame': responseFrame} %}
 {% if answers or verdictField %}
     {% set controllers = controllers|merge(['form-draft']) %}
@@ -117,6 +118,7 @@
             {% elseif sessionRow %}
                 <div data-inbox-session-prompt-target="field" data-inbox-session-prompt-field hidden>
                     <twig:Ds:FormField :fieldView="form.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+                    {% if sessionHint %}<twig:Ds:Hint data-inbox-session-worktree>{{ sessionHint }}</twig:Ds:Hint>{% endif %}
                     <twig:Ds:FormActions>
                         <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans(sessionRow.action.labelParams) }}</twig:Ds:Button>
                     </twig:Ds:FormActions>
@@ -131,6 +133,7 @@
             {% else %}
                 {% set hint = card.hintKey and not (verdictField and not review.document) ? card.hintKey|trans : '' %}
             {% endif %}
+            {% if sessionMain and '' == hint %}{% set hint = sessionHint %}{% endif %}
             <twig:Ds:Hint as="span" class="inbox-split__hint">{{ hint }}</twig:Ds:Hint>
             {% if card.dismiss %}
                 <twig:Ds:Button variant="ghost" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))" data-inbox-action="dismiss">{{ card.dismiss.action.labelKey|trans(card.dismiss.action.labelParams) }}</twig:Ds:Button>

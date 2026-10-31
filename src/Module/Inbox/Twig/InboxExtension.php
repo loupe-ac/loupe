@@ -68,6 +68,7 @@ final class InboxExtension extends AbstractExtension
         private readonly InboxRepositoryMisfitRepository $inboxRepositoryMisfits,
         private readonly InboxOutcome $outcome,
         private readonly InboxThreadBuilder $threads,
+        private readonly ItemActions $itemActions,
     ) {
     }
 
@@ -229,7 +230,7 @@ final class InboxExtension extends AbstractExtension
             return $refused;
         }
 
-        $data = new RunInboxActionRequest(sessionPrompt: ItemActions::suggestedSessionPrompt($item));
+        $data = new RunInboxActionRequest(sessionPrompt: $this->itemActions->sessionPromptFor($item));
         $review = InboxItemKind::Review === $item->kind && !$item->isAutomatic() ? $this->inboxReviews->forItem($item) : null;
         if (null !== $review?->document) {
             $version = $this->documentVersions->findLatest($review->document);

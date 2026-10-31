@@ -85,6 +85,17 @@ func WorktreeDir(slug string, card int) (string, error) {
 	return filepath.Join(d, "worktrees", slug, "card-"+strconv.Itoa(card)), nil
 }
 
+// ItemWorktreeDir is the folder of the git worktree of the sessions about one
+// inbox item of a project. It sits beside the card worktrees.
+func ItemWorktreeDir(slug string, item int) (string, error) {
+	d, err := Dir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(d, "worktrees", slug, "item-"+strconv.Itoa(item)), nil
+}
+
 // CodexThreadsDir is the directory that maps the id of a run to the thread id
 // Codex gave its session.
 func CodexThreadsDir() (string, error) {

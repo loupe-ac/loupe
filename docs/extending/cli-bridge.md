@@ -2406,8 +2406,9 @@ run whose process is gone closes at once, as
 ### Session entry
 
 The action **Start an interactive session** on an inbox item opens a work
-request of the kind `session`. The request is about the card of the item. A
-`session` entry in `work:` tells the bridge what to open.
+request of the kind `session`. When the item has exactly one card, the request
+is about that card. [An item with no single card](#an-item-with-no-single-card)
+is covered below. A `session` entry in `work:` tells the bridge what to open.
 
 ```yaml
 launch:
@@ -2440,6 +2441,59 @@ suggestion with `inbox_get`.
 A `session` request that no bridge claims expires after 2 minutes, and the
 card does not pause. Loupe disables the action while no online bridge of the
 project owner reports `session`.
+
+#### An item with no single card
+
+An inbox item can hold no card, or several. The session is then about the item,
+and the request has the subject type `inbox-item` and no card number. The same
+`session` entry opens it. No other entry takes an item subject. The prompt
+placeholders `{cardId}` and `{cardNumber}` fill empty for such a session, so
+word the prompt so that it reads well when it names no card.
+
+The bridge opens that session in a new git worktree that it makes itself, in
+every project. The bridge runs no project script. The worktree has no app, no
+database and no containers of its own. The folder is
+`worktrees/<project>/item-<n>` in the setup folder, where `<n>` is the number
+of the inbox item. The branch is `inbox-<n>`, cut from the default branch of
+`origin`. The bridge fetches that branch first when it can. The launch
+command gets this folder as `{dir}`, and `{cardNumber}` is empty.
+
+The bridge refuses the launch with a reason in these cases:
+
+- The session of an earlier launch for the same item still runs, or the
+  bridge cannot tell whether it runs, or it started less than 10 minutes ago.
+- One check found the earlier session gone, and no second check confirms it
+  yet. A launch counts as a check, so a second launch a moment later
+  replaces the worktree.
+- A branch `inbox-<n>` exists in the project already. The bridge does not
+  replace a branch that it did not make.
+- Git fails to make the worktree. The bridge leaves no folder and no branch
+  behind.
+
+The bridge removes the worktree and the branch `inbox-<n>` when the session
+ends. It removes them also when the worktree holds unsaved work or commits that
+are not pushed. Save the work you want to keep, with a push, before you end the
+session. The bridge finds the end of a session as the heartbeat does: the
+session id is no longer in the process list. It removes the worktree after two
+checks in a row, 30 seconds apart, so one slow process list does not delete live work.
+When `ps` fails, it removes nothing. A bridge that restarts reads a small file
+next to each worktree, `item-<n>.session`, and goes on with the same checks. It
+removes a folder `item-<n>` that has no such file. It never removes a
+`card-<n>` worktree or the project folder.
+
+A Codex session carries no session id in its command line, so the process
+list cannot show that it ended. For a Codex session the bridge looks at the
+Codex session file instead. It counts the session as ended when that file has
+not changed for 24 hours. It then removes the worktree and the branch, and a
+new session for the item can open.
+
+The bridge reports the work kind `inbox-item:session` next to `session`, as
+the [heartbeat reference](../reference/bridge-heartbeat.md#work-requests)
+says. Loupe offers an item request only to a bridge that reports it. A bridge
+from before this change never reports it, so it never gets such a request. The
+bridge reports the launch of the session as an interactive run with
+the subject type `inbox-item` and the id of the item, so the item shows the
+session as running.
 
 ## Columns endpoint
 

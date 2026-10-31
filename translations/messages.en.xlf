@@ -5723,10 +5723,11 @@
             <trans-unit id="inbox.action.open.document.label"><source>inbox.action.open.document.label</source><target>Open the document</target></trans-unit>
             <trans-unit id="inbox.action.open.document.effect"><source>inbox.action.open.document.effect</source><target>Opens the document of this item.</target></trans-unit>
             <trans-unit id="inbox.action.start-session.label"><source>inbox.action.start-session.label</source><target>Start an interactive session</target></trans-unit>
-            <trans-unit id="inbox.action.start-session.effect"><source>inbox.action.start-session.effect</source><target>Opens a terminal on your machine, in a new session on this card.</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.effect"><source>inbox.action.start-session.effect</source><target>Opens a terminal on your machine with this item as its prompt.</target></trans-unit>
             <trans-unit id="inbox.action.start-session.disabled"><source>inbox.action.start-session.disabled</source><target>No bridge can open a session.</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.worktree_hint"><source>inbox.action.start-session.worktree_hint</source><target>Opens in a fresh worktree on %bridge%.</target></trans-unit>
             <trans-unit id="inbox.thread.session_prompt_label"><source>inbox.thread.session_prompt_label</source><target>Prompt for the session</target></trans-unit>
-            <trans-unit id="inbox.thread.session_prompt_hint"><source>inbox.thread.session_prompt_hint</source><target>The agent that filed this item wrote the prompt. Edit it before you start the session.</target></trans-unit>
+            <trans-unit id="inbox.thread.session_prompt_hint"><source>inbox.thread.session_prompt_hint</source><target>Edit the prompt before you start the session.</target></trans-unit>
             <trans-unit id="inbox.action.run-command.label"><source>inbox.action.run-command.label</source><target>Run a command</target></trans-unit>
             <trans-unit id="inbox.action.run-command.effect"><source>inbox.action.run-command.effect</source><target>Runs a command from your rule file on your machine, after you confirm it.</target></trans-unit>
             <trans-unit id="inbox.action.run-command.disabled.running"><source>inbox.action.run-command.disabled.running</source><target>This command is queued or running.</target></trans-unit>

@@ -218,7 +218,9 @@ final class LinkedInboxSectionTest extends WebTestCase
                 static fn (array $query): bool => str_starts_with((string) $query['sql'], 'SELECT') && str_contains((string) $query['sql'], 'FROM inbox_'),
             ),
         ));
-        self::assertCount(3, $inboxReads, implode("\n", $inboxReads));
+        // Every item can start a session, so each thread reads the actions of its item: one read per item, and no other per-item read.
+        self::assertCount(3 + 3, $inboxReads, implode("\n", $inboxReads));
+        self::assertCount(3, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'FROM inbox_actions')));
         self::assertCount(2, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'COUNT(')));
         self::assertCount(0, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'FROM inbox_item_cards ic')));
     }

@@ -76,6 +76,7 @@ use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\Service\SessionPromptLimit;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\Workflow\InboxRetryNotes;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -943,6 +944,89 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->assertRefused($item, InboxActionKind::StartSession, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
     }
 
+    private function noteItem(string $title = 'No card'): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: $title, blocking: false, origin: InboxAskOrigin::Loupe, body: 'The remote is blocked.');
+        $this->em()->persist($item);
+        $this->em()->flush();
+
+        return $item;
+    }
+
+    public function test_a_session_from_an_item_with_no_card_opens_a_request_about_the_item(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->noteItem();
+
+        $action = $this->runAction($item, InboxActionKind::StartSession, '', 'Look at the remote.') ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
+        self::assertSame(
+            [InboxItem::SUBJECT_TYPE, (string) $item->id, null, 'session', 'session', 'inbox:start-session', WorkRequestState::Open, 'Look at the remote.'],
+            [$request->subjectType, (string) $request->subjectId, $request->cardNumber, $request->kind, $request->capability, $request->ruleId, $request->state, $request->prompt],
+        );
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [$request->context->inboxActionId, $request->context->inboxItemNumber, $request->context->inboxItemId]);
+        self::assertSame('Look at the remote.', $action->sessionPrompt);
+        self::assertSame(1, (int) $this->em()->getConnection()->fetchOne("SELECT COUNT(*) FROM outbox_events WHERE type = 'bridge.work_request'"));
+    }
+
+    public function test_a_session_from_a_closed_item_with_no_card_opens_a_request_about_the_item(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->askedItem(InboxItemKind::Question, ['A', 'B']);
+        $this->respond($item, InboxActionKind::Answer, selectedOptions: '0');
+        self::assertSame(InboxItemState::Resolved, $item->state);
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id], [$request?->subjectType, (string) $request?->subjectId]);
+        self::assertSame(InboxItemState::Resolved, $item->state);
+    }
+
+    public function test_a_session_from_an_item_with_several_cards_opens_a_request_about_the_item(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->noteItem('Two cards');
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $other = new Card(project: $this->project, column: $this->card->column, title: 'Other', body: 'Body', number: 99);
+        $this->em()->persist($other);
+        $item->cards->add(new InboxItemCard($item, $other));
+        $this->em()->persist($item);
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([InboxItem::SUBJECT_TYPE, null], [$request?->subjectType, $request?->cardNumber]);
+    }
+
+    public function test_a_session_from_an_item_with_one_card_still_runs_on_the_card(): void
+    {
+        $this->sessionBridge();
+        $item = $this->noteItem('One card');
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([WorkSubject::CARD, $this->card->number], [$request?->subjectType, $request?->cardNumber]);
+    }
+
+    public function test_a_session_from_an_item_is_refused_while_its_session_request_is_live_and_leaves_no_row(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->noteItem();
+        $this->runAction($item, InboxActionKind::StartSession);
+
+        $this->assertRefused($item, InboxActionKind::StartSession, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+
+        $this->em()->clear();
+        self::assertCount(1, $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
     public function test_a_session_is_refused_while_a_session_request_of_the_card_is_live_and_leaves_no_row(): void
     {
         $this->sessionBridge();
@@ -1528,9 +1612,10 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         return $item;
     }
 
-    private function sessionBridge(): void
+    private function sessionBridge(bool $itemSessions = false): void
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->workKinds = $itemSessions ? [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)] : [];
         $this->bridge->projects = [(string) $this->project->id];
         $this->em()->flush();
     }
@@ -1637,6 +1722,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->service(CardWaitText::class),
             $this->service(CardHoldRepository::class),
             $this->service(InboxReviewLookup::class),
+            $this->service(SessionPromptWriter::class),
         );
     }
 
