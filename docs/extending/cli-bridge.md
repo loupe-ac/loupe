@@ -877,13 +877,16 @@ A Claude Code account has three sources, in this order:
    `five_hour` and `seven_day` windows. This part of the output is not
    documented, so a Claude Code update can remove it. The source is
    `claude-event`. Claude Code gives `utilization` as a fraction, and the bridge
-   multiplies it by 100.
-2. A `rate_limit_event` line with no `unifiedWindows` carries one window with
+   multiplies it by 100. A window with no `resetsAt` takes the top-level
+   `resetsAt` and `utilization` when `rateLimitType` names that window.
+   Otherwise the bridge skips the window.
+2. A `rate_limit_event` line also carries one window at its top level, with
    `status`, `resetsAt` and sometimes `utilization`. A `rejected` status means
    the window is limited. The window comes from `rateLimitType`. When the line
    has none, the window is `session` if the reset is at most 5 hours ahead, and
-   `week` otherwise. The source is `claude-status`. This line often has no
-   `utilization`, and `usedPercent` is then `null`.
+   `week` otherwise. The bridge sends this window when `unifiedWindows` gives
+   no complete reading for it. The source is `claude-status`. This window often
+   has no `utilization`, and `usedPercent` is then `null`.
 3. The message "You've hit your session limit · resets 3:45pm" and the same
    forms for the weekly, Opus and Sonnet limits. The `session` limit reads the
    window `session`, and the others read `week`. The bridge reads the reset

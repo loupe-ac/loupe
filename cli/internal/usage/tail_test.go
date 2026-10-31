@@ -152,3 +152,15 @@ func TestCollectorKeepsAResetAtTheLimitOfTheLead(t *testing.T) {
 		t.Fatalf("pending = %+v", c.Pending())
 	}
 }
+
+func TestCollectorKeepsAWindowThatTheTopLevelCompletes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	c := NewCollector()
+	c.Start("run1", "claude", NewTail(func() (string, bool) { return path, true }, ParseClaude))
+	appendTo(t, path, `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":1793420400,"rateLimitType":"five_hour","unifiedWindows":{"five_hour":{"utilization":1}}}}`+"\n")
+	c.Finish("run1", now)
+	rs := c.Pending()["claude"]
+	if len(rs) != 1 || rs[0].Window != "session" || !rs[0].Limited || rs[0].ResetsAt.Unix() != 1793420400 || pct(t, rs[0]) != 100 {
+		t.Fatalf("pending = %+v", c.Pending())
+	}
+}

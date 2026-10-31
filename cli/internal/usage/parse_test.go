@@ -218,3 +218,40 @@ func TestCodexIgnoresOtherLimitAndNoLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestClaudeTopLevelBacksUpIncompleteWindows(t *testing.T) {
+	line := `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":1793420400,"rateLimitType":"five_hour","utilization":0.9,` +
+		`"unifiedWindows":{"five_hour":{"status":"rejected"},"seven_day":{"utilization":0.2}}}}`
+	got := ParseClaude([]byte(line), now)
+	if len(got) != 1 {
+		t.Fatalf("readings = %+v", got)
+	}
+	s := got[0]
+	if s.Window != "session" || !s.Limited || s.Source != SourceClaudeEvent || s.ResetsAt == nil || s.ResetsAt.Unix() != 1793420400 || pct(t, s) != 90 {
+		t.Errorf("session = %+v", s)
+	}
+}
+
+func TestClaudeTopLevelFillsAWindowThatUnifiedWindowsLacks(t *testing.T) {
+	line := `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":` + itoa(now.Add(30*time.Hour).Unix()) + `,"rateLimitType":"seven_day",` +
+		`"unifiedWindows":{"five_hour":{"utilization":0.3,"resetsAt":1793420400}}}}`
+	got := byWindow(ParseClaude([]byte(line), now))
+	if len(got) != 2 {
+		t.Fatalf("windows = %+v", got)
+	}
+	if s := got["session"]; s.Limited || s.Source != SourceClaudeEvent || pct(t, s) != 30 {
+		t.Errorf("session = %+v", s)
+	}
+	if w := got["week"]; !w.Limited || w.Source != SourceClaudeStatus || w.UsedPercent != nil {
+		t.Errorf("week = %+v", w)
+	}
+}
+
+func TestClaudeCompleteWindowWinsOverTopLevel(t *testing.T) {
+	line := `{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","resetsAt":1793430000,"rateLimitType":"five_hour",` +
+		`"unifiedWindows":{"five_hour":{"utilization":0.3,"resetsAt":1793420400}}}}`
+	got := ParseClaude([]byte(line), now)
+	if len(got) != 1 || got[0].Source != SourceClaudeEvent || got[0].ResetsAt.Unix() != 1793420400 {
+		t.Fatalf("readings = %+v", got)
+	}
+}

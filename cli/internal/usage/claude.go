@@ -62,8 +62,10 @@ func ParseClaude(line []byte, now time.Time) []Reading {
 	return nil
 }
 
-// claudeEvent reads the windows of unifiedWindows first, and the top-level
-// status and reset time when the event has no windows.
+// claudeEvent reads the windows of unifiedWindows, and backs them up with the
+// top-level status, reset time and use. A window with no reset time takes the
+// top-level one when the top level names that window, and the top-level
+// reading fills a window that unifiedWindows does not complete.
 func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 	var info struct {
 		Status         string                  `json:"status"`
@@ -77,15 +79,26 @@ func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 	}
 	rejected := info.Status == "rejected"
 	var out []Reading
+	read := map[string]bool{}
 	for key, w := range info.UnifiedWindows {
 		name, known := claudeWindows[key]
 		if !known {
 			continue
 		}
+		top := key == info.RateLimitType
+		if unixTime(w.ResetsAt) == nil && top {
+			w.ResetsAt = info.ResetsAt
+		}
+		if w.Utilization == nil && top {
+			w.Utilization = info.Utilization
+		}
+		if unixTime(w.ResetsAt) == nil {
+			continue
+		}
 		r := Reading{
 			Window:   name,
 			ResetsAt: unixTime(w.ResetsAt),
-			Limited:  w.Status == "rejected" || (rejected && key == info.RateLimitType),
+			Limited:  w.Status == "rejected" || (rejected && top),
 			Source:   SourceClaudeEvent,
 			ReadAt:   now,
 		}
@@ -93,31 +106,35 @@ func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 			r.UsedPercent = percent(fromFraction(*w.Utilization))
 		}
 		out = append(out, r)
+		read[name] = true
 	}
-	if len(out) > 0 {
-		return out
+	if r, ok := claudeStatus(info.Status, info.ResetsAt, info.Utilization, info.RateLimitType, now); ok && !read[r.Window] {
+		out = append(out, r)
 	}
 
-	name := claudeWindows[info.RateLimitType]
-	resets := unixTime(info.ResetsAt)
+	return out
+}
+
+// claudeStatus reads the top-level status and reset time of an event as one
+// window. The window comes from rateLimitType, or else from the reset time.
+func claudeStatus(status string, resetsAt int64, utilization *float64, rateLimitType string, now time.Time) (Reading, bool) {
+	name := claudeWindows[rateLimitType]
+	resets := unixTime(resetsAt)
 	switch {
-	case name != "":
 	case resets == nil:
-		return nil
+		return Reading{}, false
+	case name != "":
 	case resets.Sub(now) <= sessionWindow:
 		name = "session"
 	default:
 		name = "week"
 	}
-	if info.Status == "" && resets == nil {
-		return nil
-	}
-	r := Reading{Window: name, ResetsAt: resets, Limited: rejected, Source: SourceClaudeStatus, ReadAt: now}
-	if info.Utilization != nil {
-		r.UsedPercent = percent(fromFraction(*info.Utilization))
+	r := Reading{Window: name, ResetsAt: resets, Limited: status == "rejected", Source: SourceClaudeStatus, ReadAt: now}
+	if utilization != nil {
+		r.UsedPercent = percent(fromFraction(*utilization))
 	}
 
-	return []Reading{r}
+	return r, true
 }
 
 var (
