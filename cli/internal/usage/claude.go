@@ -63,9 +63,10 @@ func ParseClaude(line []byte, now time.Time) []Reading {
 }
 
 // claudeEvent reads the windows of unifiedWindows, and backs them up with the
-// top-level status, reset time and use. A window with no reset time takes the
-// top-level one when the top level names that window, and the top-level
-// reading fills a window that unifiedWindows does not complete.
+// top-level status, reset time and use. The top level applies to the window
+// that rateLimitType names, or, with no rateLimitType, to the window that its
+// reset time gives. The top-level reading fills a window that unifiedWindows
+// does not complete.
 func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 	var info struct {
 		Status         string                  `json:"status"`
@@ -78,6 +79,7 @@ func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 		return nil
 	}
 	rejected := info.Status == "rejected"
+	status, hasStatus := claudeStatus(info.Status, info.ResetsAt, info.Utilization, info.RateLimitType, now)
 	var out []Reading
 	read := map[string]bool{}
 	for key, w := range info.UnifiedWindows {
@@ -85,7 +87,7 @@ func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 		if !known {
 			continue
 		}
-		top := key == info.RateLimitType
+		top := key == info.RateLimitType || (info.RateLimitType == "" && hasStatus && status.Window == name)
 		if unixTime(w.ResetsAt) == nil && top {
 			w.ResetsAt = info.ResetsAt
 		}
@@ -108,8 +110,8 @@ func claudeEvent(raw json.RawMessage, now time.Time) []Reading {
 		out = append(out, r)
 		read[name] = true
 	}
-	if r, ok := claudeStatus(info.Status, info.ResetsAt, info.Utilization, info.RateLimitType, now); ok && !read[r.Window] {
-		out = append(out, r)
+	if hasStatus && !read[status.Window] {
+		out = append(out, status)
 	}
 
 	return out

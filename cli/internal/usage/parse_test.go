@@ -255,3 +255,39 @@ func TestClaudeCompleteWindowWinsOverTopLevel(t *testing.T) {
 		t.Fatalf("readings = %+v", got)
 	}
 }
+
+func TestClaudeTopLevelStatusWithoutTypeAppliesToItsWindow(t *testing.T) {
+	soon, later := itoa(now.Add(4*time.Hour).Unix()), itoa(now.Add(30*time.Hour).Unix())
+	line := `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":` + soon + `,` +
+		`"unifiedWindows":{"five_hour":{"utilization":0.95,"resetsAt":` + soon + `},"seven_day":{"utilization":0.4,"resetsAt":` + later + `}}}}`
+	got := byWindow(ParseClaude([]byte(line), now))
+	if len(got) != 2 {
+		t.Fatalf("windows = %+v", got)
+	}
+	if s := got["session"]; !s.Limited || s.Source != SourceClaudeEvent || pct(t, s) != 95 {
+		t.Errorf("session = %+v", s)
+	}
+	if w := got["week"]; w.Limited {
+		t.Errorf("week = %+v", w)
+	}
+}
+
+func TestClaudeTopLevelWithoutTypeFillsAWindowWithNoResetTime(t *testing.T) {
+	later := itoa(now.Add(30 * time.Hour).Unix())
+	line := `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":` + later + `,` +
+		`"unifiedWindows":{"seven_day":{"utilization":1}}}}`
+	got := ParseClaude([]byte(line), now)
+	if len(got) != 1 || got[0].Window != "week" || !got[0].Limited || got[0].Source != SourceClaudeEvent || got[0].ResetsAt.Unix() != now.Add(30*time.Hour).Unix() {
+		t.Fatalf("readings = %+v", got)
+	}
+}
+
+func TestClaudeUnknownTypeLeavesUnifiedWindowsAlone(t *testing.T) {
+	soon := itoa(now.Add(4 * time.Hour).Unix())
+	line := `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":` + soon + `,"rateLimitType":"seven_day_opus",` +
+		`"unifiedWindows":{"five_hour":{"utilization":0.3,"resetsAt":` + soon + `}}}}`
+	got := ParseClaude([]byte(line), now)
+	if len(got) != 1 || got[0].Limited {
+		t.Fatalf("readings = %+v", got)
+	}
+}
