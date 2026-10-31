@@ -11,7 +11,7 @@ just skill-eval --tag insurance       # the cases with one tag
 just skill-eval --runs 1              # a quick, noisy pass
 ```
 
-The recipe runs on the host, because it calls `claude`. It copies `plugins/loupe` into a temporary folder and adds two things to the copy:
+The recipe runs on the host, because it calls `claude`. It copies `plugins/loupe` into a temporary folder and adds these to the copy:
 
 1. A `.mcp.json` that declares a server named `loupe`. A mock attaches only to a server that the plugin declares, and the real plugin declares none, because `loupe init` adds the server at user level. The run never starts this server, so its URL can point nowhere.
 2. The `evals/` folder of this suite.
@@ -52,6 +52,8 @@ Each case runs 3 times, so a score moves in steps of a third. A drop of one step
 4. Add a mock to `evals/mocks/loupe/<tool>.md` for each `loupe` tool that the case needs. A mock in `<case>/mocks/loupe/` overrides the suite mock for that case alone.
 5. Run the case with `just skill-eval --case <name> --runs 1`.
 6. Break the rule in your local copy of the skill, and run the case again. The grader must go red. Then restore the skill.
+
+The report and `aggregate-result.json` hold the grader verdicts, not the reply of Claude. To read the reply, add `--keep-temp`, and open `trace.jsonl` in the folder that the run prints. Run `chmod 700` on that folder and on its `sealed/` folder first, because the run locks them.
 
 Keep a case at the point of the decision. A run has no shell, so a case cannot push or run git. Tell Claude what already happened, and ask for the next step, the final `STAGE RESULT` line, or the exact commands.
 

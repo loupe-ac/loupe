@@ -167,10 +167,10 @@ phpunit *args:
 js-test *args:
     npx vitest run "$@"
 
-# Offline evals of plugins/loupe against mocked `loupe` MCP tools; runs on the host.
-# Usage: just skill-eval [--case <glob>] [other plugin eval flags]. SKILL_EVAL_REF=<ref> takes the plugin from a git ref.
-# The copy drops hooks/, whose SessionEnd hook calls the real `loupe` CLI, and names a
-# `loupe` server so the mocks attach. Nothing ever connects to its URL.
+# Runs on the host. The plugin copy drops hooks/, whose SessionEnd hook calls the real
+# `loupe` CLI, and names a `loupe` server so the mocks attach. Nothing connects to its URL.
+# SKILL_EVAL_REF=<ref> takes the plugin from a git ref. See tests/skill-evals/README.md.
+# Offline evals of plugins/loupe with mocked loupe tools. Usage: just skill-eval [--case <glob>] [flags]
 skill-eval *args:
     #!/usr/bin/env bash
     set -euo pipefail
