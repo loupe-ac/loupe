@@ -19,6 +19,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -51,6 +53,9 @@ final class StripeWebhookController extends AppController
         private readonly AuditContext $auditContext,
         private readonly Auditor $auditor,
 
+        #[Autowire(service: 'limiter.stripe_webhook')]
+        private readonly RateLimiterFactoryInterface $limiter,
+
         #[Autowire(env: 'STRIPE_WEBHOOK_SECRET')]
         private readonly string $webhookSecret,
     ) {
@@ -61,6 +66,25 @@ final class StripeWebhookController extends AppController
         // Declared, never detected: an anonymous request is not evidence of a
         // webhook — registration and password reset are anonymous too.
         $this->auditContext->channel = AuditChannel::Webhook;
+
+        if (!$this->limiter->create($request->getClientIp() ?? 'unknown')->consume()->isAccepted()) {
+            throw new TooManyRequestsHttpException(message: 'Too many Stripe deliveries.');
+        }
+
+        // An empty key still produces a valid HMAC, so verifying against it would
+        // accept any event a sender chose to sign.
+        if ('' === $this->webhookSecret) {
+            $this->auditor->record(
+                'billing.webhook_rejected',
+                AuditOutcome::Refused,
+                ['reason' => 'no_secret'],
+                category: Auditor::CATEGORY_SECURITY,
+            );
+
+            $this->logger->error('billing.webhook_secret_missing');
+
+            return new JsonResponse(['error' => 'webhook not configured'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
 
         try {
             $event = Webhook::constructEvent(
