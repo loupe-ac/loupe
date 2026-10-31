@@ -22,6 +22,7 @@ use App\Module\Board\Workflow\Condition\CardHasChildren;
 use App\Module\Board\Workflow\Condition\CardHasClosedBlocker;
 use App\Module\Board\Workflow\Condition\CardHasOpenBlocker;
 use App\Module\Board\Workflow\Condition\CardHasType;
+use App\Module\Board\Workflow\Condition\CardParentEpicBranchExists;
 use App\Module\Board\Workflow\Condition\CardParentEpicBranchSynced;
 use App\Module\Board\Workflow\Condition\CardParentExists;
 use App\Module\Board\Workflow\Condition\CardReviewNeedsPerson;
@@ -29,6 +30,7 @@ use App\Module\Board\Workflow\Condition\CardUnseenArtifact;
 use App\Module\Board\Workflow\Condition\CardValue;
 use App\Module\Board\Workflow\Condition\ParentDocumentApproved;
 use App\Module\Board\Workflow\DocumentsFacts;
+use App\Module\Board\Workflow\EpicBranchExistsFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FollowUpFacts;
 use App\Module\Board\Workflow\HumanReviewFacts;
@@ -66,6 +68,8 @@ final class CardConditionsTest extends TestCase
         yield 'no closed blocker' => [new CardHasClosedBlocker(), [], self::card(hasClosedBlocker: false), false];
 
         yield 'epic branch synced' => [new CardParentEpicBranchSynced(), [], FactsMother::facts(provided: [EpicBranchSyncFacts::class => new EpicBranchSyncFacts(true)]), true];
+        yield 'epic branch exists' => [new CardParentEpicBranchExists(), [], FactsMother::facts(provided: [EpicBranchExistsFacts::class => new EpicBranchExistsFacts(true)]), true];
+        yield 'epic branch missing' => [new CardParentEpicBranchExists(), [], FactsMother::facts(provided: [EpicBranchExistsFacts::class => new EpicBranchExistsFacts(false)]), false];
         yield 'epic branch not synced' => [new CardParentEpicBranchSynced(), [], FactsMother::facts(provided: [EpicBranchSyncFacts::class => new EpicBranchSyncFacts(false)]), false];
 
         yield 'follows only finished cards' => [new CardFollowsFinished(), [], self::followUp(true, true), true];
@@ -158,6 +162,7 @@ final class CardConditionsTest extends TestCase
         yield 'card.value, held' => [new CardValue(), ['key' => 'k'], 'workflow.waiting.card_value_set', ['%key%' => 'k']];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], 'workflow.waiting.card_has_open_blocker', []];
         yield 'card.parent.epic_branch.synced' => [new CardParentEpicBranchSynced(), [], 'workflow.waiting.card_parent_epic_branch_synced', []];
+        yield 'card.parent.epic_branch.exists' => [new CardParentEpicBranchExists(), [], 'workflow.waiting.card_parent_epic_branch_exists', []];
         yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], 'workflow.waiting.card_has_closed_blocker', []];
         yield 'card.follows.finished' => [new CardFollowsFinished(), [], 'workflow.waiting.card_follows_finished', []];
         yield 'card.parent.exists' => [new CardParentExists(), [], 'workflow.waiting.card_is_child', []];
@@ -211,6 +216,7 @@ final class CardConditionsTest extends TestCase
         yield 'card.type' => [new CardHasType(), ['types' => ['epic']], [CardTypeFacts::class]];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], [BlockerFacts::class]];
         yield 'card.parent.epic_branch.synced' => [new CardParentEpicBranchSynced(), [], [EpicBranchSyncFacts::class]];
+        yield 'card.parent.epic_branch.exists' => [new CardParentEpicBranchExists(), [], [EpicBranchExistsFacts::class]];
         yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], [BlockerFacts::class]];
         yield 'card.follows.finished' => [new CardFollowsFinished(), [], [FollowUpFacts::class]];
         yield 'card.parent.exists' => [new CardParentExists(), [], [ParentFacts::class]];

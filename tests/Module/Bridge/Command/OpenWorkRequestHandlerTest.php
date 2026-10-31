@@ -81,7 +81,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             'ruleId' => 'implement-on-entry',
             'createdAt' => self::NOW,
             'resumeSessionId' => null,
-            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null],
+            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null, 'epicBranch' => null],
             'model' => null,
             'effort' => null,
             'prompt' => null,

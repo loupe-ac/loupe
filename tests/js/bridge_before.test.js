@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
     chmodSync,
+    existsSync,
     mkdirSync,
     mkdtempSync,
     realpathSync,
@@ -40,8 +41,8 @@ function git(cwd, ...args) {
     return run.stdout.trim();
 }
 
-function bridgeBefore() {
-    return spawnSync('bash', [script, '--git-only', '7', 'card-id', '12'], {
+function bridgeBefore(args = ['--git-only', '7', 'card-id', '12']) {
+    return spawnSync('bash', [script, ...args], {
         cwd: main,
         encoding: 'utf8',
         env: {
@@ -151,5 +152,115 @@ describe('bridge-before.sh with a branch that another worktree holds', () => {
         expect(run.status).toBe(1);
         expect(run.stderr).toContain('the main checkout holds feat');
         expect(git(main, 'branch', '--show-current')).toBe('feat');
+    });
+});
+
+describe('bridge-before.sh with an epic branch', () => {
+    const card = () => join(main, '.worktrees', 'card-7');
+
+    beforeEach(() => {
+        git(main, 'worktree', 'remove', holder);
+        git(main, 'branch', '-D', 'feat');
+        git(main, 'commit', '--quiet', '--allow-empty', '-m', 'epic work');
+        git(main, 'push', '--quiet', 'origin', 'HEAD:epic/852');
+    });
+
+    it('cuts a new worktree from the epic branch', () => {
+        const run = bridgeBefore([
+            '--git-only',
+            '--epic-branch=epic/852',
+            '7',
+            'card-id',
+        ]);
+
+        expect(run.status, run.stderr).toBe(0);
+        expect(run.stdout.trim()).toBe(card());
+        expect(git(card(), 'branch', '--show-current')).toBe('');
+        expect(git(card(), 'rev-parse', 'HEAD')).toBe(
+            git(main, 'rev-parse', 'origin/epic/852'),
+        );
+        expect(git(card(), 'rev-parse', 'HEAD')).not.toBe(
+            git(main, 'rev-parse', 'origin/main'),
+        );
+    });
+
+    it('takes the option before or after --git-only', () => {
+        const run = bridgeBefore([
+            '--epic-branch=epic/852',
+            '--git-only',
+            '7',
+            'card-id',
+        ]);
+
+        expect(run.status, run.stderr).toBe(0);
+        expect(git(card(), 'rev-parse', 'HEAD')).toBe(
+            git(main, 'rev-parse', 'origin/epic/852'),
+        );
+    });
+
+    it('stops and names a branch that is missing on origin, with no fallback to main', () => {
+        const run = bridgeBefore([
+            '--git-only',
+            '--epic-branch=epic/999',
+            '7',
+            'card-id',
+        ]);
+
+        expect(run.status).not.toBe(0);
+        expect(run.stderr).toContain('epic/999');
+        expect(existsSync(card())).toBe(false);
+    });
+
+    it('cuts from main when the option is empty', () => {
+        const run = bridgeBefore([
+            '--git-only',
+            '--epic-branch=',
+            '7',
+            'card-id',
+        ]);
+
+        expect(run.status, run.stderr).toBe(0);
+        expect(git(card(), 'rev-parse', 'HEAD')).toBe(
+            git(main, 'rev-parse', 'origin/main'),
+        );
+    });
+
+    it.each(['-bad', 'a..b', 'epic/$(x)', 'epic branch', 'epic/'])(
+        'refuses the name %s',
+        (name) => {
+            const run = bridgeBefore([
+                '--git-only',
+                `--epic-branch=${name}`,
+                '7',
+                'card-id',
+            ]);
+
+            expect(run.status).not.toBe(0);
+            expect(existsSync(card())).toBe(false);
+        },
+    );
+
+    it('leaves an existing worktree where it is', () => {
+        git(
+            main,
+            'worktree',
+            'add',
+            '--quiet',
+            '--detach',
+            card(),
+            'origin/main',
+        );
+
+        const run = bridgeBefore([
+            '--git-only',
+            '--epic-branch=epic/852',
+            '7',
+            'card-id',
+        ]);
+
+        expect(run.status, run.stderr).toBe(0);
+        expect(git(card(), 'rev-parse', 'HEAD')).toBe(
+            git(main, 'rev-parse', 'origin/main'),
+        );
     });
 });
