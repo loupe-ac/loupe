@@ -40,6 +40,12 @@ final readonly class WorkTakerFacts
         return null === $this->withoutTaker() ? $this->earliest(WorkTakerState::Limited) : null;
     }
 
+    /** The reading of a request whose bridge lost its network, or null while another request has no taker at all. */
+    public function disconnected(): ?WorkTakerReading
+    {
+        return null === $this->withoutTaker() ? $this->earliest(WorkTakerState::Disconnected) : null;
+    }
+
     /** The time the first reading changes because its online bridge turns quiet. */
     public function changesAt(): ?\DateTimeImmutable
     {

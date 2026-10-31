@@ -1,5 +1,5 @@
 key: simple
-version: 12
+version: 13
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -178,6 +178,12 @@ markers:
       remedy: marker.usage_limit.remedy
       link: agents
       when: { card.run.work_taker_limited: {} }
+    - key: bridge-disconnected
+      kind: waiting
+      label: marker.bridge_disconnected
+      remedy: marker.bridge_disconnected.remedy
+      link: agents
+      when: { card.run.work_taker_disconnected: {} }
     - key: work-requested
       kind: waiting
       label: marker.work_requested
@@ -188,6 +194,7 @@ markers:
               - not: { card.run.work_no_taker: {} }
               - not: { card.run.work_taker_paused: {} }
               - not: { card.run.work_taker_limited: {} }
+              - not: { card.run.work_taker_disconnected: {} }
     - key: retry-scheduled
       kind: waiting
       label: marker.retry_scheduled

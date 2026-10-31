@@ -32,7 +32,8 @@ final readonly class WorkTakers
     }
 
     /**
-     * A claimed request has a worker already, so it gets no reading.
+     * A claimed request has a worker already, so it gets a reading only when its bridge went quiet. The same goes for
+     * an open request that waits after a network outage.
      *
      * @param list<WorkRequest> $requests
      *
@@ -40,18 +41,29 @@ final readonly class WorkTakers
      */
     public function forRequests(Project $project, array $requests): array
     {
-        $open = array_values(array_filter($requests, static fn (WorkRequest $request): bool => WorkRequestState::Open === $request->state));
-        if ([] === $open) {
+        $live = array_values(array_filter($requests, static fn (WorkRequest $request): bool => \in_array($request->state, [WorkRequestState::Open, WorkRequestState::Claimed], true)));
+        if ([] === $live) {
             return [];
         }
 
         [$followers, $narrowedAt, $quietBefore, $window, $expiredIds] = $this->followersOf($project);
 
-        $matches = $this->bridgeWorkMatches->accountsOfRequests(array_map(static fn (WorkRequest $request): Uuid => $request->id ?? throw new \LogicException('A stored request has an id.'), $open));
+        $open = array_values(array_filter($live, static fn (WorkRequest $request): bool => WorkRequestState::Open === $request->state));
+        $matches = [] === $open ? [] : $this->bridgeWorkMatches->accountsOfRequests(array_map(static fn (WorkRequest $request): Uuid => $request->id ?? throw new \LogicException('A stored request has an id.'), $open));
         $blocked = [];
         $readings = [];
-        foreach ($open as $request) {
+        foreach ($live as $request) {
             $requestId = ($request->id ?? throw new \LogicException('A stored request has an id.'))->toRfc4122();
+            $disconnected = $this->disconnected($project, $request, $followers, $quietBefore, $window);
+            if (null !== $disconnected) {
+                $readings[$requestId] = $disconnected;
+
+                continue;
+            }
+            if (WorkRequestState::Open !== $request->state) {
+                continue;
+            }
+
             $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => self::takes($bridge, $request)));
             // Offers go to the target bridge alone, so no other bridge counts, also when the target cannot take the work.
             $targetId = $request->targetBridgeId;
@@ -73,6 +85,33 @@ final readonly class WorkTakers
         }
 
         return $readings;
+    }
+
+    /**
+     * Disconnected when the bridge of the claim sent no heartbeat within the liveness window, or when the request
+     * waits after a network outage. The reading changes at the end of the claim or of the wait.
+     *
+     * @param list<Bridge> $followers
+     */
+    private function disconnected(Project $project, WorkRequest $request, array $followers, \DateTimeImmutable $quietBefore, int $window): ?WorkTakerReading
+    {
+        if (WorkRequestState::Claimed === $request->state) {
+            $bridge = null === $request->bridgeId ? null : $this->bridges->findOneByOwnerAndId($project->owner, $request->bridgeId);
+            if (null === $bridge || $bridge->lastSeenAt >= $quietBefore) {
+                return null;
+            }
+
+            return new WorkTakerReading(WorkTakerState::Disconnected, $bridge->lastSeenAt->modify(\sprintf('+%d seconds', $window)), $request->leaseUntil, bridgeLabel: $bridge->label, bridgeSeenAt: $bridge->lastSeenAt, claimed: true);
+        }
+
+        if (WorkRequest::WAIT_NETWORK !== $request->waitCause || null === $request->waitUntil || $request->waitUntil <= $this->clock->now()) {
+            return null;
+        }
+
+        $targetId = $request->targetBridgeId;
+        $target = null === $targetId ? null : array_find($followers, static fn (Bridge $bridge): bool => $targetId->equals($bridge->id));
+
+        return new WorkTakerReading(WorkTakerState::Disconnected, $request->reopenedAt ?? $request->createdAt, $request->waitUntil, bridgeLabel: $target?->label, bridgeSeenAt: $target?->lastSeenAt);
     }
 
     /**

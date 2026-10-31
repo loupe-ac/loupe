@@ -21,7 +21,7 @@ final class WorkerRunStateTest extends TestCase
     public function test_every_state_has_its_backing_value(): void
     {
         self::assertSame(
-            ['queued', 'replaced', 'resumed', 'skipped', 'preparing', 'running', 'stopping', 'stopped', 'waiting-for-person', 'dropped', 'usage-limit', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up', 'timed-out', 'lost', 'closed'],
+            ['queued', 'replaced', 'resumed', 'skipped', 'preparing', 'running', 'stopping', 'stopped', 'waiting-for-person', 'dropped', 'usage-limit', 'network', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up', 'timed-out', 'lost', 'closed'],
             array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::cases()),
         );
     }
@@ -84,6 +84,22 @@ final class WorkerRunStateTest extends TestCase
         self::assertContains('usage-limit', ReportWorkerRunStateRequest::bridgeStates());
     }
 
+    public function test_a_run_that_a_network_outage_stopped_is_waiting_and_no_failure(): void
+    {
+        $state = WorkerRunState::Network;
+
+        self::assertSame('network', $state->value);
+        self::assertSame('bridge.worker_runs.state.network', $state->translationKey());
+        self::assertSame('pending', $state->chipModifier());
+        self::assertFalse($state->isOpen());
+        self::assertTrue($state->isOutcome());
+        self::assertFalse($state->isFailure());
+        self::assertFalse($state->isStop());
+        self::assertFalse($state->isWarning());
+        self::assertFalse($state->isResumable());
+        self::assertContains('network', ReportWorkerRunStateRequest::bridgeStates());
+    }
+
     public function test_no_result_reads_as_a_failure_on_the_page(): void
     {
         self::assertSame('no-result', WorkerRunState::NoResult->value);
@@ -94,7 +110,7 @@ final class WorkerRunStateTest extends TestCase
     public function test_only_the_exit_code_states_are_outcomes(): void
     {
         self::assertSame(
-            ['usage-limit', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up'],
+            ['usage-limit', 'network', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up'],
             array_values(array_map(
                 static fn (WorkerRunState $state): string => $state->value,
                 array_filter(WorkerRunState::cases(), static fn (WorkerRunState $state): bool => $state->isOutcome()),

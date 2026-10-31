@@ -21,6 +21,7 @@ use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
+use App\Module\Bridge\ValueObject\NetworkHandBack;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -252,6 +253,63 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         self::assertSame(0, $this->matchCount($request));
     }
 
+    public function test_a_network_hand_back_opens_the_request_for_five_minutes_and_spends_no_retry(): void
+    {
+        [$owner, $request] = $this->claimed('settle-network');
+        $bridgeId = $request->bridgeId;
+        $session = Uuid::v4();
+        $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
+        $stored = DispatchedEvents::of(self::getContainer(), BridgeAccountReadingsStored::class);
+
+        $result = $this->settle($owner, $request, WorkRequestState::Open, handBack: new NetworkHandBack('work', $session, true));
+
+        self::assertTrue($result->handedBack);
+        self::assertFalse($result->settled);
+        self::assertNull($result->refusal);
+        self::assertSame([], $result->usageFollowers);
+        $this->em()->clear();
+        $reopened = $this->em()->find(WorkRequest::class, $request->id) ?? throw new \LogicException('The request exists.');
+        self::assertSame(WorkRequestState::Open, $reopened->state);
+        self::assertNull($reopened->bridgeId);
+        self::assertNull($reopened->claimToken);
+        self::assertNull($reopened->leaseUntil);
+        self::assertNull($reopened->settledAt);
+        self::assertNull($reopened->reason);
+        self::assertSame(['network', 'work', $session->toRfc4122()], [$reopened->waitCause, $reopened->waitAccount, $reopened->resumeSessionId?->toRfc4122()]);
+        self::assertSame('2026-10-01T12:35:00+00:00', $reopened->waitUntil?->format(\DateTimeInterface::ATOM));
+        self::assertSame(self::NOW, $reopened->reopenedAt?->format(\DateTimeInterface::ATOM));
+        self::assertSame($bridgeId?->toRfc4122(), $reopened->targetBridgeId?->toRfc4122());
+        self::assertCount(1, $changes->events());
+        self::assertSame([], $this->matchedAccounts($request));
+        self::assertSame([], $stored->events());
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_account_readings'));
+    }
+
+    public function test_a_network_hand_back_of_a_run_with_no_assistant_turn_binds_the_request_to_no_bridge(): void
+    {
+        [$owner, $request] = $this->claimed('settle-network-no-turn');
+
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: new NetworkHandBack('work', null, false));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(WorkRequest::class, $request->id) ?? throw new \LogicException('The request exists.');
+        self::assertNull($stored->targetBridgeId);
+        self::assertSame('network', $stored->waitCause);
+    }
+
+    public function test_a_second_network_hand_back_from_the_same_claim_loses(): void
+    {
+        [$owner, $request] = $this->claimed('settle-network-twice');
+        [$bridgeId, $token] = [$request->bridgeId, $request->claimToken];
+        $this->settle($owner, $request, WorkRequestState::Open, handBack: new NetworkHandBack('work', null, true));
+        $request->bridgeId = $bridgeId;
+        $request->claimToken = $token;
+
+        $result = $this->settle($owner, $request, WorkRequestState::Open, handBack: new NetworkHandBack('work', null, true));
+
+        self::assertSame(WorkRequestRefusal::ClaimLost, $result->refusal);
+    }
+
     public function test_the_state_open_needs_a_hand_back(): void
     {
         [$owner, $request] = $this->claimed('settle-open-bare');
@@ -301,7 +359,7 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
         return [$owner, $request];
     }
 
-    private function settle(User $owner, WorkRequest $request, WorkRequestState $state, ?RecordingWorkSubjectHandler $subjects = null, ?UsageLimitHandBack $handBack = null): SettleWorkRequestResult
+    private function settle(User $owner, WorkRequest $request, WorkRequestState $state, ?RecordingWorkSubjectHandler $subjects = null, UsageLimitHandBack|NetworkHandBack|null $handBack = null): SettleWorkRequestResult
     {
         $handler = new SettleWorkRequestHandler(
             $this->service(WorkRequestRepository::class),

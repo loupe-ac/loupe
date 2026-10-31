@@ -266,7 +266,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $held = $this->claimed($project, Uuid::v4(), Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:01'));
         $open = $this->seedWorkRequest($em, $project);
 
-        $reopened = $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), []);
+        $reopened = $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2000-01-01'));
 
         self::assertSame([$lapsed], $reopened);
         self::assertSame(WorkRequestState::Open, $lapsed->state);
@@ -278,7 +278,85 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->clear();
         self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $held->id)?->state);
         self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $open->id)?->state);
-        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), []));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2000-01-01')));
+    }
+
+    public function test_the_sweep_waits_five_minutes_on_the_network_when_the_bridge_of_a_lapsed_claim_is_silent(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'lapse-silent@example.com');
+        $project = $this->project($em, $owner, 'Lapse Silent');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:50:00'));
+        $session = Uuid::v4();
+        $lapsed = $this->claimed($project, $bridge->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $this->sessionRun($project, $lapsed, $bridge->id, $session);
+        $em->flush();
+        $now = new \DateTimeImmutable('2026-10-01 12:00:00');
+
+        $reopened = $this->repository()->reopenLapsed($now, [], new \DateTimeImmutable('2026-10-01 11:55:00'));
+
+        self::assertSame([$lapsed], $reopened);
+        self::assertSame(WorkRequestState::Open, $lapsed->state);
+        self::assertNull($lapsed->bridgeId);
+        self::assertNull($lapsed->claimToken);
+        self::assertSame('network', $lapsed->waitCause);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:05:00'), $lapsed->waitUntil);
+        self::assertSame($session->toRfc4122(), $lapsed->resumeSessionId?->toRfc4122());
+        self::assertSame($bridge->id->toRfc4122(), $lapsed->targetBridgeId?->toRfc4122());
+        self::assertEquals($now, $lapsed->reopenedAt);
+    }
+
+    public function test_the_sweep_binds_a_silent_bridge_only_when_the_run_has_a_session(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'lapse-silent-no-session@example.com');
+        $project = $this->project($em, $owner, 'Lapse Silent No Session');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:50:00'));
+        $lapsed = $this->claimed($project, $bridge->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'));
+
+        $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2026-10-01 11:55:00'));
+
+        self::assertSame('network', $lapsed->waitCause);
+        self::assertNull($lapsed->resumeSessionId);
+        self::assertNull($lapsed->targetBridgeId);
+    }
+
+    public function test_the_sweep_reopens_plainly_when_the_bridge_of_a_lapsed_claim_still_sends_heartbeats(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'lapse-fresh@example.com');
+        $project = $this->project($em, $owner, 'Lapse Fresh');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:59:30'));
+        $lapsed = $this->claimed($project, $bridge->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $this->sessionRun($project, $lapsed, $bridge->id, Uuid::v4());
+        $em->flush();
+
+        $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2026-10-01 11:55:00'));
+
+        self::assertSame(WorkRequestState::Open, $lapsed->state);
+        self::assertNull($lapsed->waitCause);
+        self::assertNull($lapsed->waitUntil);
+        self::assertNull($lapsed->resumeSessionId);
+        self::assertNull($lapsed->targetBridgeId);
+    }
+
+    private function sessionRun(Project $project, WorkRequest $request, Uuid $bridgeId, Uuid $session): void
+    {
+        $this->em()->persist(new WorkerRun(
+            project: AgentCredential::managed($this->em(), $project, $project->id),
+            bridgeId: $bridgeId,
+            subjectType: WorkSubject::CARD,
+            subjectId: $request->subjectId,
+            cardNumber: 7,
+            workKind: 'implement',
+            state: WorkerRunState::Running,
+            sessionId: $session,
+            receivedAt: new \DateTimeImmutable('2026-10-01 11:51:00'),
+            workRequestId: $request->id,
+        ));
     }
 
     public function test_live_rule_id_reads_the_rule_of_the_open_and_claimed_requests_of_a_card_and_kind(): void
@@ -476,11 +554,11 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->clear();
 
         self::assertSame([(string) $offered->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, [])));
-        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), []));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [], new \DateTimeImmutable('2000-01-01')));
 
         $holds->release($project, [$heldCard]);
 
-        self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [])));
+        self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [], new \DateTimeImmutable('2000-01-01'))));
         // The hold cancelled the open request of the card, so the release offers the reopened claim alone.
         self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10, [])));
     }
@@ -510,9 +588,9 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $ids = static fn (array $requests): array => array_map(static fn (WorkRequest $request): string => (string) $request->id, $requests);
 
         self::assertSame([(string) $offered->id], $ids($this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10, $heldIds)));
-        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), $heldIds));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), $heldIds, new \DateTimeImmutable('2000-01-01')));
         self::assertSame([(string) $held->id], $this->repository()->findProjectIdsOfLapsedClaims(new \DateTimeImmutable('2026-10-01 12:30:00')));
-        self::assertEqualsCanonicalizing([(string) $lapsed->id, (string) $lapsedAnalysis->id], $ids($this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [])));
+        self::assertEqualsCanonicalizing([(string) $lapsed->id, (string) $lapsedAnalysis->id], $ids($this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'), [], new \DateTimeImmutable('2000-01-01'))));
     }
 
     public function test_the_done_fixes_are_told_apart_by_repository_state_and_role(): void

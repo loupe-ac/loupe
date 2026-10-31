@@ -166,6 +166,7 @@ The shipped markers are:
 | `no-bridge-online` | Waiting | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `no-capable-bridge` | Needs you | Work waits, and an online bridge exists, but none can run this kind of work. The card page links to the Agents page |
 | `usage-limit` | Waiting | Work waits because every agent account that could take it is at its usage limit or at its stop value. The label names the account, the window, the use and the reset time. The card page links to the Agents page |
+| `bridge-disconnected` | Waiting | Work waits because the bridge that holds it sent no heartbeat, or because the bridge lost its network and the work waits five minutes before another try. The label names the machine when it knows it. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
 | `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
@@ -265,6 +266,11 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   "is at its weekly limit". A stop value reads "is at 96 % of its weekly window,
   new work stops at 95 %". The condition turns false when an account has room,
   at the reset or when a reading shows the limit lifted.
+- `card.run.work_taker_disconnected`: a work request of the card is claimed by
+  a bridge that sent no heartbeat in the last three heartbeat intervals, or it
+  is open and waits after a network outage. The marker `bridge-disconnected`
+  reads it. The condition turns false when the bridge sends a heartbeat again,
+  when the claim ends, or when the five-minute wait ends.
 - `bridge.account.usage` with an `account`, a `window` and `above`: the latest
   reading of that window of that bridge account shows a use above `above`. The
   `account` is `<bridge name>/<account>`, such as `desk/claude`. The `window` is

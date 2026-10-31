@@ -40,6 +40,7 @@ the `site-review` or the `mcp` scope.
 | `waiting-on-forge` | the bridge | the worker exited with code 0 and the status `waiting`: its work waits on the forge, such as the checks of a pushed pull request. The bridge does not resume the run |
 | `gave-up` | the bridge | the run did not finish, and the bridge already ran every resume its rule allows |
 | `usage-limit` | the bridge | a usage limit stopped the run, and the bridge gave its work request back. The work starts again when an account has room |
+| `network` | the bridge | a network outage stopped the run, and the bridge gave its work request back. The work waits five minutes, then starts again |
 | `failed` | the bridge | the worker exited with any other code. A command run that ran past its timeout, was killed or never started fails with the exit code -1 |
 | `not-started` | the bridge | the worker process never started |
 | `timed-out` | the server | the bridge stopped sending its heartbeat while the run was open |
@@ -53,7 +54,7 @@ run from before the workflow engine keeps its history.
 
 `queued`, `resumed`, `preparing`, `running` and `stopping` are open states. Every other state
 closes the run. `succeeded`, `no-result`, `unfinished`, `blocked`,
-`waiting-on-forge`, `gave-up`, `usage-limit`, `failed` and `not-started` are the outcomes. Only
+`waiting-on-forge`, `gave-up`, `usage-limit`, `network`, `failed` and `not-started` are the outcomes. Only
 an outcome carries an exit code, a result flag, a result status, result fields
 and a failure reason.
 
@@ -145,9 +146,10 @@ A `gave-up` report needs the exit code, the result flag and the status of the
 outcome the bridge would have resumed: `failed`, `no-result` or `unfinished`.
 So the run keeps the fault it had.
 
-A `usage-limit` report needs the exit code and the result flag of a run that
-ends as `failed` or `no-result`. The bridge sends it when a usage limit stopped
-the run and it gives the work request back.
+A `usage-limit` or `network` report needs the exit code and the result flag of a
+run that ends as `failed` or `no-result`. The bridge sends `usage-limit` when a
+usage limit stopped the run, and `network` when a network outage stopped it. In
+both cases it gives the work request back.
 
 The server stores `continues`, `workRequestId`, `workKind` and `ruleId` from
 the report that creates the run, and ignores them on a later report. A new run

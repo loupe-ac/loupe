@@ -7516,6 +7516,10 @@
                 <source>bridge.worker_runs.state.usage_limit</source>
                 <target>Stopped at a usage limit</target>
             </trans-unit>
+            <trans-unit id="bridge.worker_runs.state.network">
+                <source>bridge.worker_runs.state.network</source>
+                <target>Stopped by a network outage</target>
+            </trans-unit>
             <trans-unit id="bridge.worker_runs.state.waiting_on_forge">
                 <source>bridge.worker_runs.state.waiting_on_forge</source>
                 <target>Waiting on the forge</target>
@@ -9300,6 +9304,8 @@
             <trans-unit id="workflow.waiting.not.run_work_no_capable_taker"><source>workflow.waiting.not.run_work_no_capable_taker</source><target>Waiting: an online bridge cannot run an open work request.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_taker_limited"><source>workflow.waiting.run_work_taker_limited</source><target>Waiting: the accounts that could take the open work are not all at a usage limit.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_taker_limited"><source>workflow.waiting.not.run_work_taker_limited</source><target>Waiting: the only accounts that could take the open work are at a usage limit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_taker_disconnected"><source>workflow.waiting.run_work_taker_disconnected</source><target>Waiting: no bridge lost its network while it held or waited on the open work.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_taker_disconnected"><source>workflow.waiting.not.run_work_taker_disconnected</source><target>Waiting: a bridge lost its network while it held or waited on the open work.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_taker_paused"><source>workflow.waiting.run_work_taker_paused</source><target>Waiting: the bridges that could take the open work are not all paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
@@ -9814,6 +9820,9 @@
             <trans-unit id="marker.usage_limit.cadence.session"><source>marker.usage_limit.cadence.session</source><target>session</target></trans-unit>
             <trans-unit id="marker.usage_limit.cadence.week"><source>marker.usage_limit.cadence.week</source><target>weekly</target></trans-unit>
             <trans-unit id="marker.usage_limit.remedy"><source>marker.usage_limit.remedy</source><target>Nothing. The work starts again when the usage resets. Check the account on the Agents page.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected"><source>marker.bridge_disconnected</source><target>Work waits: %machine% lost its network.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected.unnamed"><source>marker.bridge_disconnected.unnamed</source><target>Work waits: the bridge lost its network.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected.remedy"><source>marker.bridge_disconnected.remedy</source><target>Nothing. The run picks up its session on the same bridge when the network is back. After five minutes Loupe offers the work to another bridge. Check the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
             <trans-unit id="marker.repository_misfit">
                 <source>marker.repository_misfit</source>

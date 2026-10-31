@@ -14,6 +14,7 @@ use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
+use App\Module\Bridge\ValueObject\NetworkHandBack;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -29,7 +30,8 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Settles a claimed work request with the result of the bridge that holds the
- * claim, or opens it again when the bridge gives it back at a usage limit. The claim token fences the claim: after a lapse and a new claim, the
+ * claim, or opens it again when the bridge gives it back at a usage limit or
+ * through a network outage. The claim token fences the claim: after a lapse and a new claim, the
  * old holder gets claim_lost and the new holder's result stands. The same
  * result sent again answers the same and changes nothing.
  */
@@ -135,12 +137,23 @@ final readonly class SettleWorkRequestHandler
     }
 
     /**
-     * Opens the request again, so the engine sees no refusal and spends no retry. The reading that showed the limit
-     * and the match of the bridge are stored in the same transaction, so the account reads as blocked at once.
+     * Opens the request again, so the engine sees no refusal and spends no retry. A network outage stores no reading
+     * and no match, because no account is at fault.
      */
-    private function handBack(WorkRequest $request, UsageLimitHandBack $handBack, SettleWorkRequestCommand $command): SettleWorkRequestResult
+    private function handBack(WorkRequest $request, UsageLimitHandBack|NetworkHandBack $handBack, SettleWorkRequestCommand $command): SettleWorkRequestResult
     {
         $now = $this->clock->now();
+        if ($handBack instanceof NetworkHandBack) {
+            if (!$request->handBackForNetwork($handBack->account, $handBack->sessionId, $handBack->hasAssistantTurn, $now)) {
+                return new SettleWorkRequestResult(null, refusal: WorkRequestRefusal::ClaimLost);
+            }
+            $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));
+            $this->em->flush();
+
+            return new SettleWorkRequestResult($request, handedBack: true);
+        }
+
+        // The reading that showed the limit and the match of the bridge are stored in the same transaction, so the account reads as blocked at once.
         if (!$request->handBackForUsageLimit($handBack->account, $handBack->sessionId, $handBack->hasAssistantTurn, $now)) {
             return new SettleWorkRequestResult(null, refusal: WorkRequestRefusal::ClaimLost);
         }

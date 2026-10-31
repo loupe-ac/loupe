@@ -29,6 +29,41 @@ final class WorkRequestTest extends TestCase
         self::assertNull($request->settledAt);
     }
 
+    public function test_a_network_hand_back_opens_the_request_for_five_minutes_and_binds_it_to_the_bridge_of_a_run_that_worked(): void
+    {
+        $request = $this->claimed();
+        $bridge = $request->bridgeId;
+        $session = Uuid::v4();
+        $now = new \DateTimeImmutable(self::NOW);
+
+        self::assertTrue($request->handBackForNetwork('work', $session, true, $now));
+
+        self::assertSame(WorkRequestState::Open, $request->state);
+        self::assertNull($request->bridgeId);
+        self::assertNull($request->claimToken);
+        self::assertNull($request->leaseUntil);
+        self::assertSame(1, $request->claims);
+        self::assertSame(['network', 'work', $session], [$request->waitCause, $request->waitAccount, $request->resumeSessionId]);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:05:00'), $request->waitUntil);
+        self::assertSame($now, $request->reopenedAt);
+        self::assertSame($bridge, $request->targetBridgeId);
+    }
+
+    public function test_a_network_hand_back_of_a_run_that_did_no_work_keeps_the_request_unbound(): void
+    {
+        $request = $this->claimed();
+
+        self::assertTrue($request->handBackForNetwork('work', null, false, new \DateTimeImmutable(self::NOW)));
+
+        self::assertNull($request->targetBridgeId);
+        self::assertNull($request->resumeSessionId);
+    }
+
+    public function test_an_open_request_cannot_be_handed_back_for_the_network(): void
+    {
+        self::assertFalse($this->request()->handBackForNetwork('work', null, true, new \DateTimeImmutable(self::NOW)));
+    }
+
     /** @return iterable<string, array{WorkRequestState, bool}> */
     public static function liveness(): iterable
     {
