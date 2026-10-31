@@ -1,4 +1,7 @@
-<div{% if fallbackNote|default('')|trim is empty %} hidden{% endif %} data-controller="form-draft-recovery" data-form-draft-recovery-owner-value="{{ app.user.id }}" data-form-draft-recovery-key-value="{{ key }}" data-form-draft-recovery-options-value="{{ options|json_encode|e('html_attr') }}"{% if labels|default(null) %} data-form-draft-recovery-labels-value="{{ labels|json_encode|e('html_attr') }}"{% endif %} data-action="form-draft:cleared@document->form-draft-recovery#render">
+{% set fallbackNote = fallbackNote|default('')|trim %}
+{% set fallbackOptions = fallbackOptions|default([]) %}
+{% set fallback = fallbackNote is not empty or fallbackOptions is not empty %}
+<div{% if not fallback %} hidden{% endif %} data-controller="form-draft-recovery" data-form-draft-recovery-owner-value="{{ app.user.id }}" data-form-draft-recovery-key-value="{{ key }}" data-form-draft-recovery-options-value="{{ options|json_encode|e('html_attr') }}"{% if labels|default(null) %} data-form-draft-recovery-labels-value="{{ labels|json_encode|e('html_attr') }}"{% endif %} data-action="form-draft:cleared@document->form-draft-recovery#render">
     <section class="lp-inbox-item__response" hidden data-inbox-draft-kind="{{ kind }}" data-form-draft-recovery-target="panel">
         <twig:Ds:Label as="p">{{ title|trans }}</twig:Ds:Label>
         <p class="lp-inbox-item__note">{{ (hint|default('inbox.answer.unsent_closed'))|trans }}</p>
@@ -6,7 +9,12 @@
         <p class="lp-inbox-item__answer-text" data-form-draft-recovery-target="text"></p>
         <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="form-draft-recovery#discard">{{ 'inbox.answer.discard_draft'|trans }}</twig:Ds:Button>
     </section>
-    {% if fallbackNote|default('')|trim is not empty %}
-        <div data-inbox-review-draft data-form-draft-recovery-target="fallback"><twig:Ds:Label as="p">{{ 'inbox.review.unsent_note'|trans }}</twig:Ds:Label><p class="lp-inbox-item__answer-text">{{ fallbackNote }}</p></div>
+    {% if fallback %}
+        <div class="lp-inbox-item__response" data-inbox-{{ kind }}-draft data-form-draft-recovery-target="fallback">
+            <twig:Ds:Label as="p">{{ (fallbackTitle|default(title))|trans }}</twig:Ds:Label>
+            {% if fallbackOptions is not empty %}<ul class="lp-inbox-item__choices">{% for label in fallbackOptions %}<li><twig:ux:icon name="lucide:check" class="lp-inbox-item__choice-icon" />{{ label }}</li>{% endfor %}</ul>{% endif %}
+            {% if fallbackNote is not empty %}<p class="lp-inbox-item__answer-text">{{ fallbackNote }}</p>{% endif %}
+            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="form-draft-recovery#discard">{{ 'inbox.answer.discard_draft'|trans }}</twig:Ds:Button>
+        </div>
     {% endif %}
 </div>

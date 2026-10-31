@@ -179,13 +179,18 @@
         {% else %}
             {% set refusals = open ? [] : inbox_refusals(item, refusedForm ?? null) %}
             {% if not open %}
-                {% if item.kind.value in ['question', 'workflow'] %}
-                    {% include '@Inbox/_response_draft.html.twig' with {kind: 'answer', key: item.id, options: item.options, title: 'inbox.answer.unsent'} only %}
-                {% endif %}
                 {% if refusals|length > 0 %}
                     <div class="lp-inbox-item__refusal" role="alert" data-inbox-refusal>
                         {% for message in refusals %}<p>{{ message }}</p>{% endfor %}
                     </div>
+                {% endif %}
+                {% if item.kind.value in ['question', 'workflow'] %}
+                    {% set refusedAnswer = refusals|length > 0 and refusedForm.selectedOptions is defined %}
+                    {% include '@Inbox/_response_draft.html.twig' with {
+                        kind: 'answer', key: item.id, options: item.options, title: 'inbox.answer.unsent',
+                        fallbackNote: refusedAnswer ? refusedForm.note.vars.value : '',
+                        fallbackOptions: refusedAnswer ? refusedForm.selectedOptions.vars.value|default('')|split(',')|map(i => item.options[i|trim] ?? null)|filter(label => label is not null) : [],
+                    } only %}
                 {% endif %}
             {% endif %}
             {% if reviewDenied %}
@@ -195,7 +200,7 @@
             {% endif %}
             {% if review and (not open or reviewDenied or (card and card.targetGone)) %}
                 {% include '@Inbox/_response_draft.html.twig' with {
-                    kind: 'review', key: item.id ~ ':review', options: [], title: 'inbox.review.unsent', hint: 'inbox.review.unsent_unavailable',
+                    kind: 'review', key: item.id ~ ':review', options: [], title: 'inbox.review.unsent', fallbackTitle: 'inbox.review.unsent_note', hint: 'inbox.review.unsent_unavailable',
                     labels: {approved: 'inbox.review.verdict.approved'|trans, 'changes-requested': 'inbox.review.verdict.changes-requested'|trans},
                     fallbackNote: refusedForm.note is defined and refusals|length > 0 ? refusedForm.note.vars.value : ''
                 } only %}

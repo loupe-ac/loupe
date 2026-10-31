@@ -3,6 +3,7 @@
     <twig:Ds:Label as="p">{{ 'inbox.answer.unsent'|trans }}</twig:Ds:Label>
     <p class="lp-inbox-item__note">{{ 'inbox.answer.unsent_closed'|trans }}</p>
     <ul class="lp-inbox-item__choices" data-inbox-reply-draft-target="choiceList"></ul>
+    <template data-inbox-reply-draft-target="icon"><twig:ux:icon name="lucide:check" class="lp-inbox-item__choice-icon" /></template>
     <div data-inbox-reply-draft-target="noteList"></div>
     <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="inbox-reply-draft#discard">{{ 'inbox.answer.discard_draft'|trans }}</twig:Ds:Button>
 </div>

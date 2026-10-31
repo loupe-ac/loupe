@@ -168,5 +168,11 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertSelectorTextContains('#inbox-item-1 [data-inbox-closing="agent"]', 'The agent withdrew this item');
         self::assertSelectorTextContains('#inbox-item-1 [data-inbox-draft-kind="answer"]', 'This item is closed, so it takes no answer. Your draft was not sent.');
         self::assertSelectorNotExists('#inbox-item-1 form');
+        // The page shows the refused values itself, so the draft stays readable without the form memory of the browser.
+        self::assertSelectorTextSame('#inbox-item-1 [data-inbox-answer-draft] .lp-inbox-item__choices', 'JSON');
+        self::assertSelectorTextContains('#inbox-item-1 [data-inbox-answer-draft]', 'Late.');
+        self::assertSelectorExists('#inbox-item-1 [data-inbox-answer-draft] button[data-action="form-draft-recovery#discard"]');
+        self::assertSelectorExists('#inbox-item-1 [data-inbox-answer-draft] .lp-inbox-item__choices svg.lp-inbox-item__choice-icon');
+        self::assertSelectorExists('#inbox-item-1 [data-inbox-refusal] + [data-controller="form-draft-recovery"]');
     }
 }

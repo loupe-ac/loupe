@@ -42,3 +42,13 @@ it('removes itself and the form memory on Discard, and moves focus to the headin
         document.querySelector('.lp-inbox-item__title'),
     );
 });
+
+it('marks each saved choice with the check icon of its template', async () => {
+    document.body.innerHTML = `<div data-controller="inbox-reply-draft" data-inbox-reply-draft-choices-value='["<b>CSV</b>"]' data-inbox-reply-draft-notes-value='[]'><ul data-inbox-reply-draft-target="choiceList"></ul><template data-inbox-reply-draft-target="icon"><svg class="lp-inbox-item__choice-icon"></svg></template><div data-inbox-reply-draft-target="noteList"></div></div>`;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const choice = document.querySelector('li');
+    expect(
+        choice.querySelector('svg.lp-inbox-item__choice-icon'),
+    ).not.toBeNull();
+    expect(choice.textContent).toBe('<b>CSV</b>');
+});

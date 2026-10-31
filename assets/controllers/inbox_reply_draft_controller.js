@@ -6,14 +6,17 @@ import { discardFormDraft } from '../lib/form_drafts.js';
  * view saves the values of the reply card and grafts this into the thread.
  */
 export default class extends Controller {
-    static targets = ['choiceList', 'noteList'];
+    static targets = ['choiceList', 'noteList', 'icon'];
     static values = { choices: Array, notes: Array, key: String };
 
     connect() {
         this.choiceListTarget.replaceChildren(
             ...this.choicesValue.map((label) => {
                 const choice = document.createElement('li');
-                choice.textContent = label;
+                if (this.hasIconTarget) {
+                    choice.append(this.iconTarget.content.cloneNode(true));
+                }
+                choice.append(label);
 
                 return choice;
             }),
