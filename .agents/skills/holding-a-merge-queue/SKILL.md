@@ -18,9 +18,10 @@ moving as much as possible from the merge queue to the bridge, eventually the
 bridge or app will handle the merges too". When a task can move to the bridge,
 move it there.
 
-`working-with-prs` carries the gate, the body and the merge protocol. This skill
-carries what appears only when a queue runs for hours across several sessions.
-Read these files only when their case arrives:
+`working-with-prs` carries the gate and the body. Its `references/merging.md`
+carries the merge protocol, and its `references/conflicts.md` the conflict
+proofs. This skill carries what appears only when a queue runs for hours
+across several sessions. Read these files only when their case arrives:
 
 - `references/git-traps.md`: a conflict resolution to prove, a rebase, a stale
   resolution, the dot operators, or a test of whether a branch merged.
