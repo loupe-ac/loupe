@@ -8,6 +8,8 @@ use App\Module\OpenRouter\Entity\OpenRouterKey;
 use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\OpenRouter\View\OpenRouterKeySummary;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -70,6 +72,57 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /** @return ?Uuid the id of the row the delete removed, so an event names that row and no other */
+    public function deleteReturningIdForUser(Uuid $userId): ?Uuid
+    {
+        return $this->deleteReturningId('user_id', $userId);
+    }
+
+    /** @return ?Uuid the id of the row the delete removed, so an event names that row and no other */
+    public function deleteReturningIdForProject(Uuid $projectId): ?Uuid
+    {
+        return $this->deleteReturningId('project_id', $projectId);
+    }
+
+    /**
+     * Records one health reading of the key under a row lock, so concurrent reads
+     * change the key in turn. Returns the state before the reading, or null when the key is gone.
+     */
+    public function recordHealth(Uuid $keyId, bool $refused, \DateTimeImmutable $now): ?OpenRouterKeyState
+    {
+        return $this->getEntityManager()->getConnection()->transactional(static function (Connection $connection) use ($keyId, $refused, $now): ?OpenRouterKeyState {
+            $id = $keyId->toRfc4122();
+            $before = $connection->fetchOne('SELECT state FROM openrouter_keys WHERE id = :id FOR UPDATE', ['id' => $id]);
+            if (false === $before) {
+                return null;
+            }
+
+            $connection->executeStatement(
+                $refused
+                    ? "UPDATE openrouter_keys SET state = 'refused', refused_since = :now WHERE id = :id AND state = 'working'"
+                    : "UPDATE openrouter_keys SET state = 'working', refused_since = NULL, last_read_at = :now WHERE id = :id",
+                ['id' => $id, 'now' => $now],
+                ['now' => Types::DATETIME_IMMUTABLE],
+            );
+
+            return OpenRouterKeyState::from((string) $before);
+        });
+    }
+
+    /**
+     * Locks the key row for share inside the caller's transaction, so a delete or
+     * a health change waits for that transaction. Returns null when the key is gone.
+     */
+    public function lockState(Uuid $keyId): ?OpenRouterKeyState
+    {
+        $state = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT state FROM openrouter_keys WHERE id = :id FOR SHARE',
+            ['id' => $keyId->toRfc4122()],
+        );
+
+        return false === $state ? null : OpenRouterKeyState::from((string) $state);
+    }
+
     /** @return int the number of rows deleted */
     public function deleteForUser(Uuid $userId): int
     {
@@ -86,5 +139,15 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
             ->createQuery('DELETE '.OpenRouterKey::class.' k WHERE k.project = :owner')
             ->setParameter('owner', $projectId, UuidType::NAME)
             ->execute();
+    }
+
+    private function deleteReturningId(string $column, Uuid $ownerId): ?Uuid
+    {
+        $id = $this->getEntityManager()->getConnection()->fetchOne(
+            'DELETE FROM openrouter_keys WHERE '.$column.' = :owner RETURNING id',
+            ['owner' => $ownerId->toRfc4122()],
+        );
+
+        return false === $id ? null : Uuid::fromString((string) $id);
     }
 }

@@ -36,6 +36,24 @@ The page tells you why:
 - **Loupe could not reach OpenRouter. Try again.** OpenRouter did not answer in time.
   The old key, if you had one, stays in place.
 
+## The inbox notice
+
+When OpenRouter refuses a key on a cost read, Loupe opens a notice in the
+[inbox](inbox.md) of the project whose run it read. The notice is called
+**OpenRouter refused the key**. It says whether OpenRouter refused the account
+key or the key of the project, and where to replace it.
+
+An account key covers every project you own. When OpenRouter refuses it, each
+project whose cost read fails gets its own notice.
+
+Loupe closes the notices of a key in two cases:
+
+- OpenRouter accepts the key again on a later read. The notice closes as **done**.
+- You replace or remove the key. The notice closes as **obsolete**.
+
+With the inbox off, Loupe opens no notice. The **Refused by OpenRouter** chip
+on this page still shows the state of the key.
+
 ## Replace or remove the key
 
 Select **Replace the key** to save another key. The new key replaces the old one after it passes the test.

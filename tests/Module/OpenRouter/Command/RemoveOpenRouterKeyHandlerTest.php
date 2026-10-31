@@ -6,11 +6,14 @@ namespace App\Tests\Module\OpenRouter\Command;
 
 use App\Module\OpenRouter\Command\RemoveOpenRouterKeyCommand;
 use App\Module\OpenRouter\Command\RemoveOpenRouterKeyHandler;
+use App\Module\OpenRouter\Event\OpenRouterKeyRemoved;
 use App\Tests\Module\OpenRouter\OpenRouterScenario;
 use App\Tests\Module\OpenRouter\RecordedOpenRouterSignals;
+use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\NullAuditActorProvider;
 
 final class RemoveOpenRouterKeyHandlerTest extends KernelTestCase
@@ -21,15 +24,20 @@ final class RemoveOpenRouterKeyHandlerTest extends KernelTestCase
 
     private RecordingAuditor $audit;
 
+    /** @var DispatchedEvents<OpenRouterKeyRemoved> */
+    private DispatchedEvents $removed;
+
     public function test_it_removes_the_account_key_and_signals_the_user_topic(): void
     {
         self::bootKernel();
         $user = $this->makeUser(self::getContainer(), 'remove-account');
-        $this->makeKey(self::getContainer(), $user);
+        $key = $this->makeKey(self::getContainer(), $user);
 
         $this->handler()(new RemoveOpenRouterKeyCommand($user));
 
         self::assertSame([], $this->keys()->findBy(['user' => $user]));
+        self::assertCount(1, $this->removed->events());
+        self::assertEquals($key->id, $this->removed->events()[0]->keyId);
         $this->signals->assertSignalledUser($user->id);
         self::assertSame('account', $this->audit->record('openrouter.key_removed')->context['scope']);
     }
@@ -40,9 +48,12 @@ final class RemoveOpenRouterKeyHandlerTest extends KernelTestCase
         $user = $this->makeUser(self::getContainer(), 'remove-project');
         $project = $this->makeProject(self::getContainer(), $user);
         $this->makeKey(self::getContainer(), $user);
-        $this->makeKey(self::getContainer(), $project);
+        $projectKey = $this->makeKey(self::getContainer(), $project);
 
         $this->handler()(new RemoveOpenRouterKeyCommand($project));
+
+        self::assertCount(1, $this->removed->events());
+        self::assertEquals($projectKey->id, $this->removed->events()[0]->keyId);
 
         $this->em()->clear();
         self::assertSame([], $this->keys()->findBy(['project' => $project]));
@@ -58,6 +69,7 @@ final class RemoveOpenRouterKeyHandlerTest extends KernelTestCase
         $this->handler()(new RemoveOpenRouterKeyCommand($user));
 
         $this->signals->assertNothingSignalled();
+        self::assertSame([], $this->removed->events());
         self::assertSame([], $this->audit->records('openrouter.key_removed'));
     }
 
@@ -66,7 +78,11 @@ final class RemoveOpenRouterKeyHandlerTest extends KernelTestCase
         $this->signals = new RecordedOpenRouterSignals();
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
 
-        return new RemoveOpenRouterKeyHandler($this->keys(), $this->signals->publisher, $this->audit->auditor);
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        \assert($dispatcher instanceof EventDispatcherInterface);
+        $this->removed = DispatchedEvents::of(self::getContainer(), OpenRouterKeyRemoved::class);
+
+        return new RemoveOpenRouterKeyHandler($this->keys(), $this->signals->publisher, $this->audit->auditor, $dispatcher);
     }
 
     private function em(): EntityManagerInterface

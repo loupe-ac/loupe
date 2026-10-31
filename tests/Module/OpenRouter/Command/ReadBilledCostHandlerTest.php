@@ -178,6 +178,7 @@ final class ReadBilledCostHandlerTest extends KernelTestCase
         self::assertSame(BilledCostState::Unknown, $stored->state);
         self::assertSame(BilledCostReason::KeyRefused, $stored->reason);
         self::assertSame([], $this->scheduledReads());
+        $this->em()->clear();
         $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
         self::assertSame(OpenRouterKeyState::Refused, $key->state);
         self::assertEquals(new \DateTimeImmutable('2026-10-30 10:00:00'), $key->refusedSince);
@@ -214,9 +215,47 @@ final class ReadBilledCostHandlerTest extends KernelTestCase
 
         $this->read($row, $this->total('0.036'));
 
+        $this->em()->clear();
         $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
         self::assertEquals(new \DateTimeImmutable('2026-10-30 10:00:00'), $key->lastReadAt);
         self::assertSame([], $works->events());
+    }
+
+    public function test_a_refusal_after_a_concurrent_read_that_worked_marks_the_key_refused_again(): void
+    {
+        self::bootKernel();
+        [$project, $row] = $this->scenario('read-refused-stale');
+        $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
+        $key->state = OpenRouterKeyState::Refused;
+        $key->refusedSince = new \DateTimeImmutable('2026-10-29 10:00:00');
+        $this->em()->flush();
+        $this->em()->getConnection()->executeStatement("UPDATE openrouter_keys SET state = 'working', refused_since = NULL WHERE id = ?", [($key->id ?? throw new \LogicException('A stored key has an id.'))->toRfc4122()]);
+        $refused = DispatchedEvents::of(self::getContainer(), OpenRouterKeyRefused::class);
+
+        $this->read($row, new MockResponse('{}', ['http_code' => 401]));
+
+        $this->em()->clear();
+        $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
+        self::assertSame(OpenRouterKeyState::Refused, $key->state);
+        self::assertEquals(new \DateTimeImmutable('2026-10-30 10:00:00'), $key->refusedSince);
+        self::assertCount(1, $refused->events());
+    }
+
+    public function test_a_read_that_works_after_a_concurrent_refusal_announces_the_key_works(): void
+    {
+        self::bootKernel();
+        [$project, $row] = $this->scenario('read-works-stale');
+        $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
+        $this->em()->getConnection()->executeStatement("UPDATE openrouter_keys SET state = 'refused', refused_since = '2026-10-29 10:00:00' WHERE id = ?", [($key->id ?? throw new \LogicException('A stored key has an id.'))->toRfc4122()]);
+        $works = DispatchedEvents::of(self::getContainer(), OpenRouterKeyWorks::class);
+
+        $this->read($row, $this->total('0.036'));
+
+        $this->em()->clear();
+        $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
+        self::assertSame(OpenRouterKeyState::Working, $key->state);
+        self::assertNull($key->refusedSince);
+        self::assertCount(1, $works->events());
     }
 
     public function test_a_read_with_no_answer_leaves_the_key_alone(): void
@@ -226,6 +265,7 @@ final class ReadBilledCostHandlerTest extends KernelTestCase
 
         $this->read($row, new MockResponse('{}', ['http_code' => 500]));
 
+        $this->em()->clear();
         $key = $this->keys()->findOneBy(['project' => $project]) ?? throw new \LogicException('The key exists.');
         self::assertSame(OpenRouterKeyState::Working, $key->state);
         self::assertNull($key->lastReadAt);
@@ -311,7 +351,6 @@ final class ReadBilledCostHandlerTest extends KernelTestCase
             new OpenRouterAnalytics($client, $clock, new NullLogger()),
             $this->service(RecordBilledCostHandler::class),
             $this->service(OpenRouterKeyChangedPublisher::class),
-            $this->service(EntityManagerInterface::class),
             $this->service(MessageBusInterface::class),
             $this->service(EventDispatcherInterface::class),
             $clock,
