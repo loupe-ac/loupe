@@ -96,11 +96,15 @@
                     <twig:Ds:Hint as="span">{{ ('inbox.thread.you_verb.' ~ status.action.kind.value)|trans({'%time%': status.action.requestedAt|date('H:i')}) }}</twig:Ds:Hint>
                     <twig:Ds:StatusChip class="lp-inbox-thread__chip" :modifier="chips[status.state.value]" :label="status.labelKey|trans(status.labelParameters|merge(status.at ? {'%time%': status.at|date('H:i')} : {}))" />
                 </div>
-                {% set sentPrompt = status.action.kind.value == 'start-session' ? status.action.sessionPrompt|default('')|trim : '' %}
-                {% set sentNote = sentPrompt is not empty ? sentPrompt : status.action.note|trim %}
+                {% set sentNote = status.action.note|trim %}
                 {% if sentNote is not empty %}
                     <twig:Ds:Label as="p" class="lp-inbox-thread__note-label">{{ 'inbox.thread.note_label'|trans }}</twig:Ds:Label>
                     <div class="prose lp-prose lp-inbox-thread__note" data-inbox-action-note><blockquote><p>{{ sentNote|nl2br }}</p></blockquote></div>
+                {% endif %}
+                {% set sentPrompt = status.action.kind.value == 'start-session' ? status.action.sessionPrompt|default('')|trim : '' %}
+                {% if sentPrompt is not empty %}
+                    <twig:Ds:Label as="p" class="lp-inbox-thread__note-label">{{ 'inbox.thread.session_prompt_label'|trans }}</twig:Ds:Label>
+                    <div class="prose lp-prose lp-inbox-thread__note" data-inbox-action-prompt><blockquote><p>{{ sentPrompt|nl2br }}</p></blockquote></div>
                 {% endif %}
                 {% if status.offline or (status.cancellable and granted) %}
                     <div class="lp-inbox-thread__status">

@@ -434,10 +434,11 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id, null, 'Look at the remote.'], [$request?->subjectType, (string) $request?->subjectId, $request?->cardNumber, $request?->prompt]);
 
         $you = $this->client->request(Request::METHOD_GET, $this->pageUrl())->filter('#inbox-item-'.$item->number.' [data-inbox-action-status]');
-        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-note]')->text()));
+        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-prompt]')->text()));
+        self::assertCount(0, $you->filter('[data-inbox-action-note]'));
     }
 
-    public function test_a_started_session_quotes_its_prompt_when_the_reply_also_carries_a_note(): void
+    public function test_a_started_session_quotes_both_its_prompt_and_the_note_of_the_reply(): void
     {
         $this->itemSessionBridge();
         $item = $this->noticeWithNoCard();
@@ -447,7 +448,10 @@ final class InboxActionControllersTest extends WebTestCase
         $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId);
         self::assertSame('Look at the remote.', $request?->prompt);
         $you = $this->client->request(Request::METHOD_GET, $this->pageUrl())->filter('#inbox-item-'.$item->number.' [data-inbox-action-status]');
-        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-note]')->text()));
+        self::assertSame('Ignore the cache.', trim($you->filter('[data-inbox-action-note]')->text()));
+        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-prompt]')->text()));
+        self::assertStringContainsString('Your note for the agent', $you->text());
+        self::assertStringContainsString('Prompt for the session', $you->text());
     }
 
     public function test_a_closed_item_offers_a_new_session_with_its_prompt_and_starts_it(): void
