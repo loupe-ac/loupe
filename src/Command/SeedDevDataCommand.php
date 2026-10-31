@@ -9,6 +9,7 @@ use App\Module\Account\Repository\UserRepository;
 use App\Module\Artifact\Service\Dev\DevArtifactSeeder;
 use App\Module\Inbox\Service\Dev\DevCodexRunSeeder;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
+use App\Module\Inbox\Service\Dev\DevMetricsCardSeeder;
 use App\Module\Insights\Service\Dev\DevAnalysesSeeder;
 use App\Module\Insights\Service\Dev\DevMetricsSeeder;
 use App\Module\Project\Command\EnsureHarnessProjectCommand;
@@ -56,6 +57,7 @@ final class SeedDevDataCommand extends Command
         private readonly DevCodexRunSeeder $codexRuns,
         private readonly DevAnalysesSeeder $analyses,
         private readonly DevMetricsSeeder $metrics,
+        private readonly DevMetricsCardSeeder $metricsCards,
         private readonly DevArtifactSeeder $artifacts,
 
         #[Autowire(param: 'app.terms.version')]
@@ -94,7 +96,7 @@ final class SeedDevDataCommand extends Command
         $this->codexRuns->seed($project);
         $this->analyses->seed($project, DevExperimentSeeder::EXPERIMENT);
         // After the analyses, whose bucket rules sort the tool time of the demo runs.
-        $this->metrics->seed($project);
+        $this->metrics->seed($project, fn (\DateTimeImmutable $from, \DateTimeImmutable $to): array => $this->metricsCards->cardFor($project, $from, $to));
         $this->artifacts->seed($project);
 
         // Printed for a human to copy into SITE_REVIEW_WIDGET_PROJECT. No

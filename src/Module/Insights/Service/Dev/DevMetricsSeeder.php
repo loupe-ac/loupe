@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Insights\Service\Dev;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Metric\MetricBucket;
@@ -24,21 +25,25 @@ use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Writes daily runs of three models over the last 60 days, and five saved
- * graphs, so the Metrics and Dashboard pages of a dev project show data and a
- * change from the previous period. Each run fills only the days that lack a
+ * Writes daily runs of three models over the last 60 days, each linked to a
+ * done card, and five saved graphs, so the Metrics and Dashboard pages of a
+ * dev project show data and a change from the previous period. Each run fills only the days that lack a
  * demo run, so a project seeded last week gains the days since then.
  */
 #[When('dev')]
 final readonly class DevMetricsSeeder
 {
     public const int DAYS = 60;
+
+    /** The runs of this many days share one card. */
+    public const int SPAN_DAYS = 3;
 
     /** Marks the demo runs. No table holds a bridge, so the id is only a label. */
     public const string BRIDGE = '01a19300-0000-7000-8000-00000000de00';
@@ -69,23 +74,43 @@ final readonly class DevMetricsSeeder
     ) {
     }
 
-    /** False when every day already holds its runs and the project has saved graphs. */
-    public function seed(Project $project): bool
+    /**
+     * False when every day already holds its runs and the project has saved graphs.
+     *
+     * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
+     */
+    public function seed(Project $project, \Closure $cardFor): bool
     {
-        $runsSeeded = $this->seedRuns($project, $this->clock->now()->setTime(0, 0));
+        $runsSeeded = $this->seedRuns($project, $this->clock->now()->setTime(0, 0), $cardFor);
         $graphsSeeded = $this->seedGraphs($project);
 
         return $runsSeeded || $graphsSeeded;
     }
 
-    private function seedRuns(Project $project, \DateTimeImmutable $today): bool
+    /** @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor */
+    private function seedRuns(Project $project, \DateTimeImmutable $today, \Closure $cardFor): bool
     {
+        /** @var array<string, array{Uuid, int}> $cards first day of a span => its card */
+        $cards = [];
+        $cardOf = static function (\DateTimeImmutable $day) use (&$cards, $cardFor): array {
+            $from = self::spanStart($day);
+
+            return $cards[$from->format('Y-m-d')] ??= $cardFor($from, $from->modify(\sprintf('+%d days', self::SPAN_DAYS)));
+        };
+
         $seeded = [];
+        $stale = [];
         foreach ($this->workerRuns->findBy(['project' => $project, 'bridgeId' => Uuid::fromString(self::BRIDGE)]) as $run) {
-            if (null !== $run->startedAt) {
+            if (null === $run->startedAt) {
+                continue;
+            }
+            if ($cardOf($run->startedAt)[0]->equals($run->subjectId)) {
                 $seeded[$run->startedAt->format('Y-m-d')] = true;
+            } else {
+                $stale[] = $run->id ?? throw new \LogicException('A stored run has an id.');
             }
         }
+        $this->deleteRuns($stale);
 
         $runs = [];
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
@@ -93,15 +118,17 @@ final readonly class DevMetricsSeeder
             if (isset($seeded[$day->format('Y-m-d')])) {
                 continue;
             }
+            /** @var array{Uuid, int} $card */
+            $card = $cardOf($day);
             foreach (self::MODELS as $index => [$model, $cost, $minutes]) {
-                $runs[] = $this->run($project, $day, $daysAgo, $index, $model, $cost, $minutes);
+                $runs[] = $this->run($project, $card, $day, $daysAgo, $index, $model, $cost, $minutes);
             }
             if (0 === $daysAgo % 3) {
-                $runs[] = $this->run($project, $day, $daysAgo, 3, self::MODELS[1][0], self::MODELS[1][1], self::MODELS[1][2]);
+                $runs[] = $this->run($project, $card, $day, $daysAgo, 3, self::MODELS[1][0], self::MODELS[1][1], self::MODELS[1][2]);
             }
         }
         if ([] === $runs) {
-            return false;
+            return [] !== $stale;
         }
 
         $this->em->flush();
@@ -110,11 +137,37 @@ final readonly class DevMetricsSeeder
         return true;
     }
 
+    /** The spans start on fixed days, so a later seed finds the card of a span again. */
+    private static function spanStart(\DateTimeImmutable $day): \DateTimeImmutable
+    {
+        $epochDay = intdiv((int) $day->setTime(0, 0)->format('U'), 86_400);
+
+        return $day->setTime(0, 0)->modify(\sprintf('-%d days', $epochDay % self::SPAN_DAYS));
+    }
+
     /**
-     * The runs of one day share a card, so the compare sign counts enough cards. No board card has that number, so the run drawer links nowhere.
-     * The previous period costs about 15% more, so a compare shows a fall. WorkerRunFactListener writes the fact row on flush.
+     * Removes the runs that name no stored card. The fact and usage rows hold no
+     * cascading key to the run, so they go first.
+     *
+     * @param list<Uuid> $ids
      */
-    private function run(Project $project, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, float $baseCost, int $baseMinutes): WorkerRun
+    private function deleteRuns(array $ids): void
+    {
+        if ([] === $ids) {
+            return;
+        }
+        foreach ([WorkerRunFact::class => 'runId', WorkerRunUsage::class => 'run', WorkerRun::class => 'id'] as $entity => $field) {
+            $this->em->createQueryBuilder()->delete($entity, 'e')->andWhere(\sprintf('e.%s IN (:ids)', $field))->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids), ArrayParameterType::STRING)->getQuery()->execute();
+        }
+    }
+
+    /**
+     * The runs of three days share a card, so the compare sign counts enough cards in each period.
+     * The previous period costs about 15% more, so a compare shows a fall. WorkerRunFactListener writes the fact row on flush.
+     *
+     * @param array{Uuid, int} $card
+     */
+    private function run(Project $project, array $card, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, float $baseCost, int $baseMinutes): WorkerRun
     {
         $wave = 1 + 0.25 * sin($daysAgo * 0.9 + $index);
         $trend = $daysAgo > 30 ? 1.15 : 1.0;
@@ -127,8 +180,8 @@ final readonly class DevMetricsSeeder
             project: $project,
             bridgeId: Uuid::fromString(self::BRIDGE),
             subjectType: WorkSubject::CARD,
-            subjectId: Uuid::v5(Uuid::fromString(self::BRIDGE), $day->format('Y-m-d')),
-            cardNumber: (int) $day->format('ymd'),
+            subjectId: $card[0],
+            cardNumber: $card[1],
             workKind: $workKind,
             state: WorkerRunState::Succeeded,
             runKey: Uuid::v7(),
