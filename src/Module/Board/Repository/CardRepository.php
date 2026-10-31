@@ -991,11 +991,11 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * The cards of the project in a terminal column, oldest completion first.
+     * The cards of the project in a terminal column, oldest completion first. The start is inclusive and the end is exclusive.
      *
      * @return list<array{id: Uuid, number: int, title: string, completedAt: \DateTimeImmutable}>
      */
-    public function findFinishedRows(Project $project, ?\DateTimeImmutable $completedSince): array
+    public function findFinishedRows(Project $project, ?\DateTimeImmutable $completedSince, ?\DateTimeImmutable $completedBefore = null): array
     {
         $qb = $this->createQueryBuilder('c')
             ->select('c.id, c.number, c.title, c.completedAt')
@@ -1009,6 +1009,9 @@ class CardRepository extends ServiceEntityRepository
 
         if (null !== $completedSince) {
             $qb->andWhere('c.completedAt >= :since')->setParameter('since', $completedSince, Types::DATETIME_IMMUTABLE);
+        }
+        if (null !== $completedBefore) {
+            $qb->andWhere('c.completedAt < :before')->setParameter('before', $completedBefore, Types::DATETIME_IMMUTABLE);
         }
 
         /** @var list<array{id: Uuid, number: int, title: string, completedAt: \DateTimeImmutable}> $rows */

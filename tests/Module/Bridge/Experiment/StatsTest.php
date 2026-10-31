@@ -8,8 +8,11 @@ use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Experiment\Stats;
+use App\Module\Bridge\Metric\MetricStatistic;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 final class StatsTest extends TestCase
 {
@@ -90,6 +93,94 @@ final class StatsTest extends TestCase
     public function test_bootstrap_has_no_range_for_no_values(): void
     {
         self::assertNull(Stats::bootstrapMean([], 'seed-a', Confidence::forComparisons(1)));
+    }
+
+    /** @return iterable<string, array{MetricStatistic}> */
+    public static function clusterStatistics(): iterable
+    {
+        yield 'median' => [MetricStatistic::Median];
+        yield 'p90' => [MetricStatistic::P90];
+        yield 'mean' => [MetricStatistic::Mean];
+    }
+
+    #[DataProvider('clusterStatistics')]
+    public function test_the_cluster_walk_gives_the_statistic_of_the_joined_values_of_each_draw(MetricStatistic $statistic): void
+    {
+        $clusters = [[5, 1, 9], [2], [7, 7, 3, 12], [4, 6], [8, 8.5, 0.5, 11, 10]];
+        $draws = Stats::clusterDraws($clusters, $statistic, 'seed-w', 60);
+
+        // Replay the same draws and join the values of the picked clusters.
+        $randomizer = new Randomizer(new Mt19937(crc32('seed-w')));
+        $replayed = [];
+        for ($i = 0; $i < 60; ++$i) {
+            $joined = [];
+            for ($j = 0; $j < \count($clusters); ++$j) {
+                $joined = [...$joined, ...$clusters[$randomizer->getInt(0, \count($clusters) - 1)]];
+            }
+            $replayed[] = $statistic->of($joined);
+        }
+
+        self::assertCount(60, $draws);
+        foreach ($draws as $i => $draw) {
+            self::assertEqualsWithDelta($replayed[$i], $draw, 1e-9);
+        }
+    }
+
+    public function test_the_cluster_draw_of_a_rate_is_the_share_of_non_zero_values(): void
+    {
+        $clusters = [[1, 0, 1], [0], [1, 1], [0, 0, 0]];
+        $draws = Stats::clusterDraws($clusters, null, 'seed-r', 40);
+
+        $randomizer = new Randomizer(new Mt19937(crc32('seed-r')));
+        foreach ($draws as $draw) {
+            $joined = [];
+            for ($j = 0; $j < \count($clusters); ++$j) {
+                $joined = [...$joined, ...$clusters[$randomizer->getInt(0, \count($clusters) - 1)]];
+            }
+            self::assertEqualsWithDelta(array_sum($joined) / \count($joined), $draw, 1e-9);
+        }
+    }
+
+    public function test_a_cluster_bootstrap_range_holds_the_statistic_and_follows_the_seed(): void
+    {
+        $clusters = [[5, 1, 9], [2], [7, 7, 3, 12], [4, 6], [8, 8.5, 0.5, 11, 10], [3, 3]];
+        $confidence = Confidence::forComparisons(1);
+
+        $interval = Stats::clusterBootstrap($clusters, MetricStatistic::Median, 'seed-a', $confidence);
+
+        self::assertNotNull($interval);
+        self::assertSame(MetricStatistic::Median->of(array_merge(...$clusters)), $interval->point);
+        self::assertLessThanOrEqual($interval->point, $interval->low);
+        self::assertGreaterThanOrEqual($interval->point, $interval->high);
+        self::assertEquals($interval, Stats::clusterBootstrap($clusters, MetricStatistic::Median, 'seed-a', $confidence));
+        self::assertNotEquals(Stats::clusterDraws($clusters, MetricStatistic::Median, 'seed-a'), Stats::clusterDraws($clusters, MetricStatistic::Median, 'seed-b'));
+    }
+
+    public function test_a_few_clusters_of_many_runs_give_a_wider_range_than_one_cluster_per_run(): void
+    {
+        $confidence = Confidence::forComparisons(1);
+        $perCard = [[1, 1, 1, 1, 1, 1], [9, 9, 9, 9, 9, 9], [5, 5, 5, 5, 5, 5]];
+        $perRun = array_map(static fn (int $value): array => [$value], array_merge(...$perCard));
+
+        $cards = Stats::clusterBootstrap($perCard, MetricStatistic::Mean, 'seed-a', $confidence);
+        $runs = Stats::clusterBootstrap($perRun, MetricStatistic::Mean, 'seed-a', $confidence);
+
+        self::assertNotNull($cards);
+        self::assertNotNull($runs);
+        self::assertGreaterThan($runs->high - $runs->low, $cards->high - $cards->low);
+    }
+
+    public function test_a_cluster_bootstrap_has_no_range_for_no_cluster(): void
+    {
+        self::assertNull(Stats::clusterBootstrap([], MetricStatistic::Mean, 'seed-a', Confidence::forComparisons(1)));
+        self::assertNull(Stats::clusterBootstrap([[]], MetricStatistic::Mean, 'seed-a', Confidence::forComparisons(1)));
+    }
+
+    public function test_a_cluster_bootstrap_has_no_range_for_a_sum_and_a_count(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        Stats::clusterBootstrap([[1]], MetricStatistic::Sum, 'seed-a', Confidence::forComparisons(1));
     }
 
     /**

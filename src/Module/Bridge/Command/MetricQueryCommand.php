@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricShape;
@@ -22,6 +23,9 @@ final readonly class MetricQueryCommand
         public MetricGroup $group,
         public MetricRange $range,
         public MetricBucket $bucket,
+        public MetricCompare $compare = MetricCompare::Off,
+        /** The clock reading both periods count back from. Null reads the clock once. */
+        public ?\DateTimeImmutable $now = null,
     ) {
     }
 }

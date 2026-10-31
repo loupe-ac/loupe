@@ -1,0 +1,12 @@
+{# The confirm dialog of the remove action. Only the confirm button posts. Props: project (Project), graph (InsightsSavedGraph). #}
+<twig:Ds:Dialog aria-labelledby="remove-graph-title-{{ graph.id }}" data-action="cancel->modal#close">
+    <h2 class="lp-dialog-title" id="remove-graph-title-{{ graph.id }}">{{ 'analytics.dashboard.remove.title'|trans({'%name%': graph.name}) }}</h2>
+    <p class="lp-dialog-desc">{{ 'analytics.dashboard.remove.body'|trans }}</p>
+    <form method="post" action="{{ path('app_project_analytics_dashboard_graph_remove', {id: project.id, graphId: graph.id}) }}" data-dashboard-remove-form>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-dashboard-graph-remove') }}">
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->modal#close">{{ 'analytics.dashboard.remove.cancel'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" size="sm" type="submit">{{ 'analytics.dashboard.remove.confirm'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </form>
+</twig:Ds:Dialog>

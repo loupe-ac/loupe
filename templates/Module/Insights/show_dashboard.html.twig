@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'analytics.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'analytics.page.title'|trans},
+    ]" />
+{% endblock %}
+
+{% block body %}
+{% do mercure_subscribe(dashboard_topic(project)) %}
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs" data-dashboard-page data-controller="dashboard-live dashboard-age" data-dashboard-live-url-value="{{ path('app_project_analytics_dashboard_grid', {id: project.id}) }}" data-dashboard-live-stopped-value="{{ 'analytics.dashboard.live.stopped'|trans }}" data-dashboard-age-now-value="{{ view.now.timestamp }}" data-dashboard-age-text-value="{{ 'analytics.dashboard.updated'|trans({'%minutes%': '%minutes%'}) }}">
+    {% include '@Insights/_header.html.twig' with {} only %}
+
+    {% include '@Insights/_tabs.html.twig' with {project: project, active: 'dashboard'} only %}
+
+    {% if view.removed is not null %}
+        <twig:Ds:Flash severity="success" class="lp-dashboard-notice">
+            <twig:Ds:ActionForm action="{{ path('app_project_analytics_dashboard_graph_undo', {id: project.id, graphId: view.removed.id}) }}" token="insights-dashboard-graph-undo" class="lp-dashboard-undo" data-dashboard-undo>
+                {{ 'analytics.dashboard.flash.removed'|trans({'%name%': view.removed.name}) }}
+                <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'analytics.dashboard.remove.undo'|trans }}</twig:Ds:Button>
+            </twig:Ds:ActionForm>
+        </twig:Ds:Flash>
+    {% endif %}
+
+    <p class="lp-dashboard-age" data-dashboard-age-target="line"{% if view.updatedAt is null %} hidden{% endif %}>
+        {%- if view.updatedAt is not null -%}
+            {{ 'analytics.dashboard.updated'|trans({'%minutes%': max(0, (view.now.timestamp - view.updatedAt.timestamp) // 60)}) }}
+        {%- endif -%}
+    </p>
+
+    <p class="lp-dashboard-live-status" role="status" data-dashboard-live-target="status"></p>
+
+    {% include '@Insights/_dashboard_grid.html.twig' with {project: project, view: view} only %}
+</twig:Ds:Workspace>
+{% endblock %}

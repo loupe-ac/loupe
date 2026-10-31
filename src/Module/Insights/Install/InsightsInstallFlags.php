@@ -8,6 +8,7 @@ use App\Module\Account\Command\SeedInstallFlagsCommand;
 use App\Module\Account\Install\InstallFlagDefault;
 use App\Module\Account\Install\InstallFlagDefaultsInterface;
 use App\Module\Insights\Service\AnalysisSettings;
+use App\Module\Insights\Service\SavedGraphCap;
 use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
 
 final readonly class InsightsInstallFlags implements InstallFlagDefaultsInterface
@@ -17,5 +18,6 @@ final readonly class InsightsInstallFlags implements InstallFlagDefaultsInterfac
     {
         yield new InstallFlagDefault(AnalysisSettings::MODEL_FLAG, FeatureFlagType::String, AnalysisSettings::DEFAULT_MODEL);
         yield new InstallFlagDefault(AnalysisSettings::EFFORT_FLAG, FeatureFlagType::String, AnalysisSettings::DEFAULT_EFFORT);
+        yield new InstallFlagDefault(SavedGraphCap::FLAG, FeatureFlagType::Int, SavedGraphCap::DEFAULT);
     }
 }

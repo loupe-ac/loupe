@@ -1,0 +1,46 @@
+{# The menu of one tile. Props: project (Project), tile (DashboardTileView), forms (DashboardGraphFormViews). #}
+{% set graph = tile.graph %}
+{% set menuId = 'graph-menu-' ~ graph.id %}
+{% set routeParams = {id: project.id, graphId: graph.id} %}
+<twig:Ds:Menu :id="menuId" size="md">
+    <twig:block name="trigger">
+        <twig:Ds:Button variant="ghost icon" size="sm" type="button" aria-label="{{ 'analytics.dashboard.menu.label'|trans }}" aria-expanded="false" :aria-controls="menuId" data-popover-target="trigger" data-action="click->popover#toggle">
+            <twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" />
+        </twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuItem href="{{ path('app_project_analytics_metrics', {id: project.id, graph: graph.id}) }}" role="menuitem">
+            <twig:ux:icon name="lucide:external-link" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.edit'|trans }}
+        </twig:Ds:MenuItem>
+        <twig:Ds:MenuItem role="menuitem" data-action="click->graph-tile#rename">
+            <twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.rename'|trans }}
+        </twig:Ds:MenuItem>
+        <twig:Ds:MenuDivider />
+        <twig:Ds:MenuHeading>{{ 'insights.form.graph_width_form.width.label'|trans }}</twig:Ds:MenuHeading>
+        {{ form_start(forms.width) }}
+            {% for width in ['half', 'full'] %}
+            <twig:Ds:MenuItem type="submit" role="menuitemradio" :current="graph.width.value == width" name="{{ forms.width.width.vars.full_name }}" value="{{ width }}">{{ ('analytics.dashboard.menu.width_' ~ width)|trans }}</twig:Ds:MenuItem>
+            {% endfor %}
+            {{ form_widget(forms.width._token) }}
+        {{ form_end(forms.width, {render_rest: false}) }}
+        <twig:Ds:MenuDivider />
+        {{ form_start(forms.legend) }}
+            <twig:Ds:MenuItem type="submit" role="menuitem" name="{{ forms.legend.show.vars.full_name }}" value="{{ graph.showLegend ? 'off' : 'on' }}">{{ ('analytics.dashboard.menu.' ~ (graph.showLegend ? 'legend_hide' : 'legend_show'))|trans }}</twig:Ds:MenuItem>
+            {{ form_widget(forms.legend._token) }}
+        {{ form_end(forms.legend, {render_rest: false}) }}
+        <twig:Ds:MenuDivider />
+        {% if tile.canMoveUp %}
+        <twig:Ds:ActionForm action="{{ path('app_project_analytics_dashboard_graph_move', routeParams|merge({direction: 'up'})) }}" token="insights-dashboard-graph-move">
+            <twig:Ds:MenuItem type="submit" role="menuitem"><twig:ux:icon name="lucide:arrow-up" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.move_up'|trans }}</twig:Ds:MenuItem>
+        </twig:Ds:ActionForm>
+        {% endif %}
+        {% if tile.canMoveDown %}
+        <twig:Ds:ActionForm action="{{ path('app_project_analytics_dashboard_graph_move', routeParams|merge({direction: 'down'})) }}" token="insights-dashboard-graph-move">
+            <twig:Ds:MenuItem type="submit" role="menuitem"><twig:ux:icon name="lucide:arrow-down" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.move_down'|trans }}</twig:Ds:MenuItem>
+        </twig:Ds:ActionForm>
+        {% endif %}
+        <twig:Ds:MenuItem role="menuitem" data-action="click->modal#open click->graph-tile#closeMenu">
+            <twig:ux:icon name="lucide:trash-2" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.remove'|trans }}
+        </twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:Menu>

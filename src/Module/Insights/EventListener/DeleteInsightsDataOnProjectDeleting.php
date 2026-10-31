@@ -9,7 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * Deletes the analyses, the bucket rules and the settings of a project, inside ProjectDeleter's
+ * Deletes the analyses, the bucket rules, the saved graphs and the settings of a project, inside ProjectDeleter's
  * transaction. The foreign key of a proposal cascades from its analysis.
  */
 #[AsEventListener]
@@ -28,6 +28,10 @@ final readonly class DeleteInsightsDataOnProjectDeleting
 
         $this->em->createQuery(
             'DELETE App\Module\Insights\Entity\InsightsBucketRule r WHERE r.project = :project',
+        )->setParameter('project', $event->project)->execute();
+
+        $this->em->createQuery(
+            'DELETE App\Module\Insights\Entity\InsightsSavedGraph g WHERE g.project = :project',
         )->setParameter('project', $event->project)->execute();
 
         $this->em->createQuery(

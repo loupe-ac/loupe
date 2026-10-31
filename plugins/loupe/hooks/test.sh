@@ -20,7 +20,7 @@ check() {
 cat >"$work/bin/loupe" <<'FAKE'
 #!/bin/sh
 PATH=/usr/bin:/bin
-sleep 1
+sleep 5
 echo "$*" >"$OUT/args"
 cat >"$OUT/stdin"
 FAKE
@@ -35,12 +35,12 @@ start=$(date +%s)
 printf '%s' "$input" | PATH="$work/bin:$work/bare" /bin/sh "$pkg/session-end.sh"
 check "exit status with loupe" "$?" "0"
 elapsed=$(($(date +%s) - start))
-[ "$elapsed" -lt 1 ] && speed=fast || speed="${elapsed}s"
+[ "$elapsed" -lt 3 ] && speed=fast || speed="${elapsed}s"
 check "returns before the child ends" "$speed" "fast"
 check "the child has not finished yet" "$([ -f "$work/stdin" ] && echo done || echo waiting)" "waiting"
 
 tries=0
-while [ ! -s "$work/stdin" ] && [ "$tries" -lt 50 ]; do
+while [ ! -s "$work/stdin" ] && [ "$tries" -lt 100 ]; do
     sleep 0.2
     tries=$((tries + 1))
 done

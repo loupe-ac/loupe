@@ -11,9 +11,9 @@ interface FinishedCardSourceInterface
 {
     /**
      * The finished cards of the project, oldest completion first. A null start
-     * returns every finished card.
+     * returns every finished card. The end is exclusive, and null leaves the window open.
      *
      * @return list<FinishedCard>
      */
-    public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince): array;
+    public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince, ?\DateTimeImmutable $completedBefore = null): array;
 }

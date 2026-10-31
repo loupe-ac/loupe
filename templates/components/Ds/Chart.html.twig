@@ -1,0 +1,199 @@
+{#
+  Props:  @comment-budget-ignore
+    layout        LineLayout|BarLayout|DonutLayout|NumberLayout   The view-box numbers and texts of one chart. The kind of layout picks the chart type.
+    labels        list<string>   The name of each series, indexed by series position. A group name is text from a bridge, so it is escaped.
+    id            string   Prefix of the hover card ids. Optional, random without it. Give one when a page draws several charts.
+    label         string   Translated name of the chart. Optional, the chart type names it without it.
+    nameLabel     string   Header of the first table column. Optional.
+    valueLabel    string   Header of the value column. Optional.
+    changeLabel   string   Header of the change column. Optional.
+
+  Draws the plot, the legend and the table of a chart. A Line, Bars or stacked chart has one hover target for each time bucket,
+  and a Donut has one for each slice. The server prints each hover card in a template, and chart_hover_controller.js shows it.
+  A Number chart has no plot, no table and no hover card. The page draws it without JavaScript, minus the hover cards.
+#}
+{% props layout, labels = [], id = null, label = null, nameLabel = null, valueLabel = null, changeLabel = null %}
+{% set chartId = id ?? ('chart-' ~ random()) %}
+{% set isLine = layout.lines is defined %}
+{% set isBars = layout.buckets is defined %}
+{% set isDonut = layout.slices is defined %}
+{% set isNumber = layout.figures is defined %}
+{% set typeKey = isLine ? 'line' : (isBars ? layout.type.value : (isDonut ? 'donut' : 'number')) %}
+{% set chartLabel = label ?? ('analytics.chart.label.' ~ typeKey|replace({'-': '_'}))|trans %}
+{% set unknown = 'analytics.metrics.unknown'|trans %}
+{% set longSpan = layout.longSpan is defined and layout.longSpan %}
+{% set dayFormat = longSpan ? 'M j, Y' : 'M j' %}
+{% set plotLeft = constant('App\\Module\\Insights\\View\\MetricChartScale::PLOT_LEFT') %}
+{% set plotRight = constant('App\\Module\\Insights\\View\\MetricChartScale::PLOT_RIGHT') %}
+{% set plotTop = constant('App\\Module\\Insights\\View\\MetricChartScale::PLOT_TOP') %}
+{% set baseline = constant('App\\Module\\Insights\\View\\MetricChartScale::BASELINE') %}
+{% set height = constant('App\\Module\\Insights\\View\\MetricChartScale::HEIGHT') %}
+{% set hoverAction = 'pointerenter->chart-hover#show pointerleave->chart-hover#hide focus->chart-hover#show blur->chart-hover#hide' %}
+
+<figure{{ attributes.defaults({class: 'lp-chart lp-chart--' ~ typeKey, 'aria-label': chartLabel}).defaults(isNumber ? {} : {'data-controller': 'chart-hover', 'data-action': 'keydown.esc->chart-hover#hide'}) }}>
+    {% if isNumber %}
+        <div class="lp-chart__figures">
+            {% for figure in layout.figures %}
+                <div class="lp-chart__figure">
+                    {% if layout.hasLegend %}
+                        <p class="lp-chart__figure-name"><span class="lp-chart__swatch lp-chart-slot--{{ figure.series.slot }}"></span>{{ labels[figure.series.position] ?? '' }}</p>
+                    {% endif %}
+                    <p class="lp-chart__figure-value">{{ figure.value ?? unknown }}</p>
+                    {% if figure.change is not null or figure.sign is not null %}
+                        <p class="lp-chart__figure-change">{% include '_chart_change.html.twig' with {row: figure, id: chartId ~ '-sign-' ~ loop.index0} only %}</p>
+                    {% endif %}
+                    {% if figure.previous is not null %}
+                        <p class="lp-chart__figure-previous">{{ 'analytics.chart.hover.previous'|trans({'%value%': figure.previous}) }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% elseif isDonut %}
+        <div class="lp-chart__scroll" data-chart-hover-target="viewport">
+            <div class="lp-chart__surface lp-chart__surface--donut" data-chart-hover-target="surface">
+                {# A chart drawn from data, not an icon. #}
+                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\DonutLayout::SIZE') }} {{ constant('App\\Module\\Insights\\View\\DonutLayout::SIZE') }}" role="group" aria-label="{{ chartLabel }}">
+                    {% for slice in layout.slices %}
+                        {% set target = layout.hoverTargets[loop.index0] %}
+                        {% set row = target.rows[0] %}
+                        {% set summary = 'analytics.chart.target.slice'|trans({'%name%': labels[slice.series.position] ?? '', '%share%': row.share ?? '', '%value%': row.value ?? unknown}) %}
+                        <g class="lp-chart__target lp-chart-slot--{{ slice.series.slot }}" tabindex="0" role="img" aria-label="{{ summary }}" aria-describedby="{{ chartId }}-{{ target.id }}" data-action="{{ hoverAction }}">
+                            <path class="lp-chart__slice" d="{{ slice.path }}" />
+                        </g>
+                    {% endfor %}
+                    {% if layout.slices is empty %}
+                        <circle class="lp-chart__ring-empty" cx="140" cy="140" r="105" />
+                        <text class="lp-chart__donut-note" x="140" y="140" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.donut.empty'|trans }}</text>
+                    {% elseif layout.total is not null %}
+                        <text class="lp-chart__donut-total" x="140" y="140" text-anchor="middle" dominant-baseline="middle">{{ layout.total }}</text>
+                        <text class="lp-chart__donut-caption" x="140" y="166" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.hover.total'|trans }}</text>
+                    {% endif %}
+                </svg>
+            </div>
+        </div>
+    {% else %}
+        {% set axisMetric = isBars ? layout.axisMetric : layout.metric %}
+        {% set axisStatistic = isBars ? layout.axisStatistic : layout.statistic %}
+        <div class="lp-chart__scroll" data-chart-hover-target="viewport">
+            <div class="lp-chart__surface lp-chart__surface--wide" data-chart-hover-target="surface">
+                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\MetricChartScale::WIDTH') }} {{ height }}" role="group" aria-label="{{ chartLabel }}">
+                    {% for tick in layout.yTicks %}
+                        <line class="lp-chart__grid" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
+                        <text class="lp-chart__tick" x="{{ plotLeft - 8 }}" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.value|metric_value(axisMetric, axisStatistic, layout.moneyDecimals) }}</text>
+                    {% endfor %}
+                    {% for tick in layout.xTicks %}
+                        <text class="lp-chart__tick" x="{{ tick.position }}" y="{{ height - 6 }}" text-anchor="middle">{{ tick.start|date(layout.bucket.value == 'month' ? (longSpan ? 'M Y' : 'M') : dayFormat, 'UTC') }}</text>
+                    {% endfor %}
+                    <line class="lp-chart__baseline" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ baseline }}" y2="{{ baseline }}" />
+                    {% if isLine %}
+                        {% for line in layout.lines %}
+                            <g class="lp-chart-slot--{{ line.series.slot }}">
+                                {% if line.previousPath %}<path class="lp-chart__line lp-chart__line--previous" d="{{ line.previousPath }}" />{% endif %}
+                                {% if line.path %}<path class="lp-chart__line" d="{{ line.path }}" />{% endif %}
+                                {% for dot in line.dots %}
+                                    <circle class="lp-chart__dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="3.5" />
+                                {% endfor %}
+                            </g>
+                        {% endfor %}
+                    {% else %}
+                        {% for bucket in layout.buckets %}
+                            {% for bar in bucket.bars %}
+                                {% if bar.path %}<path class="lp-chart__bar lp-chart-slot--{{ bar.series.slot }}" d="{{ bar.path }}" />{% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    {% endif %}
+                    {% for target in layout.hoverTargets|filter(target => target.rows is not empty) %}
+                        {% set startText = target.start|date(dayFormat, 'UTC') %}
+                        {% set endText = target.end|date(dayFormat, 'UTC') %}
+                        {% set span = startText == endText ? startText : 'analytics.chart.hover.span'|trans({'%start%': startText, '%end%': endText}) %}
+                        {% set parts = [] %}
+                        {% for row in target.rows %}
+                            {% set parts = parts|merge(['analytics.chart.target.row'|trans({'%name%': labels[row.series.position] ?? '', '%value%': row.value ?? unknown})]) %}
+                        {% endfor %}
+                        {% set summary = 'analytics.chart.target.bucket'|trans({'%span%': span, '%rows%': parts|join(', ')}) %}
+                        <g class="lp-chart__target" tabindex="0" role="img" aria-label="{{ summary }}" aria-describedby="{{ chartId }}-{{ target.id }}" data-action="{{ hoverAction }}">
+                            <line class="lp-chart__guide" x1="{{ target.anchorX }}" x2="{{ target.anchorX }}" y1="{{ plotTop }}" y2="{{ baseline }}" />
+                            <rect class="lp-chart__hit" x="{{ target.x }}" y="{{ target.y }}" width="{{ target.width }}" height="{{ target.height }}" />
+                        </g>
+                    {% endfor %}
+                </svg>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not isNumber %}
+        {% set showPrevious = isLine and layout.lines|filter(line => line.previousPath != '')|length > 0 %}
+        {% if layout.hasLegend or showPrevious %}
+            <ul class="lp-chart__legend{{ isDonut ? ' lp-chart__legend--centred' }}">
+                {% if layout.hasLegend %}
+                    {% for series in layout.series %}
+                        <li class="lp-chart__key"><span class="lp-chart__swatch lp-chart-slot--{{ series.slot }}"></span>{{ labels[series.position] ?? '' }}</li>
+                    {% endfor %}
+                {% endif %}
+                {% if showPrevious %}
+                    <li class="lp-chart__key"><span class="lp-chart__dash" aria-hidden="true"></span>{{ 'analytics.chart.legend.previous'|trans }}</li>
+                {% endif %}
+            </ul>
+        {% endif %}
+
+        {% for target in layout.hoverTargets|filter(target => target.rows is not empty) %}
+            <template id="{{ chartId }}-{{ target.id }}">
+                <div class="lp-chart__card">
+                    {% if target.series is not null %}
+                        <p class="lp-chart__card-title"><span class="lp-chart__swatch lp-chart-slot--{{ target.series.slot }}"></span>{{ labels[target.series.position] ?? '' }}</p>
+                        {% for row in target.rows %}
+                            <p class="lp-chart__card-row">
+                                <span class="lp-chart__card-value">{{ row.value ?? unknown }}</span>
+                                {% if row.share is not null %}<span class="lp-chart__card-share">{{ row.share }}</span>{% endif %}
+                            </p>
+                        {% endfor %}
+                    {% else %}
+                        {% set startText = target.start|date(dayFormat, 'UTC') %}
+                        {% set endText = target.end|date(dayFormat, 'UTC') %}
+                        <p class="lp-chart__card-title">{{ startText == endText ? startText : 'analytics.chart.hover.span'|trans({'%start%': startText, '%end%': endText}) }}</p>
+                        {% for row in target.rows %}
+                            <p class="lp-chart__card-row">
+                                <span class="lp-chart__swatch lp-chart-slot--{{ row.series.slot }}"></span>
+                                <span class="lp-chart__card-name">{{ labels[row.series.position] ?? '' }}</span>
+                                <span class="lp-chart__card-value">{{ row.value ?? unknown }}</span>
+                                {% if row.share is not null %}<span class="lp-chart__card-share">{{ row.share }}</span>{% endif %}
+                            </p>
+                            {% if layout.comparing and row.previous is not null %}
+                                <p class="lp-chart__card-previous">{{ 'analytics.chart.hover.previous'|trans({'%value%': row.previous}) }}</p>
+                            {% endif %}
+                        {% endfor %}
+                        {% if target.total is not null %}
+                            <p class="lp-chart__card-row lp-chart__card-total">
+                                <span class="lp-chart__card-name">{{ 'analytics.chart.hover.total'|trans }}</span>
+                                <span class="lp-chart__card-value">{{ target.total }}</span>
+                            </p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </template>
+        {% endfor %}
+
+        {% set hasShare = layout.table|filter(row => row.share is not null)|length > 0 %}
+        {% set columns = [{label: nameLabel ?? 'analytics.chart.table.name'|trans}, {label: valueLabel ?? 'analytics.chart.table.value'|trans, align: 'end'}] %}
+        {% if hasShare %}
+            {% set columns = columns|merge([{label: 'analytics.chart.table.share'|trans, align: 'end'}]) %}
+        {% endif %}
+        {% if layout.comparing %}
+            {% set columns = columns|merge([{label: changeLabel ?? 'analytics.chart.table.change'|trans, align: 'end'}]) %}
+        {% endif %}
+        <twig:Ds:DataTable :label="'analytics.chart.table.label'|trans" :columns="columns">
+            {% for row in layout.table %}
+                <div class="lp-data-table__row" role="row">
+                    <span class="lp-data-table__cell lp-chart__key" role="cell"><span class="lp-chart__swatch lp-chart-slot--{{ row.series.slot }}"></span>{{ labels[row.series.position] ?? '' }}</span>
+                    <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.value ?? unknown }}</span>
+                    {% if hasShare %}
+                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.share }}</span>
+                    {% endif %}
+                    {% if layout.comparing %}
+                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{% include '_chart_change.html.twig' with {row: row, id: chartId ~ '-sign-' ~ loop.index0} only %}</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </twig:Ds:DataTable>
+    {% endif %}
+</figure>

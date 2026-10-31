@@ -31,19 +31,20 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame('/projects/'.$projectId.'/analytics/metrics', $form->attr('action'));
         self::assertSame('get', $form->attr('method'));
         self::assertSame(
-            ['metric' => 'cost', 'unit' => 'card', 'statistic' => 'median', 'group' => 'none', 'range' => 'ninety-days', 'bucket' => 'week'],
+            ['metric' => 'cost', 'statistic' => 'median', 'unit' => 'card', 'group' => 'none', 'range' => 'ninety-days', 'bucket' => 'week', 'compare' => 'off', 'chart' => 'line'],
             self::selected($form),
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(10, $form->filter('select[name="metric"] option'));
+        self::assertCount(13, $form->filter('select[name="metric"] option'));
+        self::assertSame(['Metric', 'Statistic', 'Unit', 'Group', 'Range', 'Bucket', 'Compare to', 'Chart'], $form->filter('label')->each(static fn (Crawler $label): string => trim($label->text())));
         self::assertCount(1, $form->filter('noscript'));
 
         $empty = $crawler->filter('[data-metrics-empty]');
         self::assertCount(1, $empty);
         self::assertSame('No runs are recorded yet', trim($empty->filter('h2')->text()));
         self::assertCount(0, $crawler->filter('[data-metrics-chart]'));
-        self::assertCount(0, $crawler->filter('[data-metrics-summary]'));
+        self::assertCount(0, $crawler->filter('[data-metrics-note]'));
     }
 
     public function test_the_form_offers_only_what_the_metric_allows_and_corrects_a_refused_value(): void
@@ -61,10 +62,10 @@ final class ShowMetricsControllerTest extends WebTestCase
         $form = $crawler->filter('form[data-metrics-form]');
         self::assertSame(['run'], self::options($form, 'unit'));
         self::assertSame(['mean', 'count'], self::options($form, 'statistic'));
-        self::assertSame(['metric' => 'stop-rate', 'unit' => 'run', 'statistic' => 'mean', 'group' => 'model'], array_slice(self::selected($form), 0, 4));
+        self::assertSame(['metric' => 'stop-rate', 'statistic' => 'mean', 'unit' => 'run', 'group' => 'model'], array_slice(self::selected($form), 0, 4));
     }
 
-    public function test_run_rows_fill_the_summary_and_the_chart(): void
+    public function test_run_rows_fill_the_title_the_line_and_the_table(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -84,21 +85,20 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('[data-metrics-empty]'));
 
-        $summary = $crawler->filter('[data-metrics-summary] [data-metrics-series="none"]');
-        self::assertCount(1, $summary);
-        self::assertSame('Cost', trim($summary->filter('dt')->text()));
-        self::assertSame(['$4.00', '3 runs'], $summary->filter('dd')->each(static fn (Crawler $value): string => trim($value->text())));
-
         $chart = $crawler->filter('[data-metrics-chart]');
         self::assertCount(1, $chart);
-        self::assertCount(0, $chart->filter('[data-metrics-legend]'));
-        $bars = $chart->filter('[data-metrics-bar]');
-        self::assertCount(2, $bars);
-        self::assertSame('Sep 1: Cost, $1.00, 1 run', $bars->first()->attr('aria-label'));
-        self::assertSame('Sep 1: Cost, $1.00, 1 run', trim($bars->first()->filter('title')->text()));
-        self::assertSame(['0', '0'], $bars->each(static fn (Crawler $bar): string => (string) $bar->attr('tabindex')));
-        self::assertCount(2, $bars->filter('rect.lp-metric-chart__hit'));
-        self::assertCount(0, $crawler->filter('[data-metrics-table]'));
+        self::assertSame('Cost per run, sum, all time, per day', trim($chart->filter('[data-metrics-title]')->text()));
+        self::assertCount(1, $chart->filter('figure.lp-chart--line'));
+        self::assertCount(0, $chart->filter('.lp-chart__legend'));
+        self::assertCount(2, $chart->filter('.lp-chart__dot'));
+        $targets = $chart->filter('.lp-chart__target');
+        self::assertCount(2, $targets);
+        self::assertSame('Sep 1: Cost $1.00', $targets->first()->attr('aria-label'));
+        self::assertSame(['0', '0'], $targets->each(static fn (Crawler $target): string => (string) $target->attr('tabindex')));
+
+        $rows = $chart->filter('.lp-data-table__row');
+        self::assertCount(1, $rows);
+        self::assertSame(['Cost', '$4.00'], $rows->filter('.lp-data-table__cell')->each(static fn (Crawler $cell): string => trim($cell->text())));
     }
 
     public function test_a_count_reads_as_a_number_on_a_ratio_metric(): void
@@ -116,13 +116,12 @@ final class ShowMetricsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=stop-rate&statistic=count&range=all');
 
         self::assertResponseIsSuccessful();
-        self::assertSame('2', trim($crawler->filter('[data-metrics-summary] .lp-metric-summary__value')->text()));
-        $ticks = $crawler->filter('[data-metrics-chart] .lp-metric-chart__tick[text-anchor="end"]')->each(static fn (Crawler $tick): string => trim($tick->text()));
+        self::assertSame('2', trim($crawler->filter('[data-metrics-chart] .lp-data-table__row .lp-data-table__cell--end')->text()));
+        $ticks = $crawler->filter('[data-metrics-chart] .lp-chart__tick[text-anchor="end"]')->each(static fn (Crawler $tick): string => trim($tick->text()));
         self::assertSame(['0', '1', '2', '3', '4'], $ticks);
-        self::assertStringEndsWith(', 2, 2 runs', (string) $crawler->filter('[data-metrics-bar]')->attr('aria-label'));
     }
 
-    public function test_a_grouped_query_draws_one_series_per_group_with_a_legend(): void
+    public function test_a_grouped_query_draws_one_line_per_group_with_a_legend_and_a_row_each(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -137,10 +136,11 @@ final class ShowMetricsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?unit=run&metric=duration&group=stage&range=all');
 
         self::assertResponseIsSuccessful();
-        self::assertSame(['plan', 'review'], $crawler->filter('[data-metrics-summary] [data-metrics-series]')->each(static fn (Crawler $series): string => (string) $series->attr('data-metrics-series')));
-        self::assertSame(['plan', 'review'], $crawler->filter('[data-metrics-legend] li')->each(static fn (Crawler $item): string => trim($item->text())));
-        self::assertSame(['5 min 0 s', '5 min 0 s'], $crawler->filter('[data-metrics-summary] dd:first-of-type')->each(static fn (Crawler $value): string => trim($value->text())));
-        self::assertCount(2, $crawler->filter('[data-metrics-chart] [data-metrics-bar]'));
+        self::assertSame(['plan', 'review'], $crawler->filter('[data-metrics-chart] .lp-chart__legend li')->each(static fn (Crawler $item): string => trim($item->text())));
+        $rows = $crawler->filter('[data-metrics-chart] .lp-data-table__row');
+        self::assertSame(['plan', 'review'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell')->first()->text())));
+        self::assertSame(['5 min', '5 min'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell--end')->first()->text())));
+        self::assertCount(2, $crawler->filter('[data-metrics-chart] path.lp-chart__line'));
     }
 
     public function test_a_bridge_series_shows_the_label_of_its_bridge(): void
@@ -162,12 +162,8 @@ final class ShowMetricsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?unit=run&metric=duration&group=bridge&range=all');
 
         self::assertResponseIsSuccessful();
-        self::assertSame(
-            ['0199a000-0000-7000-8000-000000000001', '0199a000-0000-7000-8000-0000000000ff'],
-            $crawler->filter('[data-metrics-summary] [data-metrics-series]')->each(static fn (Crawler $series): string => (string) $series->attr('data-metrics-series')),
-        );
-        self::assertSame(['studio-mac', '0000000000ff'], $crawler->filter('[data-metrics-summary] dt')->each(static fn (Crawler $label): string => trim($label->text())));
-        self::assertSame(['studio-mac', '0000000000ff'], $crawler->filter('[data-metrics-legend] li')->each(static fn (Crawler $item): string => trim($item->text())));
+        self::assertSame(['studio-mac', '0000000000ff'], $crawler->filter('[data-metrics-chart] .lp-chart__legend li')->each(static fn (Crawler $item): string => trim($item->text())));
+        self::assertSame(['studio-mac', '0000000000ff'], $crawler->filter('[data-metrics-chart] .lp-data-table__row')->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell')->first()->text())));
     }
 
     public function test_the_picker_lists_one_option_for_each_bucket_with_data(): void
@@ -186,7 +182,7 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(10, $select->children('option'));
+        self::assertCount(13, $select->children('option'));
         $groups = $select->filter('optgroup');
         self::assertCount(3, $groups);
         self::assertSame(['Time buckets', 'Time buckets, subagents included', 'Calls in time buckets'], $groups->each(static fn (Crawler $group): string => (string) $group->attr('label')));
@@ -264,10 +260,9 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame(['bucket-time:tests'], $form->filter('select[name="metric"] option[selected]')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
 
-        $summary = $crawler->filter('[data-metrics-summary] [data-metrics-series="none"]');
-        self::assertSame('Time in tests', trim($summary->filter('dt')->text()));
-        self::assertSame('4 s', trim($summary->filter('.lp-metric-summary__value')->text()));
-        self::assertStringContainsString('Time in tests', (string) $crawler->filter('[data-metrics-chart] svg')->attr('aria-label'));
+        $row = $crawler->filter('[data-metrics-chart] .lp-data-table__row');
+        self::assertSame(['Time in tests', '4 s'], $row->filter('.lp-data-table__cell')->each(static fn (Crawler $cell): string => trim($cell->text())));
+        self::assertStringContainsString('Time in tests', trim($crawler->filter('[data-metrics-title]')->text()));
     }
 
     public function test_a_numeric_bucket_name_selects_only_its_own_option(): void
@@ -306,9 +301,8 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame(['bucket-time:deploy', 'bucket-time:git'], $group->filter('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame('bucket-time:deploy', $group->filter('option[selected]')->attr('value'));
 
-        $summary = $crawler->filter('[data-metrics-summary] [data-metrics-series="none"]');
-        self::assertSame('Time in deploy', trim($summary->filter('dt')->text()));
-        self::assertSame('1', trim($summary->filter('.lp-metric-summary__value')->text()));
+        $row = $crawler->filter('[data-metrics-chart] .lp-data-table__row');
+        self::assertSame(['Time in deploy', '1'], $row->filter('.lp-data-table__cell')->each(static fn (Crawler $cell): string => trim($cell->text())));
     }
 
     public function test_another_users_project_is_refused(): void
