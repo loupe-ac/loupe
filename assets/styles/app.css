@@ -7621,7 +7621,7 @@
     }
     /* The Dashboard: two columns of tiles. A full-width tile spans both. */
     .lp-dashboard-age {
-        @apply m-0 mt-4 text-xs text-fg-dim;
+        @apply m-0 mt-4 text-right text-xs text-fg-dim;
     }
     .lp-dashboard-age[hidden] {
         @apply hidden;

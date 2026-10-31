@@ -8639,7 +8639,7 @@
             <trans-unit id="analytics.metrics.saved_graph.flash.invalid"><source>analytics.metrics.saved_graph.flash.invalid</source><target>Loupe could not save the graph. Try again.</target></trans-unit>
             <trans-unit id="analytics.metrics.saved_graph.view"><source>analytics.metrics.saved_graph.view</source><target>View on the Dashboard</target></trans-unit>
             <trans-unit id="analytics.dashboard.flash.invalid"><source>analytics.dashboard.flash.invalid</source><target>Loupe could not change the graph. Try again.</target></trans-unit>
-            <trans-unit id="analytics.dashboard.flash.removed"><source>analytics.dashboard.flash.removed</source><target>Removed %name% from the Dashboard.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.flash.removed"><source>analytics.dashboard.flash.removed</source><target>Removed “%name%” from the Dashboard.</target></trans-unit>
             <trans-unit id="analytics.dashboard.remove.undo"><source>analytics.dashboard.remove.undo</source><target>Undo</target></trans-unit>
             <trans-unit id="analytics.dashboard.tile.loading"><source>analytics.dashboard.tile.loading</source><target>Loading this graph.</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.label"><source>analytics.dashboard.menu.label</source><target>Graph actions</target></trans-unit>
@@ -8655,7 +8655,7 @@
             <trans-unit id="analytics.dashboard.broken.template_metric"><source>analytics.dashboard.broken.template_metric</source><target>The workflow template no longer declares the metric %name%.</target></trans-unit>
             <trans-unit id="analytics.dashboard.broken.bucket"><source>analytics.dashboard.broken.bucket</source><target>No time bucket rule names the bucket %name% now.</target></trans-unit>
             <trans-unit id="analytics.dashboard.broken.harness_event"><source>analytics.dashboard.broken.harness_event</source><target>No run of this project records the harness event %name% now.</target></trans-unit>
-            <trans-unit id="analytics.dashboard.empty.title"><source>analytics.dashboard.empty.title</source><target>No graphs on the Dashboard yet.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.title"><source>analytics.dashboard.empty.title</source><target>No graphs on the Dashboard yet</target></trans-unit>
             <trans-unit id="analytics.dashboard.updated"><source>analytics.dashboard.updated</source><target>Updated %minutes% min ago</target></trans-unit>
             <trans-unit id="analytics.dashboard.live.stopped"><source>analytics.dashboard.live.stopped</source><target>Live updates stopped. Reload the page to see changes made in other tabs.</target></trans-unit>
             <trans-unit id="analytics.dashboard.add.title"><source>analytics.dashboard.add.title</source><target>Add a graph</target></trans-unit>
@@ -8670,7 +8670,7 @@
             <trans-unit id="analytics.dashboard.broken.title"><source>analytics.dashboard.broken.title</source><target>This graph cannot load</target></trans-unit>
             <trans-unit id="analytics.dashboard.broken.open"><source>analytics.dashboard.broken.open</source><target>Open in Metrics</target></trans-unit>
             <trans-unit id="analytics.dashboard.broken.remove"><source>analytics.dashboard.broken.remove</source><target>Remove</target></trans-unit>
-            <trans-unit id="analytics.dashboard.empty.body"><source>analytics.dashboard.empty.body</source><target>Build a graph on the Metrics tab and save it here. The numbers you check every week then sit in one place.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.body"><source>analytics.dashboard.empty.body</source><target>Build a graph on the Metrics tab and save it here. The numbers you check every week then sit in one place, ready when you open Analytics.</target></trans-unit>
             <trans-unit id="analytics.dashboard.empty.build"><source>analytics.dashboard.empty.build</source><target>Build a graph</target></trans-unit>
             <trans-unit id="analytics.dashboard.empty.start"><source>analytics.dashboard.empty.start</source><target>Or start from a common one</target></trans-unit>
             <trans-unit id="analytics.dashboard.empty.cost"><source>analytics.dashboard.empty.cost</source><target>Cost per finished card</target></trans-unit>

@@ -201,7 +201,11 @@ final class DashboardControllersTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.self::BASE);
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('[data-dashboard-empty]'));
+        $empty = $crawler->filter('[data-dashboard-empty]');
+        self::assertCount(1, $empty);
+        self::assertStringContainsString('No graphs on the Dashboard yet', $empty->text());
+        self::assertStringNotContainsString('Dashboard yet.', $empty->text());
+        self::assertStringContainsString('ready when you open Analytics.', $empty->text());
     }
 
     public function test_the_grid_is_a_turbo_stream_of_the_tiles_on_show(): void
@@ -257,7 +261,7 @@ final class DashboardControllersTest extends WebTestCase
         $undo = $crawler->filter('[data-dashboard-undo]');
         self::assertCount(1, $undo);
         self::assertSame($base.'/graphs/'.$ids[0].'/undo', $undo->attr('action'));
-        self::assertStringContainsString('Removed Cost &lt;b&gt;trend&lt;/b&gt; from the Dashboard.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Removed “Cost &lt;b&gt;trend&lt;/b&gt;” from the Dashboard.', (string) $client->getResponse()->getContent());
 
         foreach (array_slice($ids, 1) as $id) {
             $crawler = $client->request(Request::METHOD_GET, $base.'?removed='.$id);

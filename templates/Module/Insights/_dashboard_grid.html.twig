@@ -1,7 +1,7 @@
 {# The tile grid, the empty state or the Add slot. Props: project (Project), view (DashboardView). #}
 {% if view.tiles is empty %}
     <div id="dashboard-grid" data-dashboard-capped="false">
-        <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.dashboard.empty.title'|trans" :body="'analytics.dashboard.empty.body'|trans" onCard data-dashboard-empty>
+        <twig:Ds:EmptyState icon="lucide:chart-line" :title="'analytics.dashboard.empty.title'|trans" :body="'analytics.dashboard.empty.body'|trans" onCard data-dashboard-empty>
             <twig:Ds:Button variant="primary" href="{{ path('app_project_analytics_metrics', {id: project.id}) }}">
                 <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'analytics.dashboard.empty.build'|trans }}
             </twig:Ds:Button>
