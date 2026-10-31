@@ -141,7 +141,7 @@ func TestACheckedSetOfCommandsSendsUnusedAccountRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), `"accounts":[{"name":"claude","harness":"claude-code",`) || !strings.Contains(string(b), `"used":false,"stopAt":95}]`) {
+	if !strings.Contains(string(b), `"accounts":[{"name":"claude","harness":"claude-code",`) || !strings.Contains(string(b), `"used":false,"kinds":[],"stopAt":95}]`) {
 		t.Fatalf("heartbeat body = %s", b)
 	}
 }
@@ -242,7 +242,7 @@ func TestAFailingUnusedAccountIsReportedAndTurnsNothingOff(t *testing.T) {
 	}
 	want := []api.AccountReport{
 		{Name: "in", Harness: "claude-code", State: api.AccountReady, Used: true, Kinds: []string{"plan"}, StopAt: 95},
-		{Name: "spare", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", StopAt: 95},
+		{Name: "spare", Harness: "claude-code", State: api.AccountFailing, Reason: "not logged in", Kinds: []string{}, StopAt: 95},
 	}
 	if rows := accountReports(set); !reflect.DeepEqual(rows, want) {
 		t.Fatalf("rows = %+v, want %+v", rows, want)
