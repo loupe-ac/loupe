@@ -34,7 +34,7 @@ m=$(git rev-parse --git-path merge-desc)
 git commit -F "$m" --cleanup=verbatim
 ```
 
-Put the resolution and nothing else in the merge commit. A fix for a check or a review goes in a later commit of its own.
+Put the resolution and nothing else in the merge commit. Call `workflow_get` and read `approvalCoversConflictResolution`. When it is true, the approval covers a sync and a conflict resolution. When it is false, the approval covers a sync only, and a conflict resolution needs a new approval. In both cases the approval does not cover a rebase or new content. A fix for a check or a review goes in a later commit of its own, and it needs a new approval.
 
 The merge brings commits of the base, and the gate's own merge then brings none. So refresh the environment now, as "Refresh the environment" in `../../loupe-stage-implementation/references/commands.md` says. When "Sync with the pull request branch" sends you here, skip this refresh, because its item 7 refreshes once.
 

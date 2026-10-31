@@ -36,7 +36,7 @@ final readonly class ProjectUpdateTool
      * @param string|null $name           the new name of the project, at most 100 characters
      * @param string|null $description    what the project is for, at most 500 characters; an empty string clears it
      * @param string|null $domain         the domain of the site the project reviews, at most 255 characters; an empty string clears it
-     * @param string|null $searchLanguage the language a new document of the project is searched in, such as english or simple
+     * @param string|null $searchLanguage the language a new document or inbox item of the project takes, and the one inbox search stems in, such as english or simple
      *
      * @return array{id: string, slug: string|null, name: string, description: string|null, domain: string|null, searchLanguage: string}
      */

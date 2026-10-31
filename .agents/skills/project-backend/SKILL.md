@@ -7,13 +7,11 @@ description: "Use when working on PHP code under `src/`: forms, DTOs, Doctrine e
 
 ## Module boundaries
 
-No code in `src/Module/X/` may import from `src/Module/Y/`. This covers entities, services, controllers and repositories. Each module is an island.
+Modules may import each other. `phparkitect.php` forbids the dependency directions that would close a cycle between modules, and its `because` text says why for each one. Run `just arkitect`. Do not suppress a reported violation. Redesign instead.
 
-phparkitect enforces this. Run `just arkitect`. Do not suppress a reported violation. Redesign instead.
+These patterns cover a cross-module need that a forbidden direction blocks:
 
-These patterns cover a legitimate cross-module need:
-
-- Put a shared abstraction in the owning module. If module Y extends a base class from module X, add an abstract property hook or interface method to the base in module X. Each subtype implements it in its own module. Callers in module X read the abstract member and never learn the concrete type. For example, `Repository` (Project module) declares `abstract public string $label { get; }`, `GitHubRepository` (GitHub module) implements it, and templates read `project.repository.label`. The Project module imports nothing from GitHub.
+- Put a shared abstraction in the owning module. If module Y extends a base class from module X, add an abstract property hook or interface method to the base in module X. Each subtype implements it in its own module. Callers in module X read the abstract member and never learn the concrete type.
 - Use events for a side effect that crosses a boundary. Dispatch a domain event from the originating module and handle it in the receiving module.
 - Put a truly generic shared value object, such as a `Slug`, in the root namespace `src/`.
 
@@ -37,11 +35,11 @@ Two raw-request reads stay acceptable: a CSRF token on a hand-rolled fieldless f
 - A create-time default value lives in the form DTO, and the entity default does not decide it. When an entity is created through the command and handler flow, the handler sets the field from the command (`$entity->x = $command->x`). The entity's property default is then dead on that path, and a change to it alone does nothing. The real levers are the `*Request` DTO property default, which drives both the pre-filled form and the submitted value, and any handler that calls `new Entity(...)` without setting the field, such as an import or seed handler. Change all of these together, and keep the entity default consistent with the DTO.
 - Give a DTO a static named constructor, such as `FooRequest::fromFoo($entity)`, only when an edit flow pre-populates the form. An unused static constructor is dead code.
 - When an update DTO has the same fields and constraints as its create counterpart, extend it: `class UpdateFooRequest extends CreateFooRequest {}`. PHP attribute inheritance on promoted properties works correctly with the Symfony Validator. Duplication means a future constraint change must be applied twice.
-- Validation constraints live on the DTO. The one exception is a form with no `data_class`, which may keep its constraints inline in `buildForm()`, because there is nowhere else to put them. The PHPStan `form.inlineConstraints` rule only fires for a form that configures a `data_class`.
+- Validation constraints live on the DTO. The PHPStan `form.inlineConstraints` rule reports a `constraints` option in any `buildForm()`, with or without a `data_class`.
 - Property constraints such as `#[NotBlank]` and `#[Length]` go on individual promoted properties.
 - A class-level constraint, which needs the whole DTO or a related object, goes as `#[MyConstraint]` on the class. The validator receives the whole DTO as `$value` and must declare `#[\Override] public function getTargets(): string { return self::CLASS_CONSTRAINT; }`. Name the constraint after what it enforces, and never after the mechanism.
 - Controllers pass `new FooRequest()`, or `FooRequest::fromFoo($entity)` for an edit form, to `createForm()`. They then map the DTO back onto the entity after a successful submission.
-- `#[UniqueEntity]` on an entity does not fire when the form's `data_class` is a DTO, because validation runs on the DTO. Check uniqueness in the controller after `$form->isValid()` with `findOneBy()`, then attach the error to the field: `$form->get('email')->addError(new FormError('There is already an account with this email.'))`.
+- `#[UniqueEntity]` on an entity does not fire when the form's `data_class` is a DTO, because validation runs on the DTO. Check uniqueness in the handler and throw `DomainErrors`, as "DomainErrors, the command-to-controller bridge" says. The gamache rule `ControllerNoDirectStateAccessRule` refuses a repository query in a controller.
 - When a DTO property is nullable but cannot be null after validation, do not use `assert()`. Write `if (null === $data->prop) { $form->addError(new FormError(...)); } else { ... }` so the user gets a form error.
 - Every `AbstractType` subclass declares `@extends AbstractType<DataClass>`, or `@extends AbstractType<array<string, mixed>>` for a form with no data class. PHPStan and the IDE then infer the return type of `$form->getData()`.
 - When a template loop needs one form per item, such as a delete button per row, do not build the forms in the controller and pass an array. Add a Twig function in the module's `Twig/*Extension.php` and call it in the template.
@@ -83,10 +81,9 @@ Two raw-request reads stay acceptable: a CSRF token on a hand-rolled fieldless f
 ## Controllers
 
 - Name a controller `<Action><Entity>Controller`, such as `CreateFooController`, `ShowFooController` and `ListFooController`.
-- Each `IssuePhase` gets its own controller, such as `IssueBrainstormController` for `Brainstorm`. Do not write a single `IssueDetailController` with `if ($issue->phase === ...)` blocks. `IssueBrainstormController` currently serves the issue detail URL with the route name `app_issue_detail`. When a second phase ships, add a second controller and split the routing. Do not add another guard to the existing one.
 - Do not extract a single-use private response-builder helper. Inline it into `__invoke`. This applies to a private method that exists only to assemble and return a `Response`, such as a render-or-redirect, a stream-or-redirect or a JSON wrapper, when one or two places in the same controller call it. Converge the exit paths into a single tail. For example, collapse two error branches into one `$errorMessage` variable followed by one redirect-fallback and render block. This applies to thin response wrappers only. A single-use private method that computes a value through real logic, such as building an error string from `$form->getErrors()`, may stay.
 - Also inline a one-liner pass-through helper whose whole body is `return $this->someService->call($args);`, even when two or three places call it. A lone delegating `return` is plumbing. Keep a private helper only when its body has real logic, whatever the number of call sites.
-- Async tasks use Symfony Messenger with a Doctrine transport. Message classes live in `Messenger/` within the module, for example `src/Module/Inference/Messenger/RunInferenceJob.php` in namespace `App\Module\Inference\Messenger`. The routing entry in `config/packages/messenger.yaml` must match the PHP namespace exactly. gamache enforces this.
+- Async tasks use Symfony Messenger with a Doctrine transport. Message classes live in `Messenger/` within the module, for example `src/Module/Account/Messenger/GenerateDataExportMessage.php` in namespace `App\Module\Account\Messenger`. The routing entry in `config/packages/messenger.yaml` must match the PHP namespace exactly. gamache enforces this.
 - To re-render a page with an invalid form from another controller, pass the FormView as a request attribute to `forward()`: `$this->forward(ShowFooController::class, array_merge($params, ['myForm' => $form->createView()]))`. In the receiving controller, retrieve it with `$this->getInjectedFormView($request, 'myForm')` and fall back to a fresh form: `$form = $this->getInjectedFormView($request, 'myForm') ?? $this->createForm(...)->createView();`. Always pair this with a 422 status code. See the `project-frontend` skill.
 
 `AppController` lives in `src/Controller/AppController.php` and has two helpers:
@@ -137,7 +134,7 @@ When `#[IsGranted(...)]` gates a controller and its voter guarantees a fact, res
 ## Flash messages
 
 - For a simple flash message, call `->addFlash('<type>', '<flash message>')`.
-- For more control over the alert, call `->addFlash('<flash message>', true)` and build the custom alert in `base.html.twig`.
+- `base.html.twig` shows the types `success`, `error`, `warning` and `info`. For a message that one page shows in its own place, use a type of its own, such as `->addFlash('bridge-pause', $message)`. Read it in that template with `app.flashes('bridge-pause')`.
 
 ## Domain observability
 
@@ -316,7 +313,7 @@ final readonly class SendWelcomeEmailOnUserRegistered
 }
 ```
 
-A module-scoped listener lives in `src/Module/X/EventListener/`. Use the root `src/EventSubscriber/` only for an infrastructure-level framework listener, such as profiler control or coverage collection. Name a single-event listener `{Action}{EventName}Listener`, such as `SendWelcomeEmailOnUserRegistered`.
+A module-scoped listener lives in `src/Module/X/EventListener/`. Use the root `src/EventSubscriber/` only for an infrastructure-level framework listener, such as profiler control or coverage collection. Name a single-event listener `{Action}On{EventName}`, such as `SendWelcomeEmailOnUserRegistered`.
 
 For a cross-module side effect, dispatch a domain event from the originating module and handle it in a listener in the receiving module. That listener imports the event class from the originating module. That import is acceptable, because events are the intended public API. The listener must not import an entity or a service from the originating module beyond the event class.
 
@@ -324,7 +321,7 @@ For a cross-module side effect, dispatch a domain event from the originating mod
 
 When more than one handler or controller in a module needs the same business logic, extract it to `src/Module/*/Service/`. A `Service/` class has a single responsibility, is injected through the constructor, and is autowired automatically.
 
-For example, `BranchNameBuilder` builds git branch names from an `Issue`, and both `CreateIssueHandler` and `CreateIssueWorkspaceController` use it. Each `*EmailSender` builds and dispatches a transactional email for several controllers.
+For example, each `*EmailSender`, such as `VerificationEmailSender`, builds and dispatches a transactional email for several controllers.
 
 Do not create a `Service/` class for logic called from one place. Keep it in the handler or controller where it lives. Duplication sets the extraction threshold, and size does not.
 
@@ -339,4 +336,4 @@ Read the file before you work on the topic.
 - `references/session.md` before you add a route that a Stimulus controller, a Turbo frame reload or a live update calls in the background, or code that writes the session. Mark such a route with `ReadOnlyAwareSessionHandler::READ_ONLY`. An unmarked GET keeps its session write, which can overwrite a concurrent POST. A marked route drops every session write.
 - `references/http-and-concurrency.md` before you call an external service through `HttpClientInterface`, or write a read-check-write handler that a concurrent request could race.
 - `references/workflow-facts.md` before a module feeds facts, a condition or a re-evaluation listener to the workflow engine. Import only `App\Module\Workflow\Contract`.
-- `references/env-vars.md` before you add an environment variable. Never put JSON in one. A new key reaches seven places, and `docs/reference/environment.md` is the one no check covers.
+- `references/env-vars.md` before you add an environment variable. Never put JSON in one. A new key reaches seven places, and `DeploymentConfigParityCheck` reports one that `docs/reference/environment.md` lacks.

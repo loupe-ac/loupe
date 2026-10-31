@@ -1012,7 +1012,7 @@ An agent drives the board through the MCP endpoint. See
 | Tool | Arguments |
 |---|---|
 | `board_columns` | None. It also returns the card types of the project. |
-| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards` and `requiresHumanReview` are optional. `origin` is the old name for `reporter` and is deprecated. |
+| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards` and `requiresHumanReview` are optional. |
 | `card_list` | `status`, `type` and `reporter`, each optional, each a filter. `page`, `perPage` and `full` are optional as well. |
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
