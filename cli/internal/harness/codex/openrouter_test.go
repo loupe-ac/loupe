@@ -103,3 +103,13 @@ func containsRun(args, run []string) bool {
 
 	return false
 }
+
+func TestAnInteractiveOpenRouterSessionSendsTheRunKeyAsTheSession(t *testing.T) {
+	header := `'model_providers.openrouter.http_headers.x-session-id="` + runID + `"'`
+	for profile, want := range map[string]bool{"openrouter": true, "": false} {
+		script := newHarness(t, profile).Interactive("codex", harness.Spec{Dir: t.TempDir(), RunID: runID})
+		if strings.Contains(script, header) != want {
+			t.Fatalf("profile %q: script = %q, want header %v", profile, script, want)
+		}
+	}
+}

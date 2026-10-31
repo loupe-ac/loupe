@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
@@ -280,7 +281,9 @@ func (h Harness) Interactive(program string, spec harness.Spec) string {
 	if spec.Model != "" {
 		b.WriteString(" -m " + shellQuote(spec.Model))
 	}
-	for _, arg := range append(sandboxArgs(spec, false), sessionArgs(spec)...) {
+	// An interactive session keeps its list price, so the cost source is unused.
+	header, _ := h.sessionHeaderArgs(spec.RunID)
+	for _, arg := range slices.Concat(sandboxArgs(spec, false), sessionArgs(spec), header) {
 		b.WriteString(" " + shellQuote(arg))
 	}
 	if spec.Prompt != "" {

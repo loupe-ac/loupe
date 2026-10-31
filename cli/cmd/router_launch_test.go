@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -374,5 +375,39 @@ func TestAnInteractiveMatchOnACodexAccountLaunchesCodex(t *testing.T) {
 	script, _ := os.ReadFile(filepath.Join(h.router.scriptDir, testSession+".sh"))
 	if !strings.Contains(string(script), "exec '"+filepath.Join(bin, "codex")+"' -m 'gpt-5'") || !strings.Contains(string(script), "export LOUPE_SESSION_ID='"+testSession+"'") {
 		t.Fatalf("script = %q", script)
+	}
+}
+
+// An interactive session on an OpenRouter profile sends its run key as the
+// OpenRouter session, as a worker does.
+func TestAnInteractiveCodexLaunchOnOpenRouterSendsTheSessionHeader(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "codex"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	home := t.TempDir()
+	profile, err := os.ReadFile(filepath.Join(codexFixtures, "openrouter.config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "openrouter.config.toml"), profile, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Replace(launchRules, "accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude",
+		"accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: openrouter\ndefaults:\n  account: cdx", 1)
+	h, rec := launchHarnessWith(t, body, `[sh, -c, 'exit 0', sh, '{script}']`)
+
+	h.send(movedPayload(87, "backlog", "next", "agent"))
+
+	if sent := rec.launches(); len(sent) != 1 || sent[0].report.State != api.RunRunning {
+		t.Fatalf("launches = %+v", sent)
+	}
+	script, _ := os.ReadFile(filepath.Join(h.router.scriptDir, testSession+".sh"))
+	header := regexp.MustCompile(`'model_providers\.openrouter\.http_headers\.x-session-id="([0-9a-f-]{36})"'`).FindSubmatch(script)
+	if header == nil || string(header[1]) == testSession {
+		t.Fatalf("script = %q, want the run key as the session header", script)
 	}
 }

@@ -235,3 +235,11 @@ func usageText(u *api.Usage) string {
 
 	return string(b)
 }
+
+func TestAStoppedRunCarriesTheCostSource(t *testing.T) {
+	report := (&router{}).stoppedReport(pending{}, endedRun{res: workerResult{costSource: "openrouter"}})
+
+	if report.State != api.RunStopped || report.CostSource != "openrouter" {
+		t.Fatalf("report = %+v", report)
+	}
+}

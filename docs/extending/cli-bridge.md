@@ -729,7 +729,8 @@ from `config.toml`, and so does its `base_url`. The bridge reads them once,
 when the run starts, so a profile change during the run does not change how
 the bridge reports it.
 
-For such a run, the bridge adds this override to `codex exec`. `<provider>` is
+For such a run, the bridge adds this override to `codex exec`, and to the
+`codex` command of an interactive session. `<provider>` is
 the name of the provider table and `<run key>` is the id of the run:
 
 ```text
@@ -740,7 +741,8 @@ OpenRouter groups the requests of the run in one session with that header.
 Codex keeps the headers that your profile sets. The bridge then reports the run
 with token counts, no cost, and the cost source `openrouter`. A preset such as
 `deepseek/deepseek-v4-flash@preset/relace-only` needs no price row for this.
-An interactive Codex session on OpenRouter keeps the bridge price.
+An interactive Codex session on OpenRouter sends the header too, and keeps the
+bridge price.
 
 To run the workers of an account on a preset, follow these steps:
 
