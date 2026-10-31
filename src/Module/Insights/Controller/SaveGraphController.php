@@ -57,6 +57,6 @@ class SaveGraphController extends AppController
 
         $this->addFlash('success', $this->translator->trans('analytics.metrics.saved_graph.flash.saved'));
 
-        return $this->redirectToRoute('app_project_analytics_metrics', ['id' => (string) $project->id] + $result->query->routeParams());
+        return $this->redirectToRoute('app_project_analytics_metrics', ['id' => (string) $project->id] + $result->query->routeParams() + ['saved' => (string) $result->graph->id]);
     }
 }

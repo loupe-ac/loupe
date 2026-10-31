@@ -98,7 +98,7 @@
                         data-live-pill-url-value="{{ path('app_project_activity_open_count', {id: project.id}) }}">
                         {% include '@Bridge/_activity_open_count.html.twig' with {project: project, openCount: project_open_run_count(project)} only %}
                     </twig:Ds:NavItem>
-                    <twig:Ds:NavItem :url="path('app_project_analytics_metrics', {id: project.id})" icon="lucide:chart-column" :label="'nav.link.analytics'|trans" :active="route starts with 'app_project_analytics_'" />
+                    <twig:Ds:NavItem :url="path('app_project_analytics', {id: project.id})" icon="lucide:chart-column" :label="'nav.link.analytics'|trans" :active="route starts with 'app_project_analytics_'" />
                     <twig:Ds:NavItem :url="path('app_project_outbox', {id: project.id})" icon="lucide:send" :label="'nav.link.outbox'|trans" :active="route == 'app_project_outbox'" />
                 </nav>
                 {% endif %}

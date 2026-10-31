@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the GraphTile for the styleguide, so it is intentionally untranslated. #}
+{% if 'broken' == variant %}
+<twig:Ds:GraphTile name="CI wait per card" settings="Per finished card · Median · 90 days · Per week · Line" state="broken" brokenTitle="This graph cannot load" brokenBody="No time bucket rule names the bucket ci-wait now.">
+    <twig:block name="actions">
+        <twig:Ds:Button variant="ghost icon" size="sm" type="button" aria-label="Graph actions"><twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+    </twig:block>
+    <twig:block name="footer">
+        <twig:Ds:Button variant="outline" size="sm" href="#components">Open in Metrics</twig:Ds:Button>
+        <twig:Ds:Button variant="ghost" size="sm" type="button">Remove</twig:Ds:Button>
+    </twig:block>
+</twig:Ds:GraphTile>
+{% else %}
+{% set specimen = metric_chart_specimen(variant ?? 'line') %}
+<twig:Ds:GraphTile name="Cost per finished card" settings="Per finished card · Median · 90 days · Per week · {{ variant ?? 'line' }}">
+    <twig:block name="actions">
+        <twig:Ds:Button variant="ghost icon" size="sm" type="button" aria-label="Graph actions"><twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+    </twig:block>
+    <twig:Ds:Chart :layout="specimen.layout" :labels="specimen.labels" :id="'specimen-tile-' ~ (variant ?? 'line')" />
+</twig:Ds:GraphTile>
+{% endif %}

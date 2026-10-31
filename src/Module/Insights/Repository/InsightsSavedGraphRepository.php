@@ -76,6 +76,24 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * The position and the removal time as the database holds them now, or null when the row is gone.
+     *
+     * @return array{position: int, removedAt: ?\DateTimeImmutable}|null
+     */
+    public function findStateOf(InsightsSavedGraph $graph): ?array
+    {
+        /** @var array{position: int, removedAt: ?\DateTimeImmutable}|null $state */
+        $state = $this->createQueryBuilder('g')
+            ->select('g.position AS position', 'g.removedAt AS removedAt')
+            ->andWhere('g.id = :id')
+            ->setParameter('id', $graph->id, UuidType::NAME)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $state;
+    }
+
     /** The position after the last graph of the project, a removed graph included. */
     public function nextPosition(Project $project): int
     {
@@ -87,5 +105,19 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
 
         return null === $last ? 0 : (int) $last + 1;
+    }
+
+    /** Deletes the graphs of the project that were removed before the cutoff. They are past Undo. */
+    public function deleteRemovedBefore(Project $project, \DateTimeImmutable $cutoff): int
+    {
+        return (int) $this->createQueryBuilder('g')
+            ->delete()
+            ->andWhere('g.project = :project')
+            ->andWhere('g.removedAt IS NOT NULL')
+            ->andWhere('g.removedAt < :cutoff')
+            ->setParameter('project', $project)
+            ->setParameter('cutoff', $cutoff)
+            ->getQuery()
+            ->execute();
     }
 }

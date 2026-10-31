@@ -41,6 +41,18 @@ final readonly class ProjectTopicBuilder
         return $this->projectIdFrom($topic, '/board');
     }
 
+    /** The topic the Dashboard of a project listens on. The message names a graph and a kind of change, never a name or a number. */
+    public function forDashboard(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/dashboard';
+    }
+
+    /** The project a forDashboard() topic names, or null for any other string. */
+    public function projectIdFromDashboardTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/dashboard');
+    }
+
     /** The topic the worker run pages of a project listen on. The message names no run. */
     public function forWorkerRuns(Uuid $projectId): string
     {

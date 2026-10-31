@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Mcp\Scheduler;
+namespace App\Tests\Cache\Scheduler;
 
-use App\Mcp\Scheduler\PruneMcpSessionsTask;
+use App\Cache\Scheduler\PruneAppCacheTask;
 use App\Tests\Support\ScheduledTasks;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
-final class PruneMcpSessionsTaskTest extends KernelTestCase
+final class PruneAppCacheTaskTest extends KernelTestCase
 {
     public function test_it_runs_every_hour_on_the_default_schedule(): void
     {
@@ -18,7 +18,7 @@ final class PruneMcpSessionsTaskTest extends KernelTestCase
 
         self::assertSame(
             '23 * * * *',
-            ScheduledTasks::cronExpressions(self::getContainer())[PruneMcpSessionsTask::class] ?? null,
+            ScheduledTasks::cronExpressions(self::getContainer())[PruneAppCacheTask::class] ?? null,
         );
     }
 
@@ -36,7 +36,7 @@ final class PruneMcpSessionsTaskTest extends KernelTestCase
             }
         };
 
-        (new PruneMcpSessionsTask($pool))();
+        (new PruneAppCacheTask($pool))();
 
         self::assertSame(1, $pool->pruned);
     }
@@ -46,7 +46,7 @@ final class PruneMcpSessionsTaskTest extends KernelTestCase
         $pool = new ArrayAdapter();
         $pool->save($pool->getItem('k')->set('v'));
 
-        (new PruneMcpSessionsTask($pool))();
+        (new PruneAppCacheTask($pool))();
 
         self::assertTrue($pool->hasItem('k'));
     }

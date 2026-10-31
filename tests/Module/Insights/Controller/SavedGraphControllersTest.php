@@ -42,10 +42,10 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->savePath($projectId), $this->form(['name' => 'My cost']), [], self::HEADERS);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/metrics?unit=run&statistic=sum&range=thirty-days&bucket=day&chart=bars');
-        self::assertSame(['success' => ['The graph is saved.']], $this->flashes($client));
         $graphs = $this->stored($projectId);
         self::assertCount(1, $graphs);
+        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/metrics?unit=run&statistic=sum&range=thirty-days&bucket=day&chart=bars&saved='.$graphs[0]->id);
+        self::assertSame(['success' => ['The graph is saved.']], $this->flashes($client));
         self::assertSame('My cost', $graphs[0]->name);
         self::assertSame(MetricChartType::Bars, $graphs[0]->chartType);
         self::assertSame(0, $graphs[0]->position);

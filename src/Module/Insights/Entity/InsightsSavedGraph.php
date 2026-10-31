@@ -82,4 +82,27 @@ class InsightsSavedGraph
         public ?\DateTimeImmutable $removedAt = null,
     ) {
     }
+
+    /** A removed graph stays restorable for this long, then the next remove deletes it. */
+    public const string UNDO_WINDOW = '-1 day';
+
+    public function isUndoable(\DateTimeImmutable $now): bool
+    {
+        return null !== $this->removedAt && $this->removedAt >= $now->modify(self::UNDO_WINDOW);
+    }
+
+    /** @return array<string, string> the Metrics controls of the graph, by name */
+    public function settings(): array
+    {
+        return [
+            'metric' => $this->metric,
+            'unit' => $this->unit->value,
+            'statistic' => $this->statistic->value,
+            'group' => $this->group->value,
+            'range' => $this->range->value,
+            'bucket' => $this->bucket->value,
+            'compare' => $this->compare->value,
+            'chart' => $this->chartType->value,
+        ];
+    }
 }

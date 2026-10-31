@@ -138,7 +138,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertSame('Cost <b>of</b> runs', $banner->filter('strong')->text());
         self::assertStringContainsString('Editing the saved graph', $banner->text());
         self::assertStringContainsString('The Dashboard shows your changes after you save.', $banner->text());
-        self::assertSame('/projects/'.$projectId.'/analytics/metrics', $banner->filter('a')->attr('href'));
+        self::assertSame('/projects/'.$projectId.'/analytics/dashboard', $banner->filter('a')->attr('href'));
         self::assertSame('Back to the Dashboard', trim($banner->filter('a')->text()));
 
         $form = $crawler->filter('form[data-save-graph]');

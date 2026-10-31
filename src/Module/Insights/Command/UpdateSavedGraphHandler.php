@@ -6,6 +6,8 @@ namespace App\Module\Insights\Command;
 
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Service\DashboardChange;
+use App\Module\Insights\Service\DashboardChangedPublisher;
 use App\Module\Insights\Service\SavedGraphSettingsResolver;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +24,7 @@ final readonly class UpdateSavedGraphHandler
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private SavedGraphSettingsResolver $settings,
         private Auditor $auditor,
+        private DashboardChangedPublisher $dashboard,
     ) {
     }
 
@@ -63,6 +66,8 @@ final readonly class UpdateSavedGraphHandler
             ['projectId' => $projectId, 'graphId' => (string) $graph->id, 'metric' => $graph->metric],
             new AuditSubject('project', $projectId),
         );
+
+        $this->dashboard->graphChanged($project, $graph->id ?? throw new \LogicException('A stored graph has an id.'), DashboardChange::Updated);
 
         return new SavedGraphResult($graph, $query);
     }

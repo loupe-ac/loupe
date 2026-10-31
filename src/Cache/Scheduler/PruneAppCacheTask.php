@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Mcp\Scheduler;
+namespace App\Cache\Scheduler;
 
 use Symfony\Component\Cache\PruneableInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -10,11 +10,12 @@ use Symfony\Component\Scheduler\Attribute\AsCronTask;
 use Symfony\Contracts\Cache\CacheInterface;
 
 /**
- * Hourly delete of expired MCP session rows from the shared cache table. The
- * read path ignores an expired row, but nothing else removes it.
+ * Hourly delete of expired rows from the whole shared cache.app pool. The read
+ * path ignores an expired row, but nothing else removes it. MCP sessions, rate
+ * limiters and the kept Dashboard results all live in this pool.
  */
 #[AsCronTask('23 * * * *')]
-final readonly class PruneMcpSessionsTask
+final readonly class PruneAppCacheTask
 {
     public function __construct(
         #[Autowire(service: 'cache.app')]
