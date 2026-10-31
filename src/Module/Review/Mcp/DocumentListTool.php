@@ -19,7 +19,7 @@ use Mcp\Exception\ToolCallException;
 /**
  * List documents in the project bound to the authenticated MCP token.
  */
-#[McpTool(name: 'document_list', description: 'List documents in the token\'s project, with their current status and version. Each row carries that version\'s description, which says what the document is about, so you rarely need document_get to find the one you want. Each row also carries its tags and, when it has one, its series and position in it. Narrow the list with search for full-text terms, and with status, tag and series. A search orders the rows by relevance instead of by recency, and a series orders them by position. Archived documents are omitted unless includeArchived is true. Paginated: pass page to walk further, and keep going while hasMore is true.')]
+#[McpTool(name: 'document_list', description: 'List documents in the token\'s project, with their current status and version. Each row carries that version\'s description, which says what the document is about, so you rarely need document_get to find the one you want. Each row also carries its tags and, when it has one, its series and position in it. Narrow the list with search, which matches text anywhere inside a word, and with status, tag and series. A search puts the documents with every word in the title first, and a series orders them by position. Archived documents are omitted unless includeArchived is true. Paginated: pass page to walk further, and keep going while hasMore is true.')]
 final readonly class DocumentListTool
 {
     use ResolvesBoundProject;
