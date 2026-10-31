@@ -18,6 +18,7 @@ use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HostSampling;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
@@ -1032,6 +1033,99 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         sort($ids);
 
         return $ids;
+    }
+
+    public function test_it_stores_an_account_reading(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-store@example.com');
+        $bridgeId = Uuid::v4();
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0)]));
+
+        self::assertSame(
+            [['work', 'session', 29.0, '2026-10-07 17:00:00', false, 'stream', '2026-10-07 12:00:00']],
+            array_map(
+                static fn (array $row): array => [$row[0], $row[1], (float) $row[2], $row[3], $row[4], $row[5], $row[6]],
+                $em->getConnection()->fetchAllNumeric('SELECT account, window_key, used_percent, resets_at, limited, source, read_at FROM bridge_account_readings WHERE bridge_id = :id', ['id' => (string) $bridgeId]),
+            ),
+        );
+    }
+
+    public function test_it_skips_a_reading_equal_to_the_latest_one(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-equal@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:00:00')]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:01:00')]));
+
+        self::assertSame(1, $this->countReadings($em));
+    }
+
+    public function test_it_stores_a_reading_that_differs_in_use_reset_or_limit_and_compares_each_window_alone(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-differs@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 29.0), self::reading('week', 29.0)]));
+        self::assertSame(2, $this->countReadings($em));
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 30.0, readAt: '2026-10-07 12:01:00')]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 30.0, resetsAt: '2026-10-07 18:00:00', readAt: '2026-10-07 12:02:00')]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 30.0, resetsAt: '2026-10-07 18:00:00', limited: true, readAt: '2026-10-07 12:03:00')]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', null, resetsAt: '2026-10-07 18:00:00', limited: true, readAt: '2026-10-07 12:04:00')]));
+
+        self::assertSame(6, $this->countReadings($em));
+    }
+
+    public function test_a_null_use_equals_a_null_use_and_differs_from_zero(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-null@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', null)]));
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', null, readAt: '2026-10-07 12:01:00')]));
+        self::assertSame(1, $this->countReadings($em));
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', accountReadings: [self::reading('session', 0.0, readAt: '2026-10-07 12:02:00')]));
+        self::assertSame(2, $this->countReadings($em));
+    }
+
+    public function test_a_window_repeated_in_one_heartbeat_stores_only_changes(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-repeat@example.com');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, Uuid::v4(), [], 'b4e39aa7', accountReadings: [
+            self::reading('session', 29.0, readAt: '2026-10-07 12:00:00'),
+            self::reading('session', 29.0, readAt: '2026-10-07 12:00:30'),
+        ]));
+
+        self::assertSame(1, $this->countReadings($em));
+    }
+
+    private static function reading(string $window, ?float $usedPercent, string $resetsAt = '2026-10-07 17:00:00', bool $limited = false, string $readAt = '2026-10-07 12:00:00'): AccountReadingReport
+    {
+        $utc = new \DateTimeZone('UTC');
+
+        return new AccountReadingReport('work', $window, $usedPercent, new \DateTimeImmutable($resetsAt, $utc), $limited, 'stream', new \DateTimeImmutable($readAt, $utc));
+    }
+
+    private function countReadings(\Doctrine\ORM\EntityManagerInterface $em): int
+    {
+        return (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_account_readings');
     }
 
     private function handler(): RecordBridgeHeartbeatHandler

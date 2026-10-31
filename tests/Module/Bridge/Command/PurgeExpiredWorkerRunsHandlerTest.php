@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\PurgeExpiredWorkerRunsHandler;
 use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
@@ -87,6 +88,30 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
         self::assertSame(0, ($this->handler())(new PurgeExpiredWorkerRunsCommand()));
 
         self::assertSame(['2026-09-01 00:00:00'], $em->getConnection()->fetchFirstColumn('SELECT sampled_at FROM bridge_host_samples'));
+    }
+
+    /** The newest reading of each window stays, so an old window reads as Unknown and not as missing. */
+    public function test_it_deletes_old_readings_and_keeps_the_latest_of_each_window(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $bridge = $this->seedBridge($em, $this->user($em, 'readings-sweep@example.com'));
+        $this->seedAccountReading($em, $bridge, '2026-01-01 00:00:00', 'work', 'session', 10.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-02 00:00:00', 'work', 'session', 20.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 00:00:00', 'work', 'week', 30.0);
+        $this->seedAccountReading($em, $bridge, '2026-01-01 00:00:00', 'spare', 'session', 40.0);
+        $this->seedAccountReading($em, $bridge, '2026-09-01 00:00:00', 'spare', 'session', 50.0);
+        $this->seedAccountReading($em, $bridge, '2026-09-02 00:00:00', 'spare', 'session', 60.0);
+
+        self::assertSame(0, ($this->handler())(new PurgeExpiredWorkerRunsCommand()));
+
+        self::assertSame(
+            [['spare', 'session', 50.0], ['spare', 'session', 60.0], ['work', 'session', 20.0], ['work', 'week', 30.0]],
+            array_map(
+                static fn (array $row): array => [$row[0], $row[1], (float) $row[2]],
+                $em->getConnection()->fetchAllNumeric('SELECT account, window_key, used_percent FROM bridge_account_readings ORDER BY account, window_key, read_at'),
+            ),
+        );
     }
 
     /** A pin that no run refreshed within the window goes, and the count still names the runs alone. */
@@ -294,6 +319,7 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
             new ExperimentPinRepository($registry),
             $archives ?? new ExperimentArchiveRepository($registry),
             new BridgeHostSampleRepository($registry),
+            new BridgeAccountReadingRepository($registry),
             new WorkerRunRetentionPolicy($flags, 180),
             new MockClock(new \DateTimeImmutable(self::NOW)),
             $this->em(),

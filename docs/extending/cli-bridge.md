@@ -481,6 +481,7 @@ work:
 | `model` | no | The model of the account's runs, when the entry or the variant names none |
 | `permissionMode` | no | A permission mode of the harness, when the entry or the variant names no level. For `codex` it is `read-only`, `workspace-write` or `danger-full-access` |
 | `envFile` | no | An [environment file](#environment-files) that each run of the account reads |
+| `stopAt` | no | The use of a window, in percent, at which Loupe stops new work on the account. A whole number from 1 to 100. The default is 95 |
 
 An account name is 1 to 40 lowercase letters, digits and hyphens, and starts
 with a letter. A file declares at most 50 accounts. `configDir`, `codexHome` and `envFile` are absolute paths or start with `~/`. A `profile` is 1 to 64 letters, digits, dots, underscores and hyphens, and starts with a letter or a digit.
@@ -838,6 +839,66 @@ same checks.
 The Agents page and `loupe status` mark an account that no rule uses as unused.
 A failing unused account turns off no rule. Only a failing account that a rule
 uses makes `loupe status` exit with a non-zero code.
+
+### Account usage
+
+The bridge reads how much of its limits each account has used, and sends the
+readings to Loupe with the account rows of the heartbeat. Each row can carry
+these keys. A Loupe that does not know a key ignores it.
+
+| Key | Content |
+|---|---|
+| `kinds` | The work kinds that can run on the account, through a work entry or a variant of an experiment. A kind of another subject reads `<subject>:<kind>` |
+| `stopAt` | The `stopAt` of the account, 95 when the file sets none |
+| `readings` | The latest reading of each window since the last heartbeat |
+
+A reading has these keys:
+
+| Key | Content |
+|---|---|
+| `window` | `session` for a 5-hour window, `week` for a 7-day window, and `<n>h`, `<n>d` or `<n>m` for any other length |
+| `usedPercent` | The use of the window in percent, from 0 to 200. It is `null` when the source gives no use |
+| `resetsAt` | The reset time in UTC |
+| `limited` | `true` when the window is at its limit |
+| `source` | Where the reading came from: `claude-event`, `claude-status`, `claude-message` or `codex` |
+| `readAt` | The time of the reading in UTC |
+
+The bridge reads the usage while a run goes. On each heartbeat it reads the new
+lines of the output file of each live run, from the place where it stopped. It
+reads the rest after the run ends. The bridge keeps one reading for each window
+of each account. It drops a reading that Loupe refuses: a reading with no reset
+time, a reset time more than 31 days ahead, or a window name out of the pattern
+of the heartbeat. A heartbeat that Loupe does not accept leaves the readings for
+the next one.
+
+A Claude Code account has three sources, in this order:
+
+1. The `rate_limit_event` lines of the output carry `unifiedWindows`, with the
+   `five_hour` and `seven_day` windows. This part of the output is not
+   documented, so a Claude Code update can remove it. The source is
+   `claude-event`. Claude Code gives `utilization` as a fraction, and the bridge
+   multiplies it by 100. A window with no `resetsAt` takes the top-level
+   `resetsAt` and `utilization` when `rateLimitType` names that window.
+   Otherwise the bridge skips the window.
+2. A `rate_limit_event` line also carries one window at its top level, with
+   `status`, `resetsAt` and sometimes `utilization`. A `rejected` status means
+   the window is limited. The window comes from `rateLimitType`. When the line
+   has none, the window is `session` if the reset is at most 5 hours ahead, and
+   `week` otherwise. The bridge sends this window when `unifiedWindows` gives
+   no complete reading for it. The source is `claude-status`. This window often
+   has no `utilization`, and `usedPercent` is then `null`.
+3. The message "You've hit your session limit · resets 3:45pm" and the same
+   forms for the weekly, Opus and Sonnet limits. The `session` limit reads the
+   window `session`, and the others read `week`. The bridge reads the reset
+   time in its own time zone, as the next time after now. A message whose
+   reset time the bridge cannot read gives no reading. `usedPercent` is
+   `null` and `limited` is `true`. The source is `claude-message`.
+
+A Codex account has one source, the session file of the run. The bridge reads
+`rate_limits.primary` and `rate_limits.secondary` of each token count line, and
+keeps `used_percent` as it is. The window comes from `window_minutes`. A
+non-null `rate_limit_reached_type` marks the window that it names as limited.
+The source is `codex`.
 
 ### Migration and rollback
 

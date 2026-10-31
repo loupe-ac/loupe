@@ -79,6 +79,7 @@ final class RecordBridgeHeartbeatController extends AppController
             gitIdentitiesAge: $payload->gitIdentitiesAge ?? 0,
             interactiveSessions: $payload->interactiveSessions(),
             accessTokenId: AuthenticatedCredential::of($this->tokenStorage->getToken())?->accessTokenId,
+            accountReadings: $payload->accountReadings(),
         ));
 
         return new JsonResponse([
