@@ -61,7 +61,7 @@ final class RequestSessionUsageCollectionHandlerTest extends KernelTestCase
             self::assertSame(BridgeCommandKind::CollectSessionUsage, $command->kind);
             self::assertSame(BridgeCommandState::Pending, $command->state);
             self::assertNull($command->requestedBy);
-            self::assertSame((string) $run->id, (string) $command->workerRun->id);
+            self::assertSame((string) $run->id, (string) $command->workerRun?->id);
         }
 
         $payloads = $this->outboxPayloads();

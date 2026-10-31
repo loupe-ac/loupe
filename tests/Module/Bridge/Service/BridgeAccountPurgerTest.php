@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Service;
 use App\Module\Account\Deletion\AccountDeletionCleanup;
 use App\Module\Account\Deletion\AccountPurger;
 use App\Module\Account\Entity\User;
+use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\Service\BridgeAccountPurger;
 use App\Module\Project\Service\ProjectAccountPurger;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -72,6 +73,27 @@ final class BridgeAccountPurgerTest extends KernelTestCase
         self::assertSame(
             [[(string) $staying->id, (string) $shared]],
             $em->getConnection()->fetchAllNumeric('SELECT owner_id, bridge_id FROM bridge_account_readings'),
+        );
+    }
+
+    /** The purger deletes bridges by SQL, so only the foreign key can take their Try now overrides. */
+    public function test_it_takes_the_try_now_overrides_of_the_departing_account_alone(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $leaving = $this->user($em, 'try-now-purge-leaving@example.com');
+        $staying = $this->user($em, 'try-now-purge-staying@example.com');
+        $shared = Uuid::v4();
+        $pressedAt = new \DateTimeImmutable('2026-10-07 12:00:00');
+        $em->persist(new BridgeAccountTryNow(Uuid::v7(), $this->seedBridge($em, $leaving, $shared), 'work', $pressedAt));
+        $em->persist(new BridgeAccountTryNow(Uuid::v7(), $this->seedBridge($em, $staying, $shared), 'work', $pressedAt));
+        $em->flush();
+
+        $this->purge($leaving);
+
+        self::assertSame(
+            [[(string) $staying->id, (string) $shared]],
+            $em->getConnection()->fetchAllNumeric('SELECT owner_id, bridge_id FROM bridge_account_try_now'),
         );
     }
 

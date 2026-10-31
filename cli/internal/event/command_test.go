@@ -272,3 +272,30 @@ func TestForAnotherBridgeReadsACommand(t *testing.T) {
 		})
 	}
 }
+
+// tryNowPayload is the command as the server sends it: no run, no subject,
+// and the account to try.
+const tryNowPayload = `{"type":"bridge.command","projectId":"0192F3A1-4B2C-7D3E-8F10-A2B3C4D5E6F7",` +
+	`"subject":{"type":"bridge-command","id":"0199A0E2-0000-7C5E-9F2A-3B1C6D7E8F90"},"commandId":"0199A0E2-0000-7C5E-9F2A-3B1C6D7E8F90",` +
+	`"kind":"try-now","bridgeId":"7D1E2F3A-4B5C-4D6E-9F0A-1B2C3D4E5F6A","runId":null,"runKey":null,"sessionId":null,` +
+	`"subjectType":null,"subjectId":null,"cardNumber":null,"workRequestId":null,"workKind":null,"ruleId":null,` +
+	`"expiresAt":"2026-09-29T10:15:00+00:00","cause":"person","account":"claude"}`
+
+func TestParseCommandTakesATryNowCommand(t *testing.T) {
+	c, err := ParseCommand([]byte(tryNowPayload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Kind != api.CommandTryNow || c.Account != "claude" || c.RunKey != "" || c.SubjectType != "" {
+		t.Fatalf("command = %+v", c)
+	}
+}
+
+func TestParseCommandRejectsATryNowCommandWithNoAccount(t *testing.T) {
+	for _, account := range []string{`"account":null`, `"account":""`, `"account":"  "`} {
+		payload := strings.Replace(tryNowPayload, `"account":"claude"`, account, 1)
+		if _, err := ParseCommand([]byte(payload)); err == nil {
+			t.Fatalf("expected %s to be rejected", account)
+		}
+	}
+}

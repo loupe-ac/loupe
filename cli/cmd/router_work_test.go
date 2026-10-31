@@ -526,7 +526,7 @@ func TestTheHeartbeatRenewsTheHeldClaims(t *testing.T) {
 	if got := client.sent[1].WorkClaims; len(got) != 0 {
 		t.Fatalf("claims after the result = %v", got)
 	}
-	if got := client.sent[0].Capabilities; !slices.Equal(got, []string{"commands", "rerun-command", "session-usage", "run-command", "git-identities", "work-requests"}) {
+	if got := client.sent[0].Capabilities; !slices.Equal(got, []string{"commands", "rerun-command", "session-usage", "try-now", "run-command", "git-identities", "work-requests"}) {
 		t.Fatalf("capabilities = %v", got)
 	}
 }

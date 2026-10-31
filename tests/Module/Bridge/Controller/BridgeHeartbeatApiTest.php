@@ -14,6 +14,7 @@ use App\Module\Bridge\Controller\Api\BridgeRepositoryInput;
 use App\Module\Bridge\Controller\Api\BridgeWorktreeInput;
 use App\Module\Bridge\Controller\Api\RecordBridgeHeartbeatRequest;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\BridgeCommandPayload;
@@ -1057,6 +1058,36 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, $bridgeId, $raw, $this->limitBody($project, $open));
 
         self::assertSame([(string) $request->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+    }
+
+    public function test_an_open_try_now_override_lifts_the_account_from_the_reply_and_the_offers_until_a_reading_after_the_press_answers(): void
+    {
+        [$client, , $project, $raw, $bridgeId] = $this->limitScenario('heartbeat-try-now@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project);
+        $limited = self::accountReading(['usedPercent' => 100, 'limited' => true, 'resetsAt' => '2026-10-01T17:00:00Z', 'readAt' => '2026-10-01T12:20:00Z']);
+        $body = $this->limitBody($project, [self::account(['kinds' => ['implement'], 'readings' => [$limited]])], [['workRequestId' => (string) $request->id, 'account' => 'work']]);
+        $this->put($client, $bridgeId, $raw, $body);
+        self::assertSame([['account' => 'work', 'until' => '2026-10-01T17:00:00+00:00']], $this->reply($client)['blockedAccounts']);
+        self::assertSame([], $this->reply($client)['workRequests']);
+
+        $bridges = self::getContainer()->get(BridgeRepository::class);
+        self::assertInstanceOf(BridgeRepository::class, $bridges);
+        $stored = $bridges->findOneBy(['id' => Uuid::fromString($bridgeId)]);
+        self::assertInstanceOf(Bridge::class, $stored);
+        $this->em()->persist(new BridgeAccountTryNow(Uuid::v7(), $stored, 'work', new \DateTimeImmutable(self::WORK_NOW)));
+        $this->em()->flush();
+
+        // A reading read before the press changes nothing.
+        $this->put($client, $bridgeId, $raw, $body);
+        self::assertSame([], $this->reply($client)['blockedAccounts']);
+        self::assertSame([(string) $request->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+
+        // The first reading after the press closes the override, and the reading decides again.
+        $after = self::accountReading(['usedPercent' => 100, 'limited' => true, 'resetsAt' => '2026-10-01T17:00:00Z', 'readAt' => '2026-10-01T12:30:30Z']);
+        $this->put($client, $bridgeId, $raw, $this->limitBody($project, [self::account(['kinds' => ['implement'], 'readings' => [$after]])]));
+        self::assertSame([['account' => 'work', 'until' => '2026-10-01T17:00:00+00:00']], $this->reply($client)['blockedAccounts']);
+        self::assertSame([], $this->reply($client)['workRequests']);
+        self::assertTrue((bool) $this->em()->getConnection()->fetchOne('SELECT still_limited FROM bridge_account_try_now'));
     }
 
     /** @return iterable<string, array{string}> */

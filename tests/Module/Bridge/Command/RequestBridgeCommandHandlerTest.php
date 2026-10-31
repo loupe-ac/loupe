@@ -55,7 +55,7 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         self::assertSame((string) $owner->id, (string) $stored->owner->id);
         self::assertSame((string) $run->bridgeId, (string) $stored->bridgeId);
         self::assertSame((string) $run->project->id, (string) $stored->project->id);
-        self::assertSame((string) $run->id, (string) $stored->workerRun->id);
+        self::assertSame((string) $run->id, (string) $stored->workerRun?->id);
         self::assertSame(BridgeCommandKind::ResumeRun, $stored->kind);
         self::assertSame(BridgeCommandState::Pending, $stored->state);
         self::assertSame('resume it', $stored->reason);

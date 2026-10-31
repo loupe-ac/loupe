@@ -21,6 +21,9 @@ const (
 	// CommandCollectSessionUsage asks for the usage of one interactive run,
 	// from the transcript of its session on this machine.
 	CommandCollectSessionUsage = "collect-session-usage"
+	// CommandTryNow asks the bridge to take work for one account again. It
+	// names the account and no run.
+	CommandTryNow = "try-now"
 )
 
 // The causes of a command. A resume after an ask close says that the owner

@@ -6046,6 +6046,62 @@
                 <source>inbox.bridge_outage.closed</source>
                 <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
             </trans-unit>
+            <trans-unit id="inbox.account_limit.title">
+                <source>inbox.account_limit.title</source>
+                <target>{0}%account% is at its %window% limit · no cards wait · resets %resets%|{1}%account% is at its %window% limit · 1 card waits · resets %resets%|]1,Inf[%account% is at its %window% limit · %count% cards wait · resets %resets%</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window.session">
+                <source>inbox.account_limit.window.session</source>
+                <target>session</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window.week">
+                <source>inbox.account_limit.window.week</source>
+                <target>weekly</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window_label.session">
+                <source>inbox.account_limit.window_label.session</source>
+                <target>Session</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.window_label.week">
+                <source>inbox.account_limit.window_label.week</source>
+                <target>Week</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.intro">
+                <source>inbox.account_limit.body.intro</source>
+                <target>%account% reached its usage limit. These windows are at their limit:</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.window">
+                <source>inbox.account_limit.body.window</source>
+                <target>%window%: resets %resets%</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.cards">
+                <source>inbox.account_limit.body.cards</source>
+                <target>The work of these cards waits for the account:</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.card">
+                <source>inbox.account_limit.body.card</source>
+                <target>Card %number%: %title%</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.body.remedy">
+                <source>inbox.account_limit.body.remedy</source>
+                <target>The work starts again by itself when the account can take work. To start it sooner, press Try now on the Agents page.</target>
+            </trans-unit>
+            <trans-unit id="inbox.account_limit.closed">
+                <source>inbox.account_limit.closed</source>
+                <target>%account% could take work again at %end%. It was at its limit from %start%.</target>
+            </trans-unit>
+            <trans-unit id="bridge.try_now.error.unknown_bridge">
+                <source>bridge.try_now.error.unknown_bridge</source>
+                <target>This bridge is not connected to your account.</target>
+            </trans-unit>
+            <trans-unit id="bridge.try_now.error.unknown_account">
+                <source>bridge.try_now.error.unknown_account</source>
+                <target>This bridge does not run that account.</target>
+            </trans-unit>
+            <trans-unit id="bridge.try_now.error.bridge_outdated">
+                <source>bridge.try_now.error.bridge_outdated</source>
+                <target>Update the bridge to use Try now.</target>
+            </trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
                 <source>inbox.repository_misfit.title.one</source>
                 <target>%repository% does not fit the workflow</target>
@@ -7794,6 +7850,7 @@
             <trans-unit id="board.card.link.review.approval_outdated"><source>board.card.link.review.approval_outdated</source><target>Approval outdated</target></trans-unit>
             <trans-unit id="board.card.link.review.changes_requested"><source>board.card.link.review.changes_requested</source><target>Changes requested</target></trans-unit>
             <trans-unit id="board.card.link.review.required"><source>board.card.link.review.required</source><target>Review required</target></trans-unit>
+            <trans-unit id="board.card_state.try_now"><source>board.card_state.try_now</source><target>Try now</target></trans-unit>
             <trans-unit id="board.card_state.status"><source>board.card_state.status</source><target>Status</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.stuck"><source>board.card_state.remedy_label.stuck</source><target>To unstick it</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.needs_you"><source>board.card_state.remedy_label.needs_you</source><target>What to do</target></trans-unit>
@@ -8404,6 +8461,9 @@
             <trans-unit id="bridge.agents.usage.unknown"><source>bridge.agents.usage.unknown</source><target>Unknown</target></trans-unit>
             <trans-unit id="bridge.agents.usage.read"><source>bridge.agents.usage.read</source><target>Read %age%</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.failing_hint"><source>bridge.agents.accounts.failing_hint</source><target>The rules that use this account stay off until the account passes its check and the bridge reloads.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.try_now.action"><source>bridge.agents.accounts.try_now.action</source><target>Try now</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.try_now.trying"><source>bridge.agents.accounts.try_now.trying</source><target>Trying now</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.try_now.still_limited"><source>bridge.agents.accounts.try_now.still_limited</source><target>Still at its limit, checked %time%</target></trans-unit>
             <trans-unit id="bridge.agents.never"><source>bridge.agents.never</source><target>Not reported</target></trans-unit>
             <trans-unit id="bridge.agents.empty.title"><source>bridge.agents.empty.title</source><target>No crew connection yet</target></trans-unit>
             <trans-unit id="bridge.agents.empty.description"><source>bridge.agents.empty.description</source><target>Connect the bridge to make this project available to your local crew.</target></trans-unit>

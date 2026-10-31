@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Controller;
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Project\Entity\Project;
@@ -18,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\Uid\Uuid;
 
 final class ListAgentsControllerTest extends WebTestCase
 {
@@ -751,6 +753,151 @@ final class ListAgentsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('This bridge is not connected to your account.', $crawler->filter('[data-bridge-pause-flash]')->text());
+    }
+
+    public function test_a_member_who_cannot_manage_sees_the_reset_and_no_try_now(): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        [$owner, $project, $bridge] = $this->tryNowScenario('member');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        self::assertCount(0, $account->filter('[data-agent-try-now]'));
+        self::assertCount(1, $account->filter('[data-agent-usage="week"] [data-agent-usage-reset]'));
+    }
+
+    public function test_a_manager_sees_try_now_as_a_post_form_with_a_token(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('manager');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $form = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] form[data-agent-try-now="work"]');
+        self::assertCount(1, $form);
+        self::assertSame('/projects/'.$project->id.'/agents/'.$bridge->id.'/accounts/work/try-now', $form->attr('action'));
+        self::assertSame('post', $form->attr('method'));
+        self::assertCount(1, $form->filter('input[name="_csrf_token"]'));
+        self::assertSame('Try now', trim($form->filter('button[type="submit"]')->text()));
+        self::assertCount(1, $crawler->filter('.lp-agent-card__account-line > form[data-agent-try-now="work"]'));
+        self::assertStringContainsString('lp-btn--ghost', (string) $form->filter('button')->attr('class'));
+    }
+
+    public function test_an_account_that_still_takes_work_offers_no_try_now(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('open', limited: false, usedPercent: 10.0);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-try-now]'));
+    }
+
+    public function test_an_open_override_reads_trying_now_and_offers_no_second_press(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('trying');
+        $em = $this->em();
+        $em->persist(new BridgeAccountTryNow(Uuid::v7(), $bridge, 'work', new \DateTimeImmutable('-1 minute', new \DateTimeZone('UTC'))));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        self::assertSame('Trying now', trim($account->filter('[data-agent-try-now-state="trying"]')->text()));
+        self::assertCount(0, $account->filter('[data-agent-try-now]'));
+    }
+
+    public function test_a_press_that_found_the_limit_in_place_shows_when_it_was_checked_and_offers_another_try(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge, $readAt] = $this->tryNowScenario('still-limited');
+        $em = $this->em();
+        $override = new BridgeAccountTryNow(Uuid::v7(), $bridge, 'work', $readAt->modify('-1 minute'));
+        $override->closedAt = $readAt;
+        $override->checkedAt = $readAt;
+        $override->stillLimited = true;
+        $em->persist($override);
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        $checked = $readAt->setTimezone(new \DateTimeZone(date_default_timezone_get()))->format('H:i');
+        self::assertSame('Still at its limit, checked '.$checked, trim($account->filter('[data-agent-try-now-state="still-limited"]')->text()));
+        self::assertCount(1, $account->filter('form[data-agent-try-now="work"]'));
+    }
+
+    public function test_a_bridge_without_the_try_now_capability_offers_no_button(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('outdated', capabilities: [Bridge::CAPABILITY_COMMANDS]);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-try-now]'));
+    }
+
+    public function test_a_try_now_refusal_shows_on_the_page(): void
+    {
+        $client = static::createClient();
+        [$owner, $project] = $this->tryNowScenario('flash');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $url = '/projects/'.$project->id.'/agents';
+        $client->request(Request::METHOD_GET, $url);
+        $session = $client->getRequest()->getSession();
+        self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
+        $session->getFlashBag()->add('bridge-try-now', 'This account is not at its limit.');
+        $session->save();
+        $crawler = $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('This account is not at its limit.', $crawler->filter('[data-bridge-try-now-flash]')->text());
+    }
+
+    /**
+     * An account "work" with a week reading, at its limit unless told otherwise.
+     *
+     * @param list<string> $capabilities
+     *
+     * @return array{0: User, 1: Project, 2: Bridge, 3: \DateTimeImmutable} the time the reading was read comes last
+     */
+    private function tryNowScenario(string $name, bool $limited = true, float $usedPercent = 100.0, array $capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_TRY_NOW]): array
+    {
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-try-now-'.$name.'@example.com');
+        $project = $this->project($em, $owner, 'Agents try now '.$name);
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '1.5.0', accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $bridge->capabilities = $capabilities;
+        $readAt = new \DateTimeImmutable('-10 minutes', new \DateTimeZone('UTC'));
+        $this->seedAccountReading($em, $bridge, $readAt->format('Y-m-d H:i:s'), window: 'week', usedPercent: $usedPercent, resetsAt: new \DateTimeImmutable('+2 days')->format('Y-m-d H:i:s'), limited: $limited);
+        $em->flush();
+
+        return [$owner, $project, $bridge, $readAt];
     }
 
     public function test_a_stranger_cannot_read_connections(): void

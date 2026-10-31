@@ -76,6 +76,9 @@ final readonly class RunWorkTakerLimited implements Condition, MarkerEvidence, T
             '%use%' => null === $usedPercent ? '' : (int) round($usedPercent),
             '%stopAt%' => $limit->releasing->stopAt,
             '%resetsAt%' => $limit->resetsAt->getTimestamp(),
+            // The Try now control of the card status posts to the account of this bridge.
+            '%bridgeId%' => $limit->releasing->bridgeId?->toRfc4122() ?? '',
+            '%canTryNow%' => $limit->releasing->bridgeTakesTryNow ? 1 : 0,
         ]);
     }
 }

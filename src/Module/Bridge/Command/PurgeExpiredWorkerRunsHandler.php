@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Experiment\ExperimentArchiveState;
 use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
@@ -17,8 +18,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * Deletes the run rows, the experiment pins, the host samples and the account
- * readings the retention window no longer covers, and answers how many runs went.
+ * Deletes the run rows, the experiment pins, the host samples, the Try now
+ * overrides and the account readings the retention window no longer covers,
+ * and answers how many runs went.
  * The newest reading of each account window stays. It also deletes the
  * archive rows that no longer hide an experiment.
  */
@@ -30,6 +32,7 @@ final readonly class PurgeExpiredWorkerRunsHandler
         private ExperimentArchiveRepository $experimentArchives,
         private BridgeHostSampleRepository $bridgeHostSamples,
         private BridgeAccountReadingRepository $bridgeAccountReadings,
+        private BridgeAccountTryNowRepository $bridgeAccountTryNows,
         private WorkerRunRetentionPolicy $retention,
         private ClockInterface $clock,
         private EntityManagerInterface $em,
@@ -45,6 +48,7 @@ final readonly class PurgeExpiredWorkerRunsHandler
         $this->experimentPins->deleteUpdatedBefore($cutoff);
         $this->bridgeHostSamples->deleteSampledBefore($cutoff);
         $this->bridgeAccountReadings->deleteReadBeforeKeepingLatest($cutoff);
+        $this->bridgeAccountTryNows->deletePressedBefore($cutoff);
 
         $deleted = $this->workerRuns->deleteReceivedBefore($cutoff);
 

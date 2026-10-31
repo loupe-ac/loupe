@@ -605,6 +605,32 @@ again by itself. See [Usage limits](worker-runs.md#usage-limits).
 When the bridge that holds the work of a card loses its network, the card also
 shows **Waiting**. See [Network outages](worker-runs.md#network-outages).
 
+### Try now
+
+**Try now** starts the waiting work of an account before its reset time. Use it
+when you know the limit has lifted, for example after you raised the plan.
+
+The button shows in two places: in the status of a **Waiting** card that waits
+for a usage limit, and on the account row of the Agents page. Only people who
+may manage the project see it. Other people see the reset time and no button.
+The button needs a bridge that supports Try now. Update the bridge when the
+button is missing.
+
+When you press it, Loupe lets the account take work for a short time and tells
+the bridge to try the waiting work. The Agents page shows **Trying now**. The
+next reading of the account answers the try:
+
+- If the limit has lifted, the work starts and the card leaves **Waiting**.
+- If the limit still holds, the account row shows **Still at its limit,
+  checked** with the time of the reading. You can press Try now again.
+
+The try ends at the next reading of the account. When no reading comes, it ends
+15 minutes after the press. The bars keep the values that the bridge measured.
+
+An account at its hard limit also gets one notice in the inbox, while cards wait
+for it. An account at its stop value gets no notice, because the runs that
+already go continue. See [Notices](inbox.md#notices).
+
 An unmanaged card is a different control from the pause of a bridge. **Pause
 new work** on the Agents page stops one bridge from starting any queued run,
 on every card. See [Bridge health](worker-runs.md#bridge-health).

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\View;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\ValueObject\AccountLimit;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
 use App\Module\Bridge\ValueObject\WindowLimit;
@@ -22,7 +23,52 @@ final readonly class AgentConnection
         public ?AgentUpdateChip $updateChip,
         public AgentHealthChip $healthChip,
         public array $limits = [],
+        /** @var array<string, BridgeAccountTryNow> the newest Try now override of each account that has one */
+        public array $tryNows = [],
     ) {
+    }
+
+    /**
+     * What the Try now control of an account shows.
+     * `available`: the account takes no new work, and a press may start it.
+     * `trying`: an override holds, and the next reading answers it.
+     * `still-limited`: the last press found the limit in place, read at `tryNowCheckedAt()`. A press may try again.
+     * `none`: nothing to try, or the bridge does not take the command.
+     *
+     * @return 'available'|'trying'|'still-limited'|'none'
+     */
+    public function tryNowState(string $account): string
+    {
+        $limit = $this->limits[$account] ?? null;
+        if (null === $limit || !$this->bridge->takesTryNow()) {
+            return 'none';
+        }
+        if ($limit->tryNow) {
+            return 'trying';
+        }
+        if (!$limit->blocked()) {
+            return 'none';
+        }
+
+        // A reading that changed after the check is news, so the answer of the press no longer describes the account.
+        $checkedAt = $this->tryNowCheckedAt($account);
+        $answered = true === ($this->tryNows[$account]->stillLimited ?? null)
+            && null !== $checkedAt
+            && !array_any($limit->windows, static fn (WindowLimit $window): bool => $window->reading->readAt > $checkedAt);
+
+        return $answered ? 'still-limited' : 'available';
+    }
+
+    /** Whether a person who may manage the project can press Try now for the account. */
+    public function canTryNow(string $account): bool
+    {
+        return \in_array($this->tryNowState($account), ['available', 'still-limited'], true);
+    }
+
+    /** The read time of the reading that answered the last press, or null before it. */
+    public function tryNowCheckedAt(string $account): ?\DateTimeImmutable
+    {
+        return $this->tryNows[$account]->checkedAt ?? null;
     }
 
     /** A pool with queued work is a problem the reader should see without opening the section. */

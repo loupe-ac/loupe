@@ -6,10 +6,12 @@ namespace App\Tests\Module\Bridge\Command;
 
 use App\Module\Bridge\Command\PurgeExpiredWorkerRunsCommand;
 use App\Module\Bridge\Command\PurgeExpiredWorkerRunsHandler;
+use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
@@ -112,6 +114,24 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
                 $em->getConnection()->fetchAllNumeric('SELECT account, window_key, used_percent FROM bridge_account_readings ORDER BY account, window_key, read_at'),
             ),
         );
+    }
+
+    /** An override lasts 15 minutes, so one pressed before the window is long closed, also when no reading ever closed it. */
+    public function test_it_deletes_try_now_overrides_pressed_before_the_window_and_keeps_newer_ones(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $bridge = $this->seedBridge($em, $this->user($em, 'try-now-sweep@example.com'));
+        $closed = new BridgeAccountTryNow(Uuid::v7(), $bridge, 'work', new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $closed->closedAt = new \DateTimeImmutable('2026-01-01 00:03:00');
+        $em->persist($closed);
+        $em->persist(new BridgeAccountTryNow(Uuid::v7(), $bridge, 'spare', new \DateTimeImmutable('2026-01-01 00:00:00')));
+        $em->persist(new BridgeAccountTryNow(Uuid::v7(), $bridge, 'work', new \DateTimeImmutable('2026-09-01 00:00:00')));
+        $em->flush();
+
+        self::assertSame(0, ($this->handler())(new PurgeExpiredWorkerRunsCommand()));
+
+        self::assertSame(['2026-09-01 00:00:00'], $em->getConnection()->fetchFirstColumn('SELECT pressed_at FROM bridge_account_try_now'));
     }
 
     /** A pin that no run refreshed within the window goes, and the count still names the runs alone. */
@@ -320,6 +340,7 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
             $archives ?? new ExperimentArchiveRepository($registry),
             new BridgeHostSampleRepository($registry),
             new BridgeAccountReadingRepository($registry),
+            new BridgeAccountTryNowRepository($registry),
             new WorkerRunRetentionPolicy($flags, 180),
             new MockClock(new \DateTimeImmutable(self::NOW)),
             $this->em(),

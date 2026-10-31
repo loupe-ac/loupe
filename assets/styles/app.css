@@ -963,7 +963,7 @@
         @apply text-status-danger-deep;
     }
     .lp-agent-card__account-line {
-        @apply m-0 flex flex-wrap items-baseline gap-x-3;
+        @apply m-0 flex min-h-7 flex-wrap items-center gap-x-3;
     }
     .lp-agent-card__account-line > :last-child {
         @apply ml-auto;
@@ -2950,6 +2950,13 @@
     }
     .lp-card-overview__section {
         @apply flex flex-col gap-3;
+    }
+    /* The status box with the control that acts on it under the box. */
+    .lp-card-overview__state {
+        @apply flex flex-col items-start gap-3;
+    }
+    .lp-card-overview__state > .lp-status-box {
+        @apply w-full;
     }
     /* The heading row of an epic's children: the title, the done count, and the lane button. */
     .lp-card-epic__head {
