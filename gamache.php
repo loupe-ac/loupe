@@ -63,6 +63,7 @@ return (new GamacheConfig())->registerChecks([
     new NoTodosCheck(),
     new SelfContainedCommentsCheck(),
     new SkillReferenceCheck(
+        patterns: ['.claude/skills/*/SKILL.md', 'AGENTS.md', '.loupe/lifecycle.md'],
         /*
          * Replaces the check's defaults rather than adding to them, so this
          * restates them and appends the top-level directories this project has
