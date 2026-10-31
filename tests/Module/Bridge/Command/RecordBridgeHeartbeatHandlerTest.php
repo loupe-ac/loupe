@@ -205,6 +205,29 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertCount(0, $this->publishedRunsChanged(), 'A heartbeat with no pool rows changes nothing.');
     }
 
+    public function test_a_new_reading_tells_the_pages_of_the_followed_project_to_reload(): void
+    {
+        self::bootKernel();
+        $this->recordRunsChanged();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-reading-publish@example.com');
+        $project = $this->project($em, $owner, 'Followed');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $projects = [(string) $project->id];
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:00:00')]));
+        self::assertCount(1, $this->publishedRunsChanged(), 'The first reading changes the bars.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', accountReadings: [self::reading('session', 29.0, readAt: '2026-10-07 12:01:00')]));
+        self::assertCount(0, $this->publishedRunsChanged(), 'The same reading tells nobody.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', accountReadings: [self::reading('session', 41.0, readAt: '2026-10-07 12:02:00')]));
+        $published = $this->publishedRunsChanged();
+        self::assertCount(1, $published, 'A reading with another use changes the bars.');
+        self::assertStringContainsString((string) $project->id, $published[0]->getTopics()[0]);
+    }
+
     /** The Agents pill drops a quiet bridge, so its first heartbeat back counts its workers again. */
     public function test_a_bridge_back_from_quiet_tells_the_pages_to_reload_with_the_same_pools(): void
     {

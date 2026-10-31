@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Service\AccountLimits;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\View\AgentConnection;
@@ -17,6 +18,7 @@ final readonly class ListAgentsHandler
     public function __construct(
         private BridgeRepository $bridges,
         private BridgeLiveness $liveness,
+        private AccountLimits $accountLimits,
         private CliCompatibility $compatibility,
         private UrlGeneratorInterface $urlGenerator,
     ) {
@@ -44,6 +46,7 @@ final readonly class ListAgentsHandler
                     $statuses[$bridge->id->toRfc4122()],
                     AgentUpdateChip::for($bridge, $this->compatibility->isCompatible($bridge->cliVersion), $installScriptUrl),
                     AgentHealthChip::for($bridge, $statuses[$bridge->id->toRfc4122()]),
+                    $this->accountLimits->forBridge($bridge),
                 ),
                 $bridges,
             ),
