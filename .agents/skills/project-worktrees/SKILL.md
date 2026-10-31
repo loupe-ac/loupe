@@ -125,7 +125,7 @@ Agents launched with `isolation: "worktree"` get their own binding and can write
 
 Tear the worktree of an agent down only after its branch is pushed. Never tear down the worktree that the parent session is bound to. The binding keeps pointing at the deleted path, and every later Edit fails until you `cd` elsewhere and re-issue `EnterWorktree`.
 
-Verify the binding before you dispatch, not after. Make one trivial edit in the target worktree and confirm that it lands. In one wave, three agents found only mid-task that their writes were pinned elsewhere, and each cost a full agent run.
+Verify the binding before you dispatch, not after. Make one trivial edit in the target worktree and confirm that it lands. Three times in one wave, an agent found only mid-task that its writes were pinned elsewhere, and each time cost a full agent run.
 
 Give every subagent the same step-0 writability check. Tell it explicitly to stop and report if the check is rejected. Forbid the plausible workarounds, and not only the obvious ones. An agent told not to use `cat`/`sed` edited the wrong worktree and `cp`'d the finished file across. It reported that honestly, but it bypassed the guard, and the next agent may not verify as carefully. `cp`, `rsync`, `git checkout` of the path of another worktree, Serena's edit tools and any shell redirection are all bypasses. If writes land in the wrong worktree, stop, and let the orchestrator fix the binding. Work already on disk survives a stopped agent, so resume it with a message and do not restart it.
 
