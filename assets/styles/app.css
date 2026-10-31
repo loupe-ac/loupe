@@ -295,9 +295,14 @@
     }
 
     /* The detail pane reaches the window edge, so its scrollbar sits there as on the
-       document review page. Its padding keeps the content inside the page frame. */
+       document review page. Its padding keeps the content inside the page frame.
+       Here 100% is the pane column, so the inset adds back the page padding, the list
+       column and the gap to its left. The frame binds only where that list is full width. */
     .lp-core-inbox .lp-inbox-request-detail {
-        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+        padding-right: calc(
+            max(0px, 100% + var(--spacing) * 88 - var(--container-7xl)) +
+                var(--inbox-gutter)
+        );
     }
 
     /* Only the entries scroll. The tabs, the search and the filters stay above them. */
@@ -722,17 +727,9 @@
         border-radius: var(--radius-lg);
     }
 
-    /* The document under review, as a quiet card above the verdict. */
+    /* The document under review, as a card that stands out from the reply card around it. */
     .lp-inbox-review-document {
-        display: flex;
-        align-items: center;
-        gap: calc(var(--spacing) * 3);
-        margin-bottom: calc(var(--spacing) * 3.5);
-        padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
-        border-radius: var(--radius-xl);
-        background: var(--surface-2);
-        color: var(--ink);
-        text-decoration: none;
+        @apply mb-3.5 flex items-center gap-3 rounded-xl border border-line bg-surface-1 px-4 py-3.5 text-ink no-underline shadow-xs transition-colors hover:border-line-strong;
     }
 
     .lp-inbox-review-document__icon {
@@ -5163,7 +5160,10 @@
     }
     .lp-core-inbox .lp-stopped-warning:has(.lp-flash) {
         @apply mb-0 pt-4;
-        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+        padding-right: calc(
+            max(0px, 100% + var(--spacing) * 8 - var(--container-7xl)) +
+                var(--inbox-gutter)
+        );
     }
     .lp-device-row--blocked,
     .lp-device-row:has(> .lp-device-row__blocked:not([hidden])) {
@@ -8883,17 +8883,9 @@
 .lp-inbox-thread .lp-comment-composer--untargeted {
     @apply mb-0 max-w-none;
 }
-/* The field shrinks late on blur, so a press on a button below it still lands on that button. */
+/* The field keeps one height, so the buttons below it never move under the pointer. */
 .lp-inbox-thread .lp-comment-composer textarea {
-    @apply h-13 min-h-0;
-    transition-property: color, background-color, border-color, height;
-    transition-duration: 150ms, 150ms, 150ms, 0s;
-    transition-delay: 0s, 0s, 0s, 400ms;
-}
-.lp-inbox-thread .lp-comment-composer textarea:focus,
-.lp-inbox-thread .lp-comment-composer textarea:not(:placeholder-shown) {
-    @apply h-21;
-    transition-delay: 0s;
+    @apply h-21 min-h-0;
 }
 .inbox-split__hint {
     @apply mr-auto;
