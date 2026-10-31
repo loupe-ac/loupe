@@ -8383,6 +8383,7 @@
             <trans-unit id="bridge.agents.accounts.summary.at-limit"><source>bridge.agents.accounts.summary.at-limit</source><target>at its limit</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.summary.failing"><source>bridge.agents.accounts.summary.failing</source><target>failing</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.summary.no-reading"><source>bridge.agents.accounts.summary.no-reading</source><target>no reading</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.summary.unknown"><source>bridge.agents.accounts.summary.unknown</source><target>Unknown</target></trans-unit>
             <trans-unit id="bridge.agents.usage.window.session"><source>bridge.agents.usage.window.session</source><target>Session</target></trans-unit>
             <trans-unit id="bridge.agents.usage.window.week"><source>bridge.agents.usage.window.week</source><target>Week</target></trans-unit>
             <trans-unit id="bridge.agents.usage.percent"><source>bridge.agents.usage.percent</source><target>%percent% %</target></trans-unit>

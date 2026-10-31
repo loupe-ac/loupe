@@ -384,6 +384,7 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertSame('0', $bar->filter('progress')->attr('value'));
         self::assertCount(0, $bar->filter('[data-agent-usage-reset]'));
         self::assertStringContainsString('Read 3h ago', $bar->filter('[data-agent-usage-age]')->text());
+        self::assertSame('work Unknown', trim($crawler->filter('details[data-agent-accounts] [data-agent-section-summary]')->text()));
     }
 
     public function test_an_account_with_no_reading_yet_shows_an_unknown_session_and_week_bar(): void
@@ -447,6 +448,7 @@ final class ListAgentsControllerTest extends WebTestCase
             ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
         ], accountsReportedAt: new \DateTimeImmutable());
         $this->seedAccountReading($em, $calm, '-1 minute', usedPercent: 10.0, resetsAt: new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s'));
+        $this->seedAccountReading($em, $calm, '-1 minute', window: 'week', usedPercent: 20.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
         $busy = $this->seedBridge($em, $owner, projects: [(string) $project->id], workerPools: [
             ['name' => 'default', 'size' => 2, 'inUse' => 2, 'queued' => 3],
         ], accounts: [
@@ -468,6 +470,28 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertSame('2 of 2 in use · 3 queued', trim($section($busy, 'worker-pools')->filter('[data-agent-section-summary]')->text()));
         self::assertSame('work ok', trim($section($calm, 'accounts')->filter('[data-agent-section-summary]')->text()));
         self::assertSame('work near its limit', trim($section($busy, 'accounts')->filter('[data-agent-section-summary]')->text()));
+    }
+
+    public function test_the_accounts_summary_names_an_unknown_window_after_a_blocked_one(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-summary-unknown@example.com');
+        $project = $this->project($em, $owner, 'Summary unknown');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'codex', 'harness' => 'codex', 'state' => 'ready', 'reason' => null],
+            ['name' => 'claude', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $bridge, '-3 hours', account: 'codex', usedPercent: 50.0, resetsAt: new \DateTimeImmutable('-1 hour')->format('Y-m-d H:i:s'));
+        $this->seedAccountReading($em, $bridge, '-1 minute', account: 'codex', window: 'week', usedPercent: 30.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $this->seedAccountReading($em, $bridge, '-1 minute', account: 'claude', window: 'week', usedPercent: 99.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $summary = $crawler->filter('details[data-agent-accounts] [data-agent-section-summary]');
+        self::assertSame('codex Unknown · claude near its limit', trim($summary->text()));
     }
 
     public function test_an_unused_account_is_labelled_and_its_failing_hint_says_nothing_is_off(): void

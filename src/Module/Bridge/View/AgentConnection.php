@@ -75,7 +75,7 @@ final readonly class AgentConnection
     /**
      * What the summary line says about each account.
      *
-     * @return list<array{name: string, status: 'failing'|'at-limit'|'near-limit'|'no-reading'|'ok'}>
+     * @return list<array{name: string, status: 'failing'|'at-limit'|'near-limit'|'no-reading'|'unknown'|'ok'}>
      */
     public function accountStatuses(): array
     {
@@ -108,21 +108,28 @@ final readonly class AgentConnection
         );
     }
 
-    /** @return 'failing'|'at-limit'|'near-limit'|'no-reading'|'ok' */
+    /**
+     * A failing or blocked account reads before an Unknown bar, and an Unknown bar before ok.
+     *
+     * @return 'failing'|'at-limit'|'near-limit'|'no-reading'|'unknown'|'ok'
+     */
     private function statusOf(string $name, bool $failing): string
     {
         if ($failing) {
             return 'failing';
         }
         $limit = $this->limits[$name] ?? null;
-        if (null === $limit || array_all($limit->windows, static fn (WindowLimit $window): bool => WindowLimitState::Unknown === $window->state)) {
+        if (null === $limit || [] === $limit->windows) {
             return 'no-reading';
         }
 
         return match ($limit->cause()) {
             AccountLimitCause::Limit => 'at-limit',
             AccountLimitCause::Stop => 'near-limit',
-            null => 'ok',
+            null => array_any(
+                $this->usageBars($name),
+                static fn (array $bar): bool => null === $bar['limit'] || WindowLimitState::Unknown === $bar['limit']->state,
+            ) ? 'unknown' : 'ok',
         };
     }
 }
