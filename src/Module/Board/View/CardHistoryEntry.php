@@ -387,7 +387,7 @@ final readonly class CardHistoryEntry
             $event->occurredAt,
             $actor,
             new TranslatableMessage(
-                (\in_array($state, [WorkerRunState::NotStarted, WorkerRunState::Skipped, WorkerRunState::Replaced, WorkerRunState::Dropped, WorkerRunState::UsageLimit], true)
+                (\in_array($state, [WorkerRunState::NotStarted, WorkerRunState::Skipped, WorkerRunState::Replaced, WorkerRunState::Dropped, WorkerRunState::UsageLimit, WorkerRunState::Network], true)
                     ? 'board.card.history.run_not_started'
                     : 'board.card.history.run_finished').(null === $kind ? '_no_kind' : ''),
                 ['%actor%' => $actor, '%kind%' => $kind ?? ''],

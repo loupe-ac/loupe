@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Workflow\Condition;
 
+use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Facts;
@@ -39,7 +40,7 @@ final readonly class RunWorkOpen implements Condition
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return [] !== $facts->get(WorkTakerFacts::class)->readings;
+        return array_any($facts->get(WorkTakerFacts::class)->readings, static fn (WorkTakerReading $reading): bool => !$reading->claimed);
     }
 
     #[\Override]

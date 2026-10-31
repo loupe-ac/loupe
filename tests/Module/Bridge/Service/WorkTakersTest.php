@@ -302,6 +302,133 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
     }
 
+    public function test_a_claimed_request_whose_bridge_went_quiet_reads_as_disconnected_until_its_lease_ends(): void
+    {
+        [$project, $request, $owner] = $this->scenario('claimed-quiet', state: WorkRequestState::Claimed);
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: $this->window() + 60);
+        $request->bridgeId = $bridge->id;
+        $request->leaseUntil = new \DateTimeImmutable('2026-10-16 12:20:00');
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertTrue($reading->claimed);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:20:00'), $reading->quietAt);
+    }
+
+    public function test_a_claimed_request_whose_bridge_still_sends_heartbeats_has_no_reading(): void
+    {
+        [$project, $request, $owner] = $this->scenario('claimed-alive', state: WorkRequestState::Claimed);
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: $this->window());
+        $request->bridgeId = $bridge->id;
+        $request->leaseUntil = new \DateTimeImmutable('2026-10-16 12:20:00');
+        $this->em()->flush();
+
+        self::assertSame([], $this->service()->forRequests($project, [$request]));
+    }
+
+    public function test_an_open_request_that_waits_on_the_network_reads_as_disconnected_until_the_wait_ends(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-wait', reopenedAt: '2026-10-16 11:58:00');
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 12:03:00');
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertFalse($reading->claimed);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:03:00'), $reading->quietAt);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:58:00'), $reading->noTakerSince);
+    }
+
+    public function test_a_network_wait_that_has_ended_reads_like_any_open_request(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended');
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:59:00');
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_an_ended_network_wait_stays_disconnected_while_its_target_bridge_is_quiet(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-target-quiet', reopenedAt: '2026-10-16 11:00:00');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 3600);
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $request->targetBridgeId = $target->id;
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertSame($target->label, $reading->bridgeLabel);
+        self::assertNull($reading->quietAt);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:00:00'), $reading->noTakerSince);
+    }
+
+    public function test_an_ended_network_wait_stays_disconnected_while_no_bridge_is_online(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-all-quiet');
+        $this->bridge($owner, $project, seenSecondsAgo: 3600);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Disconnected, $this->read($project, $request)->state);
+    }
+
+    public function test_an_ended_network_wait_whose_target_left_the_project_keeps_its_own_reading(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-target-left');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 3600, follows: false);
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $request->targetBridgeId = $target->id;
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
+    }
+
+    public function test_an_ended_network_wait_whose_target_is_back_reads_like_any_open_request(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-target-back');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $request->targetBridgeId = $target->id;
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_a_network_wait_reads_as_disconnected_whether_or_not_a_bridge_is_online(): void
+    {
+        [$project, $request] = $this->scenario('network-no-bridge');
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 12:03:00');
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Disconnected, $this->read($project, $request)->state);
+    }
+
+    public function test_a_usage_limit_wait_is_not_a_disconnection(): void
+    {
+        [$project, $request, $owner] = $this->scenario('usage-wait');
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'usage-limit';
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
     public function test_a_claimed_request_has_no_reading(): void
     {
         [$project, $request] = $this->scenario('claimed', state: WorkRequestState::Claimed);

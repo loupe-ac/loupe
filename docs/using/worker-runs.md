@@ -94,6 +94,7 @@ runs to a page.
 | **Preparing** | the bridge runs the `before` command of the rule, and the worker has not started |
 | **Running** | the worker runs |
 | **Stopped at a usage limit** | the agent account reached its usage limit, and the bridge gave the work back to Loupe. The work request is open again |
+| **Stopped by a network outage** | the bridge lost its network, and it gave the work back to Loupe. The work request is open again and waits five minutes |
 | **Stopping** | a person asked the bridge to stop the run, and the worker is still ending |
 | **Stopped** | a person stopped the run, and the bridge does not resume it |
 | **Waiting for a person** | a bridge from before the workflow engine capped the run. The bridge no longer sends this state |
@@ -166,6 +167,25 @@ The work starts again by itself in one of these cases:
 A run that did at least one assistant turn before the limit continues on its own
 bridge. The bridge resumes the same session, so the agent keeps its context. A
 run that did no work yet can start on any bridge with room.
+
+## Network outages
+
+A network outage does not fail a run. When the bridge loses its connection to
+the agent service, the run ends in the state **Stopped by a network outage**.
+The bridge hands the work back to Loupe. The work request opens again, and
+Loupe spends no retry on it.
+
+The card shows **Waiting** with the marker "Work waits: the bridge lost its
+network". The card shows the same marker when a bridge holds the work and sends
+no heartbeat. Loupe offers the work again after five minutes. A run that did at
+least one assistant turn waits for its own bridge, and the bridge resumes the
+same session. After the wait, a run that did no work yet can start on any
+bridge. The marker stays after the wait while the bridge of the run is
+offline, or while no bridge is online. See [the bridge-disconnected marker](workflows.md#markers).
+
+If a bridge stops sending its heartbeat while it holds a work request, the
+claim ends after its lease. The request then waits five minutes in the same
+way, and it keeps the session of the run.
 
 ## Stop, resume and cancel
 

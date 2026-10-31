@@ -3,7 +3,12 @@ package cmd
 import (
 	"bytes"
 	"cmp"
+	"context"
+	"errors"
+	"net/http"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,10 +131,7 @@ func limitedOf(readings []usage.Reading) *usage.Reading {
 // The last reading of the run says it, or the output of the run holds the
 // limit message. A run that left a good result is done, whatever it read.
 func limitHandBack(res workerResult) *api.HandBack {
-	switch {
-	case res.timedOut, res.command, res.before, res.resumeGone, res.err != nil:
-		return nil
-	case res.exitCode == 0 && res.hasResult:
+	if !endedShort(res) {
 		return nil
 	}
 	reading := res.limit
@@ -148,6 +150,20 @@ func limitHandBack(res workerResult) *api.HandBack {
 			Limited: true, Source: reading.Source,
 		},
 	}
+}
+
+// endedShort reports whether a run ended with no good result and no cause of
+// its own, so a hand-back can name one. A timeout, a command, a before command
+// and a gone resume folder fail for reasons that a retry does not mend.
+func endedShort(res workerResult) bool {
+	switch {
+	case res.timedOut, res.command, res.before, res.resumeGone, res.err != nil:
+		return false
+	case res.exitCode == 0 && res.hasResult:
+		return false
+	}
+
+	return true
 }
 
 // limitInOutput reads a usage limit message from a line of the output.
@@ -172,4 +188,86 @@ func backOf(p pending, s settlement) settlement {
 	s.back.HasAssistantTurn = s.back.HasAssistantTurn || p.spec.resume
 
 	return s
+}
+
+// networkCode matches the error codes of a failed connection. The match is
+// case sensitive, because the codes are upper case words.
+var networkCode = regexp.MustCompile(`\b(ENOTFOUND|ECONNREFUSED|ETIMEDOUT)\b`)
+
+// networkInOutput reports whether the output names a failed connection.
+func networkInOutput(output string) bool {
+	return networkCode.MatchString(output) || strings.Contains(strings.ToLower(output), "connection error")
+}
+
+// networkHandBack is the hand-back of a run that a network outage stopped, or
+// nil. The call is a guess, so it needs a run with no good result and one
+// sign: a retry with no HTTP status, an error text that names a failed
+// connection, or a Loupe that the bridge could not reach in the last minute.
+// An output that holds a structured result is the agent's own words, so it
+// proves nothing. A usage limit is checked first and wins.
+func networkHandBack(res workerResult) *api.HandBack {
+	if !endedShort(res) {
+		return nil
+	}
+	if !res.retryNoStatus && !res.loupeDown && (res.hasResult || !networkInOutput(res.output)) {
+		return nil
+	}
+
+	return &api.HandBack{Cause: api.CauseNetwork, HasAssistantTurn: res.assistantTurn}
+}
+
+// handBackState is the run state of a run that hands its request back.
+func handBackState(back *api.HandBack) string {
+	if back.Cause == api.CauseNetwork {
+		return api.RunNetwork
+	}
+
+	return api.RunUsageLimit
+}
+
+// reachTracker records when a request to Loupe last failed to arrive. The
+// zero value is ready, and a nil one reports no failure.
+type reachTracker struct {
+	mu   sync.Mutex
+	last time.Time
+}
+
+func (t *reachTracker) note(at time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if at.After(t.last) {
+		t.last = at
+	}
+}
+
+// observe notes a transport failure. A request that the bridge cancelled
+// says nothing about the network.
+func (t *reachTracker) observe(err error, at time.Time) {
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.note(at)
+	}
+}
+
+// failedSince reports whether a request failed at or after since.
+func (t *reachTracker) failedSince(since time.Time) bool {
+	if t == nil {
+		return false
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	return !t.last.IsZero() && !t.last.Before(since)
+}
+
+// reachTransport feeds a tracker from the round trips of an HTTP client.
+type reachTransport struct {
+	base    http.RoundTripper
+	tracker *reachTracker
+}
+
+func (t reachTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	t.tracker.observe(err, time.Now())
+
+	return resp, err
 }

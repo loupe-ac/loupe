@@ -21,4 +21,7 @@ enum WorkTakerState: string
 
     /** An online bridge follows the project, and none of them could take the work. */
     case NotCapable = 'not-capable';
+
+    /** The bridge of the claim sent no heartbeat, or the work waits a few minutes after a network outage. */
+    case Disconnected = 'disconnected';
 }
