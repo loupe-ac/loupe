@@ -265,6 +265,15 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   "is at its weekly limit". A stop value reads "is at 96 % of its weekly window,
   new work stops at 95 %". The condition turns false when an account has room,
   at the reset or when a reading shows the limit lifted.
+- `bridge.account.usage` with an `account`, a `window` and `above`: the latest
+  reading of that window of that bridge account shows a use above `above`. The
+  `account` is `<bridge name>/<account>`, such as `desk/claude`. The `window` is
+  `session`, `week` or the length of another window, such as `3d`. The `above` is
+  a percentage from 1 to 100. The condition reads false for a bridge with no
+  name, for a bridge that you renamed, for a window whose reset time passed with
+  no new reading, and for a reading that gives no use. A new reading evaluates
+  the cards of the projects that the bridge follows. See
+  [Account usage](analytics.md#account-usage).
 - `card.inbox.open_question`: an open inbox question names the card. The
   optional `blocking` is `true` to match only a blocking ask, or `false` to
   match only a non-blocking one, such as a to-do. With no `blocking`, any open

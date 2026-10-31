@@ -22,6 +22,8 @@ final class MetricStatisticTest extends TestCase
         yield 'median of one value' => [MetricStatistic::Median, [7], 7];
         yield 'p90 interpolates between ranks' => [MetricStatistic::P90, [10, 9, 8, 7, 6, 5, 4, 3, 2, 1], 9.1];
         yield 'p90 of two values' => [MetricStatistic::P90, [0, 10], 9.0];
+        yield 'max of integers' => [MetricStatistic::Max, [3, 9, 2], 9];
+        yield 'max of floats' => [MetricStatistic::Max, [0.5, 96.25, 12.0], 96.25];
         yield 'p90 of one value' => [MetricStatistic::P90, [4.5], 4.5];
     }
 

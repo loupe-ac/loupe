@@ -52,6 +52,61 @@ final class MetricToolsTest extends KernelTestCase
         ], $stopRate);
     }
 
+    public function test_the_list_describes_the_usage_metrics(): void
+    {
+        [$project] = $this->projects('metric-list-usage');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $metrics = array_column($this->listTool()()['metrics'], null, 'key');
+
+        self::assertSame([
+            'key' => 'account-usage',
+            'units' => ['reading'],
+            'valueType' => 'percent',
+            'statistics' => ['max', 'mean', 'median', 'p90', 'count'],
+            'groups' => ['account-window'],
+            'description' => Metric::AccountUsage->description(),
+        ], $metrics['account-usage']);
+        foreach (['session-usage', 'week-usage'] as $key) {
+            self::assertSame(['run'], $metrics[$key]['units'], $key);
+            self::assertSame('percent', $metrics[$key]['valueType'], $key);
+            self::assertNotContains('account-window', $metrics[$key]['groups'], $key);
+        }
+    }
+
+    public function test_the_query_reads_the_account_usage_of_the_bridges_that_follow_the_project(): void
+    {
+        [$project, $other] = $this->projects('metric-account-usage');
+        $at = new \DateTimeImmutable('-2 days')->setTime(9, 0)->setTimezone(new \DateTimeZone('UTC'));
+        $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $bridge->name = 'laptop';
+        $elsewhere = $this->seedBridge($this->em(), $project->owner, projects: [(string) $other->id]);
+        $elsewhere->name = 'desk';
+        $this->em()->flush();
+        $this->seedAccountReading($this->em(), $bridge, $at->format('Y-m-d H:i:s'), usedPercent: 61.5);
+        $this->seedAccountReading($this->em(), $elsewhere, $at->format('Y-m-d H:i:s'), usedPercent: 99.0);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->queryTool()(unit: 'reading', metric: 'account-usage', statistic: 'max', group: 'account-window');
+
+        self::assertSame(['laptop/work session'], array_column($result['series'], 'group'));
+        self::assertSame(['value' => 61.5, 'rows' => 1], $result['series'][0]['total']);
+        self::assertSame(61.5, $result['series'][0]['rows'][0]['value']);
+        self::assertNull($result['series'][0]['rows'][0]['cardNumber']);
+        self::assertSame($at->format(\DATE_ATOM), $result['series'][0]['rows'][0]['time']);
+    }
+
+    public function test_the_query_refuses_the_account_usage_on_the_run_unit_and_with_no_group(): void
+    {
+        [$project] = $this->projects('metric-account-usage-refused');
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(
+            'The metric account-usage does not take the unit "run". Use one of: reading. The metric account-usage does not take the group "none". Use one of: account-window. metric_list lists the valid combinations.',
+            $this->refusal(unit: 'run', metric: 'account-usage', statistic: 'max'),
+        );
+    }
+
     public function test_the_list_adds_the_metrics_of_the_workflow_template_after_the_built_in_ones(): void
     {
         [$project] = $this->projects('metric-list-template');
@@ -266,7 +321,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, account-usage, session-usage, week-usage, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(

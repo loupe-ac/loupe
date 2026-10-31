@@ -113,6 +113,15 @@ final class MetricChartTest extends TestCase
         self::assertSame(2, $chart->moneyDecimals);
     }
 
+    public function test_buckets_with_no_known_value_keep_the_floor_of_the_axis(): void
+    {
+        $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::WeekUsage)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => null])]);
+
+        self::assertNotNull($chart);
+        self::assertSame([], $chart->buckets[0]->bars);
+        self::assertSame([0.0, 1.0, 2.0, 3.0, 4.0], array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks));
+    }
+
     public function test_a_zero_value_draws_a_bar_with_no_height(): void
     {
         $chart = MetricChart::build(new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 0])]);
@@ -152,6 +161,61 @@ final class MetricChartTest extends TestCase
         self::assertNotNull($chart);
         self::assertSame([0.0, 2.0, 4.0, 6.0, 8.0], array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks));
         self::assertSame(MetricStatistic::Count, $chart->statistic);
+    }
+
+    public function test_a_usage_percent_tops_at_one_hundred_and_grows_past_a_higher_value(): void
+    {
+        $shape = new MetricShape(new MetricKey(Metric::AccountUsage));
+        $ticks = static fn (MetricChart $chart): array => array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks);
+
+        $low = MetricChart::build($shape, MetricStatistic::Max, MetricBucket::Week, [self::series(null, ['2026-09-28' => 40.0])]);
+        $over = MetricChart::build($shape, MetricStatistic::Max, MetricBucket::Week, [self::series(null, ['2026-09-28' => 140.0])]);
+
+        self::assertNotNull($low);
+        self::assertNotNull($over);
+        self::assertSame([0.0, 50.0, 100.0], $ticks($low));
+        self::assertSame(150.0, $ticks($over)[\count($ticks($over)) - 1]);
+    }
+
+    public function test_a_run_usage_delta_scales_to_its_points_where_the_account_usage_tops_at_one_hundred(): void
+    {
+        $ticks = static fn (MetricChart $chart): array => array_map(static fn (MetricChartTick $tick): float => $tick->value, $chart->yTicks);
+
+        foreach ([Metric::SessionUsage, Metric::WeekUsage] as $metric) {
+            $chart = MetricChart::build(new MetricShape(new MetricKey($metric)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => 1.0])]);
+
+            self::assertNotNull($chart);
+            self::assertSame([0.0, 1.0, 2.0, 3.0, 4.0], $ticks($chart), $metric->value);
+            $bar = $chart->buckets[0]->bars[0];
+            self::assertGreaterThan(50.0, MetricChart::BASELINE - $bar->top, $metric->value);
+        }
+
+        $account = MetricChart::build(new MetricShape(new MetricKey(Metric::AccountUsage)), MetricStatistic::Max, MetricBucket::Week, [self::series(null, ['2026-09-28' => 1.0])]);
+        self::assertNotNull($account);
+        self::assertSame(100.0, $ticks($account)[\count($ticks($account)) - 1]);
+    }
+
+    public function test_a_negative_run_usage_delta_hangs_below_a_zero_line_inside_the_plot(): void
+    {
+        foreach ([Metric::SessionUsage, Metric::WeekUsage] as $metric) {
+            $chart = MetricChart::build(new MetricShape(new MetricKey($metric)), MetricStatistic::Median, MetricBucket::Week, [self::series(null, ['2026-09-28' => -1.0, '2026-10-05' => 3.0])]);
+
+            self::assertNotNull($chart);
+            // The axis runs from -2 to 4, so the zero line sits a third of the plot above the baseline.
+            self::assertEquals([
+                new MetricChartTick(248.0, -2.0),
+                new MetricChartTick(170.67, 0.0),
+                new MetricChartTick(93.33, 2.0),
+                new MetricChartTick(16.0, 4.0),
+            ], $chart->yTicks, $metric->value);
+            $fell = $chart->buckets[0]->bars[0];
+            self::assertSame(170.67, $fell->top, $metric->value);
+            self::assertStringStartsWith('M258 170.67V', $fell->path, $metric->value);
+            self::assertStringContainsString(' 209.33', $fell->path, $metric->value);
+            $rose = $chart->buckets[1]->bars[0];
+            self::assertSame(54.67, $rose->top, $metric->value);
+            self::assertStringStartsWith('M694 170.67V', $rose->path, $metric->value);
+        }
     }
 
     public function test_a_small_money_step_takes_more_decimals(): void
