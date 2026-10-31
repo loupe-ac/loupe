@@ -220,7 +220,8 @@ class WorkRequestRepository extends ServiceEntityRepository
      * A request of a project that holds its new work stays claimed too.
      *
      * A request whose bridge sent no heartbeat since $quietBefore opens as a network wait instead: no bridge may take
-     * it for a few minutes, it keeps the session of the run, and it binds to that bridge when the run has a session.
+     * it for a few minutes. When the latest run of the request ran on that bridge with a session, the request resumes
+     * that session and binds to that bridge. Any other reopen keeps the session the request already resumes.
      * A bridge that is not stored cannot be called silent, so its request reopens plainly.
      *
      * @param list<string> $heldProjectIds RFC 4122 ids, read in the same transaction as this call
@@ -247,9 +248,12 @@ class WorkRequestRepository extends ServiceEntityRepository
                         WHERE b.id = work_requests.bridge_id AND b.owner_id = p.owner_id AND b.last_seen_at < :quietBefore
                     ) AS silent,
                     (
-                        SELECT r.session_id FROM bridge_worker_runs r
-                        WHERE r.work_request_id = work_requests.id AND r.session_id IS NOT NULL
-                        ORDER BY r.received_at DESC, r.id DESC LIMIT 1
+                        SELECT latest.session_id FROM (
+                            SELECT r.session_id, r.bridge_id FROM bridge_worker_runs r
+                            WHERE r.work_request_id = work_requests.id
+                            ORDER BY r.received_at DESC, r.id DESC LIMIT 1
+                        ) latest
+                        WHERE latest.bridge_id = work_requests.bridge_id
                     ) AS session_id
                 FROM work_requests
                 WHERE state = :claimed AND lease_until <= :now AND NOT %s%s
@@ -261,7 +265,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             SET state = :open, bridge_id = NULL, claim_token = NULL, lease_until = NULL, reopened_at = :now,
                 wait_cause = CASE WHEN target.silent THEN CAST(:network AS VARCHAR) END,
                 wait_until = CASE WHEN target.silent THEN CAST(:waitUntil AS TIMESTAMP) END,
-                resume_session_id = CASE WHEN target.silent THEN target.session_id END,
+                resume_session_id = CASE WHEN target.silent AND target.session_id IS NOT NULL THEN target.session_id ELSE work_requests.resume_session_id END,
                 target_bridge_id = CASE WHEN target.silent AND target.session_id IS NOT NULL THEN work_requests.bridge_id ELSE work_requests.target_bridge_id END
             FROM target
             WHERE work_requests.id = target.id

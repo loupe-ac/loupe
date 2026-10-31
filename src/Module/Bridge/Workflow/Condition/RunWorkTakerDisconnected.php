@@ -12,7 +12,7 @@ use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\TimedCondition;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A work request of the card is claimed by a bridge that went quiet, or waits a few minutes after the bridge lost its network. */
+/** A work request of the card is claimed by a bridge that went quiet, or waits after a bridge lost its network until that bridge or another one is back. */
 final readonly class RunWorkTakerDisconnected implements Condition, MarkerEvidence, TimedCondition
 {
     #[\Override]

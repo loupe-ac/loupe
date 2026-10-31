@@ -81,7 +81,8 @@ final readonly class WorkTakers
                     $limited[$taker->id->toRfc4122()] = $accounts;
                 }
             }
-            $readings[$requestId] = $this->read($request->reopenedAt ?? $request->createdAt, $followers, $takers, $narrowedAt, $quietBefore, $window, null !== $request->prompt && '' !== trim($request->prompt), $expiredIds, $limited);
+            $reading = $this->read($request->reopenedAt ?? $request->createdAt, $followers, $takers, $narrowedAt, $quietBefore, $window, null !== $request->prompt && '' !== trim($request->prompt), $expiredIds, $limited);
+            $readings[$requestId] = self::stillDisconnected($request, $followers, $quietBefore, $reading) ?? $reading;
         }
 
         return $readings;
@@ -112,6 +113,28 @@ final readonly class WorkTakers
         $target = null === $targetId ? null : array_find($followers, static fn (Bridge $bridge): bool => $targetId->equals($bridge->id));
 
         return new WorkTakerReading(WorkTakerState::Disconnected, $request->reopenedAt ?? $request->createdAt, $request->waitUntil, bridgeLabel: $target?->label, bridgeSeenAt: $target?->lastSeenAt);
+    }
+
+    /**
+     * After the network wait, the outage still holds the work while its target bridge stays quiet, or while no bridge
+     * is online at all. An expired login or a target that left the project keeps its own reading.
+     *
+     * @param list<Bridge> $followers
+     */
+    private static function stillDisconnected(WorkRequest $request, array $followers, \DateTimeImmutable $quietBefore, WorkTakerReading $reading): ?WorkTakerReading
+    {
+        if (WorkRequest::WAIT_NETWORK !== $request->waitCause || [] !== $reading->expiredTakers) {
+            return null;
+        }
+
+        $targetId = $request->targetBridgeId;
+        $target = null === $targetId ? null : array_find($followers, static fn (Bridge $bridge): bool => $targetId->equals($bridge->id));
+        $targetQuiet = null !== $target && $target->lastSeenAt < $quietBefore;
+        if (!$targetQuiet && WorkTakerState::None !== $reading->state) {
+            return null;
+        }
+
+        return new WorkTakerReading(WorkTakerState::Disconnected, $request->reopenedAt ?? $request->createdAt, null, bridgeLabel: $target?->label, bridgeSeenAt: $target?->lastSeenAt);
     }
 
     /**

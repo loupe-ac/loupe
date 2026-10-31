@@ -9822,7 +9822,7 @@
             <trans-unit id="marker.usage_limit.remedy"><source>marker.usage_limit.remedy</source><target>Nothing. The work starts again when the usage resets. Check the account on the Agents page.</target></trans-unit>
             <trans-unit id="marker.bridge_disconnected"><source>marker.bridge_disconnected</source><target>Work waits: %machine% lost its network.</target></trans-unit>
             <trans-unit id="marker.bridge_disconnected.unnamed"><source>marker.bridge_disconnected.unnamed</source><target>Work waits: the bridge lost its network.</target></trans-unit>
-            <trans-unit id="marker.bridge_disconnected.remedy"><source>marker.bridge_disconnected.remedy</source><target>Nothing. The run picks up its session on the same bridge when the network is back. After five minutes Loupe offers the work to another bridge. Check the bridge on the Agents page.</target></trans-unit>
+            <trans-unit id="marker.bridge_disconnected.remedy"><source>marker.bridge_disconnected.remedy</source><target>Nothing. When the network is back, the work starts again. A run that did work resumes its session on the same bridge. Check the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
             <trans-unit id="marker.repository_misfit">
                 <source>marker.repository_misfit</source>

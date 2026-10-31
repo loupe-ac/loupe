@@ -343,7 +343,70 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertNull($lapsed->targetBridgeId);
     }
 
-    private function sessionRun(Project $project, WorkRequest $request, Uuid $bridgeId, Uuid $session): void
+    public function test_the_sweep_takes_no_session_from_a_run_of_another_bridge(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'lapse-other-bridge@example.com');
+        $project = $this->project($em, $owner, 'Lapse Other Bridge');
+        $earlier = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:59:30'));
+        $silent = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:50:00'));
+        $lapsed = $this->claimed($project, $silent->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $this->sessionRun($project, $lapsed, $earlier->id, Uuid::v4());
+        $em->flush();
+
+        $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2026-10-01 11:55:00'));
+
+        self::assertSame('network', $lapsed->waitCause);
+        self::assertNull($lapsed->resumeSessionId);
+        self::assertNull($lapsed->targetBridgeId);
+    }
+
+    public function test_the_sweep_takes_the_session_of_the_latest_run_only(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'lapse-latest-run@example.com');
+        $project = $this->project($em, $owner, 'Lapse Latest Run');
+        $earlier = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:59:30'));
+        $silent = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:50:00'));
+        $session = Uuid::v4();
+        $lapsed = $this->claimed($project, $silent->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $this->sessionRun($project, $lapsed, $earlier->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 11:40:00'));
+        $this->sessionRun($project, $lapsed, $silent->id, $session);
+        $em->flush();
+
+        $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2026-10-01 11:55:00'));
+
+        self::assertSame($session->toRfc4122(), $lapsed->resumeSessionId?->toRfc4122());
+        self::assertSame($silent->id->toRfc4122(), $lapsed->targetBridgeId?->toRfc4122());
+    }
+
+    public function test_a_lapse_keeps_the_session_that_the_request_already_resumes(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'lapse-keeps-session@example.com');
+        $project = $this->project($em, $owner, 'Lapse Keeps Session');
+        $fresh = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:59:30'));
+        $silent = $this->seedBridge($em, $owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:50:00'));
+        $kept = Uuid::v4();
+        $plain = $this->claimed($project, $fresh->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $plain->resumeSessionId = $kept;
+        $quiet = $this->claimed($project, $silent->id, Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'), kind: 'review');
+        $quiet->resumeSessionId = $kept;
+        $em->flush();
+
+        $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00'), [], new \DateTimeImmutable('2026-10-01 11:55:00'));
+
+        self::assertNull($plain->waitCause);
+        self::assertSame((string) $kept, (string) $plain->resumeSessionId);
+        self::assertSame('network', $quiet->waitCause);
+        self::assertSame((string) $kept, (string) $quiet->resumeSessionId);
+        self::assertNull($quiet->targetBridgeId);
+    }
+
+    private function sessionRun(Project $project, WorkRequest $request, Uuid $bridgeId, Uuid $session, \DateTimeImmutable $receivedAt = new \DateTimeImmutable('2026-10-01 11:51:00')): void
     {
         $this->em()->persist(new WorkerRun(
             project: AgentCredential::managed($this->em(), $project, $project->id),
@@ -354,7 +417,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
             workKind: 'implement',
             state: WorkerRunState::Running,
             sessionId: $session,
-            receivedAt: new \DateTimeImmutable('2026-10-01 11:51:00'),
+            receivedAt: $receivedAt,
             workRequestId: $request->id,
         ));
     }

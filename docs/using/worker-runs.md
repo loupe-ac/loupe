@@ -180,7 +180,8 @@ network". The card shows the same marker when a bridge holds the work and sends
 no heartbeat. Loupe offers the work again after five minutes. A run that did at
 least one assistant turn waits for its own bridge, and the bridge resumes the
 same session. After the wait, a run that did no work yet can start on any
-bridge. See [the bridge-disconnected marker](workflows.md#markers).
+bridge. The marker stays after the wait while the bridge of the run is
+offline, or while no bridge is online. See [the bridge-disconnected marker](workflows.md#markers).
 
 If a bridge stops sending its heartbeat while it holds a work request, the
 claim ends after its lease. The request then waits five minutes in the same

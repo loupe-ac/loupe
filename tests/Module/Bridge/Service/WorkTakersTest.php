@@ -355,6 +355,60 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
     }
 
+    public function test_an_ended_network_wait_stays_disconnected_while_its_target_bridge_is_quiet(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-target-quiet', reopenedAt: '2026-10-16 11:00:00');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 3600);
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $request->targetBridgeId = $target->id;
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertSame($target->label, $reading->bridgeLabel);
+        self::assertNull($reading->quietAt);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:00:00'), $reading->noTakerSince);
+    }
+
+    public function test_an_ended_network_wait_stays_disconnected_while_no_bridge_is_online(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-all-quiet');
+        $this->bridge($owner, $project, seenSecondsAgo: 3600);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Disconnected, $this->read($project, $request)->state);
+    }
+
+    public function test_an_ended_network_wait_whose_target_left_the_project_keeps_its_own_reading(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-target-left');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 3600, follows: false);
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $request->targetBridgeId = $target->id;
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
+    }
+
+    public function test_an_ended_network_wait_whose_target_is_back_reads_like_any_open_request(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-ended-target-back');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 11:05:00');
+        $request->targetBridgeId = $target->id;
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
     public function test_a_network_wait_reads_as_disconnected_whether_or_not_a_bridge_is_online(): void
     {
         [$project, $request] = $this->scenario('network-no-bridge');
