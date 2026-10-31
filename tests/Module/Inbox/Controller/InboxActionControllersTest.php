@@ -432,6 +432,9 @@ final class InboxActionControllersTest extends WebTestCase
         $action = $this->onlyAction($item);
         $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
         self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id, null, 'Look at the remote.'], [$request?->subjectType, (string) $request?->subjectId, $request?->cardNumber, $request?->prompt]);
+
+        $you = $this->client->request(Request::METHOD_GET, $this->pageUrl())->filter('#inbox-item-'.$item->number.' [data-inbox-action-status]');
+        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-note]')->text()));
     }
 
     public function test_a_closed_item_offers_a_new_session_with_its_prompt_and_starts_it(): void

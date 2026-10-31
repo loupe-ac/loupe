@@ -96,9 +96,10 @@
                     <twig:Ds:Hint as="span">{{ ('inbox.thread.you_verb.' ~ status.action.kind.value)|trans({'%time%': status.action.requestedAt|date('H:i')}) }}</twig:Ds:Hint>
                     <twig:Ds:StatusChip class="lp-inbox-thread__chip" :modifier="chips[status.state.value]" :label="status.labelKey|trans(status.labelParameters|merge(status.at ? {'%time%': status.at|date('H:i')} : {}))" />
                 </div>
-                {% if status.action.note|trim is not empty %}
+                {% set sentNote = status.action.note|trim is not empty ? status.action.note : (status.action.kind.value == 'start-session' ? status.action.sessionPrompt|default('')|trim : '') %}
+                {% if sentNote is not empty %}
                     <twig:Ds:Label as="p" class="lp-inbox-thread__note-label">{{ 'inbox.thread.note_label'|trans }}</twig:Ds:Label>
-                    <div class="prose lp-prose lp-inbox-thread__note"><blockquote><p>{{ status.action.note }}</p></blockquote></div>
+                    <div class="prose lp-prose lp-inbox-thread__note" data-inbox-action-note><blockquote><p>{{ sentNote|nl2br }}</p></blockquote></div>
                 {% endif %}
                 {% if status.offline or (status.cancellable and granted) %}
                     <div class="lp-inbox-thread__status">
