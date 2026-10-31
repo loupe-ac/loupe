@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
@@ -50,11 +51,27 @@ final class MetricChartReadout
                 null === $comparison ? null : $formatter->format($comparison->previous->value, $metric, $statistic),
                 $change,
                 $comparison?->sign,
-                $comparison,
+                null === $comparison || null === $comparison->sign ? null : new MetricChartSignDetail(
+                    self::range($comparison->currentRange, $metric, $statistic, $formatter),
+                    self::range($comparison->previousRange, $metric, $statistic, $formatter),
+                    $comparison->currentCards,
+                    $comparison->previousCards,
+                ),
             );
         }
 
         return $rows;
+    }
+
+    private static function range(?Interval $range, MetricShape $metric, MetricStatistic $statistic, MetricValueFormatter $formatter): ?MetricChartRange
+    {
+        if (null === $range) {
+            return null;
+        }
+        $low = $formatter->format($range->low, $metric, $statistic);
+        $high = $formatter->format($range->high, $metric, $statistic);
+
+        return null === $low || null === $high ? null : new MetricChartRange($low, $high);
     }
 
     /**

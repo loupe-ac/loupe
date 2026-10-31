@@ -40,7 +40,7 @@
                     {% endif %}
                     <p class="lp-chart__figure-value">{{ figure.value ?? unknown }}</p>
                     {% if figure.change is not null or figure.sign is not null %}
-                        <p class="lp-chart__figure-change">{% include '_chart_change.html.twig' with {row: figure} only %}</p>
+                        <p class="lp-chart__figure-change">{% include '_chart_change.html.twig' with {row: figure, id: chartId ~ '-sign-' ~ loop.index0} only %}</p>
                     {% endif %}
                     {% if figure.previous is not null %}
                         <p class="lp-chart__figure-previous">{{ 'analytics.chart.hover.previous'|trans({'%value%': figure.previous}) }}</p>
@@ -190,7 +190,7 @@
                         <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.share }}</span>
                     {% endif %}
                     {% if layout.comparing %}
-                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{% include '_chart_change.html.twig' with {row: row} only %}</span>
+                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{% include '_chart_change.html.twig' with {row: row, id: chartId ~ '-sign-' ~ loop.index0} only %}</span>
                     {% endif %}
                 </div>
             {% endfor %}

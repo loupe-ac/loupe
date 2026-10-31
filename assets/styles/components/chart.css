@@ -174,13 +174,36 @@
         @apply inline-flex items-center gap-1 font-sans tabular-nums text-fg;
     }
     .lp-chart__sign {
-        @apply ms-2 inline-block whitespace-nowrap font-sans rounded-full border border-line bg-surface-1 px-2 py-px text-xs font-semibold text-fg;
+        @apply inline-block whitespace-nowrap font-sans rounded-full border border-line bg-surface-1 px-2 py-px text-xs font-semibold text-fg;
     }
     .lp-chart__sign--clear {
         @apply border-accent-border bg-accent-faint text-ink;
     }
     .lp-chart__sign--not-enough-data {
         @apply border-dashed border-line-strong bg-transparent text-fg-dim;
+    }
+    /* The sign chip, with the likely ranges and card counts on hover and on keyboard focus. */
+    .lp-chart__sign-anchor {
+        @apply relative ms-2 inline-flex rounded-full outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-chart__sign-detail {
+        @apply right-0 left-auto w-60 text-start font-sans;
+    }
+    /* A figure starts at the left edge, so its detail opens rightward. */
+    .lp-chart__figure .lp-chart__sign-detail {
+        @apply right-auto left-0;
+    }
+    /* The table scrolls sideways on a phone and clips an absolute child, so the detail pins to the viewport. */
+    .lp-chart__sign-detail,
+    .lp-chart__figure .lp-chart__sign-detail {
+        @apply max-md:fixed max-md:inset-x-4 max-md:top-auto max-md:bottom-4 max-md:w-auto;
+    }
+    .lp-chart__sign-anchor:hover .lp-chart__sign-detail,
+    .lp-chart__sign-anchor:focus-visible .lp-chart__sign-detail {
+        @apply visible opacity-100;
+    }
+    .lp-chart__sign-period {
+        @apply flex flex-col;
     }
 
     .lp-chart__figures {

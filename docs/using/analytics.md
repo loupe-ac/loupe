@@ -210,9 +210,11 @@ of a rate stops at 100%, except with **Count**.
 | **Donut** | one slice for each series over the whole range |
 | **Number** | the figure of the statistic, and its change when you compare |
 
-The time axis shows only the buckets with rows. **Stacked bars**, **100% stacked**
-and **Donut** add the series together. They need more than one series, from a
-group or from one of the **in each bucket** metrics. They also need a statistic
+The time axis runs from the first bucket with rows to the last one, and it
+shows every calendar bucket between them, empty ones included. **Stacked
+bars**, **100% stacked** and **Donut** add the series together. They need
+more than one series, from a group or from one of the **in each bucket**
+metrics. They also need a statistic
 that adds up: **Sum**, **Count**, or **Mean** of an **in each bucket** metric.
 A median, a 90th percentile and a rate never add up. The **Chart** control greys
 out a type that the graph cannot use, and a note under the controls says what
@@ -276,8 +278,9 @@ The likely range of a period is the range that holds the true value in 95 cases
 out of 100. Loupe computes it by resampling the finished cards, with a fixed
 seed, so a page shows the same sign on every load. A per-run graph resamples
 whole cards with all their runs, because the runs of one card are not
-independent. A rate uses the formula of a rate. Hover on the sign to read the
-likely range and the card count of each period.
+independent. A rate uses the formula of a rate. Hover on the sign, or move to
+it with the Tab key, to read the likely range and the card count of each
+period.
 
 A steady metric rarely reads **Clear**, however many cards it has, because the
 sign answers whether the change is real. The sign is evidence, not a guarantee:

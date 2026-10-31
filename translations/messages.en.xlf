@@ -8549,6 +8549,10 @@
             <trans-unit id="analytics.chart.change.flat"><source>analytics.chart.change.flat</source><target>No change</target></trans-unit>
             <trans-unit id="analytics.chart.change.points"><source>analytics.chart.change.points</source><target>%amount% pts</target></trans-unit>
             <trans-unit id="analytics.chart.sign.not_enough"><source>analytics.chart.sign.not_enough</source><target>Not enough cards</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.current"><source>analytics.chart.sign.current</source><target>This period</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.previous"><source>analytics.chart.sign.previous</source><target>Previous period</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.range"><source>analytics.chart.sign.range</source><target>Likely range %low% to %high%</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.cards"><source>analytics.chart.sign.cards</source><target>{0}No card|{1}1 card|]1,Inf[%count% cards</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.title"><source>analytics.metrics.empty.title</source><target>No runs are recorded yet</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.description"><source>analytics.metrics.empty.description</source><target>The chart fills when a bridge reports worker runs. Connect a bridge on the Agents page, or pick a longer range.</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket-time-each"><source>analytics.metrics.metric.bucket-time-each</source><target>Time in each bucket</target></trans-unit>

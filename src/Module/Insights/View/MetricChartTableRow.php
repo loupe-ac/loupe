@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
-use App\Module\Bridge\Metric\MetricComparison;
 use App\Module\Bridge\Metric\MetricSign;
 
 /** One series of the table under a chart, or one figure of the Number chart. A null text is an unknown value. */
@@ -23,8 +22,8 @@ final readonly class MetricChartTableRow
         public ?MetricChartChange $change,
         /** Null for a sum, a count, or a graph that does not compare. */
         public ?MetricSign $sign,
-        /** The likely ranges and card counts that the sign hover shows. */
-        public ?MetricComparison $comparison,
+        /** Null when the row has no sign. */
+        public ?MetricChartSignDetail $signDetail,
     ) {
     }
 }

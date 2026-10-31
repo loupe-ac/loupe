@@ -55,6 +55,10 @@ final class ShowMetricsControllerChartsTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('Not enough cards', trim($crawler->filter('[data-metrics-chart] .lp-chart__sign--not-enough-data')->text()));
+        $detail = $crawler->filter('[data-metrics-chart] .lp-chart__sign-detail')->text();
+        self::assertStringContainsString('This period', $detail);
+        self::assertStringContainsString('Previous period', $detail);
+        self::assertSame(2, substr_count($detail, '1 card'));
     }
 
     public function test_a_locked_chart_type_falls_back_to_bars_with_a_note(): void

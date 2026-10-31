@@ -66,14 +66,14 @@ final class ChartComponentTest extends KernelTestCase
         $crawler = $this->chart($specimen['layout'], $specimen['labels']);
 
         $templates = $crawler->filter('template')->each(static fn (Crawler $template): string => (string) $template->attr('id'));
-        $targets = $crawler->filter('[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('aria-describedby'));
+        $targets = $crawler->filter('.lp-chart__target[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('aria-describedby'));
         $layout = $specimen['layout'];
         $expected = $layout instanceof NumberLayout ? 0 : \count($layout->hoverTargets);
 
         self::assertCount($expected, $templates);
         self::assertSame($templates, $targets);
         self::assertSame($templates, array_unique($templates));
-        self::assertSame(array_fill(0, $expected, '0'), $crawler->filter('[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('tabindex')));
+        self::assertSame(array_fill(0, $expected, '0'), $crawler->filter('.lp-chart__target[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('tabindex')));
     }
 
     public function test_a_number_chart_has_no_hover_controller(): void
@@ -183,6 +183,40 @@ final class ChartComponentTest extends KernelTestCase
         );
     }
 
+    #[DataProvider('signedTypes')]
+    public function test_a_sign_chip_shows_the_likely_range_and_card_count_of_each_period_on_hover_and_focus(MetricChartType $type): void
+    {
+        $specimen = MetricChartSpecimen::of($type);
+        $crawler = $this->chart($specimen['layout'], $specimen['labels']);
+
+        $anchors = $crawler->filter('.lp-chart__sign-anchor');
+        self::assertCount(3, $anchors);
+        $anchors->each(static function (Crawler $anchor): void {
+            self::assertSame('0', $anchor->attr('tabindex'));
+            self::assertSame($anchor->attr('aria-describedby'), $anchor->filter('[role="tooltip"]')->attr('id'));
+        });
+        self::assertCount(3, array_unique($anchors->each(static fn (Crawler $anchor): string => (string) $anchor->attr('aria-describedby'))));
+
+        $clear = $anchors->eq(1)->filter('.lp-chart__sign-detail')->text();
+        self::assertStringContainsString('This period', $clear);
+        self::assertStringContainsString('Likely range $0.20 to $0.24', $clear);
+        self::assertStringContainsString('12 cards', $clear);
+        self::assertStringContainsString('Previous period', $clear);
+        self::assertStringContainsString('11 cards', $clear);
+
+        $thin = $anchors->eq(2)->filter('.lp-chart__sign-detail')->text();
+        self::assertStringNotContainsString('Likely range', $thin);
+        self::assertStringContainsString('3 cards', $thin);
+        self::assertStringContainsString('4 cards', $thin);
+    }
+
+    /** @return iterable<string, array{MetricChartType}> */
+    public static function signedTypes(): iterable
+    {
+        yield 'table' => [MetricChartType::Line];
+        yield 'number' => [MetricChartType::Number];
+    }
+
     public function test_a_change_of_rates_reads_in_points(): void
     {
         $series = [ChartSeries::total('a', 0.5, ChartSeries::comparison(0.4, 0.1, MetricChangeKind::Points, null))];
@@ -230,7 +264,7 @@ final class ChartComponentTest extends KernelTestCase
         self::assertCount(0, $crawler->filter('.lp-chart__slice'));
         self::assertCount(0, $crawler->filter('.lp-chart__donut-total'));
         self::assertCount(0, $crawler->filter('template'));
-        self::assertCount(0, $crawler->filter('[aria-describedby]'));
+        self::assertCount(0, $crawler->filter('.lp-chart__target[aria-describedby]'));
         self::assertSame('No values to show', trim($crawler->filter('.lp-chart__donut-note')->text()));
     }
 
@@ -244,7 +278,7 @@ final class ChartComponentTest extends KernelTestCase
         $crawler = $this->chart($layout, ['a']);
 
         self::assertCount(2, $crawler->filter('template'));
-        self::assertCount(2, $crawler->filter('[aria-describedby]'));
+        self::assertCount(2, $crawler->filter('.lp-chart__target[aria-describedby]'));
     }
 
     #[DataProvider('types')]
@@ -253,8 +287,8 @@ final class ChartComponentTest extends KernelTestCase
         $specimen = MetricChartSpecimen::of($type);
         $crawler = $this->chart($specimen['layout'], $specimen['labels']);
 
-        self::assertCount(0, $crawler->filter('[aria-describedby] title'));
-        $labels = $crawler->filter('[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('aria-label'));
+        self::assertCount(0, $crawler->filter('.lp-chart__target[aria-describedby] title'));
+        $labels = $crawler->filter('.lp-chart__target[aria-describedby]')->each(static fn (Crawler $target): string => (string) $target->attr('aria-label'));
         foreach ($labels as $label) {
             self::assertNotSame('', $label);
             self::assertStringEndsNotWith(':', $label);

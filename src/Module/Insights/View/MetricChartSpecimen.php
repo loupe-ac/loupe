@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricChangeKind;
@@ -55,12 +56,32 @@ final class MetricChartSpecimen
                 self::points($line['current']),
                 new MetricPoint(null, round(array_sum($line['current']) / 4, 2), 12),
                 [],
-                $comparing ? new MetricComparison(new MetricPoint(null, round(array_sum($line['previous']) / 4, 2), 12), $line['change'], MetricChangeKind::Relative, null, null, null, $line['sign'], 6, 6) : null,
+                $comparing ? self::comparison($line) : null,
                 $comparing ? self::points($line['previous']) : [],
             );
         }
 
         return $series;
+    }
+
+    /** @param array{current: list<float>, previous: list<float>, change: float, sign: MetricSign} $line */
+    private static function comparison(array $line): MetricComparison
+    {
+        $current = round(array_sum($line['current']) / 4, 2);
+        $previous = round(array_sum($line['previous']) / 4, 2);
+        $enough = MetricSign::NotEnoughCards !== $line['sign'];
+
+        return new MetricComparison(
+            new MetricPoint(null, $previous, 12),
+            $line['change'],
+            MetricChangeKind::Relative,
+            $enough ? new Interval($current * 0.9, $current * 1.1, $current) : null,
+            $enough ? new Interval($previous * 0.9, $previous * 1.1, $previous) : null,
+            null,
+            $line['sign'],
+            $enough ? 12 : 3,
+            $enough ? 11 : 4,
+        );
     }
 
     /**

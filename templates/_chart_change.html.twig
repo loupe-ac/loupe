@@ -1,6 +1,7 @@
 {#
   Props:  @comment-budget-ignore
     row   MetricChartTableRow   The change figure and the sign chip of one chart line. Each is drawn only when the row has it.
+    id    string                The id of the sign detail, unique on the page.
 #}
 {% set signLabels = {'clear': 'bridge.experiments.goal.state.clear', 'not-clear-yet': 'bridge.experiments.goal.state.not_clear', 'not-enough-data': 'analytics.chart.sign.not_enough'} %}
 {% if row.change is not null %}
@@ -11,5 +12,19 @@
     </span>
 {% endif %}
 {% if row.sign is not null %}
-    <span class="lp-chart__sign lp-chart__sign--{{ row.sign.value }}">{{ signLabels[row.sign.value]|trans }}</span>
+    {% set detail = row.signDetail %}
+    <span class="lp-chart__sign-anchor"{% if detail is not null %} tabindex="0" aria-describedby="{{ id }}"{% endif %}>
+        <span class="lp-chart__sign lp-chart__sign--{{ row.sign.value }}">{{ signLabels[row.sign.value]|trans }}</span>
+        {% if detail is not null %}
+            <twig:Ds:Tooltip id="{{ id }}" class="lp-chart__sign-detail">
+                {% for period in [{label: 'analytics.chart.sign.current', range: detail.current, cards: detail.currentCards}, {label: 'analytics.chart.sign.previous', range: detail.previous, cards: detail.previousCards}] %}
+                    <span class="lp-chart__sign-period">
+                        <span class="lp-tooltip__title">{{ period.label|trans }}</span>
+                        {% if period.range is not null %}<span>{{ 'analytics.chart.sign.range'|trans({'%low%': period.range.low, '%high%': period.range.high}) }}</span>{% endif %}
+                        <span>{{ 'analytics.chart.sign.cards'|trans({'%count%': period.cards}) }}</span>
+                    </span>
+                {% endfor %}
+            </twig:Ds:Tooltip>
+        {% endif %}
+    </span>
 {% endif %}
