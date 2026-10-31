@@ -733,7 +733,8 @@ func (r *router) workResultLocked(p pending, res workerResult, shut bool) (settl
 
 // workOutcome maps how a run ended to the result of its work request. A done
 // result carries the reason of the structured result too, because a workflow
-// rule can match on it. A run that a usage limit stopped gives the request back.
+// rule can match on it. A run that a usage limit or a network outage stopped
+// gives the request back.
 func workOutcome(res workerResult) settlement {
 	refused := func(fallback string) settlement {
 		if res.hasResult {
@@ -742,7 +743,7 @@ func workOutcome(res workerResult) settlement {
 
 		return settlement{state: api.WorkRequestRefused, reason: fallback}
 	}
-	if back := limitHandBack(res); back != nil {
+	if back := cmp.Or(limitHandBack(res), networkHandBack(res)); back != nil {
 		return settlement{state: api.WorkRequestOpen, back: back}
 	}
 	switch {

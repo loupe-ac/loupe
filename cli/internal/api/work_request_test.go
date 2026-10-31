@@ -396,3 +396,26 @@ func TestHeartbeatSendsTheSkippedRequests(t *testing.T) {
 		t.Fatalf("body = %s", body)
 	}
 }
+
+func TestHandBackOfTheNetworkSendsNoReading(t *testing.T) {
+	var body string
+	client := workServer(t, http.StatusOK, `{"state":"open"}`, func(_ *http.Request, raw string) { body = raw })
+
+	_, err := client.HandBackWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, HandBack{
+		Cause: CauseNetwork, Account: "claude", SessionID: "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90", HasAssistantTurn: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"claimToken":"` + workToken + `","state":"open","cause":"network","account":"claude",` +
+		`"sessionId":"0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90","hasAssistantTurn":true}`
+	if body != want {
+		t.Fatalf("body = %s\nwant   %s", body, want)
+	}
+}
+
+func TestTheNetworkRunStateIsAnOutcome(t *testing.T) {
+	if RunNetwork != "network" || !IsOutcome(RunNetwork) || !IsClosing(RunNetwork) {
+		t.Fatalf("network state = %q, outcome = %v", RunNetwork, IsOutcome(RunNetwork))
+	}
+}

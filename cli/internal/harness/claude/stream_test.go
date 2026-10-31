@@ -532,3 +532,38 @@ func TestCountsTheAssistantTurnsOfTheMainSession(t *testing.T) {
 		})
 	}
 }
+
+// A retry line with no HTTP status says the request never got an answer. A
+// later assistant line shows the connection came back.
+func TestReadsWhetherTheLastRetryHadNoStatus(t *testing.T) {
+	retry := func(status string) string {
+		return `{"type":"system","subtype":"api_retry","attempt":2,"max_retries":10,"retry_delay_ms":1000,"error_status":` + status + `,"error":"unknown"}` + "\n"
+	}
+	turn := `{"type":"assistant","parent_tool_use_id":null,"message":{"content":[{"type":"text","text":"a"}]}}` + "\n"
+	for name, tc := range map[string]struct {
+		in   string
+		want bool
+	}{
+		"no retry":              {turn, false},
+		"null status":           {retry("null"), true},
+		"missing status":        {`{"type":"system","subtype":"api_retry","attempt":1}` + "\n", true},
+		"status 529":            {retry("529"), false},
+		"status, then none":     {retry("529") + retry("null"), true},
+		"none, then a status":   {retry("null") + retry("500"), false},
+		"recovered by a turn":   {retry("null") + turn, false},
+		"another system line":   {`{"type":"system","subtype":"init"}` + "\n", false},
+		"retry after a turn":    {turn + retry("null"), true},
+		"torn retry line":       {`{"type":"system","subtype":"api_retry","error_st`, false},
+		"retry of another kind": {`{"type":"system","subtype":"compact","error_status":null}` + "\n", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, err := Read(strings.NewReader(tc.in))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.LastRetryNoStatus != tc.want {
+				t.Fatalf("LastRetryNoStatus = %v, want %v", out.LastRetryNoStatus, tc.want)
+			}
+		})
+	}
+}

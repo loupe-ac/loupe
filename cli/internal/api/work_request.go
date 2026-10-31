@@ -302,8 +302,11 @@ func (c *Client) putResult(ctx context.Context, bridgeID, id string, payload any
 	return stored.State, nil
 }
 
-// The cause of a hand-back.
-const CauseUsageLimit = "usage-limit"
+// The causes of a hand-back.
+const (
+	CauseUsageLimit = "usage-limit"
+	CauseNetwork    = "network"
+)
 
 // HandBackReading is the reading that stopped a run: the window, its use, its
 // reset time and where the bridge read it. UsedPercent and ResetsAt send null
@@ -316,8 +319,9 @@ type HandBackReading struct {
 	Source      string     `json:"source"`
 }
 
-// HandBack is the result of a run that a limit stopped. The bridge gives the
-// request back to Loupe in place of a refusal. HasAssistantTurn says the run
+// HandBack is the result of a run that a usage limit or a network outage
+// stopped. The bridge gives the request back to Loupe in place of a refusal.
+// A network hand-back holds no Reading, and sends none. HasAssistantTurn says the run
 // did work, so a resume belongs on this machine.
 type HandBack struct {
 	Cause            string
@@ -335,7 +339,7 @@ func (c *Client) HandBackWorkRequest(ctx context.Context, bridgeID, id, token st
 		State            string           `json:"state"`
 		Cause            string           `json:"cause"`
 		Account          string           `json:"account"`
-		Reading          *HandBackReading `json:"reading"`
+		Reading          *HandBackReading `json:"reading,omitempty"`
 		SessionID        string           `json:"sessionId"`
 		HasAssistantTurn bool             `json:"hasAssistantTurn"`
 	}{token, WorkRequestOpen, h.Cause, h.Account, h.Reading, h.SessionID, h.HasAssistantTurn})

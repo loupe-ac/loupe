@@ -86,6 +86,11 @@ type workerResult struct {
 	// least one turn, so the run did work.
 	limit         *usage.Reading
 	assistantTurn bool
+	// retryNoStatus says the last retry of the agent had no HTTP status, and
+	// loupeDown that the bridge failed to reach Loupe in the last minute of
+	// the run. Both only hint at a network outage.
+	retryNoStatus bool
+	loupeDown     bool
 	// peakContextTokens is the largest input context of the main session,
 	// and nil when unknown.
 	peakContextTokens *int64
@@ -559,6 +564,7 @@ func workerOutcome(dir string, killed bool, waitErr error) workerResult {
 	res.harnessVersion, res.skillVersion = doc.HarnessVersion, doc.SkillVersion
 	res.harnessEvents = doc.HarnessEvents
 	res.assistantTurn = doc.AssistantTurns > 0 || len(doc.Calls) > 0
+	res.retryNoStatus = doc.LastRetryNoStatus
 	if readErr := errors.Join(cmp.Or(doc.ReadErr, headErr), stderrErr); readErr != nil {
 		res.output = strings.TrimLeft(res.output+"\n"+readErr.Error(), "\n")
 	}
