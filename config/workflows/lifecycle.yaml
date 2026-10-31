@@ -802,6 +802,7 @@ rules:
               - card.parent.in_slot: { slot: implementation }
               - not: { card.blocker.open: {} }
               - card.parent.epic_branch.synced: {}
+              - card.parent.epic_branch.exists: {}
               - not: { card.pr.linked: {} }
               - not: { card.parent.run.active: {} }
       then: { move: { to: implementation } }

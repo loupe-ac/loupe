@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Service;
 
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Event\ForgeBranchPushed;
 use App\Module\Forge\Event\ForgeDeliveryReceived;
 use App\Module\Forge\ForgeDelivery;
 use App\Module\Forge\ForgeEventType;
@@ -66,6 +67,11 @@ final readonly class DeliveryAnnouncer
         $deliveries = $delivery->forgeDeliveries();
         if ([] !== $deliveries) {
             $this->dispatch($project, $deliveries, $source);
+        }
+
+        $pushedBranch = $delivery->pushedBranch();
+        if (null !== $pushedBranch) {
+            $this->events->dispatch(new ForgeBranchPushed($project->id ?? throw new \LogicException('A claimed project has an id.'), GitHubDelivery::FORGE, $repository->fullName, $pushedBranch));
         }
 
         // A repository with no state reads gets the bare events alone, so its review verdict never reaches the automation.

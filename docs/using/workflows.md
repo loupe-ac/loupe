@@ -914,7 +914,9 @@ Some rules act from any slot:
    it has no open blocker, and it has no pull request. It also waits until the epic
    branch holds the code of each blocker outside the epic. The rule
    `epic-branch-sync` merges `main` into the epic branch first, and the
-   condition `card.parent.epic_branch.synced` is true when that is done. It waits while the epic has work in
+   condition `card.parent.epic_branch.synced` is true when that is done. It also
+   waits until the condition `card.parent.epic_branch.exists` is true, which
+   needs the epic branch in the repository that the bridge clones. It waits while the epic has work in
    progress. That work is any open worker run of the epic, and any work that the
    workflow requested for the epic and no bridge finished. When the last such
    work ends, the epic evaluates its children again, in any column. A change to

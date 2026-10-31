@@ -19,7 +19,7 @@ final class LifecycleInteractiveTechDesignMigrationTest extends KernelTestCase
 {
     use ActionScenario;
 
-    public function test_a_lifecycle_copy_gets_the_shipped_definition_and_version_32_and_keeps_its_two_project_keys_and_another_template_stays(): void
+    public function test_a_lifecycle_copy_gets_the_shipped_definition_and_the_shipped_version_and_keeps_its_two_project_keys_and_another_template_stays(): void
     {
         self::bootKernel();
         $lifecycle = $this->workflowProject('migration-interactive-td');

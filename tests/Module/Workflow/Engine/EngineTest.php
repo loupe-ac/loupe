@@ -91,6 +91,7 @@ use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
@@ -135,6 +136,7 @@ use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
 use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
 use App\Tests\Module\Workflow\FakeWorkHolds;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
+use App\Tests\Support\EpicBranchesExist;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
@@ -154,6 +156,7 @@ use Ubermuda\AuditBundle\Auditor;
 final class EngineTest extends KernelTestCase
 {
     use ActionScenario;
+    use EpicBranchesExist;
 
     private const string NOON = '2026-10-02 12:00:00';
 
@@ -3503,6 +3506,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_child_waits_in_next_while_the_breakdown_of_its_epic_runs_and_moves_when_it_ends(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-breakdown-ended');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -3530,6 +3534,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_child_in_next_starts_only_once_it_links_an_approved_tech_design(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-child-needs-design');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -3564,6 +3569,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_child_in_next_waits_while_work_is_requested_for_its_epic(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-child-epic-request');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -3729,6 +3735,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_resumed_breakdown_of_the_epic_still_holds_the_child_in_next(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-breakdown-resumed');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -3753,6 +3760,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_child_waits_in_next_while_any_worker_run_of_its_epic_is_open(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-parent-run-ended');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -3877,6 +3885,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_epic_entering_implementation_evaluates_its_children_and_a_child_with_an_approved_design_moves(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-epic-entered-implementation');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -3898,6 +3907,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_lifecycle_child_created_straight_into_next_still_starts_through_its_other_rules(): void
     {
         self::bootKernel();
+        $this->holdEpicBranchesAsExisting();
         $project = $this->workflowProject('engine-child-created-in-next');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
@@ -4973,7 +4983,7 @@ final class EngineTest extends KernelTestCase
         $opener = new WorkRequestOpener(
             new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
             $this->service(CardRepository::class),
-            new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
+            new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class), $this->service(EpicBranches::class)),
             $this->service(RetryNotes::class),
             $this->service(KindPrompts::class),
         );

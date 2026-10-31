@@ -22,12 +22,17 @@ final readonly class WorkRequestContext
 
     private const string SHA_PATTERN = '#^[0-9a-f]{7,64}$#D';
 
+    /** The longest epic branch pattern plus the digits of the largest card number. A test ties it to the template rule. */
+    public const int MAX_EPIC_BRANCH_LENGTH = 265;
+
+    private const string EPIC_BRANCH_PATTERN = '#^(?!.*\.\.)(?!.*\.lock(?:/|$))[A-Za-z0-9_](?:[A-Za-z0-9._-]|/(?![/.-]))*(?<![./])$#D';
+
     private const string REASON_PATTERN = '/^[a-z][a-z0-9-]{0,63}$/D';
 
     private const array KEYS = ['pullRequestNumber', 'pullRequestUrl', 'headSha', 'reason', 'documentId'];
 
     /** A row stored before these keys existed lacks them, and they read as null. */
-    private const array OPTIONAL_KEYS = ['inboxActionId', 'inboxItemId', 'inboxItemNumber'];
+    private const array OPTIONAL_KEYS = ['inboxActionId', 'inboxItemId', 'inboxItemNumber', 'epicBranch'];
 
     public function __construct(
         public ?int $pullRequestNumber = null,
@@ -38,6 +43,7 @@ final readonly class WorkRequestContext
         public ?string $inboxActionId = null,
         public ?int $inboxItemNumber = null,
         public ?string $inboxItemId = null,
+        public ?string $epicBranch = null,
     ) {
         if (null !== $pullRequestNumber && ($pullRequestNumber < 1 || $pullRequestNumber > self::MAX_PULL_REQUEST_NUMBER)) {
             throw new \UnexpectedValueException('A work request names a pull request by a positive 32-bit number.');
@@ -62,6 +68,9 @@ final readonly class WorkRequestContext
         }
         if (null !== $inboxItemNumber && ($inboxItemNumber < 1 || $inboxItemNumber > self::MAX_PULL_REQUEST_NUMBER)) {
             throw new \UnexpectedValueException('A work request names an inbox item by a positive 32-bit number.');
+        }
+        if (null !== $epicBranch && (\strlen($epicBranch) > self::MAX_EPIC_BRANCH_LENGTH || 1 !== preg_match(self::EPIC_BRANCH_PATTERN, $epicBranch))) {
+            throw new \UnexpectedValueException('A work request names an epic branch by a safe git branch name.');
         }
     }
 
@@ -104,10 +113,11 @@ final readonly class WorkRequestContext
             inboxActionId: self::nullableString($data['inboxActionId'] ?? null),
             inboxItemNumber: self::nullableInt($data['inboxItemNumber'] ?? null),
             inboxItemId: self::nullableString($data['inboxItemId'] ?? null),
+            epicBranch: self::nullableString($data['epicBranch'] ?? null),
         );
     }
 
-    /** @return array{pullRequestNumber: ?int, pullRequestUrl: ?string, headSha: ?string, reason: ?string, documentId: ?string, inboxActionId: ?string, inboxItemNumber: ?int, inboxItemId: ?string} */
+    /** @return array{pullRequestNumber: ?int, pullRequestUrl: ?string, headSha: ?string, reason: ?string, documentId: ?string, inboxActionId: ?string, inboxItemNumber: ?int, inboxItemId: ?string, epicBranch: ?string} */
     public function toArray(): array
     {
         return [
@@ -119,6 +129,7 @@ final readonly class WorkRequestContext
             'inboxActionId' => $this->inboxActionId,
             'inboxItemNumber' => $this->inboxItemNumber,
             'inboxItemId' => $this->inboxItemId,
+            'epicBranch' => $this->epicBranch,
         ];
     }
 

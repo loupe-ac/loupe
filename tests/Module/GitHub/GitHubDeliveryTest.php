@@ -340,6 +340,15 @@ final class GitHubDeliveryTest extends TestCase
         self::assertSame([], $this->delivery('push', ['ref' => 'refs/heads/', 'repository' => self::REPOSITORY])->refreshHints());
     }
 
+    public function test_the_pushed_branch_is_the_branch_of_a_push_and_nothing_else(): void
+    {
+        self::assertSame('epic/852', $this->delivery('push', ['ref' => 'refs/heads/epic/852', 'repository' => self::REPOSITORY])->pushedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/tags/v1.0', 'repository' => self::REPOSITORY])->pushedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/heads/main', 'deleted' => true, 'repository' => self::REPOSITORY])->pushedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/heads/', 'repository' => self::REPOSITORY])->pushedBranch());
+        self::assertNull($this->delivery('status', ['ref' => 'refs/heads/main', 'repository' => self::REPOSITORY])->pushedBranch());
+    }
+
     public function test_repeated_hints_are_given_once(): void
     {
         self::assertEquals([PullRequestRefreshHint::number(3), PullRequestRefreshHint::head('abc123')], $this->delivery('check_suite', [

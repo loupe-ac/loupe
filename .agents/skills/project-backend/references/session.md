@@ -2,7 +2,7 @@
 
 Read this before you add a route that a browser fetches in the background, or code that writes the session.
 
-## Three modes
+## Session modes
 
 `App\Session\ReadOnlyAwareSessionHandler` stores sessions in the `sessions` table. It picks a mode for each request when the session opens.
 
@@ -39,7 +39,7 @@ The request is then read-only only when its `Turbo-Frame` header equals that id.
 
 Give a list of ids when the reload fetches more than one frame, such as `['activity-frame', 'activity-count']` on `app_project_activity`. Name every frame that the refresh reloads.
 
-A background POST can take the mark too. `app_mercure_authorize` is the example. Every Mercure reconnect calls it, and a hub that is down makes each tab call it again and again. With the row lock, each call blocks the next click of the same user. It also blocks the session write at the end of each GET. A POST qualifies only when it changes nothing in the session, as the list below says.
+A background POST can take the mark too. `app_mercure_authorize` is the example. Every Mercure reconnect calls it, and a hub that is down makes each tab call it repeatedly. With the row lock, each call blocks the next click of the same user. It also blocks the session write at the end of each GET. A POST qualifies only when it changes nothing in the session, as the list below says.
 
 Put the mark on the one route that the reload fetches. A controller with two `#[Route]` attributes needs the mark on each route that background code calls, and on no other.
 

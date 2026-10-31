@@ -576,7 +576,7 @@ another bridge claimed. Each request carries these fields:
 | `params` | an object of parameter name to value for a command entry, or `null` when the request has none. The bridge matches each value against the pattern of its parameter before it runs |
 | `run` | the `run` list of the command entry, with its placeholders, as the owner confirmed it, or `null`. The bridge refuses the request as `entry-changed` when its entry holds another list |
 
-The `context` object always holds seven keys. Each one is `null` when the card
+The `context` object always holds nine keys. Each one is `null` when the card
 held no such value. A server from before the context sends no `context` key.
 
 | Key | Meaning |
@@ -586,6 +586,7 @@ held no such value. A server from before the context sends no `context` key.
 | `headSha` | the head commit of that pull request, as 7 to 64 lower-case hex digits. A later push leaves it behind |
 | `reason` | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request. A request rule can set `agent-review` or another code with its `reason` parameter |
 | `documentId` | the id of the one linked document that carries the tag of the `document` parameter of the request rule |
+| `epicBranch` | the epic branch of the parent of the card, such as `epic/852`, or `null` when the card has no parent or no epic branch |
 | `inboxActionId` | the id of the inbox action that asked for the request, or `null`. The agent reads the note of that action with `inbox_get`, so the note never travels in the request |
 | `inboxItemNumber` | the number of the inbox item of that action, or `null` |
 | `inboxItemId` | the id of that inbox item, or `null`. `inbox_get` takes this id, never the number |
