@@ -9,9 +9,11 @@ use App\Module\OpenRouter\Command\SaveOpenRouterKeyCommand;
 use App\Module\OpenRouter\Command\SaveOpenRouterKeyHandler;
 use App\Module\OpenRouter\Entity\OpenRouterKey;
 use App\Module\OpenRouter\Entity\OpenRouterKeyState;
+use App\Module\OpenRouter\Event\OpenRouterKeyRemoved;
 use App\Module\OpenRouter\Service\OpenRouterAnalytics;
 use App\Tests\Module\OpenRouter\OpenRouterScenario;
 use App\Tests\Module\OpenRouter\RecordedOpenRouterSignals;
+use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -20,6 +22,7 @@ use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\NullAuditActorProvider;
 
 final class SaveOpenRouterKeyHandlerTest extends KernelTestCase
@@ -34,6 +37,9 @@ final class SaveOpenRouterKeyHandlerTest extends KernelTestCase
     private RecordedOpenRouterSignals $signals;
 
     private RecordingAuditor $audit;
+
+    /** @var DispatchedEvents<OpenRouterKeyRemoved> */
+    private DispatchedEvents $removed;
 
     public function test_a_working_key_is_stored_for_the_account_and_the_page_is_signalled(): void
     {
@@ -83,6 +89,19 @@ final class SaveOpenRouterKeyHandlerTest extends KernelTestCase
         self::assertSame(OpenRouterKeyState::Working, $keys[0]->state);
         self::assertNull($keys[0]->refusedSince);
         self::assertNull($keys[0]->lastReadAt);
+        self::assertCount(1, $this->removed->events());
+        self::assertEquals($old->id, $this->removed->events()[0]->keyId);
+        self::assertSame([0], $this->removed->transactionDepths());
+    }
+
+    public function test_a_first_key_dispatches_no_removed_event(): void
+    {
+        self::bootKernel();
+        $user = $this->makeUser(self::getContainer(), 'save-first');
+
+        $this->handler(200)(new SaveOpenRouterKeyCommand($user, self::SECRET));
+
+        self::assertSame([], $this->removed->events());
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('refusals')]
@@ -104,6 +123,7 @@ final class SaveOpenRouterKeyHandlerTest extends KernelTestCase
         self::assertCount(1, $keys);
         self::assertSame('sk-or-v1-old-0001', $keys[0]->secret);
         $this->signals->assertNothingSignalled();
+        self::assertSame([], $this->removed->events());
         self::assertSame([], $this->audit->records('openrouter.key_saved'));
     }
 
@@ -143,6 +163,9 @@ final class SaveOpenRouterKeyHandlerTest extends KernelTestCase
         }, 'https://openrouter.ai/api/v1/');
         $this->signals = new RecordedOpenRouterSignals();
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        \assert($dispatcher instanceof EventDispatcherInterface);
+        $this->removed = DispatchedEvents::of(self::getContainer(), OpenRouterKeyRemoved::class);
 
         return new SaveOpenRouterKeyHandler(
             new OpenRouterAnalytics($client, new MockClock('2026-10-30 12:00:00 UTC'), new NullLogger()),
@@ -150,6 +173,7 @@ final class SaveOpenRouterKeyHandlerTest extends KernelTestCase
             $this->em(),
             $this->signals->publisher,
             $this->audit->auditor,
+            $dispatcher,
         );
     }
 

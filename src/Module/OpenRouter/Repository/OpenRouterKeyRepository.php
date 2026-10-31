@@ -8,6 +8,7 @@ use App\Module\OpenRouter\Entity\OpenRouterKey;
 use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\OpenRouter\View\OpenRouterKeySummary;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -70,6 +71,16 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    public function findIdForUser(Uuid $userId): ?Uuid
+    {
+        return $this->findIdOf('user', $userId);
+    }
+
+    public function findIdForProject(Uuid $projectId): ?Uuid
+    {
+        return $this->findIdOf('project', $projectId);
+    }
+
     /** @return int the number of rows deleted */
     public function deleteForUser(Uuid $userId): int
     {
@@ -86,5 +97,15 @@ final class OpenRouterKeyRepository extends ServiceEntityRepository
             ->createQuery('DELETE '.OpenRouterKey::class.' k WHERE k.project = :owner')
             ->setParameter('owner', $projectId, UuidType::NAME)
             ->execute();
+    }
+
+    private function findIdOf(string $owner, Uuid $ownerId): ?Uuid
+    {
+        $id = $this->getEntityManager()
+            ->createQuery('SELECT k.id FROM '.OpenRouterKey::class.' k WHERE k.'.$owner.' = :owner')
+            ->setParameter('owner', $ownerId, UuidType::NAME)
+            ->getOneOrNullResult(AbstractQuery::HYDRATE_SINGLE_SCALAR);
+
+        return null === $id ? null : Uuid::fromString((string) $id);
     }
 }

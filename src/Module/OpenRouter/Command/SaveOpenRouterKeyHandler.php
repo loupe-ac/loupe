@@ -7,11 +7,13 @@ namespace App\Module\OpenRouter\Command;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\OpenRouter\Entity\OpenRouterKey;
+use App\Module\OpenRouter\Event\OpenRouterKeyRemoved;
 use App\Module\OpenRouter\Repository\OpenRouterKeyRepository;
 use App\Module\OpenRouter\Service\OpenRouterAnalytics;
 use App\Module\OpenRouter\Service\OpenRouterKeyChangedPublisher;
 use App\Module\OpenRouter\Service\OpenRouterProbeResult;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -28,6 +30,7 @@ final readonly class SaveOpenRouterKeyHandler
         private EntityManagerInterface $em,
         private OpenRouterKeyChangedPublisher $changed,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -49,16 +52,20 @@ final readonly class SaveOpenRouterKeyHandler
         $ownerId = $owner instanceof User
             ? $owner->id ?? throw new \LogicException('A stored user has an id.') : $owner->requireId();
 
-        $key = $this->em->wrapInTransaction(function () use ($owner, $ownerId, $secret): OpenRouterKey {
+        [$key, $replacedId] = $this->em->wrapInTransaction(function () use ($owner, $ownerId, $secret): array {
+            $replacedId = $owner instanceof User ? $this->openRouterKeys->findIdForUser($ownerId) : $this->openRouterKeys->findIdForProject($ownerId);
             $owner instanceof User ? $this->openRouterKeys->deleteForUser($ownerId) : $this->openRouterKeys->deleteForProject($ownerId);
 
             $key = $owner instanceof User ? new OpenRouterKey($secret, user: $owner) : new OpenRouterKey($secret, project: $owner);
             $this->em->persist($key);
 
-            return $key;
+            return [$key, $replacedId];
         });
 
         $this->changed->changed($owner);
+        if (null !== $replacedId) {
+            $this->events->dispatch(new OpenRouterKeyRemoved($replacedId));
+        }
         $this->auditor->record(
             'openrouter.key_saved',
             AuditOutcome::Success,
