@@ -108,23 +108,36 @@ final readonly class OpenRouterAnalytics
         return self::readTotal($body);
     }
 
-    /** @param array<mixed> $body */
+    /**
+     * Only an empty `data` list or a row with zero requests means no cost. Any
+     * other shape reads as no answer, so a changed API never records a false
+     * `no-cost-found`.
+     *
+     * @param array<mixed> $body
+     */
     private static function readTotal(array $body): OpenRouterCostReading
     {
-        $data = $body['data'] ?? $body;
-        $row = \is_array($data) && array_is_list($data) ? ($data[0] ?? null) : $data;
-        if (!\is_array($row)) {
+        $data = $body['data'] ?? null;
+        if (!\is_array($data)) {
+            return OpenRouterCostReading::noAnswer();
+        }
+        if ([] === $data) {
             return OpenRouterCostReading::noCost();
         }
 
-        $total = $row['total_usage'] ?? null;
-        $count = $row['request_count'] ?? null;
-        if (!is_numeric($total) || (is_numeric($count) ? (float) $count <= 0 : (float) $total <= 0)) {
+        $row = array_is_list($data) ? $data[0] : $data;
+        $total = \is_array($row) ? ($row['total_usage'] ?? null) : null;
+        $count = \is_array($row) ? ($row['request_count'] ?? null) : null;
+        if (!is_numeric($count) || (float) $count < 0) {
+            return OpenRouterCostReading::noAnswer();
+        }
+        if (0.0 === (float) $count) {
             return OpenRouterCostReading::noCost();
         }
+        if (!is_numeric($total) || (float) $total < 0) {
+            return OpenRouterCostReading::noAnswer();
+        }
 
-        $cost = number_format((float) $total, 6, '.', '');
-
-        return OpenRouterCostReading::total($cost);
+        return OpenRouterCostReading::total(number_format((float) $total, 6, '.', ''));
     }
 }

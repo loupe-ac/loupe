@@ -118,9 +118,30 @@ final class OpenRouterAnalyticsTest extends TestCase
     public static function emptyAnswers(): iterable
     {
         yield 'no rows' => ['{"data":[]}'];
-        yield 'no data' => ['{}'];
         yield 'zero requests' => ['{"data":[{"total_usage":0,"request_count":0}]}'];
-        yield 'null total' => ['{"data":[{"total_usage":null,"request_count":null}]}'];
+        yield 'zero requests with a null total' => ['{"data":[{"total_usage":null,"request_count":0}]}'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unrecognizedAnswers')]
+    public function test_an_answer_of_an_unknown_shape_is_no_answer_not_no_cost(string $body): void
+    {
+        self::assertSame(OpenRouterCostOutcome::NoAnswer, $this->read(new MockResponse($body))->outcome);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function unrecognizedAnswers(): iterable
+    {
+        yield 'empty object' => ['{}'];
+        yield 'empty list' => ['[]'];
+        yield 'data is not an array' => ['{"data":"none"}'];
+        yield 'row is not an array' => ['{"data":[1]}'];
+        yield 'row without total_usage' => ['{"data":[{"request_count":4}]}'];
+        yield 'row without request_count' => ['{"data":[{"total_usage":0.5}]}'];
+        yield 'empty row' => ['{"data":[{}]}'];
+        yield 'null total and null count' => ['{"data":[{"total_usage":null,"request_count":null}]}'];
+        yield 'total is not a number' => ['{"data":[{"total_usage":"n/a","request_count":2}]}'];
+        yield 'negative total' => ['{"data":[{"total_usage":-1,"request_count":2}]}'];
+        yield 'renamed fields' => ['{"data":[{"cost":0.5,"requests":2}]}'];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('refusedStatuses')]
