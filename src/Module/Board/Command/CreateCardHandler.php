@@ -26,7 +26,6 @@ use App\Module\Board\Service\CardLinkResolver;
 use App\Module\Board\Service\CardLinkSync;
 use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
-use App\Module\Board\Service\CardSearchIndexer;
 use App\Module\Board\Service\DocumentLinkResolver;
 use App\Module\Board\Service\HumanReviewSwitch;
 use App\Module\Board\Service\PullRequestTracking;
@@ -54,7 +53,6 @@ final readonly class CreateCardHandler
         private CardParentResolver $parents,
         private CardParentPolicy $parentPolicy,
         private CardTypeCatalog $catalog,
-        private CardSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private EventDispatcherInterface $events,
@@ -125,9 +123,6 @@ final readonly class CreateCardHandler
                 position: $column->terminal
                     ? 0
                     : $this->cards->nextPosition($column),
-                // Read once, here: the card then carries its own language, so
-                // changing the project's leaves the cards already written alone.
-                searchLanguage: $command->project->searchLanguage,
                 source: $command->source ?? CardSource::fromReporter($command->reporter),
             );
             $card->parent = $parent;
@@ -156,11 +151,6 @@ final readonly class CreateCardHandler
             }
             $blockersChanged = $this->cardLinkSync->sync($card, $relatedCards);
             $this->em->flush();
-
-            // After the flush, so the row the UPDATE reads its title and body
-            // from exists. Inside the transaction, so the card and its vector
-            // commit together.
-            $this->searchIndexer->index($card);
             $changedPullRequests = $this->pullRequestTracking->apply($command->project, [], $this->pullRequestTracking->referencesOf($card));
             if ([] !== $changedPullRequests) {
                 $this->events->dispatch(new CardPullRequestsChanged(

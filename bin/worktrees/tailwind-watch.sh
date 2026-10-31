@@ -33,7 +33,7 @@ trees=("$main/.worktrees" "$main/.claude/worktrees")
 #
 # Scanning the root also covers composer.lock for free. app.css imports
 # vendor/ubermuda/admin-bundle/assets/admin.css and scans two vendored template
-# directories, and AGENTS.md tells you to run composer install after switching
+# directories, and project-worktrees tells you to run composer install after switching
 # branches in a reused worktree, so a lockfile change is a real reason to
 # rebuild.
 #
