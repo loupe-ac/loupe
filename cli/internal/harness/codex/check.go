@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,6 +50,7 @@ type serverConf struct {
 
 type providerConf struct {
 	EnvKey             string `toml:"env_key"`
+	BaseURL            string `toml:"base_url"`
 	RequiresOpenaiAuth bool   `toml:"requires_openai_auth"`
 }
 
@@ -114,6 +116,39 @@ func configEnvKey(home, profile string) string {
 		if key := f.cfg.ModelProviders[name].EnvKey; f.err == nil && name != "" && key != "" {
 			return key
 		}
+	}
+
+	return ""
+}
+
+// openRouterHost is the host of the OpenRouter API.
+const openRouterHost = "openrouter.ai"
+
+// configOpenRouter is the name of the provider the profile selects when its
+// base_url points at OpenRouter, and "" otherwise. The provider name comes from
+// the first file that names one, and its base_url from the profile file before
+// config.toml. A file that does not parse gives no answer.
+func configOpenRouter(home, profile string) string {
+	files := loadConfigs(home, profile)
+	for _, f := range files {
+		if f.err != nil {
+			return ""
+		}
+	}
+	name := provider(files)
+	if name == "" {
+		return ""
+	}
+	for _, f := range files {
+		raw := f.cfg.ModelProviders[name].BaseURL
+		if raw == "" {
+			continue
+		}
+		if u, err := url.Parse(raw); err == nil && strings.EqualFold(u.Hostname(), openRouterHost) {
+			return name
+		}
+
+		return ""
 	}
 
 	return ""

@@ -13,7 +13,8 @@ use Symfony\Component\Uid\Uuid;
  * rows and the host samples of its bridge. The four tool call columns stay
  * null for a run with no rows. The migration that made the table holds a
  * frozen copy of this select, from before the host, harness and account
- * columns and the kind of a tool call. A run with no end counts as concurrent
+ * columns and the kind of a tool call. A run with a billed cost row takes its
+ * cost from that row alone, and the null prices of its usage rows do not count. A run with no end counts as concurrent
  * only while it runs, so a lost run does not count forever.
  */
 final readonly class WorkerRunFactWriter
@@ -50,7 +51,11 @@ final readonly class WorkerRunFactWriter
             r.ended_at,
             r.received_at,
             (EXTRACT(EPOCH FROM (r.ended_at - r.started_at)) * 1000)::bigint,
-            CASE WHEN r.usage_source IS NULL OR COALESCE(u.unpriced, false) THEN NULL ELSE COALESCE(u.cost_micro_usd, 0) END,
+            CASE
+                WHEN b.run_id IS NOT NULL THEN ROUND(b.cost_usd * 1000000)::bigint
+                WHEN r.usage_source IS NULL OR COALESCE(u.unpriced, false) THEN NULL
+                ELSE COALESCE(u.cost_micro_usd, 0)
+            END,
             CASE WHEN r.usage_source IS NULL THEN NULL ELSE COALESCE(u.tokens_in, 0) END,
             CASE WHEN r.usage_source IS NULL THEN NULL ELSE COALESCE(u.tokens_out, 0) END,
             CASE WHEN r.usage_source IS NULL THEN NULL ELSE COALESCE(u.tokens_cache_read, 0) END,
@@ -82,6 +87,7 @@ final readonly class WorkerRunFactWriter
             hs.on_battery
         FROM bridge_worker_runs r
         JOIN projects p ON p.id = r.project_id
+        LEFT JOIN bridge_worker_run_billed_costs b ON b.run_id = r.id
         LEFT JOIN (
             SELECT
                 run_id,

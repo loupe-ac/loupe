@@ -103,6 +103,8 @@ final class CardWorkerRunsExtension extends AbstractExtension
             cacheWriteTokens: $sums['cacheWrite'],
             partialRuns: $runs['partial'],
             estimated: $sums['estimated'],
+            pendingRuns: $sums['pendingRuns'],
+            noCostRuns: $sums['noCostRuns'],
         );
     }
 }

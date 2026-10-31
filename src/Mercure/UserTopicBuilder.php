@@ -56,6 +56,18 @@ final readonly class UserTopicBuilder
         return $this->userIdFromTopic($topic, '/notifications');
     }
 
+    /** The topic the OpenRouter key section of a user listens on. The message names no key. */
+    public function forOpenRouter(Uuid $userId): string
+    {
+        return rtrim($this->appUrl, '/').'/users/'.$userId.'/openrouter';
+    }
+
+    /** The user a forOpenRouter() topic names, or null for any other string. */
+    public function userIdFromOpenRouterTopic(string $topic): ?Uuid
+    {
+        return $this->userIdFromTopic($topic, '/openrouter');
+    }
+
     private function userIdFromTopic(string $topic, string $suffix): ?Uuid
     {
         $prefix = rtrim($this->appUrl, '/').'/users/';
