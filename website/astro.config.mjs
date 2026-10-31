@@ -181,6 +181,7 @@ export default defineConfig({
             { slug: 'contributing/design-system' },
             { slug: 'contributing/worktrees' },
             { slug: 'contributing/lifecycle' },
+            { slug: 'contributing/instruction-audit' },
           ],
         },
         {

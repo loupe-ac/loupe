@@ -24,7 +24,6 @@ use App\Module\Board\Service\CardLinkSync;
 use App\Module\Board\Service\CardMover;
 use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
-use App\Module\Board\Service\CardSearchIndexer;
 use App\Module\Board\Service\CardValueWriter;
 use App\Module\Board\Service\DocumentLinkResolver;
 use App\Module\Board\Service\HumanReviewSwitch;
@@ -67,7 +66,6 @@ final readonly class UpdateCardHandler
         private CardParentResolver $parents,
         private CardParentPolicy $parentPolicy,
         private CardTypeCatalog $catalog,
-        private CardSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private EventDispatcherInterface $events,
@@ -296,12 +294,6 @@ final readonly class UpdateCardHandler
                         $changedPullRequests,
                     ));
                 }
-            }
-
-            // Only the two columns the vector is built from. A move or a link
-            // change leaves the searchable text alone, so it costs no reindex.
-            if ($titleChanged || $bodyChanged) {
-                $this->searchIndexer->index($card);
             }
 
             // Inside the transaction, so a listener's rows land in the same

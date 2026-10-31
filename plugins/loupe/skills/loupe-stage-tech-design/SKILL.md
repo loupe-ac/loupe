@@ -12,9 +12,9 @@ Change nothing but Loupe documents and the `blocked-by` links of the card, and n
 ## Procedure
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md`. Follow its rules for the whole run.
-2. Load the harness adapter and read the repository profile, as the contract says.
-3. Connect to the Loupe tools, as the contract's first steps say.
-4. Load the `loupe-board` instruction.
+2. Load the harness adapter, as the contract says.
+3. Read the repository profile, as the contract says.
+4. Connect to the Loupe tools, as the contract's first steps say.
 5. Call `card_get`, and run the contract's column check.
 6. Read the tags of each linked document with `document_get`. The product document has the product design tag, or a title that starts `Product design`. The deploy notes have the tag `deploy-notes`, or a title that starts `Deploy notes`.
 7. Choose the requirement source:

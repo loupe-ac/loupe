@@ -104,3 +104,6 @@ e2e/.step-ca-root.crt
 ###> oauth keys ###
 /*.key
 ###< oauth keys ###
+
+# Output of `just skill-eval`.
+/tests/skill-evals/results/

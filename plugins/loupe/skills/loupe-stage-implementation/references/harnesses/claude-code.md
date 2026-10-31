@@ -8,7 +8,7 @@ Search for the Loupe tools with ToolSearch. In `claude -p` the Loupe MCP server 
 
 ## Load an instruction
 
-Load a named instruction, such as `loupe-board`, with the Skill tool. Read a file of instructions with the Read tool.
+Load a named instruction, such as `loupe-documents`, with the Skill tool. Read a file of instructions with the Read tool.
 
 ## Ask nothing
 
