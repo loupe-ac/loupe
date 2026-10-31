@@ -76,6 +76,7 @@ use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\Service\SessionPromptLimit;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\Workflow\InboxRetryNotes;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -1637,6 +1638,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->service(CardWaitText::class),
             $this->service(CardHoldRepository::class),
             $this->service(InboxReviewLookup::class),
+            $this->service(SessionPromptWriter::class),
         );
     }
 

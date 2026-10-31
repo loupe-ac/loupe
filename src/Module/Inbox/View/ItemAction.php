@@ -25,17 +25,19 @@ final readonly class ItemAction
         public array $labelParams = [],
         /** The address of a link action that the item itself names, such as the pull request of a paused rule. */
         public ?string $href = null,
+        /** The one bridge that opens the session of a start-session action about an item, which the hint names. Null when several can. */
+        public ?string $bridgeName = null,
     ) {
     }
 
-    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null, ?RunCommandView $runCommand = null, ?string $sessionPrompt = null): self
+    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null, ?RunCommandView $runCommand = null, ?string $sessionPrompt = null, ?string $bridgeName = null): self
     {
-        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason, $runCommand, $sessionPrompt);
+        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason, $runCommand, $sessionPrompt, [], null, $bridgeName);
     }
 
     /** @param array<string, string|int> $labelParams */
     public function labelled(string $labelKey, array $labelParams): self
     {
-        return new self($this->kind, $labelKey, $this->effectKey, $this->default, $this->disabledReasonKey, $this->reason, $this->runCommand, $this->sessionPrompt, $labelParams, $this->href);
+        return new self($this->kind, $labelKey, $this->effectKey, $this->default, $this->disabledReasonKey, $this->reason, $this->runCommand, $this->sessionPrompt, $labelParams, $this->href, $this->bridgeName);
     }
 }

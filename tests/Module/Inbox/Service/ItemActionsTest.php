@@ -45,6 +45,7 @@ use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -495,6 +496,167 @@ final class ItemActionsTest extends KernelTestCase
         self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98), InboxActionKind::Open));
     }
 
+    private function itemSessionBridge(?string $name = null): Bridge
+    {
+        return $this->sessionBridge(workKinds: [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)], name: $name);
+    }
+
+    private function notice(string $title = 'The repository is blocked'): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: $title, blocking: false, origin: InboxAskOrigin::Loupe, body: 'Look at the remote.');
+        $this->em->persist($item);
+        $this->em->flush();
+
+        return $item;
+    }
+
+    private function link(InboxItem $item, Card ...$cards): void
+    {
+        foreach ($cards as $card) {
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $this->em->flush();
+    }
+
+    public function test_a_session_from_an_item_with_no_card_is_about_the_item_and_needs_the_item_work_kind(): void
+    {
+        $this->itemSessionBridge('geoffrey-mbp');
+        $item = $this->notice();
+
+        $subject = $this->actions()->sessionSubjectOf($item);
+        $action = $this->startSession($item);
+
+        self::assertSame(InboxItem::SUBJECT_TYPE, $subject->type);
+        self::assertSame($item->id?->toRfc4122(), $subject->id->toRfc4122());
+        self::assertNull($action->disabledReasonKey);
+        self::assertSame('geoffrey-mbp', $action->bridgeName);
+        self::assertStringContainsString('The repository is blocked', (string) $action->sessionPrompt);
+    }
+
+    public function test_a_bridge_without_the_item_work_kind_leaves_the_item_session_off(): void
+    {
+        $this->sessionBridge();
+        $item = $this->notice();
+
+        $action = $this->startSession($item);
+
+        self::assertSame('inbox.action.start-session.disabled', $action->disabledReasonKey);
+        self::assertNull($action->bridgeName);
+    }
+
+    public function test_an_item_with_no_card_and_no_bridge_that_opens_sessions_offers_no_session(): void
+    {
+        self::assertSame([], $this->kinds($this->notice()));
+        $this->sessionBridge(capabilities: [Bridge::CAPABILITY_WORK_REQUESTS]);
+        self::assertSame([], $this->kinds($this->notice('Another notice')));
+    }
+
+    public function test_an_item_with_one_card_starts_its_session_on_the_card_with_any_session_bridge(): void
+    {
+        $this->sessionBridge();
+        $item = $this->notice();
+        $this->link($item, $this->card);
+
+        $subject = $this->actions()->sessionSubjectOf($item);
+        $action = $this->startSession($item);
+
+        self::assertSame(WorkSubject::CARD, $subject->type);
+        self::assertSame($this->card->id?->toRfc4122(), $subject->id->toRfc4122());
+        self::assertNull($action->disabledReasonKey);
+        self::assertNull($action->bridgeName);
+    }
+
+    public function test_an_item_with_several_cards_starts_its_session_about_the_item(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->notice();
+        $this->link($item, $this->card, $this->card($this->em, $this->project, 8));
+
+        self::assertSame(InboxItem::SUBJECT_TYPE, $this->actions()->sessionSubjectOf($item)->type);
+        self::assertNull($this->startSession($item)->disabledReasonKey);
+    }
+
+    public function test_the_card_that_a_suggestion_names_is_the_subject_of_an_item_with_several_cards(): void
+    {
+        $this->itemSessionBridge();
+        $second = $this->card($this->em, $this->project, 8);
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => $second->id?->toRfc4122()]]);
+        $this->link($item, $second);
+
+        $subject = $this->actions()->sessionSubjectOf($item);
+
+        self::assertSame(WorkSubject::CARD, $subject->type);
+        self::assertSame($second->id?->toRfc4122(), $subject->id->toRfc4122());
+    }
+
+    public function test_several_bridges_leave_the_hint_without_a_name(): void
+    {
+        $this->itemSessionBridge('one');
+        $this->itemSessionBridge('two');
+
+        self::assertNull($this->startSession($this->notice())->bridgeName);
+    }
+
+    /** @return iterable<string, array{WorkRequestState, bool}> */
+    public static function requestsOfTheItem(): iterable
+    {
+        yield 'an open session request' => [WorkRequestState::Open, false];
+        yield 'a claimed session request' => [WorkRequestState::Claimed, false];
+        yield 'a session request that ended' => [WorkRequestState::Done, true];
+    }
+
+    #[DataProvider('requestsOfTheItem')]
+    public function test_a_live_session_request_of_the_item_hides_start_session(WorkRequestState $state, bool $offered): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->notice();
+        $request = new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $item->id ?? throw new \LogicException('Stored.'), null, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', new \DateTimeImmutable());
+        $request->state = $state;
+        $this->em->persist($request);
+        $this->em->flush();
+
+        self::assertSame($offered, [] !== $this->kinds($item));
+    }
+
+    public function test_a_session_request_of_another_item_does_not_hide_start_session(): void
+    {
+        $this->itemSessionBridge();
+        $other = $this->notice('Other');
+        $item = $this->notice();
+        $request = new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $other->id ?? throw new \LogicException('Stored.'), null, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', new \DateTimeImmutable());
+        $this->em->persist($request);
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
+    }
+
+    public function test_a_closed_item_with_no_card_offers_a_session_only_with_an_item_bridge(): void
+    {
+        $this->sessionBridge();
+        $closed = $this->item($this->em, $this->project, 80);
+        $closed->state = InboxItemState::Resolved;
+        $closed->closedBy = InboxCloser::Owner;
+        $this->em->flush();
+        self::assertSame([], $this->kinds($closed));
+
+        $this->itemSessionBridge();
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($closed));
+    }
+
+    public function test_the_agent_prompt_wins_over_the_written_prompt(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null, 'prompt' => 'Use the skill.']]);
+
+        self::assertSame('Use the skill.', $this->startSession($item)->sessionPrompt);
+        self::assertSame('Use the skill.', $this->actions()->sessionPromptFor($item));
+    }
+
+    public function test_an_open_question_that_suggests_no_session_has_no_session_prompt(): void
+    {
+        self::assertNull($this->actions()->sessionPromptFor($this->item($this->em, $this->project, 81)));
+    }
+
     private function startSession(InboxItem $item): ItemAction
     {
         return array_find($this->actions()->forItem($item), static fn (ItemAction $action): bool => InboxActionKind::StartSession === $action->kind)
@@ -504,11 +666,14 @@ final class ItemActionsTest extends KernelTestCase
     /**
      * @param list<string>|null $capabilities
      * @param list<string>|null $projects
+     * @param list<string>      $workKinds
      */
-    private function sessionBridge(?\DateTimeImmutable $lastSeenAt = null, ?array $capabilities = null, ?array $projects = null): Bridge
+    private function sessionBridge(?\DateTimeImmutable $lastSeenAt = null, ?array $capabilities = null, ?array $projects = null, array $workKinds = [], ?string $name = null): Bridge
     {
         $bridge = new Bridge($this->project->owner, Uuid::v4(), $projects ?? [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', $lastSeenAt ?? new \DateTimeImmutable());
         $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $bridge->workKinds = $workKinds;
+        $bridge->name = $name;
         $this->em->persist($bridge);
         $this->em->flush();
 
@@ -794,6 +959,9 @@ final class ItemActionsTest extends KernelTestCase
         $reviewLookup = self::getContainer()->get(InboxReviewLookup::class);
         self::assertInstanceOf(InboxReviewLookup::class, $reviewLookup);
 
+        $sessionPrompts = self::getContainer()->get(SessionPromptWriter::class);
+        self::assertInstanceOf(SessionPromptWriter::class, $sessionPrompts);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -808,6 +976,7 @@ final class ItemActionsTest extends KernelTestCase
             $waitText,
             $holds,
             $reviewLookup,
+            $sessionPrompts,
         );
     }
 
