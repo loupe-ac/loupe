@@ -1,6 +1,6 @@
 ---
-description: Insurance rule of loupe-stage-fix-round. Merge the base and never rebase, and prove the resolution in both directions with comm.
-tags: [insurance, loupe-stage-fix-round]
+description: Insurance rule of loupe-stage-fix-round. Merge the base and never rebase, and prove the resolution in both directions with comm. Weak case, because merges-base, no-rebase and comm-lost-from-base stayed green against a broken skill. Only comm-own-additions catches the break.
+tags: [insurance, weak, loupe-stage-fix-round]
 max_turns: 12
 allowed_tools: [Read, Glob, Grep, Skill]
 ---

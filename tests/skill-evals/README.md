@@ -77,4 +77,5 @@ Commit the new file with the change it belongs to. The file reflects the deploye
 
 - `insurance`: a rule against a rare and expensive failure. These cases must pass.
 - `wrong-passage`: a passage that the audit found wrong. The real tool description is right, so the case passes today. It fails when a change leaves the agent with the wrong rule.
+- `weak`: a case with a grader that stayed green when its rule was broken in a local copy of the skill. The `description` of the case names those graders. A pass of such a grader is no proof that the skill holds its rule. A shell grant and a scaffolded repository would let a `tool_order` grader check the real commands, at the cost of a sandboxed Bash run per case.
 - The skill name, such as `loupe-board`, for a run of one skill with `--tag`.
