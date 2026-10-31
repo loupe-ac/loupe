@@ -1154,6 +1154,17 @@ final class RotateSecretsTest extends TestCase
         self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
     }
 
+    public function test_a_skipped_vendor_secret_selected_twice_leaves_its_group_not_rotated_in_full(): void
+    {
+        $this->vars("install_token = \"x\"\ndo_token = \"old-do\"\n");
+
+        $process = $this->rotate(['do_token', 'do_token', '@no-relogin'], "\ns\n", ['ROTATE_MENU' => '1']);
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('old-do', $this->value('do_token'));
+        self::assertStringContainsString("\nNot rotated in full: @no-relogin @relogin-users @relogin-clients\n", $process->getOutput());
+    }
+
     public function test_the_menu_asks_again_for_a_value_of_the_wrong_form(): void
     {
         $this->vars("registry_credentials = \"user:old-ghcr\"\n");
