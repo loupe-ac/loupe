@@ -11,11 +11,11 @@ Send every design to the Loupe app for review. **Invoke `loupe-documents` before
 
 Follow `plugins/loupe/skills/loupe-stage-tech-design/references/tech-document.md` for the design sections, the recommendations and the estimate marks. This skill adds the rules that belong to this project.
 
-Write the design for a reader who knows the product, as `loupe-documents` `references/design-structure.md` "Write for a reader who knows the product" says.
+Write the design for a reader who knows the product. The section "Write for a reader who knows the product" of `loupe-documents` `references/design-structure.md` gives the rule.
 
 Write the document in ASD-STE100 Simplified Technical English. The writing rules are in `compressing-skills`.
 
-An ADR name such as `0001-app-over-worker` never gets a tooltip on the review page. Give it a meaning inline at its first mention in each section, as `loupe-documents` rule 16 says for an outside ID.
+An ADR name such as `0001-app-over-worker` never gets a tooltip on the review page. Give it a meaning inline at its first mention in each section. `loupe-documents` rule 16 says the same for an outside ID.
 
 ## Verify each claim against the code
 
@@ -59,7 +59,7 @@ A step that touches live data needs its own entry in the work order. Say what br
 
 ## Take the example case from this project
 
-Take the case of each worked example from this project, such as a card of the board, a page of the dev seed or a rule of a skill.
+Take the case of each worked example from this project. A card of the board, a page of the dev seed or a rule of a skill are good cases.
 
 ## Common mistakes
 
