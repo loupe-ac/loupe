@@ -32,7 +32,7 @@ final class LifecycleInteractiveTechDesignMigrationTest extends KernelTestCase
         $connection->executeStatement(
             "UPDATE workflow_bindings
             SET template_version = 31,
-                definition = jsonb_set(jsonb_set(jsonb_set(jsonb_set(definition, '{version}', '31'), '{epicBranch}', '\"feature/epic-{number}\"'), '{approvalCoversConflictResolution}', 'false'), '{workTimeoutMinutes}', '5')
+                definition = jsonb_set(jsonb_set(jsonb_set(definition, '{version}', '31'), '{epicBranch}', '\"feature/epic-{number}\"'), '{approvalCoversConflictResolution}', 'false')
             WHERE project_id = ?",
             [$lifecycleId],
         );
@@ -43,9 +43,8 @@ final class LifecycleInteractiveTechDesignMigrationTest extends KernelTestCase
 
         $shipped = $this->service(ShippedTemplates::class)->source('lifecycle');
         $after = $this->definition($connection, $lifecycleId);
-        self::assertSame(32, $this->templateVersion($connection, $lifecycleId));
-        self::assertSame(32, $after['version']);
-        self::assertSame(120, $after['workTimeoutMinutes']);
+        self::assertSame($shipped['version'], $this->templateVersion($connection, $lifecycleId));
+        self::assertSame($shipped['version'], $after['version']);
         self::assertSame('feature/epic-{number}', $after['epicBranch']);
         self::assertFalse($after['approvalCoversConflictResolution']);
         self::assertEquals([...$shipped, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $after);

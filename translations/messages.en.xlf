@@ -7709,6 +7709,7 @@
             <trans-unit id="board.card.history.release_reason.rule_removed"><source>board.card.history.release_reason.rule_removed</source><target>the rule left the workflow</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.run_resumed"><source>board.card.history.release_reason.run_resumed</source><target>a worker run resumed</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.released_by_rule"><source>board.card.history.release_reason.released_by_rule</source><target>a workflow rule released it</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.work_timeout_removed"><source>board.card.history.release_reason.work_timeout_removed</source><target>Loupe removed the work timeout</target></trans-unit>
             <trans-unit id="board.card.history.release_reason.released_by_person"><source>board.card.history.release_reason.released_by_person</source><target>a person released it</target></trans-unit>
             <trans-unit id="board.card.history.changed"><source>board.card.history.changed</source><target>%actor% changed the card.</target></trans-unit>
             <trans-unit id="board.card.history.reason"><source>board.card.history.reason</source><target>Because %reason%.</target></trans-unit>
@@ -9399,7 +9400,7 @@
             <trans-unit id="workflow.settings.timings.heading"><source>workflow.settings.timings.heading</source><target>Retry timings</target></trans-unit>
             <trans-unit id="workflow.settings.timings.backoff"><source>workflow.settings.timings.backoff</source><target>Retry delays: %minutes% minutes</target></trans-unit>
             <trans-unit id="workflow.settings.timings.work_failed_backoff"><source>workflow.settings.timings.work_failed_backoff</source><target>Retries after failed work: %minutes% minutes</target></trans-unit>
-            <trans-unit id="workflow.settings.timings.work_timeout"><source>workflow.settings.timings.work_timeout</source><target>Work timeout: %minutes% minutes</target></trans-unit>
+            <trans-unit id="workflow.settings.timings.no_timeout"><source>workflow.settings.timings.no_timeout</source><target>Work that a rule asks for waits for a bridge with no time limit.</target></trans-unit>
             <trans-unit id="workflow.bind.error.already_bound"><source>workflow.bind.error.already_bound</source><target>This project already runs a workflow template.</target></trans-unit>
             <trans-unit id="workflow.bind.error.unknown_template"><source>workflow.bind.error.unknown_template</source><target>No workflow template has this key.</target></trans-unit>
             <trans-unit id="workflow.bind.error.slot_unlinked"><source>workflow.bind.error.slot_unlinked</source><target>Choose a column for this slot.</target></trans-unit>
@@ -9412,7 +9413,6 @@
             <trans-unit id="workflow.panel.pause_kind.rule"><source>workflow.panel.pause_kind.rule</source><target>a rule of the template paused the card</target></trans-unit>
             <trans-unit id="workflow.panel.pause_kind.retries"><source>workflow.panel.pause_kind.retries</source><target>too many attempts were refused</target></trans-unit>
             <trans-unit id="workflow.panel.pause_kind.work_limit"><source>workflow.panel.pause_kind.work_limit</source><target>the rule reached its work limit</target></trans-unit>
-            <trans-unit id="workflow.panel.pause_kind.work_timeout"><source>workflow.panel.pause_kind.work_timeout</source><target>no bridge took the work in time</target></trans-unit>
             <trans-unit id="workflow.panel.pause_kind.work_stopped"><source>workflow.panel.pause_kind.work_stopped</source><target>the worker stopped and needs a person</target></trans-unit>
             <trans-unit id="workflow.panel.release.left_slot"><source>workflow.panel.release.left_slot</source><target>The pause ends when the card leaves its slot.</target></trans-unit>
             <trans-unit id="workflow.panel.release.facts_changed"><source>workflow.panel.release.facts_changed</source><target>The pause ends when the facts that the rule reads change.</target></trans-unit>

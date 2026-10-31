@@ -1785,31 +1785,15 @@ final class EngineTest extends KernelTestCase
         self::assertSame(['work'], $this->requestRuleIds($card));
     }
 
-    public function test_a_repair_that_no_bridge_takes_expires_and_pauses_the_card(): void
+    public function test_a_repair_that_no_bridge_takes_keeps_waiting(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: self::REPAIR);
         $repair = $this->repairing($card);
 
-        $this->evaluate($card, '2026-10-02 14:00:00');
+        $this->evaluate($card, '2026-10-03 14:00:00');
 
-        self::assertSame(WorkRequestState::Expired, $repair->state);
-        $pause = $this->activePause($card);
-        self::assertNotNull($pause);
-        self::assertSame([PauseKind::WorkTimeout, 'no-bridge-took-work', 'work'], [$pause->kind, $pause->reason, $pause->ruleId]);
-    }
-
-    public function test_a_repair_that_expires_pauses_the_card_when_its_rule_expires_its_own_work(): void
-    {
-        $rule = ['id' => 'work', 'slot' => 'one', 'when' => self::ALWAYS, 'then' => ['request' => ['kind' => 'work', 'onTimeout' => 'expire']]];
-        $card = $this->boundCard([$rule], onWorkFailed: self::REPAIR);
-        $repair = $this->repairing($card);
-
-        $this->evaluate($card, '2026-10-02 14:00:00');
-
-        self::assertSame(WorkRequestState::Expired, $repair->state);
-        $pause = $this->activePause($card);
-        self::assertNotNull($pause);
-        self::assertSame([PauseKind::WorkTimeout, 'no-bridge-took-work'], [$pause->kind, $pause->reason]);
+        self::assertSame(WorkRequestState::Open, $repair->state);
+        self::assertNull($this->activePause($card));
     }
 
     public function test_a_card_that_leaves_the_slot_cancels_its_repair(): void
@@ -1901,24 +1885,6 @@ final class EngineTest extends KernelTestCase
 
         self::assertCount(1, $this->liveRequests($card));
         self::assertCount(2, $this->requestRuleIds($card));
-    }
-
-    public function test_a_timeout_pause_stays_when_the_rule_last_saw_its_request_open(): void
-    {
-        $card = $this->boundCard([self::requestRule('work', self::IDLE)]);
-        $this->evaluate($card);
-        $this->evaluate($card, '2026-10-02 12:05:00');
-
-        $this->evaluate($card, '2026-10-02 14:00:00');
-        $pause = $this->activePause($card);
-        self::assertSame(PauseKind::WorkTimeout, $pause?->kind);
-
-        $this->evaluate($card, '2026-10-02 14:01:00');
-        $this->evaluate($card, '2026-10-02 14:30:00');
-
-        self::assertSame($pause, $this->activePause($card));
-        self::assertSame([], $this->liveRequests($card));
-        self::assertCount(1, $this->requestRuleIds($card));
     }
 
     public function test_a_repair_failed_pause_stays_when_the_rule_last_saw_the_repair_open(): void
@@ -2251,7 +2217,12 @@ final class EngineTest extends KernelTestCase
     public function test_a_pause_ends_the_evaluation_before_the_release_check_and_any_move(): void
     {
         $card = $this->boundCard([
-            self::requestRule('work', ['card.type' => ['types' => ['bug']]]),
+            [
+                'id' => 'hold',
+                'slot' => 'one',
+                'when' => ['card.type' => ['types' => ['bug']]],
+                'then' => ['pause' => ['reason' => 'on-hold', 'until' => ['card.type' => ['types' => ['epic']]]]],
+            ],
             self::moveRule('advance', 'two', ['card.type' => ['types' => ['feature']]]),
         ]);
         $this->setType($card, 'bug');
@@ -2263,7 +2234,7 @@ final class EngineTest extends KernelTestCase
         self::assertSame('next', $card->column->slug);
         $pause = $this->activePause($card);
         self::assertNotNull($pause);
-        self::assertSame(PauseKind::WorkTimeout, $pause->kind);
+        self::assertSame(PauseKind::Rule, $pause->kind);
         self::assertCount(1, $this->paused);
     }
 
@@ -2672,58 +2643,19 @@ final class EngineTest extends KernelTestCase
         self::assertNull($this->ruleStateOrNull($card, 'work'));
     }
 
-    public function test_an_open_request_past_the_timeout_expires_and_pauses_the_card(): void
+    public function test_an_open_request_waits_for_a_bridge_with_no_time_limit(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
         $this->evaluate($card);
         $request = $this->liveRequests($card)[0];
 
-        $this->evaluate($card, '2026-10-02 13:59:00');
+        $this->evaluate($card, '2026-10-02 14:00:00');
+        $this->evaluate($card, '2026-10-09 14:00:00');
+
         self::assertSame(WorkRequestState::Open, $request->state);
-
-        $this->evaluate($card, '2026-10-02 14:00:00');
-
-        self::assertSame(WorkRequestState::Expired, $request->state);
-        $pause = $this->activePause($card);
-        self::assertNotNull($pause);
-        self::assertSame([PauseKind::WorkTimeout, 'no-bridge-took-work', 'work'], [$pause->kind, $pause->reason, $pause->ruleId]);
-        self::assertCount(1, $this->paused);
-
-        $this->evaluate($card, '2026-10-02 14:30:00');
-        self::assertNull($pause->releasedAt);
-        self::assertSame([], $this->liveRequests($card));
-    }
-
-    public function test_an_open_request_that_expires_with_no_pause_leaves_the_card_running(): void
-    {
-        $rule = self::requestRule('work', self::ALWAYS);
-        $rule['then']['request']['onTimeout'] = 'expire';
-        $card = $this->boundCard([$rule]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
-
-        $this->evaluate($card, '2026-10-02 14:00:00');
-
-        self::assertSame(WorkRequestState::Expired, $request->state);
         self::assertNull($this->activePause($card));
         self::assertSame([], $this->paused);
-        self::assertSame([], $this->liveRequests($card));
-    }
-
-    public function test_a_reopened_request_counts_its_timeout_from_the_reopen(): void
-    {
-        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
-        $request->reopenedAt = new \DateTimeImmutable('2026-10-02 13:30:00');
-        $this->em()->flush();
-
-        $this->evaluate($card, '2026-10-02 15:29:00');
-        self::assertSame(WorkRequestState::Open, $request->state);
-        self::assertNull($this->activePause($card));
-
-        $this->evaluate($card, '2026-10-02 15:30:00');
-        self::assertSame(WorkRequestState::Expired, $request->state);
+        self::assertSame([$request], $this->liveRequests($card));
     }
 
     public function test_a_live_request_whose_rule_left_the_template_is_cancelled(): void
@@ -2950,24 +2882,6 @@ final class EngineTest extends KernelTestCase
         self::assertSame(['advance'], $this->firedRules());
         self::assertSame([], $this->liveRequests($card));
         self::assertNull($this->ruleStateOrNull($card, 'work'));
-    }
-
-    public function test_a_release_restarts_the_timeout_of_an_open_request(): void
-    {
-        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->hold($card);
-        $request = $this->openRequestWhileHeld($card);
-
-        $this->releaseHold($card, '2026-10-02 14:30:00');
-        $this->evaluate($card, '2026-10-02 15:00:00');
-
-        self::assertSame(WorkRequestState::Open, $request->state);
-        self::assertNull($this->activePause($card));
-
-        $this->evaluate($card, '2026-10-02 16:30:00');
-
-        self::assertSame(WorkRequestState::Expired, $request->state);
-        self::assertSame(PauseKind::WorkTimeout, $this->activePause($card)?->kind);
     }
 
     public function test_a_release_keeps_a_retries_pause_whose_facts_did_not_change(): void
@@ -3468,7 +3382,7 @@ final class EngineTest extends KernelTestCase
         self::assertSame(['teardown', 'teardown', null], [$live[0]->kind, $live[0]->ruleId, $live[0]->capability]);
 
         $this->evaluate($card, '2026-10-02 14:05:00');
-        self::assertSame(WorkRequestState::Expired, $live[0]->state);
+        self::assertSame(WorkRequestState::Open, $live[0]->state);
         self::assertNull($this->activePause($card));
 
         $this->moveTo($card, 'next');
@@ -4871,7 +4785,6 @@ final class EngineTest extends KernelTestCase
             'slots' => [['key' => 'one', 'label' => 'one'], ['key' => 'two', 'label' => 'two'], ['key' => 'three', 'label' => 'three']],
             'manualMoves' => [],
             'backoffMinutes' => $backoffMinutes,
-            'workTimeoutMinutes' => 120,
             ...([] === $onWorkFailed ? [] : ['onWorkFailed' => $onWorkFailed]),
             'rules' => $rules,
         ]));

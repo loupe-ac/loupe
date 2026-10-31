@@ -180,7 +180,7 @@
         {% if template.workFailedBackoffMinutes is not null %}
             <p class="lp-workspace-desc">{{ 'workflow.settings.timings.work_failed_backoff'|trans({'%minutes%': template.workFailedBackoffMinutes|join(', ')}) }}</p>
         {% endif %}
-        <p class="lp-workspace-desc">{{ 'workflow.settings.timings.work_timeout'|trans({'%minutes%': template.workTimeoutMinutes}) }}</p>
+        <p class="lp-workspace-desc" data-workflow-no-timeout>{{ 'workflow.settings.timings.no_timeout'|trans }}</p>
     </section>
     {% endif %}
 </twig:Ds:Workspace>
