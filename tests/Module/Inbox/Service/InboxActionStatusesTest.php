@@ -16,6 +16,7 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -377,6 +378,49 @@ final class InboxActionStatusesTest extends KernelTestCase
         self::assertSame([InboxActionState::Running, 'bridge.worker_runs.state.running', '2026-10-13 12:02:00'], [$status->state, $status->labelKey, $status->at?->format('Y-m-d H:i:s')]);
     }
 
+    public function test_an_item_session_reads_offline_while_the_live_bridge_lacks_the_item_work_kind(): void
+    {
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->projects = [(string) $this->project->id];
+        $this->session(WorkRequestState::Open, aboutItem: true);
+
+        self::assertTrue($this->onlyStatus()->offline);
+    }
+
+    public function test_an_item_session_reads_online_while_a_live_bridge_reports_the_item_work_kind(): void
+    {
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->workKinds = [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
+        $this->bridge->projects = [(string) $this->project->id];
+        $this->session(WorkRequestState::Open, aboutItem: true);
+
+        self::assertFalse($this->onlyStatus()->offline);
+    }
+
+    public function test_an_item_session_with_a_run_reads_the_state_of_the_run(): void
+    {
+        $action = $this->session(WorkRequestState::Done, aboutItem: true);
+        $run = new WorkerRun(
+            project: $this->project,
+            bridgeId: $this->bridge->id,
+            subjectType: InboxItem::SUBJECT_TYPE,
+            subjectId: $this->item->id ?? throw new \LogicException('Stored.'),
+            cardNumber: null,
+            workKind: 'session',
+            state: WorkerRunState::Running,
+            sessionId: Uuid::v4(),
+            receivedAt: new \DateTimeImmutable('2026-10-13 12:02:00'),
+            kind: WorkerRunKind::Interactive,
+            workRequestId: $action->workRequestId,
+        );
+        $this->em->persist($run);
+        $this->em->flush();
+
+        $status = $this->onlyStatus();
+
+        self::assertSame([InboxActionState::Running, 'bridge.worker_runs.state.running', '2026-10-13 12:02:00'], [$status->state, $status->labelKey, $status->at?->format('Y-m-d H:i:s')]);
+    }
+
     public function test_a_session_action_with_no_request_has_no_line(): void
     {
         $this->em->persist(new InboxAction($this->item, InboxActionKind::StartSession, $this->owner));
@@ -552,10 +596,12 @@ final class InboxActionStatusesTest extends KernelTestCase
         return $request;
     }
 
-    private function session(WorkRequestState $state, ?string $reason = null): InboxAction
+    private function session(WorkRequestState $state, ?string $reason = null, bool $aboutItem = false): InboxAction
     {
         $clickedAt = new \DateTimeImmutable(self::CLICK)->modify(\sprintf('+%d minutes', ++$this->sessions));
-        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->sessionCard, 1, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', $clickedAt);
+        $request = $aboutItem
+            ? new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $this->item->id ?? throw new \LogicException('Stored.'), null, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', $clickedAt)
+            : new WorkRequest($this->project, WorkSubject::CARD, $this->sessionCard, 1, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', $clickedAt);
         $request->state = $state;
         $request->reason = $reason;
         $this->em->persist($request);

@@ -1317,11 +1317,11 @@ class WorkerRunRepository extends ServiceEntityRepository
     /**
      * The runs that these requests started, newest report first. The subject filter leads with the indexed columns.
      *
-     * @param list<WorkRequest> $requests card requests
+     * @param list<WorkRequest> $requests requests about a subject, which is a card or an inbox item
      *
      * @return list<WorkerRun>
      */
-    public function findOfCardWorkRequests(array $requests): array
+    public function findOfSubjectWorkRequests(array $requests): array
     {
         if ([] === $requests) {
             return [];
@@ -1329,12 +1329,12 @@ class WorkerRunRepository extends ServiceEntityRepository
 
         return array_values($this->createQueryBuilder('r')
             ->andWhere('r.project IN (:projects)')
-            ->andWhere('r.subjectType = :card')
-            ->andWhere('r.subjectId IN (:cards)')
+            ->andWhere('r.subjectType IN (:types)')
+            ->andWhere('r.subjectId IN (:subjects)')
             ->andWhere('r.workRequestId IN (:requests)')
             ->setParameter('projects', array_values(array_unique(array_map(static fn (WorkRequest $request): string => (string) $request->project->id, $requests))))
-            ->setParameter('card', WorkSubject::CARD)
-            ->setParameter('cards', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectId->toRfc4122(), $requests))))
+            ->setParameter('types', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectType, $requests))))
+            ->setParameter('subjects', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectId->toRfc4122(), $requests))))
             ->setParameter('requests', array_map(static fn (WorkRequest $request): string => (string) $request->id, $requests))
             ->orderBy('r.receivedAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')
