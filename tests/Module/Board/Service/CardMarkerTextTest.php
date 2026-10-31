@@ -76,6 +76,13 @@ final class CardMarkerTextTest extends TestCase
         self::assertStringContainsString(',96,95,', $label);
     }
 
+    public function test_a_disconnected_marker_names_the_machine_when_it_has_one(): void
+    {
+        self::assertSame('marker.bridge_disconnected(laptop)', $this->text()->label($this->marker('marker.bridge_disconnected', ['%machine%' => 'laptop'])));
+        self::assertSame('marker.bridge_disconnected.unnamed(-)', $this->text()->label($this->marker('marker.bridge_disconnected', ['%machine%' => ''])));
+        self::assertSame('marker.bridge_disconnected.unnamed(-)', $this->text()->html($this->marker('marker.bridge_disconnected', [])));
+    }
+
     public function test_a_window_of_another_length_reads_by_its_key(): void
     {
         $label = $this->text()->label($this->marker('marker.usage_limit', [...$this->usageParams('limit', 100), '%window%' => '3d']));

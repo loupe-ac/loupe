@@ -244,11 +244,16 @@ class WorkRequestRepository extends ServiceEntityRepository
      * first, so a hold that commits before the reopen keeps it claimed.
      * A request of a project that holds its new work stays claimed too.
      *
+     * A request whose bridge sent no heartbeat since $quietBefore opens as a network wait instead: no bridge may take
+     * it for a few minutes. When the latest run of the request ran on that bridge with a session, the request resumes
+     * that session and binds to that bridge. Any other reopen keeps the session the request already resumes.
+     * A bridge that is not stored cannot be called silent, so its request reopens plainly.
+     *
      * @param list<string> $heldProjectIds RFC 4122 ids, read in the same transaction as this call
      *
      * @return list<WorkRequest> the reopened requests, read fresh
      */
-    public function reopenLapsed(\DateTimeImmutable $now, array $heldProjectIds): array
+    public function reopenLapsed(\DateTimeImmutable $now, array $heldProjectIds, \DateTimeImmutable $quietBefore): array
     {
         $connection = $this->getEntityManager()->getConnection();
         $lockedProjects = $connection->executeQuery(
@@ -262,7 +267,19 @@ class WorkRequestRepository extends ServiceEntityRepository
 
         $sql = <<<'SQL'
             WITH target AS MATERIALIZED (
-                SELECT id
+                SELECT id,
+                    EXISTS (
+                        SELECT 1 FROM bridges b JOIN projects p ON p.id = work_requests.project_id
+                        WHERE b.id = work_requests.bridge_id AND b.owner_id = p.owner_id AND b.last_seen_at < :quietBefore
+                    ) AS silent,
+                    (
+                        SELECT latest.session_id FROM (
+                            SELECT r.session_id, r.bridge_id FROM bridge_worker_runs r
+                            WHERE r.work_request_id = work_requests.id
+                            ORDER BY r.received_at DESC, r.id DESC LIMIT 1
+                        ) latest
+                        WHERE latest.bridge_id = work_requests.bridge_id
+                    ) AS session_id
                 FROM work_requests
                 WHERE state = :claimed AND lease_until <= :now AND NOT %s%s
                     AND project_id IN (:lockedProjects)
@@ -270,14 +287,26 @@ class WorkRequestRepository extends ServiceEntityRepository
                 FOR UPDATE SKIP LOCKED
             )
             UPDATE work_requests
-            SET state = :open, bridge_id = NULL, claim_token = NULL, lease_until = NULL, reopened_at = :now
+            SET state = :open, bridge_id = NULL, claim_token = NULL, lease_until = NULL, reopened_at = :now,
+                wait_cause = CASE WHEN target.silent THEN CAST(:network AS VARCHAR) END,
+                wait_until = CASE WHEN target.silent THEN CAST(:waitUntil AS TIMESTAMP) END,
+                resume_session_id = CASE WHEN target.silent AND target.session_id IS NOT NULL THEN target.session_id ELSE work_requests.resume_session_id END,
+                target_bridge_id = CASE WHEN target.silent AND target.session_id IS NOT NULL THEN work_requests.bridge_id ELSE work_requests.target_bridge_id END
             FROM target
             WHERE work_requests.id = target.id
             RETURNING work_requests.id
             SQL;
         $sql = \sprintf($sql, self::HELD_CARD, [] === $heldProjectIds ? '' : ' AND project_id NOT IN (:heldProjects)');
-        $parameters = ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now, 'lockedProjects' => [] === $lockedProjects ? [null] : $lockedProjects];
-        $types = ['now' => Types::DATETIME_IMMUTABLE, 'lockedProjects' => ArrayParameterType::STRING];
+        $parameters = [
+            'open' => WorkRequestState::Open->value,
+            'claimed' => WorkRequestState::Claimed->value,
+            'now' => $now,
+            'quietBefore' => $quietBefore,
+            'network' => WorkRequest::WAIT_NETWORK,
+            'waitUntil' => $now->modify('+'.WorkRequest::NETWORK_WAIT_SECONDS.' seconds'),
+            'lockedProjects' => [] === $lockedProjects ? [null] : $lockedProjects,
+        ];
+        $types = ['now' => Types::DATETIME_IMMUTABLE, 'quietBefore' => Types::DATETIME_IMMUTABLE, 'waitUntil' => Types::DATETIME_IMMUTABLE, 'lockedProjects' => ArrayParameterType::STRING];
         if ([] !== $heldProjectIds) {
             $parameters['heldProjects'] = $heldProjectIds;
             $types['heldProjects'] = ArrayParameterType::STRING;

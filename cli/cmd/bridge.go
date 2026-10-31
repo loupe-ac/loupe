@@ -39,8 +39,12 @@ const refreshTimeout = 15 * time.Second
 
 // apiClient is for short request/response calls only. The SSE subscription must
 // keep its own timeout-free client: a stream is meant to stay open.
+// bridgeReach records the failed requests of every API client of the process,
+// for the bridge to tell a network outage from another failure.
+var bridgeReach = &reachTracker{}
+
 func apiClient(cfg config.Config) *api.Client {
-	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
+	hc := &http.Client{Timeout: refreshTimeout, Transport: reachTransport{base: withUserAgent(nil), tracker: bridgeReach}}
 
 	var tokens api.TokenSource = tokenSource(cfg, hc)
 	if g := currentBridgeGate(); g != nil {
@@ -288,6 +292,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	r := &router{
 		log:          bl.log,
 		accountUsage: usage.NewCollector(),
+		reach:        bridgeReach,
 		worker:       defaultWorkerOps(),
 		bridgeID:     bridgeID,
 		control:      control,

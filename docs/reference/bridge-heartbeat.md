@@ -809,6 +809,34 @@ account takes work: at its reset, when a reading shows the limit lifted early, o
 at once to another bridge with room. A run with `hasAssistantTurn` set to `true`
 waits for its own bridge, and the bridge resumes the same session.
 
+### Giving a request back after a network outage
+
+A run that a network outage stops ends with the state `open` and the cause
+`network`. The request opens again, Loupe spends no retry, and the card shows
+Waiting. The body has these fields:
+
+| Field | Rule |
+|---|---|
+| `cause` | required with `open`. `network` |
+| `account` | required with `open`. The account of the run |
+| `sessionId` | optional. The session of the run, a uuid or `null` |
+| `hasAssistantTurn` | required with `open`. `true` when the run did at least one assistant turn |
+
+The body has no `reading`, and Loupe ignores one that it finds. Loupe stores no
+reading and no account match for this cause.
+
+```json
+{"claimToken": "5b0a4c8e-2f61-4d3a-9c7e-8a1b2c3d4e5f", "state": "open", "cause": "network", "account": "work", "sessionId": null, "hasAssistantTurn": true}
+```
+
+No bridge may claim the request for five minutes. A claim in that time answers
+409 `waiting`. A run with `hasAssistantTurn` set to `true` waits for its own bridge,
+and the bridge resumes the same session.
+
+A claim whose lease ran out while its bridge sent no heartbeat opens the same
+way. The request waits five minutes, keeps the session of the last run of the
+claim, and binds to that bridge when the run has a session.
+
 ## Deletion and export
 
 Deleting an account deletes the rows of its bridges and their commands. The

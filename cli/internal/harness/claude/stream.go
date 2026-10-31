@@ -103,8 +103,11 @@ type reader struct {
 	clock     stream.Clock
 	peak      *int64
 	turns     int
-	harness   string
-	skill     string
+	// retryNoStatus is set by a retry line with no status and cleared by the
+	// next assistant line.
+	retryNoStatus bool
+	harness       string
+	skill         string
 }
 
 func (rd *reader) line(raw []byte) {
@@ -115,6 +118,7 @@ func (rd *reader) line(raw []byte) {
 	}
 	if e.Type == "system" {
 		rd.init(raw)
+		rd.retry(raw, e.Subtype)
 
 		return
 	}
@@ -127,6 +131,9 @@ func (rd *reader) line(raw []byte) {
 	}
 	if e.Type != "assistant" && e.Type != "user" {
 		return
+	}
+	if e.Type == "assistant" {
+		rd.retryNoStatus = false
 	}
 
 	ts, timed := stamp(e.Timestamp)
@@ -278,6 +285,21 @@ func (rd *reader) answer(b block, ts time.Time, timed bool, agent string) {
 	rd.calls[i].BackgroundID = backgroundID(text(b.Content))
 }
 
+// retry keeps whether the last retry line had an HTTP status. A connection
+// failure has none.
+func (rd *reader) retry(raw []byte, subtype string) {
+	if subtype != "api_retry" {
+		return
+	}
+	var l struct {
+		Status *int `json:"error_status"`
+	}
+	if json.Unmarshal(raw, &l) != nil {
+		return
+	}
+	rd.retryNoStatus = l.Status == nil || *l.Status == 0
+}
+
 // init keeps the version of claude and of the Loupe plugin from the start line.
 // A plugin with no version, such as one served from a checkout, gives none.
 func (rd *reader) init(raw []byte) {
@@ -308,7 +330,7 @@ func (rd *reader) output() stream.Output {
 	}
 	timing := rd.clock.Finish(rd.calls, rd.ends)
 
-	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, AssistantTurns: rd.turns, HarnessVersion: rd.harness, SkillVersion: rd.skill}
+	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, AssistantTurns: rd.turns, LastRetryNoStatus: rd.retryNoStatus, HarnessVersion: rd.harness, SkillVersion: rd.skill}
 }
 
 func stamp(s string) (time.Time, bool) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Controller\Api;
 
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\NetworkHandBack;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use Symfony\Component\Uid\Uuid;
@@ -14,16 +15,18 @@ use Symfony\Component\Uid\Uuid;
  * constraints and accept any JSON value, because a validation failure answers
  * without the error code that the bridge reads. The methods check them instead.
  *
- * A bridge gives a request back with the state open, the cause usage-limit, the
- * account, the reading that showed the limit, the session and whether the run
- * did any work.
+ * A bridge gives a request back with the state open, a cause, the account, the
+ * session and whether the run did any work. The cause usage-limit adds the
+ * reading that showed the limit. The cause network sends no reading.
  */
 final class SettleWorkRequestRequest
 {
     public const string CAUSE_USAGE_LIMIT = 'usage-limit';
 
+    public const string CAUSE_NETWORK = 'network';
+
     /** @var list<string> */
-    private const array CAUSES = [self::CAUSE_USAGE_LIMIT];
+    private const array CAUSES = [self::CAUSE_USAGE_LIMIT, self::CAUSE_NETWORK];
 
     public function __construct(
         public mixed $claimToken = null,
@@ -73,11 +76,36 @@ final class SettleWorkRequestRequest
     }
 
     /** Null unless every field of the hand-back is well formed. */
-    public function handBack(): ?UsageLimitHandBack
+    public function handBack(): UsageLimitHandBack|NetworkHandBack|null
+    {
+        if (!\is_string($this->account) || 1 !== preg_match(BridgeAccountInput::NAME_PATTERN, $this->account)
+            || !\is_bool($this->hasAssistantTurn)) {
+            return null;
+        }
+
+        if (self::CAUSE_NETWORK === $this->cause) {
+            $session = $this->session();
+
+            return false === $session ? null : new NetworkHandBack($this->account, $session, $this->hasAssistantTurn);
+        }
+
+        return $this->usageLimitHandBack($this->account, $this->hasAssistantTurn);
+    }
+
+    /** The session as a uuid, null when the bridge sends none, and false for a value that is not a uuid. */
+    private function session(): Uuid|false|null
+    {
+        if (null === $this->sessionId) {
+            return null;
+        }
+
+        return \is_string($this->sessionId) && Uuid::isValid($this->sessionId) ? Uuid::fromString($this->sessionId) : false;
+    }
+
+    private function usageLimitHandBack(string $account, bool $hasAssistantTurn): ?UsageLimitHandBack
     {
         $reading = $this->reading;
-        if (!\is_string($this->account) || 1 !== preg_match(BridgeAccountInput::NAME_PATTERN, $this->account)
-            || !\is_array($reading) || \is_array($this->sessionId) || !\is_bool($this->hasAssistantTurn)) {
+        if (!\is_array($reading) || \is_array($this->sessionId)) {
             return null;
         }
 
@@ -101,14 +129,14 @@ final class SettleWorkRequestRequest
         }
 
         return new UsageLimitHandBack(
-            account: $this->account,
+            account: $account,
             window: $window,
             usedPercent: null === $used ? null : (float) $used,
             resetsAt: $reset,
             limited: $limited,
             source: trim($source),
             sessionId: null === $session ? null : Uuid::fromString($session),
-            hasAssistantTurn: $this->hasAssistantTurn,
+            hasAssistantTurn: $hasAssistantTurn,
         );
     }
 

@@ -73,6 +73,9 @@ type router struct {
 	// accountUsage reads the usage of the account of each live run. A nil
 	// one reads nothing.
 	accountUsage *usage.Collector
+	// reach records when a request to Loupe last failed. A nil one reports no
+	// failure.
+	reach *reachTracker
 	// blocked is the accounts Loupe blocks. skips holds the offers the bridge
 	// skipped for them, until a heartbeat carries them.
 	blocked blockedSet
@@ -1363,6 +1366,7 @@ func (r *router) settle(p pending, e endedRun) {
 	if limited := limitedOf(r.accountUsage.Finish(p.runID, time.Now())); limited != nil {
 		e.res.limit = limited
 	}
+	e.res.loupeDown = r.reach.failedSince(time.Now().Add(-time.Minute))
 	done := func() {
 		r.end(p, e)
 		r.sendToolCalls(p, e.res)
@@ -1464,9 +1468,10 @@ func (r *router) end(p pending, e endedRun) {
 		return
 	}
 	st, post := r.workResultLocked(p, e.res, shut || r.shut())
-	// A run that hands its work back reads usage-limit, not the failure its exit implies.
+	// A run that hands its work back reads usage-limit or network, not the
+	// failure its exit implies.
 	if post && st.back != nil {
-		e.state = api.RunUsageLimit
+		e.state = handBackState(st.back)
 	}
 	r.emitLocked(p, r.outcome(p, e))
 	delete(r.running, p.key)

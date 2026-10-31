@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
@@ -15,7 +16,9 @@ use Psr\Clock\ClockInterface;
 
 /**
  * Gives the claim of a bridge that stopped renewing back to every bridge, so
- * another one can take the work. Answers how many requests opened again.
+ * another one can take the work. A bridge that went quiet gets a short wait
+ * first, so a network outage does not move the work. Answers how many requests
+ * opened again.
  */
 final readonly class ReopenLapsedWorkRequestsHandler
 {
@@ -26,6 +29,7 @@ final readonly class ReopenLapsedWorkRequestsHandler
         private ClockInterface $clock,
         private WorkRequestAnnouncer $announcer,
         private HeldProjects $heldProjects,
+        private BridgeLiveness $liveness,
     ) {
     }
 
@@ -36,7 +40,7 @@ final readonly class ReopenLapsedWorkRequestsHandler
             $now = $this->clock->now();
             // The key share locks last to the commit, so a hold that starts later waits for the reopen.
             $held = $this->heldProjects->among($this->workRequests->findProjectIdsOfLapsedClaims($now));
-            $reopened = $this->workRequests->reopenLapsed($now, $held);
+            $reopened = $this->workRequests->reopenLapsed($now, $held, $this->liveness->quietBefore($now));
             foreach ($reopened as $request) {
                 $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));
             }

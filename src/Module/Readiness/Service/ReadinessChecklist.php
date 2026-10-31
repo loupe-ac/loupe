@@ -180,7 +180,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     {
         $named = null !== $takers->bridgeLabel;
         [$done, $status, $actionLabel, $actionUrl] = match ($takers->state) {
-            WorkTakerState::None => [false, 'readiness.row.bridge.open', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::None, WorkTakerState::Disconnected => [false, 'readiness.row.bridge.open', 'readiness.row.bridge.action', $connect],
             WorkTakerState::NotCapable => [false, match (true) {
                 $takers->appPromptsMissing && $named => 'readiness.row.bridge.not_capable_app_prompts_on',
                 $takers->appPromptsMissing => 'readiness.row.bridge.not_capable_app_prompts',

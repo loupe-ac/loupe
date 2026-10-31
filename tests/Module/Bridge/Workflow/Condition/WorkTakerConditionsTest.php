@@ -13,6 +13,8 @@ use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Bridge\Workflow\Condition\RunWorkNoCapableTaker;
 use App\Module\Bridge\Workflow\Condition\RunWorkNoTaker;
+use App\Module\Bridge\Workflow\Condition\RunWorkOpen;
+use App\Module\Bridge\Workflow\Condition\RunWorkTakerDisconnected;
 use App\Module\Bridge\Workflow\Condition\RunWorkTakerLimited;
 use App\Module\Bridge\Workflow\Condition\RunWorkTakerPaused;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
@@ -164,9 +166,54 @@ final class WorkTakerConditionsTest extends TestCase
         self::assertEquals(new \DateTimeImmutable('2026-11-01 17:00:00'), new RunWorkTakerLimited()->changesAt(self::facts(['implement' => $reading]), []));
     }
 
+    public function test_a_disconnected_request_holds_the_disconnected_condition_only(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::Disconnected, quietAt: '2026-10-16 12:05:00')]);
+
+        self::assertTrue(new RunWorkTakerDisconnected()->evaluate($facts, []));
+        self::assertFalse(new RunWorkNoTaker()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerPaused()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerLimited()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerDisconnected()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Available)]), []));
+        self::assertFalse(new RunWorkTakerDisconnected()->evaluate(self::facts([]), []));
+    }
+
+    public function test_a_request_with_no_taker_hides_the_disconnected_condition_of_another_request(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::Disconnected), 'fix' => self::reading(WorkTakerState::None)]);
+
+        self::assertFalse(new RunWorkTakerDisconnected()->evaluate($facts, []));
+    }
+
+    public function test_the_disconnected_condition_changes_when_the_lease_or_the_wait_ends(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::Disconnected, quietAt: '2026-10-16 12:05:00')]);
+
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:05:00'), new RunWorkTakerDisconnected()->changesAt($facts, []));
+        self::assertNull(new RunWorkTakerDisconnected()->changesAt(self::facts(['implement' => self::reading(WorkTakerState::Disconnected, quietAt: '2026-10-16 11:59:00')]), []));
+    }
+
+    public function test_the_disconnected_evidence_names_the_machine(): void
+    {
+        $named = new WorkTakerReading(WorkTakerState::Disconnected, new \DateTimeImmutable('2026-10-16 11:00:00'), null, bridgeLabel: 'laptop');
+
+        self::assertSame(['%machine%' => 'laptop'], new RunWorkTakerDisconnected()->evidence(self::facts(['implement' => $named]), [])?->params);
+        self::assertSame(['%machine%' => ''], new RunWorkTakerDisconnected()->evidence(self::facts(['implement' => self::reading(WorkTakerState::Disconnected)]), [])?->params);
+        self::assertNull(new RunWorkTakerDisconnected()->evidence(self::facts([]), []));
+    }
+
+    public function test_a_claimed_request_is_not_an_open_one(): void
+    {
+        $claimed = new WorkTakerReading(WorkTakerState::Disconnected, new \DateTimeImmutable('2026-10-16 11:00:00'), null, claimed: true);
+
+        self::assertFalse(new RunWorkOpen()->evaluate(self::facts(['implement' => $claimed]), []));
+        self::assertTrue(new RunWorkOpen()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Disconnected)]), []));
+        self::assertTrue(new RunWorkOpen()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Available)]), []));
+    }
+
     public function test_the_conditions_name_their_facts_and_their_waiting_sentences(): void
     {
-        foreach ([[new RunWorkNoTaker(), 'run_work_no_taker'], [new RunWorkNoCapableTaker(), 'run_work_no_capable_taker'], [new RunWorkTakerPaused(), 'run_work_taker_paused'], [new RunWorkTakerLimited(), 'run_work_taker_limited']] as [$condition, $suffix]) {
+        foreach ([[new RunWorkNoTaker(), 'run_work_no_taker'], [new RunWorkNoCapableTaker(), 'run_work_no_capable_taker'], [new RunWorkTakerPaused(), 'run_work_taker_paused'], [new RunWorkTakerLimited(), 'run_work_taker_limited'], [new RunWorkTakerDisconnected(), 'run_work_taker_disconnected']] as [$condition, $suffix]) {
             self::assertSame([WorkTakerFacts::class], $condition->reads([]));
             self::assertSame('workflow.waiting.'.$suffix, $condition->waitingFor([])->getMessage());
             self::assertSame('workflow.waiting.not.'.$suffix, $condition->waitingFor([], negated: true)->getMessage());
