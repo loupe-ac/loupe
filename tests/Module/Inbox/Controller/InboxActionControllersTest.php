@@ -437,6 +437,19 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-note]')->text()));
     }
 
+    public function test_a_started_session_quotes_its_prompt_when_the_reply_also_carries_a_note(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->noticeWithNoCard();
+
+        $this->post($this->actionPath($item, 'start-session'), $item, ['note' => 'Ignore the cache.', 'sessionPrompt' => 'Look at the remote.'], 'inbox_response_'.$item->id);
+
+        $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId);
+        self::assertSame('Look at the remote.', $request?->prompt);
+        $you = $this->client->request(Request::METHOD_GET, $this->pageUrl())->filter('#inbox-item-'.$item->number.' [data-inbox-action-status]');
+        self::assertSame('Look at the remote.', trim($you->filter('[data-inbox-action-note]')->text()));
+    }
+
     public function test_a_closed_item_offers_a_new_session_with_its_prompt_and_starts_it(): void
     {
         $this->itemSessionBridge();
