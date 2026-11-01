@@ -33,7 +33,7 @@ final readonly class DevRunUsage
      *
      * @return bool true when the row was missing
      */
-    public function record(SeedContext $context, WorkerRun $run, string $model, int $inputTokens, int $outputTokens, int $cacheReadTokens, int $cacheWriteTokens, string $costUsd): bool
+    public function record(SeedContext $context, WorkerRun $run, string $model, int $inputTokens, int $outputTokens, int $cacheReadTokens, int $cacheWriteTokens, ?string $costUsd, bool $billedCost = false): bool
     {
         $runId = $run->id ?? throw new \LogicException('A persisted run has an id.');
         $id = DevSeedId::of(\sprintf('bridge/usage/%s/%s', $runId->toRfc4122(), $model));
@@ -45,7 +45,7 @@ final readonly class DevRunUsage
             return false;
         }
 
-        $usage = new WorkerRunUsage($run, $run->project, $run->subjectType, $run->subjectId, $run->workKind, $model, WorkerRunUsageSource::Reported, $inputTokens, $outputTokens, $cacheReadTokens, $cacheWriteTokens, $costUsd);
+        $usage = new WorkerRunUsage($run, $run->project, $run->subjectType, $run->subjectId, $run->workKind, $model, WorkerRunUsageSource::Reported, $inputTokens, $outputTokens, $cacheReadTokens, $cacheWriteTokens, $costUsd, $billedCost);
         $context->ids->assign($usage, $id);
         $this->em->persist($usage);
 
