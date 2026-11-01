@@ -61,7 +61,6 @@ Each read section of a forge file ends with a Report line. It translates the val
 |---|---|
 | state | `open`, `merged`, `closed` |
 | draft | `yes`, `no` |
-| review | `approved`, `changes-requested`, `required`, `none` |
 | checks | `passed`, `failed`, `pending` |
 | mergeability | `mergeable`, `conflicting`, `behind`, `blocked`, `unknown` |
 | behind count | a number, from "Compare with the base" |
@@ -193,7 +192,7 @@ Then write the changelog entry that the profile `Changelog` section names, run i
 
 ## After the push
 
-The stage ends at the push. The app reads the pull request again after each push, so no stage waits for CI. A failed check or a conflict reaches a fix round as a fix request. Green checks move the card, and an approved pull request with green checks reaches the merge stage. Report `waiting`, and name the pull request URL.
+The stage ends at the push. The app reads the pull request again after each push, so no stage waits for CI. A failed check or a conflict reaches a fix round as a fix request. Green checks move the card, and a pull request with the approval that the forge requires and green checks reaches the merge stage. Report `waiting`, and name the pull request URL.
 
 ## Finish without code
 
