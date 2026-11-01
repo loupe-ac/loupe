@@ -97,14 +97,14 @@ class BridgeAccountReadingRepository extends ServiceEntityRepository
     }
 
     /**
-     * The readings that have a use value, of the given bridges of one owner, read at or after the cutoff. A null
-     * cutoff reads them all.
+     * The readings that have a use value, of the given bridges of one owner, read at or after the cutoff and before the
+     * end. A null cutoff or end leaves that side open.
      *
      * @param list<Uuid> $bridgeIds
      *
      * @return list<AccountUsageReading>
      */
-    public function findUsageOfBridges(Uuid $ownerId, array $bridgeIds, ?\DateTimeImmutable $since): array
+    public function findUsageOfBridges(Uuid $ownerId, array $bridgeIds, ?\DateTimeImmutable $since, ?\DateTimeImmutable $until = null): array
     {
         if ([] === $bridgeIds) {
             return [];
@@ -118,6 +118,11 @@ class BridgeAccountReadingRepository extends ServiceEntityRepository
             $sql .= ' AND read_at >= :since';
             $params['since'] = $since->setTimezone(new \DateTimeZone('UTC'));
             $types['since'] = Types::DATETIME_IMMUTABLE;
+        }
+        if (null !== $until) {
+            $sql .= ' AND read_at < :until';
+            $params['until'] = $until->setTimezone(new \DateTimeZone('UTC'));
+            $types['until'] = Types::DATETIME_IMMUTABLE;
         }
 
         /** @var list<array{id: string, bridge_id: string, account: string, window_key: string, used_percent: float|string, read_at: string}> $rows */

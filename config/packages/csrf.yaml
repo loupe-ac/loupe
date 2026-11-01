@@ -30,6 +30,9 @@ framework:
             - insights-proposal-accept
             - insights-bucket-rule-delete
             - insights-bucket-rule-move
+            - insights-dashboard-graph-move
+            - insights-dashboard-graph-remove
+            - insights-dashboard-graph-undo
             - bridge-pause
             - bridge-try-now
             - card-agents

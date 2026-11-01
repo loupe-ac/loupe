@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Experiment;
 
+use App\Module\Bridge\Metric\MetricStatistic;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -68,6 +69,127 @@ final class Stats
             (float) $means[(int) ceil($confidence->highPercentile() * $last)],
             array_sum($values) / $count,
         );
+    }
+
+    /**
+     * A percentile bootstrap that draws whole clusters, such as the runs of one card, with replacement. A null statistic
+     * reads the share of non-zero values, for a rate. The seed fixes the draws, so a page shows the same range on every load.
+     *
+     * @param list<list<float|int>> $clusters the known values of each cluster
+     */
+    public static function clusterBootstrap(array $clusters, ?MetricStatistic $statistic, string $seed, Confidence $confidence, int $resamples = 2000): ?Interval
+    {
+        $clusters = array_values(array_filter($clusters, static fn (array $cluster): bool => [] !== $cluster));
+        if ([] === $clusters) {
+            return null;
+        }
+
+        $draws = self::clusterDraws($clusters, $statistic, $seed, $resamples);
+        sort($draws);
+        $last = $resamples - 1;
+        $all = array_merge(...$clusters);
+
+        return new Interval(
+            (float) $draws[(int) floor($confidence->lowPercentile() * $last)],
+            (float) $draws[(int) ceil($confidence->highPercentile() * $last)],
+            (float) (null === $statistic ? self::share($all) : ($statistic->of($all) ?? throw new \LogicException('A cluster holds a value.'))),
+        );
+    }
+
+    /**
+     * The statistic of each resample of whole clusters, in draw order. A median or a 90th percentile counts the picks
+     * of each cluster and walks the values sorted once, so a draw never joins or sorts the values.
+     *
+     * @param non-empty-list<non-empty-list<float|int>> $clusters
+     *
+     * @return list<float>
+     */
+    public static function clusterDraws(array $clusters, ?MetricStatistic $statistic, string $seed, int $resamples = 2000): array
+    {
+        if ($resamples < 1) {
+            throw new \InvalidArgumentException('A bootstrap needs at least one resample.');
+        }
+        if (\in_array($statistic, [MetricStatistic::Sum, MetricStatistic::Count, MetricStatistic::Max], true)) {
+            throw new \InvalidArgumentException('A sum, a count and a maximum have no likely range.');
+        }
+
+        $count = \count($clusters);
+        $randomizer = new Randomizer(new Mt19937(crc32($seed)));
+        $fraction = match ($statistic) {
+            MetricStatistic::Median => 0.5,
+            MetricStatistic::P90 => 0.9,
+            default => null,
+        };
+
+        $values = [];
+        $owners = [];
+        if (null !== $fraction) {
+            foreach ($clusters as $index => $cluster) {
+                foreach ($cluster as $value) {
+                    $values[] = $value;
+                    $owners[] = $index;
+                }
+            }
+            array_multisort($values, $owners);
+        }
+        $sizes = array_map(count(...), $clusters);
+        // A mean adds the values of a cluster. A rate adds how many of them are non-zero.
+        $sums = null === $statistic
+            ? array_map(static fn (array $cluster): int => \count(array_filter($cluster, static fn (float|int $value): bool => 0 !== $value && 0.0 !== $value)), $clusters)
+            : array_map(array_sum(...), $clusters);
+
+        $draws = [];
+        for ($i = 0; $i < $resamples; ++$i) {
+            $picks = array_fill(0, $count, 0);
+            for ($j = 0; $j < $count; ++$j) {
+                ++$picks[$randomizer->getInt(0, $count - 1)];
+            }
+
+            if (null === $fraction) {
+                $total = 0;
+                $size = 0;
+                foreach ($picks as $index => $times) {
+                    $total += $times * $sums[$index];
+                    $size += $times * $sizes[$index];
+                }
+                $draws[] = $total / $size;
+                continue;
+            }
+
+            $size = 0;
+            foreach ($picks as $index => $times) {
+                $size += $times * $sizes[$index];
+            }
+            $rank = ($size - 1) * $fraction;
+            $low = (int) floor($rank);
+            $high = min($low + 1, $size - 1);
+            $lowValue = null;
+            $highValue = null;
+            $seen = 0;
+            foreach ($values as $position => $value) {
+                $times = $picks[$owners[$position]];
+                if (0 === $times) {
+                    continue;
+                }
+                $seen += $times;
+                if (null === $lowValue && $seen > $low) {
+                    $lowValue = $value;
+                }
+                if ($seen > $high) {
+                    $highValue = $value;
+                    break;
+                }
+            }
+            $draws[] = (float) ($lowValue + ($rank - $low) * ($highValue - $lowValue));
+        }
+
+        return $draws;
+    }
+
+    /** @param list<float|int> $values */
+    private static function share(array $values): float
+    {
+        return \count(array_filter($values, static fn (float|int $value): bool => 0 !== $value && 0.0 !== $value)) / \count($values);
     }
 
     /**

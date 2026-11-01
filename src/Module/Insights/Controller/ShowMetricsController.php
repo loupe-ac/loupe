@@ -9,10 +9,16 @@ use App\Module\Bridge\Command\ListMetricsCommand;
 use App\Module\Bridge\Command\ListMetricsHandler;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Insights\Command\ShowMetricsCommand;
 use App\Module\Insights\Command\ShowMetricsHandler;
-use App\Module\Insights\View\MetricChart;
+use App\Module\Insights\Command\ShowSavedGraphCommand;
+use App\Module\Insights\Command\ShowSavedGraphHandler;
+use App\Module\Insights\Form\SavedGraphFormType;
+use App\Module\Insights\Form\SavedGraphRequest;
+use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
@@ -30,16 +36,30 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 class ShowMetricsController extends AppController
 {
+    private const array CONTROLS = ['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart'];
+
     public function __construct(
         private readonly ShowMetricsHandler $showMetrics,
         private readonly ListMetricsHandler $listMetrics,
         private readonly TemplateMetrics $templateMetrics,
+        private readonly ShowSavedGraphHandler $showSavedGraph,
+        private readonly SavedGraphCap $savedGraphCap,
     ) {
     }
 
     public function __invoke(Project $project, Request $request): Response
     {
         $query = MetricsQuery::fromQuery($request->query, $this->templateMetrics->forProject($project->requireId()));
+        $saved = ($this->showSavedGraph)(new ShowSavedGraphCommand($project, $request->query->getString('graph')));
+        $graph = $saved?->graph;
+        $dirty = false;
+        if (null !== $saved) {
+            // A URL with no control of its own opens the graph as it is saved.
+            if ([] === array_intersect_key($request->query->all(), array_flip(self::CONTROLS))) {
+                $query = $saved->query;
+            }
+            $dirty = $query->routeParams() !== $saved->query->routeParams();
+        }
         $view = ($this->showMetrics)(new ShowMetricsCommand($project, $query));
         $list = ($this->listMetrics)(new ListMetricsCommand($project));
         $bucketNames = $list->bucketNames;
@@ -54,17 +74,28 @@ class ShowMetricsController extends AppController
         }
         sort($bucketNames, \SORT_STRING);
 
+        $saveForm = $this->createForm(
+            SavedGraphFormType::class,
+            SavedGraphRequest::fromQuery($query, $view->chart->type, null === $graph ? $view->title : null),
+            ['action' => $this->generateUrl('app_project_analytics_save_graph', ['id' => (string) $project->id])],
+        );
+
         return $this->render('@Insights/show_metrics.html.twig', [
+            'graph' => $graph,
+            'dirty' => $dirty,
+            'saveForm' => $saveForm->createView(),
+            'capReached' => $this->savedGraphCap->isReached($project),
+            'capLimit' => $this->savedGraphCap->limit(),
             'project' => $view->project,
             'query' => $query,
-            'view' => $view->metrics,
-            'groupLabels' => $view->groupLabels,
-            'chart' => MetricChart::build($query->metric, $query->statistic, $query->bucket, $view->metrics->series),
+            'view' => $view,
             'metrics' => $list->metrics,
             'bucketNames' => $bucketNames,
             'harnessEventKinds' => $eventKinds,
             'ranges' => MetricRange::cases(),
             'buckets' => MetricBucket::cases(),
+            'compares' => MetricCompare::cases(),
+            'chartTypes' => MetricChartType::cases(),
         ]);
     }
 }

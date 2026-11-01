@@ -6,12 +6,14 @@ namespace App\Tests\Module\Insights\View;
 
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricsQuery;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Tests\Support\TemplateMetricSets;
@@ -31,6 +33,8 @@ final class MetricsQueryTest extends TestCase
         self::assertSame(MetricGroup::None, $query->group);
         self::assertSame(MetricRange::NinetyDays, $query->range);
         self::assertSame(MetricBucket::Week, $query->bucket);
+        self::assertSame(MetricCompare::Off, $query->compare);
+        self::assertSame(MetricChartType::Line, $query->chart);
         self::assertSame([], $query->routeParams());
     }
 
@@ -78,6 +82,56 @@ final class MetricsQueryTest extends TestCase
         self::assertSame('cost', $query->metric->key->key());
         self::assertSame(MetricUnit::Run, $query->unit);
         self::assertSame(['unit' => 'run'], $query->routeParams());
+    }
+
+    public function test_seven_days_fall_back_to_the_bucket_day(): void
+    {
+        $query = self::from(['range' => 'seven-days', 'bucket' => 'week']);
+
+        self::assertSame(MetricRange::SevenDays, $query->range);
+        self::assertSame(MetricBucket::Day, $query->bucket);
+        self::assertSame(['range' => 'seven-days', 'bucket' => 'day'], $query->routeParams());
+        self::assertSame(MetricBucket::Day, self::from(['range' => 'seven-days'])->bucket);
+        self::assertSame(MetricBucket::Month, self::from(['range' => 'thirty-days', 'bucket' => 'month'])->bucket);
+    }
+
+    public function test_compare_and_chart_round_trip_and_default_ones_stay_out_of_the_route_params(): void
+    {
+        $params = ['compare' => 'previous', 'chart' => 'stacked-bars'];
+        $query = self::from($params);
+
+        self::assertSame(MetricCompare::Previous, $query->compare);
+        self::assertSame(MetricChartType::StackedBars, $query->chart);
+        self::assertSame($params, $query->routeParams());
+        self::assertSame([], self::from(['compare' => 'off', 'chart' => 'line'])->routeParams());
+        self::assertSame(['chart' => 'donut'], self::from(['chart' => 'donut'])->routeParams());
+    }
+
+    public function test_an_unknown_compare_or_chart_takes_the_default(): void
+    {
+        $query = self::from(['compare' => 'year', 'chart' => 'radar']);
+
+        self::assertSame(MetricCompare::Off, $query->compare);
+        self::assertSame(MetricChartType::Line, $query->chart);
+        self::assertSame([], $query->routeParams());
+    }
+
+    public function test_all_time_cannot_compare(): void
+    {
+        $query = self::from(['range' => 'all', 'compare' => 'previous']);
+
+        self::assertSame(MetricCompare::Off, $query->compare);
+        self::assertSame(['range' => 'all'], $query->routeParams());
+        self::assertSame(MetricCompare::Previous, self::from(['range' => 'seven-days', 'compare' => 'previous'])->compare);
+    }
+
+    public function test_the_grouped_bucket_metrics_are_a_choice_of_the_page_with_no_group(): void
+    {
+        $query = self::from(['metric' => 'bucket-time-each', 'group' => 'stage']);
+
+        self::assertSame(Metric::BucketTimeEach, $query->metric->key->metric);
+        self::assertSame(MetricGroup::None, $query->group);
+        self::assertSame(['metric' => 'bucket-time-each'], $query->routeParams());
     }
 
     public function test_bucket_time_is_no_choice_of_the_page(): void

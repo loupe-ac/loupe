@@ -72,6 +72,25 @@ final class ProjectTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->projectIdFromBoardTopic($topic));
     }
 
+    public function test_the_dashboard_topic_names_its_project_and_no_other_topic_does(): void
+    {
+        self::bootKernel();
+        $builder = self::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $builder);
+        $projectId = Uuid::v7();
+
+        $topic = $builder->forDashboard($projectId);
+
+        self::assertStringEndsWith('/projects/'.$projectId.'/dashboard', $topic);
+        self::assertEquals($projectId, $builder->projectIdFromDashboardTopic($topic));
+        self::assertNull($builder->projectIdFromDashboardTopic($builder->forProject($projectId)));
+        self::assertNull($builder->projectIdFromDashboardTopic($builder->forBoard($projectId)));
+        self::assertNull($builder->projectIdFromDashboardTopic($topic.'/extra'));
+        self::assertNull($builder->projectIdFromDashboardTopic('/projects/not-a-uuid/dashboard'));
+        self::assertNull($builder->projectIdFromBoardTopic($topic));
+        self::assertNull($builder->projectIdFromInboxTopic($topic));
+    }
+
     public function test_the_openrouter_topic_names_its_project_and_no_other_topic_does(): void
     {
         self::bootKernel();

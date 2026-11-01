@@ -298,6 +298,93 @@ final class MetricToolsTest extends KernelTestCase
         ], $series['rows']);
     }
 
+    public function test_a_query_with_no_compare_has_no_comparison_and_one_window(): void
+    {
+        [$project] = $this->projects('metric-no-compare');
+        $this->fact($project, new \DateTimeImmutable('-2 days'), 1_000_000);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->queryTool()(unit: 'run', metric: 'cost', statistic: 'sum');
+
+        self::assertSame('off', $result['compare']);
+        self::assertNull($result['window']['previous']);
+        self::assertNotNull($result['window']['current']['from']);
+        self::assertArrayNotHasKey('comparison', $result['series'][0]);
+    }
+
+    public function test_a_compare_adds_the_windows_and_the_comparison_of_each_series(): void
+    {
+        [$project] = $this->projects('metric-compare');
+        $this->fact($project, new \DateTimeImmutable('-2 days'), 3_000_000, cardNumber: 1);
+        $this->fact($project, new \DateTimeImmutable('-40 days'), 2_000_000, cardNumber: 2);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->queryTool()(unit: 'run', metric: 'cost', statistic: 'sum', compare: 'previous');
+
+        self::assertSame('previous', $result['compare']);
+        $previousWindow = $result['window']['previous'];
+        self::assertNotNull($previousWindow);
+        self::assertSame($result['window']['current']['from'], $previousWindow['to']);
+        $comparison = $result['series'][0]['comparison'] ?? null;
+        self::assertNotNull($comparison);
+        self::assertSame(['value' => 2.0, 'rows' => 1], $comparison['previous']);
+        self::assertSame(['value' => 0.5, 'kind' => 'relative'], $comparison['change']);
+        self::assertNull($comparison['sign']);
+        self::assertNull($comparison['likelyRange']);
+    }
+
+    public function test_a_compare_of_a_mean_gives_the_ranges_and_a_sign(): void
+    {
+        [$project] = $this->projects('metric-compare-mean');
+        for ($i = 0; $i < 6; ++$i) {
+            $this->fact($project, new \DateTimeImmutable('-2 days'), (10 + $i) * 100_000, cardNumber: $i + 1);
+            $this->fact($project, new \DateTimeImmutable('-40 days'), (50 + $i) * 100_000, cardNumber: $i + 10);
+        }
+        $this->actAsMcpTokenBoundTo($project);
+
+        $comparison = $this->queryTool()(unit: 'run', metric: 'cost', statistic: 'mean', compare: 'previous')['series'][0]['comparison'] ?? null;
+
+        self::assertNotNull($comparison);
+        self::assertSame('clear', $comparison['sign']);
+        $ranges = $comparison['likelyRange'];
+        self::assertNotNull($ranges);
+        self::assertNotNull($ranges['current']);
+        self::assertNotNull($ranges['previous']);
+        self::assertLessThan($ranges['previous']['low'], $ranges['current']['high']);
+        self::assertNotNull($ranges['change']);
+        self::assertNotNull($comparison['change']);
+        self::assertLessThan(0, $comparison['change']['value']);
+    }
+
+    public function test_the_default_range_stays_thirty_days_and_seven_days_take_day_alone(): void
+    {
+        [$project] = $this->projects('metric-seven-days');
+        $this->fact($project, new \DateTimeImmutable('-2 days'), 1_000_000);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame('thirty-days', $this->queryTool()(unit: 'run', metric: 'cost', statistic: 'sum')['range']);
+        self::assertSame('seven-days', $this->queryTool()(unit: 'run', metric: 'cost', statistic: 'sum', range: 'seven-days', bucket: 'day')['range']);
+        self::assertSame(
+            'The range seven-days does not take the bucket "week". Use one of: day. metric_list lists the valid combinations.',
+            $this->refusal(unit: 'run', metric: 'cost', statistic: 'sum', range: 'seven-days'),
+        );
+    }
+
+    public function test_a_compare_of_all_time_is_refused(): void
+    {
+        [$project] = $this->projects('metric-compare-all');
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(
+            'The range all has no previous period to compare with. Use compare off, or another range. metric_list lists the valid combinations.',
+            $this->refusal(unit: 'run', metric: 'cost', statistic: 'sum', range: 'all', compare: 'previous'),
+        );
+        self::assertSame(
+            'Unknown compare "later". Use one of: off, previous.',
+            $this->refusal(unit: 'run', metric: 'cost', statistic: 'sum', compare: 'later'),
+        );
+    }
+
     public function test_the_query_gives_at_most_100_rows_per_series_newest_first(): void
     {
         [$project] = $this->projects('metric-cap');
@@ -321,7 +408,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, account-usage, session-usage, week-usage, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time-each, bucket-time-all-each, bucket-calls-each, account-usage, session-usage, week-usage, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(
@@ -456,10 +543,10 @@ final class MetricToolsTest extends KernelTestCase
         return $runId;
     }
 
-    private function refusal(string $unit, string $metric, string $statistic, string $bucket = 'week'): string
+    private function refusal(string $unit, string $metric, string $statistic, string $bucket = 'week', string $range = 'thirty-days', string $compare = 'off'): string
     {
         try {
-            $this->queryTool()(unit: $unit, metric: $metric, statistic: $statistic, bucket: $bucket);
+            $this->queryTool()(unit: $unit, metric: $metric, statistic: $statistic, range: $range, bucket: $bucket, compare: $compare);
         } catch (ToolCallException $e) {
             return $e->getMessage();
         }

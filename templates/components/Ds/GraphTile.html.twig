@@ -1,0 +1,43 @@
+{#
+  Props:  @comment-budget-ignore
+    name         string  The graph name. A person wrote it, so it is escaped. Optional.
+    settings     string  The settings line under the name. Optional.
+    state        string  ready or broken. Ready by default. A broken tile draws no chart.
+    legend       bool    False hides the legend of the chart. True by default.
+    grip         bool    Draws the grip that the drag controller uses. True by default.
+    brokenTitle  string  Translated heading of a broken tile.
+    brokenBody   string  Translated sentence that names what is gone. A person may have written the name, so it is escaped.
+  Blocks:
+    actions   The menu in the head. Optional.
+    rename    A form that replaces the name. Optional and hidden until the page shows it.
+    footer    The buttons of a broken tile.
+  The content is the chart.
+  Any other attribute, class included, is passed to the tile.
+#}
+{%- props name = null, settings = null, state = 'ready', legend = true, grip = true, brokenTitle = null, brokenBody = null -%}
+{%- set isBroken = 'broken' == state -%}
+{%- set actions -%}{% block actions %}{% endblock %}{%- endset -%}
+{%- set rename -%}{% block rename %}{% endblock %}{%- endset -%}
+<article{{ attributes.defaults({class: 'lp-graph-tile' ~ (isBroken ? ' lp-graph-tile--broken') ~ (legend ? '' : ' lp-graph-tile--no-legend')}) }}>
+    <header class="lp-graph-tile__head">
+        {% if grip %}<span class="lp-graph-tile__grip" data-graph-grip aria-hidden="true"><twig:ux:icon name="lucide:grip-vertical" class="lp-icon lp-icon--md" /></span>{% endif %}
+        <div class="lp-graph-tile__text">
+            <h3 class="lp-graph-tile__title" data-graph-title>{{ name }}</h3>
+            {% if rename|trim is not empty %}{{ rename }}{% endif %}
+            {% if settings %}<p class="lp-graph-tile__settings">{{ settings }}</p>{% endif %}
+        </div>
+        {% if actions|trim is not empty %}<div class="lp-graph-tile__actions">{{ actions }}</div>{% endif %}
+    </header>
+    <div class="lp-graph-tile__body">
+        {% if isBroken %}
+            <div class="lp-graph-tile__broken" role="status">
+                <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--xl lp-graph-tile__broken-icon" />
+                <p class="lp-graph-tile__broken-title">{{ brokenTitle }}</p>
+                <p class="lp-graph-tile__broken-body">{{ brokenBody }}</p>
+                <div class="lp-graph-tile__broken-actions">{% block footer %}{% endblock %}</div>
+            </div>
+        {% else %}
+            {% block content %}{% endblock %}
+        {% endif %}
+    </div>
+</article>

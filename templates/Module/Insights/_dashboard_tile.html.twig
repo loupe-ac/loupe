@@ -1,0 +1,10 @@
+{# One tile. A tile with no kept result loads in a lazy frame. Props: project (Project), tile (DashboardTileView). #}
+{% if tile.waiting %}
+    <turbo-frame id="{{ tile.frameId }}" target="_top" src="{{ path('app_project_analytics_dashboard_graph', {id: project.id, graphId: tile.graph.id}) }}" loading="lazy" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ tile.graph.width.value }}" data-graph-id="{{ tile.graph.id }}" data-dashboard-tile="waiting">
+        <twig:Ds:GraphTile :name="tile.graph.name" :grip="false" aria-busy="true">
+            <p class="lp-graph-tile__note lp-graph-tile__loading" role="status"><twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--md lp-graph-tile__spinner" />{{ 'analytics.dashboard.tile.loading'|trans }}</p>
+        </twig:Ds:GraphTile>
+    </turbo-frame>
+{% else %}
+    {% include '@Insights/_dashboard_tile_frame.html.twig' with {project: project, tile: tile} only %}
+{% endif %}

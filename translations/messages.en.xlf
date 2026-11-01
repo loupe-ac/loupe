@@ -4985,11 +4985,11 @@
             </trans-unit>
             <trans-unit id="landing.features.analytics.text">
                 <source>landing.features.analytics.text</source>
-                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments.</target>
+                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments, and a period with the one before.</target>
             </trans-unit>
             <trans-unit id="landing.features.analytics.caption">
                 <source>landing.features.analytics.caption</source>
-                <target>See what each finished card costs, by model.</target>
+                <target>See what each finished card costs, and whether a change is real or noise.</target>
             </trans-unit>
             <trans-unit id="landing.slide.board.lane.product_design">
                 <source>landing.slide.board.lane.product_design</source>
@@ -5251,17 +5251,25 @@
                 <source>landing.slide.analytics.statistic</source>
                 <target>Median</target>
             </trans-unit>
-            <trans-unit id="landing.slide.analytics.group">
-                <source>landing.slide.analytics.group</source>
-                <target>By model</target>
+            <trans-unit id="landing.slide.analytics.range">
+                <source>landing.slide.analytics.range</source>
+                <target>Last 30 days</target>
             </trans-unit>
-            <trans-unit id="landing.slide.analytics.claude_code">
-                <source>landing.slide.analytics.claude_code</source>
-                <target>Claude Code</target>
+            <trans-unit id="landing.slide.analytics.compare">
+                <source>landing.slide.analytics.compare</source>
+                <target>Vs previous period</target>
             </trans-unit>
-            <trans-unit id="landing.slide.analytics.codex">
-                <source>landing.slide.analytics.codex</source>
-                <target>Codex</target>
+            <trans-unit id="landing.slide.analytics.change">
+                <source>landing.slide.analytics.change</source>
+                <target>↓ 14% Clear</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.current">
+                <source>landing.slide.analytics.current</source>
+                <target>Current period</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.previous">
+                <source>landing.slide.analytics.previous</source>
+                <target>Previous period</target>
             </trans-unit>
             <trans-unit id="landing.works_with.title">
                 <source>landing.works_with.title</source>
@@ -8584,6 +8592,7 @@
             <trans-unit id="analytics.page.title"><source>analytics.page.title</source><target>Analytics</target></trans-unit>
             <trans-unit id="analytics.description"><source>analytics.description</source><target>How the agents perform over time, and how the variants of each experiment compare.</target></trans-unit>
             <trans-unit id="analytics.tabs.label"><source>analytics.tabs.label</source><target>Analytics views</target></trans-unit>
+            <trans-unit id="analytics.tabs.dashboard"><source>analytics.tabs.dashboard</source><target>Dashboard</target></trans-unit>
             <trans-unit id="analytics.tabs.metrics"><source>analytics.tabs.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="analytics.tabs.experiments"><source>analytics.tabs.experiments</source><target>Experiments</target></trans-unit>
             <trans-unit id="analytics.tabs.reports"><source>analytics.tabs.reports</source><target>Reports</target></trans-unit>
@@ -8595,6 +8604,23 @@
             <trans-unit id="analytics.metrics.form.range"><source>analytics.metrics.form.range</source><target>Range</target></trans-unit>
             <trans-unit id="analytics.metrics.form.bucket"><source>analytics.metrics.form.bucket</source><target>Bucket</target></trans-unit>
             <trans-unit id="analytics.metrics.form.apply"><source>analytics.metrics.form.apply</source><target>Apply</target></trans-unit>
+            <trans-unit id="analytics.metrics.form.compare"><source>analytics.metrics.form.compare</source><target>Compare to</target></trans-unit>
+            <trans-unit id="analytics.metrics.form.chart"><source>analytics.metrics.form.chart</source><target>Chart</target></trans-unit>
+            <trans-unit id="analytics.metrics.compare.off"><source>analytics.metrics.compare.off</source><target>Off</target></trans-unit>
+            <trans-unit id="analytics.metrics.compare.previous"><source>analytics.metrics.compare.previous</source><target>Previous period</target></trans-unit>
+            <trans-unit id="analytics.metrics.chart_type.line"><source>analytics.metrics.chart_type.line</source><target>Line</target></trans-unit>
+            <trans-unit id="analytics.metrics.chart_type.bars"><source>analytics.metrics.chart_type.bars</source><target>Bars</target></trans-unit>
+            <trans-unit id="analytics.metrics.chart_type.stacked_bars"><source>analytics.metrics.chart_type.stacked_bars</source><target>Stacked bars</target></trans-unit>
+            <trans-unit id="analytics.metrics.chart_type.percent_stacked"><source>analytics.metrics.chart_type.percent_stacked</source><target>100% stacked</target></trans-unit>
+            <trans-unit id="analytics.metrics.chart_type.donut"><source>analytics.metrics.chart_type.donut</source><target>Donut</target></trans-unit>
+            <trans-unit id="analytics.metrics.chart_type.number"><source>analytics.metrics.chart_type.number</source><target>Number</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.locked.needs_several_lines"><source>analytics.metrics.note.locked.needs_several_lines</source><target>Stacked bars, 100% stacked and Donut need more than one line. Group the graph, or pick a metric that has several lines, to unlock them.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.locked.statistic_does_not_add"><source>analytics.metrics.note.locked.statistic_does_not_add</source><target>Stacked bars, 100% stacked and Donut add the lines together, so they need Sum or Count. A median, a mean, a maximum or a percentile does not add up. The mean of time in each bucket does.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.locked.rate_does_not_add"><source>analytics.metrics.note.locked.rate_does_not_add</source><target>Stacked bars, 100% stacked and Donut add the lines together. A rate does not add up, so they stay locked.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.switched.needs_several_lines"><source>analytics.metrics.note.switched.needs_several_lines</source><target>Switched to bars: stacked bars, 100% stacked and Donut need more than one line. Group the graph, or pick a metric that has several lines, to use them.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.switched.statistic_does_not_add"><source>analytics.metrics.note.switched.statistic_does_not_add</source><target>Switched to bars: stacked bars, 100% stacked and Donut add the lines together, so they need Sum or Count. A median, a mean, a maximum or a percentile does not add up. The mean of time in each bucket does.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.switched.rate_does_not_add"><source>analytics.metrics.note.switched.rate_does_not_add</source><target>Switched to bars: stacked bars, 100% stacked and Donut add the lines together. A rate does not add up, so they stay locked.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.previous_in_table"><source>analytics.metrics.note.previous_in_table</source><target>This chart shows the current period only. The table holds the previous period.</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.cost"><source>analytics.metrics.metric.cost</source><target>Cost</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.input-tokens"><source>analytics.metrics.metric.input-tokens</source><target>Input tokens</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.output-tokens"><source>analytics.metrics.metric.output-tokens</source><target>Output tokens</target></trans-unit>
@@ -8635,6 +8661,7 @@
             <trans-unit id="analytics.metrics.group.harness-version"><source>analytics.metrics.group.harness-version</source><target>By harness version</target></trans-unit>
             <trans-unit id="analytics.metrics.group.cli-version"><source>analytics.metrics.group.cli-version</source><target>By CLI version</target></trans-unit>
             <trans-unit id="analytics.metrics.group.skill-version"><source>analytics.metrics.group.skill-version</source><target>By plugin version</target></trans-unit>
+            <trans-unit id="analytics.metrics.range.seven-days"><source>analytics.metrics.range.seven-days</source><target>7 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.thirty-days"><source>analytics.metrics.range.thirty-days</source><target>30 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.ninety-days"><source>analytics.metrics.range.ninety-days</source><target>90 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.all"><source>analytics.metrics.range.all</source><target>All time</target></trans-unit>
@@ -8643,14 +8670,70 @@
             <trans-unit id="analytics.metrics.bucket.month"><source>analytics.metrics.bucket.month</source><target>Per month</target></trans-unit>
             <trans-unit id="analytics.metrics.unknown"><source>analytics.metrics.unknown</source><target>unknown</target></trans-unit>
             <trans-unit id="analytics.metrics.series.none"><source>analytics.metrics.series.none</source><target>No group</target></trans-unit>
-            <trans-unit id="analytics.metrics.rows.run"><source>analytics.metrics.rows.run</source><target>{0}No runs|{1}1 run|]1,Inf[%count% runs</target></trans-unit>
-            <trans-unit id="analytics.metrics.rows.reading"><source>analytics.metrics.rows.reading</source><target>{0}No readings|{1}1 reading|]1,Inf[%count% readings</target></trans-unit>
-            <trans-unit id="analytics.metrics.rows.card"><source>analytics.metrics.rows.card</source><target>{0}No cards|{1}1 card|]1,Inf[%count% cards</target></trans-unit>
-            <trans-unit id="analytics.metrics.chart.label"><source>analytics.metrics.chart.label</source><target>%metric%, %statistic%, %bucket%</target></trans-unit>
-            <trans-unit id="analytics.metrics.chart.week"><source>analytics.metrics.chart.week</source><target>Week of %date%</target></trans-unit>
-            <trans-unit id="analytics.metrics.chart.bar"><source>analytics.metrics.chart.bar</source><target>%bucket%: %series%, %value%, %rows%</target></trans-unit>
+            <trans-unit id="analytics.chart.label.line"><source>analytics.chart.label.line</source><target>Line chart</target></trans-unit>
+            <trans-unit id="analytics.chart.label.bars"><source>analytics.chart.label.bars</source><target>Bar chart</target></trans-unit>
+            <trans-unit id="analytics.chart.label.stacked_bars"><source>analytics.chart.label.stacked_bars</source><target>Stacked bar chart</target></trans-unit>
+            <trans-unit id="analytics.chart.label.percent_stacked"><source>analytics.chart.label.percent_stacked</source><target>100% stacked bar chart</target></trans-unit>
+            <trans-unit id="analytics.chart.label.donut"><source>analytics.chart.label.donut</source><target>Donut chart</target></trans-unit>
+            <trans-unit id="analytics.chart.label.number"><source>analytics.chart.label.number</source><target>Number chart</target></trans-unit>
+            <trans-unit id="analytics.chart.legend.previous"><source>analytics.chart.legend.previous</source><target>Previous period</target></trans-unit>
+            <trans-unit id="analytics.chart.hover.span"><source>analytics.chart.hover.span</source><target>%start% – %end%</target></trans-unit>
+            <trans-unit id="analytics.chart.hover.previous"><source>analytics.chart.hover.previous</source><target>Previous period: %value%</target></trans-unit>
+            <trans-unit id="analytics.chart.donut.empty"><source>analytics.chart.donut.empty</source><target>No values to show</target></trans-unit>
+            <trans-unit id="analytics.chart.hover.total"><source>analytics.chart.hover.total</source><target>Total</target></trans-unit>
+            <trans-unit id="analytics.chart.target.bucket"><source>analytics.chart.target.bucket</source><target>%span%: %rows%</target></trans-unit>
+            <trans-unit id="analytics.chart.target.row"><source>analytics.chart.target.row</source><target>%name% %value%</target></trans-unit>
+            <trans-unit id="analytics.chart.target.slice"><source>analytics.chart.target.slice</source><target>%name%: %share%, %value%</target></trans-unit>
+            <trans-unit id="analytics.chart.table.label"><source>analytics.chart.table.label</source><target>Chart data</target></trans-unit>
+            <trans-unit id="analytics.metrics.table.vs_previous"><source>analytics.metrics.table.vs_previous</source><target>Vs previous period</target></trans-unit>
+            <trans-unit id="analytics.chart.table.name"><source>analytics.chart.table.name</source><target>Name</target></trans-unit>
+            <trans-unit id="analytics.chart.table.value"><source>analytics.chart.table.value</source><target>Value</target></trans-unit>
+            <trans-unit id="analytics.chart.table.toggle"><source>analytics.chart.table.toggle</source><target>Table</target></trans-unit>
+            <trans-unit id="analytics.chart.table.share"><source>analytics.chart.table.share</source><target>Share</target></trans-unit>
+            <trans-unit id="analytics.chart.table.change"><source>analytics.chart.table.change</source><target>Change</target></trans-unit>
+            <trans-unit id="analytics.chart.change.up"><source>analytics.chart.change.up</source><target>Up</target></trans-unit>
+            <trans-unit id="analytics.chart.change.down"><source>analytics.chart.change.down</source><target>Down</target></trans-unit>
+            <trans-unit id="analytics.chart.change.flat"><source>analytics.chart.change.flat</source><target>No change</target></trans-unit>
+            <trans-unit id="analytics.chart.change.points"><source>analytics.chart.change.points</source><target>%amount% pts</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.not_enough"><source>analytics.chart.sign.not_enough</source><target>Not enough cards</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.current"><source>analytics.chart.sign.current</source><target>This period</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.previous"><source>analytics.chart.sign.previous</source><target>Previous period</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.range"><source>analytics.chart.sign.range</source><target>Likely range %low% to %high%</target></trans-unit>
+            <trans-unit id="analytics.chart.sign.cards"><source>analytics.chart.sign.cards</source><target>{0}No card|{1}1 card|]1,Inf[%count% cards</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.title"><source>analytics.metrics.empty.title</source><target>No runs are recorded yet</target></trans-unit>
             <trans-unit id="analytics.metrics.empty.description"><source>analytics.metrics.empty.description</source><target>The chart fills when a bridge reports worker runs. Connect a bridge on the Agents page, or pick a longer range.</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.bucket-time-each"><source>analytics.metrics.metric.bucket-time-each</source><target>Time in each bucket</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.bucket-time-all-each"><source>analytics.metrics.metric.bucket-time-all-each</source><target>Time in each bucket, subagents included</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.bucket-calls-each"><source>analytics.metrics.metric.bucket-calls-each</source><target>Calls in each bucket</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.subject"><source>analytics.metrics.title.subject</source><target>%metric% %unit%</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.plain"><source>analytics.metrics.title.plain</source><target>%subject%, %statistic%, %range%, %bucket%</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.grouped"><source>analytics.metrics.title.grouped</source><target>%subject%, %statistic%, %group%, %range%, %bucket%</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.unit.run"><source>analytics.metrics.title.unit.run</source><target>per run</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.unit.card"><source>analytics.metrics.title.unit.card</source><target>per finished card</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.unit.reading"><source>analytics.metrics.title.unit.reading</source><target>per reading</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.median"><source>analytics.metrics.title.statistic.median</source><target>median</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.mean"><source>analytics.metrics.title.statistic.mean</source><target>mean</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.sum"><source>analytics.metrics.title.statistic.sum</source><target>sum</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.p90"><source>analytics.metrics.title.statistic.p90</source><target>90th percentile</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.count"><source>analytics.metrics.title.statistic.count</source><target>count</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.max"><source>analytics.metrics.title.statistic.max</source><target>maximum</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.stage"><source>analytics.metrics.title.group.stage</source><target>by stage</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.model"><source>analytics.metrics.title.group.model</source><target>by model</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.variant"><source>analytics.metrics.title.group.variant</source><target>by variant</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.card-type"><source>analytics.metrics.title.group.card-type</source><target>by card type</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.bridge"><source>analytics.metrics.title.group.bridge</source><target>by bridge</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.harness"><source>analytics.metrics.title.group.harness</source><target>by harness</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.account"><source>analytics.metrics.title.group.account</source><target>by account</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.harness-version"><source>analytics.metrics.title.group.harness-version</source><target>by harness version</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.cli-version"><source>analytics.metrics.title.group.cli-version</source><target>by CLI version</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.skill-version"><source>analytics.metrics.title.group.skill-version</source><target>by plugin version</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.account-window"><source>analytics.metrics.title.group.account-window</source><target>by account window</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.range.last"><source>analytics.metrics.title.range.last</source><target>last %days% days</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.range.compared"><source>analytics.metrics.title.range.compared</source><target>last %days% days vs the %days% days before</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.range.all"><source>analytics.metrics.title.range.all</source><target>all time</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.bucket.day"><source>analytics.metrics.title.bucket.day</source><target>per day</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.bucket.week"><source>analytics.metrics.title.bucket.week</source><target>per week</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.bucket.month"><source>analytics.metrics.title.bucket.month</source><target>per month</target></trans-unit>
             <trans-unit id="insights.reports.start.title"><source>insights.reports.start.title</source><target>Analyse</target></trans-unit>
             <trans-unit id="insights.reports.start.submit"><source>insights.reports.start.submit</source><target>Analyse</target></trans-unit>
             <trans-unit id="insights.reports.start.defaults"><source>insights.reports.start.defaults</source><target>An empty model or effort takes the project default: %model%, %effort%.</target></trans-unit>
@@ -8754,6 +8837,71 @@
             <trans-unit id="insights.bucket_rule.error.pattern_too_long"><source>insights.bucket_rule.error.pattern_too_long</source><target>A pattern is at most 120 characters.</target></trans-unit>
             <trans-unit id="insights.bucket_rule.error.bucket_invalid"><source>insights.bucket_rule.error.bucket_invalid</source><target>A bucket name is 1 to 64 characters: lower case letters, digits, underscore and hyphen.</target></trans-unit>
             <trans-unit id="insights.bucket_rule.error.limit_reached"><source>insights.bucket_rule.error.limit_reached</source><target>A project holds at most 50 rules. Delete a rule first.</target></trans-unit>
+            <trans-unit id="insights.saved_graph.error.cap_reached"><source>insights.saved_graph.error.cap_reached</source><target>The dashboard holds at most %limit% graphs. Remove a graph first.</target></trans-unit>
+            <trans-unit id="insights.saved_graph.error.chart_needs_several_lines"><source>insights.saved_graph.error.chart_needs_several_lines</source><target>This chart type needs several lines to add up. Group the graph first, or pick another chart type.</target></trans-unit>
+            <trans-unit id="insights.saved_graph.error.chart_statistic_does_not_add"><source>insights.saved_graph.error.chart_statistic_does_not_add</source><target>This chart type needs a sum, a count or a mean of a metric that adds up. Change the statistic, or pick another chart type.</target></trans-unit>
+            <trans-unit id="insights.saved_graph.error.chart_rate_does_not_add"><source>insights.saved_graph.error.chart_rate_does_not_add</source><target>The rates of several lines never add up to a whole. Pick another chart type.</target></trans-unit>
+            <trans-unit id="insights.form.saved_graph_form.name.label"><source>insights.form.saved_graph_form.name.label</source><target>Name</target></trans-unit>
+            <trans-unit id="analytics.metrics.saved_graph.flash.saved"><source>analytics.metrics.saved_graph.flash.saved</source><target>The graph is saved.</target></trans-unit>
+            <trans-unit id="analytics.metrics.saved_graph.flash.updated"><source>analytics.metrics.saved_graph.flash.updated</source><target>The graph is updated.</target></trans-unit>
+            <trans-unit id="analytics.metrics.saved_graph.flash.invalid"><source>analytics.metrics.saved_graph.flash.invalid</source><target>Loupe could not save the graph. Try again.</target></trans-unit>
+            <trans-unit id="analytics.metrics.saved_graph.view"><source>analytics.metrics.saved_graph.view</source><target>View on the Dashboard</target></trans-unit>
+            <trans-unit id="analytics.dashboard.flash.invalid"><source>analytics.dashboard.flash.invalid</source><target>Loupe could not change the graph. Try again.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.flash.removed"><source>analytics.dashboard.flash.removed</source><target>Removed “%name%” from the Dashboard.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.remove.undo"><source>analytics.dashboard.remove.undo</source><target>Undo</target></trans-unit>
+            <trans-unit id="analytics.dashboard.tile.loading"><source>analytics.dashboard.tile.loading</source><target>Loading this graph.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.label"><source>analytics.dashboard.menu.label</source><target>Graph actions</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.rename"><source>analytics.dashboard.menu.rename</source><target>Rename</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.edit"><source>analytics.dashboard.menu.edit</source><target>Open in Metrics</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.width_half"><source>analytics.dashboard.menu.width_half</source><target>Half width</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.width_full"><source>analytics.dashboard.menu.width_full</source><target>Full width</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.legend_hide"><source>analytics.dashboard.menu.legend_hide</source><target>Hide legend</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.legend_show"><source>analytics.dashboard.menu.legend_show</source><target>Show legend</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.move_up"><source>analytics.dashboard.menu.move_up</source><target>Move up</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.move_down"><source>analytics.dashboard.menu.move_down</source><target>Move down</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.remove"><source>analytics.dashboard.menu.remove</source><target>Remove from the Dashboard</target></trans-unit>
+            <trans-unit id="analytics.dashboard.broken.template_metric"><source>analytics.dashboard.broken.template_metric</source><target>The workflow template no longer declares the metric %name%.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.broken.bucket"><source>analytics.dashboard.broken.bucket</source><target>No time bucket rule names the bucket %name% now.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.broken.harness_event"><source>analytics.dashboard.broken.harness_event</source><target>No run of this project records the harness event %name% now.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.title"><source>analytics.dashboard.empty.title</source><target>No graphs on the Dashboard yet</target></trans-unit>
+            <trans-unit id="analytics.dashboard.updated"><source>analytics.dashboard.updated</source><target>Updated %minutes% min ago</target></trans-unit>
+            <trans-unit id="analytics.dashboard.live.stopped"><source>analytics.dashboard.live.stopped</source><target>Live updates stopped. Reload the page to see changes made in other tabs.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.add.title"><source>analytics.dashboard.add.title</source><target>Add a graph</target></trans-unit>
+            <trans-unit id="analytics.dashboard.add.hint"><source>analytics.dashboard.add.hint</source><target>Build it in Metrics, then save it here</target></trans-unit>
+            <trans-unit id="analytics.dashboard.add.cap"><source>analytics.dashboard.add.cap</source><target>The Dashboard holds %limit% graphs. Remove one to add another.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.rename.save"><source>analytics.dashboard.rename.save</source><target>Save</target></trans-unit>
+            <trans-unit id="analytics.dashboard.rename.cancel"><source>analytics.dashboard.rename.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="analytics.dashboard.remove.title"><source>analytics.dashboard.remove.title</source><target>Remove “%name%” from the Dashboard?</target></trans-unit>
+            <trans-unit id="analytics.dashboard.remove.body"><source>analytics.dashboard.remove.body</source><target>The graph and its settings go. You can undo this from the notice that follows.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.remove.confirm"><source>analytics.dashboard.remove.confirm</source><target>Remove</target></trans-unit>
+            <trans-unit id="analytics.dashboard.remove.cancel"><source>analytics.dashboard.remove.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="analytics.dashboard.broken.title"><source>analytics.dashboard.broken.title</source><target>This graph cannot load</target></trans-unit>
+            <trans-unit id="analytics.dashboard.broken.open"><source>analytics.dashboard.broken.open</source><target>Open in Metrics</target></trans-unit>
+            <trans-unit id="analytics.dashboard.broken.remove"><source>analytics.dashboard.broken.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.body"><source>analytics.dashboard.empty.body</source><target>Build a graph on the Metrics tab and save it here. The numbers you check every week then sit in one place, ready when you open Analytics.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.build"><source>analytics.dashboard.empty.build</source><target>Build a graph</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.start"><source>analytics.dashboard.empty.start</source><target>Or start from a common one</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.cost"><source>analytics.dashboard.empty.cost</source><target>Cost per finished card</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.time"><source>analytics.dashboard.empty.time</source><target>Where the time goes</target></trans-unit>
+            <trans-unit id="analytics.dashboard.empty.stop"><source>analytics.dashboard.empty.stop</source><target>Stop rate by stage</target></trans-unit>
+            <trans-unit id="insights.form.rename_graph_form.name.label"><source>insights.form.rename_graph_form.name.label</source><target>Name</target></trans-unit>
+            <trans-unit id="insights.form.graph_width_form.width.label"><source>insights.form.graph_width_form.width.label</source><target>Width</target></trans-unit>
+            <trans-unit id="insights.form.graph_width_form.width.half"><source>insights.form.graph_width_form.width.half</source><target>Half</target></trans-unit>
+            <trans-unit id="insights.form.graph_width_form.width.full"><source>insights.form.graph_width_form.width.full</source><target>Full</target></trans-unit>
+            <trans-unit id="insights.form.graph_legend_form.show.label"><source>insights.form.graph_legend_form.show.label</source><target>Legend</target></trans-unit>
+            <trans-unit id="insights.form.graph_legend_form.show.on"><source>insights.form.graph_legend_form.show.on</source><target>Show</target></trans-unit>
+            <trans-unit id="insights.form.graph_legend_form.show.off"><source>insights.form.graph_legend_form.show.off</source><target>Hide</target></trans-unit>
+            <trans-unit id="insights.form.drag_graph_form.steps.label"><source>insights.form.drag_graph_form.steps.label</source><target>Places to move</target></trans-unit>
+            <trans-unit id="analytics.metrics.save.button"><source>analytics.metrics.save.button</source><target>Save to dashboard</target></trans-unit>
+            <trans-unit id="analytics.metrics.save.cap_reached"><source>analytics.metrics.save.cap_reached</source><target>The Dashboard holds %limit% graphs. Remove one to add another.</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.banner"><source>analytics.metrics.edit.banner</source><target>Editing the saved graph %name%. The Dashboard shows your changes after you save.</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.back"><source>analytics.metrics.edit.back</source><target>Back to the Dashboard</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.save"><source>analytics.metrics.edit.save</source><target>Save changes</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.save_new"><source>analytics.metrics.edit.save_new</source><target>Save as new graph</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.title"><source>analytics.metrics.edit.leave.title</source><target>Discard your changes to “%name%”?</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.body"><source>analytics.metrics.edit.leave.body</source><target>You changed this saved graph and did not save. The Dashboard keeps the graph as it was.</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.keep"><source>analytics.metrics.edit.leave.keep</source><target>Keep editing</target></trans-unit>
+            <trans-unit id="analytics.metrics.edit.leave.discard"><source>analytics.metrics.edit.leave.discard</source><target>Discard changes</target></trans-unit>
             <trans-unit id="insights.bucket_rules.intro"><source>insights.bucket_rules.intro</source><target>The tool time of each worker run is split into buckets. A rule sends every tool call whose signature matches its pattern to its bucket. The first rule that matches takes the call.</target></trans-unit>
             <trans-unit id="insights.bucket_rules.add.title"><source>insights.bucket_rules.add.title</source><target>Add a rule</target></trans-unit>
             <trans-unit id="insights.bucket_rules.add.submit"><source>insights.bucket_rules.add.submit</source><target>Add the rule</target></trans-unit>

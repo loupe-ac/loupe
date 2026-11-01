@@ -1,0 +1,259 @@
+/* The chart: a plot, a legend, a hover card and a table. `templates/components/Ds/Chart.html.twig` renders it. */
+@layer components {
+    .lp-chart {
+        @apply m-0 flex min-w-0 flex-col gap-3;
+    }
+    /* Under md the plot keeps a readable width and scrolls sideways. */
+    .lp-chart__scroll {
+        @apply overflow-x-auto overflow-y-clip;
+    }
+    .lp-chart__surface {
+        @apply relative;
+    }
+    .lp-chart__surface--wide {
+        @apply max-md:min-w-3xl;
+    }
+    .lp-chart__surface--donut {
+        @apply mx-auto max-w-xs;
+    }
+    .lp-chart__svg {
+        @apply block h-auto w-full overflow-visible;
+    }
+
+    /* Each series takes its colour from a slot of the chart palette. */
+    .lp-chart-slot--0 {
+        --lp-chart-colour: var(--chart-other);
+    }
+    .lp-chart-slot--1 {
+        --lp-chart-colour: var(--chart-1);
+    }
+    .lp-chart-slot--2 {
+        --lp-chart-colour: var(--chart-2);
+    }
+    .lp-chart-slot--3 {
+        --lp-chart-colour: var(--chart-3);
+    }
+    .lp-chart-slot--4 {
+        --lp-chart-colour: var(--chart-4);
+    }
+    .lp-chart-slot--5 {
+        --lp-chart-colour: var(--chart-5);
+    }
+    .lp-chart-slot--6 {
+        --lp-chart-colour: var(--chart-6);
+    }
+    .lp-chart-slot--7 {
+        --lp-chart-colour: var(--chart-7);
+    }
+    .lp-chart-slot--8 {
+        --lp-chart-colour: var(--chart-8);
+    }
+
+    .lp-chart__grid {
+        @apply stroke-line-faint stroke-1;
+    }
+    .lp-chart__baseline {
+        @apply stroke-line-strong stroke-1;
+    }
+    .lp-chart__tick {
+        @apply fill-fg-dim text-xs tabular-nums;
+    }
+    .lp-chart__line {
+        @apply fill-none stroke-2;
+        stroke: var(--lp-chart-colour);
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+    /* The previous period is a faded dashed copy of the line. */
+    .lp-chart__line--previous {
+        @apply opacity-50;
+        stroke-dasharray: 6 5;
+    }
+    .lp-chart__dot {
+        @apply fill-surface-1 stroke-2;
+        stroke: var(--lp-chart-colour);
+    }
+    .lp-chart__bar,
+    .lp-chart__slice {
+        fill: var(--lp-chart-colour);
+    }
+    .lp-chart__slice {
+        @apply stroke-surface-1 stroke-2;
+        fill-rule: evenodd;
+    }
+    .lp-chart__target {
+        @apply outline-none;
+    }
+    .lp-chart__hit {
+        @apply fill-transparent;
+    }
+    .lp-chart__guide {
+        @apply stroke-line-strong stroke-1 opacity-0;
+        stroke-dasharray: 3 3;
+    }
+    .lp-chart__target[data-active] .lp-chart__guide,
+    .lp-chart__target:focus-visible .lp-chart__guide {
+        @apply opacity-100;
+    }
+    .lp-chart__target:focus-visible .lp-chart__hit {
+        @apply stroke-accent-ink stroke-2;
+    }
+    .lp-chart__target:hover .lp-chart__slice,
+    .lp-chart__target:focus-visible .lp-chart__slice {
+        @apply opacity-80;
+    }
+    .lp-chart__target:focus-visible .lp-chart__slice {
+        @apply stroke-accent-ink;
+    }
+    .lp-chart__donut-total {
+        @apply fill-ink font-display text-2xl font-bold;
+    }
+    .lp-chart__ring-empty {
+        @apply fill-none stroke-line-faint;
+        stroke-width: calc(var(--spacing) * 12.5);
+    }
+    .lp-chart__donut-note {
+        @apply fill-fg-dim text-sm;
+    }
+    .lp-chart__donut-caption {
+        @apply fill-fg-dim text-xs;
+    }
+
+    /* The legend lines up with the left edge of the plot: 64 of the 960 units of the view box. */
+    .lp-chart__legend {
+        @apply m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 p-0 text-xs text-fg-mute;
+        @variant md {
+            margin-inline-start: calc(100% * 64 / 960);
+        }
+    }
+    .lp-chart__legend--centred {
+        @apply justify-center;
+        @variant md {
+            margin-inline-start: 0;
+        }
+    }
+    .lp-chart__key {
+        @apply inline-flex items-center gap-1.5;
+    }
+    .lp-chart__swatch {
+        @apply inline-block size-3 shrink-0 rounded-sm;
+        background-color: var(--lp-chart-colour);
+    }
+    .lp-chart__dash {
+        @apply inline-block w-4.5 border-t-2 border-dashed border-current;
+    }
+
+    /* The hover card floats over the page, so the plot scroller cannot clip it, and it never takes the pointer. */
+    .lp-chart__card {
+        @apply pointer-events-none fixed top-0 left-0 z-50 flex min-w-48 flex-col gap-1 rounded-lg border border-line bg-surface-1 px-3 py-2.5 text-xs text-fg shadow-lg;
+    }
+    .lp-chart__card-title {
+        @apply m-0 mb-1 flex items-center gap-2 font-semibold text-ink;
+    }
+    .lp-chart__card-row {
+        @apply m-0 flex items-center gap-2 leading-normal;
+    }
+    .lp-chart__card-name {
+        @apply min-w-0 flex-1 truncate text-fg;
+    }
+    .lp-chart__card-value {
+        @apply font-semibold tabular-nums text-ink;
+    }
+    .lp-chart__card-share {
+        @apply tabular-nums text-fg-dim;
+    }
+    .lp-chart__card-previous {
+        @apply m-0 ps-5 leading-normal text-fg-dim;
+    }
+    .lp-chart__card-total {
+        @apply mt-1 border-t border-line-faint pt-1;
+    }
+
+    /* The change is one neutral colour in every direction. */
+    .lp-chart__change {
+        @apply inline-flex items-center gap-1 font-sans tabular-nums text-fg;
+    }
+    .lp-chart__sign {
+        @apply inline-block whitespace-nowrap font-sans rounded-full border border-line bg-surface-1 px-2 py-px text-xs font-semibold text-fg;
+    }
+    .lp-chart__sign--clear {
+        @apply border-accent-border bg-accent-faint text-ink;
+    }
+    .lp-chart__sign--not-enough-data {
+        @apply border-dashed border-line-strong bg-transparent text-fg-dim;
+    }
+    /* The sign chip, with the likely ranges and card counts on hover and on keyboard focus. */
+    .lp-chart__sign-anchor {
+        @apply relative ms-2 inline-flex rounded-full outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-chart__sign-detail {
+        @apply right-0 left-auto w-60 text-start font-sans;
+    }
+    /* A figure starts at the left edge, so its detail opens rightward. */
+    .lp-chart__figure .lp-chart__sign-detail {
+        @apply right-auto left-0;
+    }
+    /* The table scrolls sideways on a phone and clips an absolute child, so the detail pins to the viewport. */
+    .lp-chart__sign-detail,
+    .lp-chart__figure .lp-chart__sign-detail {
+        @apply max-md:fixed max-md:inset-x-4 max-md:top-auto max-md:bottom-4 max-md:w-auto;
+    }
+    .lp-chart__sign-anchor:hover .lp-chart__sign-detail,
+    .lp-chart__sign-anchor:focus-visible .lp-chart__sign-detail {
+        @apply visible opacity-100;
+    }
+    .lp-chart__sign-period {
+        @apply flex flex-col;
+    }
+
+    /* The table stays closed until a person opens it. */
+    .lp-chart__table-toggle {
+        @apply inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-xs font-medium text-fg-mute outline-none select-none hover:text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-chart__table-toggle::-webkit-details-marker {
+        display: none;
+    }
+    .lp-chart__table[open] > .lp-chart__table-toggle {
+        @apply mb-2;
+    }
+    .lp-chart__table[open] .lp-chart__table-chevron {
+        @apply rotate-90;
+    }
+
+    /* A figure fills the room it gets, and several figures share the width. */
+    .lp-chart--number {
+        @apply flex-1;
+    }
+    .lp-chart__figures {
+        @apply grid flex-1 gap-3;
+        grid-template-columns: repeat(
+            auto-fit,
+            minmax(calc(var(--spacing) * 48), 1fr)
+        );
+    }
+    .lp-chart__figure {
+        @apply flex flex-col items-center justify-center rounded-xl border border-line bg-surface-1 px-6 py-10 text-center;
+    }
+    .lp-chart__figure-name {
+        @apply m-0 flex max-w-full items-center gap-1.5 truncate text-sm text-fg-label;
+    }
+    .lp-chart__figure-value {
+        @apply m-0 mt-1 font-display text-5xl font-bold text-ink;
+    }
+    .lp-chart__figure-change {
+        @apply m-0 mt-2 text-sm;
+    }
+    .lp-chart__figure-previous {
+        @apply m-0 mt-0.5 text-xs text-fg-dim;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .lp-chart__guide,
+        .lp-chart__slice {
+            @apply transition-opacity;
+        }
+        .lp-chart__table-chevron {
+            @apply transition-transform;
+        }
+    }
+}

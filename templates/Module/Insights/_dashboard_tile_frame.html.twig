@@ -1,0 +1,53 @@
+{# A ready or broken tile in its frame. The single tile route answers with it too. Props: project (Project), tile (DashboardTileView). #}
+{% set graph = tile.graph %}
+{% set forms = dashboard_graph_forms(graph) %}
+{% set settings = [
+    ('analytics.metrics.unit.' ~ graph.unit.value)|trans,
+    ('analytics.metrics.statistic.' ~ graph.statistic.value)|trans,
+    ('analytics.metrics.range.' ~ graph.range.value)|trans,
+    ('analytics.metrics.bucket.' ~ graph.bucket.value)|trans,
+    ('analytics.metrics.chart_type.' ~ graph.chartType.value|replace({'-': '_'}))|trans,
+]|join(' · ') %}
+<turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ graph.width.value }}" data-graph-id="{{ graph.id }}" data-dashboard-tile="{{ tile.broken ? 'broken' : 'ready' }}"{% if tile.broken %} data-dashboard-broken="{{ tile.broken.reason.value }}"{% endif %}>
+    {# The name is text that a person wrote, so the component prints it escaped. Never add |raw here. #}
+    <twig:Ds:GraphTile
+        :name="graph.name"
+        :settings="settings"
+        :state="tile.broken ? 'broken' : 'ready'"
+        :legend="graph.showLegend"
+        :brokenTitle="'analytics.dashboard.broken.title'|trans"
+        :brokenBody="tile.broken ? ('analytics.dashboard.broken.' ~ tile.broken.reason.value|replace({'-': '_'}))|trans({'%name%': tile.broken.name}) : null"
+        data-controller="modal graph-tile"
+        data-graph-tile
+        :data-computed-at="tile.result ? tile.result.computedAt.timestamp : ''"
+    >
+        <twig:block name="rename">
+            {{ form_start(forms.rename, {attr: {class: 'lp-graph-tile__rename', hidden: 'hidden', 'data-graph-tile-target': 'renameForm', 'data-action': 'keydown.esc->graph-tile#cancelRename'}}) }}
+                {{ form_label(forms.rename.name, null, {label_attr: {class: 'sr-only'}}) }}
+                {{ form_widget(forms.rename.name, {attr: {class: ds_input_class(null, false, true), 'data-graph-tile-target': 'renameInput'}}) }}
+                <twig:Ds:Button variant="primary" size="sm" type="submit">{{ 'analytics.dashboard.rename.save'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->graph-tile#cancelRename">{{ 'analytics.dashboard.rename.cancel'|trans }}</twig:Ds:Button>
+            {{ form_end(forms.rename) }}
+        </twig:block>
+        <twig:block name="actions">
+            {% include '@Insights/_dashboard_tile_menu.html.twig' with {project: project, tile: tile, forms: forms} only %}
+            {% include '@Insights/_dashboard_tile_remove.html.twig' with {project: project, graph: graph} only %}
+            {# The drag controller fills the step count and submits this form. #}
+            {{ form_start(forms.drag, {attr: {hidden: 'hidden', 'data-graph-drag-form': ''}}) }}
+                <input type="hidden" name="{{ forms.drag.steps.vars.full_name }}" value="0" data-graph-drag-steps>
+                {{ form_widget(forms.drag._token) }}
+            {{ form_end(forms.drag, {render_rest: false}) }}
+        </twig:block>
+        <twig:block name="footer">
+            <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_metrics', {id: project.id, graph: graph.id}) }}">{{ 'analytics.dashboard.broken.open'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->modal#open">{{ 'analytics.dashboard.broken.remove'|trans }}</twig:Ds:Button>
+        </twig:block>
+        {% if tile.result is not null %}
+            {% if tile.result.layout is null %}
+                <p class="lp-graph-tile__note">{{ 'analytics.metrics.empty.title'|trans }}</p>
+            {% else %}
+                <twig:Ds:Chart :layout="tile.result.layout" :labels="tile.result.labels" :label="tile.result.title" :valueLabel="('analytics.metrics.statistic.' ~ graph.statistic.value)|trans" :changeLabel="'analytics.metrics.table.vs_previous'|trans" :id="'tile-' ~ graph.id" />
+            {% endif %}
+        {% endif %}
+    </twig:Ds:GraphTile>
+</turbo-frame>

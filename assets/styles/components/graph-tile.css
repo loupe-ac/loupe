@@ -1,0 +1,72 @@
+/* The graph tile: one saved graph with its name, settings line, menu and chart. `templates/components/Ds/GraphTile.html.twig` renders it. */
+@layer components {
+    .lp-graph-tile {
+        @apply box-border flex h-full flex-col rounded-xl border border-line bg-surface-1 p-4;
+    }
+    .lp-graph-tile__head {
+        @apply mb-3 flex items-start gap-2;
+    }
+    .lp-graph-tile__grip {
+        @apply inline-flex shrink-0 cursor-grab touch-none pt-0.5 text-fg-dim select-none;
+    }
+    .lp-graph-tile__grip:active {
+        @apply cursor-grabbing;
+    }
+    .lp-graph-tile__text {
+        @apply min-w-0 flex-1;
+    }
+    .lp-graph-tile__title {
+        @apply m-0 truncate text-sm font-semibold text-ink;
+    }
+    .lp-graph-tile__settings {
+        @apply m-0 mt-0.5 text-xs text-fg-dim;
+    }
+    .lp-graph-tile__rename {
+        @apply flex flex-wrap items-center gap-2;
+    }
+    .lp-graph-tile__rename[hidden] {
+        @apply hidden;
+    }
+    .lp-graph-tile__actions {
+        @apply flex shrink-0 items-center gap-2;
+    }
+    .lp-graph-tile__body {
+        @apply flex min-w-0 flex-1 flex-col;
+    }
+    .lp-graph-tile__note {
+        @apply m-0 py-10 text-center text-sm text-fg-dim;
+    }
+    .lp-graph-tile__loading {
+        @apply flex items-center justify-center gap-2;
+    }
+    .lp-graph-tile__spinner {
+        @apply animate-spin;
+    }
+    /* A spinner is the only sign that the graph still loads, so it slows down rather than stopping. */
+    @media (prefers-reduced-motion: reduce) {
+        .lp-graph-tile__spinner {
+            animation-duration: 3s;
+        }
+    }
+    .lp-graph-tile--no-legend .lp-chart__legend {
+        @apply hidden;
+    }
+    .lp-graph-tile--broken {
+        @apply border-dashed;
+    }
+    .lp-graph-tile__broken {
+        @apply flex flex-col items-center gap-2 py-6 text-center;
+    }
+    .lp-graph-tile__broken-icon {
+        @apply text-line-strong;
+    }
+    .lp-graph-tile__broken-title {
+        @apply m-0 text-sm font-semibold text-ink;
+    }
+    .lp-graph-tile__broken-body {
+        @apply m-0 max-w-md text-sm text-fg-mute;
+    }
+    .lp-graph-tile__broken-actions {
+        @apply mt-2 flex flex-wrap items-center justify-center gap-2;
+    }
+}

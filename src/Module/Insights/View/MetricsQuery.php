@@ -6,6 +6,7 @@ namespace App\Module\Insights\View;
 
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRange;
@@ -17,7 +18,8 @@ use Symfony\Component\HttpFoundation\InputBag;
 
 /**
  * The controls of the Metrics page. routeParams() leaves out a control at its
- * default. The GET form still submits every control.
+ * default. The GET form still submits every control. All time cannot compare,
+ * so it takes Off.
  */
 final readonly class MetricsQuery
 {
@@ -28,6 +30,9 @@ final readonly class MetricsQuery
         public MetricGroup $group = MetricGroup::None,
         public MetricRange $range = MetricRange::NinetyDays,
         public MetricBucket $bucket = MetricBucket::Week,
+        public MetricCompare $compare = MetricCompare::Off,
+        /** The type the owner asked for. MetricChartRules::resolve() says which one the page draws. */
+        public MetricChartType $chart = MetricChartType::Line,
     ) {
     }
 
@@ -43,17 +48,21 @@ final readonly class MetricsQuery
         $key = MetricKey::tryParse($query->getString('metric'), $templates) ?? new MetricKey(Metric::Cost);
         $metric = MetricShape::of($key, $templates) ?? new MetricShape(new MetricKey(Metric::Cost));
 
+        $range = MetricRange::tryFrom($query->getString('range')) ?? MetricRange::NinetyDays;
+
         return new self(
             unit: self::allowed(MetricUnit::tryFrom($query->getString('unit')) ?? MetricUnit::Card, $metric->units()),
             metric: $metric,
             statistic: self::allowed(MetricStatistic::tryFrom($query->getString('statistic')) ?? MetricStatistic::Median, $metric->statistics(), MetricStatistic::Median),
             group: self::allowed(MetricGroup::tryFrom($query->getString('group')) ?? MetricGroup::None, $metric->groups(), MetricGroup::None),
-            range: MetricRange::tryFrom($query->getString('range')) ?? MetricRange::NinetyDays,
-            bucket: MetricBucket::tryFrom($query->getString('bucket')) ?? MetricBucket::Week,
+            range: $range,
+            bucket: self::allowed(MetricBucket::tryFrom($query->getString('bucket')) ?? MetricBucket::Week, $range->allowedBuckets()),
+            compare: null === $range->length() ? MetricCompare::Off : (MetricCompare::tryFrom($query->getString('compare')) ?? MetricCompare::Off),
+            chart: MetricChartType::tryFrom($query->getString('chart')) ?? MetricChartType::default(),
         );
     }
 
-    /** @return array{unit?: string, metric?: string, statistic?: string, group?: string, range?: string, bucket?: string} */
+    /** @return array{unit?: string, metric?: string, statistic?: string, group?: string, range?: string, bucket?: string, compare?: string, chart?: string} */
     public function routeParams(): array
     {
         $params = [];
@@ -74,6 +83,12 @@ final readonly class MetricsQuery
         }
         if (MetricBucket::Week !== $this->bucket) {
             $params['bucket'] = $this->bucket->value;
+        }
+        if (MetricCompare::Off !== $this->compare) {
+            $params['compare'] = $this->compare->value;
+        }
+        if (MetricChartType::default() !== $this->chart) {
+            $params['chart'] = $this->chart->value;
         }
 
         return $params;

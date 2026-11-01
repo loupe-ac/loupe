@@ -18,6 +18,9 @@ enum Metric: string
     case BucketTime = 'bucket-time';
     case BucketTimeAll = 'bucket-time-all';
     case BucketCalls = 'bucket-calls';
+    case BucketTimeEach = 'bucket-time-each';
+    case BucketTimeAllEach = 'bucket-time-all-each';
+    case BucketCallsEach = 'bucket-calls-each';
     case HarnessEvents = 'harness-events';
     case AccountUsage = 'account-usage';
     case SessionUsage = 'session-usage';
@@ -43,6 +46,12 @@ enum Metric: string
         };
     }
 
+    /** A grouped bucket metric reads every bucket at once, and the bucket is the line. */
+    public function isBucketEach(): bool
+    {
+        return \in_array($this, [self::BucketTimeEach, self::BucketTimeAllEach, self::BucketCallsEach], true);
+    }
+
     /** @return list<MetricUnit> */
     public function units(): array
     {
@@ -59,8 +68,8 @@ enum Metric: string
         return match ($this) {
             self::Cost => MetricValueType::Money,
             self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens => MetricValueType::Tokens,
-            self::Duration, self::BucketTime, self::BucketTimeAll => MetricValueType::Duration,
-            self::Runs, self::HarnessEvents, self::BucketCalls => MetricValueType::Count,
+            self::Duration, self::BucketTime, self::BucketTimeAll, self::BucketTimeEach, self::BucketTimeAllEach => MetricValueType::Duration,
+            self::Runs, self::HarnessEvents, self::BucketCalls, self::BucketCallsEach => MetricValueType::Count,
             self::StopRate => MetricValueType::Ratio,
             self::AccountUsage, self::SessionUsage, self::WeekUsage => MetricValueType::Percent,
         };
@@ -83,14 +92,20 @@ enum Metric: string
         if (self::AccountUsage === $this) {
             return [MetricGroup::AccountWindow];
         }
+        if ($this->isBucketEach()) {
+            return [MetricGroup::None];
+        }
 
         return array_values(array_filter(MetricGroup::cases(), static fn (MetricGroup $group): bool => MetricGroup::AccountWindow !== $group));
     }
 
-    /** The usage metrics read the account or overlap other work, so a card of an experiment has no value of them. */
+    /**
+     * The usage metrics read the account or overlap other work, so a card of an experiment has no value of them. A
+     * grouped bucket metric has one line per bucket, and an experiment compares one number per variant.
+     */
     public function readsExperimentCards(): bool
     {
-        return !\in_array($this, [self::AccountUsage, self::SessionUsage, self::WeekUsage], true);
+        return !$this->isBucketEach() && !\in_array($this, [self::AccountUsage, self::SessionUsage, self::WeekUsage], true);
     }
 
     /** A sum over the runs of a card gives its value on the card unit. */
@@ -117,6 +132,9 @@ enum Metric: string
             self::BucketTime => 'The time of the main-session tool calls of a run in one bucket of the project rules, in milliseconds. Name the bucket after a colon: bucket-time:<name>.', // @translation-check-ignore
             self::BucketTimeAll => 'The time of the tool calls of a run in one bucket of the project rules, in milliseconds. It includes the calls of subagents, so it can exceed the run time. Name the bucket after a colon: bucket-time-all:<name>.', // @translation-check-ignore
             self::BucketCalls => 'The number of tool calls of a run in one bucket of the project rules, subagent calls included. Name the bucket after a colon: bucket-calls:<name>.', // @translation-check-ignore
+            self::BucketTimeEach => 'The time of the main-session tool calls of a run in each bucket of the project rules, in milliseconds. It gives one line per bucket, and a bucket the run did not touch counts 0.', // @translation-check-ignore
+            self::BucketTimeAllEach => 'The time of the tool calls of a run in each bucket of the project rules, subagent calls included, in milliseconds. It gives one line per bucket, and a bucket the run did not touch counts 0.', // @translation-check-ignore
+            self::BucketCallsEach => 'The number of tool calls of a run in each bucket of the project rules, subagent calls included. It gives one line per bucket, and a bucket the run did not touch counts 0.', // @translation-check-ignore
         };
     }
 }

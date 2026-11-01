@@ -171,7 +171,7 @@ final class BucketRuleControllersTest extends WebTestCase
         $metrics = $client->request(Request::METHOD_GET, (string) $row->filter('a[data-bucket-summary-open]')->attr('href'));
 
         self::assertResponseIsSuccessful();
-        self::assertSame($median, trim($metrics->filter('[data-metrics-summary] .lp-metric-summary__value')->text()));
+        self::assertSame($median, trim($metrics->filter('[data-metrics-chart] .lp-data-table__row .lp-data-table__cell--end')->first()->text()));
     }
 
     public function test_numeric_bucket_names_stay_apart(): void
