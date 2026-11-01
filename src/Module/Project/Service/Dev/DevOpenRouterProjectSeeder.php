@@ -31,6 +31,7 @@ final readonly class DevOpenRouterProjectSeeder implements DevSeederInterface
         private ProjectRepository $projects,
         private EntityManagerInterface $em,
         private EventDispatcherInterface $events,
+        private DevProjectSeeder $devProjects,
     ) {
     }
 
@@ -58,7 +59,11 @@ final readonly class DevOpenRouterProjectSeeder implements DevSeederInterface
             return;
         }
 
-        $project = new Project($context->devUser(), self::NAME, createdAt: $context->at(60));
+        // Older than the edge projects, because a project keeps its own creation time.
+        $project = new Project($context->devUser(), self::NAME, createdAt: $context->at(240));
+
+        $this->devProjects->renameOldProject($context->devUser(), self::NAME);
+
         $context->ids->assign($project, self::projectId());
         $this->em->persist($project);
         $this->events->dispatch(new ProjectCreating($project, 'simple'));

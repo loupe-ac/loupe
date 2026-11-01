@@ -23,6 +23,8 @@ order. The dataset holds the dev and admin accounts, two demo accounts, "Dev
 Project", and the data that the Metrics, Dashboard, Experiments, Artifact and
 analysis pages show.
 
+- `.env.dev` holds a dev-only `APP_ENCRYPTION_KEY`, so the seed can write encrypted
+  columns with no setup. A key in `.env.local` wins.
 - A run is safe to repeat. A seeder skips a record that exists, and a later day
   only adds the missing days of the time series. The seed never deletes a record
   that has a fixed id. It looks up each record with a fixed id on its own, and
