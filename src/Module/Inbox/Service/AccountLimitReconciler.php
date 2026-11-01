@@ -17,11 +17,12 @@ use App\Module\Bridge\ValueObject\WindowLimitState;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Inbox\Entity\InboxAccountLimit;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxAccountLimitRepository;
@@ -320,7 +321,7 @@ final readonly class AccountLimitReconciler
     }
 
     /**
-     * The account takes work again when a card of the notice still has live work. The notice is obsolete
+     * The account takes work again when a card of the notice still has live work. The notice is cancelled
      * when none has, because the waiting work ended first.
      */
     private function close(InboxAccountLimit $episode, bool $enabled, \DateTimeImmutable $now): void
@@ -329,14 +330,7 @@ final readonly class AccountLimitReconciler
         $cardIds = array_values(array_map(static fn (InboxItemCard $link): string => ($link->card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122(), $item->cards->toArray()));
         $recovered = $enabled && [] !== $this->workRequests->findLiveRowsForCards($cardIds);
 
-        $note = $recovered ? $this->translator->trans('inbox.account_limit.closed', [
-            '%account%' => $episode->account,
-            '%bridge%' => $this->bridgeLabel($episode->project, $episode->bridgeId),
-            '%start%' => self::stamp($episode->startedAt),
-            '%end%' => self::stamp($now),
-        ], null, $this->locale) : null;
-
-        $this->closer->close($item, $recovered ? InboxItemState::Done : InboxItemState::Obsolete, $note, $now, InboxEventType::ACTOR_AGENT);
+        $this->closer->close($item, $recovered ? InboxItemState::Resolved : InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded, null, $now);
         $episode->endedAt = $now;
     }
 

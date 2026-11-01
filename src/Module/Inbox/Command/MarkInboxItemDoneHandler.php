@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -19,7 +21,6 @@ final readonly class MarkInboxItemDoneHandler
     private const string ERROR_FIELD = 'item';
 
     public const string NOT_A_TO_DO = 'inbox.done.error.not_a_todo';
-    public const string ALREADY_DONE = 'inbox.done.error.already_done';
 
     public function __construct(
         private InboxItemCloser $closer,
@@ -34,13 +35,11 @@ final readonly class MarkInboxItemDoneHandler
             throw new DomainErrors([self::ERROR_FIELD => self::NOT_A_TO_DO]);
         }
 
-        // A second done from an older page would only move updatedAt.
-        $this->closer->respond($item, InboxItemState::Done, self::ERROR_FIELD, function (InboxItem $item) use ($command): ?array {
-            if (InboxItemState::Done === $item->state) {
-                return [self::ERROR_FIELD => self::ALREADY_DONE];
-            }
-            $item->closeNote = null;
-            $item->respondedThroughAgent = $command->throughAgent;
+        $closer = $command->commandSucceeded ? InboxCloser::Loupe : ($command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner);
+        $cause = $command->commandSucceeded ? InboxCloseCause::CommandSucceeded : null;
+        $note = trim($command->note);
+        $this->closer->respond($item, InboxItemState::Resolved, $closer, $cause, self::ERROR_FIELD, static function (InboxItem $item) use ($note): ?array {
+            $item->note = '' === $note ? null : $note;
 
             return null;
         });

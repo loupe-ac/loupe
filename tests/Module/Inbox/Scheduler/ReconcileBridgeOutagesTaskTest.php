@@ -99,7 +99,7 @@ final class ReconcileBridgeOutagesTaskTest extends KernelTestCase
 
         $outages = $this->outages();
         self::assertCount(1, $outages);
-        self::assertSame(InboxItemState::Obsolete, $outages[0]->item->state);
+        self::assertSame(InboxItemState::Cancelled, $outages[0]->item->state);
         self::assertNotNull($outages[0]->endedAt);
     }
 

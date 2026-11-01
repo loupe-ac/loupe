@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Controller;
 
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -66,7 +68,9 @@ final class NoticeItemPageTest extends WebTestCase
 
     public function test_a_closed_notice_says_loupe_closed_it(): void
     {
-        $this->notice->state = InboxItemState::Done;
+        $this->notice->state = InboxItemState::Resolved;
+        $this->notice->closedBy = InboxCloser::Loupe;
+        $this->notice->closeCause = InboxCloseCause::FactEnded;
         $this->notice->closedAt = new \DateTimeImmutable();
         $this->em->flush();
         $indexer = static::getContainer()->get(InboxSearchIndexer::class);
@@ -76,9 +80,11 @@ final class NoticeItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?q=races');
 
         self::assertResponseIsSuccessful();
-        $editable = $crawler->filter('[data-inbox-item="1"] [data-inbox-editable]');
-        self::assertCount(1, $editable);
-        self::assertSame('no', $editable->attr('data-inbox-editable'));
+        $closing = $crawler->filter('[data-inbox-item="1"] [data-inbox-closing="loupe"]');
+        self::assertCount(1, $closing);
+        self::assertSame('Loupe', $closing->filter('.lp-comment-author')->text());
+        self::assertStringContainsString('What this notice reported no longer holds.', $closing->text());
+        self::assertCount(0, $crawler->filter('[data-inbox-item="1"] [data-inbox-editable]'));
         self::assertCount(0, $crawler->filter('[data-inbox-item="1"] form'));
     }
 
@@ -113,7 +119,9 @@ final class NoticeItemPageTest extends WebTestCase
     public function test_a_closed_repository_misfit_offers_no_action(): void
     {
         $misfitNotice = new InboxItem(project: $this->project, number: 2, kind: InboxItemKind::Notice, title: 'acme/a does not fit the workflow', blocking: false, origin: InboxAskOrigin::Loupe, body: 'New work is paused.');
-        $misfitNotice->state = InboxItemState::Done;
+        $misfitNotice->state = InboxItemState::Resolved;
+        $misfitNotice->closedBy = InboxCloser::Loupe;
+        $misfitNotice->closeCause = InboxCloseCause::FactEnded;
         $misfitNotice->closedAt = new \DateTimeImmutable();
         $this->em->persist($misfitNotice);
         $misfit = new InboxRepositoryMisfit($this->project, $misfitNotice, new \DateTimeImmutable(), [['id' => '0197c8a0-0000-7000-8000-0000000000a1', 'path' => 'acme/a', 'gaps' => 1]]);

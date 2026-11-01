@@ -19,13 +19,23 @@ enum InboxActionKind: string
     case OpenPullRequest = 'open-pull-request';
     case ApprovePullRequest = 'approve-pull-request';
     case HoldCard = 'hold-card';
+    case Answer = 'answer';
+    case Complete = 'complete';
+    case SubmitReview = 'submit-review';
 
     /**
      * A worker can suggest the kind. Add entry is the owner's own step after a run-command suggestion, so no suggestion names it.
      * Open the pull request, approve it and hold the card answer a work-limit pause, which names the rule and its pull request.
+     * Answer, complete and submit review are the owner's own words, so no agent suggests them.
      */
     public function isSuggestable(): bool
     {
-        return !\in_array($this, [self::AddEntry, self::OpenPullRequest, self::ApprovePullRequest, self::HoldCard], true);
+        return !\in_array($this, [self::AddEntry, self::OpenPullRequest, self::ApprovePullRequest, self::HoldCard, self::Answer, self::Complete, self::SubmitReview], true);
+    }
+
+    /** Whether the kind closes the item with the response of the owner. */
+    public function isResponse(): bool
+    {
+        return \in_array($this, [self::Dismiss, self::Answer, self::Complete, self::SubmitReview], true);
     }
 }

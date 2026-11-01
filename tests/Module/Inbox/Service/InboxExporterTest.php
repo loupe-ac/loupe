@@ -11,6 +11,8 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -58,11 +60,11 @@ final class InboxExporterTest extends KernelTestCase
             freeText: true,
             createdAt: new \DateTimeImmutable('2026-09-01 09:00:00'),
         );
-        $item->state = InboxItemState::Answered;
+        $item->state = InboxItemState::Resolved;
         $item->selectedOptions = [1];
-        $item->answerText = 'Done, it shipped.';
-        $item->closeNote = 'No note';
-        $item->respondedThroughAgent = true;
+        $item->closedBy = InboxCloser::OwnerThroughAgent;
+        $item->closeCause = InboxCloseCause::Withdrawn;
+        $item->note = 'Done, it shipped.';
         $item->updatedAt = new \DateTimeImmutable('2026-09-02 10:00:00');
         $item->closedAt = new \DateTimeImmutable('2026-09-02 10:00:00');
         $item->cards->add(new InboxItemCard($item, $card));
@@ -84,11 +86,12 @@ final class InboxExporterTest extends KernelTestCase
             'multiple' => true,
             'freeText' => true,
             'blocking' => true,
-            'state' => 'answered',
+            'state' => 'resolved',
             'selectedOptions' => [1],
-            'answerText' => 'Done, it shipped.',
-            'closeNote' => 'No note',
-            'respondedThroughAgent' => true,
+            'closedBy' => 'owner-through-agent',
+            'closeCause' => 'withdrawn',
+            'note' => 'Done, it shipped.',
+            'dismissible' => true,
             'createdAt' => new \DateTimeImmutable('2026-09-01 09:00:00')->format(\DateTimeInterface::ATOM),
             'updatedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),
             'closedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),

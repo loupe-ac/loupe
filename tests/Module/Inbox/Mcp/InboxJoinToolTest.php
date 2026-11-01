@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
+use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Mcp\InboxJoinTool;
 use App\Module\Inbox\Mcp\InboxWithdrawTool;
 use App\Security\McpBoundProjectVoter;
@@ -13,6 +17,8 @@ use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 
 final class InboxJoinToolTest extends KernelTestCase
@@ -133,10 +139,11 @@ final class InboxJoinToolTest extends KernelTestCase
     {
         $this->enableInbox();
         $this->actAsMcpTokenBoundTo($this->makeProject('inbox-join-closed'));
-        $asked = $this->askQuestion('Which column?');
+        $session = (string) Uuid::v4();
+        $asked = $this->askQuestion('Which column?', sessionId: $session);
         $withdraw = self::getContainer()->get(InboxWithdrawTool::class);
         self::assertInstanceOf(InboxWithdrawTool::class, $withdraw);
-        $withdraw($asked['items'][0]['itemId'], 'Settled');
+        $withdraw($asked['items'][0]['itemId'], $session, 'Settled');
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('itemId: The item is already closed.');
@@ -174,5 +181,80 @@ final class InboxJoinToolTest extends KernelTestCase
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('bridgeId: This session\'s open ask already names another bridge.');
         ($this->tool)($theirs['items'][0]['itemId'], $sessionId, (string) Uuid::v4());
+    }
+
+    public function test_a_wait_item_is_refused(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-join-wait');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $this->assertNotJoinable(new InboxItem(project: $project, number: 1, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true, origin: InboxAskOrigin::Loupe));
+    }
+
+    public function test_a_notice_is_refused(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-join-notice');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $this->assertNotJoinable(new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'The bridge is offline', blocking: false, origin: InboxAskOrigin::Loupe));
+    }
+
+    public function test_a_workflow_question_is_refused(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-join-workflow');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $this->assertNotJoinable(new InboxItem(project: $project, number: 1, kind: InboxItemKind::Workflow, title: 'Which column?', blocking: true, origin: InboxAskOrigin::Loupe, options: ['next', 'done']));
+    }
+
+    public function test_a_session_header_that_names_another_session_is_refused(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-join-header'));
+        $asked = $this->askQuestion('Which column?');
+        $this->sendFromSession((string) Uuid::v4());
+
+        try {
+            ($this->tool)($asked['items'][0]['itemId'], (string) Uuid::v4());
+            self::fail('Expected a refusal for a session id that is not the caller\'s.');
+        } catch (ToolCallException $e) {
+            self::assertSame('sessionId: Pass your own session id. This call comes from another session.', $e->getMessage());
+        }
+    }
+
+    public function test_a_session_header_that_names_the_session_argument_may_join(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-join-own-header'));
+        $asked = $this->askQuestion('Which column?');
+        $session = (string) Uuid::v4();
+        $this->sendFromSession($session);
+
+        self::assertFalse(($this->tool)($asked['items'][0]['itemId'], $session)['closed']);
+    }
+
+    private function assertNotJoinable(InboxItem $item): void
+    {
+        $this->em->persist($item);
+        $this->em->flush();
+
+        try {
+            ($this->tool)((string) $item->id, (string) Uuid::v4());
+            self::fail('Expected a refusal for an item that Loupe opened.');
+        } catch (ToolCallException $e) {
+            self::assertStringStartsWith('itemId: Loupe opened this item', $e->getMessage());
+        }
+    }
+
+    private function sendFromSession(string $sessionId): void
+    {
+        $request = Request::create('/mcp', Request::METHOD_POST);
+        $request->headers->set(AgentRunCause::SESSION_HEADER, $sessionId);
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
     }
 }

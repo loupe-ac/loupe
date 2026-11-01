@@ -67,6 +67,7 @@ final readonly class InboxAskTool implements FlagGatedToolInterface
                 'options' => ['type' => 'array', 'items' => ['type' => 'string', 'maxLength' => InboxLimits::MAX_OPTION_LENGTH], 'maxItems' => InboxLimits::MAX_OPTIONS, 'description' => 'the answers the owner picks from, each different; a question only'],
                 'multiple' => ['type' => 'boolean', 'description' => 'the owner may pick several options'],
                 'freeText' => ['type' => 'boolean', 'description' => 'the owner may write an answer; a question only'],
+                'dismissible' => ['type' => 'boolean', 'description' => 'the owner may dismiss the item; defaults to true'],
                 'blocking' => ['type' => 'boolean', 'description' => 'you wait for this item; defaults to true for a question and false for a todo or review'],
                 'cardIds' => ['type' => 'array', 'items' => ['type' => 'string'], 'maxItems' => InboxLimits::MAX_LINKS, 'description' => 'ids of cards of this project'],
                 'documentIds' => ['type' => 'array', 'items' => ['type' => 'string'], 'maxItems' => InboxLimits::MAX_LINKS, 'description' => 'ids of documents of this project'],

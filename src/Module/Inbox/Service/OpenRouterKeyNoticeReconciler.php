@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxOpenRouterKeyNotice;
-use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
@@ -97,13 +98,13 @@ final readonly class OpenRouterKeyNoticeReconciler
     /** OpenRouter accepts the key again. */
     public function works(Uuid $keyId): void
     {
-        $this->closeAll($keyId, InboxItemState::Done);
+        $this->closeAll($keyId, InboxItemState::Resolved);
     }
 
     /** The key is gone, so the refusal is no longer a fact about the project. */
     public function removed(Uuid $keyId): void
     {
-        $this->closeAll($keyId, InboxItemState::Obsolete);
+        $this->closeAll($keyId, InboxItemState::Cancelled);
     }
 
     private function closeAll(Uuid $keyId, InboxItemState $state): void
@@ -119,20 +120,15 @@ final readonly class OpenRouterKeyNoticeReconciler
                 }
 
                 // A stale works signal leaves the notice of a key refused again open,
-                // and never closes a removed key as done.
+                // and never resolves the notice of a removed key.
                 $keyState = $this->openRouterKeys->lockState($notice->keyId);
-                if (InboxItemState::Done === $state && OpenRouterKeyState::Refused === $keyState) {
+                if (InboxItemState::Resolved === $state && OpenRouterKeyState::Refused === $keyState) {
                     return false;
                 }
 
                 $now = self::whole($this->clock->now());
-                $done = InboxItemState::Done === $state && $this->inbox->isEnabled() && null !== $keyState;
-                $note = $done ? $this->translator->trans('inbox.openrouter_key.closed', [
-                    '%start%' => self::stamp($notice->startedAt),
-                    '%end%' => self::stamp($now),
-                ], null, $this->locale) : null;
-
-                $closed = $this->closer->close($notice->item, $done ? InboxItemState::Done : InboxItemState::Obsolete, $note, $now, InboxEventType::ACTOR_AGENT);
+                $resolved = InboxItemState::Resolved === $state && $this->inbox->isEnabled() && null !== $keyState;
+                $closed = $this->closer->close($notice->item, $resolved ? InboxItemState::Resolved : InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded, null, $now);
                 $notice->endedAt = $now;
                 $this->em->flush();
 
@@ -167,11 +163,6 @@ final readonly class OpenRouterKeyNoticeReconciler
         $this->bus->dispatch(new NotifyInboxOwner(($item->id ?? throw new \LogicException('A persisted item has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Notice));
 
         return $notice;
-    }
-
-    private static function stamp(\DateTimeImmutable $moment): string
-    {
-        return $moment->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i').' UTC';
     }
 
     /** Whole seconds, like the stored columns. */

@@ -154,6 +154,7 @@ final readonly class AskInboxHandler
                         searchLanguage: $command->project->searchLanguage,
                     );
                     $item->suggestedActions = [] === $draft->suggestedActions ? null : $draft->suggestedActions;
+                    $item->dismissible = $draft->dismissible;
                     foreach ($draft->cards as $card) {
                         $item->cards->add(new InboxItemCard($item, $card, $now));
                     }
@@ -345,6 +346,7 @@ final readonly class AskInboxHandler
             documents: $documents,
             reviewTarget: $reviewTarget,
             suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge),
+            dismissible: $input->dismissible,
         );
     }
 

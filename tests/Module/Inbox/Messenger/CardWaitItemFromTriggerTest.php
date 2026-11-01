@@ -61,7 +61,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         $this->drainAsync();
 
         self::assertSame([], $watches->findOpenForCards($project, [$card->id]));
-        self::assertSame(InboxItemState::Done->value, $em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $item->id]));
+        self::assertSame(InboxItemState::Resolved->value, $em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $item->id]));
     }
 
     public function test_a_blocked_run_gets_a_wait_item_until_a_newer_run_starts(): void
@@ -94,7 +94,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         $this->drainAsync();
 
         self::assertSame([], $watches->findOpenForCards($project, [$cardId]));
-        self::assertSame(InboxItemState::Done->value, $em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $item->id]));
+        self::assertSame(InboxItemState::Resolved->value, $em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $item->id]));
     }
 
     public function test_a_blocked_run_with_a_title_names_its_item_by_that_title(): void

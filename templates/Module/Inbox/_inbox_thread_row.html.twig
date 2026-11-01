@@ -1,5 +1,5 @@
 {#- One row of the split button menu. A link goes to its address, a disabled row says why, and any other row posts the reply form to its action.
-   Params: row (ThreadAction; a run-command row opens its dialog), actionParams, declineFormId (the form Dismiss submits, or null), cardDrawer, drawerTitle (the ask title the card drawer shows while it loads). -#}
+   Params: row (ThreadAction; a run-command row opens its dialog), actionParams, cardDrawer, drawerTitle (the ask title the card drawer shows while it loads). -#}
 {% set kind = row.action.kind.value %}
 {% set command = row.action.runCommand %}
 {% set off = row.action.disabledReasonKey and not (command and (command.canOpenDialog or command.canAddEntry)) %}
@@ -25,8 +25,6 @@
 {% elseif kind == 'start-session' and row.action.sessionPrompt is not null %}
     {# The row shows the prompt field of the reply form first, so the owner reads the prompt before the session starts. #}
     <twig:Ds:MenuItem type="button" role="menuitem" data-action="click->split-button#close click->inbox-session-prompt#reveal" data-inbox-action="{{ kind }}">{{ label }}</twig:Ds:MenuItem>
-{% elseif kind == 'dismiss' %}
-    <twig:Ds:MenuItem type="submit" role="menuitem" form="{{ declineFormId }}" data-inbox-action="dismiss">{{ label }}</twig:Ds:MenuItem>
 {% else %}
     <twig:Ds:MenuItem type="submit" role="menuitem" :formaction="path('app_inbox_item_action', actionParams|merge({kind: kind}))" data-inbox-action="{{ kind }}">{{ label }}</twig:Ds:MenuItem>
 {% endif %}

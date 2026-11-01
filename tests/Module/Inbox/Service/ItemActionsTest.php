@@ -29,20 +29,26 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\PauseKind;
@@ -262,13 +268,13 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([InboxActionKind::RetryCard], $this->defaults($item));
     }
 
-    public function test_a_question_that_links_a_card_offers_no_action_the_agent_did_not_suggest(): void
+    public function test_a_question_that_links_a_card_offers_only_a_session_the_agent_did_not_suggest_beside_its_response(): void
     {
         $item = $this->item($this->em, $this->project);
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em->flush();
 
-        self::assertSame([], $this->actions()->forItem($item));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::StartSession, InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_a_question_offers_only_the_suggestions_that_fit_and_defaults_to_the_recommended_one(): void
@@ -279,17 +285,136 @@ final class ItemActionsTest extends KernelTestCase
         ]);
 
         self::assertSame(
-            [[InboxActionKind::Open, true, 'Read the card first.']],
+            [[InboxActionKind::Answer, false, null], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::StartSession, false, null], [InboxActionKind::Dismiss, false, null]],
             array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($item)),
         );
     }
 
-    public function test_a_question_without_a_recommendation_has_no_default(): void
+    public function test_a_question_without_a_recommendation_defaults_to_its_answer(): void
     {
         $item = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
 
+        self::assertSame([InboxActionKind::Answer], $this->defaults($item));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Open, InboxActionKind::StartSession, InboxActionKind::Dismiss], $this->kinds($item));
+    }
+
+    public function test_an_agent_cannot_suggest_a_response_kind(): void
+    {
+        foreach ([InboxActionKind::Answer, InboxActionKind::Complete, InboxActionKind::SubmitReview] as $kind) {
+            self::assertFalse($kind->isSuggestable());
+            self::assertTrue($kind->isResponse());
+        }
+        self::assertTrue(InboxActionKind::Dismiss->isResponse());
+        self::assertFalse(InboxActionKind::Open->isResponse());
+    }
+
+    public function test_a_workflow_question_offers_its_answer_and_no_dismissal(): void
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design']);
+        $this->em->persist($item);
+        $this->em->flush();
+
+        self::assertFalse($item->dismissible);
+        self::assertSame([InboxActionKind::Answer], $this->kinds($item));
+        self::assertSame([InboxActionKind::Answer], $this->defaults($item));
+    }
+
+    public function test_a_notice_offers_no_response(): void
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: 'The repository is blocked', blocking: false, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($item);
+        $this->em->flush();
+
+        self::assertSame([], $this->kinds($item));
+    }
+
+    public function test_a_review_of_a_person_offers_its_verdict_and_a_dismissal(): void
+    {
+        $item = $this->reviewOf($this->document($this->em, $this->project))->item;
+
+        self::assertSame([InboxActionKind::SubmitReview, InboxActionKind::Dismiss], $this->kinds($item));
+        self::assertSame([InboxActionKind::SubmitReview], $this->defaults($item));
+    }
+
+    public function test_the_flag_decides_dismiss_but_a_review_whose_document_is_gone_always_offers_it(): void
+    {
+        $review = $this->reviewOf($this->document($this->em, $this->project));
+        $item = $review->item;
+        $item->dismissible = false;
+        $this->em->flush();
+        self::assertSame([InboxActionKind::SubmitReview], $this->kinds($item));
+
+        $review->document = null;
+        $this->em->flush();
+        self::assertSame([InboxActionKind::SubmitReview, InboxActionKind::Dismiss], $this->kinds($item));
+    }
+
+    public function test_a_closed_item_offers_nothing_but_a_new_session(): void
+    {
+        $this->sessionBridge();
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null]]);
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::StartSession, InboxActionKind::Dismiss], $this->kinds($item));
+
+        $item->state = InboxItemState::Resolved;
+        $item->closedBy = InboxCloser::Owner;
+        $item->selectedOptions = [0];
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
         self::assertSame([], $this->defaults($item));
-        self::assertSame([InboxActionKind::Open], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item)));
+    }
+
+    public function test_a_closed_item_with_no_session_to_start_offers_nothing(): void
+    {
+        $item = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]]);
+        $item->state = InboxItemState::Declined;
+        $item->closedBy = InboxCloser::Owner;
+        $this->em->flush();
+
+        self::assertSame([], $this->kinds($item));
+    }
+
+    public function test_a_closed_question_or_todo_offers_a_new_session_that_no_agent_suggested(): void
+    {
+        $this->sessionBridge();
+        $question = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]], 100);
+        $todo = $this->todo(null);
+        foreach ([$question, $todo] as $item) {
+            $item->state = InboxItemState::Resolved;
+            $item->closedBy = InboxCloser::Owner;
+        }
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($question));
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($todo));
+    }
+
+    public function test_a_closed_wait_item_offers_nothing_but_a_new_session(): void
+    {
+        $this->sessionBridge();
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+        $item->state = InboxItemState::Cancelled;
+        $item->closedBy = InboxCloser::Loupe;
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
+    }
+
+    /** @return list<InboxActionKind> */
+    private function kinds(InboxItem $item): array
+    {
+        return array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item));
+    }
+
+    private function reviewOf(Document $document): InboxReview
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Review, title: 'Review the design', blocking: true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $document);
+        $this->em->persist($item);
+        $this->em->persist($review);
+        $this->em->flush();
+
+        return $review;
     }
 
     public function test_start_session_is_disabled_while_no_bridge_reports_the_session_capability(): void
@@ -370,6 +495,189 @@ final class ItemActionsTest extends KernelTestCase
         self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98), InboxActionKind::Open));
     }
 
+    private function itemSessionBridge(?string $name = null): Bridge
+    {
+        return $this->sessionBridge(workKinds: [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)], name: $name);
+    }
+
+    private function notice(string $title = 'The repository is blocked'): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: $title, blocking: false, origin: InboxAskOrigin::Loupe, body: 'Look at the remote.');
+        $this->em->persist($item);
+        $this->em->flush();
+
+        return $item;
+    }
+
+    private function link(InboxItem $item, Card ...$cards): void
+    {
+        foreach ($cards as $card) {
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $this->em->flush();
+    }
+
+    public function test_a_session_from_an_item_with_no_card_is_about_the_item_and_needs_the_item_work_kind(): void
+    {
+        $this->itemSessionBridge('geoffrey-mbp');
+        $item = $this->notice();
+
+        $subject = $this->actions()->sessionSubjectOf($item);
+        $action = $this->startSession($item);
+
+        self::assertSame(InboxItem::SUBJECT_TYPE, $subject->type);
+        self::assertSame($item->id?->toRfc4122(), $subject->id->toRfc4122());
+        self::assertNull($action->disabledReasonKey);
+        self::assertSame('geoffrey-mbp', $action->bridgeName);
+        self::assertStringContainsString('The repository is blocked', (string) $action->sessionPrompt);
+    }
+
+    public function test_a_bridge_without_the_item_work_kind_hides_the_item_session(): void
+    {
+        $this->sessionBridge();
+
+        self::assertSame([], $this->kinds($this->notice()));
+    }
+
+    public function test_an_item_with_no_card_and_no_bridge_that_opens_sessions_offers_no_session(): void
+    {
+        self::assertSame([], $this->kinds($this->notice()));
+        $this->sessionBridge(capabilities: [Bridge::CAPABILITY_WORK_REQUESTS]);
+        self::assertSame([], $this->kinds($this->notice('Another notice')));
+    }
+
+    public function test_an_item_with_one_card_starts_its_session_on_the_card_with_any_session_bridge(): void
+    {
+        $this->sessionBridge();
+        $item = $this->notice();
+        $this->link($item, $this->card);
+
+        $subject = $this->actions()->sessionSubjectOf($item);
+        $action = $this->startSession($item);
+
+        self::assertSame(WorkSubject::CARD, $subject->type);
+        self::assertSame($this->card->id?->toRfc4122(), $subject->id->toRfc4122());
+        self::assertNull($action->disabledReasonKey);
+        self::assertNull($action->bridgeName);
+    }
+
+    public function test_an_item_with_several_cards_starts_its_session_about_the_item(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->notice();
+        $this->link($item, $this->card, $this->card($this->em, $this->project, 8));
+
+        self::assertSame(InboxItem::SUBJECT_TYPE, $this->actions()->sessionSubjectOf($item)->type);
+        self::assertNull($this->startSession($item)->disabledReasonKey);
+    }
+
+    public function test_the_card_that_a_suggestion_names_is_the_subject_of_an_item_with_several_cards(): void
+    {
+        $this->itemSessionBridge();
+        $second = $this->card($this->em, $this->project, 8);
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => $second->id?->toRfc4122()]]);
+        $this->link($item, $second);
+
+        $subject = $this->actions()->sessionSubjectOf($item);
+
+        self::assertSame(WorkSubject::CARD, $subject->type);
+        self::assertSame($second->id?->toRfc4122(), $subject->id->toRfc4122());
+    }
+
+    public function test_several_bridges_leave_the_hint_without_a_name(): void
+    {
+        $this->itemSessionBridge('one');
+        $this->itemSessionBridge('two');
+
+        self::assertNull($this->startSession($this->notice())->bridgeName);
+    }
+
+    /** @return iterable<string, array{WorkRequestState, bool}> */
+    public static function requestsOfTheItem(): iterable
+    {
+        yield 'an open session request' => [WorkRequestState::Open, false];
+        yield 'a claimed session request' => [WorkRequestState::Claimed, false];
+        yield 'a session request that ended' => [WorkRequestState::Done, true];
+    }
+
+    #[DataProvider('requestsOfTheItem')]
+    public function test_a_live_session_request_of_the_item_hides_start_session(WorkRequestState $state, bool $offered): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->notice();
+        $request = new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $item->id ?? throw new \LogicException('Stored.'), null, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', new \DateTimeImmutable());
+        $request->state = $state;
+        $this->em->persist($request);
+        $this->em->flush();
+
+        self::assertSame($offered, [] !== $this->kinds($item));
+    }
+
+    public function test_a_live_session_request_of_the_item_hides_start_session_also_when_the_item_now_has_one_card(): void
+    {
+        $this->sessionBridge();
+        $item = $this->notice();
+        $request = new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $item->id ?? throw new \LogicException('Stored.'), null, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', new \DateTimeImmutable());
+        $this->em->persist($request);
+        $this->link($item, $this->card);
+
+        self::assertSame(WorkSubject::CARD, $this->actions()->sessionSubjectOf($item)->type);
+        self::assertSame([InboxActionKind::Open], $this->kinds($item));
+    }
+
+    public function test_a_session_request_of_another_item_does_not_hide_start_session(): void
+    {
+        $this->itemSessionBridge();
+        $other = $this->notice('Other');
+        $item = $this->notice();
+        $request = new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $other->id ?? throw new \LogicException('Stored.'), null, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', new \DateTimeImmutable());
+        $this->em->persist($request);
+        $this->em->flush();
+
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
+    }
+
+    public function test_a_closed_item_with_no_card_offers_a_session_only_with_an_item_bridge(): void
+    {
+        $this->sessionBridge();
+        $closed = $this->item($this->em, $this->project, 80);
+        $closed->state = InboxItemState::Resolved;
+        $closed->closedBy = InboxCloser::Owner;
+        $this->em->flush();
+        self::assertSame([], $this->kinds($closed));
+
+        $this->itemSessionBridge();
+        self::assertSame([InboxActionKind::StartSession], $this->kinds($closed));
+    }
+
+    public function test_the_agent_prompt_wins_over_the_written_prompt(): void
+    {
+        $this->itemSessionBridge();
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null, 'prompt' => 'Use the skill.']]);
+
+        self::assertSame('Use the skill.', $this->startSession($item)->sessionPrompt);
+        self::assertSame('Use the skill.', $this->actions()->sessionPromptFor($item));
+    }
+
+    public function test_an_open_question_or_to_do_that_suggests_no_session_still_offers_one_but_never_by_default(): void
+    {
+        $this->itemSessionBridge();
+        $question = $this->item($this->em, $this->project, 81);
+        $todo = $this->todo(null);
+        $this->em->flush();
+
+        foreach ([$question, $todo] as $item) {
+            $kinds = $this->kinds($item);
+            self::assertContains(InboxActionKind::StartSession, $kinds);
+            self::assertNotContains(InboxActionKind::StartSession, $this->defaults($item));
+            self::assertNull($this->startSession($item)->disabledReasonKey);
+            self::assertStringContainsString($item->title, (string) $this->startSession($item)->sessionPrompt);
+            self::assertStringContainsString($item->title, $this->actions()->sessionPromptFor($item));
+        }
+        self::assertSame(InboxActionKind::Answer, array_first($this->defaults($question)));
+        self::assertSame(InboxActionKind::Complete, array_first($this->defaults($todo)));
+    }
+
     private function startSession(InboxItem $item): ItemAction
     {
         return array_find($this->actions()->forItem($item), static fn (ItemAction $action): bool => InboxActionKind::StartSession === $action->kind)
@@ -379,23 +687,26 @@ final class ItemActionsTest extends KernelTestCase
     /**
      * @param list<string>|null $capabilities
      * @param list<string>|null $projects
+     * @param list<string>      $workKinds
      */
-    private function sessionBridge(?\DateTimeImmutable $lastSeenAt = null, ?array $capabilities = null, ?array $projects = null): Bridge
+    private function sessionBridge(?\DateTimeImmutable $lastSeenAt = null, ?array $capabilities = null, ?array $projects = null, array $workKinds = [], ?string $name = null): Bridge
     {
         $bridge = new Bridge($this->project->owner, Uuid::v4(), $projects ?? [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', $lastSeenAt ?? new \DateTimeImmutable());
         $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $bridge->workKinds = $workKinds;
+        $bridge->name = $name;
         $this->em->persist($bridge);
         $this->em->flush();
 
         return $bridge;
     }
 
-    public function test_a_question_with_no_link_offers_nothing(): void
+    public function test_a_question_with_no_link_offers_its_answer_and_a_dismissal_only(): void
     {
         $item = $this->item($this->em, $this->project);
         $this->em->flush();
 
-        self::assertSame([], $this->actions()->forItem($item));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_for_items_keys_each_item_by_its_id(): void
@@ -410,8 +721,26 @@ final class ItemActionsTest extends KernelTestCase
 
         self::assertSame([$runKey, $questionKey], array_keys($actions));
         self::assertSame(InboxActionKind::ResumeRun, $actions[$runKey][0]->kind);
-        self::assertSame([], $actions[$questionKey]);
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::Dismiss], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $actions[$questionKey]));
         self::assertSame([], $this->actions()->forItems([]));
+    }
+
+    public function test_a_plain_to_do_offers_complete_by_default_and_dismiss_when_the_flag_allows(): void
+    {
+        $item = $this->todo(null);
+
+        self::assertSame([[InboxActionKind::Complete, true], [InboxActionKind::Dismiss, false]], $this->summary($item));
+
+        $item->dismissible = false;
+
+        self::assertSame([[InboxActionKind::Complete, true]], $this->summary($item));
+    }
+
+    public function test_a_to_do_with_a_suggestion_offers_it_as_the_default(): void
+    {
+        $item = $this->todo([['action' => 'open', 'reason' => 'Read it.', 'recommended' => true, 'cardId' => null]]);
+
+        self::assertContains([InboxActionKind::Open, true], $this->summary($item));
     }
 
     public function test_a_recommended_suggestion_that_fits_is_the_default_and_carries_its_reason(): void
@@ -472,21 +801,21 @@ final class ItemActionsTest extends KernelTestCase
         ]);
 
         self::assertSame(
-            [[InboxActionKind::Open, true, 'Read the card first.']],
+            [[InboxActionKind::Complete, false, null], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::StartSession, false, null], [InboxActionKind::Dismiss, false, 'Nothing to do.']],
             array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($todo)),
         );
     }
 
-    public function test_a_todo_with_no_suggestions_offers_no_action(): void
+    public function test_a_todo_with_no_suggestions_offers_its_completion_and_a_dismissal(): void
     {
-        self::assertSame([], $this->actions()->forItem($this->todo(null)));
+        self::assertSame([InboxActionKind::Complete, InboxActionKind::StartSession, InboxActionKind::Dismiss], $this->kinds($this->todo(null)));
     }
 
-    public function test_a_todo_without_a_recommendation_has_no_default(): void
+    public function test_a_todo_without_a_recommendation_defaults_to_its_completion(): void
     {
         $todo = $this->todo([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
 
-        self::assertSame([], $this->defaults($todo));
+        self::assertSame([InboxActionKind::Complete], $this->defaults($todo));
     }
 
     /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}> $suggestions */
@@ -646,6 +975,12 @@ final class ItemActionsTest extends KernelTestCase
         $holds = self::getContainer()->get(CardHoldRepository::class);
         self::assertInstanceOf(CardHoldRepository::class, $holds);
 
+        $reviewLookup = self::getContainer()->get(InboxReviewLookup::class);
+        self::assertInstanceOf(InboxReviewLookup::class, $reviewLookup);
+
+        $sessionPrompts = self::getContainer()->get(SessionPromptWriter::class);
+        self::assertInstanceOf(SessionPromptWriter::class, $sessionPrompts);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -659,6 +994,8 @@ final class ItemActionsTest extends KernelTestCase
             new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
             $waitText,
             $holds,
+            $reviewLookup,
+            $sessionPrompts,
         );
     }
 

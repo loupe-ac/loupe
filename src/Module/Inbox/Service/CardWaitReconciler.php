@@ -14,12 +14,13 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
@@ -324,11 +325,23 @@ final readonly class CardWaitReconciler
             return false;
         }
 
-        $state = $obsolete ? InboxItemState::Obsolete : InboxItemState::Done;
-        $this->closer->close($watch->item, $state, null, $now, InboxEventType::ACTOR_AGENT);
+        $state = $obsolete ? InboxItemState::Cancelled : InboxItemState::Resolved;
+        $this->closer->close($watch->item, $state, InboxCloser::Loupe, self::closeCause($cause), null, $now);
         $watch->closedAt = $now;
 
         return true;
+    }
+
+    /** The wait that decides how its item closes names the cause. */
+    private static function closeCause(InboxCardWaitEndReason $reason): InboxCloseCause
+    {
+        return match ($reason) {
+            InboxCardWaitEndReason::Resolved => InboxCloseCause::CauseEnded,
+            InboxCardWaitEndReason::CardFinished => InboxCloseCause::CardFinished,
+            InboxCardWaitEndReason::CardDeleted => InboxCloseCause::CardDeleted,
+            InboxCardWaitEndReason::SwitchedOff => InboxCloseCause::SwitchedOff,
+            InboxCardWaitEndReason::Dismissed => throw new \LogicException('A dismissed wait belongs to an item that is already closed.'),
+        };
     }
 
     /** Ends the open waits of a watch whose item is already closed. */

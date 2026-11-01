@@ -9,9 +9,11 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlerInterface;
 use App\Module\Insights\Entity\Analysis;
 use App\Module\Insights\Repository\AnalysisRepository;
+use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Ends an analysis whose work ended without a report. A worker that reported
@@ -35,6 +37,12 @@ final readonly class AnalysisWorkSubjectHandler implements WorkSubjectHandlerInt
     public static function subjectType(): string
     {
         return Analysis::SUBJECT_TYPE;
+    }
+
+    #[\Override]
+    public function subjectExists(Project $project, Uuid $subjectId): bool
+    {
+        return null !== $this->analyses->findOneByIdAndProject($subjectId->toRfc4122(), $project);
     }
 
     #[\Override]

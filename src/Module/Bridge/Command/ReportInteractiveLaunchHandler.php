@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Project\Repository\ProjectRepository;
 
 final readonly class ReportInteractiveLaunchHandler
@@ -13,6 +14,7 @@ final readonly class ReportInteractiveLaunchHandler
     public function __construct(
         private ProjectRepository $projects,
         private InteractiveRuns $interactiveRuns,
+        private WorkSubjectHandlers $subjects,
     ) {
     }
 
@@ -22,11 +24,17 @@ final readonly class ReportInteractiveLaunchHandler
         if (null === $project) {
             return new ReportInteractiveLaunchResult(null, created: false);
         }
+        if (!$this->subjects->has($command->subject->type)) {
+            return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::UNKNOWN_SUBJECT_TYPE);
+        }
+        if (!$command->subject->isCard() && !($this->subjects->for($command->subject->type)?->subjectExists($project, $command->subject->id) ?? false)) {
+            return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::SUBJECT_NOT_FOUND);
+        }
 
         [$run, $created] = match ($command->state) {
             WorkerRunState::Running => $this->interactiveRuns->recordLaunch(
                 $project,
-                $command->cardId,
+                $command->subject,
                 $command->cardNumber,
                 $command->sessionId,
                 $command->workKind,
@@ -40,7 +48,7 @@ final readonly class ReportInteractiveLaunchHandler
             ),
             WorkerRunState::NotStarted => $this->interactiveRuns->recordLaunchFailure(
                 $project,
-                $command->cardId,
+                $command->subject,
                 $command->cardNumber,
                 $command->sessionId,
                 $command->workKind,

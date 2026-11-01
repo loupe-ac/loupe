@@ -27,6 +27,7 @@ use App\Module\Inbox\Command\MarkInboxItemDoneCommand;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
+use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
@@ -150,15 +151,17 @@ final class InboxChangedPublisherTest extends KernelTestCase
     public function test_a_withdraw_publishes(): void
     {
         $item = $this->item($this->em, $this->project, 1);
+        $ask = $this->ask($this->em, $this->project);
+        $ask->items->add(new InboxAskItem($ask, $item));
         $this->em->flush();
 
-        $this->service(WithdrawInboxItemHandler::class)(new WithdrawInboxItemCommand($item, 'Settled in chat'));
+        $this->service(WithdrawInboxItemHandler::class)(new WithdrawInboxItemCommand($item, 'Settled in chat', $ask->sessionId ?? throw new \LogicException('An ask of a session.')));
 
         $this->assertPublishedAtTerminate(1);
         $this->assertSignalsTheProject($this->published[0]);
     }
 
-    public function test_a_changed_answer_and_a_join_leave_the_count_alone_and_signal_the_page(): void
+    public function test_a_join_leaves_the_count_alone_and_signals_the_page(): void
     {
         $item = $this->item($this->em, $this->project, 1);
         $this->em->flush();
@@ -166,20 +169,14 @@ final class InboxChangedPublisherTest extends KernelTestCase
         $this->assertPublishedAtTerminate(1);
         self::assertCount(1, $this->pagePublished);
 
-        $this->service(AnswerInboxItemHandler::class)(new AnswerInboxItemCommand($item, '1', ''));
-        $this->assertPublishedAtTerminate(1);
-        self::assertCount(2, $this->pagePublished);
-        $this->assertSignalsThePage($this->pagePublished[1]);
-
         $open = $this->item($this->em, $this->project, 2);
         $this->em->flush();
         $joined = $this->service(JoinInboxAskHandler::class)(new JoinInboxAskCommand($open, Uuid::v4()));
         $this->assertPublishedAtTerminate(1);
         self::assertTrue($joined->added);
-        self::assertCount(3, $this->pagePublished);
-        $this->assertSignalsThePage($this->pagePublished[2], (string) $joined->ask->id);
-        // Guard: the second answer wrote.
-        self::assertSame([1], $this->reload($item)->selectedOptions);
+        self::assertCount(2, $this->pagePublished);
+        $this->assertSignalsThePage($this->pagePublished[1], (string) $joined->ask->id);
+        self::assertSame([0], $this->reload($item)->selectedOptions);
     }
 
     public function test_a_refused_join_signals_nothing(): void
@@ -207,7 +204,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
 
         $this->move($card, 'done');
 
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
         $this->assertPublishedAtTerminate(1);
         $this->assertSignalsTheProject($this->published[0]);
     }
@@ -221,7 +218,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
 
         $this->service(DeleteBoardColumnHandler::class)(new DeleteBoardColumnCommand($this->column($this->project, 'in-progress'), Actor::Human, $this->column($this->project, 'done')));
 
-        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
         $this->assertPublishedAtTerminate(1);
     }
 

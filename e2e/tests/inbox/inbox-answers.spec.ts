@@ -227,6 +227,77 @@ test('inbox search shows Clear only while a search is active', async ({
     ).toBeVisible();
 });
 
+test('the note field marks focus at one height', async ({ page, inbox }) => {
+    const field = page
+        .locator(`#inbox-item-${inbox.questionNumber}`)
+        .getByLabel('Note for the agent');
+    await expect(field).toBeVisible();
+    const before = await field.evaluate((element) => ({
+        height: element.offsetHeight,
+        shadow: getComputedStyle(element).boxShadow,
+    }));
+
+    await field.focus();
+
+    await expect
+        .poll(() =>
+            field.evaluate((element) => getComputedStyle(element).boxShadow),
+        )
+        .not.toBe(before.shadow);
+    expect(await field.evaluate((element) => element.offsetHeight)).toBe(
+        before.height,
+    );
+});
+
+test('the loading cover hides the reply card and ends at the content edge', async ({
+    page,
+    inbox,
+}) => {
+    await page.setViewportSize({ width: 2400, height: 1000 });
+    const replyCard = page
+        .locator(`#inbox-item-${inbox.questionNumber} .lp-comment-composer`)
+        .first();
+    await expect(replyCard).toBeVisible();
+    const contentEdge = await page
+        .locator('.lp-inbox-request-detail')
+        .evaluate((pane) => {
+            const box = pane.getBoundingClientRect();
+            return box.right - parseFloat(getComputedStyle(pane).paddingRight);
+        });
+
+    // The held response keeps the pane loading for the whole check.
+    let release = (): void => {};
+    const held = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await page.route(/\/inbox\?/, async (route) => {
+        await held;
+        await route.continue();
+    });
+    await page.locator('a.lp-list-row').first().click();
+
+    const cover = page.locator('.lp-inbox-pane-loading');
+    await expect(cover).toBeVisible();
+    await expect
+        .poll(() =>
+            replyCard.evaluate((card) => {
+                const box = card.getBoundingClientRect();
+                const top = document.elementFromPoint(
+                    box.left + box.width / 2,
+                    box.top + box.height / 2,
+                );
+                return Boolean(top?.closest('.lp-inbox-pane-loading'));
+            }),
+        )
+        .toBe(true);
+    const coverEdge = await cover.evaluate(
+        (element) => element.getBoundingClientRect().right,
+    );
+    expect(Math.abs(coverEdge - contentEdge)).toBeLessThan(1);
+
+    release();
+});
+
 test('the owner answers a question and declines a to-do', async ({
     page,
     inbox,
@@ -252,28 +323,14 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(question.locator('[data-inbox-response]')).toContainText(
         'The importer reads CSV.',
     );
-    await expect(question.locator('[data-inbox-editable="yes"]')).toBeVisible();
+    // A sent answer is final, so the question keeps no form to change it.
+    await expect(question.locator('.lp-comment-composer')).toHaveCount(0);
+    await expect(question.locator('form')).toHaveCount(0);
     await expect(sidebarPill).toHaveText('1');
 
-    // The to-do still blocks the ask, so the answer can still change, here to text alone.
-    await question.getByRole('button', { name: 'Clear choice' }).click();
-    await question
-        .getByLabel('Note for the agent')
-        .fill('Text alone this time.');
-    await question.getByRole('button', { name: 'Change the answer' }).click();
-    await expect(question.locator('[data-inbox-choices]')).toHaveCount(0);
-    await expect(question.locator('[data-inbox-response]')).toContainText(
-        'Text alone this time.',
-    );
-
-    await question.getByText('CSV', { exact: true }).click();
-    await question
-        .getByLabel('Note for the agent')
-        .fill('An unsent correction.');
-
-    // A to-do takes no prose, so closing it carries no note.
+    // Dismiss closes the to-do, with the note field left empty.
     const todo = page.locator(`#inbox-item-${inbox.todoNumber}`);
-    await todo.getByRole('button', { name: 'Decline' }).click();
+    await todo.getByRole('button', { name: 'Dismiss' }).click();
 
     // No other ask is open, so the page names none and the status line links to the closed one.
     await expect(page.locator('[data-inbox-status]')).toContainText(
@@ -283,24 +340,12 @@ test('the owner answers a question and declines a to-do', async ({
         page.locator('[data-inbox-queue-empty="open-asks"]'),
     ).toBeVisible();
     await page.getByRole('link', { name: 'View it' }).click();
-    await expect(todo).toContainText('Closed');
+    await expect(todo).toContainText('dismissed it at');
     await expect(sidebarPill).toHaveCount(0);
-
-    const recovery = question.locator('[data-inbox-draft-kind="answer"]');
-    await expect(recovery).toBeVisible();
-    await expect(recovery).toContainText('An unsent correction.');
-    await expect(recovery.locator('li')).toHaveText(['CSV']);
-    await expect(question.locator('[data-inbox-response]')).toContainText(
-        'Text alone this time.',
-    );
-    await recovery.getByRole('button', { name: 'Discard draft' }).click();
-    await expect(recovery).toBeHidden();
-    await expect(question.getByRole('heading', { level: 3 })).toBeFocused();
 
     await page.reload();
     await expect(question.locator('[data-inbox-response]')).toContainText(
-        'Text alone this time.',
+        'The importer reads CSV.',
     );
-    // The decline closed the last blocking item, so the ask closed and the answer is final.
-    await expect(question.locator('[data-inbox-editable="no"]')).toBeVisible();
+    await expect(question.locator('.lp-comment-composer')).toHaveCount(0);
 });

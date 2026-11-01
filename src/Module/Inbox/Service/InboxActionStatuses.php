@@ -103,7 +103,7 @@ final readonly class InboxActionStatuses
     }
 
     /**
-     * The work requests of the session actions, the runs they started, and whether a live bridge can open a session for each project.
+     * The work requests of the session actions, the runs they started, and whether a live bridge can take each open request.
      *
      * @param array<string, list<InboxAction>> $byItem
      *
@@ -122,7 +122,7 @@ final readonly class InboxActionStatuses
         $requests = $this->workRequests->findByIds($ids);
 
         $runs = [];
-        foreach ($this->workerRuns->findOfCardWorkRequests(array_values($requests)) as $run) {
+        foreach ($this->workerRuns->findOfSubjectWorkRequests(array_values($requests)) as $run) {
             $runs[(string) $run->workRequestId] ??= $run;
         }
 
@@ -132,14 +132,25 @@ final readonly class InboxActionStatuses
                 $projects[(string) $request->project->id] = $request->project;
             }
         }
+        $live = $this->sessionBridges->liveFor(array_values($projects));
 
-        return [$requests, $runs, $this->sessionBridges->onlineFor(array_values($projects))];
+        $online = [];
+        foreach ($requests as $request) {
+            if (WorkRequestState::Open === $request->state) {
+                $bridges = $live[(string) $request->project->id] ?? [];
+                $online[(string) $request->id] = InboxItem::SUBJECT_TYPE === $request->subjectType
+                    ? array_any($bridges, SessionBridges::opensItemSessions(...))
+                    : [] !== $bridges;
+            }
+        }
+
+        return [$requests, $runs, $online];
     }
 
     /**
      * @param array<string, WorkRequest> $requests      keyed by the RFC 4122 request id
      * @param array<string, WorkerRun>   $requestRuns   the newest run of each request, keyed by the RFC 4122 request id
-     * @param array<string, bool>        $sessionOnline keyed by the project id
+     * @param array<string, bool>        $sessionOnline keyed by the RFC 4122 request id
      */
     private function sessionStatus(InboxAction $action, array $requests, array $requestRuns, array $sessionOnline): ?InboxActionStatus
     {
@@ -158,7 +169,7 @@ final readonly class InboxActionStatuses
         }
 
         return match ($request->state) {
-            WorkRequestState::Open => new InboxActionStatus($action, InboxActionState::Queued, 'inbox.action.status.queued', cancellable: true, offline: !($sessionOnline[(string) $request->project->id] ?? false), at: $action->requestedAt),
+            WorkRequestState::Open => new InboxActionStatus($action, InboxActionState::Queued, 'inbox.action.status.queued', cancellable: true, offline: !($sessionOnline[(string) $request->id] ?? false), at: $action->requestedAt),
             WorkRequestState::Expired => new InboxActionStatus($action, InboxActionState::Expired, 'inbox.action.status.expired', at: $settledAt),
             WorkRequestState::Refused => null === $request->reason
                 ? new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused_no_reason', at: $settledAt)

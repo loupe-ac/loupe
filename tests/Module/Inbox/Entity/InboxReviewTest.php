@@ -37,10 +37,10 @@ final class InboxReviewTest extends KernelTestCase
             $em->persist($target);
         }
         $item = new InboxItem($project, 1, InboxItemKind::Review, 'Review the change', true, origin: InboxAskOrigin::Agent);
-        $item->state = InboxItemState::Done;
+        $item->state = InboxItemState::Resolved;
+        $item->note = 'Explain how a retry preserves the response.';
         $review = new InboxReview($item, $target);
         $review->verdict = InboxReviewVerdict::ChangesRequested;
-        $review->note = 'Explain how a retry preserves the response.';
         $review->reviewer = $owner;
         $review->submittedAt = new \DateTimeImmutable('2026-09-17 00:00:00');
         $review->reviewedVersionNumber = $pullRequest ? null : 1;
@@ -66,11 +66,11 @@ final class InboxReviewTest extends KernelTestCase
         self::assertNull($stored->pullRequest);
         self::assertSame($label, $stored->targetLabel);
         self::assertSame(InboxReviewVerdict::ChangesRequested, $stored->verdict);
-        self::assertSame('Explain how a retry preserves the response.', $stored->note);
+        self::assertSame('Explain how a retry preserves the response.', $stored->item->note);
         self::assertEquals($owner->id, $stored->reviewer?->id);
         self::assertSame('2026-09-17 00:00:00', $stored->submittedAt?->format('Y-m-d H:i:s'));
         self::assertSame($pullRequest ? null : 1, $stored->reviewedVersionNumber);
-        self::assertSame(InboxItemState::Done, $stored->item->state);
+        self::assertSame(InboxItemState::Resolved, $stored->item->state);
 
         $em->remove($stored->item);
         $em->flush();

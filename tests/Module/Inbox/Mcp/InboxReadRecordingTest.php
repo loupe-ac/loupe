@@ -57,12 +57,10 @@ final class InboxReadRecordingTest extends KernelTestCase
         // The stamp says the session saw the answer, so the row it stamps must carry it.
         self::assertSame([(string) $item->id], array_column($result['items'], 'itemId'));
         $row = $result['items'][0];
-        self::assertArrayHasKey('answerText', $row);
-        self::assertArrayHasKey('closeNote', $row);
+        self::assertArrayHasKey('note', $row);
         self::assertSame(['JSON', 'CSV'], $row['options'] ?? null);
         self::assertSame([0], $row['selectedOptions'] ?? null);
-        self::assertNull($row['answerText']);
-        self::assertNull($row['closeNote']);
+        self::assertNull($row['note']);
         self::assertNotNull($this->readAt($ask, $item));
     }
 
@@ -75,7 +73,7 @@ final class InboxReadRecordingTest extends KernelTestCase
 
         self::assertSame([(string) $item->id], array_column($result['items'], 'itemId'));
         self::assertSame(
-            ['itemId', 'number', 'kind', 'origin', 'title', 'state', 'blocking', 'createdAt', 'updatedAt', 'closedAt', 'cardNumbers'],
+            ['itemId', 'number', 'kind', 'origin', 'title', 'state', 'closedBy', 'closeCause', 'dismissible', 'blocking', 'createdAt', 'updatedAt', 'closedAt', 'cardNumbers'],
             array_keys($result['items'][0]),
         );
         self::assertNull($this->readAt($ask, $item));
@@ -88,7 +86,7 @@ final class InboxReadRecordingTest extends KernelTestCase
 
         $result = ($this->get)((string) $item->id, readerSessionId: (string) $ask->sessionId);
 
-        self::assertSame('answered', $result['state']);
+        self::assertSame('resolved', $result['state']);
         self::assertNotNull($this->readAt($ask, $item));
     }
 
@@ -184,13 +182,13 @@ final class InboxReadRecordingTest extends KernelTestCase
         [$project, $item, $ask] = $this->closedAsk('inbox-read-fresh');
         $this->actAsMcpTokenBoundTo($project);
         $this->em->getConnection()->executeStatement(
-            "UPDATE inbox_items SET answer_text = 'Use CSV' WHERE id = ?",
+            "UPDATE inbox_items SET note = 'Use CSV' WHERE id = ?",
             [(string) $item->id],
         );
 
         $result = ($this->get)((string) $item->id, readerSessionId: (string) $ask->sessionId);
 
-        self::assertSame('Use CSV', $result['answerText']);
+        self::assertSame('Use CSV', $result['note']);
         self::assertNotNull($this->readAt($ask, $item));
     }
 
@@ -200,13 +198,13 @@ final class InboxReadRecordingTest extends KernelTestCase
         [$project, $item, $ask] = $this->closedAsk('inbox-read-list-fresh');
         $this->actAsMcpTokenBoundTo($project);
         $this->em->getConnection()->executeStatement(
-            "UPDATE inbox_items SET answer_text = 'Use CSV' WHERE id = ?",
+            "UPDATE inbox_items SET note = 'Use CSV' WHERE id = ?",
             [(string) $item->id],
         );
 
         $result = ($this->list)(readerSessionId: (string) $ask->sessionId);
 
-        self::assertSame('Use CSV', $result['items'][0]['answerText'] ?? null);
+        self::assertSame('Use CSV', $result['items'][0]['note'] ?? null);
         self::assertNotNull($this->readAt($ask, $item));
     }
 
@@ -238,7 +236,7 @@ final class InboxReadRecordingTest extends KernelTestCase
         [$project, $item, $ask] = $this->closedAsk('inbox-read-no-write');
         $this->actAsMcpTokenBoundTo($project);
         $this->em->getConnection()->executeStatement(
-            "UPDATE inbox_items SET answer_text = 'Use CSV' WHERE id = ?",
+            "UPDATE inbox_items SET note = 'Use CSV' WHERE id = ?",
             [(string) $item->id],
         );
         $queries = self::getContainer()->get('doctrine.debug_data_holder');
@@ -268,7 +266,7 @@ final class InboxReadRecordingTest extends KernelTestCase
         [$project, $item, $ask] = $this->closedAsk('inbox-read-later-flush');
         $this->actAsMcpTokenBoundTo($project);
         $connection = $this->em->getConnection();
-        $connection->executeStatement("UPDATE inbox_items SET answer_text = 'Use CSV' WHERE id = ?", [(string) $item->id]);
+        $connection->executeStatement("UPDATE inbox_items SET note = 'Use CSV' WHERE id = ?", [(string) $item->id]);
 
         ($this->list)(readerSessionId: (string) $ask->sessionId);
         ($this->get)((string) $item->id, readerSessionId: (string) $ask->sessionId);

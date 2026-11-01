@@ -16,11 +16,12 @@ import (
 // RunRunning or RunNotStarted, and only RunNotStarted carries a FailureReason.
 type InteractiveLaunchReport struct {
 	BridgeID string `json:"bridgeId"`
-	// SubjectType is always SubjectCard, because an interactive run is about
-	// a card.
+	// SubjectType is SubjectCard, or SubjectInboxItem for the session of an
+	// inbox item that has no single card. Only a card subject has a card
+	// number, and the item subject sends none.
 	SubjectType string `json:"subjectType"`
 	SubjectID   string `json:"subjectId"`
-	CardNumber  int    `json:"cardNumber"`
+	CardNumber  int    `json:"cardNumber,omitzero"`
 	// WorkKind names the session: the kind of its work request, or the rule
 	// that launched it.
 	WorkKind      string    `json:"workKind"`

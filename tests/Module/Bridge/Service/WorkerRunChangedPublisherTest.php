@@ -197,7 +197,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         $cardId = Uuid::v7();
         $sessionId = Uuid::v4();
         $fail = fn (): array => $this->service(InteractiveRuns::class)->recordLaunchFailure(
-            $this->project, $cardId, 3, $sessionId, 'design', Uuid::v7(), 'launcher exited 1', new \DateTimeImmutable('2026-09-23 11:59:00'),
+            $this->project, WorkSubject::card($cardId), 3, $sessionId, 'design', Uuid::v7(), 'launcher exited 1', new \DateTimeImmutable('2026-09-23 11:59:00'),
         );
 
         self::assertTrue($fail()[1]);

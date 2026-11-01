@@ -8,6 +8,8 @@ use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -90,10 +92,12 @@ trait InboxScenario
         return $ask;
     }
 
-    private function answered(EntityManagerInterface $em, InboxItem $item, InboxItemState $state = InboxItemState::Answered): InboxItem
+    private function answered(EntityManagerInterface $em, InboxItem $item, InboxItemState $state = InboxItemState::Resolved): InboxItem
     {
         $item->state = $state;
-        $item->selectedOptions = InboxItemState::Answered === $state ? [0] : [];
+        $item->closedBy = InboxItemState::Cancelled === $state ? InboxCloser::Agent : InboxCloser::Owner;
+        $item->closeCause = InboxItemState::Cancelled === $state ? InboxCloseCause::Withdrawn : null;
+        $item->selectedOptions = InboxItemState::Resolved === $state ? [0] : [];
         $item->closedAt = new \DateTimeImmutable('-1 hour');
         $em->flush();
 
