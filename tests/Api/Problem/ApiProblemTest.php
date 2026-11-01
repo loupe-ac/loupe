@@ -27,7 +27,7 @@ final class ApiProblemTest extends TestCase
 
     public function test_it_lists_the_refused_fields_of_a_validation_problem(): void
     {
-        $problem = new ApiProblem(422, 'validation_failed', 'Validation failed', errors: [['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']]);
+        $problem = new ApiProblem(422, 'validation_failed', 'Validation failed', 'One or more fields were refused.', errors: [['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']]);
 
         self::assertSame([['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']], $problem->toProblemBody()['errors']);
         self::assertSame([['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']], $problem->toLegacyBody()['errors']);

@@ -58,6 +58,19 @@ final class GeneratedSpecTest extends KernelTestCase
         }
     }
 
+    #[DataProvider('areas')]
+    public function test_the_problem_schema_requires_every_standard_member(string $area): void
+    {
+        $specs = [
+            'built' => json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR),
+            'contract' => Yaml::parseFile(self::file('contract/'.$area.'.yaml')),
+        ];
+
+        foreach ($specs as $name => $spec) {
+            self::assertEqualsCanonicalizing(['type', 'title', 'status', 'code', 'detail'], $spec['components']['schemas']['Problem']['required'], $name);
+        }
+    }
+
     public function test_the_public_spec_holds_no_bridge_or_widget_path_and_the_private_spec_holds_only_those(): void
     {
         $public = array_keys(json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['paths']);

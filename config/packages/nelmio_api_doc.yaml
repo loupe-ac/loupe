@@ -23,7 +23,7 @@ when@dev: &generator
                     Problem:
                         type: object
                         description: An error, as RFC 9457 `application/problem+json`.
-                        required: [type, title, status, code]
+                        required: [type, title, status, code, detail]
                         properties:
                             type:
                                 type: string

@@ -1327,6 +1327,7 @@ components:
       - title
       - status
       - code
+      - detail
       properties:
         type:
           type: string

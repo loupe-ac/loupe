@@ -140,11 +140,14 @@ final readonly class RenderApiProblemOnException
         }
 
         $status = $exception->getStatusCode();
+        $title = Response::$statusTexts[$status] ?? 'Error';
 
+        // The message of a framework exception can name an internal class, so no answer repeats it.
         return new ApiProblem(
             $status,
             'http_'.$status,
-            Response::$statusTexts[$status] ?? 'Error',
+            $title,
+            sprintf('The server answered this request with status %d (%s).', $status, $title),
             headers: array_map(strval(...), $exception->getHeaders()),
         );
     }

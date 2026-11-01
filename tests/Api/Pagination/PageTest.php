@@ -76,6 +76,32 @@ final class PageTest extends TestCase
         }
     }
 
+    public function test_a_limit_given_as_a_list_is_a_validation_problem(): void
+    {
+        try {
+            PageRequest::fromRequest(Request::create('/x?limit[]=5'), 'number');
+            self::fail('The limit was accepted.');
+        } catch (ApiProblemException $exception) {
+            self::assertSame(422, $exception->problem->status);
+            self::assertSame('limit', $exception->problem->errors[0]['field']);
+        }
+    }
+
+    #[TestWith(['/x?cursor='])]
+    #[TestWith(['/x?cursor'])]
+    #[TestWith(['/x?cursor[]=abc'])]
+    #[TestWith(['/x?cursor[a]=abc'])]
+    public function test_an_empty_cursor_or_a_cursor_given_as_a_list_is_refused(string $uri): void
+    {
+        try {
+            PageRequest::fromRequest(Request::create($uri), 'number');
+            self::fail('The cursor was accepted.');
+        } catch (ApiProblemException $exception) {
+            self::assertSame(400, $exception->problem->status);
+            self::assertSame('invalid_cursor', $exception->problem->code);
+        }
+    }
+
     public function test_it_reads_the_cursor_against_the_filters_of_the_request(): void
     {
         $token = new Cursor('number', '5', 'x', ['column' => 'next'])->encode();

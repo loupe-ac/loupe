@@ -25,18 +25,21 @@ final readonly class PageRequest
      */
     public static function fromRequest(Request $request, string $sort, array $filters = []): self
     {
+        $query = $request->query->all();
+
         $limit = self::DEFAULT_LIMIT;
-        $rawLimit = $request->query->get('limit');
-        if (null !== $rawLimit) {
-            $parsed = filter_var($rawLimit, \FILTER_VALIDATE_INT);
+        if (\array_key_exists('limit', $query)) {
+            $parsed = \is_string($query['limit']) ? filter_var($query['limit'], \FILTER_VALIDATE_INT) : false;
             if (false === $parsed || $parsed < 1 || $parsed > self::MAX_LIMIT) {
                 throw ApiProblemException::validationFailed([['field' => 'limit', 'code' => 'limit_out_of_range', 'message' => sprintf('The limit must be a whole number from 1 to %d.', self::MAX_LIMIT)]]);
             }
             $limit = $parsed;
         }
 
-        $token = $request->query->get('cursor');
-        $cursor = \is_string($token) && '' !== $token ? Cursor::decode($token, $sort, $filters) : null;
+        $cursor = null;
+        if (\array_key_exists('cursor', $query)) {
+            $cursor = Cursor::decode(\is_string($query['cursor']) ? $query['cursor'] : '', $sort, $filters);
+        }
 
         return new self($limit, $cursor);
     }

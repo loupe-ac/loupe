@@ -11,7 +11,7 @@ final class ApiProblemException extends \RuntimeException
         public readonly ApiProblem $problem,
         ?\Throwable $previous = null,
     ) {
-        parent::__construct($problem->detail ?? $problem->title, $problem->status, $previous);
+        parent::__construct($problem->detail, $problem->status, $previous);
     }
 
     public static function invalidCursor(string $detail): self

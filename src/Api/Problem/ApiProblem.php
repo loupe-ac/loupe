@@ -22,7 +22,7 @@ final readonly class ApiProblem
         public int $status,
         public string $code,
         public string $title,
-        public ?string $detail = null,
+        public string $detail,
         public array $extras = [],
         public array $errors = [],
         public array $headers = [],
@@ -37,10 +37,8 @@ final readonly class ApiProblem
             'title' => $this->title,
             'status' => $this->status,
             'code' => $this->code,
+            'detail' => $this->detail,
         ];
-        if (null !== $this->detail) {
-            $body['detail'] = $this->detail;
-        }
         if ([] !== $this->errors) {
             $body['errors'] = $this->errors;
         }

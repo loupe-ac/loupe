@@ -7,6 +7,7 @@ namespace App\Tests\Api\EventListener;
 use App\Api\EventListener\RenderApiProblemOnException;
 use App\Api\Problem\ApiProblem;
 use App\Api\Problem\ApiProblemException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\Request;
@@ -41,7 +42,7 @@ final class RenderApiProblemOnExceptionTest extends TestCase
 
     public function test_a_thrown_problem_keeps_the_old_flat_shape_on_an_old_path(): void
     {
-        $response = $this->render('/api/projects', new ApiProblemException(new ApiProblem(403, 'credential_not_allowed', 'Not allowed', extras: ['missing' => ['x']])));
+        $response = $this->render('/api/projects', new ApiProblemException(new ApiProblem(403, 'credential_not_allowed', 'Not allowed', 'This credential may not call this route.', extras: ['missing' => ['x']])));
 
         self::assertSame(403, $response?->getStatusCode());
         self::assertStringStartsWith('application/json', (string) $response->headers->get('Content-Type'));
@@ -56,7 +57,7 @@ final class RenderApiProblemOnExceptionTest extends TestCase
 
     public function test_a_path_outside_the_api_is_left_alone(): void
     {
-        self::assertNull($this->render('/projects', new ApiProblemException(new ApiProblem(404, 'x', 'X'))));
+        self::assertNull($this->render('/projects', new ApiProblemException(new ApiProblem(404, 'x', 'X', 'Y'))));
     }
 
     public function test_an_unmatched_v1_route_is_route_not_found(): void
@@ -71,6 +72,48 @@ final class RenderApiProblemOnExceptionTest extends TestCase
         $response = $this->render('/api/v1/projects', new NotFoundHttpException(), ['_route' => 'api_x']);
 
         self::assertSame('http_404', $this->body($response)['code']);
+    }
+
+    public function test_a_refusal_of_a_matched_route_has_a_detail_that_hides_the_framework_message(): void
+    {
+        $response = $this->render('/api/v1/projects', new NotFoundHttpException('App\\Module\\Board\\Entity\\Card object not found'), ['_route' => 'api_x']);
+
+        $body = $this->body($response);
+        self::assertSame('The server answered this request with status 404 (Not Found).', $body['detail']);
+        self::assertStringNotContainsString('Entity', (string) $response?->getContent());
+    }
+
+    /** @return iterable<string, array{string, \Throwable, array<string, string>}> */
+    public static function everyKindOfRefusal(): iterable
+    {
+        $matched = ['_route' => 'api_x'];
+
+        yield 'thrown problem' => ['/api/v1/projects', ApiProblemException::invalidCursor('Broken.'), $matched];
+        yield 'unknown route' => ['/api/v1/nothing', new NotFoundHttpException(), []];
+        yield 'unserved version' => ['/api/v2/projects', new NotFoundHttpException(), []];
+        yield 'wrong method' => ['/api/versions', new MethodNotAllowedHttpException(['GET']), []];
+        yield 'matched not found' => ['/api/v1/projects', new NotFoundHttpException(), $matched];
+        yield 'matched forbidden' => ['/api/v1/projects', new HttpException(403), $matched];
+        yield 'unknown status' => ['/api/v1/projects', new HttpException(599), $matched];
+        yield 'rate limit' => ['/api/v1/projects', new TooManyRequestsHttpException(5), $matched];
+        yield 'media type' => ['/api/v1/projects', new UnsupportedMediaTypeHttpException(), $matched];
+        yield 'invalid json' => ['/api/v1/projects', new BadRequestHttpException('bad', new NotEncodableValueException('syntax')), $matched];
+        yield 'validation' => ['/api/v1/projects', new HttpException(422, 'invalid', new ValidationFailedException(null, new ConstraintViolationList())), $matched];
+        yield 'unexpected failure' => ['/api/v1/projects', new \RuntimeException('boom'), $matched];
+    }
+
+    /** @param array<string, string> $attributes */
+    #[DataProvider('everyKindOfRefusal')]
+    public function test_every_problem_has_all_five_standard_members(string $path, \Throwable $exception, array $attributes): void
+    {
+        $body = $this->body($this->render($path, $exception, $attributes));
+
+        self::assertIsString($body['type']);
+        self::assertNotSame('', $body['title']);
+        self::assertIsInt($body['status']);
+        self::assertNotSame('', $body['code']);
+        self::assertIsString($body['detail']);
+        self::assertNotSame('', $body['detail']);
     }
 
     public function test_an_unserved_version_lists_the_served_ones(): void

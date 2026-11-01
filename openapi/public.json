@@ -108,7 +108,8 @@
                     "type",
                     "title",
                     "status",
-                    "code"
+                    "code",
+                    "detail"
                 ],
                 "properties": {
                     "type": {
