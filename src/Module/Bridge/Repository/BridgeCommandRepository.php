@@ -209,7 +209,7 @@ class BridgeCommandRepository extends ServiceEntityRepository
 
         $latest = [];
         foreach ($commands as $command) {
-            $latest[(string) $command->workerRun->id] = $command;
+            $latest[(string) ($command->workerRun->id ?? throw new \LogicException('The query reads the commands of runs.'))] = $command;
         }
 
         return $latest;

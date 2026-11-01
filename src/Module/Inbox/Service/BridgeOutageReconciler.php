@@ -36,7 +36,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * bridge online that could take it, and closes it when a bridge is back or the
  * waiting work ended. Running it twice changes nothing, so any trigger may ask again.
  *
- * The switches of the card waits do not gate this notice.
+ * The switches of the card waits do not gate this notice. After the outage case it
+ * also runs the account limit case of AccountLimitReconciler.
  */
 final readonly class BridgeOutageReconciler
 {
@@ -51,6 +52,7 @@ final readonly class BridgeOutageReconciler
         private InboxSearchIndexer $searchIndexer,
         private InboxChangedPublisher $inboxChanged,
         private InboxAvailability $inbox,
+        private AccountLimitReconciler $accountLimits,
         private TranslatorInterface $translator,
         private ClockInterface $clock,
         private MessageBusInterface $bus,
@@ -127,6 +129,9 @@ final readonly class BridgeOutageReconciler
         } elseif (false === $outcome) {
             $this->inboxChanged->pageChanged($project);
         }
+
+        // The second case: an account at its hard limit that holds open work of the project.
+        $this->accountLimits->reconcile($project);
     }
 
     /** @return array<string, array{request: WorkRequest, reading: WorkTakerReading}> keyed by the id of the request */

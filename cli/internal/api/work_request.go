@@ -207,13 +207,27 @@ func (e *WorkRequestRefusal) RateLimited() bool {
 	return e.Status == http.StatusTooManyRequests
 }
 
-// ClaimWorkRequest claims an open work request for this bridge.
-func (c *Client) ClaimWorkRequest(ctx context.Context, bridgeID, id string) (Claim, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.workRequestURL(bridgeID, id, "claim"), nil)
+// ClaimWorkRequest claims an open work request for this bridge. account is
+// the account the bridge chose to run it, and "" sends no body.
+func (c *Client) ClaimWorkRequest(ctx context.Context, bridgeID, id, account string) (Claim, error) {
+	var body io.Reader
+	if account != "" {
+		raw, err := json.Marshal(struct {
+			Account string `json:"account"`
+		}{account})
+		if err != nil {
+			return Claim{}, err
+		}
+		body = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.workRequestURL(bridgeID, id, "claim"), body)
 	if err != nil {
 		return Claim{}, err
 	}
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.do(req)
 	if err != nil {
@@ -250,11 +264,17 @@ func (c *Client) ClaimWorkRequest(ctx context.Context, bridgeID, id string) (Cla
 // and returns the state the server stores. An empty reason sends no reason
 // key.
 func (c *Client) SettleWorkRequest(ctx context.Context, bridgeID, id, token, state, reason string) (string, error) {
-	body, err := json.Marshal(struct {
+	return c.putResult(ctx, bridgeID, id, struct {
 		ClaimToken string `json:"claimToken"`
 		State      string `json:"state"`
 		Reason     string `json:"reason,omitempty"`
 	}{token, state, strings.TrimSpace(reason)})
+}
+
+// putResult sends the result body of a claimed request, and returns the state
+// the server stores.
+func (c *Client) putResult(ctx context.Context, bridgeID, id string, payload any) (string, error) {
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
@@ -283,6 +303,49 @@ func (c *Client) SettleWorkRequest(ctx context.Context, bridgeID, id, token, sta
 	}
 
 	return stored.State, nil
+}
+
+// The causes of a hand-back.
+const (
+	CauseUsageLimit = "usage-limit"
+	CauseNetwork    = "network"
+)
+
+// HandBackReading is the reading that stopped a run: the window, its use, its
+// reset time and where the bridge read it. UsedPercent and ResetsAt send null
+// when the source gives none.
+type HandBackReading struct {
+	Window      string     `json:"window"`
+	UsedPercent *float64   `json:"usedPercent"`
+	ResetsAt    *time.Time `json:"resetsAt"`
+	Limited     bool       `json:"limited"`
+	Source      string     `json:"source"`
+}
+
+// HandBack is the result of a run that a usage limit or a network outage
+// stopped. The bridge gives the request back to Loupe in place of a refusal.
+// A network hand-back holds no Reading, and sends none. HasAssistantTurn says the run
+// did work, so a resume belongs on this machine.
+type HandBack struct {
+	Cause            string
+	Account          string
+	Reading          *HandBackReading
+	SessionID        string
+	HasAssistantTurn bool
+}
+
+// HandBackWorkRequest gives a claimed request back to Loupe with the state
+// open, and returns the state the server stores.
+func (c *Client) HandBackWorkRequest(ctx context.Context, bridgeID, id, token string, h HandBack) (string, error) {
+	return c.putResult(ctx, bridgeID, id, struct {
+		ClaimToken       string           `json:"claimToken"`
+		State            string           `json:"state"`
+		Cause            string           `json:"cause"`
+		Account          string           `json:"account"`
+		Reading          *HandBackReading `json:"reading,omitempty"`
+		SessionID        string           `json:"sessionId"`
+		HasAssistantTurn bool             `json:"hasAssistantTurn"`
+	}{token, WorkRequestOpen, h.Cause, h.Account, h.Reading, h.SessionID, h.HasAssistantTurn})
 }
 
 func (c *Client) workRequestURL(bridgeID, id, action string) string {
@@ -319,6 +382,23 @@ func decodeWorkRequests(raw []json.RawMessage) []WorkRequest {
 		var w WorkRequest
 		if json.Unmarshal(item, &w) == nil {
 			out = append(out, w)
+		}
+	}
+
+	return out
+}
+
+// decodeBlockedAccounts keeps each entry that names an account. A reply with
+// no key gives nil, and one with an empty list gives an empty list.
+func decodeBlockedAccounts(raw []json.RawMessage) []BlockedAccount {
+	if raw == nil {
+		return nil
+	}
+	out := []BlockedAccount{}
+	for _, item := range raw {
+		var b BlockedAccount
+		if json.Unmarshal(item, &b) == nil && b.Account != "" {
+			out = append(out, b)
 		}
 	}
 

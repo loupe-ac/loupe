@@ -16,6 +16,7 @@ enum MetricGroup: string
     case HarnessVersion = 'harness-version';
     case CliVersion = 'cli-version';
     case SkillVersion = 'skill-version';
+    case AccountWindow = 'account-window';
     case None = 'none';
 
     /** A grouping that a single run answers, so a card splits into one row per key. */

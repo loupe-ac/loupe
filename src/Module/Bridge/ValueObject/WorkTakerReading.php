@@ -9,7 +9,7 @@ final readonly class WorkTakerReading
 {
     /**
      * @param \DateTimeImmutable  $noTakerSince the latest of the start of the wait, the moment the last able bridge went quiet, and the last beat at which a bridge dropped what it takes
-     * @param ?\DateTimeImmutable $quietAt      the moment the answer next changes because an online bridge turns quiet, or null when it cannot
+     * @param ?\DateTimeImmutable $quietAt      the moment the answer next changes because an online bridge turns quiet, or null when it cannot. For a disconnected reading, the end of the claim or of the wait, or null after the wait.
      */
     public function __construct(
         public WorkTakerState $state,
@@ -27,6 +27,10 @@ final readonly class WorkTakerReading
          * @var list<string>
          */
         public array $expiredTakers = [],
+        /** On a limited reading: the blocked accounts that hold the work. */
+        public ?UsageLimitWait $limit = null,
+        /** On a disconnected reading: a bridge holds the claim of the request, and the request is not open. */
+        public bool $claimed = false,
     ) {
     }
 }

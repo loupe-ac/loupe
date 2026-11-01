@@ -516,6 +516,7 @@ func (r *router) adoptLocked(run handoverRun) {
 		return
 	}
 	r.trackLocked(liveRun{p: p, began: run.Began, proc: workerProc{pid: run.PID, dir: run.Dir}})
+	r.followUsage(p, run.Dir, run.Began)
 	forget := r.adoptCredentials(run)
 	r.log.Info("worker_adopted", append(about(p.event, p.rule), "worker_pool", p.slot, "session_id", p.spec.sessionID, "pid", run.PID)...)
 

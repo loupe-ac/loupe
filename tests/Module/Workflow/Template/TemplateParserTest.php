@@ -24,6 +24,7 @@ use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Board\Workflow\StopWork;
 use App\Module\Bridge\Metric\BuiltInMetricKeys;
+use App\Module\Bridge\Workflow\Condition\AccountUsage;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Inbox\Workflow\Condition\CardHasOpenQuestion;
 use App\Module\Workflow\Action\Actions;
@@ -83,6 +84,7 @@ final class TemplateParserTest extends TestCase
             [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class, StopWork::class, MissingAction::class],
         ));
         $this->parser = new TemplateParser(new Conditions([
+            new AccountUsage(),
             new CardChildrenFinished(),
             new CardDocument(),
             new CardDocumentApproved(),
@@ -126,7 +128,6 @@ final class TemplateParserTest extends TestCase
                 ['from' => '@backlog', 'to' => 'review', 'by' => 'parent-run'],
             ],
             'backoffMinutes' => [10, 60],
-            'workTimeoutMinutes' => 120,
             'rules' => [
                 [
                     'id' => 'start',
@@ -206,7 +207,6 @@ final class TemplateParserTest extends TestCase
         self::assertSame('workflow.slot.review', $template->slot('review')?->label);
         self::assertNull($template->slot('nowhere'));
         self::assertSame([10, 60], $template->backoffMinutes);
-        self::assertSame(120, $template->workTimeoutMinutes);
         self::assertSame('@backlog', $template->manualMoves[0]->from);
         self::assertSame('build', $template->manualMoves[0]->to);
         self::assertNull($template->manualMoves[0]->by);
@@ -691,6 +691,8 @@ final class TemplateParserTest extends TestCase
         yield 'a missing required parameter' => [['from' => 'review'], 'rules[0] (plugged) then.plugged: missing parameter "times"'];
         yield 'a slot that is not declared' => [['from' => 'shipping', 'times' => 2], 'rules[0] (plugged) then.plugged.from: unknown slot "shipping"'];
         yield 'an int under its minimum' => [['from' => 'review', 'times' => 1], 'rules[0] (plugged) then.plugged: parameter "times" must be an integer of at least 2'];
+        yield 'an int over its maximum' => [['from' => 'review', 'times' => 2, 'cap' => 10], 'rules[0] (plugged) then.plugged: parameter "cap" must be an integer from 2 to 9'];
+        yield 'an int under the minimum of a bounded range' => [['from' => 'review', 'times' => 2, 'cap' => 1], 'rules[0] (plugged) then.plugged: parameter "cap" must be an integer from 2 to 9'];
         yield 'a value outside the choices' => [['from' => 'review', 'times' => 2, 'mode' => 'slow'], 'rules[0] (plugged) then.plugged: parameter "mode" must be one of fast, safe'];
         yield 'a parameter the action does not declare' => [['from' => 'review', 'times' => 2, 'speed' => 1], 'rules[0] (plugged) then.plugged: unknown parameter "speed"'];
         yield 'a rule on the parameters as a whole' => [['from' => 'review', 'times' => 2, 'mode' => 'safe'], 'rules[0] (plugged) then.plugged: safe mode needs the slot build'];
@@ -706,14 +708,6 @@ final class TemplateParserTest extends TestCase
 
         self::assertSame('groom-card', $this->parser->parse($template)->rules[0]->lead->params['prompt']);
         self::assertSame('groom-card', $this->parser->parseStored($template)->rules[0]->lead->params['prompt']);
-    }
-
-    public function test_a_request_can_expire_with_no_pause(): void
-    {
-        $template = self::valid();
-        $template['rules'][0]['then'] = ['request' => ['kind' => 'teardown', 'onTimeout' => 'expire']];
-
-        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $this->parser->parse($template)->rulesFor('build')[0]->lead->params);
     }
 
     public function test_a_request_can_name_a_document_by_tag(): void
@@ -848,6 +842,22 @@ final class TemplateParserTest extends TestCase
         }
     }
 
+    public function test_the_account_usage_condition_takes_a_bridge_name_with_a_slash_and_a_window_key(): void
+    {
+        $template = self::valid();
+        $template['rules'][2]['when'] = ['all' => [
+            ['bridge.account.usage' => ['account' => 'home/mac/work', 'window' => 'week', 'above' => 100]],
+            ['bridge.account.usage' => ['account' => 'mac/work-2', 'window' => '3d', 'above' => 1]],
+        ]];
+
+        $leaves = $this->parser->parse($template)->rules[2]->when->leaves();
+
+        self::assertSame(
+            [['account' => 'home/mac/work', 'window' => 'week', 'above' => 100], ['account' => 'mac/work-2', 'window' => '3d', 'above' => 1]],
+            array_map(static fn (ConditionLeaf $leaf): array => $leaf->params, $leaves),
+        );
+    }
+
     public function test_a_document_condition_takes_a_tag_and_an_optional_status(): void
     {
         $template = self::valid();
@@ -963,10 +973,10 @@ final class TemplateParserTest extends TestCase
     public static function refusals(): iterable
     {
         yield 'missing top-level key' => [static function (array $t): array {
-            unset($t['workTimeoutMinutes']);
+            unset($t['backoffMinutes']);
 
             return $t;
-        }, 'workTimeoutMinutes: is missing'];
+        }, 'backoffMinutes: is missing'];
         yield 'wrongly typed version' => [static fn (array $t): array => ['version' => '1'] + $t, 'version: must be an integer'];
         yield 'wrongly typed key' => [static fn (array $t): array => ['key' => ''] + $t, 'key: must be a non-empty string'];
         yield 'slots not a list' => [static fn (array $t): array => ['slots' => 'build', 'manualMoves' => [], 'rules' => []] + $t, 'slots: must be a list'];
@@ -984,7 +994,6 @@ final class TemplateParserTest extends TestCase
         yield 'retry policy with no delays' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1]] + $t, 'onWorkFailed.backoffMinutes: must be a list of positive integers'];
         yield 'retry policy with a zero delay' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [0]]] + $t, 'onWorkFailed.backoffMinutes: must be a list of positive integers'];
         yield 'retry policy with a text delay' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => 'x']] + $t, 'onWorkFailed.backoffMinutes: must be a list of positive integers'];
-        yield 'wrongly typed work timeout' => [static fn (array $t): array => ['workTimeoutMinutes' => 0] + $t, 'workTimeoutMinutes: must be a positive integer'];
 
         yield 'missing types' => [static function (array $t): array {
             unset($t['types']);
@@ -1293,6 +1302,26 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) when: pr.approval_covers_head: parameter "min" must be a positive integer'];
+        yield 'usage above over its maximum' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['bridge.account.usage' => ['account' => 'mac/work', 'window' => 'week', 'above' => 101]];
+
+            return $t;
+        }, 'rules[2] (merge) when: bridge.account.usage: parameter "above" must be an integer from 1 to 100'];
+        yield 'usage above under its minimum' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['bridge.account.usage' => ['account' => 'mac/work', 'window' => 'week', 'above' => 0]];
+
+            return $t;
+        }, 'rules[2] (merge) when: bridge.account.usage: parameter "above" must be an integer from 1 to 100'];
+        yield 'usage account without a slash' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['bridge.account.usage' => ['account' => 'work', 'window' => 'week', 'above' => 80]];
+
+            return $t;
+        }, 'rules[2] (merge) when: bridge.account.usage: parameter "account" must match <bridge name>/<account>'];
+        yield 'usage window with a bad key' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['bridge.account.usage' => ['account' => 'mac/work', 'window' => 'Week', 'above' => 80]];
+
+            return $t;
+        }, 'rules[2] (merge) when: bridge.account.usage: parameter "window" must match a window key such as session, week or 3d'];
         yield 'work active with an origin that is not rule' => [static function (array $t): array {
             $t['rules'][2]['when'] = ['card.run.work_active' => ['origin' => 'person']];
 
@@ -1386,11 +1415,11 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) then.forge-write: parameter "methods" must be a non-empty list of non-empty strings'];
-        yield 'unknown work timeout behaviour' => [static function (array $t): array {
-            $t['rules'][0]['then']['request']['onTimeout'] = 'drop';
+        yield 'the removed work timeout behaviour' => [static function (array $t): array {
+            $t['rules'][0]['then']['request']['onTimeout'] = 'expire';
 
             return $t;
-        }, 'rules[0] (start) then.request: parameter "onTimeout" must be one of pause, expire'];
+        }, 'rules[0] (start) then.request: unknown parameter "onTimeout"'];
         yield 'a document that is not a map' => [static function (array $t): array {
             $t['rules'][0]['then']['request']['document'] = 'design';
 

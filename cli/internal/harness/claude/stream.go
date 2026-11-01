@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
 // maxLine is the longest line the reader decodes. It skips a longer one.
@@ -83,6 +84,7 @@ type block struct {
 	ToolUseID string          `json:"tool_use_id"`
 	IsError   *bool           `json:"is_error"`
 	Content   json.RawMessage `json:"content"`
+	Text      json.RawMessage `json:"text"`
 }
 
 // reader holds what the lines read so far told.
@@ -100,8 +102,12 @@ type reader struct {
 	lastChild map[string]time.Time
 	clock     stream.Clock
 	peak      *int64
-	harness   string
-	skill     string
+	turns     int
+	// retryNoStatus is set by a retry line with no status and cleared by the
+	// next assistant line.
+	retryNoStatus bool
+	harness       string
+	skill         string
 }
 
 func (rd *reader) line(raw []byte) {
@@ -112,6 +118,7 @@ func (rd *reader) line(raw []byte) {
 	}
 	if e.Type == "system" {
 		rd.init(raw)
+		rd.retry(raw, e.Subtype)
 
 		return
 	}
@@ -124,6 +131,9 @@ func (rd *reader) line(raw []byte) {
 	}
 	if e.Type != "assistant" && e.Type != "user" {
 		return
+	}
+	if e.Type == "assistant" {
+		rd.retryNoStatus = false
 	}
 
 	ts, timed := stamp(e.Timestamp)
@@ -163,6 +173,9 @@ func (rd *reader) line(raw []byte) {
 	if json.Unmarshal(msg.Content, &blocks) != nil {
 		return
 	}
+	if e.Type == "assistant" && parent == "" && !isLimitMessage(blocks) {
+		rd.turns++
+	}
 	agent := asyncAgent(e.ToolUseResult, blocks)
 	for _, b := range blocks {
 		switch {
@@ -192,6 +205,18 @@ func asyncAgent(raw json.RawMessage, blocks []block) string {
 	}
 
 	return stream.Cut(result.AgentID, stream.MaxName)
+}
+
+// isLimitMessage reports whether the blocks hold nothing but the usage limit
+// message, which Claude Code writes as an assistant line.
+func isLimitMessage(blocks []block) bool {
+	if len(blocks) != 1 || blocks[0].Type != "text" {
+		return false
+	}
+	var text string
+	_ = json.Unmarshal(blocks[0].Text, &text)
+
+	return usage.IsLimitMessage(text)
 }
 
 func (rd *reader) use(b block, ts time.Time, inSubagent bool) {
@@ -260,6 +285,21 @@ func (rd *reader) answer(b block, ts time.Time, timed bool, agent string) {
 	rd.calls[i].BackgroundID = backgroundID(text(b.Content))
 }
 
+// retry keeps whether the last retry line had an HTTP status. A connection
+// failure has none.
+func (rd *reader) retry(raw []byte, subtype string) {
+	if subtype != "api_retry" {
+		return
+	}
+	var l struct {
+		Status *int `json:"error_status"`
+	}
+	if json.Unmarshal(raw, &l) != nil {
+		return
+	}
+	rd.retryNoStatus = l.Status == nil || *l.Status == 0
+}
+
 // init keeps the version of claude and of the Loupe plugin from the start line.
 // A plugin with no version, such as one served from a checkout, gives none.
 func (rd *reader) init(raw []byte) {
@@ -290,7 +330,7 @@ func (rd *reader) output() stream.Output {
 	}
 	timing := rd.clock.Finish(rd.calls, rd.ends)
 
-	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, HarnessVersion: rd.harness, SkillVersion: rd.skill}
+	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, AssistantTurns: rd.turns, LastRetryNoStatus: rd.retryNoStatus, HarnessVersion: rd.harness, SkillVersion: rd.skill}
 }
 
 func stamp(s string) (time.Time, bool) {

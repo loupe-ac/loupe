@@ -90,7 +90,6 @@ final class AppRules implements ProposalSlot
             [...$template->rules, ...$rules],
             $template->manualMoves,
             $template->backoffMinutes,
-            $template->workTimeoutMinutes,
             $template->types,
             $template->defaultType,
             $template->onWorkFailed,

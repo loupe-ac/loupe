@@ -10,7 +10,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Writes the fact row of each run from the run, its usage rows, its tool call
- * rows and the host samples of its bridge. The four tool call columns stay
+ * rows, the host samples of its bridge and the account readings of its bridge
+ * inside the run window. The four tool call columns stay
  * null for a run with no rows. The migration that made the table holds a
  * frozen copy of this select, from before the host, harness and account
  * columns and the kind of a tool call. A run with a billed cost row takes its
@@ -26,7 +27,7 @@ final readonly class WorkerRunFactWriter
             duration_ms, cost_micro_usd, tokens_in, tokens_out, tokens_cache_read, tokens_cache_write,
             usage_source, tool_time_ms, model_time_ms, tool_calls, failed_calls, longest_call_ms,
             idle_gap_ms, subagent_ms, peak_context_tokens, mean_cpu_pct, peak_mem_bytes, peak_swap_bytes,
-            concurrent_runs, on_battery
+            concurrent_runs, on_battery, session_usage_delta, week_usage_delta
         )
         SELECT
             r.id,
@@ -84,7 +85,9 @@ final readonly class WorkerRunFactWriter
                         AND (o.ended_at > r.started_at OR (o.ended_at IS NULL AND o.state IN ('preparing', 'running', 'stopping')))
                     ))
             ) END,
-            hs.on_battery
+            hs.on_battery,
+            su.usage_delta,
+            wu.usage_delta
         FROM bridge_worker_runs r
         JOIN projects p ON p.id = r.project_id
         LEFT JOIN bridge_worker_run_billed_costs b ON b.run_id = r.id
@@ -131,6 +134,30 @@ final readonly class WorkerRunFactWriter
                 AND s.bridge_id = r.bridge_id
                 AND s.sampled_at BETWEEN r.started_at AND r.ended_at
         ) hs ON true
+        LEFT JOIN LATERAL (
+            SELECT CASE WHEN COUNT(*) >= 2
+                THEN (ARRAY_AGG(a.used_percent ORDER BY a.read_at DESC, a.id DESC))[1] - (ARRAY_AGG(a.used_percent ORDER BY a.read_at ASC, a.id ASC))[1]
+            END AS usage_delta
+            FROM bridge_account_readings a
+            WHERE a.owner_id = p.owner_id
+                AND a.bridge_id = r.bridge_id
+                AND a.account = r.account
+                AND a.window_key = 'session'
+                AND a.used_percent IS NOT NULL
+                AND a.read_at BETWEEN r.started_at AND r.ended_at
+        ) su ON true
+        LEFT JOIN LATERAL (
+            SELECT CASE WHEN COUNT(*) >= 2
+                THEN (ARRAY_AGG(a.used_percent ORDER BY a.read_at DESC, a.id DESC))[1] - (ARRAY_AGG(a.used_percent ORDER BY a.read_at ASC, a.id ASC))[1]
+            END AS usage_delta
+            FROM bridge_account_readings a
+            WHERE a.owner_id = p.owner_id
+                AND a.bridge_id = r.bridge_id
+                AND a.account = r.account
+                AND a.window_key = 'week'
+                AND a.used_percent IS NOT NULL
+                AND a.read_at BETWEEN r.started_at AND r.ended_at
+        ) wu ON true
         WHERE r.id IN (:ids)
         ON CONFLICT (run_id) DO UPDATE SET
             project_id = EXCLUDED.project_id,
@@ -172,7 +199,9 @@ final readonly class WorkerRunFactWriter
             peak_mem_bytes = EXCLUDED.peak_mem_bytes,
             peak_swap_bytes = EXCLUDED.peak_swap_bytes,
             concurrent_runs = EXCLUDED.concurrent_runs,
-            on_battery = EXCLUDED.on_battery
+            on_battery = EXCLUDED.on_battery,
+            session_usage_delta = EXCLUDED.session_usage_delta,
+            week_usage_delta = EXCLUDED.week_usage_delta
         SQL;
 
     public function __construct(

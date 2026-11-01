@@ -12,6 +12,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/outbound"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
 // defaultHeartbeatInterval applies when the server shares no usable interval,
@@ -31,7 +32,7 @@ const heartbeatLane = "heartbeat"
 const poolsWindow = 10 * time.Second
 
 // bridgeCapabilities names what this bridge supports to the server.
-var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", rules.CapabilityRunCommand, "git-identities"}
+var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", "try-now", rules.CapabilityRunCommand, "git-identities"}
 
 // heartbeatSender sends one heartbeat. *api.Client is one.
 type heartbeatSender interface {
@@ -74,6 +75,11 @@ type heartbeater struct {
 	// sessions reads the watched interactive sessions when a heartbeat goes
 	// out. It may be nil.
 	sessions func(context.Context, []string) []api.InteractiveSessionReading
+	// usage holds the account readings of the live runs. It may be nil.
+	usage *usage.Collector
+	// skips holds the offers the bridge skipped for a blocked account. It may
+	// be nil.
+	skips *skipLog
 
 	// lastOK is the time of the last heartbeat the server accepted. A status
 	// request reads it from another goroutine.
@@ -374,8 +380,16 @@ func (h *heartbeater) send() {
 			h.mu.Unlock()
 			body.InteractiveSessions = h.sessions(ctx, watch)
 		}
+		var carried map[string][]usage.Reading
+		if h.usage != nil && body.Accounts != nil {
+			h.usage.Poll(h.now())
+			body.Accounts, carried = withReadings(body.Accounts, h.usage.Pending())
+		}
+		body.Skipped = h.skips.Pending()
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {
+			h.usage.Drop(carried)
+			h.skips.Drop(body.Skipped)
 			h.dropHostSamples(upto)
 			h.mu.Lock()
 			h.watch = reply.WatchSessions
@@ -423,4 +437,19 @@ func (h *heartbeater) record(err error) {
 		}
 		h.failed++
 	}
+}
+
+// withReadings gives a copy of the account rows with the readings of each
+// account, and the readings it put in. The rows of the body stay as they were.
+func withReadings(rows []api.AccountReport, pending map[string][]usage.Reading) ([]api.AccountReport, map[string][]usage.Reading) {
+	out := slices.Clone(rows)
+	carried := map[string][]usage.Reading{}
+	for i := range out {
+		if readings := pending[out[i].Name]; len(readings) > 0 {
+			out[i].Readings = readings
+			carried[out[i].Name] = readings
+		}
+	}
+
+	return out, carried
 }

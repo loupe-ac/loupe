@@ -58,6 +58,7 @@
                 {% if primary.remedy is not null %}
                 {% set stateFields = stateFields|merge([{label: primary.kind.remedyLabelKey|trans, value: primary.remedy|trans(primary.params), wide: true, link: primary.link is null ? null : {href: marker_link_href(primary.link, card.project), label: primary.link.translationKey|trans}}]) %}
                 {% endif %}
+                <div class="lp-card-overview__state">
                 <twig:Ds:StatusBox
                     :kind="primary.kind.value"
                     :title="'board.card_state.status'|trans"
@@ -68,6 +69,15 @@
                     :others="markers.alsoApplies|map(other => {kind: other.kind.value, label: other.kind.translationKey|trans, lead: card_marker_label(other), since: card_state_text(other.kind.sinceKey, other.since), link: other.link is null ? null : {href: marker_link_href(other.link, card.project), label: other.link.translationKey|trans}})"
                     data-card-state="{{ primary.kind.value }}"
                 />
+                {% if primary.label == 'marker.usage_limit' and (primary.params['%canTryNow%'] ?? 0) == 1 and (primary.params['%bridgeId%'] ?? '') != '' and is_granted('project.manage', card.project) %}
+                <twig:Ds:ActionForm :action="path('app_project_bridge_account_try_now', {id: card.project.id, bridgeId: primary.params['%bridgeId%'], account: primary.params['%account%']})" token="bridge-try-now" frame="_top" data-card-try-now>
+                    <twig:Ds:Button type="submit" variant="ghost" size="sm">
+                        <twig:ux:icon name="lucide:circle-play" class="lp-icon lp-icon--sm" />
+                        {{ 'board.card_state.try_now'|trans }}
+                    </twig:Ds:Button>
+                </twig:Ds:ActionForm>
+                {% endif %}
+                </div>
                 {% endif %}
                 <section class="lp-card-overview__section">
                     <twig:Ds:SectionHeading>{{ 'board.card.overview.description'|trans }}</twig:Ds:SectionHeading>

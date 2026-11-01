@@ -219,6 +219,19 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame([], $this->firingRuleIds($facts));
     }
 
+    public function test_an_approved_tech_design_with_a_closed_and_an_open_blocker_is_held_by_the_open_blocker_alone(): void
+    {
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'tech-design', hasOpenBlocker: true, documents: [self::approved('tech-design')], hasClosedBlocker: true));
+        $rule = $this->ruleOf('tech-design', 'tech-design-approved');
+
+        self::assertFalse($rule->when->evaluate($facts));
+        self::assertSame(1, $rule->when->countAgainst($facts, true));
+        $blocking = $rule->when->firstFalseLeaf($facts);
+        self::assertNotNull($blocking);
+        self::assertTrue($blocking->negated);
+        self::assertSame('card.blocker.open', $blocking->leaf->condition::key());
+    }
+
     public function test_the_product_design_session_waits_for_an_open_session_and_withdraws_only_an_open_request(): void
     {
         $rule = $this->ruleOf('product-design', 'product-design-session');
@@ -928,7 +941,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame('@terminal', $rules[0]->slot);
         self::assertTrue($rules[0]->when->evaluate(FactsMother::facts(card: FactsMother::card(slot: '@terminal'))));
         self::assertSame('request', $rules[0]->lead->key);
-        self::assertSame(['kind' => 'teardown', 'onTimeout' => 'expire'], $rules[0]->lead->params);
+        self::assertSame(['kind' => 'teardown'], $rules[0]->lead->params);
     }
 
     #[DataProvider('shippedKeys')]

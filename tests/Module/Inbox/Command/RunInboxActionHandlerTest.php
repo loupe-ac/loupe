@@ -146,7 +146,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $command = $this->em()->find(BridgeCommand::class, $action->bridgeCommandId);
         self::assertInstanceOf(BridgeCommand::class, $command);
         self::assertSame([BridgeCommandKind::ResumeRun, BridgeCommandState::Pending, BridgeCommandCause::InboxAction], [$command->kind, $command->state, $command->cause]);
-        self::assertSame((string) $run?->id, (string) $command->workerRun->id);
+        self::assertSame((string) $run?->id, (string) $command->workerRun?->id);
         self::assertNull($command->reason);
         self::assertSame((string) $this->waitOf($item)->id, (string) $action->waitId);
         self::assertSame($action, $this->service(InboxActionRepository::class)->findOneByIdAndItem($action->id ?? throw new \LogicException('Stored.'), $item));

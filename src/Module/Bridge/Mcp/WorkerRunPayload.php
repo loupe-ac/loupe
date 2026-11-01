@@ -129,7 +129,7 @@ final readonly class WorkerRunPayload
     {
         return [
             'commandId' => (string) $command->id,
-            'runId' => (string) $command->workerRun->id,
+            'runId' => (string) ($command->workerRun->id ?? throw new \LogicException('A command listed with a run names that run.')),
             'kind' => $command->kind->value,
             'state' => $command->state->value,
             'reason' => $command->reason,

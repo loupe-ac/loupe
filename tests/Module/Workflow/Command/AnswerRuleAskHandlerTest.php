@@ -207,7 +207,6 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
             'slots' => [['key' => 'one', 'label' => 'one'], ['key' => 'two', 'label' => 'two']],
             'manualMoves' => [],
             'backoffMinutes' => [],
-            'workTimeoutMinutes' => 120,
             'rules' => [[
                 'id' => 'unplanned-child',
                 'slot' => 'one',

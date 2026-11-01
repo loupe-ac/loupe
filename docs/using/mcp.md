@@ -362,7 +362,7 @@ Roughly in the order an agent uses them:
 | `worker_run_stop` | Ask the bridge to stop a queued or running worker run. The stop does not make the card unmanaged, so call `card_hold` for that |
 | `card_hold` | Make a card unmanaged, by `cardId` or `number`. The workflow makes no move and starts no work on the card, and no bridge starts a worker on it, until `card_release`. Loupe cancels the work requests of the card that no bridge took yet. A live run goes on |
 | `card_release` | Make an unmanaged card managed again. The queued runs on the card then start, and the workflow asks again for the work that the card still needs |
-| `card_pause_release` | End the workflow pause of a card, by `cardId` or `number`, so the paused rule runs again with a fresh budget. It ends a pause of kind `retries`, `work-limit`, `work-timeout` or `work-stopped`. It does not end a hold, which `card_release` ends |
+| `card_pause_release` | End the workflow pause of a card, by `cardId` or `number`, so the paused rule runs again with a fresh budget. It ends a pause of kind `retries`, `work-limit` or `work-stopped`. It does not end a hold, which `card_release` ends |
 | `bridge_command_cancel` | Withdraw the resume or stop command that waits on a worker run, before its bridge reads it |
 
 ### Changing the project settings
@@ -693,7 +693,7 @@ of the card, and `card_get_history` returns it with `valueChange`.
 
 The full card also carries `pause`, the active workflow pause of the card, or
 null. A pause holds `pauseId`, `kind`, `reason`, `ruleId` and `since`. The kind
-is `rule`, `retries`, `work-limit`, `work-timeout` or `work-stopped`. `card_list` takes `paused`
+is `rule`, `retries`, `work-limit` or `work-stopped`. `card_list` takes `paused`
 as a filter: `true` keeps the paused cards, and `false` keeps the cards with no
 pause. `card_pause_release` ends a pause of any kind except `rule`. Pass the
 `pauseId` you read, and the tool refuses with `pause-changed` when the active

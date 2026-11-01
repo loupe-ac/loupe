@@ -49,7 +49,7 @@ func TestClaimWorkRequestPostsAndReadsTheClaim(t *testing.T) {
 		method, path, auth, body = r.Method, r.URL.EscapedPath(), r.Header.Get("Authorization"), raw
 	})
 
-	claim, err := client.ClaimWorkRequest(context.Background(), workBridgeID, workRequestID)
+	claim, err := client.ClaimWorkRequest(context.Background(), workBridgeID, workRequestID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestClaimWorkRequestPostsAndReadsTheClaim(t *testing.T) {
 func TestClaimWorkRequestReadsALongAnswer(t *testing.T) {
 	answer := fmt.Sprintf(`{"workRequestId":%q,"claimToken":%q,"leaseUntil":"2026-10-01T12:32:00+00:00","padding":%q,"workRequest":%s}`,
 		workRequestID, workToken, strings.Repeat("x", 4096), workRequestJSON("claimed"))
-	claim, err := workServer(t, http.StatusOK, answer, nil).ClaimWorkRequest(context.Background(), workBridgeID, workRequestID)
+	claim, err := workServer(t, http.StatusOK, answer, nil).ClaimWorkRequest(context.Background(), workBridgeID, workRequestID, "")
 	if err != nil || claim.WorkRequest.Kind != "implement" {
 		t.Fatalf("claim = %+v, err = %v", claim, err)
 	}
@@ -84,7 +84,7 @@ func TestClaimWorkRequestRefusesAnAnswerItCannotUse(t *testing.T) {
 		"not JSON":        `<html>`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := workServer(t, http.StatusOK, answer, nil).ClaimWorkRequest(context.Background(), workBridgeID, workRequestID); err == nil {
+			if _, err := workServer(t, http.StatusOK, answer, nil).ClaimWorkRequest(context.Background(), workBridgeID, workRequestID, ""); err == nil {
 				t.Fatal("expected an error")
 			}
 		})
@@ -109,7 +109,7 @@ func TestClaimWorkRequestNamesEachFailure(t *testing.T) {
 		"server error":       {http.StatusInternalServerError, `boom`, nil, false, false, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := workServer(t, tc.status, tc.body, nil).ClaimWorkRequest(context.Background(), workBridgeID, workRequestID)
+			_, err := workServer(t, tc.status, tc.body, nil).ClaimWorkRequest(context.Background(), workBridgeID, workRequestID, "")
 			checkWorkError(t, err, tc.want, tc.refusal, tc.rateLimited, tc.code)
 		})
 	}
@@ -291,5 +291,131 @@ func TestAWorkRequestDecodesItsInboxKeys(t *testing.T) {
 				t.Fatalf("work request = %+v", w)
 			}
 		})
+	}
+}
+
+func TestClaimWorkRequestNamesTheAccount(t *testing.T) {
+	var contentType, body string
+	answer := fmt.Sprintf(`{"workRequestId":%q,"claimToken":%q,"leaseUntil":"2026-10-01T12:32:00+00:00","workRequest":%s}`,
+		workRequestID, workToken, workRequestJSON("claimed"))
+	client := workServer(t, http.StatusOK, answer, func(r *http.Request, raw string) {
+		contentType, body = r.Header.Get("Content-Type"), raw
+	})
+
+	if _, err := client.ClaimWorkRequest(context.Background(), workBridgeID, workRequestID, "claude"); err != nil {
+		t.Fatal(err)
+	}
+	if contentType != "application/json" || body != `{"account":"claude"}` {
+		t.Fatalf("content type = %q, body = %s", contentType, body)
+	}
+}
+
+func TestHandBackWorkRequestPutsTheOpenResult(t *testing.T) {
+	var method, path, body string
+	client := workServer(t, http.StatusOK, fmt.Sprintf(`{"workRequestId":%q,"state":"open"}`, workRequestID), func(r *http.Request, raw string) {
+		method, path, body = r.Method, r.URL.EscapedPath(), raw
+	})
+	used := 100.0
+	resets := time.Date(2026, 11, 1, 17, 0, 0, 0, time.UTC)
+
+	stored, err := client.HandBackWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, HandBack{
+		Cause: CauseUsageLimit, Account: "claude", SessionID: "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90", HasAssistantTurn: true,
+		Reading: &HandBackReading{Window: "week", UsedPercent: &used, ResetsAt: &resets, Limited: true, Source: "claude-event"},
+	})
+	if err != nil || stored != WorkRequestOpen {
+		t.Fatalf("stored = %q, err = %v", stored, err)
+	}
+	if method != http.MethodPut || path != "/api/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/result" {
+		t.Fatalf("method = %q, path = %q", method, path)
+	}
+	want := `{"claimToken":"` + workToken + `","state":"open","cause":"usage-limit","account":"claude",` +
+		`"reading":{"window":"week","usedPercent":100,"resetsAt":"2026-11-01T17:00:00Z","limited":true,"source":"claude-event"},` +
+		`"sessionId":"0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90","hasAssistantTurn":true}`
+	if body != want {
+		t.Fatalf("body = %s\nwant   %s", body, want)
+	}
+}
+
+func TestHandBackSendsNullForAnUnknownUseAndReset(t *testing.T) {
+	var body string
+	client := workServer(t, http.StatusOK, `{"state":"open"}`, func(_ *http.Request, raw string) { body = raw })
+
+	_, err := client.HandBackWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, HandBack{
+		Cause: CauseUsageLimit, Account: "claude", Reading: &HandBackReading{Window: "session", Limited: true, Source: "claude-message"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, `"usedPercent":null`) || !strings.Contains(body, `"resetsAt":null`) || !strings.Contains(body, `"hasAssistantTurn":false`) {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+func TestHandBackNamesAClaimLost(t *testing.T) {
+	client := workServer(t, http.StatusConflict, `{"error":"claim_lost"}`, nil)
+	_, err := client.HandBackWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, HandBack{Cause: CauseUsageLimit})
+	if !errors.Is(err, ErrClaimLost) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestHeartbeatReadsTheBlockedAccounts(t *testing.T) {
+	reply := `{"blockedAccounts":[{"account":"claude","until":"2026-11-01T17:00:00+00:00"},{"account":7},{"until":"x"}]}`
+	got, err := workServer(t, http.StatusOK, reply, nil).Heartbeat(context.Background(), workBridgeID, Heartbeat{CLIVersion: "v"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.BlockedAccounts) != 1 || got.BlockedAccounts[0].Account != "claude" ||
+		!got.BlockedAccounts[0].Until.Equal(time.Date(2026, 11, 1, 17, 0, 0, 0, time.UTC)) {
+		t.Fatalf("blocked = %+v", got.BlockedAccounts)
+	}
+}
+
+func TestHeartbeatKeepsAnEmptyBlockedListApartFromNoList(t *testing.T) {
+	for body, wantSet := range map[string]bool{`{"blockedAccounts":[]}`: true, `{"cliRange":"^1"}`: false, `{"blockedAccounts":null}`: false} {
+		got, err := workServer(t, http.StatusOK, body, nil).Heartbeat(context.Background(), workBridgeID, Heartbeat{CLIVersion: "v"})
+		if err != nil || (got.BlockedAccounts != nil) != wantSet {
+			t.Fatalf("%s: blocked = %+v, err = %v", body, got.BlockedAccounts, err)
+		}
+	}
+}
+
+func TestHeartbeatSendsTheSkippedRequests(t *testing.T) {
+	var body string
+	client := workServer(t, http.StatusOK, `{}`, func(_ *http.Request, raw string) { body = raw })
+	if _, err := client.Heartbeat(context.Background(), workBridgeID, Heartbeat{CLIVersion: "v", Skipped: []SkippedWork{{WorkRequestID: workRequestID, Account: "claude"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, `"skipped":[{"workRequestId":"`+workRequestID+`","account":"claude"}]`) {
+		t.Fatalf("body = %s", body)
+	}
+	if _, err := client.Heartbeat(context.Background(), workBridgeID, Heartbeat{CLIVersion: "v"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(body, "skipped") {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+func TestHandBackOfTheNetworkSendsNoReading(t *testing.T) {
+	var body string
+	client := workServer(t, http.StatusOK, `{"state":"open"}`, func(_ *http.Request, raw string) { body = raw })
+
+	_, err := client.HandBackWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, HandBack{
+		Cause: CauseNetwork, Account: "claude", SessionID: "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90", HasAssistantTurn: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"claimToken":"` + workToken + `","state":"open","cause":"network","account":"claude",` +
+		`"sessionId":"0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90","hasAssistantTurn":true}`
+	if body != want {
+		t.Fatalf("body = %s\nwant   %s", body, want)
+	}
+}
+
+func TestTheNetworkRunStateIsAnOutcome(t *testing.T) {
+	if RunNetwork != "network" || !IsOutcome(RunNetwork) || !IsClosing(RunNetwork) {
+		t.Fatalf("network state = %q, outcome = %v", RunNetwork, IsOutcome(RunNetwork))
 	}
 }

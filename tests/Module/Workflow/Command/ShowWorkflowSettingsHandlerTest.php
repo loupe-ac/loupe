@@ -61,7 +61,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(33, $template->version);
+        self::assertSame(37, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -102,7 +102,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('pr.open', false, ''), new WorkflowConditionView('pr.behind', false, ''), new WorkflowConditionView('pr.approval_check_passed', false, ''), new WorkflowConditionView('pr.base_is_epic_branch', false, '')]),
         ], $rules['update-behind']->whenGroups);
         self::assertEquals([
-            new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.approved', false, 'tag: tech-design'), new WorkflowConditionView('card.document.changes_requested', true, 'tag: tech-design'), new WorkflowConditionView('card.blocker.open', true, ''), new WorkflowConditionView('card.blocker.closed', true, '')]),
+            new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.approved', false, 'tag: tech-design'), new WorkflowConditionView('card.document.changes_requested', true, 'tag: tech-design'), new WorkflowConditionView('card.blocker.open', true, ''), new WorkflowConditionView('card.blocker.closed', true, ''), new WorkflowConditionView('card.blocker.open', false, '')]),
             new WorkflowConditionGroupView('workflow.source.bridge', [new WorkflowConditionView('card.run.finished_with', false, 'kind: tech-design-recheck, reason: done')]),
         ], $rules['tech-design-approved']->whenGroups);
 
@@ -118,7 +118,6 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertEquals(new WorkflowManualMoveView('workflow.settings.where.backlog', 'workflow.slot.next', 'workflow.settings.moves.by.anyone'), $template->manualMoves[0]);
         self::assertCount(9, $template->manualMoves);
         self::assertSame([10, 60, 360], $template->backoffMinutes);
-        self::assertSame(120, $template->workTimeoutMinutes);
         self::assertSame([2, 3, 5], $template->workFailedBackoffMinutes);
         self::assertEquals([
             new WorkflowCardTypeView('feature', 'board.card.type.feature', 'lime', false, false, true),
@@ -244,7 +243,6 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             'slots' => [],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'facts' => [
                 'linked' => ['card.parent.exists' => []],
                 'linked-with-children' => ['all' => [['fact.linked' => []], ['not' => ['card.children.exist' => []]]]],
@@ -284,7 +282,6 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             'slots' => [],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'workTimeoutMinutes' => 120,
             'rules' => [
                 ['id' => 'gone', 'when' => ['card.gone' => []], 'then' => ['request' => ['kind' => 'gone']]],
                 ['id' => 'work', 'when' => ['all' => []], 'then' => ['request' => ['kind' => 'work']]],

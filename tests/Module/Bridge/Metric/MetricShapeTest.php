@@ -34,6 +34,49 @@ final class MetricShapeTest extends TestCase
         }
     }
 
+    public function test_the_account_usage_reads_readings_grouped_by_account_window(): void
+    {
+        $shape = new MetricShape(new MetricKey(Metric::AccountUsage));
+
+        self::assertSame([MetricUnit::Reading], $shape->units());
+        self::assertSame([MetricGroup::AccountWindow], $shape->groups());
+        self::assertSame(MetricValueType::Percent, $shape->valueType());
+        self::assertSame([MetricStatistic::Max, MetricStatistic::Mean, MetricStatistic::Median, MetricStatistic::P90, MetricStatistic::Count], $shape->statistics());
+        self::assertFalse($shape->isAdditive());
+    }
+
+    public function test_the_run_usage_metrics_are_run_percents_with_no_account_window_group(): void
+    {
+        foreach ([Metric::SessionUsage, Metric::WeekUsage] as $metric) {
+            $shape = new MetricShape(new MetricKey($metric));
+
+            self::assertSame([MetricUnit::Run], $shape->units(), $metric->value);
+            self::assertSame(MetricValueType::Percent, $shape->valueType(), $metric->value);
+            self::assertNotContains(MetricGroup::AccountWindow, $shape->groups(), $metric->value);
+            self::assertContains(MetricGroup::None, $shape->groups(), $metric->value);
+            self::assertFalse($shape->isAdditive(), $metric->value);
+        }
+    }
+
+    public function test_only_a_percent_offers_the_max_and_only_a_ratio_or_a_percent_leaves_out_the_sum(): void
+    {
+        foreach (MetricValueType::cases() as $type) {
+            self::assertSame(MetricValueType::Percent === $type, \in_array(MetricStatistic::Max, $type->statistics(), true), $type->value);
+        }
+        self::assertNotContains(MetricStatistic::Sum, MetricValueType::Percent->statistics());
+    }
+
+    public function test_no_other_metric_takes_the_account_window_group_or_the_reading_unit(): void
+    {
+        foreach (Metric::cases() as $metric) {
+            if (Metric::AccountUsage === $metric) {
+                continue;
+            }
+            self::assertNotContains(MetricGroup::AccountWindow, $metric->groups(), $metric->value);
+            self::assertNotContains(MetricUnit::Reading, $metric->units(), $metric->value);
+        }
+    }
+
     public function test_a_template_rate_is_a_ratio_of_cards(): void
     {
         $shape = MetricShape::of(MetricKey::template('merge-rate'), TemplateMetricSets::all());
@@ -54,7 +97,7 @@ final class MetricShapeTest extends TestCase
         $shape = MetricShape::template(TemplateMetricSets::count());
 
         self::assertSame(MetricValueType::Count, $shape->valueType());
-        self::assertSame(MetricStatistic::cases(), $shape->statistics());
+        self::assertSame([MetricStatistic::Median, MetricStatistic::Mean, MetricStatistic::Sum, MetricStatistic::P90, MetricStatistic::Count], $shape->statistics());
         self::assertSame([MetricUnit::Card], $shape->units());
     }
 

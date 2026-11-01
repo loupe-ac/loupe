@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Controller;
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Project\Entity\Project;
@@ -18,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\Uid\Uuid;
 
 final class ListAgentsControllerTest extends WebTestCase
 {
@@ -271,7 +273,7 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertStringNotContainsString('16:09', $accounts->text());
         $ready = $accounts->filter('[data-agent-account="work"]');
         self::assertSame('ready', $ready->attr('data-agent-account-state'));
-        self::assertSame('work claude-code Ready', preg_replace('/\s+/', ' ', trim($ready->text())));
+        self::assertSame('work claude-code Ready', preg_replace('/\s+/', ' ', trim($ready->filter('.lp-agent-card__account-line')->text())));
         $failing = $accounts->filter('[data-agent-account="personal"]');
         self::assertSame('failing', $failing->attr('data-agent-account-state'));
         self::assertStringContainsString('Failing', $failing->text());
@@ -281,6 +283,239 @@ final class ListAgentsControllerTest extends WebTestCase
         // The guard: the older bridge's card renders, so the absent block is not an absent card.
         self::assertCount(1, $crawler->filter('[data-agent-connection-id="'.$older->id.'"] [data-agent-health]'));
         self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$older->id.'"] [data-agent-accounts]'));
+    }
+
+    public function test_an_account_shows_a_bar_for_the_session_and_the_week_with_the_age_of_each_reading(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-bars@example.com');
+        $project = $this->project($em, $owner, 'Usage bars');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $future = new \DateTimeImmutable('+2 days')->format('Y-m-d H:i:s');
+        $this->seedAccountReading($em, $bridge, '-2 hours', window: 'week', usedPercent: 62.0, resetsAt: $future);
+        $this->seedAccountReading($em, $bridge, '-5 minutes', window: 'session', usedPercent: 97.0, resetsAt: $future);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $bars = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-usage]');
+        self::assertSame(['session', 'week'], $bars->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage')));
+        $session = $bars->eq(0);
+        self::assertSame('at-stop', $session->attr('data-agent-usage-state'));
+        self::assertSame('Session', trim($session->filter('.lp-usage-bar__name')->text()));
+        self::assertSame('97 %', trim($session->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('97', $session->filter('progress')->attr('value'));
+        self::assertStringContainsString('Read 5m ago', $session->filter('[data-agent-usage-age]')->text());
+        $week = $bars->eq(1);
+        self::assertSame('open', $week->attr('data-agent-usage-state'));
+        self::assertSame('62 %', trim($week->filter('[data-agent-usage-value]')->text()));
+        self::assertStringContainsString('Read 2h ago', $week->filter('[data-agent-usage-age]')->text());
+        self::assertCount(1, $week->filter('[data-agent-usage-reset]'));
+    }
+
+    public function test_a_bar_past_its_limit_fills_to_the_end_and_shows_the_real_value(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-over@example.com');
+        $project = $this->project($em, $owner, 'Usage over');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $bridge, '-1 minute', usedPercent: 104.0, resetsAt: new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s'), limited: true);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $bar = $crawler->filter('[data-agent-usage="session"]');
+        self::assertSame('at-limit', $bar->attr('data-agent-usage-state'));
+        self::assertSame('104 %', trim($bar->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('100', $bar->filter('progress')->attr('value'));
+    }
+
+    public function test_a_reading_with_no_use_value_shows_an_empty_bar_and_says_why(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-null@example.com');
+        $project = $this->project($em, $owner, 'Usage null');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $future = new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s');
+        $this->seedAccountReading($em, $bridge, '-1 minute', window: 'session', usedPercent: null, resetsAt: $future, limited: true);
+        $this->seedAccountReading($em, $bridge, '-1 minute', window: 'week', usedPercent: null, resetsAt: $future);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $limited = $crawler->filter('[data-agent-usage="session"]');
+        self::assertSame('At its limit', trim($limited->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('0', $limited->filter('progress')->attr('value'));
+        self::assertSame('at-limit', $limited->attr('data-agent-usage-state'));
+        self::assertStringContainsString('lp-usage-bar--limit', (string) $limited->attr('class'));
+        $silent = $crawler->filter('[data-agent-usage="week"]');
+        self::assertSame('Use not reported', trim($silent->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('0', $silent->filter('progress')->attr('value'));
+        self::assertSame('open', $silent->attr('data-agent-usage-state'));
+    }
+
+    public function test_a_window_past_its_reset_is_unknown_with_an_empty_bar_and_still_tells_the_age(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-unknown@example.com');
+        $project = $this->project($em, $owner, 'Usage unknown');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $bridge, '-3 hours', usedPercent: 99.0, resetsAt: new \DateTimeImmutable('-1 hour')->format('Y-m-d H:i:s'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $bar = $crawler->filter('[data-agent-usage="session"]');
+        self::assertSame('unknown', $bar->attr('data-agent-usage-state'));
+        self::assertSame('Unknown', trim($bar->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('0', $bar->filter('progress')->attr('value'));
+        self::assertCount(0, $bar->filter('[data-agent-usage-reset]'));
+        self::assertStringContainsString('Read 3h ago', $bar->filter('[data-agent-usage-age]')->text());
+        self::assertSame('work Unknown', trim($crawler->filter('details[data-agent-accounts] [data-agent-section-summary]')->text()));
+    }
+
+    public function test_the_age_of_a_reading_counts_from_the_last_report_of_the_same_values(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-seen@example.com');
+        $project = $this->project($em, $owner, 'Usage seen');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $reading = $this->seedAccountReading($em, $bridge, '-3 hours', resetsAt: new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s'));
+        $reading->seenAt = new \DateTimeImmutable('-1 minute', new \DateTimeZone('UTC'));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertStringContainsString('Read 1m ago', $crawler->filter('[data-agent-usage="session"] [data-agent-usage-age]')->text());
+    }
+
+    public function test_an_account_with_no_reading_yet_shows_an_unknown_session_and_week_bar(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-usage-none@example.com');
+        $project = $this->project($em, $owner, 'Usage none');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'fresh', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+            ['name' => 'half', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $bridge, '-1 minute', account: 'half', window: 'week', usedPercent: 40.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $bars = $crawler->filter('[data-agent-account="fresh"] [data-agent-usage]');
+        self::assertSame(['session', 'week'], $bars->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage')));
+        self::assertSame(['unknown', 'unknown'], $bars->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage-state')));
+        self::assertSame(['Unknown', 'Unknown'], $bars->each(static fn (Crawler $bar): string => trim($bar->filter('[data-agent-usage-value]')->text())));
+        self::assertSame('0', $bars->eq(0)->filter('progress')->attr('value'));
+        self::assertCount(0, $bars->filter('[data-agent-usage-age]'));
+        $half = $crawler->filter('[data-agent-account="half"] [data-agent-usage]');
+        self::assertSame(['session', 'week'], $half->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage')));
+        self::assertSame(['unknown', 'open'], $half->each(static fn (Crawler $bar): ?string => $bar->attr('data-agent-usage-state')));
+    }
+
+    public function test_each_section_keeps_its_choice_under_its_own_stimulus_key(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-section-keys@example.com');
+        $project = $this->project($em, $owner, 'Section keys');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], workerPools: [
+            ['name' => 'default', 'size' => 1, 'inUse' => 0, 'queued' => 0],
+        ], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $keys = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-controller="details-memory"]')
+            ->each(static fn (Crawler $section): ?string => $section->attr('data-details-memory-key-value'));
+        self::assertSame(['pools-'.$bridge->id, 'accounts-'.$bridge->id], $keys);
+    }
+
+    public function test_the_pools_and_accounts_sections_open_only_when_they_hold_a_problem(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-sections@example.com');
+        $project = $this->project($em, $owner, 'Sections');
+        $calm = $this->seedBridge($em, $owner, projects: [(string) $project->id], workerPools: [
+            ['name' => 'default', 'size' => 2, 'inUse' => 1, 'queued' => 0],
+        ], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $calm, '-1 minute', usedPercent: 10.0, resetsAt: new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s'));
+        $this->seedAccountReading($em, $calm, '-1 minute', window: 'week', usedPercent: 20.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $busy = $this->seedBridge($em, $owner, projects: [(string) $project->id], workerPools: [
+            ['name' => 'default', 'size' => 2, 'inUse' => 2, 'queued' => 3],
+        ], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $busy, '-1 minute', usedPercent: 99.0, resetsAt: new \DateTimeImmutable('+1 hour')->format('Y-m-d H:i:s'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $section = static fn (Bridge $bridge, string $name): Crawler => $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] details[data-agent-'.$name.']');
+        self::assertCount(1, $section($calm, 'worker-pools'));
+        self::assertNull($section($calm, 'worker-pools')->attr('open'));
+        self::assertNull($section($calm, 'accounts')->attr('open'));
+        self::assertNotNull($section($busy, 'worker-pools')->attr('open'));
+        self::assertNotNull($section($busy, 'accounts')->attr('open'));
+        self::assertSame('1 of 2 in use · 0 queued', trim($section($calm, 'worker-pools')->filter('[data-agent-section-summary]')->text()));
+        self::assertSame('2 of 2 in use · 3 queued', trim($section($busy, 'worker-pools')->filter('[data-agent-section-summary]')->text()));
+        self::assertSame('work ok', trim($section($calm, 'accounts')->filter('[data-agent-section-summary]')->text()));
+        self::assertSame('work near its limit', trim($section($busy, 'accounts')->filter('[data-agent-section-summary]')->text()));
+    }
+
+    public function test_the_accounts_summary_names_an_unknown_window_after_a_blocked_one(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-summary-unknown@example.com');
+        $project = $this->project($em, $owner, 'Summary unknown');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'codex', 'harness' => 'codex', 'state' => 'ready', 'reason' => null],
+            ['name' => 'claude', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $this->seedAccountReading($em, $bridge, '-3 hours', account: 'codex', usedPercent: 50.0, resetsAt: new \DateTimeImmutable('-1 hour')->format('Y-m-d H:i:s'));
+        $this->seedAccountReading($em, $bridge, '-1 minute', account: 'codex', window: 'week', usedPercent: 30.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $this->seedAccountReading($em, $bridge, '-1 minute', account: 'claude', window: 'week', usedPercent: 99.0, resetsAt: new \DateTimeImmutable('+1 day')->format('Y-m-d H:i:s'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        $summary = $crawler->filter('details[data-agent-accounts] [data-agent-section-summary]');
+        self::assertSame('codex Unknown · claude near its limit', trim($summary->text()));
     }
 
     public function test_an_unused_account_is_labelled_and_its_failing_hint_says_nothing_is_off(): void
@@ -304,7 +539,7 @@ final class ListAgentsControllerTest extends WebTestCase
         $accounts = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-accounts]');
         self::assertCount(4, $accounts->filter('[data-agent-account]'));
         $spare = $accounts->filter('[data-agent-account="spare"]');
-        self::assertSame('spare codex Ready Unused', preg_replace('/\s+/', ' ', trim($spare->text())));
+        self::assertSame('spare codex Ready Unused', preg_replace('/\s+/', ' ', trim($spare->filter('.lp-agent-card__account-line')->text())));
         $idle = $accounts->filter('[data-agent-account="idle"]');
         self::assertSame('failing', $idle->attr('data-agent-account-state'));
         self::assertStringContainsString('Unused', $idle->text());
@@ -538,6 +773,151 @@ final class ListAgentsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('This bridge is not connected to your account.', $crawler->filter('[data-bridge-pause-flash]')->text());
+    }
+
+    public function test_a_member_who_cannot_manage_sees_the_reset_and_no_try_now(): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        [$owner, $project, $bridge] = $this->tryNowScenario('member');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        self::assertCount(0, $account->filter('[data-agent-try-now]'));
+        self::assertCount(1, $account->filter('[data-agent-usage="week"] [data-agent-usage-reset]'));
+    }
+
+    public function test_a_manager_sees_try_now_as_a_post_form_with_a_token(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('manager');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $form = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] form[data-agent-try-now="work"]');
+        self::assertCount(1, $form);
+        self::assertSame('/projects/'.$project->id.'/agents/'.$bridge->id.'/accounts/work/try-now', $form->attr('action'));
+        self::assertSame('post', $form->attr('method'));
+        self::assertCount(1, $form->filter('input[name="_csrf_token"]'));
+        self::assertSame('Try now', trim($form->filter('button[type="submit"]')->text()));
+        self::assertCount(1, $crawler->filter('.lp-agent-card__account-line > form[data-agent-try-now="work"]'));
+        self::assertStringContainsString('lp-btn--ghost', (string) $form->filter('button')->attr('class'));
+    }
+
+    public function test_an_account_that_still_takes_work_offers_no_try_now(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('open', limited: false, usedPercent: 10.0);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-try-now]'));
+    }
+
+    public function test_an_open_override_reads_trying_now_and_offers_no_second_press(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('trying');
+        $em = $this->em();
+        $em->persist(new BridgeAccountTryNow(Uuid::v7(), $bridge, 'work', new \DateTimeImmutable('-1 minute', new \DateTimeZone('UTC'))));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        self::assertSame('Trying now', trim($account->filter('[data-agent-try-now-state="trying"]')->text()));
+        self::assertCount(0, $account->filter('[data-agent-try-now]'));
+    }
+
+    public function test_a_press_that_found_the_limit_in_place_shows_when_it_was_checked_and_offers_another_try(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge, $readAt] = $this->tryNowScenario('still-limited');
+        $em = $this->em();
+        $override = new BridgeAccountTryNow(Uuid::v7(), $bridge, 'work', $readAt->modify('-1 minute'));
+        $override->closedAt = $readAt;
+        $override->checkedAt = $readAt;
+        $override->stillLimited = true;
+        $em->persist($override);
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        $checked = $readAt->setTimezone(new \DateTimeZone(date_default_timezone_get()))->format('H:i');
+        self::assertSame('Still at its limit, checked '.$checked, trim($account->filter('[data-agent-try-now-state="still-limited"]')->text()));
+        self::assertCount(1, $account->filter('form[data-agent-try-now="work"]'));
+    }
+
+    public function test_a_bridge_without_the_try_now_capability_offers_no_button(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->tryNowScenario('outdated', capabilities: [Bridge::CAPABILITY_COMMANDS]);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-try-now]'));
+    }
+
+    public function test_a_try_now_refusal_shows_on_the_page(): void
+    {
+        $client = static::createClient();
+        [$owner, $project] = $this->tryNowScenario('flash');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $url = '/projects/'.$project->id.'/agents';
+        $client->request(Request::METHOD_GET, $url);
+        $session = $client->getRequest()->getSession();
+        self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
+        $session->getFlashBag()->add('bridge-try-now', 'This account is not at its limit.');
+        $session->save();
+        $crawler = $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('This account is not at its limit.', $crawler->filter('[data-bridge-try-now-flash]')->text());
+    }
+
+    /**
+     * An account "work" with a week reading, at its limit unless told otherwise.
+     *
+     * @param list<string> $capabilities
+     *
+     * @return array{0: User, 1: Project, 2: Bridge, 3: \DateTimeImmutable} the time the reading was read comes last
+     */
+    private function tryNowScenario(string $name, bool $limited = true, float $usedPercent = 100.0, array $capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_TRY_NOW]): array
+    {
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-try-now-'.$name.'@example.com');
+        $project = $this->project($em, $owner, 'Agents try now '.$name);
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '1.5.0', accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null],
+        ], accountsReportedAt: new \DateTimeImmutable());
+        $bridge->capabilities = $capabilities;
+        $readAt = new \DateTimeImmutable('-10 minutes', new \DateTimeZone('UTC'));
+        $this->seedAccountReading($em, $bridge, $readAt->format('Y-m-d H:i:s'), window: 'week', usedPercent: $usedPercent, resetsAt: new \DateTimeImmutable('+2 days')->format('Y-m-d H:i:s'), limited: $limited);
+        $em->flush();
+
+        return [$owner, $project, $bridge, $readAt];
     }
 
     public function test_a_stranger_cannot_read_connections(): void

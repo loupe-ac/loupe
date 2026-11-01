@@ -973,13 +973,110 @@
         @apply text-status-danger-deep;
     }
     .lp-agent-card__account-line {
-        @apply m-0 flex flex-wrap items-baseline gap-x-3;
+        @apply m-0 flex min-h-7 flex-wrap items-center gap-x-3;
     }
     .lp-agent-card__account-line > :last-child {
         @apply ml-auto;
     }
     .lp-agent-card__account-hint {
         @apply m-0;
+    }
+    /* A collapsing section of the agent card. It opens on its own when it holds a problem. */
+    .lp-agent-section__summary {
+        @apply flex cursor-pointer list-none items-center gap-1 text-xs text-fg-mute;
+    }
+    .lp-agent-section__summary::-webkit-details-marker {
+        display: none;
+    }
+    .lp-agent-section__title {
+        @apply font-semibold text-fg;
+    }
+    .lp-agent-section__text {
+        @apply ml-1 text-right text-fg-mute;
+    }
+    /* The state of a section at a glance, so a closed one still tells. It leads the summary on the right. */
+    .lp-agent-section__dot {
+        @apply ml-auto size-2 shrink-0 rounded-full bg-status-ok;
+    }
+    .lp-agent-section__dot--pending {
+        @apply bg-status-pending;
+    }
+    .lp-agent-section__dot--danger {
+        @apply bg-status-danger;
+    }
+    .lp-agent-section__caret {
+        @apply shrink-0 transition-transform duration-100;
+    }
+    .lp-agent-section[open]
+        > .lp-agent-section__summary
+        .lp-agent-section__caret {
+        @apply rotate-90;
+    }
+    .lp-agent-section[open] > .lp-agent-section__summary {
+        @apply mb-1;
+    }
+    /* The usage bars of an account on the Agents page, `templates/Module/Bridge/_account_usage.html.twig`. */
+    /* The bars of one account, side by side. */
+    .lp-usage {
+        @apply mt-1 grid grid-cols-2 items-end gap-3;
+    }
+    /* One window. Its tooltip, the age of the reading, shows on hover and focus. */
+    .lp-usage-bar {
+        @apply relative grid min-w-0 gap-1 rounded-md outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+    }
+    .lp-usage-bar:hover > .lp-tooltip,
+    .lp-usage-bar:focus-visible > .lp-tooltip {
+        @apply visible opacity-100;
+    }
+    .lp-usage-bar__line {
+        @apply m-0 flex flex-wrap items-baseline gap-x-1.5;
+    }
+    .lp-usage-bar__name {
+        @apply text-xs text-fg-mute;
+    }
+    .lp-usage-bar__value {
+        @apply text-sm font-semibold tabular-nums;
+    }
+    /* The track is a progress element, so the fill needs no inline style. */
+    .lp-usage-bar__track {
+        @apply block h-1.5 w-full appearance-none overflow-hidden rounded-full border-0 bg-surface-3;
+    }
+    .lp-usage-bar__track::-webkit-progress-bar {
+        @apply bg-surface-3;
+    }
+    .lp-usage-bar__track::-webkit-progress-value {
+        @apply rounded-full bg-accent;
+    }
+    .lp-usage-bar__track::-moz-progress-bar {
+        @apply rounded-full bg-accent;
+    }
+    .lp-usage-bar__reset {
+        @apply ml-auto inline-flex items-center gap-1 text-xs text-fg-mute;
+    }
+    /* At its stop value: amber. */
+    .lp-usage-bar--stop .lp-usage-bar__track::-webkit-progress-value {
+        @apply bg-status-pending;
+    }
+    .lp-usage-bar--stop .lp-usage-bar__track::-moz-progress-bar {
+        @apply bg-status-pending;
+    }
+    /* At its limit: red, also with no use value, where the fill is empty. */
+    .lp-usage-bar--limit .lp-usage-bar__value {
+        @apply text-status-danger-deep;
+    }
+    .lp-usage-bar--limit .lp-usage-bar__track,
+    .lp-usage-bar--limit .lp-usage-bar__track::-webkit-progress-bar {
+        @apply bg-status-danger-bg;
+    }
+    .lp-usage-bar--limit .lp-usage-bar__track::-webkit-progress-value {
+        @apply bg-status-danger;
+    }
+    .lp-usage-bar--limit .lp-usage-bar__track::-moz-progress-bar {
+        @apply bg-status-danger;
+    }
+    /* No reading to trust: the label is quiet and the bar stays empty. */
+    .lp-usage-bar--unknown .lp-usage-bar__value {
+        @apply font-normal text-fg-mute;
     }
     /* A narrow card at a large text size wraps the menu under the label. */
     .lp-redesign-agents .lp-agent-card__heading {
@@ -2863,6 +2960,13 @@
     }
     .lp-card-overview__section {
         @apply flex flex-col gap-3;
+    }
+    /* The status box with the control that acts on it under the box. */
+    .lp-card-overview__state {
+        @apply flex flex-col items-start gap-3;
+    }
+    .lp-card-overview__state > .lp-status-box {
+        @apply w-full;
     }
     /* The heading row of an epic's children: the title, the done count, and the lane button. */
     .lp-card-epic__head {

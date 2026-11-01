@@ -160,7 +160,6 @@ final class ItemActionsTest extends KernelTestCase
     public static function releasableKinds(): iterable
     {
         yield 'retries' => [PauseKind::Retries];
-        yield 'work timeout' => [PauseKind::WorkTimeout];
         yield 'work stopped' => [PauseKind::WorkStopped];
         yield 'work limit' => [PauseKind::WorkLimit];
     }

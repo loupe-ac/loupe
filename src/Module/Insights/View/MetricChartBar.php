@@ -14,7 +14,7 @@ final readonly class MetricChartBar
         public MetricPoint $point,
         public float $x,
         public float $width,
-        /** The y of the top edge. The baseline for a zero value. */
+        /** The y of the top edge. The zero line for a zero or negative value, which hangs below it. */
         public float $top,
         /** Empty for a zero value, which has no height to draw. */
         public string $path,

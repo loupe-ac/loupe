@@ -36,7 +36,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(10, $form->filter('select[name="metric"] option'));
+        self::assertCount(13, $form->filter('select[name="metric"] option'));
         self::assertCount(1, $form->filter('noscript'));
 
         $empty = $crawler->filter('[data-metrics-empty]');
@@ -143,6 +143,37 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertCount(2, $crawler->filter('[data-metrics-chart] [data-metrics-bar]'));
     }
 
+    public function test_the_account_usage_charts_the_readings_as_percents_by_account_window(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'metrics-usage@example.com');
+        $project = $this->project($em, $owner, 'Usage metrics');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
+        $bridge->name = 'studio-mac';
+        $em->flush();
+        $this->seedAccountReading($em, $bridge, '2026-09-01 10:00:00', usedPercent: 96.0);
+        $this->seedAccountReading($em, $bridge, '2026-09-01 12:00:00', usedPercent: 40.0);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=account-usage&statistic=max&range=all&bucket=day');
+
+        self::assertResponseIsSuccessful();
+        $form = $crawler->filter('form[data-metrics-form]');
+        self::assertSame(['reading'], self::options($form, 'unit'));
+        self::assertSame(['max', 'mean', 'median', 'p90', 'count'], self::options($form, 'statistic'));
+        self::assertSame(['account-window'], self::options($form, 'group'));
+        self::assertSame('account-usage', self::selected($form)['metric']);
+        $summary = $crawler->filter('[data-metrics-summary] [data-metrics-series="studio-mac/work session"]');
+        self::assertCount(1, $summary);
+        self::assertSame(['96 %', '2 readings'], $summary->filter('dd')->each(static fn (Crawler $value): string => trim($value->text())));
+        $bars = $crawler->filter('[data-metrics-chart] [data-metrics-bar]');
+        self::assertCount(1, $bars);
+        self::assertSame('Sep 1: studio-mac/work session, 96 %, 2 readings', $bars->first()->attr('aria-label'));
+    }
+
     public function test_a_bridge_series_shows_the_label_of_its_bridge(): void
     {
         $client = static::createClient();
@@ -186,7 +217,7 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(10, $select->children('option'));
+        self::assertCount(13, $select->children('option'));
         $groups = $select->filter('optgroup');
         self::assertCount(3, $groups);
         self::assertSame(['Time buckets', 'Time buckets, subagents included', 'Calls in time buckets'], $groups->each(static fn (Crawler $group): string => (string) $group->attr('label')));

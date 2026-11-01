@@ -30,6 +30,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 	"github.com/loupe-ac/loupe/cli/internal/transport"
+	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
 // router turns each event a rule matches into a worker process and reports
@@ -69,6 +70,16 @@ type router struct {
 	runs    *runReports
 	// heartbeat tells Loupe the bridge runs. A nil one sends nothing.
 	heartbeat *heartbeater
+	// accountUsage reads the usage of the account of each live run. A nil
+	// one reads nothing.
+	accountUsage *usage.Collector
+	// reach records when a request to Loupe last failed. A nil one reports no
+	// failure.
+	reach *reachTracker
+	// blocked is the accounts Loupe blocks. skips holds the offers the bridge
+	// skipped for them, until a heartbeat carries them.
+	blocked blockedSet
+	skips   skipLog
 	// hostSampling and hostInterval are the host sampling flags, under mu.
 	hostSampling bool
 	hostInterval time.Duration
@@ -319,14 +330,19 @@ type pending struct {
 	pool string
 	slot string
 	// experiment is the experiment of the rule, or nil. pin is the variant
-	// the run resolved at start.
+	// the run resolved. variant holds its settings when the offer resolved
+	// them before the claim, and nil when the start resolves them.
 	experiment *rules.Experiment
 	pin        runPin
+	variant    *rules.RunSettings
 	// work is the work request the run does, and empty for an event's run.
 	// claimToken is set once the bridge holds its claim. A queued offer holds
 	// none, and reports nothing.
 	work       api.WorkRequest
 	claimToken string
+	// account is the account the bridge matched for the work request, and the
+	// claim names it.
+	account string
 	// origin is the work of the run that a person's resume or rerun
 	// continues. Such a run claims nothing and settles no request.
 	origin api.WorkRequest
@@ -350,7 +366,7 @@ type runPin struct {
 // its prompt and its cap.
 func (p *pending) apply(m rules.Match) {
 	p.rule, p.action, p.project, p.pool = m.Rule, m.Action, m.Project, m.Pool
-	p.experiment, p.pin = m.Experiment, runPin{}
+	p.experiment, p.pin, p.variant = m.Experiment, runPin{}, nil
 	if p.continues != "" {
 		p.spec.dir, p.spec.effort, p.spec.schema = m.Dir, m.Effort, m.Schema
 		p.spec.before, p.spec.command = m.Before, m.Command
@@ -1020,7 +1036,11 @@ func (r *router) start(p pending) {
 
 		if p.experiment != nil {
 			var settings rules.RunSettings
-			settings, p.pin = r.resolveVariant(p)
+			if p.variant != nil {
+				settings = *p.variant
+			} else {
+				settings, p.pin = r.resolveVariant(p)
+			}
 			// A resume runs with what the run started on, so it names no
 			// variant that would run with other settings.
 			run, _ := p.startedOn.settings(p.set, settings)
@@ -1101,6 +1121,7 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.trackLocked(liveRun{p: p, began: began, proc: proc})
+		r.followUsage(p, proc.dir, began)
 		r.emitLocked(p, api.RunStateReport{State: api.RunRunning, SessionID: p.spec.sessionID, StartedAt: began})
 		// A stop that came while the worker spawned starts its ladder now.
 		if r.stops[p.runID] {
@@ -1358,6 +1379,10 @@ func (r *router) trackLocked(run liveRun) {
 func (r *router) settle(p pending, e endedRun) {
 	r.quiesce.RLock()
 	defer r.quiesce.RUnlock()
+	if limited := limitedOf(r.accountUsage.Finish(p.runID, time.Now())); limited != nil {
+		e.res.limit = limited
+	}
+	e.res.loupeDown = r.reach.failedSince(time.Now().Add(-time.Minute))
 	done := func() {
 		r.end(p, e)
 		r.sendToolCalls(p, e.res)
@@ -1458,16 +1483,21 @@ func (r *router) end(p pending, e endedRun) {
 	if r.endStoppedLocked(p, e) {
 		return
 	}
+	st, post := r.workResultLocked(p, e.res, shut || r.shut())
+	// A run that hands its work back reads usage-limit or network, not the
+	// failure its exit implies.
+	if post && st.back != nil {
+		e.state = handBackState(st.back)
+	}
 	r.emitLocked(p, r.outcome(p, e))
 	delete(r.running, p.key)
 	r.freeLocked(p)
-	state, why, post := r.workResultLocked(p, e.res, shut || r.shut())
 	dropped := r.dispatchLocked()
 	r.mu.Unlock()
 
 	r.logDropped(dropped)
 	if post {
-		r.settleWork(p, state, why)
+		r.settleWork(p, st)
 	}
 }
 

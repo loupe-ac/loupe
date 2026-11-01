@@ -8,6 +8,8 @@ use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\TemplateMetricValues;
+use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -78,6 +80,10 @@ final class MetricRowSourceTest extends KernelTestCase
         $workRequests = self::getContainer()->get(WorkRequestRepository::class);
         self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
         $reports = $this->createStub(CardReportSourceInterface::class);
+        $bridges = self::getContainer()->get(BridgeRepository::class);
+        self::assertInstanceOf(BridgeRepository::class, $bridges);
+        $readings = self::getContainer()->get(BridgeAccountReadingRepository::class);
+        self::assertInstanceOf(BridgeAccountReadingRepository::class, $readings);
 
         return new MetricRowSource(
             $facts,
@@ -86,6 +92,8 @@ final class MetricRowSourceTest extends KernelTestCase
             $this->bucketTimeRepository(),
             $this->workerRunRepository(),
             new TemplateMetricValues($workRequests, $reports, $this->createStub(TemplateMetrics::class), []),
+            $bridges,
+            $readings,
         );
     }
 

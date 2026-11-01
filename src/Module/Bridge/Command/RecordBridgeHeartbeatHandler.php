@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\AccountLimits;
+use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HeldProjects;
@@ -22,9 +27,13 @@ use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Bridge\Service\WorkRequestLease;
+use App\Module\Bridge\ValueObject\AccountReadingChange;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
+use App\Module\Bridge\ValueObject\SkippedWorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Security\LoginLivenessInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -57,6 +66,9 @@ final readonly class RecordBridgeHeartbeatHandler
         private BridgeCommandRepository $bridgeCommands,
         private WorkRequestRepository $workRequests,
         private BridgeHostSampleRepository $bridgeHostSamples,
+        private AccountReadingRecorder $readings,
+        private BridgeWorkMatchRepository $bridgeWorkMatches,
+        private AccountLimits $accountLimits,
         private HostSampling $hostSampling,
         private WorkerRunRepository $workerRuns,
         private WorkerRunFactWriter $factWriter,
@@ -81,11 +93,11 @@ final readonly class RecordBridgeHeartbeatHandler
         $owned = $this->projects->findIdsOwnedBy($command->owner, $command->projects);
         $projects = array_values(array_filter($command->projects, static fn (string $id): bool => \in_array($id, $owned, true)));
         // A bridge keeps the flag value it read at connect, so it can still send samples after sampling went off.
-        $samples = $this->hostSampling->enabled() ? $this->samplesInWindow($command->hostSamples) : [];
+        $samples = $this->hostSampling->enabled() ? $this->inWindow($command->hostSamples, static fn (BridgeHostSampleReport $sample): \DateTimeImmutable => $sample->sampledAt) : [];
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $blocked, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $usageChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
@@ -122,10 +134,14 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->workerPools = $command->workerPools;
                 $bridge->workerPoolsReportedAt = $now;
             }
+            $usageChanged = null !== $command->accounts && $bridge->accounts !== $command->accounts;
             if (null !== $command->accounts) {
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
             }
+            $readingChange = $this->readings->record($bridge, $command->accountReadings);
+            $readingsStored = AccountReadingChange::Stored === $readingChange;
+            $usageChanged = $readingChange->refreshesPage() || $usageChanged;
             if (null !== $command->commandEntries) {
                 $bridge->commandEntries = $command->commandEntries;
                 $bridge->commandEntriesReportedAt = $now;
@@ -201,25 +217,34 @@ final readonly class RecordBridgeHeartbeatHandler
                 $named = array_values(array_unique(array_map(static fn (array $claim): string => $claim[0]->toRfc4122(), $command->workClaims)));
                 $lostClaims = array_values(array_diff($named, $renewed));
             }
+            // The new readings and the new bridge row must reach the database before the limits read them.
+            $this->em->flush();
+            $this->keepWorkMatches($bridge, $command->skipped);
+            $blocked = $this->accountLimits->blockedOf($bridge);
             $workRequests = $bridge->takesWorkRequests()
-                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS, $this->heldProjects->among($bridge->projects))
+                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS, $this->heldProjects->among($bridge->projects), $now, array_map(strval(...), array_keys($blocked)))
                 : [];
 
             // Read under the lock a new command takes, so the reply misses no command stored before it.
-            return [$bridge, $created, $this->bridgeCommands->findPendingFor($command->owner, $command->bridgeId, $now), $pauseChanged, $workRequests, $lostClaims,
+            return [$bridge, $created, $this->bridgeCommands->findPendingFor($command->owner, $command->bridgeId, $now), $pauseChanged, $workRequests, $lostClaims, $blocked,
                 // A project the bridge stopped following can still hold a notice that names it.
                 $heldName === $bridge->name ? [] : array_values(array_unique([...$followed, ...$projects])),
                 $poolsChanged,
                 $followed,
                 $wasQuiet,
                 $availabilityChanged,
+                $usageChanged,
+                $readingsStored,
             ];
         });
 
         // After the commit, because the writer locks run rows and the bridge lock must not wait on them.
         // A resent batch inserts nothing and still recomputes, so a failed recompute gets a retry.
-        if ([] !== $samples) {
-            $times = array_map(static fn (BridgeHostSampleReport $sample): int => $sample->sampledAt->getTimestamp(), $samples);
+        $times = [
+            ...array_map(static fn (BridgeHostSampleReport $sample): int => $sample->sampledAt->getTimestamp(), $samples),
+            ...array_map(static fn (AccountReadingReport $reading): int => $reading->readAt->getTimestamp(), $this->inWindow($command->accountReadings, static fn (AccountReadingReport $reading): \DateTimeImmutable => $reading->readAt)),
+        ];
+        if ([] !== $times) {
             $this->factWriter->upsert($this->workerRuns->findEndedIdsOnBridgeBetween(
                 $command->owner->id ?? throw new \LogicException('An authenticated user always has an id.'),
                 $command->bridgeId,
@@ -230,9 +255,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // The Agents pill of the sidebar sums the pools of the live bridges that follow a project, so it reloads
         // when the pools change, the bridge follows another set or comes back from quiet, on the projects it left as well.
+        // The Agents page also draws the usage bars and their age, so it reloads when the accounts or their readings change or age.
         $followedChanged = [] !== array_diff($followedBefore, $projects) || [] !== array_diff($projects, $followedBefore);
         $cameBack = $wasQuiet && null !== $bridge->workerPools;
-        if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack) {
+        if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack || $usageChanged) {
             foreach ($this->projects->findOwnedBy($command->owner, array_values(array_unique([...$followedBefore, ...$projects]))) as $project) {
                 $this->runsChanged->runsChanged($project);
             }
@@ -240,6 +266,10 @@ final readonly class RecordBridgeHeartbeatHandler
 
         if ($availabilityChanged) {
             $this->events->dispatch(new BridgeAvailabilityChanged(array_values(array_unique([...$followedBefore, ...$projects]))));
+        }
+
+        if ($readingsStored) {
+            $this->events->dispatch(new BridgeAccountReadingsStored(array_values(array_unique([...$followedBefore, ...$projects]))));
         }
 
         $watchSessions = $this->applySessionReadings($command);
@@ -261,7 +291,7 @@ final readonly class RecordBridgeHeartbeatHandler
             );
         }
 
-        return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims, $watchSessions);
+        return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims, $watchSessions, $blocked);
     }
 
     /**
@@ -301,6 +331,48 @@ final readonly class RecordBridgeHeartbeatHandler
         return $this->workerRuns->findOpenInteractiveSessionIdsOfBridge($command->bridgeId, $command->owner);
     }
 
+    /**
+     * Drops the matches whose request closed or whose account the bridge no longer lists with the kind of the
+     * request, and adds the matches of the skipped requests. A heartbeat that omits a request keeps its match,
+     * because Loupe holds the offer back from the bridge, which then has nothing to report.
+     *
+     * @param list<SkippedWorkRequest> $skipped
+     */
+    private function keepWorkMatches(Bridge $bridge, array $skipped): void
+    {
+        $ownerId = $bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.');
+        $this->bridgeWorkMatches->deleteOfClosedRequests($ownerId, $bridge->id);
+
+        $unlisted = [];
+        foreach ($this->bridgeWorkMatches->findOfBridge($ownerId, $bridge->id) as $match) {
+            if (!$bridge->accountRuns($match['account'], Bridge::workKindOf($match['subjectType'], $match['kind']))) {
+                $unlisted[] = $match['id'];
+            }
+        }
+        $this->bridgeWorkMatches->deleteByIds($unlisted);
+
+        $requests = $this->workRequests->findByIds(array_map(static fn (SkippedWorkRequest $entry): Uuid => $entry->workRequestId, $skipped));
+        foreach ($skipped as $entry) {
+            $request = $requests[$entry->workRequestId->toRfc4122()] ?? null;
+            if (null !== $request && $this->isOfferedTo($bridge, $request) && $bridge->accountRuns($entry->account, Bridge::workKindOf($request->subjectType, $request->kind))) {
+                $this->bridgeWorkMatches->put($ownerId, $bridge->id, $entry->workRequestId, $entry->account);
+            }
+        }
+    }
+
+    /** Whether Loupe can offer the open request to the bridge. A report about any other request is dropped. */
+    private function isOfferedTo(Bridge $bridge, WorkRequest $request): bool
+    {
+        $project = $request->project;
+
+        return WorkRequestState::Open === $request->state
+            && null !== $project->id
+            && true === $project->owner->id?->equals($bridge->owner->id)
+            && \in_array($project->id->toRfc4122(), $bridge->projects, true)
+            && (null === $request->targetBridgeId || $request->targetBridgeId->equals($bridge->id))
+            && $bridge->canRun($request);
+    }
+
     /** A live process is a sign of life now. Otherwise the transcript time counts, never later than now. */
     private static function activityOf(BridgeSessionReading $reading, \DateTimeImmutable $now): ?\DateTimeImmutable
     {
@@ -335,22 +407,25 @@ final readonly class RecordBridgeHeartbeatHandler
     }
 
     /**
-     * Drops the samples of a bridge with a wrong clock, so they neither escape the purge
+     * Drops the reports of a bridge with a wrong clock, so they neither escape the purge
      * nor widen the recompute window to every run of the bridge.
      *
-     * @param list<BridgeHostSampleReport> $samples
+     * @template T of object
      *
-     * @return list<BridgeHostSampleReport>
+     * @param list<T>                         $reports
+     * @param \Closure(T): \DateTimeImmutable $timeOf
+     *
+     * @return list<T>
      */
-    private function samplesInWindow(array $samples): array
+    private function inWindow(array $reports, \Closure $timeOf): array
     {
         $now = $this->clock->now();
         $oldest = $now->sub(new \DateInterval('P'.$this->retention->retentionDays().'D'));
         $latest = $now->modify(self::MAX_SAMPLE_LEAD);
 
         return array_values(array_filter(
-            $samples,
-            static fn (BridgeHostSampleReport $sample): bool => $sample->sampledAt >= $oldest && $sample->sampledAt <= $latest,
+            $reports,
+            static fn (object $report): bool => $timeOf($report) >= $oldest && $timeOf($report) <= $latest,
         ));
     }
 }

@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunBilledCost;
@@ -254,6 +255,24 @@ trait BridgeScenario
             $bridge->id,
             [new BridgeHostSampleReport(new \DateTimeImmutable($sampledAt, new \DateTimeZone('UTC')), $cpuPct, $memUsed, 4000, $swapUsed, $batteryPct, $onAc)],
         );
+    }
+
+    private function seedAccountReading(
+        EntityManagerInterface $em,
+        Bridge $bridge,
+        string $readAt,
+        string $account = 'work',
+        string $window = 'session',
+        ?float $usedPercent = 40.0,
+        string $resetsAt = '2026-10-07 17:00:00',
+        bool $limited = false,
+    ): BridgeAccountReading {
+        $utc = new \DateTimeZone('UTC');
+        $reading = new BridgeAccountReading(Uuid::v7(), $bridge, $account, $window, $usedPercent, new \DateTimeImmutable($resetsAt, $utc), $limited, 'stream', new \DateTimeImmutable($readAt, $utc));
+        $em->persist($reading);
+        $em->flush();
+
+        return $reading;
     }
 
     private function countToolCalls(EntityManagerInterface $em): int
