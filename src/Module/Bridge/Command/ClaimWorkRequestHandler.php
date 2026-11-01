@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeClaimRefusalRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -44,6 +45,7 @@ final readonly class ClaimWorkRequestHandler
         private ClaimGate $gate,
         private ProjectRepository $projects,
         private BridgeWorkMatchRepository $bridgeWorkMatches,
+        private BridgeClaimRefusalRepository $bridgeClaimRefusals,
     ) {
     }
 
@@ -71,8 +73,16 @@ final readonly class ClaimWorkRequestHandler
             $workKind = Bridge::workKindOf($request->subjectType, $request->kind);
             $known = null === $account ? $bridge->runsOnNoAccount($workKind) : $bridge->accountRuns($account, $workKind);
             if (!$known) {
+                $this->bridgeClaimRefusals->put(
+                    $command->owner->id ?? throw new \LogicException('An authenticated user always has an id.'),
+                    $command->bridgeId,
+                    $command->workRequestId,
+                    $account,
+                );
+
                 return WorkRequestRefusal::AccountUnknown;
             }
+            $this->bridgeClaimRefusals->deleteOfBridgeAndRequest($command->bridgeId, $command->workRequestId);
 
             // Serialises with a hold, which locks the project row: a claim that reads the hold sees every hold committed before it.
             // The key share also makes the project hold read wait for a summary write that holds the project row.
@@ -88,6 +98,7 @@ final readonly class ClaimWorkRequestHandler
             }
             // A claimed request waits for no bridge, so no bridge keeps a match for it.
             $this->bridgeWorkMatches->deleteOfRequest($command->workRequestId);
+            $this->bridgeClaimRefusals->deleteOfRequest($command->workRequestId);
             // The claim writes with native SQL, so the managed copy is stale until this read.
             $claimed = $this->workRequests->findOneLocked($command->workRequestId)
                 ?? throw new \LogicException('A claimed work request exists.');
