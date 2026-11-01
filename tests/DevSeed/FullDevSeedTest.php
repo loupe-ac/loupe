@@ -29,6 +29,11 @@ use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
 use App\Module\Bridge\ValueObject\WindowLimitState;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Service\Dev\DevAgentRunSeeder;
+use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Service\Dev\DevEdgeProjectSeeder;
+use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\Service\SavedGraphHealth;
+use App\Module\Insights\View\BrokenGraphReason;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
@@ -500,6 +505,33 @@ final class FullDevSeedTest extends KernelTestCase
         $times = array_map(static fn (Project $project): string => $project->createdAt->format('Y-m-d H:i:s.u'), $projects);
         self::assertSame($times, array_values(array_unique($times)), 'Two projects share a creation time.');
         self::assertSame('Dev Project', $projects[0]->name);
+    }
+
+    public function test_the_edge_projects_show_no_runs_the_graph_cap_and_a_broken_graph(): void
+    {
+        $this->seed(self::DAY);
+        $em = $this->em();
+        $em->clear();
+        $connection = $em->getConnection();
+
+        $noRuns = $em->find(Project::class, DevEdgeProjectSeeder::noRunsProjectId()) ?? throw new \LogicException('The project with no runs is missing.');
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_runs WHERE project_id = ?', [$noRuns->id]));
+        self::assertGreaterThan(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_runs WHERE project_id = ?', [DevProjectSeeder::devProjectId()]));
+
+        $atCap = $em->find(Project::class, DevEdgeProjectSeeder::atCapProjectId()) ?? throw new \LogicException('The project at the cap is missing.');
+        $graphs = self::getContainer()->get(InsightsSavedGraphRepository::class)->findActive($atCap);
+        self::assertCount(SavedGraphCap::DEFAULT, $graphs);
+        self::assertTrue(self::getContainer()->get(SavedGraphCap::class)->isReached($atCap));
+        self::assertSame([], self::getContainer()->get(SavedGraphHealth::class)->check($atCap, $graphs));
+
+        $broken = $em->find(Project::class, DevEdgeProjectSeeder::brokenGraphProjectId()) ?? throw new \LogicException('The project with a broken graph is missing.');
+        $problems = self::getContainer()->get(SavedGraphHealth::class)->check($broken, self::getContainer()->get(InsightsSavedGraphRepository::class)->findActive($broken));
+        self::assertCount(1, $problems);
+        self::assertSame(BrokenGraphReason::Bucket, array_first($problems)?->reason);
+
+        $owner = $this->users()->findOneByEmail(SeedContext::DEV_EMAIL) ?? throw new \LogicException('The dev user is missing.');
+        $names = array_map(static fn (Project $project): string => $project->name, $this->projects()->findNewestByOwner($owner, 100));
+        self::assertSame(['Dev Project', DevEdgeProjectSeeder::NO_RUNS_NAME, DevEdgeProjectSeeder::AT_CAP_NAME, DevEdgeProjectSeeder::BROKEN_GRAPH_NAME], \array_slice($names, 0, 4));
     }
 
     public function test_an_old_database_keeps_its_accounts_and_renames_its_old_project(): void
