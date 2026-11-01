@@ -53,15 +53,14 @@ This step serves a project whose forge has no connection that writes the update.
 An epic pull request updates as any other pull request. The update merges the base into the epic branch.
 
 1. When the mergeability is `conflicting`, stop with `STAGE RESULT: not ready <url>: conflicting`. The app sends a fix request for a conflict.
-2. When the review is not `approved`, stop with `STAGE RESULT: not ready <url>: not approved`. The merge would stop there too. An epic child skips this item.
-3. Check that the approval covers the head, as "Merge" item 4 says. Use the head of step 6 in place of the SHA of the prompt. An epic child skips this item.
+2. Check that the approval covers the head, as "Merge" item 3 says. Use the head of step 6 in place of the SHA of the prompt. An epic child skips this item.
    - When there is no approval, stop with `STAGE RESULT: not ready <url>: not approved`.
    - When the check holds for another reason, stop with `STAGE RESULT: not ready <url>: <reason>`.
    - When it cannot read the approval, stop with `STAGE RESULT: blocked: approval unreadable <url>`.
 
    Each update costs a full CI run, and the base can move again before an approval arrives.
-4. Update the branch with the forge adapter. When the forge says the branch is already up to date, stop with `STAGE RESULT: not ready <url>: not behind`.
-5. Stop with `STAGE RESULT: waiting <url>`. The app reads the new head and its checks.
+3. Update the branch with the forge adapter. When the forge says the branch is already up to date, stop with `STAGE RESULT: not ready <url>: not behind`.
+4. Stop with `STAGE RESULT: waiting <url>`. The app reads the new head and its checks.
 
 ### Merge
 
@@ -69,15 +68,14 @@ Merge only when every item holds. The first item that fails ends the run with `S
 
 1. The head commit equals the SHA of the prompt.
 2. The pull request is not a draft.
-3. The review is `approved`.
-4. Every current approval covers every commit up to the SHA of the prompt. Call `workflow_get` and read `approvalCoversConflictResolution`. Check the approval with the forge adapter, and pass it that value. When the profile `Merge` section names an approver, only that reviewer's approval counts.
-5. The checks are `passed`: every required check passes, and none fails or is pending. Count the checks against the required count of the profile `Gate` section. An epic branch has no required checks of its own. For an epic child, check by name the required checks of the base branch of the profile `Merge` section, as the forge adapter says.
-6. The mergeability is `mergeable`.
-7. An epic child is not behind its base. Compare the SHA of the prompt with the base, as the forge adapter says. When the behind count is above 0, take "Update" from item 4. The app sends no behind event for a base with no strict rule, so this item replaces that event. A sync of the epic branch with a merge of its base puts each open child behind. The forge adapter's update then merges the epic branch into the child.
+3. The approval that the rules of the base branch require covers every commit up to the SHA of the prompt. The rules can require a check, a number of reviews, or both. Call `workflow_get` and read `approvalCoversConflictResolution`. Check the approval with the forge adapter, and pass it that value. When the profile `Merge` section names an approver, that reviewer must also hold a covering approval.
+4. The checks are `passed`: every required check passes, and none fails or is pending. Count the checks against the required count of the profile `Gate` section. An epic branch has no required checks of its own. For an epic child, check by name the required checks of the base branch of the profile `Merge` section, as the forge adapter says.
+5. The mergeability is `mergeable`.
+6. An epic child is not behind its base. Compare the SHA of the prompt with the base, as the forge adapter says. When the behind count is above 0, take "Update" from item 3. The app sends no behind event for a base with no strict rule, so this item replaces that event. A sync of the epic branch with a merge of its base puts each open child behind. The forge adapter's update then merges the epic branch into the child.
 
-An epic child skips items 3 and 4.
+An epic child skips item 3.
 
-Item 4 reads the approval by time. A forge can keep the review `approved` after new commits arrive, so item 3 alone is not enough. A commit counts as later when it reached the branch after the earliest current approval. The forge adapter sorts each later commit:
+A review can stay current after new commits arrive. The forge adapter reads a review by time, and sorts each commit that reached the branch after it:
 
 - A merge from the base is a sync. When `approvalCoversConflictResolution` is true, the approval covers it, with or without a conflict resolution. When it is false, the approval covers only a merge that git makes again with no conflict. A merge that holds a conflict resolution stops the run with `STAGE RESULT: not ready <url>: conflict resolution after approval`.
 - Any other commit is new content, such as a review fix or a test fix. Stop with `STAGE RESULT: not ready <url>: commits after approval`.
