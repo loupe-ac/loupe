@@ -1078,6 +1078,8 @@ settings refuses, and the error says what the agent can fix. A setting that
 `card_run_open` and `card_run_close` record an interactive session on a card.
 See [Interactive sessions](worker-runs.md#interactive-sessions).
 
+`card_run_open` refuses a card where a worker runs or holds a claim. The answer starts with `worker:`. The session makes no edit. The owner waits for the worker, or stops it with `worker_run_stop`.
+
 A move that an agent makes through the MCP names its worker run in the card
 history. This works when the `loupe` CLI sends the session of the agent in the
 `X-Loupe-Session` header. A `card_run_open` call that moves the card names the

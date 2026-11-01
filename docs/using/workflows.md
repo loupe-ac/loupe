@@ -239,6 +239,7 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   repository has an active GitHub App installation.
 - `pr.merge_blocked`: GitHub reads the merge state of the pull request as blocked.
 - `card.run.session_open`: a person has an interactive session open on the card.
+- `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move of the card clears it.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
   the round and the `rounds` limit.
@@ -376,7 +377,10 @@ the Workflow panel of the card page.
 A move in the template can name who may make it. A move with
 `by: parent-run` is open to an open worker run of the parent epic, and not
 to a person. The run may be of any work kind, such as a breakdown or a fix.
-An interactive run does not count. Lifecycle names no such move. A move with
+An interactive run does not count. A move with `by: session` is open only to
+an update that opens an interactive session run in the same call, such as
+`card_run_open` with a `status`. It refuses a card with a parent and a card of
+a type that can have children. Lifecycle names no such move yet. A move with
 no `by` is open to anyone. The **Who** column of the manual moves on the Workflow settings page shows who may
 make each move.
 

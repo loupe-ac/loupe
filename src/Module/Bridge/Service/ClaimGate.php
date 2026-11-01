@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Service;
 
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\WorkHolds;
@@ -20,6 +21,7 @@ final readonly class ClaimGate
 {
     public function __construct(
         private CardHolds $cardHolds,
+        private WorkerRunRepository $workerRuns,
         private WorkHolds $workHolds,
         private AccountLimits $accountLimits,
         private ClockInterface $clock,
@@ -35,6 +37,9 @@ final readonly class ClaimGate
         if (null !== $request->project->id && null !== $this->workHolds->heldProject($request->project->id)) {
             return WorkRequestRefusal::ProjectHeld;
         }
+        if (WorkSubject::CARD === $request->subjectType && !self::opensSession($request) && $this->workerRuns->hasOpenInteractive($request->project, $request->subjectId)) {
+            return WorkRequestRefusal::SessionOpen;
+        }
         if (null !== $request->waitUntil && $request->waitUntil > $this->clock->now()) {
             return WorkRequestRefusal::Waiting;
         }
@@ -43,5 +48,11 @@ final readonly class ClaimGate
         }
 
         return null;
+    }
+
+    /** A bridge launches a session request itself, so an open session never holds it back. */
+    private static function opensSession(WorkRequest $request): bool
+    {
+        return \in_array($request->capability, [Bridge::CAPABILITY_SESSION, Bridge::CAPABILITY_INTERACTIVE], true);
     }
 }
