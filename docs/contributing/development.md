@@ -24,7 +24,9 @@ Project", and the data that the Metrics, Dashboard, Experiments, Artifact and
 analysis pages show.
 
 - A run is safe to repeat. A seeder skips a record that exists, and a later day
-  only adds the missing days of the time series. The seed never deletes a record.
+  only adds the missing days of the time series. The seed never deletes a record
+  that has a fixed id. It restores a seeded card that a person deleted, and writes
+  the new card number to the runs of that card.
 - A record that a page address names has a fixed id, so a preview link opens
   the same record on every database. The dev and admin accounts keep the id they
   have, because an existing database points projects at them.

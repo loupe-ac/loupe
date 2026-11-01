@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service\Dev;
 
 use App\DevSeed\DevSeedId;
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
@@ -77,6 +78,52 @@ final class DevCodexRunSeederTest extends KernelTestCase
         $this->em()->clear();
         self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
         self::assertSame($runs, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
+    }
+
+    public function test_a_deleted_card_comes_back_and_its_runs_take_its_new_number(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        $project = DevProjectFixture::create(self::getContainer(), $context);
+        $seeder = $this->service(DevCodexRunSeeder::class);
+        $seeder->seed($context);
+        $cards = $this->service(CardRepository::class);
+        $card = $cards->find(DevSeedId::of('board/card/codex-run')) ?? throw new \LogicException('The card is missing.');
+        $oldNumber = $card->number;
+        $this->em()->persist(new Card(project: $project, column: $card->column, title: 'Later', body: '', number: $oldNumber + 1, type: 'feature'));
+        $this->em()->remove($card);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $seeder->seed($context);
+
+        $this->em()->clear();
+        $restored = $cards->find(DevSeedId::of('board/card/codex-run')) ?? throw new \LogicException('The card did not come back.');
+        self::assertNotSame($oldNumber, $restored->number);
+        self::assertSame(2, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
+        foreach ([0, 1] as $index) {
+            self::assertSame($restored->number, $this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/codex/'.$index))?->cardNumber);
+        }
+        foreach ($this->service(WorkerRunFactRepository::class)->findBy(['project' => $project->id]) as $fact) {
+            self::assertSame($restored->number, $fact->cardNumber);
+        }
+    }
+
+    public function test_a_run_that_is_gone_comes_back_and_the_card_stays(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        $project = DevProjectFixture::create(self::getContainer(), $context);
+        $seeder = $this->service(DevCodexRunSeeder::class);
+        $seeder->seed($context);
+        $cards = $this->service(CardRepository::class)->count(['project' => $project]);
+        $this->em()->remove($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/codex/0')) ?? throw new \LogicException('The run is missing.'));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $seeder->seed($context);
+
+        $this->em()->clear();
+        self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/codex/0')));
     }
 
     /**

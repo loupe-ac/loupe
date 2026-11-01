@@ -18,6 +18,7 @@ use App\Module\Bridge\Entity\WorkerRunToolCall;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
+use App\Module\Bridge\Service\Dev\DevRunCardLinks;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -64,6 +65,7 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
         private CardEventRepository $cardEvents,
         private WorkerRunRepository $workerRuns,
         private BucketTimeComputer $bucketTimes,
+        private DevRunCardLinks $runCardLinks,
     ) {
     }
 
@@ -82,28 +84,37 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
     #[\Override]
     public function seed(SeedContext $context): void
     {
-        if ($this->workerRuns->find(self::runId(0)) instanceof WorkerRun) {
-            return;
-        }
-
         $project = $this->projects->find(DevProjectSeeder::devProjectId())
             ?? throw new \LogicException('The dev project does not exist.');
+        $card = $this->cards->find(DevSeedId::of('board/card/codex-run')) ?? $this->createCard($context, $project);
+        $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
+
+        $runs = [];
+        foreach (self::RUNS as $index => [$daysAgo, $costUsd]) {
+            if (!$this->workerRuns->find(self::runId($index)) instanceof WorkerRun) {
+                $runs[] = $this->run($context, $project, $card, $index, $context->now->modify(\sprintf('-%d days', $daysAgo)), $costUsd);
+            }
+        }
+        $this->em->flush();
+        $this->runCardLinks->relink($project, $cardId, $card->number);
+        if ([] !== $runs) {
+            $this->bucketTimes->recompute($project, array_map(static fn (WorkerRun $run): Uuid => $run->id ?? throw new \LogicException('A stored run has an id.'), $runs));
+        }
+    }
+
+    private function createCard(SeedContext $context, Project $project): Card
+    {
         $column = array_find($this->boardColumns->findForProject($project), static fn (BoardColumn $column): bool => 'done' === $column->slug)
             ?? throw new \LogicException('The project has a done column.');
         $createdAt = $context->now->modify(\sprintf('-%d days', self::RUNS[0][0] + 1));
         $card = new Card(project: $project, column: $column, title: 'Run a worker on Codex', body: '', number: $this->cards->nextNumber($project), type: 'feature', createdAt: $createdAt);
         $context->ids->assign($card, DevSeedId::of('board/card/codex-run'));
+        $card->completedAt = $context->now->modify(\sprintf('-%d days +2 hours', self::RUNS[1][0]));
         $this->em->persist($card);
         $this->em->flush();
         $this->cardEvents->record($card, CardEventKind::Created, Actor::Agent, null, [], $createdAt);
 
-        $runs = [];
-        foreach (self::RUNS as $index => [$daysAgo, $costUsd]) {
-            $runs[] = $this->run($context, $project, $card, $index, $context->now->modify(\sprintf('-%d days', $daysAgo)), $costUsd);
-        }
-        $card->completedAt = $context->now->modify(\sprintf('-%d days +2 hours', self::RUNS[1][0]));
-        $this->em->flush();
-        $this->bucketTimes->recompute($project, array_map(static fn (WorkerRun $run): Uuid => $run->id ?? throw new \LogicException('A stored run has an id.'), $runs));
+        return $card;
     }
 
     private static function runId(int $index): Uuid

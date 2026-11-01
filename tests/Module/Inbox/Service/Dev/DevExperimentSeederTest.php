@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service\Dev;
 
 use App\DevSeed\DevSeedId;
+use App\Module\Board\Command\DeleteCardCommand;
+use App\Module\Board\Command\DeleteCardHandler;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
@@ -12,6 +16,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\Actor;
 use App\Tests\DevSeed\DevProjectFixture;
 use App\Tests\DevSeed\SeedContextFactory;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -106,6 +111,30 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
         self::assertSame($runs, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
         self::assertSame($definitions, $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]));
+    }
+
+    public function test_a_deleted_card_comes_back_with_its_merge_event_and_pull_request_and_its_rows_take_its_new_number(): void
+    {
+        $project = $this->seeded();
+        $cards = $this->service(CardRepository::class);
+        $id = DevSeedId::of('board/card/implement-template-metrics/export-the-board-as-csv');
+        $card = $cards->find($id) ?? throw new \LogicException('The card is missing.');
+        $oldNumber = $card->number;
+        $runs = $this->service(WorkerRunRepository::class)->count(['project' => $project]);
+        $this->service(DeleteCardHandler::class)(new DeleteCardCommand($card, Actor::Human));
+        $this->em()->clear();
+
+        $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
+
+        $this->em()->clear();
+        $restored = $cards->find($id) ?? throw new \LogicException('The card did not come back.');
+        self::assertNotSame($oldNumber, $restored->number);
+        self::assertSame($runs, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
+        $run = $this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/implement-template-metrics/export-the-board-as-csv/0'));
+        self::assertSame($restored->number, $run?->cardNumber);
+        self::assertNotNull($restored->completedAt);
+        self::assertNotNull($this->service(ForgePullRequestRepository::class)->findOneBy(['project' => $project->id, 'number' => $restored->number])?->mergedAt);
+        self::assertSame(1, $this->service(CardEventRepository::class)->count(['card' => $restored->id, 'kind' => CardEventKind::Moved]));
     }
 
     private function seeded(): Project

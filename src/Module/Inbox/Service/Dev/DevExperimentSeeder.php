@@ -21,12 +21,14 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
+use App\Module\Bridge\Service\Dev\DevRunCardLinks;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
@@ -98,6 +100,8 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
         private ExperimentDefinitionRepository $experimentDefinitions,
+        private ForgePullRequestRepository $forgePullRequests,
+        private DevRunCardLinks $runCardLinks,
     ) {
     }
 
@@ -125,6 +129,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
 
     /**
      * With $metrics, the experiment lists those metrics, and each merged card gets a pull request that opened and merged.
+     * On a later seed, the experiment keeps its rows and only restores a card that a person deleted.
      *
      * @param array<string, mixed>|null $headline
      * @param list<string>|null         $metrics
@@ -132,37 +137,51 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     private function seedExperiment(SeedContext $context, Project $project, string $experiment, ?array $headline, ?array $metrics): void
     {
         $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
-        if ($this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition
-            || $this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
+        $fresh = !$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition;
+        if ($fresh && $this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
             return;
         }
 
-        $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
-        $definition->metrics = $metrics ?? ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
-        $definition->headline = $headline;
-        $context->ids->assign($definition, $definitionId);
-        $this->em->persist($definition);
+        if ($fresh) {
+            $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $definition->metrics = $metrics ?? ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
+            $definition->headline = $headline;
+            $context->ids->assign($definition, $definitionId);
+            $this->em->persist($definition);
+        }
 
         $columns = [];
         foreach ($this->boardColumns->findForProject($project) as $column) {
             $columns[$column->slug] = $column;
         }
-        $number = $this->cards->nextNumber($project);
         $at = $context->now->modify('-20 days');
-        foreach (self::CARDS as $index => [$title, $variant, $type, $slug, $merged, $fixReasons, $runs]) {
+        foreach (self::CARDS as [$title, $variant, $type, $slug, $merged, $fixReasons, $runs]) {
             $column = $columns[$slug] ?? throw new \LogicException(\sprintf('The project has a %s column.', $slug));
             $key = $experiment.'/'.Slug::fromName($title);
-            $card = $this->card($context, $project, $column, $title, $type, $number + $index, $at->modify('-10 days'), DevSeedId::of('board/card/'.$key));
-            $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
-            $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
-
             $openedAt = $at->modify('+20 hours');
+            $stored = $this->cards->find(DevSeedId::of('board/card/'.$key));
+            $card = $stored ?? $this->card($context, $project, $column, $title, $type, $this->cards->nextNumber($project), $at->modify('-10 days'), DevSeedId::of('board/card/'.$key));
+            $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
+            if ($fresh) {
+                $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
+            }
+
             foreach ($runs as $position => [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
-                $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $cost, DevSeedId::of(\sprintf('bridge/run/%s/%d', $key, $position)));
+                if ($fresh) {
+                    $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $cost, DevSeedId::of(\sprintf('bridge/run/%s/%d', $key, $position)));
+                }
             }
             foreach ($fixReasons as $reason) {
-                $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
+                if ($fresh) {
+                    $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
+                }
+            }
+            if ($stored instanceof Card) {
+                continue;
+            }
+            if (!$fresh) {
+                $this->runCardLinks->relink($project, $cardId, $card->number);
             }
             if ($merged) {
                 $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
@@ -191,7 +210,8 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     private function pullRequest(Project $project, Card $card, \DateTimeImmutable $openedAt, \DateTimeImmutable $mergedAt): void
     {
         $this->em->persist(new CardPullRequest($card, 'https://github.com/example/experiment/pull/'.$card->number, Forge::GitHub, 'example/experiment', $card->number));
-        $state = new ForgePullRequest($project, 'github', 'example/experiment', $card->number);
+        $state = $this->forgePullRequests->findOneBy(['project' => $project, 'forge' => 'github', 'repository' => 'example/experiment', 'number' => $card->number])
+            ?? new ForgePullRequest($project, 'github', 'example/experiment', $card->number);
         $state->openedAt = $openedAt;
         $state->mergedAt = $mergedAt;
         $this->em->persist($state);

@@ -10,17 +10,22 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Admin\Service\Dev\DevFeatureFlagSeeder;
 use App\Module\Artifact\Entity\Artifact;
+use App\Module\Board\Command\DeleteCardCommand;
+use App\Module\Board\Command\DeleteCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
+use App\Module\Workflow\Contract\Actor;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
 use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
@@ -64,6 +69,42 @@ final class FullDevSeedTest extends KernelTestCase
         self::assertSame([], array_diff($changed, self::TIME_SERIES_TABLES));
         foreach ($changed as $table) {
             self::assertGreaterThan($afterFirst[$table], $this->rowCounts()[$table], $table.' lost rows.');
+        }
+    }
+
+    public function test_a_later_run_restores_a_deleted_card_and_keeps_its_runs_linked(): void
+    {
+        $this->seed(self::DAY);
+        $em = $this->em();
+        $em->clear();
+        $project = $em->find(Project::class, DevProjectSeeder::devProjectId()) ?? throw new \LogicException('The dev project is missing.');
+        $handler = self::getContainer()->get(DeleteCardHandler::class);
+        $deleted = [];
+        foreach (self::getContainer()->get(CardRepository::class)->findBy(['project' => $project->id]) as $card) {
+            if (0 === $card->number % 2) {
+                $deleted[(string) $card->id] = $card->number;
+                $handler(new DeleteCardCommand($card, Actor::Human));
+            }
+        }
+        self::assertNotEmpty($deleted);
+        $runs = $this->rowCounts()['bridge_worker_runs'];
+
+        $this->seed(self::DAY);
+
+        $em = $this->em();
+        foreach ($deleted as $id => $number) {
+            $card = $em->find(Card::class, Uuid::fromString($id));
+            self::assertInstanceOf(Card::class, $card, 'The seed did not restore a deleted card.');
+            self::assertNotSame($number, $card->number, 'The test must give the restored card a new number.');
+        }
+        self::assertSame($runs, $this->rowCounts()['bridge_worker_runs'], 'The seed wrote or removed a run.');
+        $connection = $em->getConnection();
+        foreach (['bridge_worker_runs', 'bridge_worker_run_facts'] as $table) {
+            self::assertGreaterThan(0, (int) $connection->fetchOne(\sprintf("SELECT COUNT(*) FROM %s WHERE subject_type = 'card'", $table)));
+            self::assertSame(0, (int) $connection->fetchOne(\sprintf(
+                "SELECT COUNT(*) FROM %s r LEFT JOIN board_cards c ON c.id = r.subject_id AND c.number = r.card_number WHERE r.subject_type = 'card' AND c.id IS NULL",
+                $table,
+            )), $table.' names a card that does not exist.');
         }
     }
 

@@ -125,6 +125,32 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertContains((string) DevSeedId::of('board/card/demo-runs-2026-10-28'), $cardIds);
     }
 
+    public function test_a_card_that_a_person_deleted_comes_back_and_its_runs_take_its_new_number(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-restored');
+        $this->seed($project, self::NOW);
+        $cards = $this->service(CardRepository::class);
+        $card = $cards->find(DevSeedId::of('board/card/demo-runs-2026-10-28')) ?? throw new \LogicException('The card is missing.');
+        $oldNumber = $card->number;
+        $this->em()->remove($card);
+        $this->em()->flush();
+
+        self::assertTrue($this->seed($project, self::NOW));
+
+        $this->em()->clear();
+        $runs = $this->demoRuns($project);
+        self::assertCount(self::RUNS, $runs);
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('insights/run/2026-10-28/0')));
+        $restored = $cards->find(DevSeedId::of('board/card/demo-runs-2026-10-28')) ?? throw new \LogicException('The card did not come back.');
+        self::assertNotSame($oldNumber, $restored->number);
+        $this->assertEachRunLinksAStoredCard($project, $runs);
+        foreach ($this->service(WorkerRunFactRepository::class)->findBy(['project' => $project->id, 'subjectId' => $restored->id]) as $fact) {
+            self::assertSame($restored->number, $fact->cardNumber);
+        }
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+        self::assertFalse($this->seed($project, self::NOW), 'A later run has nothing left to do.');
+    }
+
     public function test_it_replaces_a_demo_run_whose_card_does_not_exist(): void
     {
         $project = $this->projectWithColumns('dev-metrics-stale');

@@ -18,6 +18,7 @@ use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
+use App\Module\Bridge\Service\Dev\DevRunCardLinks;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -72,6 +73,7 @@ final readonly class DevMetricsSeeder
         private WorkerRunRepository $workerRuns,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private BucketTimeComputer $bucketTimes,
+        private DevRunCardLinks $runCardLinks,
     ) {
     }
 
@@ -101,17 +103,26 @@ final readonly class DevMetricsSeeder
 
         $seeded = [];
         $stale = [];
+        /** @var array<string, array{Uuid, int}> $restored the cards whose number differs from the number their runs hold */
+        $restored = [];
         foreach ($this->workerRuns->findBy(['project' => $project, 'bridgeId' => Uuid::fromString(self::BRIDGE)]) as $run) {
             if (null === $run->startedAt) {
                 continue;
             }
-            if ($cardOf($run->startedAt)[0]->equals($run->subjectId)) {
+            $card = $cardOf($run->startedAt);
+            if ($card[0]->equals($run->subjectId)) {
                 $seeded[$run->startedAt->format('Y-m-d')] = true;
+                if ($card[1] !== $run->cardNumber) {
+                    $restored[$card[0]->toRfc4122()] = $card;
+                }
             } else {
                 $stale[] = $run->id ?? throw new \LogicException('A stored run has an id.');
             }
         }
         $this->deleteRuns($stale);
+        foreach ($restored as [$cardId, $number]) {
+            $this->runCardLinks->relink($project, $cardId, $number);
+        }
 
         $runs = [];
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
@@ -129,7 +140,7 @@ final readonly class DevMetricsSeeder
             }
         }
         if ([] === $runs) {
-            return [] !== $stale;
+            return [] !== $stale || [] !== $restored;
         }
 
         $this->em->flush();
