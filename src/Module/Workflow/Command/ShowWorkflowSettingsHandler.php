@@ -111,7 +111,7 @@ final readonly class ShowWorkflowSettingsHandler
                 ? $this->translator->trans('workflow.settings.metrics.reads.rate_any', ['%filter%' => $filter])
                 : $this->translator->trans('workflow.settings.metrics.reads.rate_outcome', ['%outcome%' => $metric->outcome]),
             MetricType::Duration => $this->translator->trans('workflow.settings.metrics.reads.duration', [
-                '%from%' => $this->event($template, $metric->from, $metric->fromLast),
+                '%from%' => $this->starts($template, $metric),
                 '%to%' => $this->event($template, $metric->to, false),
             ]),
         };
@@ -127,6 +127,19 @@ final readonly class ShowWorkflowSettingsHandler
         }
 
         return implode(', ', $parts);
+    }
+
+    private function starts(Template $template, TemplateMetric $metric): string
+    {
+        $names = [$this->event($template, $metric->from, $metric->fromLast)];
+        foreach ($metric->alsoFrom as $also) {
+            $names[] = $this->event($template, $also, false);
+        }
+        if (1 === \count($names)) {
+            return $names[0];
+        }
+
+        return $this->translator->trans('workflow.settings.metrics.event.earliest', ['%events%' => implode(', ', \array_slice($names, 0, -1)), '%last%' => $names[\count($names) - 1]]);
     }
 
     private function event(Template $template, ?DurationEvent $event, bool $last): string
