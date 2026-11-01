@@ -649,8 +649,10 @@ A **duration** is the time from a start event to an end event. The events are
 slot events are `{ arrived: <slot> }` and `{ left: <slot> }`. The slot can be a
 slot key of the template, `@backlog` or `@terminal`. A duration runs from the
 first start to the last end after it. On `from`, `{ last: <event> }` starts at
-the last time the event happened. A card with a start and no end after it has
-no value.
+the last time the event happened. `{ earliest: [<event>, <event>] }` names two
+or more starts, and the duration begins at the earliest one that happened. It
+cannot be used with `last`. A card with a start and no end after it has no
+value.
 
 The Workflow page lists the metrics of the template in a **Metrics** section, after
 the card markers. Each row shows the label and the description, the key, the type

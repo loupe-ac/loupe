@@ -9662,6 +9662,7 @@
             <trans-unit id="workflow.settings.metrics.event.pr-merged"><source>workflow.settings.metrics.event.pr-merged</source><target>the pull request merged</target></trans-unit>
             <trans-unit id="workflow.settings.metrics.event.arrived"><source>workflow.settings.metrics.event.arrived</source><target>the card arrived in %slot%</target></trans-unit>
             <trans-unit id="workflow.settings.metrics.event.left"><source>workflow.settings.metrics.event.left</source><target>the card left %slot%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.earliest"><source>workflow.settings.metrics.event.earliest</source><target>the earlier of %events% and %last%</target></trans-unit>
             <trans-unit id="workflow.settings.metrics.event.last"><source>workflow.settings.metrics.event.last</source><target>the last time %event%</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.stuck"><source>workflow.settings.markers.kind.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.needs-you"><source>workflow.settings.markers.kind.needs-you</source><target>Needs you</target></trans-unit>
