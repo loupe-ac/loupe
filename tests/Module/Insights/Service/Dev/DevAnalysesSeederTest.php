@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Service\Dev;
 
+use App\DevSeed\DevSeedId;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
-use App\Module\Bridge\Service\BucketTimeComputer;
+use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Module\Insights\Entity\AnalysisState;
 use App\Module\Insights\Entity\AnalysisTopic;
 use App\Module\Insights\Entity\ProposalKind;
@@ -14,7 +16,9 @@ use App\Module\Insights\Repository\AnalysisRepository;
 use App\Module\Insights\Repository\InsightsBucketRuleRepository;
 use App\Module\Insights\Repository\ProposalRepository;
 use App\Module\Insights\Service\Dev\DevAnalysesSeeder;
-use App\Module\Review\Service\MarkdownRenderer;
+use App\Module\Project\Entity\Project;
+use App\Tests\DevSeed\DevProjectFixture;
+use App\Tests\DevSeed\SeedContextFactory;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -22,7 +26,7 @@ final class DevAnalysesSeederTest extends KernelTestCase
 {
     use InsightsScenario;
 
-    private const string EXPERIMENT = 'model-test';
+    private const string EXPERIMENT = DevExperimentSeeder::EXPERIMENT;
 
     protected function setUp(): void
     {
@@ -31,11 +35,8 @@ final class DevAnalysesSeederTest extends KernelTestCase
 
     public function test_it_seeds_the_cost_time_and_experiment_analyses_with_rules_and_bucket_times(): void
     {
-        $project = $this->scenarioProject('dev-seed');
+        $project = $this->seeded();
 
-        self::assertTrue($this->seeder()->seed($project, self::EXPERIMENT));
-
-        $this->em()->clear();
         $analyses = $this->service(AnalysisRepository::class)->findByProject($project);
         self::assertCount(4, $analyses);
         $time = array_values(array_filter($analyses, static fn ($analysis): bool => AnalysisTopic::Time === $analysis->topic));
@@ -60,25 +61,36 @@ final class DevAnalysesSeederTest extends KernelTestCase
 
     public function test_a_second_run_adds_nothing(): void
     {
-        $project = $this->scenarioProject('dev-seed-twice');
-        $this->seeder()->seed($project, self::EXPERIMENT);
+        $project = $this->seeded();
 
-        self::assertFalse($this->seeder()->seed($project, self::EXPERIMENT));
+        $this->service(DevAnalysesSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
 
         $this->em()->clear();
         self::assertCount(4, $this->service(AnalysisRepository::class)->findByProject($project));
         self::assertCount(3, $this->service(InsightsBucketRuleRepository::class)->findOrdered($project));
     }
 
-    private function seeder(): DevAnalysesSeeder
+    public function test_the_analyses_and_their_reports_and_runs_have_fixed_ids(): void
     {
-        return new DevAnalysesSeeder(
-            $this->em(),
-            $this->service(AnalysisRepository::class),
-            $this->service(InsightsBucketRuleRepository::class),
-            $this->service(BucketTimeComputer::class),
-            $this->service(MarkdownRenderer::class),
-        );
+        $this->seeded();
+
+        $analyses = $this->service(AnalysisRepository::class);
+        foreach (['cost-report', 'cost-waiting', 'time-report', 'experiment-'.self::EXPERIMENT] as $slug) {
+            self::assertNotNull($analyses->find(DevSeedId::of('insights/analysis/'.$slug)), $slug);
+        }
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('insights/run/time-report')));
+        self::assertSame(DevSeedId::of('review/document/time-report')->toRfc4122(), $analyses->find(DevSeedId::of('insights/analysis/time-report'))?->documentId?->toRfc4122());
+    }
+
+    private function seeded(): Project
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        $project = DevProjectFixture::create(self::getContainer(), $context);
+        $this->service(DevExperimentSeeder::class)->seed($context);
+        $this->service(DevAnalysesSeeder::class)->seed($context);
+        $this->em()->clear();
+
+        return $project;
     }
 
     /**

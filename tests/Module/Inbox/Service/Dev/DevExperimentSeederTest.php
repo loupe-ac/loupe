@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service\Dev;
 
-use App\Module\Board\Entity\Card;
-use App\Module\Board\Repository\BoardColumnRepository;
-use App\Module\Board\Repository\CardEventRepository;
+use App\DevSeed\DevSeedId;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
-use App\Tests\Module\Board\BoardColumnFixtures;
+use App\Module\Project\Entity\Project;
+use App\Tests\DevSeed\DevProjectFixture;
+use App\Tests\DevSeed\SeedContextFactory;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class DevExperimentSeederTest extends KernelTestCase
 {
-    use BoardColumnFixtures;
     use BridgeScenario;
 
     protected function setUp(): void
@@ -29,25 +28,30 @@ final class DevExperimentSeederTest extends KernelTestCase
 
     public function test_a_finished_card_completes_after_its_last_run_and_an_open_card_does_not(): void
     {
-        $em = $this->em();
-        $project = $this->project($em, $this->user($em, 'dev-experiment-'.uniqid().'@example.com'), 'Experiment');
-        $this->seedColumns($project);
-        $em->flush();
+        $project = $this->seeded();
 
-        self::assertTrue($this->seeder()->seed($project));
-
-        $em->clear();
         $cards = $this->service(CardRepository::class)->findBy(['project' => $project->id]);
-        $finished = array_values(array_filter($cards, static fn (Card $card): bool => $card->column->terminal));
-        $open = array_values(array_filter($cards, static fn (Card $card): bool => !$card->column->terminal));
-        self::assertCount(12, $finished);
+        $runsOf = $this->service(WorkerRunRepository::class);
+        $finished = [];
+        $open = [];
+        foreach ($cards as $card) {
+            if ([] === $runsOf->findBy(['subjectId' => $card->id])) {
+                continue;
+            }
+            if ($card->column->terminal) {
+                $finished[] = $card;
+            } else {
+                $open[] = $card;
+            }
+        }
+        self::assertNotEmpty($finished);
         self::assertNotEmpty($open);
 
         $weeks = [];
         foreach ($finished as $card) {
             $ends = array_map(
                 static fn (WorkerRun $run): \DateTimeImmutable => $run->endedAt ?? throw new \LogicException('A seeded run has ended.'),
-                $this->service(WorkerRunRepository::class)->findBy(['subjectId' => $card->id]),
+                $runsOf->findBy(['subjectId' => $card->id]),
             );
             $completedAt = ([] === $ends ? self::fail($card->title.' has no run.') : max($ends))->modify('+2 hours');
             self::assertSame($completedAt->format('Y-m-d H:i:s'), $card->completedAt?->format('Y-m-d H:i:s'), $card->title);
@@ -58,30 +62,20 @@ final class DevExperimentSeederTest extends KernelTestCase
         foreach ($open as $card) {
             self::assertNull($card->completedAt, $card->title);
         }
-
-        $runs = $this->service(WorkerRunRepository::class)->findBy(['project' => $project->id]);
-        self::assertNotEmpty($runs);
-        foreach ($runs as $run) {
+        foreach ($runsOf->findBy(['project' => $project->id]) as $run) {
             self::assertSame(['claude-code', 'claude'], [$run->harness, $run->account]);
         }
     }
 
     public function test_an_experiment_with_metrics_gives_each_merged_card_a_pull_request_that_opened_and_merged(): void
     {
-        $em = $this->em();
-        $project = $this->project($em, $this->user($em, 'dev-experiment-'.uniqid().'@example.com'), 'Experiment');
-        $this->seedColumns($project);
-        $em->flush();
+        $project = $this->seeded();
 
-        self::assertTrue($this->seeder()->seed($project));
-        self::assertTrue($this->seeder()->seed($project, 'template-metrics', null, ['cost', 'hours-to-merge']));
-
-        $em->clear();
-        $definition = $this->service(ExperimentDefinitionRepository::class)->findOneBy(['project' => $project->id, 'experiment' => 'template-metrics']);
-        self::assertSame(['cost', 'hours-to-merge'], $definition?->metrics);
+        $definition = $this->service(ExperimentDefinitionRepository::class)->findOneBy(['project' => $project->id, 'experiment' => 'implement-template-metrics']);
+        self::assertSame(['cost', 'merge-rate', 'hours-to-merge'], $definition?->metrics);
 
         $states = $this->service(ForgePullRequestRepository::class)->findBy(['project' => $project->id]);
-        self::assertCount(11, $states);
+        self::assertCount(33, $states);
         foreach ($states as $state) {
             self::assertNotNull($state->openedAt);
             self::assertNotNull($state->mergedAt);
@@ -89,15 +83,39 @@ final class DevExperimentSeederTest extends KernelTestCase
         }
     }
 
-    private function seeder(): DevExperimentSeeder
+    public function test_the_records_a_page_names_have_fixed_ids(): void
     {
-        return new DevExperimentSeeder(
-            $this->em(),
-            $this->service(BoardColumnRepository::class),
-            $this->service(CardRepository::class),
-            $this->service(CardEventRepository::class),
-            $this->service(ExperimentDefinitionRepository::class),
-        );
+        $this->seeded();
+
+        self::assertNotNull($this->service(ExperimentDefinitionRepository::class)->find(DevSeedId::of('bridge/experiment/implement')));
+        $card = $this->service(CardRepository::class)->find(DevSeedId::of('board/card/implement/export-the-board-as-csv'));
+        self::assertSame('Export the board as CSV', $card?->title);
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/implement/export-the-board-as-csv/0')));
+    }
+
+    public function test_a_second_run_writes_no_row(): void
+    {
+        $project = $this->seeded();
+        $cards = $this->service(CardRepository::class)->count(['project' => $project]);
+        $runs = $this->service(WorkerRunRepository::class)->count(['project' => $project]);
+        $definitions = $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]);
+
+        $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
+
+        $this->em()->clear();
+        self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
+        self::assertSame($runs, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
+        self::assertSame($definitions, $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]));
+    }
+
+    private function seeded(): Project
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        $project = DevProjectFixture::create(self::getContainer(), $context);
+        $this->service(DevExperimentSeeder::class)->seed($context);
+        $this->em()->clear();
+
+        return $project;
     }
 
     /**

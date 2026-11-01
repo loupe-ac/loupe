@@ -4,21 +4,19 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service\Dev;
 
-use App\Module\Board\Repository\BoardColumnRepository;
-use App\Module\Board\Repository\CardEventRepository;
+use App\DevSeed\DevSeedId;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
-use App\Module\Bridge\Service\BucketTimeComputer;
 use App\Module\Inbox\Service\Dev\DevCodexRunSeeder;
-use App\Tests\Module\Board\BoardColumnFixtures;
+use App\Tests\DevSeed\DevProjectFixture;
+use App\Tests\DevSeed\SeedContextFactory;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class DevCodexRunSeederTest extends KernelTestCase
 {
-    use BoardColumnFixtures;
     use BridgeScenario;
 
     protected function setUp(): void
@@ -26,17 +24,14 @@ final class DevCodexRunSeederTest extends KernelTestCase
         self::bootKernel();
     }
 
-    public function test_it_writes_two_codex_runs_whose_facts_hold_the_harness_and_the_calls_once(): void
+    public function test_it_writes_two_codex_runs_whose_facts_hold_the_harness_and_the_calls(): void
     {
-        $em = $this->em();
-        $project = $this->project($em, $this->user($em, 'dev-codex-'.uniqid().'@example.com'), 'Codex');
-        $this->seedColumns($project);
-        $em->flush();
+        $context = SeedContextFactory::create(self::getContainer());
+        $project = DevProjectFixture::create(self::getContainer(), $context);
 
-        self::assertTrue($this->seeder()->seed($project));
-        self::assertFalse($this->seeder()->seed($project));
+        $this->service(DevCodexRunSeeder::class)->seed($context);
 
-        $em->clear();
+        $this->em()->clear();
         $facts = $this->service(WorkerRunFactRepository::class)->findBy(['project' => $project->id]);
         self::assertCount(2, $facts);
         foreach ($facts as $fact) {
@@ -53,16 +48,35 @@ final class DevCodexRunSeederTest extends KernelTestCase
         self::assertNotEquals($facts[0]->endedAt?->format('Y-m-d'), $facts[1]->endedAt?->format('Y-m-d'));
     }
 
-    private function seeder(): DevCodexRunSeeder
+    public function test_the_card_and_the_runs_have_fixed_ids(): void
     {
-        return new DevCodexRunSeeder(
-            $this->em(),
-            $this->service(BoardColumnRepository::class),
-            $this->service(CardRepository::class),
-            $this->service(CardEventRepository::class),
-            $this->service(WorkerRunRepository::class),
-            $this->service(BucketTimeComputer::class),
-        );
+        $context = SeedContextFactory::create(self::getContainer());
+        DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevCodexRunSeeder::class)->seed($context);
+
+        $this->em()->clear();
+        $card = $this->service(CardRepository::class)->find(DevSeedId::of('board/card/codex-run'));
+        self::assertSame('Run a worker on Codex', $card?->title);
+        foreach ([0, 1] as $index) {
+            self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/codex/'.$index)));
+        }
+    }
+
+    public function test_a_second_run_writes_no_row(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        $project = DevProjectFixture::create(self::getContainer(), $context);
+        $seeder = $this->service(DevCodexRunSeeder::class);
+        $seeder->seed($context);
+        $cards = $this->service(CardRepository::class)->count(['project' => $project]);
+        $runs = $this->service(WorkerRunRepository::class)->count(['project' => $project]);
+
+        $seeder->seed($context);
+
+        $this->em()->clear();
+        self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
+        self::assertSame($runs, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
     }
 
     /**

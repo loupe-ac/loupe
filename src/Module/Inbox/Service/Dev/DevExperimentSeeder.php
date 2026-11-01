@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service\Dev;
 
+use App\DevSeed\DevSeederInterface;
+use App\DevSeed\DevSeedId;
+use App\DevSeed\SeedContext;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
@@ -25,14 +28,17 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
+use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
+use App\Utils\Slug;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Writes an experiment that compares two models on the implement work, with
+ * Writes experiments that compare two models on the implement work, with
  * cards, pins and costed runs, so the Comparison and Cards tabs show figures.
  *
  * It lives in Inbox, which may name a card and a worker run. The root
@@ -40,9 +46,29 @@ use Symfony\Component\Uid\Uuid;
  */
 #[When('dev')]
 #[When('test')]
-final readonly class DevExperimentSeeder
+final readonly class DevExperimentSeeder implements DevSeederInterface
 {
+    public const string KEY = 'experiments';
+
     public const string EXPERIMENT = 'implement';
+
+    /**
+     * Name, headline and metrics of each experiment. The goal panel has three states and two problems.
+     * The Simple template declares no fix-rounds, so a declared fix-rounds guard is unknown and shows a note.
+     * The metric lists add the pull request history that hours to merge reads.
+     *
+     * @var list<array{string, array<string, mixed>|null, list<string>|null}>
+     */
+    private const array EXPERIMENTS = [
+        [self::EXPERIMENT, null, null],
+        ['implement-merge-rate', ['goal' => ['metric' => 'merge-rate', 'better' => 'higher']], null],
+        ['implement-merge-time', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], null],
+        ['implement-goal-typo', ['goal' => ['metric' => 'hours-to-mrege', 'better' => 'lower']], null],
+        ['implement-no-direction', ['goal' => ['metric' => 'hours-to-merge']], null],
+        ['implement-unknown-guard', ['guards' => ['merge-rate', 'fix-rounds']], ['cost', 'merge-rate', 'duration', 'input-tokens']],
+        ['implement-simple-default', null, ['cost', 'merge-rate', 'duration', 'input-tokens']],
+        ['implement-template-metrics', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], ['cost', 'merge-rate', 'hours-to-merge']],
+    ];
 
     private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5'];
 
@@ -67,6 +93,7 @@ final readonly class DevExperimentSeeder
 
     public function __construct(
         private EntityManagerInterface $em,
+        private ProjectRepository $projects,
         private BoardColumnRepository $boardColumns,
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
@@ -74,22 +101,46 @@ final readonly class DevExperimentSeeder
     ) {
     }
 
-    /**
-     * False when the project already holds the experiment, so a second run adds nothing. With $metrics, the
-     * experiment lists those metrics, and each merged card gets a pull request that opened and merged.
-     *
-     * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
-     * @param list<string>|null                                                                                                                                                       $metrics
-     */
-    public function seed(Project $project, string $experiment = self::EXPERIMENT, ?array $headline = null, ?array $metrics = null): bool
+    #[\Override]
+    public function key(): string
     {
-        if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
-            return false;
+        return self::KEY;
+    }
+
+    #[\Override]
+    public function dependsOn(): array
+    {
+        return [DevProjectSeeder::KEY];
+    }
+
+    #[\Override]
+    public function seed(SeedContext $context): void
+    {
+        $project = $this->projects->find(DevProjectSeeder::devProjectId())
+            ?? throw new \LogicException('The dev project does not exist.');
+        foreach (self::EXPERIMENTS as [$experiment, $headline, $metrics]) {
+            $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
+        }
+    }
+
+    /**
+     * With $metrics, the experiment lists those metrics, and each merged card gets a pull request that opened and merged.
+     *
+     * @param array<string, mixed>|null $headline
+     * @param list<string>|null         $metrics
+     */
+    private function seedExperiment(SeedContext $context, Project $project, string $experiment, ?array $headline, ?array $metrics): void
+    {
+        $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
+        if ($this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition
+            || $this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
+            return;
         }
 
         $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
         $definition->metrics = $metrics ?? ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
         $definition->headline = $headline;
+        $context->ids->assign($definition, $definitionId);
         $this->em->persist($definition);
 
         $columns = [];
@@ -97,17 +148,18 @@ final readonly class DevExperimentSeeder
             $columns[$column->slug] = $column;
         }
         $number = $this->cards->nextNumber($project);
-        $at = new \DateTimeImmutable('-20 days');
+        $at = $context->now->modify('-20 days');
         foreach (self::CARDS as $index => [$title, $variant, $type, $slug, $merged, $fixReasons, $runs]) {
             $column = $columns[$slug] ?? throw new \LogicException(\sprintf('The project has a %s column.', $slug));
-            $card = $this->card($project, $column, $title, $type, $number + $index, $at->modify('-10 days'));
+            $key = $experiment.'/'.Slug::fromName($title);
+            $card = $this->card($context, $project, $column, $title, $type, $number + $index, $at->modify('-10 days'), DevSeedId::of('board/card/'.$key));
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
             $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
 
             $openedAt = $at->modify('+20 hours');
-            foreach ($runs as [$cost, $minutes]) {
+            foreach ($runs as $position => [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
-                $this->run($project, $card, $experiment, $variant, $at, $minutes, $cost);
+                $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $cost, DevSeedId::of(\sprintf('bridge/run/%s/%d', $key, $position)));
             }
             foreach ($fixReasons as $reason) {
                 $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
@@ -123,13 +175,12 @@ final readonly class DevExperimentSeeder
             }
         }
         $this->em->flush();
-
-        return true;
     }
 
-    private function card(Project $project, BoardColumn $column, string $title, string $type, int $number, \DateTimeImmutable $createdAt): Card
+    private function card(SeedContext $context, Project $project, BoardColumn $column, string $title, string $type, int $number, \DateTimeImmutable $createdAt, Uuid $id): Card
     {
         $card = new Card(project: $project, column: $column, title: $title, body: '', number: $number, type: $type, createdAt: $createdAt);
+        $context->ids->assign($card, $id);
         $this->em->persist($card);
         $this->em->flush();
         $this->cardEvents->record($card, CardEventKind::Created, Actor::Agent, null, [], $createdAt);
@@ -167,7 +218,7 @@ final readonly class DevExperimentSeeder
     }
 
     /** WorkerRunFactListener writes the fact row of the run on flush. */
-    private function run(Project $project, Card $card, string $experiment, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd): void
+    private function run(SeedContext $context, Project $project, Card $card, string $experiment, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd, Uuid $id): void
     {
         $run = new WorkerRun(
             project: $project,
@@ -190,6 +241,7 @@ final readonly class DevExperimentSeeder
         $run->requestedModel = self::MODELS[$variant];
         $run->recordHarness('claude-code', 'claude', null, null);
         $run->usageSource = WorkerRunUsageSource::Reported;
+        $context->ids->assign($run, $id);
         $this->em->persist($run);
         $tokens = (int) round((float) $costUsd * 40_000);
         $this->em->persist(new WorkerRunUsage($run, $project, $run->subjectType, $run->subjectId, $run->workKind, self::MODELS[$variant], WorkerRunUsageSource::Reported, $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $costUsd));

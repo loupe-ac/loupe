@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Service\Dev;
 
+use App\DevSeed\DevSeedId;
+use App\DevSeed\SeedContext;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
@@ -27,7 +29,6 @@ use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
@@ -71,7 +72,6 @@ final readonly class DevMetricsSeeder
         private WorkerRunRepository $workerRuns,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private BucketTimeComputer $bucketTimes,
-        private ClockInterface $clock,
     ) {
     }
 
@@ -80,16 +80,16 @@ final readonly class DevMetricsSeeder
      *
      * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
      */
-    public function seed(Project $project, \Closure $cardFor): bool
+    public function seed(SeedContext $context, Project $project, \Closure $cardFor): bool
     {
-        $runsSeeded = $this->seedRuns($project, $this->clock->now()->setTime(0, 0), $cardFor);
-        $graphsSeeded = $this->seedGraphs($project);
+        $runsSeeded = $this->seedRuns($context, $project, $context->now->setTime(0, 0), $cardFor);
+        $graphsSeeded = $this->seedGraphs($context, $project);
 
         return $runsSeeded || $graphsSeeded;
     }
 
     /** @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor */
-    private function seedRuns(Project $project, \DateTimeImmutable $today, \Closure $cardFor): bool
+    private function seedRuns(SeedContext $context, Project $project, \DateTimeImmutable $today, \Closure $cardFor): bool
     {
         /** @var array<string, array{Uuid, int}> $cards first day of a span => its card */
         $cards = [];
@@ -122,10 +122,10 @@ final readonly class DevMetricsSeeder
             /** @var array{Uuid, int} $card */
             $card = $cardOf($day);
             foreach (self::MODELS as $index => [$model, $cost, $minutes]) {
-                $runs[] = $this->run($project, $card, $day, $daysAgo, $index, $model, $cost, $minutes);
+                $runs[] = $this->run($context, $project, $card, $day, $daysAgo, $index, $model, $cost, $minutes);
             }
             if (0 === $daysAgo % 3) {
-                $runs[] = $this->run($project, $card, $day, $daysAgo, 3, self::MODELS[1][0], self::MODELS[1][1], self::MODELS[1][2]);
+                $runs[] = $this->run($context, $project, $card, $day, $daysAgo, 3, self::MODELS[1][0], self::MODELS[1][1], self::MODELS[1][2]);
             }
         }
         if ([] === $runs) {
@@ -168,7 +168,7 @@ final readonly class DevMetricsSeeder
      *
      * @param array{Uuid, int} $card
      */
-    private function run(Project $project, array $card, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, float $baseCost, int $baseMinutes): WorkerRun
+    private function run(SeedContext $context, Project $project, array $card, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, float $baseCost, int $baseMinutes): WorkerRun
     {
         $wave = 1 + 0.25 * sin($daysAgo * 0.9 + $index);
         $trend = $daysAgo > 30 ? 1.15 : 1.0;
@@ -195,6 +195,7 @@ final readonly class DevMetricsSeeder
         );
         $run->recordHarness('claude-code', null, $model, null);
         $run->usageSource = WorkerRunUsageSource::Reported;
+        $context->ids->assign($run, DevSeedId::of(\sprintf('insights/run/%s/%d', $day->format('Y-m-d'), $index)));
         $this->em->persist($run);
 
         $costUsd = \sprintf('%.6f', $baseCost * $wave * $trend);
@@ -209,24 +210,28 @@ final readonly class DevMetricsSeeder
         return $run;
     }
 
-    private function seedGraphs(Project $project): bool
+    private function seedGraphs(SeedContext $context, Project $project): bool
     {
-        if (null !== $this->insightsSavedGraphs->findOneBy(['project' => $project])) {
-            return false;
-        }
-
         $graphs = [
-            ['Cost per run by model', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Model, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Line, SavedGraphWidth::Full],
-            ['Cost per run', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::None, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Number, SavedGraphWidth::Half],
-            ['Runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
-            ['Time in each bucket', 'bucket-time-each', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
-            ['Share of runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
+            ['cost-per-run-by-model', 'Cost per run by model', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Model, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Line, SavedGraphWidth::Full],
+            ['cost-per-run', 'Cost per run', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::None, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Number, SavedGraphWidth::Half],
+            ['runs-by-model', 'Runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
+            ['time-in-each-bucket', 'Time in each bucket', 'bucket-time-each', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
+            ['share-of-runs-by-model', 'Share of runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
         ];
-        foreach ($graphs as $position => [$name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
-            $this->em->persist(new InsightsSavedGraph($project, $name, $metric, $unit, $statistic, $group, MetricRange::ThirtyDays, $bucket, $compare, $chart, $width, true, $position));
+        $seeded = false;
+        foreach ($graphs as $position => [$slug, $name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
+            $id = DevSeedId::of('insights/graph/'.$slug);
+            if ($this->insightsSavedGraphs->find($id) instanceof InsightsSavedGraph) {
+                continue;
+            }
+            $graph = new InsightsSavedGraph($project, $name, $metric, $unit, $statistic, $group, MetricRange::ThirtyDays, $bucket, $compare, $chart, $width, true, $position, createdAt: $context->at(\count($graphs) - $position));
+            $context->ids->assign($graph, $id);
+            $this->em->persist($graph);
+            $seeded = true;
         }
         $this->em->flush();
 
-        return true;
+        return $seeded;
     }
 }

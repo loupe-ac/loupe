@@ -11,10 +11,10 @@ use Psr\Container\ContainerInterface;
 
 final class SeedContextFactory
 {
-    public static function create(ContainerInterface $container, bool $keepFlagDefaults = false): SeedContext
+    public static function create(ContainerInterface $container, bool $keepFlagDefaults = false, ?\DateTimeImmutable $now = null): SeedContext
     {
         return new SeedContext(
-            new \DateTimeImmutable('2026-11-01 12:00:00'),
+            $now ?? new \DateTimeImmutable('2026-11-01 12:00:00'),
             $container->get(DevSeedIds::class),
             $container->get(UserRepository::class),
             $keepFlagDefaults,
