@@ -64,6 +64,19 @@ Turn it off and select Save to hide the guide.
 While the guide is hidden, the tab shows the date it was hidden.
 An agent connected to the project can show or hide the guide with the `readiness_guide_set` MCP tool.
 
+## OpenRouter key
+
+The project settings have an OpenRouter tab. Only the project owner sees it.
+It shows the management key that Loupe uses to read the billed cost of the Codex runs of this project on OpenRouter.
+The **Key in use** line says whether the key belongs to the project or to your account, and shows the end of the key and its state.
+
+- **Use a key for this project** saves a key for this project only. It overrides your account key here.
+- **Replace** saves another key. **Remove** deletes the project key, and the project uses your account key again.
+- With no key anywhere, the tab offers a key for this project or a key for your account.
+
+Loupe tests a key with OpenRouter before it saves the key.
+[OpenRouter key](openrouter.md) explains the test, the states and the account key.
+
 ## Repositories
 
 The project settings have a Repositories tab. Only the project owner sees it.

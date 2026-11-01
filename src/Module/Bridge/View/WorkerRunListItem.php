@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\View;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunBilledCost;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -24,12 +25,13 @@ final readonly class WorkerRunListItem
     public bool $command;
 
     /**
-     * @param \DateTimeImmutable         $now       the end of a run that is still open
-     * @param list<WorkerRunStateChange> $history   the states the run reached, oldest first
-     * @param ?string                    $cardTitle null when the card is gone or the board is off
-     * @param ?WorkerRunControl          $control   null when the row offers no action and shows no notice
-     * @param ?WorkerRunFact             $fact      null when the run has no metrics row
-     * @param ?list<WorkerRunBucketView> $buckets   null when the run has no bucket rows
+     * @param \DateTimeImmutable         $now        the end of a run that is still open
+     * @param list<WorkerRunStateChange> $history    the states the run reached, oldest first
+     * @param ?string                    $cardTitle  null when the card is gone or the board is off
+     * @param ?WorkerRunControl          $control    null when the row offers no action and shows no notice
+     * @param ?WorkerRunFact             $fact       null when the run has no metrics row
+     * @param ?list<WorkerRunBucketView> $buckets    null when the run has no bucket rows
+     * @param ?WorkerRunBilledCost       $billedCost null when no OpenRouter cost is awaited for the run
      */
     public function __construct(
         public WorkerRun $run,
@@ -39,6 +41,7 @@ final readonly class WorkerRunListItem
         public ?WorkerRunControl $control = null,
         public ?WorkerRunFact $fact = null,
         public ?array $buckets = null,
+        public ?WorkerRunBilledCost $billedCost = null,
     ) {
         $this->state = $run->state;
         $this->interactive = WorkerRunKind::Interactive === $run->kind;

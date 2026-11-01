@@ -22,6 +22,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class ReportWorkerRunStateCommand
 {
+    public const string COST_SOURCE_OPENROUTER = 'openrouter';
+
     public function __construct(
         public User $owner,
         public string $handle,
@@ -73,6 +75,8 @@ final readonly class ReportWorkerRunStateCommand
          * @var array<string, int>|null
          */
         public ?array $harnessEvents = null,
+        /** "openrouter" makes the billed cost of the run come from OpenRouter. Read from an outcome or a stop of a worker run alone. */
+        public ?string $costSource = null,
     ) {
     }
 }

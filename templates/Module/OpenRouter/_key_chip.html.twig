@@ -1,0 +1,5 @@
+{% if key.refused %}
+<twig:Ds:StatusChip modifier="failed" :label="'openrouter.key.refused'|trans" :reason="key.refusedSince ? 'openrouter.key.refused_since'|trans({'%time%': key.refusedSince|date('Y-m-d H:i')}) : null" />
+{% else %}
+<twig:Ds:StatusChip modifier="ok" :label="'openrouter.key.connected'|trans" />
+{% endif %}
