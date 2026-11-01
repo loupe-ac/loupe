@@ -7,13 +7,11 @@ namespace App\Module\Review\Command;
 use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
-use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Repository\CommentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Service\DocumentReferenceValidator;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentSeriesApplier;
 use App\Module\Review\Service\DocumentWorkLinksInterface;
 use App\Module\Review\Service\MarkdownRenderer;
@@ -40,7 +38,6 @@ final readonly class ReviseDocumentHandler
         private DocumentVersionRepository $documentVersions,
         private DocumentReferenceValidator $referenceValidator,
         private DocumentSeriesApplier $seriesApplier,
-        private DocumentSearchIndexer $searchIndexer,
         private SeriesConflictErrors $conflicts,
         private Auditor $auditor,
         private DocumentWorkLinksInterface $workLinks,
@@ -102,10 +99,6 @@ final readonly class ReviseDocumentHandler
             // same next version number.
             $this->em->lock($document, LockMode::PESSIMISTIC_WRITE);
 
-            // Both reads go through the repository, and the version is built and
-            // persisted directly rather than through Document::addVersion(): that
-            // helper calls count() and add() on ->versions, and the association is
-            // not EXTRA_LAZY, so either one loads every version of the document.
             $previousVersion = $this->documentVersions->findLatest($document);
             if (null !== $command->versionNumber && $previousVersion->versionNumber !== $command->versionNumber) {
                 return new DomainErrors(['versionNumber' => 'review.revise.error.stale_version']);
@@ -118,18 +111,11 @@ final readonly class ReviseDocumentHandler
                 }
             }
 
-            $newVersion = new DocumentVersion(
-                $document,
-                $this->documentVersions->nextVersionNumber($document),
+            $newVersion = $document->addVersion(
                 $command->markdown,
                 $this->renderer->render($command->markdown),
                 $description,
             );
-            $this->em->persist($newVersion);
-            // Kept in step in memory as well: currentVersion() reads the
-            // collection, so anything reading the document later in this
-            // request would otherwise still see the previous version.
-            $document->versions->add($newVersion);
 
             // A revision may also correct the title; leaving it out means "keep
             // the current one" rather than "clear it".
@@ -171,10 +157,6 @@ final readonly class ReviseDocumentHandler
             } catch (UniqueConstraintViolationException $e) {
                 throw $this->conflicts->forViolation($e) ?? $e;
             }
-
-            // Inside the transaction: a revision that rolls back must not leave
-            // the vector describing a version that no longer exists.
-            $this->searchIndexer->index($document);
 
             $newVersionNumber = $newVersion->versionNumber;
 

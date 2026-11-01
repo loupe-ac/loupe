@@ -15,7 +15,6 @@ use App\Module\Inbox\Service\Dev\ProjectShowcaseSeeder;
 use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\SessionBridges;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
@@ -59,7 +58,6 @@ final class ProjectShowcaseSeederTest extends KernelTestCase
             $this->service(PullRequestUrlResolver::class),
             $this->service(ForgePullRequestRepository::class),
             $this->service(InboxSearchIndexer::class),
-            $this->service(DocumentSearchIndexer::class),
             $this->service(CardEvaluations::class),
             $this->service(InboxCardWatchRepository::class),
             $this->service(InboxAvailability::class),

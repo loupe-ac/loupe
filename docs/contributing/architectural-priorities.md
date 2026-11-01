@@ -90,7 +90,7 @@ still lists the old refusal as an example of a judgement about rigour.
 Simplicity wins while the performance cost is unmeasured.
 
 Search indexing runs synchronously inside the command handlers. A queue or a
-database trigger takes the work off the write path. `DocumentSearchIndexer` keeps
+database trigger takes the work off the write path. `InboxSearchIndexer` keeps
 it in the handlers, because that is what makes it greppable. Nobody has measured
 a write that is too slow.
 

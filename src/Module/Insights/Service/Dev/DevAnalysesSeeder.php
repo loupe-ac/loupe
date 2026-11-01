@@ -25,7 +25,6 @@ use App\Module\Insights\Repository\InsightsBucketRuleRepository;
 use App\Module\Insights\Service\AnalysisSettings;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\MarkdownRenderer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
@@ -98,7 +97,6 @@ final readonly class DevAnalysesSeeder
         private InsightsBucketRuleRepository $insightsBucketRules,
         private BucketTimeComputer $bucketTimes,
         private MarkdownRenderer $renderer,
-        private DocumentSearchIndexer $documentSearch,
     ) {
     }
 
@@ -138,7 +136,6 @@ final readonly class DevAnalysesSeeder
 
         $this->em->persist(new Analysis($project, AnalysisTopic::Cost, new AnalysisScope(MetricRange::ThirtyDays), null, AnalysisSettings::DEFAULT_MODEL, AnalysisSettings::DEFAULT_EFFORT, new \DateTimeImmutable('-10 minutes')));
         $this->em->flush();
-        $this->documentSearch->index($report);
 
         return true;
     }
@@ -157,7 +154,6 @@ final readonly class DevAnalysesSeeder
         $this->seedRun($analysis, new \DateTimeImmutable('-1 day +25 minutes'));
         $this->em->persist(new Proposal($analysis, ProposalKind::Card, 'Run 10 more cards on each variant before a decision', "The cost gap is clear: $1.74 against $4.33 per merged card.\nThe merge rate and the fix rounds give no clear answer with 6 finished cards per variant.", null, null, 0));
         $this->em->flush();
-        $this->documentSearch->index($report);
 
         return true;
     }
@@ -186,7 +182,6 @@ final readonly class DevAnalysesSeeder
         $this->seedToolCalls($run);
         $this->em->flush();
         $this->bucketTimes->recompute($project, [$run->id ?? throw new \LogicException('A stored run has an id.')]);
-        $this->documentSearch->index($report);
 
         return true;
     }

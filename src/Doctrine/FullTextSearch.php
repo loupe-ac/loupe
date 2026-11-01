@@ -15,8 +15,8 @@ namespace App\Doctrine;
  * bundle.
  *
  * The weights are needed in a DQL call site (the repository, through the
- * library's functions) *and* in raw SQL (DocumentSearchIndexer's UPDATE, which
- * no DQL function can reach because it is not DQL). Delete this class and 'A'
+ * library's functions) *and* in raw SQL (the inbox and worker run indexers, which
+ * no DQL function can reach because they are not DQL). Delete this class and 'A'
  * and 'B' become string literals in both places, free to drift.
  *
  * The stemming language is no longer here. It is a per-document column, so both

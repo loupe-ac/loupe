@@ -664,9 +664,9 @@ An earlier round with nothing left to explain shows one line, such as "3 finding
 
 ## The search language
 
-The search of cards and documents matches part of a word and does not stem, so
-it ignores the language. The inbox search still stems words, so it needs the
-language a document is written in. Every document carries its own.
+Every document records the language it is written in. The search of cards and
+documents matches part of a word and does not stem, so it ignores the language.
+The language is a label for readers and agents.
 
 A project holds the default. You choose it when you create the project, in the
 **Document language** field on the new-project form and on the first step of the
@@ -675,14 +675,12 @@ default. An agent names another language per document through `document_create`.
 
 The project settings screen carries the same field, so you can change the
 default later. The change applies only to documents written after it. A document
-fixes its own language when it is written. Nothing changes that language
-afterwards, because a change needs a reindex that no screen or tool does today.
+fixes its own language when it is written.
 
 The default is `english` for every project that existed before this field, which
 keeps those projects searching as they always did.
 
-Pick **Other or mixed (no stemming)** for a project whose text has no single
-language. Search then matches whole words only.
+Pick **Other or mixed (no stemming)** for a project whose text has no single language.
 
 ## Archiving
 

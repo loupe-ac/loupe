@@ -10,7 +10,6 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
 use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Service\DocumentReferenceValidator;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentSeriesApplier;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\Review\Service\DocumentWorkLinksInterface;
@@ -32,7 +31,6 @@ final readonly class CreateDocumentHandler
         private DocumentTagApplier $tagApplier,
         private DocumentSeriesApplier $seriesApplier,
         private DocumentReferenceValidator $referenceValidator,
-        private DocumentSearchIndexer $searchIndexer,
         private SeriesConflictErrors $conflicts,
         private Auditor $auditor,
         private DocumentWorkLinksInterface $workLinks,
@@ -127,10 +125,6 @@ final readonly class CreateDocumentHandler
             $command->project->id ?? throw new \LogicException('A persisted project has an id.'),
             $document->id ?? throw new \LogicException('A flushed document has an id.'),
         ));
-
-        // After the flush, because the indexer reads the rows back over SQL and
-        // sees nothing until they exist.
-        $this->searchIndexer->index($document);
 
         return $document;
     }

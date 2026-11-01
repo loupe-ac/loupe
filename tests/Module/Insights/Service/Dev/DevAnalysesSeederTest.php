@@ -14,7 +14,6 @@ use App\Module\Insights\Repository\AnalysisRepository;
 use App\Module\Insights\Repository\InsightsBucketRuleRepository;
 use App\Module\Insights\Repository\ProposalRepository;
 use App\Module\Insights\Service\Dev\DevAnalysesSeeder;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\MarkdownRenderer;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -79,7 +78,6 @@ final class DevAnalysesSeederTest extends KernelTestCase
             $this->service(InsightsBucketRuleRepository::class),
             $this->service(BucketTimeComputer::class),
             $this->service(MarkdownRenderer::class),
-            $this->service(DocumentSearchIndexer::class),
         );
     }
 
