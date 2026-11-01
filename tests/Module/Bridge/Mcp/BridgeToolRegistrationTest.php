@@ -111,8 +111,8 @@ final class BridgeToolRegistrationTest extends KernelTestCase
         self::assertIsInt($start);
 
         self::assertSame(
-            [WorkerRunListTool::NAME, WorkerRunGetTool::NAME, WorkerRunToolCallsTool::NAME, BridgeHostSamplesTool::NAME, MetricListTool::NAME, MetricQueryTool::NAME, ExperimentGetTool::NAME],
-            \array_slice($names, $start, 7),
+            [WorkerRunListTool::NAME, WorkerRunGetTool::NAME, WorkerRunToolCallsTool::NAME, BridgeHostSamplesTool::NAME, MetricListTool::NAME, MetricQueryTool::NAME],
+            \array_slice($names, $start, 6),
         );
         $bridgeList = array_search(BridgeListTool::NAME, $names, true);
         self::assertIsInt($bridgeList);
