@@ -119,11 +119,11 @@ final class DocumentSearchTest extends KernelTestCase
         );
     }
 
-    public function test_renaming_a_document_reindexes_its_title(): void
+    public function test_renaming_a_document_changes_the_title_that_search_finds(): void
     {
         $project = $this->project();
         // The body deliberately shares no word with either title, so the
-        // assertions below can only be about the title half of the vector.
+        // assertions below can only be about the title.
         $document = $this->document($project, 'Untitled draft', 'Some prose about caching.');
 
         (self::getContainer()->get(RenameDocumentHandler::class))(

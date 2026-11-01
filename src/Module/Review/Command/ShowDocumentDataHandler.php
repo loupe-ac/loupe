@@ -62,7 +62,7 @@ final readonly class ShowDocumentDataHandler
         return [
             'documentId' => (string) $document->id,
             'title' => $document->title,
-            // The stemming language search uses for this document.
+            // The language the text is written in. Search ignores it.
             'language' => $document->searchLanguage->value,
             'status' => $document->status->value,
             'archived' => null !== $document->archivedAt,

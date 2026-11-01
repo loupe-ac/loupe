@@ -102,9 +102,7 @@ final readonly class CreateDocumentHandler
             throw $error;
         }
 
-        // Between the flush and the index. Before the flush the document has no
-        // committed id, and after the index a throwing indexer would leave the
-        // document written with no record that it was created.
+        // After the flush, because the document has no committed id before it.
         $this->auditor->record(
             'review.document_created',
             AuditOutcome::Success,

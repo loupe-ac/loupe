@@ -677,8 +677,7 @@ The project settings screen carries the same field, so you can change the
 default later. The change applies only to documents written after it. A document
 fixes its own language when it is written.
 
-The default is `english` for every project that existed before this field, which
-keeps those projects searching as they always did.
+The default is `english` for every project that existed before this field.
 
 Pick **Other or mixed (no stemming)** for a project whose text has no single language.
 
