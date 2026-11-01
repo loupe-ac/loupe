@@ -226,7 +226,7 @@ func TestAHeartbeatCarriesTheSkippedRequestsUntilTheServerTakesThem(t *testing.T
 	l.Note(workID(1), "claude")
 	client := &fakeHeartbeats{errors: []error{errors.New("connection refused")}}
 	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.skips = &l })
-	hh.h.send()
+	hh.tick(t, time.Minute)
 	eventually(t, "the second heartbeat", func() bool { return client.count() >= 2 })
 	hh.h.send()
 	eventually(t, "a third heartbeat", func() bool { return client.count() >= 3 })

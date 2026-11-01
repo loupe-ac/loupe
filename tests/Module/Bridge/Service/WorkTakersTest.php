@@ -6,11 +6,13 @@ namespace App\Tests\Module\Bridge\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeClaimRefusal;
 use App\Module\Bridge\Entity\BridgeWorkMatch;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
+use App\Module\Bridge\ValueObject\RefusedTaker;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
@@ -599,6 +601,86 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::Limited, $reading->state);
         self::assertNotNull($reading->limit);
         self::assertCount(1, $reading->limit->accounts);
+    }
+
+    public function test_a_bridge_the_server_refused_is_not_a_taker_of_that_request_and_is_listed_with_its_cause(): void
+    {
+        [$project, $request, $owner] = $this->scenario('refused');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $bridge->cliVersion = '1.32.0';
+        $this->em()->flush();
+        $this->refuse($bridge, $request, null);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::NotCapable, $reading->state);
+        self::assertEquals([new RefusedTaker($bridge->label, null, true)], $reading->refusedTakers);
+    }
+
+    /** @return iterable<string, array{string, ?string, bool}> */
+    public static function refusalCauses(): iterable
+    {
+        yield 'no account on an old CLI' => ['1.32.9', null, true];
+        yield 'no account on the first naming CLI' => ['1.33.0', null, false];
+        yield 'no account on a newer CLI' => ['2.0.0', null, false];
+        yield 'no account on a build that is no semver' => ['b4e39aa7', null, false];
+        yield 'a named account on an old CLI' => ['1.32.0', 'work', false];
+    }
+
+    #[DataProvider('refusalCauses')]
+    public function test_the_version_gap_needs_no_account_in_the_claim_and_a_cli_older_than_the_first_naming_release(string $version, ?string $account, bool $gap): void
+    {
+        [$project, $request, $owner] = $this->scenario('refused-gap-'.md5($version.$account));
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $bridge->cliVersion = $version;
+        $this->em()->flush();
+        $this->refuse($bridge, $request, $account);
+
+        $reading = $this->read($project, $request);
+
+        self::assertEquals([new RefusedTaker($bridge->label, $account, $gap)], $reading->refusedTakers);
+    }
+
+    public function test_a_refusal_holds_back_the_request_it_names_and_no_other(): void
+    {
+        [$project, $refused, $owner] = $this->scenario('refused-only-one');
+        $other = $this->seedWorkRequest($this->em(), $project, kind: 'implement', createdAt: new \DateTimeImmutable('2026-10-16 11:00:00'));
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->refuse($bridge, $refused, null);
+
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $refused)->state);
+        self::assertSame(WorkTakerState::Available, $this->read($project, $other)->state);
+    }
+
+    public function test_another_able_bridge_still_takes_a_request_that_one_bridge_was_refused(): void
+    {
+        [$project, $request, $owner] = $this->scenario('refused-other-takes');
+        $refused = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->bridge($owner, $project, seenSecondsAgo: 20);
+        $this->refuse($refused, $request, null);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Available, $reading->state);
+        self::assertSame([], $reading->refusedTakers);
+    }
+
+    public function test_a_quiet_refused_bridge_is_not_listed(): void
+    {
+        [$project, $request, $owner] = $this->scenario('refused-quiet');
+        $quiet = $this->bridge($owner, $project, seenSecondsAgo: $this->window() + 60);
+        $this->refuse($quiet, $request, null);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::None, $reading->state);
+        self::assertSame([], $reading->refusedTakers);
+    }
+
+    private function refuse(Bridge $bridge, WorkRequest $request, ?string $account): void
+    {
+        $this->em()->persist(new BridgeClaimRefusal(Uuid::v7(), $bridge, $request, $account));
+        $this->em()->flush();
     }
 
     /** @return array{Project, WorkRequest, User} */
