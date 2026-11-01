@@ -155,6 +155,42 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertCount(1, $this->historyOf($this->onlyRun()));
     }
 
+    public function test_a_date_with_milliseconds_and_an_offset_is_stored_as_the_same_instant(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-fraction@example.com');
+        $project = $this->project($em, $owner, 'Run States Fraction');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['at' => '2026-11-01T12:37:46.027-05:00']));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('2026-11-01T17:37:46+00:00', $this->historyOf($this->onlyRun())[0]->at->format(\DateTimeInterface::ATOM));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function datesTheAppRefuses(): iterable
+    {
+        yield 'words' => ['tomorrow'];
+        yield 'a day that does not exist' => ['2026-02-30T17:58:08.177Z'];
+    }
+
+    #[DataProvider('datesTheAppRefuses')]
+    public function test_a_date_that_is_not_real_rfc_3339_is_refused(string $at): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-refused-'.md5($at).'@example.com');
+        $project = $this->project($em, $owner, 'Run States Refused '.md5($at));
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['at' => $at]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $this->allRuns());
+    }
+
     public function test_a_run_moves_through_its_states_and_keeps_each_one(): void
     {
         $client = static::createClient();

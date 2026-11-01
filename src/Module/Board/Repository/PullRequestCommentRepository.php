@@ -73,7 +73,7 @@ class PullRequestCommentRepository extends ServiceEntityRepository
     {
         /** @var list<WorkerRun> $runs */
         $runs = $this->getEntityManager()->createQuery(
-            'SELECT r FROM '.WorkerRun::class.' r LEFT JOIN '.PullRequestComment::class.' comment WITH comment.runId = r.id
+            'SELECT r FROM '.WorkerRun::class.' r LEFT JOIN '.PullRequestComment::class.' comment ON comment.runId = r.id
             WHERE r.subjectType = :cardSubject AND r.subjectId = :cardId AND r.kind = :kind AND r.role = :role
                 AND (r.state IN (:openStates) OR COALESCE(r.endedAt, r.receivedAt) >= :since) AND comment.id IS NULL
             ORDER BY r.id ASC',
