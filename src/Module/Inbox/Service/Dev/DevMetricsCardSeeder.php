@@ -22,6 +22,7 @@ use Symfony\Component\Uid\Uuid;
  * Readiness and AgentReview may import Board.
  */
 #[When('dev')]
+#[When('test')]
 final readonly class DevMetricsCardSeeder
 {
     public function __construct(

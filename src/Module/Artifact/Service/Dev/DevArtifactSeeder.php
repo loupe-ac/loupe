@@ -19,6 +19,7 @@ use Symfony\Component\DependencyInjection\Attribute\When;
  * while it is off.
  */
 #[When('dev')]
+#[When('test')]
 final readonly class DevArtifactSeeder
 {
     public const string NAME = 'Pricing page prototype';

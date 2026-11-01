@@ -39,6 +39,7 @@ use Symfony\Component\Uid\Uuid;
  * namespace may not name a card, as `phparkitect.php` says.
  */
 #[When('dev')]
+#[When('test')]
 final readonly class DevExperimentSeeder
 {
     public const string EXPERIMENT = 'implement';

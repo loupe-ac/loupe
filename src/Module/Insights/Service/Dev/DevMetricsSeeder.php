@@ -38,6 +38,7 @@ use Symfony\Component\Uid\Uuid;
  * demo run, so a project seeded last week gains the days since then.
  */
 #[When('dev')]
+#[When('test')]
 final readonly class DevMetricsSeeder
 {
     public const int DAYS = 60;

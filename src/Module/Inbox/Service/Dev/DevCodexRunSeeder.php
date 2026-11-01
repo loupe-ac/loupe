@@ -30,6 +30,7 @@ use Symfony\Component\Uid\Uuid;
  * every kind, so the Metrics page shows a codex series next to claude-code.
  */
 #[When('dev')]
+#[When('test')]
 final readonly class DevCodexRunSeeder
 {
     public const string HARNESS = 'codex';

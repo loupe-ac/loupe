@@ -39,6 +39,7 @@ use Symfony\Component\Uid\Uuid;
  * opens no work request, so no bridge claims it.
  */
 #[When('dev')]
+#[When('test')]
 final readonly class DevAnalysesSeeder
 {
     private const string REPORT = <<<'MARKDOWN'
