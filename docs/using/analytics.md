@@ -228,7 +228,9 @@ the series.
 The **Chart** control sets how the page draws the series. A legend under the
 chart names the series when there is more than one. With more than eight series,
 the first seven keep their colours, and the rest share one grey. The value axis
-of a rate stops at 100%, except with **Count**.
+of a rate stops at 100%, except with **Count**. The value axis of tokens and
+counts prints short numbers, such as `80M`. Hover a point, or read the table, for
+the full number.
 
 | Chart | What it shows |
 |---|---|
