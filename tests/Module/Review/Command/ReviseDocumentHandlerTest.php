@@ -368,6 +368,33 @@ final class ReviseDocumentHandlerTest extends KernelTestCase
         self::assertFalse($versions->isInitialized());
     }
 
+    public function test_a_revision_replaces_the_search_text_with_the_new_markdown(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+
+        $user = new User(fullName: 'Agent', email: 'agent-search-text@example.com', password: 'hashed');
+        $em->persist($user);
+        $project = new Project($user, 'p-'.uniqid());
+        $em->persist($project);
+        $em->flush();
+
+        /** @var CreateDocumentHandler $createHandler */
+        $createHandler = self::getContainer()->get(CreateDocumentHandler::class);
+        $doc = $createHandler(new CreateDocumentCommand($project, 'Search Text', 'alpha first'));
+        $id = $doc->id;
+        self::assertInstanceOf(Uuid::class, $id);
+
+        $searchText = static fn (): string => (string) $em->getConnection()->fetchOne('SELECT search_text FROM documents WHERE id = :id', ['id' => (string) $id]);
+        self::assertSame('alpha first', $searchText());
+
+        /** @var ReviseDocumentHandler $reviseHandler */
+        $reviseHandler = self::getContainer()->get(ReviseDocumentHandler::class);
+        $reviseHandler(new ReviseDocumentCommand($doc, 'beta second', 'Second pass.'));
+
+        self::assertSame('beta second', $searchText());
+    }
+
     public function test_two_sequential_revisions_get_consecutive_version_numbers(): void
     {
         self::bootKernel();

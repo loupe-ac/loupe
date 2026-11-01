@@ -18,8 +18,9 @@ Log in at `https://loupe.dev.localhost` with `dev@loupe.test` / `password`, or
 **Covered by e2e.** Spot-check only.
 
 1. **Search finds a document by body text, not just title.** Type a word that
-   appears only in a document's body. It should match. Stemming is English, so
-   searching `partitions` should find a document containing `partition`.
+   appears only in a document's body. It should match. Search matches part of a
+   word, so searching `partit` should find a document containing `partition`.
+   Revise the document so the word is gone. The search must no longer find it.
 2. **Typing does not lose keystrokes.** Type a query, pause about half a second
    mid-word, then keep typing **without clicking back into the field**. The full
    string must be in the box, in order. Two failure shapes to watch for: the

@@ -54,7 +54,6 @@ use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
@@ -92,7 +91,6 @@ final readonly class ProjectShowcaseSeeder
         private PullRequestUrlResolver $pullRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private InboxSearchIndexer $inboxSearch,
-        private DocumentSearchIndexer $documentSearch,
         private CardEvaluations $evaluations,
         private InboxCardWatchRepository $inboxCardWatches,
         private InboxAvailability $inbox,
@@ -438,9 +436,6 @@ final readonly class ProjectShowcaseSeeder
             $this->em->persist($document);
         }
         $this->em->flush();
-        foreach ([$history, $rules, $onboarding] as $document) {
-            $this->documentSearch->index($document);
-        }
 
         return ['history' => $history, 'rules' => $rules, 'onboarding' => $onboarding];
     }

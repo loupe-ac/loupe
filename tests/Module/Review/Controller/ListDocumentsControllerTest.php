@@ -63,9 +63,8 @@ final class ListDocumentsControllerTest extends WebTestCase
     }
 
     /**
-     * Through the handler rather than `new Document`, because that is what
-     * maintains the search vector — a directly persisted document is invisible
-     * to search.
+     * Through the handler rather than `new Document`, because the first version
+     * writes the search text. A document with no version has none.
      *
      * @param list<string> $tagNames
      */

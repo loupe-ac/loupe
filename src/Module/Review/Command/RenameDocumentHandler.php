@@ -7,7 +7,6 @@ namespace App\Module\Review\Command;
 use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Event\DocumentRenamed;
-use App\Module\Review\Service\DocumentSearchIndexer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -19,7 +18,6 @@ final readonly class RenameDocumentHandler
     public function __construct(
         private EntityManagerInterface $em,
         private Auditor $auditor,
-        private DocumentSearchIndexer $searchIndexer,
         private EventDispatcherInterface $events,
     ) {
     }
@@ -39,10 +37,6 @@ final readonly class RenameDocumentHandler
 
         $document->title = $title;
         $this->em->flush();
-
-        // The title is the highest-weighted half of the vector, so a rename that
-        // skipped this would keep matching the old title and miss the new one.
-        $this->searchIndexer->index($document);
 
         // Neither title is recorded. Both are text a person wrote, and the
         // audit context carries ids, counts, flags and enum values only. The

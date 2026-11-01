@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Doctrine;
 
 /**
- * The Postgres text-search configuration a document is stemmed and searched
- * with.
+ * The Postgres text-search configuration an inbox item is stemmed and searched
+ * with. A document records one as the language of its text, and search ignores it.
  *
  * The cases are the built-in `pg_ts_config` names of PostgreSQL 16. The value
  * reaches SQL as a regconfig, which Postgres resolves by name at run time, so an
