@@ -7,6 +7,7 @@ namespace App\Module\Project\Service\Dev;
 use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
+use App\Module\Account\Entity\User;
 use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectCreating;
@@ -59,15 +60,21 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         // The newest project comes first in the project picker.
         $project = new Project($owner, self::DEV_PROJECT_NAME, createdAt: $context->at(0));
 
-        $old = $this->projects->findOneByOwnerAndName($owner, self::DEV_PROJECT_NAME);
-        if ($old instanceof Project) {
-            $old->name = \sprintf('%s (old %s)', self::DEV_PROJECT_NAME, substr((string) $old->id, 0, 8));
-            $this->em->flush();
-        }
+        $this->renameOldProject($owner, self::DEV_PROJECT_NAME);
 
         $context->ids->assign($project, $id);
         $this->em->persist($project);
         $this->events->dispatch(new ProjectCreating($project, 'simple'));
         $this->em->flush();
+    }
+
+    /** Frees a name that the owner holds under another id, because a project name is unique per owner. */
+    public function renameOldProject(User $owner, string $name): void
+    {
+        $old = $this->projects->findOneByOwnerAndName($owner, $name);
+        if ($old instanceof Project) {
+            $old->name = \sprintf('%s (old %s)', $name, substr((string) $old->id, 0, 8));
+            $this->em->flush();
+        }
     }
 }
