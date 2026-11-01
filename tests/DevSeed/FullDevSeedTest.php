@@ -19,6 +19,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Workflow\Contract\Actor;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -122,6 +123,25 @@ final class FullDevSeedTest extends KernelTestCase
         $this->seed(self::DAY);
 
         self::assertSame($counts, $this->rowCounts());
+    }
+
+    public function test_a_later_run_restores_each_deleted_run_on_its_own(): void
+    {
+        $this->seed(self::DAY);
+        $runs = $this->rowCounts()['bridge_worker_runs'];
+        $connection = $this->em()->getConnection();
+        $deleted = array_values(array_filter(
+            array_map(strval(...), $connection->fetchFirstColumn('SELECT id FROM bridge_worker_runs ORDER BY id')),
+            static fn (string $id): bool => 0 === hexdec(substr($id, -1)) % 4,
+        ));
+        self::assertNotEmpty($deleted);
+        $connection->executeStatement('DELETE FROM bridge_worker_runs WHERE id IN (?)', [$deleted], [ArrayParameterType::STRING]);
+        self::assertLessThan($runs, $this->rowCounts()['bridge_worker_runs']);
+
+        $this->seed(self::DAY);
+
+        self::assertSame($runs, $this->rowCounts()['bridge_worker_runs']);
+        self::assertSame([], array_values(array_diff($deleted, array_map(strval(...), $connection->fetchFirstColumn('SELECT id FROM bridge_worker_runs')))));
     }
 
     public function test_the_pages_a_preview_names_exist_with_their_fixed_ids(): void

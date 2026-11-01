@@ -106,8 +106,10 @@ final class DevMetricsSeederTest extends KernelTestCase
         $days = array_count_values($this->days($this->demoRuns($project)));
         ksort($days);
         self::assertSame('2026-11-01', array_key_last($days));
-        self::assertSame(3, $days['2026-10-31'], 'A day that lacked runs gains one run per model.');
+        self::assertSame(3, $days['2026-11-01'], 'A day that lacked runs gains one run per model.');
+        self::assertSame(4, $days['2026-10-31'], 'The first day of a span also gains a fourth run.');
         self::assertSame(4, $days['2026-10-28'], 'A day that held runs gains none.');
+        self::assertSame(3, $days['2026-10-27'], 'A day that held runs gains none when its distance from today changes.');
         self::assertCount(5, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
@@ -147,6 +149,26 @@ final class DevMetricsSeederTest extends KernelTestCase
         foreach ($this->service(WorkerRunFactRepository::class)->findBy(['project' => $project->id, 'subjectId' => $restored->id]) as $fact) {
             self::assertSame($restored->number, $fact->cardNumber);
         }
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+        self::assertFalse($this->seed($project, self::NOW), 'A later run has nothing left to do.');
+    }
+
+    public function test_a_deleted_run_comes_back_with_its_fixed_id_on_a_day_that_keeps_other_runs(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-deleted-run');
+        $this->seed($project, self::NOW);
+        $id = DevSeedId::of('insights/run/2026-10-28/1');
+        $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE id = ?', [$id->toRfc4122()]);
+        $this->em()->clear();
+        self::assertCount(self::RUNS - 1, $this->demoRuns($project));
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+
+        self::assertTrue($this->seed($project, self::NOW));
+
+        $this->em()->clear();
+        self::assertCount(self::RUNS, $this->demoRuns($project));
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find($id));
+        self::assertNotNull($this->service(WorkerRunFactRepository::class)->find($id));
         $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
         self::assertFalse($this->seed($project, self::NOW), 'A later run has nothing left to do.');
     }

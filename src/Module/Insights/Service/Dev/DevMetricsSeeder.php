@@ -36,8 +36,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Writes daily runs of three models over the last 60 days, each linked to a
  * done card, and five saved graphs, so the Metrics and Dashboard pages of a
- * dev project show data and a change from the previous period. Each run fills only the days that lack a
- * demo run, so a project seeded last week gains the days since then.
+ * dev project show data and a change from the previous period. Each seed writes only the runs that are
+ * missing, so a project seeded last week gains the days since then, and a deleted run comes back.
  */
 #[When('dev')]
 #[When('test')]
@@ -78,7 +78,7 @@ final readonly class DevMetricsSeeder
     }
 
     /**
-     * False when every day already holds its runs and the project has saved graphs.
+     * False when every run and every saved graph exists.
      *
      * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
      */
@@ -101,7 +101,7 @@ final readonly class DevMetricsSeeder
             return $cards[$from->format('Y-m-d')] ??= $cardFor($from, $from->modify(\sprintf('+%d days', self::SPAN_DAYS)));
         };
 
-        $seeded = [];
+        $stored = [];
         $stale = [];
         /** @var array<string, array{Uuid, int}> $restored the cards whose number differs from the number their runs hold */
         $restored = [];
@@ -109,14 +109,15 @@ final readonly class DevMetricsSeeder
             if (null === $run->startedAt) {
                 continue;
             }
+            $id = $run->id ?? throw new \LogicException('A stored run has an id.');
             $card = $cardOf($run->startedAt);
             if ($card[0]->equals($run->subjectId)) {
-                $seeded[$run->startedAt->format('Y-m-d')] = true;
+                $stored[$id->toRfc4122()] = true;
                 if ($card[1] !== $run->cardNumber) {
                     $restored[$card[0]->toRfc4122()] = $card;
                 }
             } else {
-                $stale[] = $run->id ?? throw new \LogicException('A stored run has an id.');
+                $stale[] = $id;
             }
         }
         $this->deleteRuns($stale);
@@ -127,16 +128,12 @@ final readonly class DevMetricsSeeder
         $runs = [];
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
             $day = $today->modify(\sprintf('-%d days', $daysAgo));
-            if (isset($seeded[$day->format('Y-m-d')])) {
-                continue;
-            }
-            /** @var array{Uuid, int} $card */
-            $card = $cardOf($day);
-            foreach (self::MODELS as $index => [$model, $cost, $minutes]) {
-                $runs[] = $this->run($context, $project, $card, $day, $daysAgo, $index, $model, $cost, $minutes);
-            }
-            if (0 === $daysAgo % 3) {
-                $runs[] = $this->run($context, $project, $card, $day, $daysAgo, 3, self::MODELS[1][0], self::MODELS[1][1], self::MODELS[1][2]);
+            foreach (self::runsOf($day) as $index => [$model, $cost, $minutes]) {
+                if (!isset($stored[self::runId($day, $index)->toRfc4122()])) {
+                    /** @var array{Uuid, int} $card */
+                    $card = $cardOf($day);
+                    $runs[] = $this->run($context, $project, $card, $day, $daysAgo, $index, $model, $cost, $minutes);
+                }
             }
         }
         if ([] === $runs) {
@@ -147,6 +144,21 @@ final readonly class DevMetricsSeeder
         $this->bucketTimes->recompute($project, array_map(static fn (WorkerRun $run): Uuid => $run->id ?? throw new \LogicException('A stored run has an id.'), $runs));
 
         return true;
+    }
+
+    /**
+     * The runs that a day holds, by index. The first day of a span holds a fourth run.
+     *
+     * @return array<int, array{string, float, int}>
+     */
+    private static function runsOf(\DateTimeImmutable $day): array
+    {
+        return self::spanStart($day)->format('Y-m-d') === $day->format('Y-m-d') ? [...self::MODELS, self::MODELS[1]] : self::MODELS;
+    }
+
+    private static function runId(\DateTimeImmutable $day, int $index): Uuid
+    {
+        return DevSeedId::of(\sprintf('insights/run/%s/%d', $day->format('Y-m-d'), $index));
     }
 
     /** The spans start on fixed days, so a later seed finds the card of a span again. */
@@ -206,7 +218,7 @@ final readonly class DevMetricsSeeder
         );
         $run->recordHarness('claude-code', null, $model, null);
         $run->usageSource = WorkerRunUsageSource::Reported;
-        $context->ids->assign($run, DevSeedId::of(\sprintf('insights/run/%s/%d', $day->format('Y-m-d'), $index)));
+        $context->ids->assign($run, self::runId($day, $index));
         $this->em->persist($run);
 
         $costUsd = \sprintf('%.6f', $baseCost * $wave * $trend);
