@@ -99,7 +99,8 @@
     .lp-decision__badge:is(:hover, :focus-visible) {
         @apply z-10;
     }
-    .lp-decision__tooltip {
+    /* Two classes, as tooltip.css loads after this file and sets the same properties. */
+    .lp-tooltip.lp-decision__tooltip {
         @apply right-0 left-auto w-max max-w-72 text-left whitespace-normal transition-none;
     }
     .lp-decision__tooltip::before {
