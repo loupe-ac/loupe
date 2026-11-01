@@ -1,0 +1,4804 @@
+openapi: 3.0.3
+info:
+  title: Loupe private API v1 (no public promise)
+  version: 1.0.0
+  description: |-
+    **This file has no public promise.** These routes serve the Loupe CLI bridge and the site-review widget. They may change with the CLI and the widget. Do not build on them.
+
+    v1 is in beta for 3 months after the first release. Until then a breaking change may land with a changelog note. After that a breaking change makes /api/v2, and v1 keeps working for at least 6 months with `Deprecation` and `Sunset` headers.
+
+    The server below is the hosted instance. A self-hosted instance uses its own host with the same paths.
+
+    `/api/v1/bridge` routes need a credential with the `agent` scope. `/api/v1/live-review-widget` routes need a credential with the `site-review` scope, from a widget sign-in, a preview token or a CLI sign-in.
+
+    Success bodies are the bodies of the old routes. Errors are `application/problem+json`, and `code` holds the value of the old flat `error` key. An error keeps the extra keys the old route gave: `errors`, `types`, `missing` and `subscribeUrl`. A route that a feature flag switches off answers 404 `route_not_found`.
+
+    No route in this document is built yet. This document is the proposal.
+  license:
+    name: AGPL-3.0-or-later
+    url: https://www.gnu.org/licenses/agpl-3.0.html
+servers:
+- url: https://app.loupe.ac
+  description: Hosted instance
+security:
+- bearerAuth: []
+tags:
+- name: Bridge
+  description: What the CLI bridge reads and reports about itself.
+- name: Worker runs
+  description: What the CLI bridge reports about its runs.
+- name: Artifacts
+  description: Storing design artifacts from the CLI.
+- name: Tokens
+  description: Preview tokens and push tokens.
+- name: Widget
+  description: What the site-review widget calls.
+paths:
+  /api/v1/bridge/bridges/{bridgeId}/commands/{commandId}:
+    put:
+      operationId: acknowledgeBridgeCommand
+      summary: Record the answer of a bridge to a command
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/BridgeId'
+      - $ref: '#/components/parameters/CommandId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandAck'
+      responses:
+        '200':
+          description: The answer is accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandAckAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404CommandNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidStateInvalidReasonReasonTooLong'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/bridges/{bridgeId}/heartbeat:
+    put:
+      operationId: recordBridgeHeartbeat
+      summary: Record that a bridge is alive
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/BridgeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+      responses:
+        '200':
+          description: The heartbeat is accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/bridges/{bridgeId}/runs:
+    put:
+      operationId: reportBridgeRuns
+      summary: Report the runs a bridge still holds
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/BridgeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BridgeRuns'
+      responses:
+        '204':
+          description: The report is taken.
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim:
+    post:
+      operationId: claimWorkRequest
+      summary: Claim a work request
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/BridgeId'
+      - $ref: '#/components/parameters/WorkRequestId'
+      responses:
+        '200':
+          description: The bridge holds the claim.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkClaim'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404WorkRequestNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409AlreadyClaimedCardHeldProjectHeld'
+        '422':
+          $ref: '#/components/responses/E422UnknownBridgeCapabilityMissing'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result:
+    put:
+      operationId: settleWorkRequest
+      summary: Send the result of a claimed work request
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/BridgeId'
+      - $ref: '#/components/parameters/WorkRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkResult'
+      responses:
+        '200':
+          description: The result is accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkResultAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404WorkRequestNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409ClaimLost'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidStateInvalidClaimTokenInvalidReason'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/card-holds:
+    get:
+      operationId: listBridgeCardHolds
+      summary: List the held cards of the projects of the caller
+      tags:
+      - Bridge
+      responses:
+        '200':
+          description: The held cards.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardHolds'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/events:
+    get:
+      operationId: getBridgeEvents
+      summary: Read what the bridge needs to follow events
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/XLoupeBridge'
+      responses:
+        '200':
+          description: The hub, the topic, the projects and the flags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsAnswer'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '426':
+          $ref: '#/components/responses/E426NoBridgeIdUnknownBridgeNoWorkRequests'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/events/replay:
+    get:
+      operationId: replayBridgeEvents
+      summary: Read the outbox events after a cursor
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/XLoupeBridge'
+      - $ref: '#/components/parameters/After'
+      responses:
+        '200':
+          description: At most 200 new events, with an overlap.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventReplay'
+        '400':
+          $ref: '#/components/responses/E400InvalidQuery'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '426':
+          $ref: '#/components/responses/E426NoBridgeIdUnknownBridgeNoWorkRequests'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/interactive-sessions/{sessionId}/close:
+    post:
+      operationId: closeInteractiveSession
+      summary: Close the open interactive runs of a session
+      tags:
+      - Worker runs
+      description: No feature flag gates this route.
+      parameters:
+      - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: How many runs closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionClosed'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422InvalidSessionId'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects:
+    get:
+      operationId: listBridgeProjects
+      summary: List the projects of the caller for the CLI
+      tags:
+      - Bridge
+      responses:
+        '200':
+          description: The projects, with what the bridge collects from their tool calls.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sites'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/artifacts:
+    post:
+      operationId: storeBridgeArtifactVersion
+      summary: Store the files of a prototype as a new version
+      tags:
+      - Artifacts
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/XLoupeSession'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ArtifactStore'
+      responses:
+        '201':
+          description: The stored version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactStored'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ArtifactRefusedValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/cards/{cardId}:
+    get:
+      operationId: getBridgeProjectCard
+      summary: Read the column of a card before a resume
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: The card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectCard'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundCardNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/columns:
+    get:
+      operationId: listBridgeProjectColumns
+      summary: List the columns the CLI checks its rule file against
+      tags:
+      - Bridge
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      responses:
+        '200':
+          description: The project and its columns.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectColumns'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/experiments/{experiment}/pins/{cardId}:
+    put:
+      operationId: resolveExperimentPin
+      summary: Answer the variant a card runs with
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/Experiment'
+      - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperimentPin'
+      responses:
+        '200':
+          description: The server resolved the variant of the card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentPinAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidCardIdInvalidExperimentInvalidVariantsAnd1More'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/git-token:
+    post:
+      operationId: issueGitToken
+      summary: Issue a push token for one repository
+      tags:
+      - Tokens
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitTokenRequest'
+      responses:
+        '201':
+          description: The token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedToken'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403GitIdentityNotManagedInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409AppNotConfiguredNoInstallationInstallationSuspendedAnd2More'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+        '502':
+          $ref: '#/components/responses/E502GithubUnavailable'
+  /api/v1/bridge/projects/{handle}/inbox/asks/{askId}:
+    get:
+      operationId: checkInboxAsk
+      summary: Check an ask before a resume
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/AskId'
+      responses:
+        '200':
+          description: The state of the ask.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboxAskCheck'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundAskNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}:
+    put:
+      operationId: reportInteractiveLaunch
+      summary: Report how the launch of an interactive session went
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteractiveLaunch'
+      responses:
+        '200':
+          description: The run already existed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunId'
+        '201':
+          description: The server created the run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunId'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidSessionIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/preview-tokens:
+    post:
+      operationId: mintPreviewToken
+      summary: Mint a preview token
+      tags:
+      - Tokens
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewTokenMint'
+      responses:
+        '201':
+          description: The token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedToken'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundCardNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409CardFinished'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidLabelValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/preview-tokens/{label}:
+    delete:
+      operationId: revokePreviewTokens
+      summary: Revoke the live preview tokens of a label
+      tags:
+      - Tokens
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/Label'
+      responses:
+        '200':
+          description: How many tokens went.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewTokenRevoked'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage:
+    put:
+      operationId: reportWorkerSessionUsage
+      summary: Record the usage of a session
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionUsage'
+      responses:
+        '200':
+          description: The counts match.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionUsageAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409ProcessCountMismatchAmbiguousStartOrder'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidSessionIdInvalidRunIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/{runId}:
+    put:
+      operationId: reportWorkerRunState
+      summary: Report one state of a worker run
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunStateReport'
+      responses:
+        '200':
+          description: The run already held this state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunId'
+        '201':
+          description: The state is new, and the server wrote a history row.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunId'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output:
+    put:
+      operationId: appendWorkerRunOutput
+      summary: Append text to the output log of a run
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunOutput'
+      responses:
+        '200':
+          description: The log after the append.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOutputAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRunNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls:
+    put:
+      operationId: reportWorkerRunToolCalls
+      summary: Record one batch of tool calls of a run
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCalls'
+      responses:
+        '200':
+          description: The batch is taken.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCallsAnswer'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRunNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/cards:
+    get:
+      operationId: listWidgetCards
+      summary: List the open cards for the widget picker
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/Q'
+      - $ref: '#/components/parameters/Type'
+      - $ref: '#/components/parameters/Parent'
+      responses:
+        '200':
+          description: At most 20 cards.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickerCards'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    post:
+      operationId: createWidgetCard
+      summary: Create a card from the widget
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WidgetCardCreate'
+      responses:
+        '201':
+          description: The new card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetCardCreated'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422UnknownTypeValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/cards/{cardId}/verdict:
+    get:
+      operationId: showCardVerdict
+      summary: Read the verdict panel of a card
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: What the widget shows in its verdict panel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerdictPanel'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404CardNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/cards/{cardId}/verdicts:
+    post:
+      operationId: sendCardVerdict
+      summary: Record a verdict from the widget
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardVerdictSend'
+      responses:
+        '201':
+          description: The verdict is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardVerdictSent'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404CardNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409CardClosedSubmissionReused'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422MessageRequiredPullRequestNotOnCardVerdictRefusedAnd1More'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/comments/{id}:
+    patch:
+      operationId: updateWidgetComment
+      summary: Change the text of a widget note
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CommentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentBody'
+      responses:
+        '200':
+          description: The note after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentUpdated'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/comments/{id}/resolve:
+    post:
+      operationId: resolveWidgetComment
+      summary: Resolve a widget note
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CommentId'
+      responses:
+        '204':
+          description: The note is resolved.
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/feedback:
+    post:
+      operationId: addWidgetFeedback
+      summary: Save a widget note on its card
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackAdd'
+      responses:
+        '201':
+          description: The note is saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackAdded'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409DeliveryConflictDeliveryInvalid'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422DrawingDisabledAnchorStrokeWithoutAnchorTargetNotFoundAnd6More'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/feedback/{id}:
+    delete:
+      operationId: deleteWidgetFeedback
+      summary: Delete a pending widget note
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CommentId'
+      responses:
+        '200':
+          description: The note went.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackDeleted'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/review:
+    get:
+      operationId: showPendingComments
+      summary: Read the pending notes the widget shows
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/Scope'
+      - $ref: '#/components/parameters/Surface'
+      - $ref: '#/components/parameters/Context'
+      responses:
+        '200':
+          description: The notes and the widget settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingComments'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422SurfaceInvalid'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: An OAuth access token. A `/api/v1/bridge` route needs the `agent` scope. A `/api/v1/live-review-widget`
+        route needs the `site-review` scope, from a widget sign-in, a preview token or a CLI sign-in.
+  parameters:
+    Handle:
+      name: handle
+      in: path
+      required: true
+      description: A project id or a project slug.
+      schema:
+        type: string
+    BridgeId:
+      name: bridgeId
+      in: path
+      required: true
+      description: The uuid the bridge generates on its first start. Any other value answers 404.
+      schema:
+        type: string
+        format: uuid
+    RunId:
+      name: runId
+      in: path
+      required: true
+      description: The key the bridge gave the run. A value that is not a uuid answers 422 `invalid_run_id`.
+      schema:
+        type: string
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: The session id. A value that is not a uuid answers 422 `invalid_session_id`.
+      schema:
+        type: string
+    CardId:
+      name: cardId
+      in: path
+      required: true
+      description: The card id.
+      schema:
+        type: string
+    CommentId:
+      name: id
+      in: path
+      required: true
+      description: The note id. A value that is not a uuid answers 404 `not_found`.
+      schema:
+        type: string
+    XLoupeBridge:
+      name: X-Loupe-Bridge
+      in: header
+      description: The id of the calling bridge. A missing or unknown value answers 426.
+      schema:
+        type: string
+    XLoupeSession:
+      name: X-Loupe-Session
+      in: header
+      description: The session that stores the version. A session of a worker run is refused.
+      schema:
+        type: string
+        maxLength: 255
+    XLoupeProject:
+      name: X-Loupe-Project
+      in: header
+      description: The project id this request acts on, for a credential that covers several projects. A credential bound
+        to one project may only confirm it.
+      schema:
+        type: string
+        format: uuid
+    After:
+      name: after
+      in: query
+      required: true
+      description: The sequence to read after.
+      schema:
+        type: integer
+        minimum: 0
+    CommandId:
+      name: commandId
+      in: path
+      required: true
+      description: The command id.
+      schema:
+        type: string
+        format: uuid
+    WorkRequestId:
+      name: workRequestId
+      in: path
+      required: true
+      description: The work request id.
+      schema:
+        type: string
+        format: uuid
+    Experiment:
+      name: experiment
+      in: path
+      required: true
+      description: The experiment name. A bad name answers 422 `invalid_experiment`.
+      schema:
+        type: string
+    AskId:
+      name: askId
+      in: path
+      required: true
+      description: The ask id.
+      schema:
+        type: string
+        format: uuid
+    Label:
+      name: label
+      in: path
+      required: true
+      description: The label.
+      schema:
+        type: string
+    Scope:
+      name: scope
+      in: query
+      description: A destination such as `card:<id>`. An absent scope lists the whole project. A scope nothing resolves lists
+        nothing.
+      schema:
+        type: string
+    Surface:
+      name: surface
+      in: query
+      description: It defaults to web.
+      schema:
+        type: string
+        enum:
+        - web
+        - ios-simulator
+        default: web
+    Context:
+      name: context
+      in: query
+      description: The marker of the preview card, or the target the widget stored.
+      schema:
+        type: string
+    Q:
+      name: q
+      in: query
+      description: Words to search for.
+      schema:
+        type: string
+    Type:
+      name: type
+      in: query
+      description: A type key. An unknown key means every type.
+      schema:
+        type: string
+    Parent:
+      name: parent
+      in: query
+      description: True lists cards of types that can have children.
+      schema:
+        type: boolean
+  headers:
+    Retry-After:
+      description: The number of seconds to wait before the next request.
+      schema:
+        type: integer
+  schemas:
+    Problem:
+      type: object
+      description: An error, as RFC 9457 `application/problem+json`.
+      required:
+      - type
+      - title
+      - status
+      - code
+      properties:
+        type:
+          type: string
+          description: A URI that names the error.
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+          description: The old flat `error` value where the old route had one, otherwise a code this document names.
+        detail:
+          type: string
+    ValidationProblem:
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - errors
+        properties:
+          errors:
+            type: array
+            items:
+              type: object
+              required:
+              - field
+              - code
+              - message
+              properties:
+                field:
+                  type: string
+                code:
+                  type: string
+                message:
+                  type: string
+    SubscriptionProblem:
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - subscribeUrl
+        properties:
+          subscribeUrl:
+            type: string
+            format: uri
+    ArtifactRefusedProblem:
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - errors
+        properties:
+          errors:
+            type: object
+            additionalProperties:
+              type: string
+            description: A translated message for each refused field, keyed by the field.
+    UnknownTypeProblem:
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - types
+        properties:
+          types:
+            type: array
+            items:
+              type: string
+            description: The types this request could use.
+    GitTokenRefusedProblem:
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - missing
+        properties:
+          missing:
+            type: array
+            items:
+              type: string
+            description: The permission names the installation lacks, for `missing_grant`.
+    SubjectRef:
+      type: object
+      required:
+      - type
+      - id
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+          format: uuid
+    WorkContext:
+      type: object
+      description: What the card held when the request opened. Each key is null when the card held no such value.
+      required:
+      - pullRequestNumber
+      - pullRequestUrl
+      - headSha
+      - reason
+      - documentId
+      - epicBranch
+      - inboxActionId
+      - inboxItemNumber
+      - inboxItemId
+      properties:
+        pullRequestNumber:
+          type: integer
+          nullable: true
+        pullRequestUrl:
+          type: string
+          nullable: true
+        headSha:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        documentId:
+          type: string
+          format: uuid
+          nullable: true
+        epicBranch:
+          type: string
+          nullable: true
+        inboxActionId:
+          type: string
+          format: uuid
+          nullable: true
+        inboxItemNumber:
+          type: integer
+          nullable: true
+        inboxItemId:
+          type: string
+          format: uuid
+          nullable: true
+    WorkRequest:
+      type: object
+      description: One work request. It never carries the claim token.
+      required:
+      - type
+      - projectId
+      - subject
+      - workRequestId
+      - subjectType
+      - subjectId
+      - kind
+      - capability
+      - state
+      - cardNumber
+      - ruleId
+      - createdAt
+      - resumeSessionId
+      - context
+      - model
+      - effort
+      - prompt
+      - inboxActionId
+      - inboxItemNumber
+      - inboxItemId
+      - targetBridgeId
+      - branch
+      - params
+      - run
+      properties:
+        type:
+          type: string
+          enum:
+          - bridge.work_request
+        projectId:
+          type: string
+          format: uuid
+        subject:
+          $ref: '#/components/schemas/SubjectRef'
+        workRequestId:
+          type: string
+          format: uuid
+        subjectType:
+          type: string
+        subjectId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: The kind of work.
+        capability:
+          type: string
+          description: The capability a bridge must report to claim the request.
+          nullable: true
+        state:
+          type: string
+          enum:
+          - open
+          - claimed
+          - done
+          - refused
+          - expired
+          - cancelled
+        cardNumber:
+          type: integer
+          description: A label a person reads, for a card subject alone.
+          nullable: true
+        ruleId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        resumeSessionId:
+          type: string
+          format: uuid
+          nullable: true
+        context:
+          $ref: '#/components/schemas/WorkContext'
+        model:
+          type: string
+          nullable: true
+        effort:
+          type: string
+          description: '`low`, `medium`, `high`, `xhigh` or `max`.'
+          nullable: true
+        prompt:
+          type: string
+          nullable: true
+        inboxActionId:
+          type: string
+          format: uuid
+          nullable: true
+        inboxItemNumber:
+          type: integer
+          nullable: true
+        inboxItemId:
+          type: string
+          format: uuid
+          nullable: true
+        targetBridgeId:
+          type: string
+          format: uuid
+          nullable: true
+        branch:
+          type: string
+          nullable: true
+        params:
+          type: object
+          additionalProperties: true
+          description: Parameter name to value, or null when the request has none.
+          nullable: true
+        run:
+          type: array
+          items:
+            type: string
+          description: The `run` list of the command entry.
+          nullable: true
+    BridgeCommand:
+      type: object
+      description: One command to a bridge.
+      required:
+      - type
+      - projectId
+      - subject
+      - commandId
+      - kind
+      - bridgeId
+      - runId
+      - runKey
+      - sessionId
+      - subjectType
+      - subjectId
+      - cardNumber
+      - workRequestId
+      - workKind
+      - ruleId
+      - startedAt
+      - endedAt
+      - expiresAt
+      - cause
+      - context
+      - model
+      - effort
+      - harness
+      - account
+      - runModel
+      - inboxActionId
+      - inboxItemNumber
+      - inboxItemId
+      properties:
+        type:
+          type: string
+          enum:
+          - bridge.command
+        projectId:
+          type: string
+          format: uuid
+        subject:
+          $ref: '#/components/schemas/SubjectRef'
+        commandId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - resume-run
+          - stop-run
+          - rerun-command
+          - collect-session-usage
+        bridgeId:
+          type: string
+          format: uuid
+        runId:
+          type: string
+          format: uuid
+        runKey:
+          type: string
+          format: uuid
+          nullable: true
+        sessionId:
+          type: string
+          format: uuid
+          nullable: true
+        subjectType:
+          type: string
+        subjectId:
+          type: string
+          format: uuid
+        cardNumber:
+          type: integer
+          nullable: true
+        workRequestId:
+          type: string
+          format: uuid
+          nullable: true
+        workKind:
+          type: string
+          nullable: true
+        ruleId:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+        cause:
+          type: string
+          enum:
+          - person
+          - ask-closed
+          - inbox-action
+        context:
+          $ref: '#/components/schemas/WorkContext'
+        model:
+          type: string
+          nullable: true
+        effort:
+          type: string
+          nullable: true
+        harness:
+          type: string
+          nullable: true
+        account:
+          type: string
+          nullable: true
+        runModel:
+          type: string
+          nullable: true
+        inboxActionId:
+          type: string
+          format: uuid
+          nullable: true
+        inboxItemNumber:
+          type: integer
+          nullable: true
+        inboxItemId:
+          type: string
+          format: uuid
+          nullable: true
+    ModelUsage:
+      type: object
+      required:
+      - inputTokens
+      - outputTokens
+      - cacheReadTokens
+      - cacheWriteTokens
+      properties:
+        inputTokens:
+          type: integer
+          minimum: 0
+        outputTokens:
+          type: integer
+          minimum: 0
+        cacheReadTokens:
+          type: integer
+          minimum: 0
+        cacheWriteTokens:
+          type: integer
+          minimum: 0
+        costUsd:
+          type: number
+          description: Null when the bridge estimated a model it knows no price for.
+          nullable: true
+          minimum: 0
+          maximum: 999999.999999
+    RunUsage:
+      type: object
+      required:
+      - source
+      - models
+      properties:
+        source:
+          type: string
+          enum:
+          - reported
+          - estimated
+        models:
+          type: object
+          description: Keyed by model name, 1 to 100 characters, at most 20 keys. An empty object means the process spent
+            nothing.
+          properties: {}
+          additionalProperties:
+            $ref: '#/components/schemas/ModelUsage'
+    EventsAnswer:
+      type: object
+      required:
+      - hubUrl
+      - jwt
+      - topic
+      - projects
+      - flags
+      - cliRange
+      - head
+      properties:
+        hubUrl:
+          type: string
+          format: uri
+        jwt:
+          type: string
+          description: A subscriber JWT for the topic of the caller.
+        topic:
+          type: string
+        projects:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - slug
+            - name
+            properties:
+              id:
+                type: string
+                format: uuid
+              slug:
+                type: string
+                nullable: true
+              name:
+                type: string
+        flags:
+          type: object
+          description: The only flags an agent token reads, such as `inbox.enabled` and `bridge.heartbeat_interval_seconds`.
+          properties: {}
+          additionalProperties:
+            oneOf:
+            - type: boolean
+            - type: integer
+        cliRange:
+          type: string
+          example: ^2.0
+        head:
+          type: integer
+          description: The highest outbox sequence of the owner.
+    EventReplay:
+      type: object
+      required:
+      - events
+      - hasMore
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - type
+            - data
+            properties:
+              id:
+                type: integer
+                description: The outbox sequence.
+              type:
+                type: string
+              data:
+                type: object
+                additionalProperties: true
+                description: The payload, in the shape the hub delivers.
+        hasMore:
+          type: boolean
+    CardHolds:
+      type: object
+      required:
+      - holds
+      properties:
+        holds:
+          type: array
+          items:
+            type: object
+            required:
+            - projectId
+            - cardId
+            properties:
+              projectId:
+                type: string
+                format: uuid
+              cardId:
+                type: string
+                format: uuid
+    Sites:
+      type: object
+      required:
+      - sites
+      properties:
+        sites:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - slug
+            - name
+            - collectFullText
+            - subcommandPrograms
+            properties:
+              id:
+                type: string
+                format: uuid
+              slug:
+                type: string
+                nullable: true
+              name:
+                type: string
+              collectFullText:
+                type: boolean
+              subcommandPrograms:
+                type: array
+                items:
+                  type: string
+    ProjectColumns:
+      type: object
+      required:
+      - project
+      - columns
+      properties:
+        project:
+          type: object
+          required:
+          - id
+          - slug
+          properties:
+            id:
+              type: string
+              format: uuid
+            slug:
+              type: string
+              nullable: true
+        columns:
+          type: array
+          items:
+            type: object
+            required:
+            - slug
+            - label
+            - terminal
+            - default
+            - backlog
+            properties:
+              slug:
+                type: string
+              label:
+                type: string
+              terminal:
+                type: boolean
+              default:
+                type: boolean
+              backlog:
+                type: boolean
+    ProjectCard:
+      type: object
+      required:
+      - cardId
+      - number
+      - column
+      - held
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        number:
+          type: integer
+        column:
+          type: string
+          description: The slug of the column the card is in.
+        held:
+          type: boolean
+          description: Whether a person paused the agents on it.
+    Heartbeat:
+      type: object
+      description: One heartbeat. A list that is null keeps the rows the server holds, and an empty list clears them. `docs/reference/bridge-heartbeat.md`
+        gives the exceptions.
+      required:
+      - projects
+      - cliVersion
+      properties:
+        projects:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The project ids the bridge follows.
+          maxItems: 500
+        cliVersion:
+          type: string
+          description: 1 to 100 characters after trimming.
+          maxLength: 100
+        update:
+          type: object
+          required:
+          - state
+          properties:
+            state:
+              type: string
+              enum:
+              - current
+              - updating
+              - rolled-back
+              - blocked
+              - 'off'
+              - dev
+            version:
+              type: string
+              maxLength: 100
+            install:
+              type: string
+              description: An unknown method is stored as none. `homebrew` is the only value now.
+        hooks:
+          type: array
+          items:
+            type: object
+            required:
+            - package
+            - ref
+            - event
+            - outcome
+            properties:
+              package:
+                type: string
+                maxLength: 300
+              ref:
+                type: string
+                maxLength: 100
+              event:
+                type: string
+                enum:
+                - start
+                - stop
+                - busy
+                - idle
+              lastRunAt:
+                type: string
+                format: date-time
+                nullable: true
+              outcome:
+                type: string
+                enum:
+                - ok
+                - failed
+                - timeout
+                - never
+              error:
+                type: string
+                nullable: true
+                maxLength: 500
+          nullable: true
+          maxItems: 100
+        workerPools:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - size
+            - inUse
+            - queued
+            properties:
+              name:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{0,39}$
+              size:
+                type: integer
+                minimum: 0
+                maximum: 1000
+              inUse:
+                type: integer
+                minimum: 0
+                maximum: 1000
+              queued:
+                type: integer
+                minimum: 0
+                maximum: 1000
+          nullable: true
+          maxItems: 50
+        paused:
+          type: boolean
+          description: True when the bridge takes no new work now.
+          nullable: true
+        capabilities:
+          type: array
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9-]{0,39}$
+          nullable: true
+          maxItems: 20
+        workClaims:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - claimToken
+            properties:
+              id:
+                type: string
+                format: uuid
+              claimToken:
+                type: string
+                format: uuid
+          nullable: true
+          maxItems: 200
+        name:
+          type: string
+          description: At most 40 characters with no control character. Blank clears the name.
+          nullable: true
+          maxLength: 40
+        hostSamples:
+          type: array
+          items:
+            type: object
+            required:
+            - sampledAt
+            - cpuPct
+            - memUsed
+            - memTotal
+            - swapUsed
+            properties:
+              sampledAt:
+                type: string
+                format: date-time
+              cpuPct:
+                type: array
+                items:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                maxItems: 1024
+              memUsed:
+                type: integer
+                minimum: 0
+              memTotal:
+                type: integer
+                minimum: 0
+              swapUsed:
+                type: integer
+                minimum: 0
+              batteryPct:
+                type: number
+                nullable: true
+                minimum: 0
+                maximum: 100
+              onAc:
+                type: boolean
+                nullable: true
+          nullable: true
+          maxItems: 720
+        pushLogin:
+          type: string
+          description: Sent by an old bridge, and ignored.
+          nullable: true
+        accounts:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - harness
+            - state
+            properties:
+              name:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{0,39}$
+              harness:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{0,39}$
+              state:
+                type: string
+                enum:
+                - ready
+                - failing
+              reason:
+                type: string
+                nullable: true
+                maxLength: 200
+              used:
+                type: boolean
+                nullable: true
+          nullable: true
+          maxItems: 50
+        commandEntries:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - params
+            - run
+            - timeout
+            properties:
+              name:
+                type: string
+                maxLength: 100
+              description:
+                type: string
+                nullable: true
+                maxLength: 500
+              params:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - name
+                  - pattern
+                  properties:
+                    name:
+                      type: string
+                      maxLength: 100
+                    pattern:
+                      type: string
+                      maxLength: 500
+                    description:
+                      type: string
+                      nullable: true
+                      maxLength: 500
+                maxItems: 20
+              run:
+                type: array
+                items:
+                  type: string
+                  maxLength: 1000
+                minItems: 1
+                maxItems: 50
+              timeout:
+                type: string
+                maxLength: 20
+          nullable: true
+          maxItems: 50
+        worktrees:
+          type: array
+          items:
+            type: object
+            required:
+            - projectId
+            - branch
+            - path
+            properties:
+              projectId:
+                type: string
+                format: uuid
+              branch:
+                type: string
+                maxLength: 255
+              path:
+                type: string
+                maxLength: 4096
+          nullable: true
+          maxItems: 200
+        repositories:
+          type: array
+          items:
+            type: object
+            required:
+            - projectId
+            - path
+            properties:
+              projectId:
+                type: string
+                format: uuid
+              path:
+                type: string
+                maxLength: 4096
+              remoteUrl:
+                type: string
+                nullable: true
+                maxLength: 2048
+          nullable: true
+          maxItems: 500
+        workKinds:
+          type: array
+          items:
+            type: string
+            pattern: ^(?:[a-z][a-z0-9-]{0,39}:)?[a-z][a-z0-9-]{0,39}$
+          nullable: true
+          maxItems: 50
+        gitIdentities:
+          type: array
+          items:
+            type: object
+            required:
+            - projectId
+            - mode
+            properties:
+              projectId:
+                type: string
+                format: uuid
+              mode:
+                type: string
+                enum:
+                - agent_account
+                - app_token
+                - machine
+              commitName:
+                type: string
+                nullable: true
+                maxLength: 255
+              pushLogin:
+                type: string
+                nullable: true
+                maxLength: 39
+              githubUserId:
+                type: integer
+                nullable: true
+                minimum: 1
+          nullable: true
+          maxItems: 500
+        gitIdentitiesAge:
+          type: integer
+          description: The seconds since the bridge read `gitIdentities`.
+          nullable: true
+          minimum: 0
+          maximum: 86400
+        interactiveSessions:
+          type: array
+          items:
+            type: object
+            required:
+            - sessionId
+            properties:
+              sessionId:
+                type: string
+                format: uuid
+              alive:
+                type: boolean
+                nullable: true
+              transcriptAt:
+                type: string
+                format: date-time
+                nullable: true
+          nullable: true
+          maxItems: 100
+    HeartbeatAnswer:
+      type: object
+      required:
+      - cliRange
+      - paused
+      - commands
+      - workRequests
+      - lostClaims
+      - watchSessions
+      properties:
+        cliRange:
+          type: string
+          example: ^2.0
+        paused:
+          type: boolean
+          description: True when the server asks the bridge to take no new work.
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/BridgeCommand'
+          description: The pending commands, oldest first.
+        workRequests:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkRequest'
+          description: The open work requests the bridge can claim, oldest first, at most 100.
+        lostClaims:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The ids from `workClaims` that the bridge no longer holds.
+        watchSessions:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The open interactive runs that this bridge launched.
+    BridgeRuns:
+      type: object
+      required:
+      - runs
+      properties:
+        runs:
+          type: array
+          items:
+            type: object
+            required:
+            - runId
+            - projectId
+            - state
+            properties:
+              runId:
+                type: string
+                format: uuid
+              projectId:
+                type: string
+                format: uuid
+              state:
+                type: string
+                enum:
+                - queued
+                - resumed
+                - preparing
+                - running
+                - stopping
+          maxItems: 1000
+    CommandAck:
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          type: string
+          enum:
+          - done
+          - refused
+        reason:
+          type: string
+          description: Blank keeps the reason the person gave.
+          nullable: true
+          maxLength: 1000
+    CommandAckAnswer:
+      type: object
+      required:
+      - commandId
+      - state
+      properties:
+        commandId:
+          type: string
+          format: uuid
+        state:
+          type: string
+          description: The stored state.
+          enum:
+          - pending
+          - done
+          - refused
+          - expired
+          - cancelled
+    WorkClaim:
+      type: object
+      required:
+      - workRequestId
+      - claimToken
+      - leaseUntil
+      - workRequest
+      properties:
+        workRequestId:
+          type: string
+          format: uuid
+        claimToken:
+          type: string
+          description: The bridge sends it back with the result.
+          format: uuid
+        leaseUntil:
+          type: string
+          format: date-time
+          nullable: true
+        workRequest:
+          $ref: '#/components/schemas/WorkRequest'
+    WorkResult:
+      type: object
+      required:
+      - claimToken
+      - state
+      properties:
+        claimToken:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - done
+          - refused
+        reason:
+          type: string
+          description: A code that starts with a letter, at most 64 characters.
+          nullable: true
+          pattern: ^[a-z][a-z0-9-]{0,63}$
+    WorkResultAnswer:
+      type: object
+      required:
+      - workRequestId
+      - state
+      properties:
+        workRequestId:
+          type: string
+          format: uuid
+        state:
+          type: string
+          description: The stored state.
+          enum:
+          - open
+          - claimed
+          - done
+          - refused
+          - expired
+          - cancelled
+    RunStateReport:
+      type: object
+      description: One state of one worker run. `docs/reference/worker-runs.md` gives the cross-field rules.
+      required:
+      - bridgeId
+      - state
+      - at
+      - subjectType
+      - subjectId
+      properties:
+        bridgeId:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - queued
+          - replaced
+          - resumed
+          - skipped
+          - preparing
+          - running
+          - stopping
+          - stopped
+          - waiting-for-person
+          - dropped
+          - succeeded
+          - failed
+          - not-started
+          - no-result
+          - unfinished
+          - blocked
+          - waiting-on-forge
+          - gave-up
+        at:
+          type: string
+          format: date-time
+        subjectType:
+          type: string
+          pattern: ^[a-z][a-z0-9-]{0,39}$
+        subjectId:
+          type: string
+          format: uuid
+        cardNumber:
+          type: integer
+          description: Required for a card subject, and refused for any other.
+          nullable: true
+          minimum: 1
+          maximum: 2147483647
+        workRequestId:
+          type: string
+          format: uuid
+          nullable: true
+        workKind:
+          type: string
+          nullable: true
+        ruleId:
+          type: string
+          nullable: true
+          pattern: ^[a-z0-9][a-z0-9._:-]{0,99}$
+        sessionId:
+          type: string
+          description: Required on `running`, except for a command run.
+          format: uuid
+          nullable: true
+        startedAt:
+          type: string
+          description: Required on `running`.
+          format: date-time
+          nullable: true
+        endedAt:
+          type: string
+          description: Required on an outcome.
+          format: date-time
+          nullable: true
+        exitCode:
+          type: integer
+          nullable: true
+          minimum: -255
+          maximum: 255
+        hasResult:
+          type: boolean
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+          maxLength: 1000
+        output:
+          type: string
+          description: Required on an outcome, and may be empty.
+          nullable: true
+          maxLength: 4000
+        askId:
+          type: string
+          description: Checked for shape only.
+          nullable: true
+          maxLength: 100
+        replacedBy:
+          type: string
+          description: Checked for shape only.
+          format: uuid
+          nullable: true
+        maxChain:
+          type: integer
+          description: Checked for shape only.
+          nullable: true
+          minimum: 1
+        reason:
+          type: string
+          description: Checked for shape only.
+          enum:
+          - shutdown
+          - rule_dead
+          - reload
+          - null
+          nullable: true
+        resultStatus:
+          type: string
+          enum:
+          - finished
+          - blocked
+          - unfinished
+          - waiting
+          - null
+          nullable: true
+        resultReason:
+          type: string
+          nullable: true
+          maxLength: 40
+          pattern: ^[a-z][a-z0-9-]*$
+        resultFields:
+          type: object
+          additionalProperties: true
+          description: At most 4000 bytes of JSON.
+          nullable: true
+        continues:
+          type: string
+          description: The id the bridge gave the run that this run resumes.
+          format: uuid
+          nullable: true
+        resumeSkipped:
+          type: string
+          nullable: true
+          maxLength: 50
+        usage:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/RunUsage'
+        peakContextTokens:
+          type: integer
+          nullable: true
+          minimum: 0
+        workerPool:
+          type: string
+          nullable: true
+          pattern: ^[a-z][a-z0-9-]{0,39}$
+        experiment:
+          type: string
+          nullable: true
+          pattern: ^[a-z0-9][a-z0-9_-]{0,63}$
+        variant:
+          type: string
+          nullable: true
+          pattern: ^[a-z0-9][a-z0-9_-]{0,63}$
+        requestedModel:
+          type: string
+          nullable: true
+          maxLength: 100
+        switchedFrom:
+          type: string
+          nullable: true
+          pattern: ^[a-z0-9][a-z0-9_-]{0,63}$
+        kind:
+          type: string
+          enum:
+          - worker
+          - command
+          - null
+          nullable: true
+        harness:
+          type: string
+          nullable: true
+          maxLength: 40
+          pattern: ^[a-z][a-z0-9-]{0,39}$
+        account:
+          type: string
+          nullable: true
+          maxLength: 64
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+        model:
+          type: string
+          nullable: true
+          maxLength: 100
+        harnessSessionId:
+          type: string
+          nullable: true
+          maxLength: 100
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        harnessVersion:
+          type: string
+          nullable: true
+          maxLength: 100
+        cliVersion:
+          type: string
+          nullable: true
+          maxLength: 100
+        skillVersion:
+          type: string
+          nullable: true
+          maxLength: 100
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}$
+        harnessEvents:
+          type: object
+          description: Kind to count, at most 100 kinds. A null keeps the stored map, and an empty object replaces it.
+          properties: {}
+          nullable: true
+          additionalProperties:
+            type: integer
+            minimum: 0
+            maximum: 1000000000
+        costSource:
+          type: string
+          description: '`openrouter` when the run went through OpenRouter.'
+          nullable: true
+          maxLength: 40
+    RunId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          format: uuid
+    RunOutput:
+      type: object
+      required:
+      - bridgeId
+      - offset
+      - text
+      properties:
+        bridgeId:
+          type: string
+          format: uuid
+        offset:
+          type: integer
+          description: The byte offset where the text starts.
+          minimum: 0
+        text:
+          type: string
+          description: At most 262144 bytes.
+    RunOutputAnswer:
+      type: object
+      required:
+      - length
+      - capped
+      properties:
+        length:
+          type: integer
+        capped:
+          type: boolean
+    ToolCall:
+      type: object
+      required:
+      - seq
+      - tool
+      - startedAt
+      - inSubagent
+      - signatures
+      properties:
+        seq:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        tool:
+          type: string
+          maxLength: 64
+        startedAt:
+          type: string
+          format: date-time
+        durationMs:
+          type: integer
+          nullable: true
+          minimum: 0
+        isError:
+          type: boolean
+          nullable: true
+        inSubagent:
+          type: boolean
+        backgroundId:
+          type: string
+          nullable: true
+          maxLength: 64
+        waitsOn:
+          type: string
+          nullable: true
+          maxLength: 64
+        signatures:
+          type: array
+          items:
+            type: string
+            maxLength: 120
+          maxItems: 20
+        fullText:
+          type: string
+          nullable: true
+          maxLength: 20000
+        kind:
+          type: string
+          enum:
+          - shell
+          - subagent
+          - tool
+          - null
+          nullable: true
+    ToolCalls:
+      type: object
+      required:
+      - calls
+      properties:
+        calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolCall'
+          maxItems: 500
+        timing:
+          type: object
+          description: The last batch carries the timing of the run.
+          properties:
+            toolTimeMs:
+              type: integer
+              nullable: true
+              minimum: 0
+            idleGapMs:
+              type: integer
+              nullable: true
+              minimum: 0
+          nullable: true
+    ToolCallsAnswer:
+      type: object
+      required:
+      - stored
+      properties:
+        stored:
+          type: integer
+          description: The calls the server stored for the first time.
+    SessionUsage:
+      type: object
+      required:
+      - processes
+      properties:
+        processes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunUsage'
+          description: The usage of each worker process, in the order they started.
+          minItems: 1
+          maxItems: 100
+        runId:
+          type: string
+          description: With a run id, the one process is the interactive run of that id.
+          nullable: true
+    SessionUsageAnswer:
+      type: object
+      required:
+      - runs
+      - updated
+      properties:
+        runs:
+          type: integer
+        updated:
+          type: integer
+          description: The runs whose usage changed.
+    InteractiveLaunch:
+      type: object
+      required:
+      - bridgeId
+      - subjectType
+      - subjectId
+      - cardNumber
+      - workKind
+      - state
+      - at
+      properties:
+        bridgeId:
+          type: string
+          format: uuid
+        subjectType:
+          type: string
+          enum:
+          - card
+        subjectId:
+          type: string
+          format: uuid
+        cardNumber:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        workKind:
+          type: string
+          description: The kind of the work request, or the name of the session.
+          maxLength: 100
+        workRequestId:
+          type: string
+          format: uuid
+          nullable: true
+        ruleId:
+          type: string
+          nullable: true
+          pattern: ^[a-z0-9][a-z0-9._:-]{0,99}$
+        state:
+          type: string
+          enum:
+          - running
+          - not-started
+        at:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+          description: Required on `not-started`, and refused on `running`.
+          nullable: true
+          maxLength: 1000
+        harness:
+          type: string
+          nullable: true
+          maxLength: 40
+          pattern: ^[a-z][a-z0-9-]{0,39}$
+        account:
+          type: string
+          nullable: true
+          maxLength: 64
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+        model:
+          type: string
+          nullable: true
+          maxLength: 100
+        harnessSessionId:
+          type: string
+          nullable: true
+          maxLength: 100
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+    SessionClosed:
+      type: object
+      required:
+      - closed
+      properties:
+        closed:
+          type: integer
+          description: The runs this call closed.
+    ExperimentPin:
+      type: object
+      description: The controller checks each field itself, so a bad field gets its own code rather than `validation_failed`.
+      required:
+      - candidate
+      - variants
+      - baseline
+      properties:
+        candidate:
+          type: string
+          description: The variant drawn for the card. It must be one of `variants`.
+        variants:
+          type: array
+          items:
+            type: string
+            pattern: ^[a-z0-9][a-z0-9_-]{0,63}$
+          minItems: 1
+          maxItems: 32
+          uniqueItems: true
+        baseline:
+          type: string
+          description: The variant the others are compared against. It must be one of `variants`.
+        weights:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+          description: One weight for each variant, in order. A bad list never refuses the pin.
+          nullable: true
+        metrics:
+          type: array
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_:-]{0,127}$
+          nullable: true
+          maxItems: 16
+        headline:
+          type: object
+          properties:
+            goal:
+              type: object
+              required:
+              - metric
+              properties:
+                metric:
+                  type: string
+                  pattern: ^[a-z][a-z0-9_:-]{0,127}$
+                better:
+                  type: string
+                  enum:
+                  - lower
+                  - higher
+            guards:
+              type: array
+              items:
+                type: string
+                pattern: ^[a-z][a-z0-9_:-]{0,127}$
+              maxItems: 16
+            controls:
+              type: array
+              items:
+                type: object
+                required:
+                - metric
+                - variant
+                - expect
+                - share
+                properties:
+                  metric:
+                    type: string
+                  variant:
+                    type: string
+                  expect:
+                    type: string
+                    pattern: ^(>=|<=|>|<|==) *-?[0-9]+(\.[0-9]+)?$
+                  share:
+                    type: number
+                    exclusiveMinimum: true
+                    minimum: 0
+                    maximum: 1
+              maxItems: 16
+          nullable: true
+        covers:
+          type: array
+          items:
+            type: string
+            pattern: ^(?:[a-z][a-z0-9-]{0,39}:)?[a-z][a-z0-9-]{0,39}$
+          description: The work kinds the experiment covers.
+          nullable: true
+          maxItems: 32
+    ExperimentPinAnswer:
+      type: object
+      required:
+      - variant
+      - switchedFrom
+      properties:
+        variant:
+          type: string
+        switchedFrom:
+          type: string
+          nullable: true
+    InboxAskCheck:
+      type: object
+      required:
+      - askId
+      - closed
+      - allRead
+      properties:
+        askId:
+          type: string
+          format: uuid
+        closed:
+          type: boolean
+        allRead:
+          type: boolean
+          description: Whether that session already read every item.
+    ArtifactStore:
+      type: object
+      required:
+      - paths
+      - files[]
+      properties:
+        name:
+          type: string
+          description: Required with no `artifactId`.
+          maxLength: 255
+        artifactId:
+          type: string
+          description: Stores a new version of this artifact.
+          maxLength: 36
+        sourceLink:
+          type: string
+          maxLength: 2000
+        paths:
+          type: array
+          items:
+            type: string
+          description: The path of each file in `files[]`, in the same order.
+        card:
+          type: string
+          maxLength: 36
+        notes:
+          type: string
+          maxLength: 2000
+        files[]:
+          type: array
+          items:
+            type: string
+            format: binary
+    ArtifactStored:
+      type: object
+      required:
+      - artifactId
+      - versionNumber
+      - path
+      - versionPath
+      properties:
+        artifactId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+        path:
+          type: string
+        versionPath:
+          type: string
+    PreviewTokenMint:
+      type: object
+      required:
+      - label
+      properties:
+        label:
+          type: string
+          description: Names the preview. A second mint under it replaces the first.
+          minLength: 1
+          maxLength: 100
+        card:
+          type: string
+          format: uuid
+          nullable: true
+    IssuedToken:
+      type: object
+      required:
+      - token
+      - expiresAt
+      properties:
+        token:
+          type: string
+          description: Shown once.
+        expiresAt:
+          type: string
+          format: date-time
+    PreviewTokenRevoked:
+      type: object
+      required:
+      - revoked
+      properties:
+        revoked:
+          type: integer
+          description: The tokens this call revoked. A label with no live token is not an error.
+    GitTokenRequest:
+      type: object
+      required:
+      - repository
+      properties:
+        repository:
+          type: string
+          description: The `owner/name` of the repository.
+          maxLength: 255
+          pattern: ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$
+    Stroke:
+      type: object
+      required:
+      - points
+      properties:
+        space:
+          type: string
+          enum:
+          - anchor
+          - page
+          default: page
+        points:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+              minimum: -1000
+              maximum: 1000
+            minItems: 2
+            maxItems: 2
+          description: Fractions, not pixels.
+          minItems: 2
+          maxItems: 500
+    NoteAnchor:
+      type: object
+      required:
+      - selector
+      - text
+      - quote
+      - quotePrefix
+      - quoteSuffix
+      properties:
+        selector:
+          type: string
+        text:
+          type: string
+        quote:
+          type: string
+          nullable: true
+        quotePrefix:
+          type: string
+          nullable: true
+        quoteSuffix:
+          type: string
+          nullable: true
+    NativeFacts:
+      type: object
+      required:
+      - app
+      - device
+      - screen
+      - element
+      properties:
+        app:
+          type: object
+          required:
+          - name
+          - bundleId
+          properties:
+            name:
+              type: string
+              nullable: true
+            bundleId:
+              type: string
+        device:
+          type: object
+          required:
+          - name
+          - udid
+          - osVersion
+          properties:
+            name:
+              type: string
+            udid:
+              type: string
+            osVersion:
+              type: string
+        screen:
+          type: object
+          required:
+          - title
+          properties:
+            title:
+              type: string
+              nullable: true
+        element:
+          type: object
+          required:
+          - role
+          - label
+          - identifier
+          - frame
+          properties:
+            role:
+              type: string
+            label:
+              type: string
+              nullable: true
+            identifier:
+              type: string
+              nullable: true
+            frame:
+              type: object
+              required:
+              - x
+              - y
+              - width
+              - height
+              properties:
+                x:
+                  type: number
+                y:
+                  type: number
+                width:
+                  type: number
+                height:
+                  type: number
+              nullable: true
+          nullable: true
+    PendingComments:
+      type: object
+      required:
+      - projectId
+      - drawingEnabled
+      - parentTypes
+      - context
+      - comments
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        drawingEnabled:
+          type: boolean
+        parentTypes:
+          type: array
+          items:
+            type: object
+            required:
+            - key
+            - label
+            properties:
+              key:
+                type: string
+              label:
+                type: string
+        context:
+          type: object
+          required:
+          - label
+          - url
+          properties:
+            label:
+              type: string
+            url:
+              type: string
+              nullable: true
+          nullable: true
+        comments:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - body
+            - url
+            - surface
+            - native
+            - anchors
+            - strokes
+            - link
+            properties:
+              id:
+                type: string
+                format: uuid
+              body:
+                type: string
+              url:
+                type: string
+                nullable: true
+              surface:
+                type: string
+                enum:
+                - web
+                - ios-simulator
+              native:
+                type: object
+                nullable: true
+                allOf:
+                - $ref: '#/components/schemas/NativeFacts'
+              anchors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NoteAnchor'
+              strokes:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stroke'
+              link:
+                type: object
+                required:
+                - label
+                - url
+                properties:
+                  label:
+                    type: string
+                  url:
+                    type: string
+                    nullable: true
+                nullable: true
+    PickerCards:
+      type: object
+      required:
+      - cards
+      properties:
+        cards:
+          type: array
+          items:
+            type: object
+            required:
+            - cardId
+            - number
+            - title
+            - status
+            properties:
+              cardId:
+                type: string
+                format: uuid
+              number:
+                type: integer
+              title:
+                type: string
+              status:
+                type: string
+          maxItems: 20
+    WidgetCardCreate:
+      type: object
+      required:
+      - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        body:
+          type: string
+          maxLength: 10000
+          default: ''
+        type:
+          type: string
+          description: A type key. Null means the default type.
+          nullable: true
+          maxLength: 20
+        parent:
+          type: boolean
+          description: Asks for a type that can have children.
+          default: false
+    WidgetCardCreated:
+      type: object
+      required:
+      - cardId
+      - number
+      - label
+      - url
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        number:
+          type: integer
+        label:
+          type: string
+          description: '`#<number> <title>`.'
+        url:
+          type: string
+          format: uri
+    VerdictPanel:
+      type: object
+      required:
+      - cardId
+      - connection
+      - pullRequests
+      - notes
+      - preview
+      - latestVerdict
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        connection:
+          type: object
+          required:
+          - state
+          - login
+          properties:
+            state:
+              type: string
+              enum:
+              - none
+              - connected
+              - expired
+            login:
+              type: string
+              nullable: true
+        pullRequests:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - label
+            - ownPullRequest
+            properties:
+              id:
+                type: string
+                format: uuid
+              label:
+                type: string
+              ownPullRequest:
+                type: boolean
+        notes:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - url
+            - body
+            - anchorCount
+            properties:
+              id:
+                type: string
+                format: uuid
+              url:
+                type: string
+                nullable: true
+              body:
+                type: string
+              anchorCount:
+                type: integer
+        preview:
+          type: object
+          required:
+          - approve
+          - request-changes
+          - comment
+          properties:
+            approve:
+              $ref: '#/components/schemas/VerdictActions'
+            request-changes:
+              $ref: '#/components/schemas/VerdictActions'
+            comment:
+              $ref: '#/components/schemas/VerdictActions'
+        latestVerdict:
+          type: object
+          required:
+          - id
+          - kind
+          - message
+          - createdAt
+          - deliveries
+          properties:
+            id:
+              type: string
+              format: uuid
+            kind:
+              type: string
+              enum:
+              - approve
+              - request-changes
+              - comment
+            message:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            deliveries:
+              type: array
+              items:
+                type: object
+                required:
+                - pullRequestId
+                - label
+                - state
+                - reason
+                - reviewUrl
+                properties:
+                  pullRequestId:
+                    type: string
+                    format: uuid
+                  label:
+                    type: string
+                  state:
+                    type: string
+                    enum:
+                    - pending
+                    - posted
+                    - commented
+                    - skipped
+                    - refused
+                  reason:
+                    type: string
+                    nullable: true
+                  reviewUrl:
+                    type: string
+                    nullable: true
+          nullable: true
+    VerdictActions:
+      type: object
+      required:
+      - actions
+      properties:
+        actions:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - label
+            properties:
+              code:
+                type: string
+              label:
+                type: string
+    CardVerdictSend:
+      type: object
+      required:
+      - kind
+      properties:
+        kind:
+          type: string
+          enum:
+          - approve
+          - request-changes
+          - comment
+        pullRequestIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 20
+        message:
+          type: string
+          maxLength: 10000
+          default: ''
+        submissionId:
+          type: string
+          description: One id for each Send, kept across a retry of the same content.
+          format: uuid
+          nullable: true
+    CardVerdictSent:
+      type: object
+      required:
+      - verdictId
+      - kind
+      - noteCount
+      properties:
+        verdictId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - approve
+          - request-changes
+          - comment
+        noteCount:
+          type: integer
+    FeedbackAdd:
+      type: object
+      required:
+      - body
+      - target
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        url:
+          type: string
+          description: Required on a web note, and refused on a native note.
+          nullable: true
+          maxLength: 2000
+        anchors:
+          type: array
+          items:
+            type: object
+            required:
+            - selector
+            properties:
+              selector:
+                type: string
+                minLength: 1
+                maxLength: 2000
+              text:
+                type: string
+                maxLength: 2000
+              quote:
+                type: string
+                nullable: true
+                maxLength: 2000
+              quotePrefix:
+                type: string
+                nullable: true
+                maxLength: 2000
+              quoteSuffix:
+                type: string
+                nullable: true
+                maxLength: 2000
+          maxItems: 10
+        strokes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stroke'
+          maxItems: 50
+        selector:
+          type: string
+          description: The old single-anchor body, from a cached widget.
+          maxLength: 2000
+        text:
+          type: string
+          description: The old single-anchor body, from a cached widget.
+          maxLength: 2000
+        context:
+          type: string
+          nullable: true
+          maxLength: 255
+        deliveryId:
+          type: string
+          format: uuid
+          nullable: true
+        surface:
+          type: string
+          enum:
+          - web
+          - ios-simulator
+          default: web
+        native:
+          type: object
+          description: Required on an `ios-simulator` note, and refused on a web note.
+          required:
+          - bundleId
+          - deviceName
+          - udid
+          - osVersion
+          properties:
+            appName:
+              type: string
+              nullable: true
+              maxLength: 255
+            bundleId:
+              type: string
+              maxLength: 255
+            deviceName:
+              type: string
+              maxLength: 255
+            udid:
+              type: string
+              maxLength: 100
+            osVersion:
+              type: string
+              maxLength: 100
+            screenTitle:
+              type: string
+              nullable: true
+              maxLength: 2000
+            element:
+              type: object
+              required:
+              - role
+              - frame
+              properties:
+                role:
+                  type: string
+                  maxLength: 200
+                label:
+                  type: string
+                  nullable: true
+                  maxLength: 2000
+                identifier:
+                  type: string
+                  nullable: true
+                  maxLength: 2000
+                frame:
+                  type: object
+                  required:
+                  - x
+                  - y
+                  - width
+                  - height
+                  properties:
+                    x:
+                      type: number
+                    y:
+                      type: number
+                    width:
+                      type: number
+                    height:
+                      type: number
+              nullable: true
+          nullable: true
+        screenshot:
+          type: object
+          properties:
+            contentType:
+              type: string
+              nullable: true
+            data:
+              type: string
+              description: Base64. At most 2 MiB of image bytes.
+              nullable: true
+          nullable: true
+        target:
+          type: object
+          description: Name either `cardId` or `newCard`.
+          properties:
+            cardId:
+              type: string
+              format: uuid
+              nullable: true
+            newCard:
+              type: object
+              properties:
+                parentCardId:
+                  type: string
+                  description: An epic of the project, which the new card goes under.
+                  format: uuid
+                  nullable: true
+              nullable: true
+    FeedbackAdded:
+      type: object
+      required:
+      - commentId
+      - cardId
+      - number
+      - label
+      - url
+      properties:
+        commentId:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+        number:
+          type: integer
+        label:
+          type: string
+        url:
+          type: string
+          format: uri
+    FeedbackDeleted:
+      type: object
+      required:
+      - cardDeleted
+      properties:
+        cardDeleted:
+          type: boolean
+          description: Whether the card the note created went too.
+    CommentBody:
+      type: object
+      required:
+      - body
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 10000
+    CommentUpdated:
+      type: object
+      required:
+      - commentId
+      - label
+      properties:
+        commentId:
+          type: string
+          format: uuid
+        label:
+          type: string
+          description: The label of the card of the note.
+          nullable: true
+  examples:
+    Unauthorized:
+      summary: invalid_credentials
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_credentials
+        title: Unauthorized
+        status: 401
+        code: invalid_credentials
+        detail: The request carries no valid token.
+    SubscriptionRequired:
+      summary: subscription_required
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#subscription_required
+        title: Subscription required
+        status: 402
+        code: subscription_required
+        detail: The account needs an active subscription.
+        subscribeUrl: https://app.loupe.ac/billing/subscribe
+    InsufficientScope:
+      summary: credential_not_allowed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#credential_not_allowed
+        title: Insufficient scope
+        status: 403
+        code: credential_not_allowed
+        detail: The token carries another scope.
+    RouteNotFound:
+      summary: route_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#route_not_found
+        title: Route not found
+        status: 404
+        code: route_not_found
+        detail: No such route, a path id is not a uuid the route takes, or a feature flag switches the route off.
+    MethodNotAllowed:
+      summary: method_not_allowed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#method_not_allowed
+        title: Method not allowed
+        status: 405
+        code: method_not_allowed
+        detail: The path does not take this method.
+    NoBridgeId:
+      summary: no_bridge_id
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_bridge_id
+        title: Upgrade required
+        status: 426
+        code: no_bridge_id
+        detail: This Loupe server sends events only to a bridge that runs work requests. Upgrade the loupe CLI.
+    UnknownBridge:
+      summary: unknown_bridge
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unknown_bridge
+        title: Upgrade required
+        status: 426
+        code: unknown_bridge
+        detail: This Loupe server has no heartbeat from this bridge. Upgrade the loupe CLI, which sends its heartbeat before
+          it reads the events.
+    NoWorkRequests:
+      summary: no_work_requests
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_work_requests
+        title: Upgrade required
+        status: 426
+        code: no_work_requests
+        detail: 'This bridge runs no work requests. Upgrade the loupe CLI and map the work kinds under work: in rules.yaml.'
+    RateLimited:
+      summary: rate_limited
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#rate_limited
+        title: Rate limited
+        status: 429
+        code: rate_limited
+        detail: Too many requests. Wait for the seconds in Retry-After.
+    InvalidQuery:
+      summary: invalid_query
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_query
+        title: Invalid query
+        status: 400
+        code: invalid_query
+    ProjectNotFound:
+      summary: project_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#project_not_found
+        title: Project not found
+        status: 404
+        code: project_not_found
+    CardNotFound:
+      summary: card_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#card_not_found
+        title: Card not found
+        status: 404
+        code: card_not_found
+    InvalidJson:
+      summary: invalid_json
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_json
+        title: Invalid JSON
+        status: 400
+        code: invalid_json
+        detail: The request body is not valid JSON.
+    UnsupportedMediaType:
+      summary: unsupported_media_type
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unsupported_media_type
+        title: Unsupported media type
+        status: 415
+        code: unsupported_media_type
+        detail: The Content-Type does not fit this operation.
+    ValidationFailed:
+      summary: validation_failed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#validation_failed
+        title: Validation failed
+        status: 422
+        code: validation_failed
+        detail: One or more fields were refused.
+        errors:
+        - field: cliVersion
+          code: not_blank
+          message: This value should not be blank.
+    CommandNotFound:
+      summary: command_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#command_not_found
+        title: Command not found
+        status: 404
+        code: command_not_found
+    InvalidState:
+      summary: invalid_state
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_state
+        title: Invalid state
+        status: 422
+        code: invalid_state
+    InvalidReason:
+      summary: invalid_reason
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_reason
+        title: Invalid reason
+        status: 422
+        code: invalid_reason
+    ReasonTooLong:
+      summary: reason_too_long
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#reason_too_long
+        title: Reason too long
+        status: 422
+        code: reason_too_long
+    WorkRequestNotFound:
+      summary: work_request_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#work_request_not_found
+        title: Work request not found
+        status: 404
+        code: work_request_not_found
+    AlreadyClaimed:
+      summary: already_claimed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#already_claimed
+        title: Already claimed
+        status: 409
+        code: already_claimed
+    CardHeld:
+      summary: card_held
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#card_held
+        title: Card held
+        status: 409
+        code: card_held
+    ProjectHeld:
+      summary: project_held
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#project_held
+        title: Project held
+        status: 409
+        code: project_held
+    UnknownBridge422:
+      summary: unknown_bridge
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unknown_bridge
+        title: Unknown bridge
+        status: 422
+        code: unknown_bridge
+    CapabilityMissing:
+      summary: capability_missing
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#capability_missing
+        title: Capability missing
+        status: 422
+        code: capability_missing
+    ClaimLost:
+      summary: claim_lost
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#claim_lost
+        title: Claim lost
+        status: 409
+        code: claim_lost
+    InvalidClaimToken:
+      summary: invalid_claim_token
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_claim_token
+        title: Invalid claim token
+        status: 422
+        code: invalid_claim_token
+    InvalidRunId:
+      summary: invalid_run_id
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_run_id
+        title: Invalid run id
+        status: 422
+        code: invalid_run_id
+    RunNotFound:
+      summary: run_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#run_not_found
+        title: Run not found
+        status: 404
+        code: run_not_found
+    ProcessCountMismatch:
+      summary: process_count_mismatch
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#process_count_mismatch
+        title: Process count mismatch
+        status: 409
+        code: process_count_mismatch
+    AmbiguousStartOrder:
+      summary: ambiguous_start_order
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#ambiguous_start_order
+        title: Ambiguous start order
+        status: 409
+        code: ambiguous_start_order
+    InvalidSessionId:
+      summary: invalid_session_id
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_session_id
+        title: Invalid session id
+        status: 422
+        code: invalid_session_id
+    InvalidCardId:
+      summary: invalid_card_id
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_card_id
+        title: Invalid card id
+        status: 422
+        code: invalid_card_id
+    InvalidExperiment:
+      summary: invalid_experiment
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_experiment
+        title: Invalid experiment
+        status: 422
+        code: invalid_experiment
+    InvalidVariants:
+      summary: invalid_variants
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_variants
+        title: Invalid variants
+        status: 422
+        code: invalid_variants
+    InvalidBaseline:
+      summary: invalid_baseline
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_baseline
+        title: Invalid baseline
+        status: 422
+        code: invalid_baseline
+    AskNotFound:
+      summary: ask_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#ask_not_found
+        title: Ask not found
+        status: 404
+        code: ask_not_found
+    ArtifactRefused:
+      summary: artifact_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#artifact_refused
+        title: Artifact refused
+        status: 422
+        code: artifact_refused
+        errors:
+          files: The artifact has no files.
+    CardFinished:
+      summary: card_finished
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#card_finished
+        title: Card finished
+        status: 409
+        code: card_finished
+    InvalidLabel:
+      summary: invalid_label
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_label
+        title: Invalid label
+        status: 422
+        code: invalid_label
+    GitIdentityNotManaged:
+      summary: git_identity_not_managed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#git_identity_not_managed
+        title: Git identity not managed
+        status: 403
+        code: git_identity_not_managed
+    AppNotConfigured:
+      summary: app_not_configured
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#app_not_configured
+        title: App not configured
+        status: 409
+        code: app_not_configured
+        missing: []
+    NoInstallation:
+      summary: no_installation
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_installation
+        title: No installation
+        status: 409
+        code: no_installation
+        missing: []
+    InstallationSuspended:
+      summary: installation_suspended
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#installation_suspended
+        title: Installation suspended
+        status: 409
+        code: installation_suspended
+        missing: []
+    NoRepository:
+      summary: no_repository
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_repository
+        title: No repository
+        status: 409
+        code: no_repository
+        missing: []
+    MissingGrant:
+      summary: missing_grant
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#missing_grant
+        title: Missing grant
+        status: 409
+        code: missing_grant
+        missing:
+        - contents
+    GithubUnavailable:
+      summary: github_unavailable
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#github_unavailable
+        title: Github unavailable
+        status: 502
+        code: github_unavailable
+        missing: []
+    TokenNotBoundToSite:
+      summary: token_not_bound_to_site
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#token_not_bound_to_site
+        title: Token not bound to site
+        status: 403
+        code: token_not_bound_to_site
+        detail: This request resolves to no project. Check the credential and X-Loupe-Project.
+    SurfaceInvalid:
+      summary: surface_invalid
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#surface_invalid
+        title: Surface invalid
+        status: 422
+        code: surface_invalid
+    UnknownType:
+      summary: unknown_type
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unknown_type
+        title: Unknown type
+        status: 422
+        code: unknown_type
+        types:
+        - feature
+        - bug
+    CardClosed:
+      summary: card_closed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#card_closed
+        title: Card closed
+        status: 409
+        code: card_closed
+    SubmissionReused:
+      summary: submission_reused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#submission_reused
+        title: Submission reused
+        status: 409
+        code: submission_reused
+    MessageRequired:
+      summary: message_required
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#message_required
+        title: Message required
+        status: 422
+        code: message_required
+    PullRequestNotOnCard:
+      summary: pull_request_not_on_card
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#pull_request_not_on_card
+        title: Pull request not on card
+        status: 422
+        code: pull_request_not_on_card
+    VerdictRefused:
+      summary: verdict_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#verdict_refused
+        title: Verdict refused
+        status: 422
+        code: verdict_refused
+    DeliveryConflict:
+      summary: delivery_conflict
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#delivery_conflict
+        title: Delivery conflict
+        status: 409
+        code: delivery_conflict
+    DeliveryInvalid:
+      summary: delivery_invalid
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#delivery_invalid
+        title: Delivery invalid
+        status: 409
+        code: delivery_invalid
+    DrawingDisabled:
+      summary: drawing_disabled
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#drawing_disabled
+        title: Drawing disabled
+        status: 422
+        code: drawing_disabled
+    AnchorStrokeWithoutAnchor:
+      summary: anchor_stroke_without_anchor
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#anchor_stroke_without_anchor
+        title: Anchor stroke without anchor
+        status: 422
+        code: anchor_stroke_without_anchor
+    TargetNotFound:
+      summary: target_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#target_not_found
+        title: Target not found
+        status: 422
+        code: target_not_found
+    TargetClosed:
+      summary: target_closed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#target_closed
+        title: Target closed
+        status: 422
+        code: target_closed
+    TargetNotEpic:
+      summary: target_not_epic
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#target_not_epic
+        title: Target not epic
+        status: 422
+        code: target_not_epic
+    ScreenshotInvalid:
+      summary: screenshot_invalid
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#screenshot_invalid
+        title: Screenshot invalid
+        status: 422
+        code: screenshot_invalid
+    ScreenshotTooLarge:
+      summary: screenshot_too_large
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#screenshot_too_large
+        title: Screenshot too large
+        status: 422
+        code: screenshot_too_large
+    FeedbackRefused:
+      summary: feedback_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#feedback_refused
+        title: Feedback refused
+        status: 422
+        code: feedback_refused
+    NotFound:
+      summary: not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#not_found
+        title: Not found
+        status: 404
+        code: not_found
+  responses:
+    E401Unauthorized:
+      description: 'Refused: `invalid_credentials`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_credentials:
+              $ref: '#/components/examples/Unauthorized'
+    E402SubscriptionRequired:
+      description: 'Refused: `subscription_required`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/SubscriptionProblem'
+          examples:
+            subscription_required:
+              $ref: '#/components/examples/SubscriptionRequired'
+    E403InsufficientScope:
+      description: 'Refused: `credential_not_allowed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+    E404RouteNotFound:
+      description: 'Refused: `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E405MethodNotAllowed:
+      description: 'Refused: `method_not_allowed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            method_not_allowed:
+              $ref: '#/components/examples/MethodNotAllowed'
+    E426NoBridgeIdUnknownBridgeNoWorkRequests:
+      description: 'Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            no_bridge_id:
+              $ref: '#/components/examples/NoBridgeId'
+            unknown_bridge:
+              $ref: '#/components/examples/UnknownBridge'
+            no_work_requests:
+              $ref: '#/components/examples/NoWorkRequests'
+    E429RateLimited:
+      description: 'Refused: `rate_limited`.'
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            rate_limited:
+              $ref: '#/components/examples/RateLimited'
+    E400InvalidQuery:
+      description: 'Refused: `invalid_query`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_query:
+              $ref: '#/components/examples/InvalidQuery'
+    E404ProjectNotFoundRouteNotFound:
+      description: 'Refused: `project_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E404ProjectNotFoundCardNotFoundRouteNotFound:
+      description: 'Refused: `project_not_found`, `card_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            card_not_found:
+              $ref: '#/components/examples/CardNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E400InvalidJson:
+      description: 'Refused: `invalid_json`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_json:
+              $ref: '#/components/examples/InvalidJson'
+    E415UnsupportedMediaType:
+      description: 'Refused: `unsupported_media_type`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            unsupported_media_type:
+              $ref: '#/components/examples/UnsupportedMediaType'
+    E422ValidationFailed:
+      description: 'Refused: `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E404CommandNotFoundRouteNotFound:
+      description: 'Refused: `command_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            command_not_found:
+              $ref: '#/components/examples/CommandNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E422InvalidStateInvalidReasonReasonTooLong:
+      description: 'Refused: `invalid_state`, `invalid_reason`, `reason_too_long`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_state:
+              $ref: '#/components/examples/InvalidState'
+            invalid_reason:
+              $ref: '#/components/examples/InvalidReason'
+            reason_too_long:
+              $ref: '#/components/examples/ReasonTooLong'
+    E404WorkRequestNotFoundRouteNotFound:
+      description: 'Refused: `work_request_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E409AlreadyClaimedCardHeldProjectHeld:
+      description: 'Refused: `already_claimed`, `card_held`, `project_held`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            already_claimed:
+              $ref: '#/components/examples/AlreadyClaimed'
+            card_held:
+              $ref: '#/components/examples/CardHeld'
+            project_held:
+              $ref: '#/components/examples/ProjectHeld'
+    E422UnknownBridgeCapabilityMissing:
+      description: 'Refused: `unknown_bridge`, `capability_missing`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            unknown_bridge:
+              $ref: '#/components/examples/UnknownBridge422'
+            capability_missing:
+              $ref: '#/components/examples/CapabilityMissing'
+    E409ClaimLost:
+      description: 'Refused: `claim_lost`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            claim_lost:
+              $ref: '#/components/examples/ClaimLost'
+    E422InvalidStateInvalidClaimTokenInvalidReason:
+      description: 'Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_state:
+              $ref: '#/components/examples/InvalidState'
+            invalid_claim_token:
+              $ref: '#/components/examples/InvalidClaimToken'
+            invalid_reason:
+              $ref: '#/components/examples/InvalidReason'
+    E422InvalidRunIdValidationFailed:
+      description: 'Refused: `invalid_run_id`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_run_id:
+              $ref: '#/components/examples/InvalidRunId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E404ProjectNotFoundRunNotFoundRouteNotFound:
+      description: 'Refused: `project_not_found`, `run_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            run_not_found:
+              $ref: '#/components/examples/RunNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E409ProcessCountMismatchAmbiguousStartOrder:
+      description: 'Refused: `process_count_mismatch`, `ambiguous_start_order`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            process_count_mismatch:
+              $ref: '#/components/examples/ProcessCountMismatch'
+            ambiguous_start_order:
+              $ref: '#/components/examples/AmbiguousStartOrder'
+    E422InvalidSessionIdInvalidRunIdValidationFailed:
+      description: 'Refused: `invalid_session_id`, `invalid_run_id`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+            invalid_run_id:
+              $ref: '#/components/examples/InvalidRunId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E422InvalidSessionIdValidationFailed:
+      description: 'Refused: `invalid_session_id`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E422InvalidSessionId:
+      description: 'Refused: `invalid_session_id`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+    E422InvalidCardIdInvalidExperimentInvalidVariantsAnd1More:
+      description: 'Refused: `invalid_card_id`, `invalid_experiment`, `invalid_variants`, `invalid_baseline`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_card_id:
+              $ref: '#/components/examples/InvalidCardId'
+            invalid_experiment:
+              $ref: '#/components/examples/InvalidExperiment'
+            invalid_variants:
+              $ref: '#/components/examples/InvalidVariants'
+            invalid_baseline:
+              $ref: '#/components/examples/InvalidBaseline'
+    E404ProjectNotFoundAskNotFoundRouteNotFound:
+      description: 'Refused: `project_not_found`, `ask_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            ask_not_found:
+              $ref: '#/components/examples/AskNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E422ArtifactRefusedValidationFailed:
+      description: 'Refused: `artifact_refused`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/ArtifactRefusedProblem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            artifact_refused:
+              $ref: '#/components/examples/ArtifactRefused'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E409CardFinished:
+      description: 'Refused: `card_finished`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            card_finished:
+              $ref: '#/components/examples/CardFinished'
+    E422InvalidLabelValidationFailed:
+      description: 'Refused: `invalid_label`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_label:
+              $ref: '#/components/examples/InvalidLabel'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E403GitIdentityNotManagedInsufficientScope:
+      description: 'Refused: `git_identity_not_managed`, `credential_not_allowed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            git_identity_not_managed:
+              $ref: '#/components/examples/GitIdentityNotManaged'
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+    E409AppNotConfiguredNoInstallationInstallationSuspendedAnd2More:
+      description: 'Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/GitTokenRefusedProblem'
+          examples:
+            app_not_configured:
+              $ref: '#/components/examples/AppNotConfigured'
+            no_installation:
+              $ref: '#/components/examples/NoInstallation'
+            installation_suspended:
+              $ref: '#/components/examples/InstallationSuspended'
+            no_repository:
+              $ref: '#/components/examples/NoRepository'
+            missing_grant:
+              $ref: '#/components/examples/MissingGrant'
+    E502GithubUnavailable:
+      description: 'Refused: `github_unavailable`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/GitTokenRefusedProblem'
+          examples:
+            github_unavailable:
+              $ref: '#/components/examples/GithubUnavailable'
+    E403TokenNotBoundToSiteInsufficientScope:
+      description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            token_not_bound_to_site:
+              $ref: '#/components/examples/TokenNotBoundToSite'
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+    E422SurfaceInvalid:
+      description: 'Refused: `surface_invalid`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            surface_invalid:
+              $ref: '#/components/examples/SurfaceInvalid'
+    E422UnknownTypeValidationFailed:
+      description: 'Refused: `unknown_type`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/UnknownTypeProblem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            unknown_type:
+              $ref: '#/components/examples/UnknownType'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E404CardNotFoundRouteNotFound:
+      description: 'Refused: `card_not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            card_not_found:
+              $ref: '#/components/examples/CardNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E409CardClosedSubmissionReused:
+      description: 'Refused: `card_closed`, `submission_reused`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            card_closed:
+              $ref: '#/components/examples/CardClosed'
+            submission_reused:
+              $ref: '#/components/examples/SubmissionReused'
+    E422MessageRequiredPullRequestNotOnCardVerdictRefusedAnd1More:
+      description: 'Refused: `message_required`, `pull_request_not_on_card`, `verdict_refused`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            message_required:
+              $ref: '#/components/examples/MessageRequired'
+            pull_request_not_on_card:
+              $ref: '#/components/examples/PullRequestNotOnCard'
+            verdict_refused:
+              $ref: '#/components/examples/VerdictRefused'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E409DeliveryConflictDeliveryInvalid:
+      description: 'Refused: `delivery_conflict`, `delivery_invalid`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            delivery_conflict:
+              $ref: '#/components/examples/DeliveryConflict'
+            delivery_invalid:
+              $ref: '#/components/examples/DeliveryInvalid'
+    E422DrawingDisabledAnchorStrokeWithoutAnchorTargetNotFoundAnd6More:
+      description: 'Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `target_not_epic`,
+        `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            drawing_disabled:
+              $ref: '#/components/examples/DrawingDisabled'
+            anchor_stroke_without_anchor:
+              $ref: '#/components/examples/AnchorStrokeWithoutAnchor'
+            target_not_found:
+              $ref: '#/components/examples/TargetNotFound'
+            target_closed:
+              $ref: '#/components/examples/TargetClosed'
+            target_not_epic:
+              $ref: '#/components/examples/TargetNotEpic'
+            screenshot_invalid:
+              $ref: '#/components/examples/ScreenshotInvalid'
+            screenshot_too_large:
+              $ref: '#/components/examples/ScreenshotTooLarge'
+            feedback_refused:
+              $ref: '#/components/examples/FeedbackRefused'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+    E404NotFoundRouteNotFound:
+      description: 'Refused: `not_found`, `route_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            not_found:
+              $ref: '#/components/examples/NotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'

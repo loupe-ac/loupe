@@ -1,0 +1,198 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Loupe API v1",
+        "description": "The public HTTP API of Loupe.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "https://app.loupe.ac",
+            "description": "Hosted instance"
+        }
+    ],
+    "paths": {
+        "/api/v1/openapi.json": {
+            "get": {
+                "tags": [
+                    "Meta"
+                ],
+                "summary": "Read this OpenAPI document",
+                "description": "No sign-in is needed.",
+                "operationId": "getOpenApiDocument",
+                "responses": {
+                    "200": {
+                        "description": "The public v1 specification, as JSON.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/versions": {
+            "get": {
+                "tags": [
+                    "Meta"
+                ],
+                "summary": "List the API versions of this instance",
+                "description": "No sign-in is needed.",
+                "operationId": "listApiVersions",
+                "responses": {
+                    "200": {
+                        "description": "The versions.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVersions"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Problem": {
+                "description": "An error, as RFC 9457 `application/problem+json`.",
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code"
+                ],
+                "properties": {
+                    "type": {
+                        "description": "A URI that names the error.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "title": {
+                        "description": "A short summary of the error.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "The HTTP status.",
+                        "type": "integer"
+                    },
+                    "code": {
+                        "description": "The stable machine-readable code.",
+                        "type": "string"
+                    },
+                    "detail": {
+                        "description": "What happened in this request.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiVersions": {
+                "description": "The API versions of this instance.",
+                "required": [
+                    "versions",
+                    "cliRange"
+                ],
+                "properties": {
+                    "versions": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "version",
+                                "status"
+                            ],
+                            "properties": {
+                                "version": {
+                                    "type": "string",
+                                    "example": "v1"
+                                },
+                                "status": {
+                                    "description": "The state of this version.",
+                                    "type": "string",
+                                    "enum": [
+                                        "beta",
+                                        "stable",
+                                        "deprecated"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "cliRange": {
+                        "description": "The CLI versions this server works with, as a caret range.",
+                        "type": "string",
+                        "example": "^2.0"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "An API key or an OAuth access token, in `Authorization: Bearer <token>`.",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Meta",
+            "description": "Meta"
+        }
+    ]
+}

@@ -1,0 +1,104 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Loupe API v1, private routes",
+        "description": "The bridge and widget routes. They carry no public promise.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "https://app.loupe.ac",
+            "description": "Hosted instance"
+        }
+    ],
+    "paths": {},
+    "components": {
+        "schemas": {
+            "Problem": {
+                "description": "An error, as RFC 9457 `application/problem+json`.",
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "code"
+                ],
+                "properties": {
+                    "type": {
+                        "description": "A URI that names the error.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "title": {
+                        "description": "A short summary of the error.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "The HTTP status.",
+                        "type": "integer"
+                    },
+                    "code": {
+                        "description": "The stable machine-readable code.",
+                        "type": "string"
+                    },
+                    "detail": {
+                        "description": "What happened in this request.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiVersions": {
+                "description": "The API versions of this instance.",
+                "required": [
+                    "versions",
+                    "cliRange"
+                ],
+                "properties": {
+                    "versions": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "version",
+                                "status"
+                            ],
+                            "properties": {
+                                "version": {
+                                    "type": "string",
+                                    "example": "v1"
+                                },
+                                "status": {
+                                    "description": "The state of this version.",
+                                    "type": "string",
+                                    "enum": [
+                                        "beta",
+                                        "stable",
+                                        "deprecated"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "cliRange": {
+                        "description": "The CLI versions this server works with, as a caret range.",
+                        "type": "string",
+                        "example": "^2.0"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "An API key or an OAuth access token, in `Authorization: Bearer <token>`.",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ]
+}
