@@ -215,14 +215,14 @@ final readonly class DevMetricsSeeder
         }
 
         $graphs = [
-            ['Cost per run by model', 'cost', MetricStatistic::Mean, MetricGroup::Model, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Line, SavedGraphWidth::Full],
-            ['Cost per run', 'cost', MetricStatistic::Mean, MetricGroup::None, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Number, SavedGraphWidth::Half],
-            ['Runs by model', 'runs', MetricStatistic::Count, MetricGroup::Model, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
-            ['Time in each bucket', 'bucket-time-each', MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
-            ['Share of runs by model', 'runs', MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
+            ['Cost per run by model', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Model, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Line, SavedGraphWidth::Full],
+            ['Cost per run', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::None, MetricBucket::Day, MetricCompare::Previous, MetricChartType::Number, SavedGraphWidth::Half],
+            ['Runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
+            ['Time in each bucket', 'bucket-time-each', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
+            ['Share of runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
         ];
-        foreach ($graphs as $position => [$name, $metric, $statistic, $group, $bucket, $compare, $chart, $width]) {
-            $this->em->persist(new InsightsSavedGraph($project, $name, $metric, MetricUnit::Run, $statistic, $group, MetricRange::ThirtyDays, $bucket, $compare, $chart, $width, true, $position));
+        foreach ($graphs as $position => [$name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
+            $this->em->persist(new InsightsSavedGraph($project, $name, $metric, $unit, $statistic, $group, MetricRange::ThirtyDays, $bucket, $compare, $chart, $width, true, $position));
         }
         $this->em->flush();
 

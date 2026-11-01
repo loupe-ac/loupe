@@ -10,6 +10,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Experiment\Stats;
+use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -66,6 +67,19 @@ final class DevMetricsSeederTest extends KernelTestCase
             ['Cost per run by model', 'Cost per run', 'Runs by model', 'Time in each bucket', 'Share of runs by model'],
             array_map(static fn ($graph): string => $graph->name, $this->service(InsightsSavedGraphRepository::class)->findActive($project)),
         );
+    }
+
+    public function test_each_saved_graph_stores_a_unit_that_its_metric_allows(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-units');
+
+        $this->seeder(self::NOW)->seed($project, $this->cardFor($project));
+
+        $graphs = $this->service(InsightsSavedGraphRepository::class)->findActive($project);
+        self::assertCount(5, $graphs);
+        foreach ($graphs as $graph) {
+            self::assertContains($graph->unit, Metric::from($graph->metric)->units(), $graph->name);
+        }
     }
 
     public function test_a_second_run_on_the_same_day_adds_nothing(): void
