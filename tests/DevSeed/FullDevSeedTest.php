@@ -15,9 +15,13 @@ use App\Module\Board\Command\DeleteCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\ExperimentDefinition;
+use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
+use App\Module\Review\Entity\Document;
+use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Service\Dev\DevSiteFeedbackSeeder;
 use App\Module\Workflow\Contract\Actor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -200,6 +204,57 @@ final class FullDevSeedTest extends KernelTestCase
         $title = $em->getConnection()->fetchOne("SELECT title FROM board_cards WHERE title LIKE 'Demo runs from %' ORDER BY title LIMIT 1");
         self::assertIsString($title);
         self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/demo-runs-'.substr($title, -10))));
+    }
+
+    public function test_the_showcase_exists_with_fixed_ids_and_its_requests_do_not_need_the_inbox_flag(): void
+    {
+        $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
+
+        $em = $this->em();
+        self::assertNotTrue($this->flag('inbox.enabled')?->value);
+        foreach (['checkout', 'history', 'column-rules', 'onboarding', 'project-export', 'export-documents', 'sync-forge-state', 'outdated-approval', 'empty-basket'] as $slug) {
+            self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/'.$slug)), $slug);
+        }
+        foreach (['worker-run-history', 'column-rules', 'first-handoff'] as $slug) {
+            self::assertInstanceOf(Document::class, $em->find(Document::class, DevSeedId::of('review/document/'.$slug)), $slug);
+        }
+        foreach (['retries', 'run-history', 'pull-request', 'column-rules', 'handoff', 'answered', 'declined', 'reviewed', 'left-open'] as $slug) {
+            self::assertInstanceOf(InboxItem::class, $em->find(InboxItem::class, DevSeedId::of('inbox/item/'.$slug)), $slug);
+        }
+        foreach (DevSiteFeedbackSeeder::SLUGS as $slug) {
+            self::assertInstanceOf(SiteReviewComment::class, $em->find(SiteReviewComment::class, DevSiteFeedbackSeeder::commentId($slug)), $slug);
+        }
+
+        $connection = $em->getConnection();
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM card_pauses'));
+        self::assertSame(4, (int) $connection->fetchOne('SELECT COUNT(*) FROM board_card_site_review_comments'));
+        self::assertSame(1, (int) $connection->fetchOne("SELECT COUNT(*) FROM board_cards WHERE parent_card_id IS NOT NULL AND title = 'Export the documents'"));
+        $cards = array_map(static fn (string $slug): string => (string) DevSeedId::of('board/card/'.$slug), ['checkout', 'history', 'column-rules', 'onboarding', 'project-export', 'export-documents', 'sync-forge-state', 'outdated-approval', 'empty-basket']);
+        $lists = [
+            'board_cards' => $connection->fetchFirstColumn('SELECT created_at FROM board_cards WHERE id IN (?)', [$cards], [ArrayParameterType::STRING]),
+            'inbox_items' => $connection->fetchFirstColumn('SELECT created_at FROM inbox_items'),
+            'documents' => $connection->fetchFirstColumn('SELECT created_at FROM documents WHERE id IN (?)', [array_map(static fn (string $slug): string => (string) DevSeedId::of('review/document/'.$slug), ['worker-run-history', 'column-rules', 'first-handoff'])], [ArrayParameterType::STRING]),
+        ];
+        foreach ($lists as $table => $column) {
+            $times = array_map(strval(...), $column);
+            self::assertSame($times, array_values(array_unique($times)), $table.' holds two records with one creation time.');
+        }
+    }
+
+    public function test_a_later_run_restores_a_deleted_inbox_item_group_and_a_deleted_showcase_run(): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        $connection->executeStatement('DELETE FROM inbox_asks');
+        $connection->executeStatement('DELETE FROM inbox_items');
+        $connection->executeStatement("DELETE FROM bridge_worker_runs WHERE work_kind IN ('design-export', 'fix', 'review')");
+
+        $this->seed(self::DAY);
+
+        foreach (['inbox_items', 'inbox_asks', 'bridge_worker_runs'] as $table) {
+            self::assertSame($counts[$table], $this->rowCounts()[$table], $table);
+        }
     }
 
     public function test_the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(): void
