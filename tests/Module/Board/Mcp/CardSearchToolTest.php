@@ -6,11 +6,9 @@ namespace App\Tests\Module\Board\Mcp;
 
 use App\Doctrine\SearchLanguage;
 use App\Module\Board\Command\SearchBoardHandler;
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardSearchTool;
 use App\Module\Board\Mcp\CardUpdateTool;
-use App\Module\Board\Repository\CardRepository;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
@@ -291,26 +289,18 @@ final class CardSearchToolTest extends KernelTestCase
     }
 
     /**
-     * The project's language is the card's, read once at creation. The card
-     * stays findable by its text in that language.
+     * The substring search reads the text itself, so a project language other
+     * than the default does not change what finds a card.
      */
-    public function test_a_card_takes_its_projects_search_language(): void
+    public function test_a_card_in_a_french_project_is_found_by_its_text(): void
     {
         $project = $this->makeProject('card-search-language');
         $project->searchLanguage = SearchLanguage::French;
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($project);
 
-        $created = ($this->createTool)('Les cartes du tableau', 'Le corps parle de goeland.', 'feature');
+        ($this->createTool)('Les cartes du tableau', 'Le corps parle de goeland.', 'feature');
 
-        $cards = self::getContainer()->get(CardRepository::class);
-        self::assertInstanceOf(CardRepository::class, $cards);
-        $card = $cards->find($created['cardId']);
-        self::assertInstanceOf(Card::class, $card);
-        self::assertSame(SearchLanguage::French, $card->searchLanguage);
-
-        // The substring search reads the text itself, so the language of the
-        // card does not change what finds it.
         self::assertSame(1, ($this->tool)('goeland')['total']);
     }
 

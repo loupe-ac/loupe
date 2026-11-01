@@ -124,6 +124,9 @@ type RunStateReport struct {
 	Continues string `json:"continues,omitempty"`
 	// Usage goes on an outcome alone. A nil usage is unknown.
 	Usage *Usage `json:"usage,omitempty"`
+	// CostSource is "openrouter" for a run that went through OpenRouter. Its
+	// usage carries no cost, and Loupe reads the billed cost from OpenRouter.
+	CostSource string `json:"costSource,omitempty"`
 	// PeakContextTokens goes on an outcome and on a stopped report. A nil
 	// value is unknown.
 	PeakContextTokens *int64 `json:"peakContextTokens,omitempty"`

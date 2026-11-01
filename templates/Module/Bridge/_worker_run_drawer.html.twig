@@ -43,10 +43,29 @@
             {% if run.resumeSkipped is not null %}<div data-worker-run-resume-skipped><dt>{{ 'bridge.worker_runs.details.resume_skipped'|trans }}</dt><dd><code>{{ run.resumeSkipped }}</code></dd></div>{% endif %}
         </dl>
         {% set fact = item.fact %}
-        {% if fact is not null and not item.command %}
+        {% set billedCost = item.billedCost %}
+        {% if (fact is not null or billedCost is not null) and not item.command %}
         <h3 class="lp-run-drawer__heading">{{ 'bridge.worker_runs.details.metrics'|trans }}</h3>
         <dl class="lp-run-drawer__metadata" data-worker-run-metrics>
-            <div><dt>{{ 'bridge.worker_runs.details.metric.cost'|trans }}</dt><dd>{{ fact.costMicroUsd is null ? 'bridge.worker_runs.details.metric.unknown'|trans : (fact.costMicroUsd / 1000000)|format_currency('USD', fact.costMicroUsd > 0 and fact.costMicroUsd < 5000 ? {max_fraction_digit: 6} : {}) }}</dd></div>
+            <div data-worker-run-cost><dt>{{ 'bridge.worker_runs.details.metric.cost'|trans }}</dt><dd>
+                {% if billedCost is not null and billedCost.state.value == 'pending' %}
+                <span data-worker-run-cost-pending>{{ 'bridge.worker_runs.details.metric.pending'|trans }}</span>
+                {% elseif billedCost is not null and billedCost.state.value == 'unknown' and billedCost.reason is not null %}
+                <span class="lp-run-drawer__cost-unknown" data-worker-run-cost-unknown>
+                    <span>{{ 'bridge.worker_runs.details.metric.unknown'|trans }}</span>
+                    <span class="lp-run-drawer__cost-reason">
+                        <span data-worker-run-cost-reason>{{ ('bridge.worker_runs.details.metric.reason.' ~ billedCost.reason.value)|trans }}</span>
+                        {% set keySettingsUrl = is_granted('project.manage', project) ? path('app_project_openrouter', {id: project.id}) : path('app_account_openrouter') %}
+                        <twig:Ds:Button variant="ghost icon" href="{{ keySettingsUrl }}" data-turbo-frame="_top" data-worker-run-cost-settings :aria-label="'bridge.worker_runs.details.metric.key_settings'|trans"><twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" /></twig:Ds:Button>
+                    </span>
+                </span>
+                {% elseif fact is null or fact.costMicroUsd is null %}
+                {{ 'bridge.worker_runs.details.metric.unknown'|trans }}
+                {% else %}
+                {{ (fact.costMicroUsd / 1000000)|format_currency('USD', fact.costMicroUsd > 0 and fact.costMicroUsd < 5000 ? {max_fraction_digit: 6} : {}) }}
+                {% endif %}
+            </dd></div>
+            {% if fact is not null %}
             {% if fact.tokensIn is not null %}<div><dt>{{ 'bridge.worker_runs.details.metric.input_tokens'|trans }}</dt><dd>{{ fact.tokensIn|format_number }}</dd></div>{% endif %}
             {% if fact.tokensOut is not null %}<div><dt>{{ 'bridge.worker_runs.details.metric.output_tokens'|trans }}</dt><dd>{{ fact.tokensOut|format_number }}</dd></div>{% endif %}
             {% if fact.tokensCacheRead is not null %}<div><dt>{{ 'bridge.worker_runs.details.metric.cache_read_tokens'|trans }}</dt><dd>{{ fact.tokensCacheRead|format_number }}</dd></div>{% endif %}
@@ -54,6 +73,7 @@
             {# The bridge writes the model name, so it is rendered as text. Never add |raw here. #}
             {% if fact.model is not null %}<div><dt>{{ 'bridge.worker_runs.details.metric.model'|trans }}</dt><dd>{{ fact.model }}</dd></div>{% endif %}
             {% if item.factDuration() is not null %}<div><dt>{{ 'bridge.worker_runs.column.duration'|trans }}</dt><dd>{{ item.factDuration() }}</dd></div>{% endif %}
+            {% endif %}
         </dl>
         {% endif %}
         {% if not item.command %}

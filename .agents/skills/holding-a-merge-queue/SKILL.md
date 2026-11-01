@@ -18,9 +18,10 @@ moving as much as possible from the merge queue to the bridge, eventually the
 bridge or app will handle the merges too". When a task can move to the bridge,
 move it there.
 
-`working-with-prs` carries the gate, the body and the merge protocol. This skill
-carries what appears only when a queue runs for hours across several sessions.
-Read these files only when their case arrives:
+`working-with-prs` carries the gate and the body. Its `references/merging.md`
+carries the merge protocol, and its `references/conflicts.md` the conflict
+proofs. This skill carries what appears only when a queue runs for hours
+across several sessions. Read these files only when their case arrives:
 
 - `references/git-traps.md`: a conflict resolution to prove, a rebase, a stale
   resolution, the dot operators, or a test of whether a branch merged.
@@ -71,7 +72,7 @@ when you wind the queue down.
 
 It prints one line, `READY` or `HOLD` with every reason, and exits 0 only on
 `READY`. It counts the required buckets, checks the base, the draft flag and the
-merge state, and reads the owner's approval by time. It also reads the head
+merge state, and reads the passed `Loupe / Approval` check. It also reads the head
 twice, and holds if the head moved during the read. Run it on the head you are
 about to hand-merge. Merge on `READY` only, unless the skill below says a `HOLD`
 reason is covered. A `READY` pull request linked to a card stays with the
@@ -114,12 +115,14 @@ gh run list --workflow=ci.yml --status=completed --limit 20 \
 Set the threshold from that number, and never from your patience. Below the
 threshold, wait.
 
-### Read an approval by time
+### Read the approval check
 
-A review's `commit_id` does not show what the reviewer saw. GitHub moves it onto
-the head that a later merge sync creates. `merge-ready.sh` therefore compares
-the time of the owner's last approving or blocking review with each commit's
-time. A later comment from the owner does not hide the approval.
+The `main` ruleset requires no approving review. It requires the check
+`Loupe / Approval`, which Loupe posts on one commit. `docs/using/workflows.md`
+"Approval of a pull request" says when Loupe posts it. `merge-ready.sh` reads
+the newest passed run of that check on the head. A head with no such run holds
+as "no passed Loupe / Approval on the head". A push makes a new head with no
+check run, so the head holds until Loupe posts the check again.
 
 The owner said on 2026-09-27 that an approval survives a sync, a rebase and a
 conflict resolution: "I don't want to need to re-approve everything". A commit
@@ -134,14 +137,16 @@ with `workflow_get` before you accept a conflict resolution after an approval.
 `false`, the resolution needs a new approval, and a passing `comm` proof does
 not replace it.
 
-`merge-ready.sh` sorts each commit after the approval into one of three kinds:
+`merge-ready.sh` also sorts each commit with a time after the approval check
+into one of three kinds. On the head that holds the check, this list is usually
+empty:
 
 - A merge from `main` that `git merge-tree` re-creates exactly is a sync. It
   passes, and the script counts it. A sync is always later than the approval.
 - A merge from `main` that git cannot re-create holds as a conflict resolution.
   Prove it with the `comm` check in `references/git-traps.md`. When it passes
   and `approvalCoversConflictResolution` is `true`, the approval covers it.
-- Any other commit holds as "commits after approval". A rebase rewrites every
+- Any other commit holds as "commits after the approval check". A rebase rewrites every
   commit, so it lands here too. Read the commits and decide which case it is.
 
 A sync leaves the branch's own content untouched. When in doubt, confirm that
@@ -263,12 +268,12 @@ and one line per file says how it was resolved. Run the `comm` proof in
 Read `approvalCoversConflictResolution` with `workflow_get`. The approval covers
 a resolution that passes only when the value is `true`.
 
-The workflow `merge-ready` rule merges a pull request that is approved and
-green, through the GitHub App or through a `loupe-stage-merge` worker. Never
+The workflow `merge-ready` rule merges a pull request whose required checks are
+green, `Loupe / Approval` included, through the GitHub App or through a
+`loupe-stage-merge` worker. Never
 merge such a pull request by hand, because a hand merge races the rule. Hold a
 pull request only when you need it to wait. The worker reads the approval by
-time as `merge-ready.sh` does. It compares push times, where `merge-ready.sh`
-compares commit times. With `approvalCoversConflictResolution` set to `true`, it
+time, and compares push times. With `approvalCoversConflictResolution` set to `true`, it
 merges after a sync and after a conflict resolution. With `false`, it reports
 `not ready <url>: conflict resolution after approval` and leaves that merge to
 the owner. Any other commit after the approval holds as

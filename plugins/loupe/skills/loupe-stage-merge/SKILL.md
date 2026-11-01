@@ -44,7 +44,7 @@ This section applies only when the profile has an `Epics` section. Fill its epic
 1. An epic child is a pull request whose base is the epic branch of the card `parent.number`.
 2. An epic pull request is a pull request on a card of type `epic`, whose head is the epic branch of that card's number.
 
-An epic child merges with no approval, because the epic pull request carries the owner's review. An epic pull request merges as any other pull request.
+An epic child merges with no approval, because the epic pull request carries the approval of the whole change. An epic pull request merges as any other pull request.
 
 ### Update
 

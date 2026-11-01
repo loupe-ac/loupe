@@ -3570,8 +3570,18 @@
     .lp-run-drawer__metadata dd {
         @apply m-0 mt-1 text-sm break-all;
     }
-    .lp-run-drawer__metadata a {
+    .lp-run-drawer__metadata a:not(.lp-btn) {
         @apply text-accent-ink underline;
+    }
+    /* The unknown cost of a run, with its reason and the key settings button on the line below. */
+    .lp-run-drawer__cost-unknown {
+        @apply flex flex-col gap-1;
+    }
+    .lp-run-drawer__cost-reason {
+        @apply flex flex-wrap items-center gap-1.5 text-ink-soft;
+    }
+    .lp-run-drawer__cost-reason .lp-btn {
+        @apply -my-2;
     }
     .lp-run-drawer__heading {
         @apply text-base font-semibold mt-6 mb-2;
@@ -5052,6 +5062,23 @@
     }
     .lp-identity-row > .lp-status-chip {
         @apply shrink-0 whitespace-nowrap;
+    }
+    .lp-identity-row--key > .lp-status-chip {
+        @apply ml-0;
+    }
+    /* The OpenRouter key form stays closed until a Replace button opens it. */
+    .lp-openrouter-replace {
+        @apply hidden overflow-hidden;
+    }
+    .lp-openrouter-replace.open {
+        @apply block;
+    }
+    /* A note on the key in use, drawn as a card with an icon. */
+    .lp-openrouter-note {
+        @apply flex items-start gap-3 m-0 rounded-xl border border-line bg-app py-3 px-4 text-sm leading-normal text-fg-mute;
+    }
+    .lp-openrouter-note__icon {
+        @apply shrink-0 mt-0.5;
     }
 
     /* The Repositories section: a row for each repository, then its check list. */

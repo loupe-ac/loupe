@@ -217,6 +217,7 @@ func (r *router) launchLocked(p pending, ctx context.Context) {
 		return
 	}
 	p.spec.sessionID = r.worker.sessionID()
+	p.spec.runID = p.runID
 	l := launch{p: p, command: p.set.Launch(), dir: r.scriptDir, ctx: ctx}
 	if l.dir == "" {
 		l.dir = defaultScriptDir()

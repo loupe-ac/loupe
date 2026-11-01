@@ -229,17 +229,13 @@ final class BoardToolRegistrationTest extends KernelTestCase
         }
     }
 
-    /**
-     * Release 1 of the rename keeps the old name on the write tool alone, so an
-     * agent that still sends it is not broken by this release. The filter is new,
-     * so it never carried the old name.
-     */
-    public function test_only_card_create_still_publishes_the_deprecated_origin(): void
+    public function test_no_board_tool_publishes_the_retired_origin(): void
     {
         $create = $this->registry->getTool(CardCreateTool::NAME)->tool->inputSchema['properties'];
         $list = $this->registry->getTool(CardListTool::NAME)->tool->inputSchema['properties'];
 
-        self::assertArrayHasKey('origin', $create);
+        self::assertArrayHasKey('reporter', $create);
+        self::assertArrayNotHasKey('origin', $create);
         self::assertArrayNotHasKey('origin', $list);
     }
 

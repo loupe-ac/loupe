@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # Prints one verdict line for a pull request: READY, or HOLD with every reason.
-# Usage: merge-ready.sh <number>. OWNER=<login> overrides the approving reviewer.
+# Usage: merge-ready.sh <number>. The approval is the Loupe / Approval check on the head.
 # Exits 0 on READY, 1 on HOLD, 2 when GitHub cannot be read.
 set -o pipefail
 pr=${1:?usage: merge-ready.sh <number>}
-owner=${OWNER:-$(gh repo view --json owner -q .owner.login 2>/dev/null)}
 id=$(gh api repos/{owner}/{repo}/rulesets -q '.[]|select(.name=="main")|.id' 2>/dev/null)
 n=$(gh api "repos/{owner}/{repo}/rulesets/$id" -q '[.rules[]|select(.type=="required_status_checks")|.parameters.required_status_checks[]]|length' 2>/dev/null)
-fields=headRefOid,baseRefName,isDraft,mergeStateStatus,reviewDecision,changedFiles
+fields=headRefOid,baseRefName,isDraft,mergeStateStatus,changedFiles
 view=$(gh pr view "$pr" --json "$fields" 2>/dev/null)
 commits=$(gh api --paginate "repos/{owner}/{repo}/pulls/$pr/commits?per_page=100" 2>/dev/null | jq -sc '[.[][]|{oid:.sha,committedDate:.commit.committer.date,messageHeadline:(.commit.message|split("\n")[0])}]') || commits=
-reviews=$(gh api --paginate "repos/{owner}/{repo}/pulls/$pr/reviews?per_page=100" 2>/dev/null | jq -sc '[.[][]|{author:{login:.user.login},state,submittedAt:.submitted_at}]') || reviews=
-[ -n "$view" ] && [ -n "$commits" ] && [ -n "$reviews" ] && view=$(jq -c --argjson c "$commits" --argjson r "$reviews" '. + {commits:$c,reviews:$r}' <<<"$view")
+[ -n "$view" ] && [ -n "$commits" ] && view=$(jq -c --argjson c "$commits" '. + {commits:$c}' <<<"$view")
 checks=$(gh pr checks "$pr" --required --json bucket 2>&1)
 head2=$(gh pr view "$pr" --json headRefOid -q .headRefOid 2>/dev/null)
-if [ -z "$owner" ] || [ -z "$n" ] || [ -z "$commits" ] || [ -z "$reviews" ] || [ -z "$view" ] || [ -z "$head2" ]; then echo "#$pr UNREAD: GitHub read failed"; exit 2; fi
+approval=$(gh api --paginate "repos/{owner}/{repo}/commits/$head2/check-runs?per_page=100" 2>/dev/null \
+  | jq -sc '[.[].check_runs[]|select(.name=="Loupe / Approval" and .conclusion=="success")|.completed_at]|max') || approval=
+if [ -z "$n" ] || [ -z "$commits" ] || [ -z "$view" ] || [ -z "$head2" ] || [ -z "$approval" ]; then echo "#$pr UNREAD: GitHub read failed"; exit 2; fi
 
 case "$checks" in
   [Nn]"o checks reported"*|[Nn]"o required checks reported"*) buckets='{}' ;;
@@ -29,10 +29,8 @@ merges=$(for c in $(jq -r '.commits[]|select(.messageHeadline|startswith("Merge 
   t=$(git merge-tree --write-tree "$c^1" "$c^2" 2>/dev/null) && [ "$t" = "$(git rev-parse "$c^{tree}")" ] && k=sync || k=conflict
   echo "{\"$c\":\"$k\"}"
 done | jq -sc 'add // {}')
-line=$(jq -r --arg owner "$owner" --argjson n "$n" --argjson b "$buckets" --arg head2 "$head2" --argjson merges "$merges" '
-  ([.reviews[]|select(.author.login==$owner and (.state|IN("APPROVED","CHANGES_REQUESTED","DISMISSED")))]|last) as $last
-  | (if $last.state == "APPROVED" then $last.submittedAt else null end) as $at
-  | [.commits[]|select($at != null and .committedDate > $at)] as $unseen
+line=$(jq -r --argjson n "$n" --argjson b "$buckets" --arg head2 "$head2" --argjson merges "$merges" --argjson at "$approval" '
+  [.commits[]|select($at != null and .committedDate > $at)] as $unseen
   | [$unseen[]|select($merges[.oid] == "sync")] as $sync
   | [$unseen[]|select($merges[.oid] == "conflict")] as $conflict
   | [$unseen[]|select(.oid as $o|[$sync[],$conflict[]]|map(.oid)|index($o)|not)] as $new
@@ -48,9 +46,8 @@ line=$(jq -r --arg owner "$owner" --argjson n "$n" --argjson b "$buckets" --arg 
        elif .mergeStateStatus == "UNKNOWN" then "merge state UNKNOWN, run again"
        elif (.mergeStateStatus|IN("CLEAN","HAS_HOOKS")|not) then "merge state \(.mergeStateStatus)"
        else empty end),
-      (if $at == null then "no approval from \($owner)" else empty end),
-      (if .reviewDecision != "APPROVED" then "review decision \(.reviewDecision // "none")" else empty end),
-      (if ($new|length) > 0 then "commits after approval: \([$new[]|"\(.oid[0:8]) \(.messageHeadline)"]|join("; ")). A rebase is covered, new content needs the owner" else empty end),
+      (if $at == null then "no passed Loupe / Approval on the head" else empty end),
+      (if ($new|length) > 0 then "commits after the approval check: \([$new[]|"\(.oid[0:8]) \(.messageHeadline)"]|join("; ")). A rebase is covered, new content needs a new approval" else empty end),
       (if ($conflict|length) > 0 then "conflict resolution \([$conflict[]|.oid[0:8]]|join(",")), prove it with references/git-traps.md" else empty end)
     ] as $hold
   | if ($hold|length) == 0

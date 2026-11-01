@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
@@ -58,26 +59,27 @@ func (Harness) Name() string { return "codex" }
 func (Harness) Program() string { return "codex" }
 
 func (h Harness) Worker(spec harness.Spec) harness.Command {
-	args, files := h.options(spec, false)
+	args, files, source := h.options(spec, false)
 
-	return harness.Command{Args: append(args, "--", spec.Prompt), Env: spec.Env, Files: files}
+	return harness.Command{Args: append(args, "--", spec.Prompt), Env: spec.Env, Files: files, CostSource: source}
 }
 
 // Resume continues the thread that the run's id maps to. Codex reads the
 // options of a resume only before the subcommand, and resume takes no sandbox
 // flags, so a config override carries the sandbox.
 func (h Harness) Resume(spec harness.Spec) harness.Command {
-	args, files := h.options(spec, true)
+	args, files, source := h.options(spec, true)
 	thread := spec.SessionID
 	if id, err := h.thread(spec.SessionID); err == nil {
 		thread = id
 	}
 
-	return harness.Command{Args: append(args, "resume", thread, "--", spec.Prompt), Env: spec.Env, Files: files}
+	return harness.Command{Args: append(args, "resume", thread, "--", spec.Prompt), Env: spec.Env, Files: files, CostSource: source}
 }
 
-// options builds the argv before the prompt, and the files it names.
-func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]string) {
+// options builds the argv before the prompt, the files it names, and the
+// cost source of the run.
+func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]string, string) {
 	args := []string{"exec"}
 	files := map[string]string{}
 	if h.profile != "" {
@@ -89,6 +91,8 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 	args = append(args, sandboxArgs(spec, resume)...)
 	args = append(args, sessionArgs(spec)...)
 	args = append(args, h.connectArgs()...)
+	header, source := h.sessionHeaderArgs(spec.RunID)
+	args = append(args, header...)
 	args = append(args, "--json", "--skip-git-repo-check")
 	if spec.Schema != "" && spec.RunDir != "" {
 		path := filepath.Join(spec.RunDir, schemaFile)
@@ -99,7 +103,7 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 		args = append(args, "-o", filepath.Join(spec.RunDir, lastMessageFile))
 	}
 
-	return args, files
+	return args, files, source
 }
 
 // connectArgs gives the connect limit of the loupe MCP server, for the worker
@@ -133,6 +137,26 @@ func (h Harness) connectArgs() []string {
 	}
 
 	return args
+}
+
+// sessionHeaderArgs sends the run key to OpenRouter as the session of the
+// run, when the provider of the profile is OpenRouter, and gives the cost
+// source of the run. Loupe later reads the billed cost of that session. The -c
+// override merges into the headers the operator set in the profile.
+func (h Harness) sessionHeaderArgs(runID string) ([]string, string) {
+	if runID == "" {
+		return nil, ""
+	}
+	home, err := h.homeDir()
+	if err != nil {
+		return nil, ""
+	}
+	name := configOpenRouter(home, h.profile)
+	if name == "" {
+		return nil, ""
+	}
+
+	return []string{"-c", "model_providers." + name + ".http_headers.x-session-id=" + tomlString(runID)}, harness.CostSourceOpenRouter
 }
 
 // sandboxArgs gives the flags of the sandbox mode. Workspace adds the main
@@ -257,7 +281,9 @@ func (h Harness) Interactive(program string, spec harness.Spec) string {
 	if spec.Model != "" {
 		b.WriteString(" -m " + shellQuote(spec.Model))
 	}
-	for _, arg := range append(sandboxArgs(spec, false), sessionArgs(spec)...) {
+	// An interactive session keeps its list price, so the cost source is unused.
+	header, _ := h.sessionHeaderArgs(spec.RunID)
+	for _, arg := range slices.Concat(sandboxArgs(spec, false), sessionArgs(spec), header) {
 		b.WriteString(" " + shellQuote(arg))
 	}
 	if spec.Prompt != "" {

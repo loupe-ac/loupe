@@ -5,27 +5,15 @@ description: "Use when working a Loupe project board through the loupe MCP: read
 
 # Working a Loupe board
 
-Each project in Loupe has one board, and each board has its own columns. A card carries a title, a Markdown body, a type, a status and a reporter. The status is the slug of the column the card sits in. The tools act on the project the connection is bound to.
+Each project in Loupe has one board, and each board has its own columns. A card carries a title, a Markdown body, a type, a status and a reporter. The status is the slug of the column the card sits in. The tools act on the project the connection is bound to. Each tool description says what its fields do. This skill holds the policy that the tools do not state.
 
 ## Read the columns before you name one
 
-Call `board_columns` before you pass a `status` to any tool, and use the slugs it returns. `card_list` returns the same list in `columns`, so a session that has read the board already holds them.
+Call `board_columns` before you pass a `status` to any tool, and use the slugs it returns. Only `backlog` exists on every board.
 
-Each column carries these fields:
+A new board starts with `backlog`, `next`, `in-progress` and `done` (terminal). The project owner can add, rename, reorder, flag and delete those columns, so never assume them. A slug you read in an earlier session can be gone.
 
-| Field | Meaning |
-|---|---|
-| `slug` | The value you pass as `status`. |
-| `label` | The name a person sees on the board. |
-| `terminal` | `true` for a column that holds finished work. A board has at least one. |
-| `default` | `true` on Backlog alone. It says the same as `backlog`, for older clients. |
-| `backlog` | `true` on Backlog alone. |
-
-Every board has exactly one Backlog. Its slug is always `backlog`, and a card created with no `status` lands there. The board does not draw Backlog as a column, because Backlog has its own page. Nobody can rename, reorder or delete it. `board_columns` still lists it, so `backlog` is a status you can always pass.
-
-A new board also starts with `next`, `in-progress` and `done` (terminal). The project owner can add, rename, reorder, flag and delete those columns, so never assume them. A slug you read in an earlier session can be gone. An unknown slug is refused, and the error lists the slugs the board has.
-
-The column tools add, rename, reorder and delete columns. A column change reshapes the owner's board. A rename changes the slug, which breaks every outside reference to the old slug. Change a column only when the owner or your task asks for it. Otherwise, ask the owner when the board needs a column it does not have.
+A column change reshapes the owner's board. A rename changes the slug, which breaks every outside reference to the old slug. Change a column only when the owner or your task asks for it. Otherwise, ask the owner when the board needs a column it does not have.
 
 This skill names a column by its role. Match each role to a column of the board by its flags and its label:
 
@@ -36,79 +24,31 @@ This skill names a column by its role. Match each role to a column of the board 
 
 When no column fits a role, leave the card where it is and tell the owner.
 
-## The tools
-
-| Tool | Use it to |
-|---|---|
-| `board_columns` | Read the columns of the board, in board order, and the card types of the project with the type a new card gets. |
-| `card_create` | Put a new card on the board. It lands in Backlog unless you pass `status`. |
-| `card_list` | Read one page of the board, with its columns. Filter by `status`, `type`, `reporter`, `parentCardId` or `paused`. A terminal column reads newest completion first, and every other column reads in rank order. |
-| `card_search` | Ask whether a card about something already exists. It reads the title and the body of every card, done ones included. |
-| `card_get` | Read one card, with its full Markdown body, its pull request links, its linked documents, its linked cards, the feedback items that belong to it, and its parent or its children. |
-| `card_get_history` | Read one card's history, newest first: its creation, each move with who made it and why, and each action of the automation. It pages like `card_list`. |
-| `feedback_list` | Read the feedback of the whole project, each item with its card. It returns the pending items unless you pass `status`. |
-| `feedback_mark_addressed` | Mark feedback items addressed after you fix them. |
-| `card_update` | Change a card. A field you leave out keeps the value it has. A new status puts the card at the end of the column it arrives in. |
-| `card_run_open` | Record an open interactive run on a card when an interactive skill starts work on it. It can move the card in the same step. |
-| `card_run_close` | Close the interactive run of your session on a card when the session ends. |
-| `column_create` | Add a column at the end of the board. Its slug comes from the label. |
-| `column_update` | Rename a column, or set whether it is terminal. A rename changes the slug. |
-| `column_reorder` | Put the columns in a new order. Pass every slug except `backlog`. |
-| `column_delete` | Delete a column. A column that holds cards needs `targetColumn`, where the cards go. |
-| `automation_settings_update` | Turn the workflow of the board on or off with `enabled`. A setting you leave out keeps its value. The workflow template names the epic branch. |
-
-`card_get`, `card_get_history` and `card_update` take a `cardId`, which you read from `card_list`, `card_search` or `card_create`. They also take the card `number` in place of the `cardId`.
-
-An interactive session, such as `/loupe:product-design`, calls `card_run_open` with `sessionId` set to your session id and `name` set to the skill name. Your session id is the first set value of `$LOUPE_SESSION_ID`, `$CLAUDE_CODE_SESSION_ID` and `$CODEX_THREAD_ID`. Read it with a shell command: `echo "${LOUPE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-$CODEX_THREAD_ID}}"`. The run shows on the card and on the worker runs page. A move of the card to another column closes the run. The exception is the move that `card_run_open` makes with `status`. Call `card_run_close` when the session ends.
-
 ## Search before you write a card
 
 Call `card_search` with the words you would use to describe the work, before you call `card_create`. A read of the whole board answers the same question at far more cost, and it is the step a session skips.
 
-`query` is required. A blank one is refused, not read as an empty board. Matching is by word, not by substring, and words are stemmed, so `paging` finds `pages`.
+Matching is by substring, ignoring case, so `pag` finds `page` and `paging`. Every word must match, and a number such as `12` also finds card 12.
 
 - Quote a phrase to require it.
 - Put `-` in front of a word to exclude it.
 - Write `or` between two words to accept either.
-- A stop word on its own, such as `the`, matches nothing.
 
-The search covers done cards. "Yes, and it is already done" is a true answer to "is there a card about this?", and a list of open cards hides that answer.
+## Read the board
 
-It pages the way `card_list` does, with `page`, `perPage`, `total` and `hasMore`, and `perPage` holds 25 rows by default. A row is the same eight-field summary, best match first, so call `card_get` for a body.
+Read the board as summaries, then call `card_get` for the one card you want. A `card_list` page with `full` is much larger, and a whole board of full cards once overran a caller's context limit.
 
-## `card_list` pages, and its rows are summaries
+`card_list` with `paused` reads the cards that a workflow pause holds. The `loupe-workers` skill says how to end a pause with `card_pause_release`.
 
-`card_list` answers one page at a time. `perPage` holds 50 cards by default and 100 at most. `page` counts from 1. Both are clamped into range, not refused, so a page past the end reads as an empty list.
-
-The answer carries `page`, `perPage`, `total` and `hasMore`. `total` counts every card the filters match, not the cards on the page. Keep reading while `hasMore` is true.
-
-A row carries eight fields: `cardId`, `number`, `title`, `type`, `status`, `reporter`, `parentCardId` and `updatedAt`. It carries no body and no links. `parentCardId` is null for a card with no parent.
-
-Pass `parentCardId` to `card_list` to read the children of one card. It combines with the other filters.
-
-Pass `paused` true to `card_list` to read the cards that a workflow pause stops, and false to read the others. The full card carries `pause`, which is null or the active pause with `pauseId`, `kind`, `reason`, `ruleId` and `since`. The `loupe-workers` skill says how to end a pause with `card_pause_release`.
-
-Pass `full` to get the whole card on every row. The row then holds its Markdown body, its pull request links, its documents, its linked cards, its feedback items, its parent, its lane setting, its children, its progress and its pause. A full page is much larger than a summary page, and a whole board of full cards once overran a caller's context limit. Read the board as summaries, then call `card_get` for the one card you want.
-
-`card_list` applies no time window to a terminal column, so every finished card is on the board it pages through, however old it is. The board screen shows the last 3 days of each terminal column by default, and puts the rest on a history page. The owner sets this window in board settings. A person therefore sees fewer finished cards than you do.
+The feedback items of a card are in `siteReviewComments`. The `loupe-site-review` skill carries the loop that fixes them and marks them addressed.
 
 ## Link documents, artifacts and cards
 
-`documentIds` links the documents the work is written up in, on `card_create` and `card_update`. It follows the same omit-versus-empty rule as `pullRequestUrls`. An id that names no document of this project is **refused**, unlike a pull request URL, which is kept. The app can check an id, and it cannot check a URL. `card_get` returns them as `documents`, each with `documentId`, `title` and `status`.
-
-`artifactIds` links the artifacts of this project in the same way, on `card_create` and `card_update`. It has the same omit-versus-empty rule and the same refusal of an unknown id. `card_get` returns them as `artifacts`, each with `artifactId`, `name`, `versionNumber`, `archived` and `path`.
-
-`relatedCards` links other cards of this project, on `card_create` and `card_update`. Each entry takes a `cardId` and a `kind`: `relates-to` (the default), `blocks`, `blocked-by`, `has-follow-up` or `follow-up-of`.
-
-1. A pair of cards holds one link, and both cards show it. A `blocks` link from card A reads `blocked-by` from card B. A `has-follow-up` link from card A reads `follow-up-of` from card B.
-2. `card_get` returns `relatedCards` with `cardId`, `number`, `title`, `status` and `kind`, and you can send that list back unchanged.
-3. The omit-versus-empty rule applies. A sent list replaces every link that touches the card, including links written from the other card, and nobody tells that card's writer. Read the card before you write.
-
-`siteReviewComments` is read-only, on `card_get` and on `card_list` with `full`. It lists the feedback items that belong to the card. Each item carries `id`, `url`, `anchors`, `body`, `hasDrawing`, `status`, `context` and `createdAt`. A reviewer files feedback against a card with the live-review widget, and no board tool writes that link. `feedback_list` reads the feedback of the whole project, each item with its card. Mark an item done with `feedback_mark_addressed`, which takes the same `id`. Do not edit the card for it. The `loupe-site-review` skill carries the rest of that loop.
+`relatedCards` replaces every link that touches the card, including links written from the other card, and nobody tells that card's writer. Read the card with `card_get` before you write, and send its whole list back with your change.
 
 ## Card types
 
-`card_create` and `card_update` take a `type`. The workflow template of the project declares the types, so read them with `board_columns` before you pick one. Each type has a `key`, a `label`, and the capabilities `children` and `lane`. A key that the template does not declare is refused, and the error lists the declared keys. The shipped templates declare these types:
+The shipped templates declare these types:
 
 - `feature`: a new or extended capability
 - `bug`: something behaves incorrectly today, including a latent fault
@@ -120,41 +60,11 @@ Pass `full` to get the whole card on every row. The row then holds its Markdown 
 
 ## Finish a card
 
-There is no delete tool. You finish a card when you move it to a terminal column, which stamps its completion time.
-
-- A move between two terminal columns keeps the first stamp.
-- A move to a column that is not terminal clears it.
-- A move into a terminal column also resolves the card's pending and addressed feedback. A move back out leaves it resolved.
-
-Only a person deletes a card, from the card page. A person can also delete it through the widget, when they delete the note that created it.
-
-## A type with the children capability groups child cards
-
-`card_create` and `card_update` take `parentCardId`, the id of a card of this project whose type has the `children` capability. The shipped templates give that capability to `epic`. On `card_update`, omit it to keep the parent, and send an id to set it. Pass `clearParent: true` or an empty string to clear it. Do not pass `clearParent` with `parentCardId`. These rules apply:
-
-- A card has at most one parent, and the parent has a type with the `children` capability.
-- Such a card has no parent, because these cards do not nest.
-- The parent is a card of the same project.
-- A card with a parent cannot change to a type with the `children` capability.
-- A card with children keeps its type, and a person cannot delete it.
-
-`laneEnabled` says whether the board draws a lane for the card. It defaults to `true`, and only a card of a type with the `lane` capability reads it.
-
-The full card carries four more keys:
-
-- `parent` holds `cardId`, `number`, `title` and `status`, or null.
-- `laneEnabled` is a boolean.
-- `children` lists the children of a card with `cardId`, `number`, `title` and `status`.
-- `progress` holds `done` and `total` for a card of a type with the `children` capability, and it is null for any other card. A child counts as done when it sits in a terminal column.
+There is no delete tool. You finish a card when you move it to a terminal column. That move also resolves the pending and addressed feedback of the card. A move back out leaves the feedback resolved.
 
 ## Say whether the parent design covers a child
 
-A child of an epic whose tech design is approved needs one choice from you. Pass `childDesign` to `card_create`, or to `card_update` when it sets `parentCardId`. Without it, the call is refused when the owner would otherwise get a question about the card. The refusal names both values.
-
-- `inherit` links the tech design of the parent. Choose it for a fix inside a decision that the parent design already made. The card starts with the other children.
-- `own` moves the card to Tech design, where it gets a design of its own. Choose it for a card that asks an open question, or that changes a decision of the parent design. Pass no `status` with it.
-
-Read the parent design before you choose. When you are unsure, choose `own`. The choice is refused when the parent has no tech design to inherit, when the card has no parent, or when the workflow does not allow the move to Tech design. A card made by hand in the UI makes no choice, so the owner still gets the question for it.
+A child of an epic whose tech design is approved needs a `childDesign` choice. Read the parent design before you choose. When you are unsure, choose `own`.
 
 ## A card that opens with `**Parked.**` is paused
 
@@ -164,27 +74,17 @@ Only the owner parks a card. Write that line yourself only when the owner parks 
 
 ## Reporter says who raised the card
 
-`reporter` records who first raised the card. The tools default it to `agent`. Attribute a card to whoever raised it, not to whoever typed it.
+`reporter` records who first raised the card. Attribute a card to whoever raised it, not to whoever typed it.
 
 - A card the owner dictated or decided is `human`, even when you write it down.
 - A card you found on your own is `agent`.
 - An unclear or unattributable card is also `agent`, because agents absorb the ambiguity, never the person.
-
-`card_create` refuses `reviewer`. The live-review widget writes that value, and it says the app could not name who raised the card.
-
-The field was called `origin`. `card_create` still accepts that name for one release, and `reporter` wins when you send both. Write `reporter`.
-
-`reporter` never changes after the card exists. `card_update` has no `reporter` field, so choose the value when you create the card.
-
-`card_list` takes `reporter` as a filter, and the filter reads all three values. Pass `reviewer` to read the cards the widget raised.
 
 ## Set the human review switch
 
 A card has a "Requires human review" switch. With it off, the pull request of the card can approve itself once the agent review passes and the checks are green. With it on, a person approves the pull request.
 
 Pass `requiresHumanReview` to `card_create` or `card_update` to set it. Turn it on for a card that changes what a person sees and has a prototype. Leave it off for any other card.
-
-A bridge worker never turns the switch off, and `card_update` refuses it for a worker session. A person lowers the switch on the card page, or in a product design session.
 
 ## A card asks somebody to do something
 
@@ -200,8 +100,6 @@ Before you write a card, say in one sentence what somebody must do. A card that 
 | A record of what happened | The commit message or the pull request body |
 | A problem in the code your branch touches | A fix in that branch |
 
-A stage worker fixes a problem in its own branch, and never cards it under the epic. It also fixes a failing check, wherever the cause lies. Any other problem outside the branch gets one Backlog card with no parent. The stage skills carry the exact rule.
-
 A lesson is the common mistake, because it feels valuable and it has no owner. Write it into the skill a future session already reads. A card that holds a lesson sits in Backlog forever, because nobody can finish it.
 
 The test still holds for a card whose body is mostly evidence, with one line at the end that asks for a write-up of the evidence. That is a card, because the write-up is the work. Put the evidence in the body, so that whoever takes it needs no other source.
@@ -214,15 +112,7 @@ The test still holds for a card whose body is mostly evidence, with one line at 
 - Name the real thing: the class, the route, the file, or the feature. A task number, a wave label, a phase name or a spec section belongs to one session and means nothing later. A pull request number or an issue link is fine, because it resolves anywhere.
 - The board is as public as the instance that holds it. Write no secrets, no customer names, and no complaints about people.
 
-## Name another card or a pull request with a token
-
-In a card body, write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request. Loupe shows each token as a link with a title tooltip. Prose such as "card 1116" also links, but a token is exact. The entry line `Breakdown item B3 of card #214.` keeps its form, because the breakdown matches children on it. A token inside code, a link or square brackets stays as written. A card title shows a token as plain text.
-
-## The card number
-
-Every card has a short number, unique inside its project and counting from 1. A person says "card 42" and means that number. The tools report the number in their responses.
-
-The number and the `cardId` are different things, and `cardId` is a UUID. When you hold a number, pass it as `number` to `card_get` or `card_update`. Never send `number` together with `cardId`, because the tool refuses a call with both. A number resolves only inside the project your connection is bound to. The other tools take no number.
+In a body, name a card as `card:<number>` and a pull request as `pr:owner/repo#<number>`. The entry line `Breakdown item B3 of card #214.` keeps its form, because the breakdown matches children on it.
 
 ## Move the card as the work moves
 
@@ -237,8 +127,6 @@ The card reports where the work stands. A session that reads the board mid-week 
 | You stop and leave the work | Move the card back to Backlog. Say why in the body. A child of an epic that you move back to Backlog stays parked. |
 | The pull request merges | Move the card to a terminal column, unless Loupe already moved it. |
 
-`card_create` takes `status`, so a card you raise for work you start now goes straight to the working column.
-
 Attach a link as soon as it exists. A session that reads the card while the branch runs then finds the URL and the document.
 
 Read the `**Parked.**` section above before you move a card out of Backlog.
@@ -252,7 +140,7 @@ The workflow of the board checks a card after each move. When a rule of its temp
 - A rule fires only when its condition turns true. A move back into the same slot does not fire a rule that already fired.
 - When no bridge runs, the request waits. After the work timeout, the card pauses with "no bridge took the work".
 - A card that a person made unmanaged gets no work, whatever you move.
-- A managed card takes only the moves that the template lists. Any other move is refused, and the error names `card_hold`.
+- A managed card takes only the moves that the template lists, and it refuses any other move.
 
 `references/workflow.md` says how the workflow starts work, and what a rename does. Before you move a card into a column only to hold it, ask the owner which slot asks for work.
 
@@ -261,18 +149,14 @@ The workflow of the board checks a card after each move. When a rule of its temp
 You make the link by hand, in three steps. Nothing automates any of them.
 
 1. Name the branch after the card number, for example `feat/42-drag-ordering`.
-2. Put the card's URL in the pull request body. A card page is at `<instance>/projects/<projectId>/board/cards/<cardId>`. The last segment is the UUID, never the number.
+2. Put the card's URL in the pull request body. A card page is at `<instance>/projects/<projectId>/board/cards/<cardId>`. The last segment is the UUID, never the number. `project_current` returns the project id.
 3. Call `card_update` as soon as you open the pull request, draft included, with its URL in `pullRequestUrls`.
 
-No board tool reports the project id, so take it from a project URL you already hold. Every project URL carries it, including the Connect page at `/projects/<projectId>/connect`.
+`pullRequestUrls` replaces the whole set. Read the card with `card_get` first, and send the URLs it already holds with the new one.
 
-`pullRequestUrls` replaces the whole set, so send every URL the card carries. A call that sends the new URL alone drops the links that were already there. Read the card with `card_get` first, and send the URLs it already holds with the new one. Omit the field to keep the current links. Send an empty list to remove them all.
+Step 3 is a convention, and a session sometimes forgets a convention. With a branch named after the card and a card URL in the pull request body, a person can recover the link by hand.
 
-Step 3 is a convention, and a session sometimes forgets a convention. Steps 1 and 2 exist for that case. With a branch named after the card and a card URL in the pull request body, a person can recover the link by hand. Nothing reconciles the three automatically.
-
-## Pull request links accept any forge
-
-A URL from a host the app does not recognise is kept as you sent it. The app rejects no link, because a self-hosted forge is a legitimate answer.
+## Who moves a card after a merge
 
 For a repository connected through the GitHub App, with the board automation on, Loupe moves the card itself.
 
@@ -286,26 +170,8 @@ For any other link, an agent or a person moves the card.
 
 | Mistake | Reality |
 |---|---|
-| Assuming the board has `next`, `in-progress` and `done` | Each board has its own columns. Only `backlog` is always there. Call `board_columns` and use its slugs. |
-| Reusing a slug from an earlier session | A rename can change the slug. Read the columns again. |
-| Changing a column because the board lacks one | A column change reshapes the owner's board, and a rename breaks outside references. Use the column tools only when the owner or your task asks. |
 | Looking for a `card_delete` tool | There is none. Move the card to a terminal column. |
-| Carding a lesson so it is not lost | Nobody can finish it. Write it into the skill. |
-| Sending only the new URL in `pullRequestUrls` | The field replaces the whole set, so the older links go. |
-| Sending an empty `pullRequestUrls` to leave the links alone | An empty list clears them. Omit the field instead. |
-| Sending only the new link in `relatedCards` | The field replaces every link of the card, from both ends. Send the whole list from `card_get`. |
-| Linking card B back to card A after linking A to B | One link serves both cards, and card B already shows it. Writing it again from B restates it, or changes its kind. |
-| Passing a card number as `cardId` | `cardId` is a UUID. Pass the number as `number` instead. |
-| Writing a card without checking for one | Call `card_search` first. A duplicate card costs someone a triage pass. |
-| Expecting `card_search` to match a substring | It matches whole stemmed words. `pag` finds neither `page` nor `paging`. |
-| Reading one `card_list` call as the whole board | It answers one page. Walk the pages while `hasMore` is true. |
-| Expecting a body from `card_list` | A row is a summary. Pass `full`, or call `card_get`. |
-| Fixing a wrong `reporter` with `card_update` | `reporter` is set once, when the card is created. |
-| Passing `origin` to `card_create` | It still works for one release. Write `reporter`. |
-| Passing `reporter: reviewer` to `card_create` | Only the live-review widget writes that value. Filtering on it is fine. |
-| Expecting a merged pull request to move its card | Only a GitHub App repository with the automation on moves it. Otherwise move the card yourself. |
-| Linking a pull request only when it is ready for review | A draft has a URL. Link it when you open it. |
-| Moving a card into a column only to hold it | A running `loupe bridge` starts a worker when a rule names that column. |
-| Leaving the card in Backlog while you work on it | The board then shows no work in progress. Move it when you start. |
+| Sending only the new value in `pullRequestUrls` or `relatedCards` | The field replaces the whole set. Send the whole list from `card_get`. Omit the field to keep it. |
 | Sending a short `body` to add a handover note | `body` replaces the whole body. Read the card with `card_get` first. |
-| Writing "Task 3" or "phase 2" in a body | Those names die with the session. Name the class, the route or the file. |
+| Linking a pull request only when it is ready for review | A draft has a URL. Link it when you open it. |
+| Carding a lesson so it is not lost | Nobody can finish it. Write it into the skill. |
