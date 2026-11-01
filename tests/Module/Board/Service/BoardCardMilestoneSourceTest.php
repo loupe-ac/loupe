@@ -67,8 +67,7 @@ final class BoardCardMilestoneSourceTest extends KernelTestCase
         $milestones = $this->source->milestonesOf($project, [$card, $quiet, $foreign, Uuid::v7()], $templates);
 
         self::assertSame([(string) $card], array_keys($milestones));
-        $found = array_map(static fn (CardMilestone $milestone): string => $milestone->event.'|'.($milestone->slot ?? '').'|'.$milestone->at->format('H:i'), $milestones[(string) $card]);
-        sort($found);
+        $found = $this->found($milestones[(string) $card]);
         $expected = [
             'arrived|review|09:00',
             'arrived|@terminal|12:00',
@@ -81,6 +80,67 @@ final class BoardCardMilestoneSourceTest extends KernelTestCase
         sort($expected);
         self::assertSame($expected, $found);
         self::assertSame([], $this->source->milestonesOf($project, [], $templates));
+    }
+
+    public function test_it_counts_an_approval_check_pass_as_ready_to_merge_and_not_a_dismissal(): void
+    {
+        $project = $this->makeProject('milestones-approval');
+        $card = $this->card($project, 1, 'in-progress');
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-09-01 '.$time);
+        $this->event($card, CardEventKind::AutoApproved, ['pullRequest' => 7, 'headSha' => 'abc123', 'rule' => 'approval-check-auto'], $at('10:30:00'));
+        $this->event($card, CardEventKind::ApprovalDismissed, ['pullRequest' => 7, 'rule' => 'approval-check-revoke'], $at('11:00:00'));
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, [$card], new TemplateMetricSet(slotColumns: []));
+
+        self::assertSame([DurationEvent::READY_TO_MERGE.'||10:30'], $this->found($milestones[(string) $card] ?? []));
+    }
+
+    public function test_it_counts_a_creation_as_an_arrival_in_each_slot_of_its_column_and_never_as_a_departure(): void
+    {
+        $project = $this->makeProject('milestones-created');
+        $review = $this->column($project, 'in-progress');
+        $templates = new TemplateMetricSet(slotColumns: ['review' => $review->id, 'also-review' => $review->id, 'other' => $this->column($project, 'done')->id]);
+        $card = $this->card($project, 1, 'in-progress');
+        $this->event($card, CardEventKind::Created, ['column' => CardEvent::columnDetail($review), 'type' => 'feature'], new \DateTimeImmutable('2026-09-01 08:30:00'));
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, [$card], $templates);
+
+        self::assertSame(['arrived|also-review|08:30', 'arrived|review|08:30'], $this->found($milestones[(string) $card] ?? []));
+    }
+
+    public function test_a_creation_with_no_known_column_gives_no_arrival(): void
+    {
+        $project = $this->makeProject('milestones-no-column');
+        $review = $this->column($project, 'in-progress');
+        $templates = new TemplateMetricSet(slotColumns: ['review' => $review->id]);
+        $at = new \DateTimeImmutable('2026-09-01 08:30:00');
+        $placed = $this->card($project, 1, 'in-progress');
+        $this->event($placed, CardEventKind::Created, ['column' => CardEvent::columnDetail($review)], $at);
+        $cards = [$placed];
+        foreach ([[], ['column' => []], ['column' => ['slug' => 'in-progress']], ['column' => 'in-progress'], ['column' => ['id' => 'a-column-with-no-slot']]] as $index => $detail) {
+            $cards[] = $card = $this->card($project, 2 + $index, 'in-progress');
+            $this->event($card, CardEventKind::Created, $detail, $at);
+        }
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, $cards, $templates);
+
+        self::assertSame([(string) $placed], array_keys($milestones));
+    }
+
+    /**
+     * @param list<CardMilestone> $milestones
+     *
+     * @return list<string>
+     */
+    private function found(array $milestones): array
+    {
+        $found = array_map(static fn (CardMilestone $milestone): string => $milestone->event.'|'.($milestone->slot ?? '').'|'.$milestone->at->format('H:i'), $milestones);
+        sort($found);
+
+        return $found;
     }
 
     /** @param array<string, mixed> $detail */

@@ -13,7 +13,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\DurationEvent;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 
-/** The events that the board knows: the pull requests of a card, its ready-to-merge row and its moves between columns. */
+/** The events that the board knows: the pull requests of a card, its ready-to-merge and approval rows, its creation and its moves between columns. */
 final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInterface
 {
     public function __construct(
@@ -48,19 +48,17 @@ final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInte
             }
         }
 
-        foreach ($this->cardEvents->findKindsOfCards($project, $cardIds, [CardEventKind::ReadyToMerge, CardEventKind::Moved]) as $row) {
+        foreach ($this->cardEvents->findKindsOfCards($project, $cardIds, [CardEventKind::ReadyToMerge, CardEventKind::AutoApproved, CardEventKind::Created, CardEventKind::Moved]) as $row) {
             $at = $row['at'];
             if (null === $at) {
                 continue;
             }
-            if (CardEventKind::ReadyToMerge === $row['kind']) {
+            if (CardEventKind::ReadyToMerge === $row['kind'] || CardEventKind::AutoApproved === $row['kind']) {
                 $milestones[$row['cardId']][] = new CardMilestone(DurationEvent::READY_TO_MERGE, $at);
                 continue;
             }
-            if (CardEventKind::Moved !== $row['kind']) {
-                continue;
-            }
-            foreach ([DurationEvent::ARRIVED => 'to', DurationEvent::LEFT => 'from'] as $event => $side) {
+            $sides = CardEventKind::Created === $row['kind'] ? [DurationEvent::ARRIVED => 'column'] : [DurationEvent::ARRIVED => 'to', DurationEvent::LEFT => 'from'];
+            foreach ($sides as $event => $side) {
                 $column = $row['detail'][$side] ?? null;
                 $columnId = \is_array($column) ? $column['id'] ?? null : null;
                 foreach (\is_string($columnId) ? $slotsOfColumn[$columnId] ?? [] : [] as $slot) {

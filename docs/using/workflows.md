@@ -652,6 +652,13 @@ first start to the last end after it. On `from`, `{ last: <event> }` starts at
 the last time the event happened. A card with a start and no end after it has
 no value.
 
+The event `ready-to-merge` happens when Loupe reads that a pull request is ready
+to merge. It also happens when the check `Loupe / Approval` passes, which writes
+an `auto-approved` row in the history of the card. So a pull request that merges
+before the next read still has a ready time. A later dismissal of the approval
+does not remove that time. The event `{ arrived: <slot> }` happens when a card
+moves into the column of the slot, and also when a card is created in it.
+
 The Workflow page lists the metrics of the template in a **Metrics** section, after
 the card markers. Each row shows the label and the description, the key, the type
 and a sentence that says what the metric reads. A template that declares no
