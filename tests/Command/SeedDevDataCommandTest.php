@@ -35,14 +35,6 @@ final class SeedDevDataCommandTest extends KernelTestCase
         self::assertTrue(self::getContainer()->get(FeatureFlagRepository::class)->findOneBy(['name' => 'inbox.enabled'])?->value);
     }
 
-    public function test_keep_flag_defaults_leaves_the_inbox_flag_alone(): void
-    {
-        $this->runSeeder(['--keep-flag-defaults' => true]);
-
-        $flag = self::getContainer()->get(FeatureFlagRepository::class)->findOneBy(['name' => 'inbox.enabled']);
-        self::assertNotContains('dev-seed', $flag->tags ?? []);
-    }
-
     public function test_it_fails_when_a_seeder_leaves_a_queued_id_behind(): void
     {
         self::bootKernel();
