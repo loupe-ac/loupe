@@ -46,19 +46,28 @@ func (b *claimBackoff) waiting(id string, now time.Time) bool {
 	return ok && now.Before(w.until)
 }
 
-// note records a failed claim and returns the wait it sets. A claim that lost
-// a race, or that the bridge never made, sets none and returns zero.
+// note records a failed claim and returns the wait it sets. A claim that lost a
+// race sets none and forgets the request. A claim that the bridge never made
+// got no answer, so it sets none and changes nothing. Any answer other than a
+// lasting refusal ends the run of refusals.
 func (b *claimBackoff) note(id string, err error, now time.Time) time.Duration {
-	if errors.Is(err, api.ErrWorkRequestAlreadyClaimed) || errors.Is(err, api.ErrWorkRequestNotFound) || errors.Is(err, errClaimHeld) {
+	if errors.Is(err, errClaimHeld) {
 		return 0
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if errors.Is(err, api.ErrWorkRequestAlreadyClaimed) || errors.Is(err, api.ErrWorkRequestNotFound) {
+		delete(b.m, id)
+
+		return 0
+	}
 	w := b.m[id]
 	wait := claimWaitMin
 	if lastingRefusal(err) {
 		w.refused++
 		wait = min(claimWaitMin<<min(w.refused-1, 10), claimWaitMax)
+	} else {
+		w.refused = 0
 	}
 	w.until = now.Add(wait)
 	if b.m == nil {

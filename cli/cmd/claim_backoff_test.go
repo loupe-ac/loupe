@@ -41,6 +41,53 @@ func TestAClaimWaitStaysAtOneMinuteForAFailureThatClearsByItself(t *testing.T) {
 	}
 }
 
+func TestAnAnswerOtherThanALastingRefusalEndsTheRunOfRefusals(t *testing.T) {
+	refusal := &api.WorkRequestRefusal{Status: 422, Code: "account_unknown"}
+
+	for name, err := range map[string]error{
+		"rate limited":    &api.WorkRequestRefusal{Status: 429},
+		"network":         errors.New("dial tcp: connection refused"),
+		"already claimed": api.ErrWorkRequestAlreadyClaimed,
+		"not found":       api.ErrWorkRequestNotFound,
+	} {
+		var b claimBackoff
+		now := time.Now()
+		b.note("a", refusal, now)
+		b.note("a", refusal, now)
+		b.note("a", err, now)
+		if got := b.note("a", refusal, now); got != time.Minute {
+			t.Fatalf("a refusal after %s waits %s, want 1m", name, got)
+		}
+	}
+}
+
+func TestAClaimTheBridgeNeverMadeKeepsTheRunOfRefusalsAndTheWait(t *testing.T) {
+	var b claimBackoff
+	now := time.Now()
+	refusal := &api.WorkRequestRefusal{Status: 422, Code: "account_unknown"}
+	b.note("a", refusal, now)
+
+	if got := b.note("a", errClaimHeld, now); got != 0 {
+		t.Fatalf("a held claim sets a wait of %s", got)
+	}
+	if !b.waiting("a", now) {
+		t.Fatal("a held claim ends the wait")
+	}
+	if got := b.note("a", refusal, now); got != 2*time.Minute {
+		t.Fatalf("the next refusal waits %s, want 2m", got)
+	}
+}
+
+func TestALostRaceEndsTheWait(t *testing.T) {
+	var b claimBackoff
+	now := time.Now()
+	b.note("a", errors.New("down"), now)
+	b.note("a", api.ErrWorkRequestAlreadyClaimed, now)
+	if b.waiting("a", now) {
+		t.Fatal("a lost race leaves a wait")
+	}
+}
+
 func TestAClaimWaitIsPerRequestAndNeedsNoWaitForALostRace(t *testing.T) {
 	var b claimBackoff
 	now := time.Now()

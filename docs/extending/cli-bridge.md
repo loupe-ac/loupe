@@ -135,7 +135,8 @@ first. A waiting request holds no claim, so another bridge can take it first.
 
 When the server refuses a claim, the bridge remembers the request and ignores
 its offers for a while. The wait is one minute. A lasting refusal (HTTP 422),
-such as `account_unknown`, doubles the wait on each refusal, up to 15 minutes.
+such as `account_unknown`, doubles the wait on each refusal in a row, up to 15
+minutes. Any other answer from the server starts the count again.
 The bridge logs the wait as `retry_in_seconds` in `work_request_not_claimed`.
 Other requests and other bridges are not affected. A restart, a successful
 claim and a `loupe bridge reload` clear the wait. A lasting refusal also starts
