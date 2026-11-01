@@ -17,6 +17,12 @@ use App\Module\Insights\Mcp\BucketRuleCreateTool;
 use App\Module\Insights\Mcp\BucketRuleDeleteTool;
 use App\Module\Insights\Mcp\BucketRuleListTool;
 use App\Module\Insights\Mcp\BucketRuleMoveTool;
+use App\Module\Insights\Mcp\GraphListTool;
+use App\Module\Insights\Mcp\GraphMoveTool;
+use App\Module\Insights\Mcp\GraphRemoveTool;
+use App\Module\Insights\Mcp\GraphRestoreTool;
+use App\Module\Insights\Mcp\GraphSaveTool;
+use App\Module\Insights\Mcp\GraphUpdateTool;
 use App\Module\Project\Mcp\AdvertisedTools;
 use Mcp\Capability\Registry;
 use Mcp\Server;
@@ -50,6 +56,12 @@ final class InsightsToolRegistrationTest extends KernelTestCase
         yield 'bucket_rule_create' => [BucketRuleCreateTool::NAME, BucketRuleCreateTool::class];
         yield 'bucket_rule_move' => [BucketRuleMoveTool::NAME, BucketRuleMoveTool::class];
         yield 'bucket_rule_delete' => [BucketRuleDeleteTool::NAME, BucketRuleDeleteTool::class];
+        yield 'graph_list' => [GraphListTool::NAME, GraphListTool::class];
+        yield 'graph_save' => [GraphSaveTool::NAME, GraphSaveTool::class];
+        yield 'graph_update' => [GraphUpdateTool::NAME, GraphUpdateTool::class];
+        yield 'graph_move' => [GraphMoveTool::NAME, GraphMoveTool::class];
+        yield 'graph_remove' => [GraphRemoveTool::NAME, GraphRemoveTool::class];
+        yield 'graph_restore' => [GraphRestoreTool::NAME, GraphRestoreTool::class];
     }
 
     /** @param class-string $toolClass */
@@ -83,8 +95,8 @@ final class InsightsToolRegistrationTest extends KernelTestCase
         self::assertIsInt($start);
 
         self::assertSame(
-            [MetricQueryTool::NAME, ExperimentGetTool::NAME, 'experiment_archive', 'experiment_unarchive', AnalysisGetTool::NAME, AnalysisReportTool::NAME, AnalyticsSettingsGetTool::NAME, AnalyticsSettingsUpdateTool::NAME, BucketRuleListTool::NAME, BucketRuleCreateTool::NAME, BucketRuleMoveTool::NAME, BucketRuleDeleteTool::NAME, BridgeListTool::NAME],
-            \array_slice($names, $start, 13),
+            [MetricQueryTool::NAME, GraphListTool::NAME, GraphSaveTool::NAME, GraphUpdateTool::NAME, GraphMoveTool::NAME, GraphRemoveTool::NAME, GraphRestoreTool::NAME, ExperimentGetTool::NAME, 'experiment_archive', 'experiment_unarchive', AnalysisGetTool::NAME, AnalysisReportTool::NAME, AnalyticsSettingsGetTool::NAME, AnalyticsSettingsUpdateTool::NAME, BucketRuleListTool::NAME, BucketRuleCreateTool::NAME, BucketRuleMoveTool::NAME, BucketRuleDeleteTool::NAME, BridgeListTool::NAME],
+            \array_slice($names, $start, 19),
         );
     }
 

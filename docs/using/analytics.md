@@ -556,4 +556,9 @@ The MCP tools `analysis_get` and `analysis_report` let the agent read and
 finish an analysis. `analytics_settings_get` and `analytics_settings_update`
 read and change the settings. `bucket_rule_list`, `bucket_rule_create`,
 `bucket_rule_move` and `bucket_rule_delete` read and change the time bucket
-rules, as the Time buckets page does. See [the MCP tools](mcp.md#what-the-tools-do).
+rules, as the Time buckets page does. `graph_list`, `graph_save`, `graph_update`,
+`graph_move`, `graph_remove` and `graph_restore` read and change the saved graphs
+of the [Dashboard](#the-dashboard). A removal takes two calls, so that the agent
+asks you first, and an agent that a bridge started as a worker cannot remove a
+graph. A graph that an agent removed comes back with `graph_restore` for one day.
+An open Dashboard follows each change. See [the MCP tools](mcp.md#what-the-tools-do).

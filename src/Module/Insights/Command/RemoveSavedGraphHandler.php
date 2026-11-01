@@ -8,6 +8,7 @@ use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
+use App\Module\Insights\Service\SavedGraphConfirmations;
 use App\Module\Insights\Service\SavedGraphLocker;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -29,6 +30,7 @@ final readonly class RemoveSavedGraphHandler
         private ClockInterface $clock,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
+        private SavedGraphConfirmations $confirmations,
     ) {
     }
 
@@ -47,6 +49,7 @@ final readonly class RemoveSavedGraphHandler
             }
             $this->insightsSavedGraphs->deleteRemovedBefore($project, $now->modify(InsightsSavedGraph::UNDO_WINDOW));
             $graph->removedAt = $now;
+            $this->confirmations->forget($graph);
 
             return true;
         });

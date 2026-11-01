@@ -3059,6 +3059,30 @@
                 <source>project.connect.tool.metric_query</source>
                 <target>Read one metric, such as cost, tokens, duration or merge rate, over time, by run or by card, with the rows behind it.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.graph_list">
+                <source>project.connect.tool.graph_list</source>
+                <target>Read the saved graphs on the Dashboard of the project, with their settings and the removed graphs that can come back.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_save">
+                <source>project.connect.tool.graph_save</source>
+                <target>Save a graph as a new tile at the end of the Dashboard.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_update">
+                <source>project.connect.tool.graph_update</source>
+                <target>Change the settings, the name, the width or the legend of a saved graph.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_move">
+                <source>project.connect.tool.graph_move</source>
+                <target>Move a saved graph to another place on the Dashboard.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_remove">
+                <source>project.connect.tool.graph_remove</source>
+                <target>Remove a saved graph from the Dashboard, in two calls: a preview, then the removal with a code that the owner confirmed.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_restore">
+                <source>project.connect.tool.graph_restore</source>
+                <target>Bring a removed saved graph back to the Dashboard, as Undo does, for one day after its removal.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.experiment_get">
                 <source>project.connect.tool.experiment_get</source>
                 <target>Read the comparison of one experiment: each variant, each metric with its likely range, and the cards it keeps or leaves out.</target>

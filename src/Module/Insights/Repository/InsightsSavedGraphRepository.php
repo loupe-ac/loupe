@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -119,5 +120,38 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
             ->setParameter('cutoff', $cutoff)
             ->getQuery()
             ->execute();
+    }
+
+    /**
+     * The graphs that are removed and still inside the Undo window, newest removal first.
+     *
+     * @return list<InsightsSavedGraph>
+     */
+    public function findRestorable(Project $project, \DateTimeImmutable $now, int $limit): array
+    {
+        return array_values($this->restorableQuery($project, $now)
+            ->orderBy('g.removedAt', 'DESC')
+            ->addOrderBy('g.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult());
+    }
+
+    public function countRestorable(Project $project, \DateTimeImmutable $now): int
+    {
+        return (int) $this->restorableQuery($project, $now)
+            ->select('COUNT(g.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function restorableQuery(Project $project, \DateTimeImmutable $now): QueryBuilder
+    {
+        return $this->createQueryBuilder('g')
+            ->andWhere('g.project = :project')
+            ->andWhere('g.removedAt IS NOT NULL')
+            ->andWhere('g.removedAt >= :cutoff')
+            ->setParameter('project', $project)
+            ->setParameter('cutoff', $now->modify(InsightsSavedGraph::UNDO_WINDOW));
     }
 }
