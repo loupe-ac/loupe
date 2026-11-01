@@ -87,7 +87,7 @@
                     <line class="lp-chart__baseline" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ baseline }}" y2="{{ baseline }}" />
                     {% if isLine %}
                         {% for line in layout.lines %}
-                            <g class="lp-chart-slot--{{ line.series.slot }}">
+                            <g class="lp-chart-slot--{{ line.series.slot }}" data-series="{{ line.series.position }}">
                                 {% if line.previousPath %}<path class="lp-chart__line lp-chart__line--previous" d="{{ line.previousPath }}" />{% endif %}
                                 {% if line.path %}<path class="lp-chart__line" d="{{ line.path }}" />{% endif %}
                                 {% for dot in line.dots %}
@@ -98,7 +98,7 @@
                     {% else %}
                         {% for bucket in layout.buckets %}
                             {% for bar in bucket.bars %}
-                                {% if bar.path %}<path class="lp-chart__bar lp-chart-slot--{{ bar.series.slot }}" d="{{ bar.path }}" />{% endif %}
+                                {% if bar.path %}<path class="lp-chart__bar lp-chart-slot--{{ bar.series.slot }}" d="{{ bar.path }}" data-series="{{ bar.series.position }}" />{% endif %}
                             {% endfor %}
                         {% endfor %}
                     {% endif %}
