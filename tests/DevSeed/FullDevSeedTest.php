@@ -16,7 +16,10 @@ use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Board\Command\DeleteCardCommand;
 use App\Module\Board\Command\DeleteCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
+use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\Dev\DevBoardSeeder;
 use App\Module\Bridge\Command\TimeOutQuietWorkerRunsCommand;
 use App\Module\Bridge\Command\TimeOutQuietWorkerRunsHandler;
 use App\Module\Bridge\Entity\Bridge;
@@ -417,6 +420,44 @@ final class FullDevSeedTest extends KernelTestCase
             (int) $connection->fetchOne("SELECT COUNT(*) FROM forge_pull_requests WHERE repository = 'example/atlas' AND number = 457 AND approval_id = 'atlas-review-457' AND ready_to_merge = false"),
             'The state of the outdated approval lost its approval.',
         );
+    }
+
+    public function test_a_restored_pull_request_link_goes_back_on_its_review_while_an_older_link_remains(): void
+    {
+        $this->seed(self::DAY);
+        $em = $this->em();
+        $checkout = $em->find(Card::class, DevSeedId::of('board/card/checkout')) ?? throw new \LogicException('The card is missing.');
+        $em->persist(new CardPullRequest($checkout, 'https://github.com/example/atlas/pull/1', addedAt: new \DateTimeImmutable('2020-01-01')));
+        $em->flush();
+        $connection = $em->getConnection();
+        self::assertSame(1, $connection->executeStatement('DELETE FROM board_card_pull_requests WHERE url = ?', [DevBoardSeeder::pullRequestUrl(438)]));
+        $em->clear();
+
+        $this->seed(self::DAY);
+
+        self::assertSame(DevBoardSeeder::pullRequestUrl(438), $connection->fetchOne(
+            'SELECT link.url FROM inbox_reviews review JOIN board_card_pull_requests link ON link.id = review.pull_request_id WHERE review.item_id = ?',
+            [(string) DevSeedId::of('inbox/item/pull-request')],
+        ));
+    }
+
+    public function test_a_later_run_restores_the_handoff_link_while_the_card_holds_another_document(): void
+    {
+        $this->seed(self::DAY);
+        $em = $this->em();
+        $onboarding = $em->find(Card::class, DevSeedId::of('board/card/onboarding')) ?? throw new \LogicException('The card is missing.');
+        $other = $em->find(Document::class, DevSeedId::of('review/document/column-rules')) ?? throw new \LogicException('The document is missing.');
+        $em->persist(new CardDocument($onboarding, $other));
+        $em->flush();
+        $connection = $em->getConnection();
+        $handoffLink = 'SELECT COUNT(*) FROM board_card_documents WHERE card_id = ? AND document_id = ?';
+        $handoffKeys = [(string) $onboarding->id, (string) DevSeedId::of('review/document/first-handoff')];
+        self::assertSame(1, $connection->executeStatement('DELETE FROM board_card_documents WHERE card_id = ? AND document_id = ?', $handoffKeys));
+        $em->clear();
+
+        $this->seed(self::DAY);
+
+        self::assertSame(1, (int) $connection->fetchOne($handoffLink, $handoffKeys));
     }
 
     public function test_the_runs_bridges_billing_and_notifications_of_the_pages_exist(): void

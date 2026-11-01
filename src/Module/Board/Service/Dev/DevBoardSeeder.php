@@ -91,6 +91,11 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         return DevSeedId::of('board/card/'.$slug);
     }
 
+    public static function pullRequestUrl(int $number): string
+    {
+        return 'https://github.com/example/atlas/pull/'.$number;
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -233,7 +238,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
      */
     private function linkPullRequest(SeedContext $context, Card $card, int $number, PullRequestChecks $checks, PullRequestMergeability $mergeability, PullRequestReview $review, array $failedChecks = [], ?\Closure $adjust = null): void
     {
-        $url = 'https://github.com/example/atlas/pull/'.$number;
+        $url = self::pullRequestUrl($number);
         if (!$card->pullRequests->exists(static fn (int $key, CardPullRequest $link): bool => $url === $link->url)) {
             $link = $this->pullRequests->linksFor($card, [$url])[0] ?? throw new \LogicException('The pull request resolver returned no link.');
             $this->em->persist($link);

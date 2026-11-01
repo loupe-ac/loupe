@@ -156,7 +156,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
 
     private function linkDocument(SeedContext $context, Card $card, Document $document): void
     {
-        if ($card->documents->isEmpty()) {
+        if (!$card->documents->exists(static fn (int $key, CardDocument $link): bool => $link->document === $document)) {
             $card->documents->add(new CardDocument($card, $document, $context->at(1_800)));
             $this->em->flush();
         }
@@ -199,10 +199,8 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             'body' => 'The subscription migration is ready. Approving here records your decision; it posts no review to the code host.',
         ]);
         $this->linkCard($pullRequest, $checkout);
-        $link = $checkout->pullRequests->first();
-        if ($link instanceof CardPullRequest) {
-            $this->review($pullRequest, $link);
-        }
+        $url = DevBoardSeeder::pullRequestUrl(438);
+        $this->review($pullRequest, $checkout->pullRequests->findFirst(static fn (int $key, CardPullRequest $link): bool => $url === $link->url) ?? throw new \LogicException('The checkout card has no link to pull request 438.'));
         $this->ask($context, 'run-history', $project, [$runHistory, $pullRequest], 720, 'The plan and the pull request are both ready for you. Either order is fine.', null);
 
         $rules = $this->item($context, 'column-rules', $project, InboxItemKind::Review, 'Safer column changes', false, 2_280, [
