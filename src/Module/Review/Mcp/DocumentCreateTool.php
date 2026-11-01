@@ -25,9 +25,6 @@ final readonly class DocumentCreateTool
 
     /**
      * Reject pathologically large documents before they are parsed and stored.
-     * One byte below Postgres's to_tsvector cap of 1,048,575, so anything the
-     * app accepts can also be indexed — above it a document stored fine and
-     * then failed indexing, leaving it permanently unsearchable.
      */
     public const int MAX_MARKDOWN_BYTES = 1_048_575;
 

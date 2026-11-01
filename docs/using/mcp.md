@@ -407,24 +407,23 @@ The arguments combine. Archived documents stay out of every result until you
 pass `includeArchived`. Paging works the same way under a search: pass `page`
 while `hasMore` is true.
 
-### The language a document is searched in
+### The language a document records
 
-Search stems words, so it must know the language a document is written in. Every
-document carries its own. `document_create` takes an optional `language`, and
-`document_get` reports the value back.
+Every document records the language it is written in. `document_create` takes an
+optional `language`, and `document_get` reports the value back. Search matches
+part of a word and does not stem, so it ignores the language.
 
 The value is a PostgreSQL text-search configuration name, such as `english`,
 `french`, `german`, `spanish`, `portuguese` or `russian`. Use `simple` for text
-of mixed or unknown language, which then matches on whole words only. An unknown
-name is refused, and the error lists the accepted ones.
+of mixed or unknown language. An unknown name is refused, and the error lists the
+accepted ones.
 
 A document that names no language takes the project's default. You choose that
 default when you create the project, on the new-project form or on the first
 step of the first-run wizard, and it is `english` for every project that came
 before the field. The project settings screen changes it afterwards, and the
-change applies only to documents written after it. Every document written before
-this feature stays English, because that is how it was already indexed. Changing
-a document's language after it exists needs a reindex, which no tool does yet.
+change applies only to documents written after it. A document keeps its language
+after it exists, because no tool changes it.
 
 ### A feedback item carries a list of anchors
 
